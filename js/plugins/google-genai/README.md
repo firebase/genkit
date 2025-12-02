@@ -2,6 +2,11 @@
 
 This plugin provides a unified interface to connect with Google's generative AI models, offering access through both the **Gemini Developer API** and **Vertex AI**. It is a replacement for the previous `googleAI` and `vertexAI` plugins.
 
+Official documentation:
+
+- [Genkit + Gemini Developer API](https://genkit.dev/docs/integrations/google-genai/)
+- [Genkit + Vertex AI](https://genkit.dev/docs/integrations/vertex-ai/)
+
 ## Installation
 
 ```bash

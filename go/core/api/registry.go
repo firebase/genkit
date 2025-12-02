@@ -81,6 +81,6 @@ type Registry interface {
 	// RegisterHelper adds a helper function to the dotprompt instance
 	RegisterHelper(name string, fn any)
 
-	// Dotprompt returns the dotprompt instance.
+	// Dotprompt returns a clone of the Dotprompt instance.
 	Dotprompt() *dotprompt.Dotprompt
 }

@@ -45,6 +45,9 @@ func TestConvertRequest(t *testing.T) {
 			Temperature:     genai.Ptr[float32](0.4),
 			TopK:            genai.Ptr[float32](0.1),
 			TopP:            genai.Ptr[float32](1.0),
+			Tools: []*genai.Tool{
+				{GoogleSearch: &genai.GoogleSearch{}},
+			},
 			ThinkingConfig: &genai.ThinkingConfig{
 				IncludeThoughts: false,
 				ThinkingBudget:  genai.Ptr[int32](0),
@@ -74,6 +77,18 @@ func TestConvertRequest(t *testing.T) {
 					},
 					"object": map[string]any{
 						"type": string("object"),
+					},
+					"domain": map[string]any{
+						"anyOf": []map[string]any{
+							{
+								"type": string("string"),
+							},
+							{
+								"type": string("null"),
+							},
+						},
+						"default": "null",
+						"title":   string("Domain"),
 					},
 				},
 			},
@@ -151,6 +166,29 @@ func TestConvertRequest(t *testing.T) {
 		if gcc.ThinkingConfig == nil {
 			t.Errorf("ThinkingConfig should not be empty")
 		}
+		// With the merge fix, we should have 2 tools:
+		// - GoogleSearch from config.Tools (preserved)
+		// - FunctionDeclarations from input.Tools (merged)
+		if len(gcc.Tools) != 2 {
+			t.Errorf("tools should have been: 2, got: %d", len(gcc.Tools))
+		}
+		// Verify GoogleSearch was preserved
+		hasGoogleSearch := false
+		hasFunctionDecl := false
+		for _, tool := range gcc.Tools {
+			if tool.GoogleSearch != nil {
+				hasGoogleSearch = true
+			}
+			if tool.FunctionDeclarations != nil {
+				hasFunctionDecl = true
+			}
+		}
+		if !hasGoogleSearch {
+			t.Error("GoogleSearch tool was dropped during merge")
+		}
+		if !hasFunctionDecl {
+			t.Error("FunctionDeclarations were not added")
+		}
 	})
 	t.Run("use valid tools outside genkit", func(t *testing.T) {
 		badCfg := genai.GenerateContentConfig{
@@ -185,34 +223,8 @@ func TestConvertRequest(t *testing.T) {
 				},
 				err: errors.New("system instruction should be set using Genkit features"),
 			},
-			{
-				name: "use function declaration tools outside genkit",
-				cfg: genai.GenerateContentConfig{
-					Temperature: genai.Ptr[float32](1.0),
-					Tools: []*genai.Tool{
-						{
-							FunctionDeclarations: []*genai.FunctionDeclaration{},
-							GoogleSearch:         &genai.GoogleSearch{},
-						},
-					},
-				},
-				err: errors.New("function declaration tools should be set using Genkit features"),
-			},
-			{
-				name: "use code execution tool",
-				cfg: genai.GenerateContentConfig{
-					Temperature: genai.Ptr[float32](1.0),
-					Tools: []*genai.Tool{
-						{
-							FunctionDeclarations: []*genai.FunctionDeclaration{},
-						},
-						{
-							CodeExecution: &genai.ToolCodeExecution{},
-						},
-					},
-				},
-				err: errors.New("function declaration tools should be set using Genkit features"),
-			},
+			// Note: FunctionDeclarations in config.Tools are now allowed and merged
+			// with ai.WithTools() declarations instead of being rejected.
 			{
 				name: "use cache outside genkit",
 				cfg: genai.GenerateContentConfig{
@@ -290,6 +302,329 @@ func TestConvertRequest(t *testing.T) {
 		_, err := toGeminiTools(tools)
 		if err == nil {
 			t.Fatalf("expected error, got nil")
+		}
+	})
+}
+
+// TestToolMerging tests that ai.WithTools() merges with existing Gemini-specific tools
+// instead of replacing them. This enables using Genkit tools alongside FileSearch,
+// GoogleSearch, and CodeExecution.
+func TestToolMerging(t *testing.T) {
+	genkitTool := &ai.ToolDefinition{
+		Name:        "my_function",
+		Description: "A test function for tool merging",
+		InputSchema: map[string]any{"type": "object"},
+	}
+
+	t.Run("preserves Retrieval when adding Genkit tools", func(t *testing.T) {
+		req := &ai.ModelRequest{
+			Config: genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.5),
+				Tools: []*genai.Tool{
+					{
+						Retrieval: &genai.Retrieval{
+							VertexAISearch: &genai.VertexAISearch{
+								Datastore: "test-datastore",
+							},
+						},
+					},
+				},
+			},
+			Tools: []*ai.ToolDefinition{genkitTool},
+			Messages: []*ai.Message{
+				{Role: ai.RoleUser, Content: []*ai.Part{{Text: "test"}}},
+			},
+		}
+
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatalf("toGeminiRequest failed: %v", err)
+		}
+
+		hasRetrieval := false
+		hasFunctionDecl := false
+
+		for _, tool := range gcc.Tools {
+			if tool.Retrieval != nil {
+				hasRetrieval = true
+				// Verify Retrieval content was preserved
+				if tool.Retrieval.VertexAISearch == nil ||
+					tool.Retrieval.VertexAISearch.Datastore != "test-datastore" {
+					t.Error("Retrieval datastore was modified")
+				}
+			}
+			if tool.FunctionDeclarations != nil {
+				hasFunctionDecl = true
+			}
+		}
+
+		if !hasRetrieval {
+			t.Error("Retrieval tool was dropped during merge")
+		}
+		if !hasFunctionDecl {
+			t.Error("Function declarations were not added")
+		}
+	})
+
+	t.Run("preserves GoogleSearch when adding Genkit tools", func(t *testing.T) {
+		req := &ai.ModelRequest{
+			Config: genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.5),
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}},
+				},
+			},
+			Tools: []*ai.ToolDefinition{genkitTool},
+			Messages: []*ai.Message{
+				{Role: ai.RoleUser, Content: []*ai.Part{{Text: "test"}}},
+			},
+		}
+
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatalf("toGeminiRequest failed: %v", err)
+		}
+
+		hasGoogleSearch := false
+		for _, tool := range gcc.Tools {
+			if tool.GoogleSearch != nil {
+				hasGoogleSearch = true
+				break
+			}
+		}
+
+		if !hasGoogleSearch {
+			t.Error("GoogleSearch tool was dropped during merge")
+		}
+	})
+
+	t.Run("preserves CodeExecution when adding Genkit tools", func(t *testing.T) {
+		req := &ai.ModelRequest{
+			Config: genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.5),
+				Tools: []*genai.Tool{
+					{CodeExecution: &genai.ToolCodeExecution{}},
+				},
+			},
+			Tools: []*ai.ToolDefinition{genkitTool},
+			Messages: []*ai.Message{
+				{Role: ai.RoleUser, Content: []*ai.Part{{Text: "test"}}},
+			},
+		}
+
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatalf("toGeminiRequest failed: %v", err)
+		}
+
+		hasCodeExec := false
+		for _, tool := range gcc.Tools {
+			if tool.CodeExecution != nil {
+				hasCodeExec = true
+				break
+			}
+		}
+
+		if !hasCodeExec {
+			t.Error("CodeExecution tool was dropped during merge")
+		}
+	})
+
+	t.Run("preserves multiple Gemini tools when adding Genkit tools", func(t *testing.T) {
+		req := &ai.ModelRequest{
+			Config: genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.5),
+				Tools: []*genai.Tool{
+					{
+						Retrieval: &genai.Retrieval{
+							VertexAISearch: &genai.VertexAISearch{
+								Datastore: "test-datastore",
+							},
+						},
+					},
+					{GoogleSearch: &genai.GoogleSearch{}},
+					{CodeExecution: &genai.ToolCodeExecution{}},
+				},
+			},
+			Tools: []*ai.ToolDefinition{genkitTool},
+			Messages: []*ai.Message{
+				{Role: ai.RoleUser, Content: []*ai.Part{{Text: "test"}}},
+			},
+		}
+
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatalf("toGeminiRequest failed: %v", err)
+		}
+
+		hasRetrieval := false
+		hasGoogleSearch := false
+		hasCodeExec := false
+		hasFunctionDecl := false
+
+		for _, tool := range gcc.Tools {
+			if tool.Retrieval != nil {
+				hasRetrieval = true
+			}
+			if tool.GoogleSearch != nil {
+				hasGoogleSearch = true
+			}
+			if tool.CodeExecution != nil {
+				hasCodeExec = true
+			}
+			if tool.FunctionDeclarations != nil {
+				hasFunctionDecl = true
+			}
+		}
+
+		if !hasRetrieval {
+			t.Error("Retrieval tool was dropped during merge")
+		}
+		if !hasGoogleSearch {
+			t.Error("GoogleSearch tool was dropped during merge")
+		}
+		if !hasCodeExec {
+			t.Error("CodeExecution tool was dropped during merge")
+		}
+		if !hasFunctionDecl {
+			t.Error("Function declarations were not added")
+		}
+	})
+
+	t.Run("works when no existing tools in config", func(t *testing.T) {
+		req := &ai.ModelRequest{
+			Config: genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.5),
+			},
+			Tools: []*ai.ToolDefinition{genkitTool},
+			Messages: []*ai.Message{
+				{Role: ai.RoleUser, Content: []*ai.Part{{Text: "test"}}},
+			},
+		}
+
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatalf("toGeminiRequest failed: %v", err)
+		}
+
+		if len(gcc.Tools) != 1 {
+			t.Errorf("expected 1 tool, got %d", len(gcc.Tools))
+		}
+
+		hasFunctionDecl := false
+		for _, tool := range gcc.Tools {
+			if tool.FunctionDeclarations != nil {
+				hasFunctionDecl = true
+			}
+		}
+
+		if !hasFunctionDecl {
+			t.Error("Function declarations were not added")
+		}
+	})
+
+	t.Run("merges multiple Genkit tools correctly", func(t *testing.T) {
+		anotherTool := &ai.ToolDefinition{
+			Name:        "another_function",
+			Description: "Another test function",
+			InputSchema: map[string]any{"type": "object"},
+		}
+
+		req := &ai.ModelRequest{
+			Config: genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.5),
+				Tools: []*genai.Tool{
+					{
+						Retrieval: &genai.Retrieval{
+							VertexAISearch: &genai.VertexAISearch{
+								Datastore: "test-datastore",
+							},
+						},
+					},
+				},
+			},
+			Tools: []*ai.ToolDefinition{genkitTool, anotherTool},
+			Messages: []*ai.Message{
+				{Role: ai.RoleUser, Content: []*ai.Part{{Text: "test"}}},
+			},
+		}
+
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatalf("toGeminiRequest failed: %v", err)
+		}
+
+		hasRetrieval := false
+		funcDeclCount := 0
+
+		for _, tool := range gcc.Tools {
+			if tool.Retrieval != nil {
+				hasRetrieval = true
+			}
+			if tool.FunctionDeclarations != nil {
+				funcDeclCount += len(tool.FunctionDeclarations)
+			}
+		}
+
+		if !hasRetrieval {
+			t.Error("Retrieval tool was dropped during merge")
+		}
+		if funcDeclCount != 2 {
+			t.Errorf("expected 2 function declarations, got %d", funcDeclCount)
+		}
+	})
+
+	t.Run("merges FunctionDeclarations from config with Genkit tools", func(t *testing.T) {
+		// This tests the case where FunctionDeclarations exist in both
+		// config.Tools AND input.Tools - they should all be merged.
+		configFuncDecl := &genai.FunctionDeclaration{
+			Name:        "config_function",
+			Description: "A function from config",
+		}
+
+		req := &ai.ModelRequest{
+			Config: genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.5),
+				Tools: []*genai.Tool{
+					{
+						FunctionDeclarations: []*genai.FunctionDeclaration{configFuncDecl},
+						GoogleSearch:         &genai.GoogleSearch{}, // hybrid tool
+					},
+				},
+			},
+			Tools: []*ai.ToolDefinition{genkitTool},
+			Messages: []*ai.Message{
+				{Role: ai.RoleUser, Content: []*ai.Part{{Text: "test"}}},
+			},
+		}
+
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatalf("toGeminiRequest failed: %v", err)
+		}
+
+		// Should have: 1 tool with all FunctionDeclarations, 1 tool with GoogleSearch
+		hasGoogleSearch := false
+		funcDeclCount := 0
+		var funcNames []string
+
+		for _, tool := range gcc.Tools {
+			if tool.GoogleSearch != nil {
+				hasGoogleSearch = true
+			}
+			if tool.FunctionDeclarations != nil {
+				for _, fd := range tool.FunctionDeclarations {
+					funcDeclCount++
+					funcNames = append(funcNames, fd.Name)
+				}
+			}
+		}
+
+		if !hasGoogleSearch {
+			t.Error("GoogleSearch was dropped during merge")
+		}
+		if funcDeclCount != 2 {
+			t.Errorf("expected 2 function declarations (1 from config + 1 from input.Tools), got %d: %v", funcDeclCount, funcNames)
 		}
 	})
 }

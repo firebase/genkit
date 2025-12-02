@@ -14,21 +14,25 @@
  * limitations under the License.
  */
 
-import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { defineDocsTool } from '../mcp/docs';
 import { defineFlowTools } from './flows';
 import { defineTraceTools } from './trace';
+import { defineUsageGuideTool } from './usage';
+import { lazyLoadManager } from './util';
 
-export async function startMcpServer(manager: RuntimeManager) {
+export async function startMcpServer(projectRoot: string) {
   const server = new McpServer({
     name: 'Genkit MCP',
-    version: '0.0.1',
+    version: '0.0.2',
   });
 
+  const manager = lazyLoadManager(projectRoot);
+
   await defineDocsTool(server);
+  await defineUsageGuideTool(server);
   defineFlowTools(server, manager);
   defineTraceTools(server, manager);
 

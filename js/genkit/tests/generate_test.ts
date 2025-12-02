@@ -20,6 +20,7 @@ import { Operation, z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
+import { interrupt } from '../../ai/src/tool';
 import {
   dynamicResource,
   dynamicTool,
@@ -813,6 +814,57 @@ describe('generate', () => {
       assert.strictEqual(text, '{"foo":"bar a@b.c"}');
     });
 
+    it('calls the multipart tool', async () => {
+      const t = ai.defineTool(
+        { name: 'testTool', description: 'description', multipart: true },
+        async () => ({
+          output: 'tool called',
+          content: [{ text: 'part 1' }],
+        })
+      );
+
+      // first response is a tool call, the subsequent responses are just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const { text, messages } = await ai.generate({
+        prompt: 'call the tool',
+        tools: [t],
+      });
+
+      assert.strictEqual(text, 'done');
+      assert.strictEqual(messages.length, 4);
+      const toolMessage = messages[2];
+      assert.strictEqual(toolMessage.role, 'tool');
+      assert.deepStrictEqual(toolMessage.content, [
+        {
+          toolResponse: {
+            name: 'testTool',
+            ref: 'ref123',
+            output: 'tool called',
+            content: [{ text: 'part 1' }],
+          },
+        },
+      ]);
+    });
+
     it('streams the tool responses', async () => {
       ai.defineTool(
         { name: 'testTool', description: 'description' },
@@ -956,6 +1008,10 @@ describe('generate', () => {
           return interrupt();
         }
       );
+      const dynamicInterrupt = interrupt({
+        name: 'dynamicInterrupt',
+        description: 'description',
+      });
 
       // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
@@ -990,6 +1046,13 @@ describe('generate', () => {
                         ref: 'ref789',
                       },
                     },
+                    {
+                      toolRequest: {
+                        name: 'dynamicInterrupt',
+                        input: { doIt: true },
+                        ref: 'ref890',
+                      },
+                    },
                   ]
                 : [{ text: 'done' }],
           },
@@ -998,7 +1061,12 @@ describe('generate', () => {
 
       const response = await ai.generate({
         prompt: 'call the tool',
-        tools: ['interruptingTool', 'simpleTool', 'resumableTool'],
+        tools: [
+          'interruptingTool',
+          'simpleTool',
+          'resumableTool',
+          dynamicInterrupt,
+        ],
       });
 
       assert.strictEqual(reqCounter, 1);
@@ -1037,6 +1105,16 @@ describe('generate', () => {
             input: {
               doIt: true,
             },
+          },
+        },
+        {
+          metadata: { interrupt: true },
+          toolRequest: {
+            input: {
+              doIt: true,
+            },
+            name: 'dynamicInterrupt',
+            ref: 'ref890',
           },
         },
       ]);
@@ -1082,6 +1160,16 @@ describe('generate', () => {
               },
             },
           },
+          {
+            metadata: { interrupt: true },
+            toolRequest: {
+              input: {
+                doIt: true,
+              },
+              name: 'dynamicInterrupt',
+              ref: 'ref890',
+            },
+          },
         ],
       });
       assert.deepStrictEqual(pm.lastRequest, {
@@ -1120,6 +1208,16 @@ describe('generate', () => {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
             name: 'resumableTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'dynamicInterrupt',
             outputSchema: {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },

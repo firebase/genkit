@@ -12,7 +12,10 @@ import (
 	"strings"
 	"sync"
 
+	"cloud.google.com/go/auth/credentials"
+	"cloud.google.com/go/auth/httptransport"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 
@@ -154,16 +157,33 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 			panic("Vertex AI requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
 		}
 	}
-
-	// Project and Region values gets validated by genai SDK upon client
-	// creation
-	gc := genai.ClientConfig{
-		Backend:  genai.BackendVertexAI,
-		Project:  v.ProjectID,
-		Location: v.Location,
-		HTTPClient: &http.Client{
-			Transport: otelhttp.NewTransport(http.DefaultTransport),
+	cred, err := credentials.DetectDefault(&credentials.DetectOptions{
+		Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"},
+	})
+	if err != nil {
+		panic(fmt.Errorf("failed to find default credentials: %w", err))
+	}
+	quotaProjectID, err := cred.QuotaProjectID(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed to get quota project ID: %v", quotaProjectID))
+	}
+	httpClient, err := httptransport.NewClient(&httptransport.Options{
+		Credentials:      cred,
+		BaseRoundTripper: otelhttp.NewTransport(http.DefaultTransport),
+		Headers: http.Header{
+			"X-Goog-User-Project": []string{quotaProjectID},
 		},
+	})
+	if err != nil {
+		panic(fmt.Errorf("failed to create http client: %w", err))
+	}
+
+	// Project and Region values gets validated by genai SDK upon client creation
+	gc := genai.ClientConfig{
+		Backend:    genai.BackendVertexAI,
+		Project:    v.ProjectID,
+		Location:   v.Location,
+		HTTPClient: httpClient,
 		HTTPOptions: genai.HTTPOptions{
 			Headers: genkitClientHeader,
 		},
@@ -385,6 +405,64 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 			Supports:     supports,
 			ConfigSchema: configToMap(config),
 		}).(api.Action)
+	case api.ActionTypeBackgroundModel:
+		// Handle VEO models as background models
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeBackgroundModel, nil, nil,
+				func(ctx context.Context, input *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
+					op, err := veoModel.Start(ctx, input)
+					if err != nil {
+						return nil, err
+					}
+					op.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
+					return op, nil
+				})
+		}
+		return nil
+	case api.ActionTypeCheckOperation:
+		// Handle VEO model check operations
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeCheckOperation,
+				map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)}, nil,
+				func(ctx context.Context, op *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
+					updatedOp, err := veoModel.Check(ctx, op)
+					if err != nil {
+						return nil, err
+					}
+					updatedOp.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
+					return updatedOp, nil
+				})
+		}
+		return nil
 	}
 	return nil
 }

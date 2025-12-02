@@ -21,6 +21,12 @@ import (
 	"encoding/json"
 )
 
+type ActionRunResult[T any] struct {
+	Result  T
+	TraceId string
+	SpanId  string
+}
+
 // Action is the interface that all Genkit primitives (e.g. flows, models, tools) have in common.
 type Action interface {
 	Registerable
@@ -28,6 +34,8 @@ type Action interface {
 	Name() string
 	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
 	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
+	// RunJSONWithTelemetry runs the action with the given JSON input and streaming callback and returns the output as JSON along with telemetry info.
+	RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (*ActionRunResult[json.RawMessage], error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
 }
@@ -47,11 +55,14 @@ const (
 	ActionTypeEvaluator        ActionType = "evaluator"
 	ActionTypeFlow             ActionType = "flow"
 	ActionTypeModel            ActionType = "model"
+	ActionTypeBackgroundModel  ActionType = "background-model"
 	ActionTypeExecutablePrompt ActionType = "executable-prompt"
 	ActionTypeResource         ActionType = "resource"
 	ActionTypeTool             ActionType = "tool"
 	ActionTypeUtil             ActionType = "util"
 	ActionTypeCustom           ActionType = "custom"
+	ActionTypeCheckOperation   ActionType = "check-operation"
+	ActionTypeCancelOperation  ActionType = "cancel-operation"
 )
 
 // ActionDesc is a descriptor of an action.

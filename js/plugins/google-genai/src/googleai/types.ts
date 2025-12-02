@@ -36,6 +36,7 @@ import {
   TaskTypeSchema,
   Tool,
   ToolConfig,
+  UrlContextTool,
 } from '../common/types.js';
 
 // This makes it easier to import all types from one place.
@@ -60,6 +61,7 @@ export {
   type SafetySetting,
   type Tool,
   type ToolConfig,
+  type UrlContextTool,
 };
 
 export interface GoogleAIPluginOptions {
@@ -76,6 +78,8 @@ export interface GoogleAIPluginOptions {
   apiVersion?: string;
   baseUrl?: string;
   experimental_debugTraces?: boolean;
+  /** Use `responseSchema` field instead of `responseJsonSchema`. */
+  legacyResponseSchema?: boolean;
 }
 
 /**
@@ -96,6 +100,10 @@ export interface ClientOptions {
    * Request timeout in milliseconds.
    */
   timeout?: number;
+  /**
+   * Api Key for Gemini API
+   */
+  apiKey?: string;
   /**
    * Version of API endpoint to call (e.g. "v1" or "v1beta"). If not specified,
    * defaults to 'v1beta'.
@@ -186,11 +194,16 @@ export declare interface VeoParameters {
 export declare interface VeoInstance {
   prompt: string;
   image?: VeoImage;
+  video?: VeoVideo;
 }
 
 export declare interface VeoImage {
   bytesBase64Encoded: string;
   mimeType: string;
+}
+
+export declare interface VeoVideo {
+  uri: string;
 }
 
 export declare interface VeoOperation {

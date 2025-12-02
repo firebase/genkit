@@ -55,6 +55,15 @@ type reflectionServer struct {
 	RuntimeFilePath string // Path to the runtime file that was written at startup.
 }
 
+func (s *reflectionServer) runtimeID() string {
+	_, port, err := net.SplitHostPort(s.Addr)
+	if err != nil {
+		// This should not happen with a valid address.
+		return strconv.Itoa(os.Getpid())
+	}
+	return fmt.Sprintf("%d-%s", os.Getpid(), port)
+}
+
 // findAvailablePort finds the next available port starting from the given port number.
 func findAvailablePort(startPort int) (string, error) {
 	for port := startPort; port < startPort+100; port++ {
@@ -91,10 +100,10 @@ func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, s
 
 	s := &reflectionServer{
 		Server: &http.Server{
-			Addr:    addr,
-			Handler: serveMux(g),
+			Addr: addr,
 		},
 	}
+	s.Handler = serveMux(g, s)
 
 	slog.Debug("starting reflection server", "addr", s.Addr)
 
@@ -159,7 +168,7 @@ func (s *reflectionServer) writeRuntimeFile(url string) error {
 
 	runtimeID := os.Getenv("GENKIT_RUNTIME_ID")
 	if runtimeID == "" {
-		runtimeID = strconv.Itoa(os.Getpid())
+		runtimeID = s.runtimeID()
 	}
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
@@ -238,10 +247,14 @@ func findProjectRoot() (string, error) {
 }
 
 // serveMux returns a new ServeMux configured for the required Reflection API endpoints.
-func serveMux(g *Genkit) *http.ServeMux {
+func serveMux(g *Genkit, s *reflectionServer) *http.ServeMux {
 	mux := http.NewServeMux()
 	// Skip wrapHandler here to avoid logging constant polling requests.
-	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, r *http.Request) {
+		if id := r.URL.Query().Get("id"); id != "" && id != s.runtimeID() {
+			http.Error(w, "Invalid runtime ID", http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	})
 	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
@@ -324,12 +337,14 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 		resp, err := runAction(ctx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 		if err != nil {
 			if stream {
-				reflectErr, err := json.Marshal(core.ToReflectionError(err))
+				refErr := core.ToReflectionError(err)
+				refErr.Details.TraceID = &resp.Telemetry.TraceID
+				reflectErr, err := json.Marshal(refErr)
 				if err != nil {
 					return err
 				}
 
-				_, err = fmt.Fprintf(w, "%s\n\n", reflectErr)
+				_, err = fmt.Fprintf(w, "{\"error\": %s }", reflectErr)
 				if err != nil {
 					return err
 				}
@@ -339,7 +354,12 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 				}
 				return nil
 			}
-			return err
+			errorResponse := core.ToReflectionError(err)
+			if resp != nil {
+				errorResponse.Details.TraceID = &resp.Telemetry.TraceID
+			}
+			w.WriteHeader(errorResponse.Code)
+			return writeJSON(ctx, w, errorResponse)
 		}
 
 		return writeJSON(ctx, w, resp)
@@ -463,15 +483,19 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	// Run the action and capture trace ID. We need to ensure there's a valid trace context.
 	var traceID string
 	output, err := func() (json.RawMessage, error) {
-		// Start a minimal span context just to ensure we have a trace ID for telemetry
-		ctx, span := tracing.Tracer().Start(ctx, "action-execution")
-		defer span.End()
-
-		traceID = span.SpanContext().TraceID().String()
-		return action.RunJSON(ctx, input, cb)
+		r, err := action.RunJSONWithTelemetry(ctx, input, cb)
+		if r != nil {
+			traceID = r.TraceId
+		}
+		if err != nil {
+			return nil, err
+		}
+		return r.Result, err
 	}()
 	if err != nil {
-		return nil, err
+		return &runActionResponse{
+			Telemetry: telemetry{TraceID: traceID},
+		}, err
 	}
 
 	return &runActionResponse{

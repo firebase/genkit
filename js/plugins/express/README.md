@@ -2,6 +2,8 @@
 
 This plugin provides utilities for conveninetly exposing Genkit flows and actions via Express HTTP server as REST APIs.
 
+See [official documentation](https://genkit.dev/docs/frameworks/express/) for more.
+
 ## Installation
 
 To use this plugin, install it in your project:
@@ -18,7 +20,7 @@ import express from 'express';
 
 const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
   const { text } = await ai.generate({
-    model: gemini15Flash,
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: input,
     onChunk: (c) => sendChunk(c.text),
   });
@@ -129,7 +131,7 @@ startFlowServer({
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
-Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/docs/get-started).
+Usage information and reference details can be found in [official Genkit documentation](https://genkit.dev/docs/get-started/).
 
 ## License
 
