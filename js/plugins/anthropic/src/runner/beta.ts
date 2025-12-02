@@ -87,7 +87,7 @@ const BETA_APIS = [
   // 'effort-param-2025-11-24',
   // 'advanced-tool-use-2025-11-20',
   'structured-outputs-2025-11-13',
-]
+];
 
 const unsupportedServerToolError = (blockType: string): string =>
   `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
@@ -370,7 +370,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.output_format = {
         type: 'json_schema',
         schema: request.output?.schema,
-      }
+      };
     }
 
     body.betas = BETA_APIS;
