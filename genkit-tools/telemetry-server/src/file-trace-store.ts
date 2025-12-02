@@ -143,7 +143,8 @@ export class LocalFileTraceStore implements TraceStore {
         }
         // Only update metadata if new values are defined
         // Prevents overwriting with undefined when batches arrive without root span
-        if (trace.displayName !== undefined) existing.displayName = trace.displayName;
+        if (trace.displayName !== undefined)
+          existing.displayName = trace.displayName;
         if (trace.startTime !== undefined) existing.startTime = trace.startTime;
         if (trace.endTime !== undefined) existing.endTime = trace.endTime;
         trace = existing;

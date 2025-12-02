@@ -18,12 +18,11 @@ import {
   TraceDataSchema,
   TraceQueryFilterSchema,
   type SpanData,
-  type TraceData,
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
+import type { Response } from 'express';
 import express from 'express';
 import type * as http from 'http';
-import type { Response } from 'express';
 import type { TraceStore } from './types';
 import { traceDataFromOtlp } from './utils/otlp';
 
@@ -70,11 +69,14 @@ class BroadcastManager {
   /**
    * Broadcast span updates to all subscribers of a traceId.
    */
-  broadcast(traceId: string, event: {
-    type: 'span_start' | 'span_end';
-    traceId: string;
-    span: SpanData;
-  }): void {
+  broadcast(
+    traceId: string,
+    event: {
+      type: 'span_start' | 'span_end';
+      traceId: string;
+      span: SpanData;
+    }
+  ): void {
     const connections = this.connections.get(traceId);
     if (!connections || connections.size === 0) {
       return;
@@ -157,24 +159,24 @@ export async function startTelemetryServer(params: {
   api.get('/api/traces/:traceId/stream', async (request, response, next) => {
     try {
       const { traceId } = request.params;
-      
+
       // Set SSE headers
       response.setHeader('Content-Type', 'text/event-stream');
       response.setHeader('Cache-Control', 'no-cache');
       response.setHeader('Connection', 'keep-alive');
       response.setHeader('Access-Control-Allow-Origin', '*');
       response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      
+
       // Send initial snapshot of current trace data
       const currentTrace = await params.traceStore.load(traceId);
       if (currentTrace) {
         const snapshot = JSON.stringify(currentTrace);
         response.write(`${snapshot}\n\n`);
       }
-      
+
       // Register this connection for broadcasts
       broadcastManager.subscribe(traceId, response);
-      
+
       // Clean up on disconnect
       response.on('close', () => {
         broadcastManager.unsubscribe(traceId, response);
@@ -216,8 +218,10 @@ export async function startTelemetryServer(params: {
 
       // Sort events chronologically. If times are equal, start comes before end.
       events.sort((a, b) => {
-        const aTime = a.type === 'span_start' ? a.span.startTime : a.span.endTime;
-        const bTime = b.type === 'span_start' ? b.span.startTime : b.span.endTime;
+        const aTime =
+          a.type === 'span_start' ? a.span.startTime : a.span.endTime;
+        const bTime =
+          b.type === 'span_start' ? b.span.startTime : b.span.endTime;
         if (aTime !== bTime) {
           return aTime - bTime;
         }

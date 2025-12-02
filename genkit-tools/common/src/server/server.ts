@@ -80,7 +80,7 @@ export function startServer(manager: RuntimeManager, port: number) {
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
       const { key, input, context, runtimeId } = req.body;
-      
+
       try {
         const resultPromise = manager.runAction(
           { key, input, context, runtimeId },
@@ -97,12 +97,12 @@ export function startServer(manager: RuntimeManager, port: number) {
             res.flushHeaders();
           }
         );
-        
+
         const result = await resultPromise;
         res.end(JSON.stringify(result));
       } catch (err) {
         const error = err as GenkitToolsError;
-        
+
         // If headers not sent, we can send error status
         if (!res.headersSent) {
           res.writeHead(500, {
@@ -120,7 +120,7 @@ export function startServer(manager: RuntimeManager, port: number) {
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
       const { key, input, context } = req.body;
-      
+
       // Set streaming headers immediately
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -161,7 +161,7 @@ export function startServer(manager: RuntimeManager, port: number) {
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
       const { traceId } = req.body;
-      
+
       if (!traceId) {
         res.status(400).json({ error: 'traceId is required' });
         return;
@@ -178,13 +178,10 @@ export function startServer(manager: RuntimeManager, port: number) {
       res.flushHeaders();
 
       try {
-        await manager.streamTrace(
-          { traceId },
-          (chunk) => {
-            // Forward each chunk from telemetry server as chunked JSON
-            res.write(JSON.stringify(chunk) + '\n');
-          }
-        );
+        await manager.streamTrace({ traceId }, (chunk) => {
+          // Forward each chunk from telemetry server as chunked JSON
+          res.write(JSON.stringify(chunk) + '\n');
+        });
         res.end();
       } catch (err) {
         const error = err as GenkitToolsError;
@@ -194,7 +191,9 @@ export function startServer(manager: RuntimeManager, port: number) {
             'Access-Control-Allow-Origin': '*',
           });
         }
-        res.write(JSON.stringify({ error: error.data || { message: error.message } }));
+        res.write(
+          JSON.stringify({ error: error.data || { message: error.message } })
+        );
         res.end();
       }
     }

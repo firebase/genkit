@@ -348,7 +348,7 @@ export function action<
         }
 
         traceId = span.spanContext().traceId;
-        spanId = span.spanContext().spanId;        
+        spanId = span.spanContext().spanId;
         if (options?.onTelemetry) {
           options.onTelemetry(traceId, spanId);
         }

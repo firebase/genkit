@@ -84,10 +84,13 @@ export class ReflectionServer {
   /** Path to the runtime file. Null if server is not running. */
   private runtimeFilePath: string | null = null;
   /** Map of active actions indexed by trace ID for cancellation support. */
-  private activeActions = new Map<string, {
-    abortController: AbortController;
-    startTime: Date;
-  }>();
+  private activeActions = new Map<
+    string,
+    {
+      abortController: AbortController;
+      startTime: Date;
+    }
+  >();
 
   constructor(registry: Registry, options?: ReflectionServerOptions) {
     this.registry = registry;
@@ -266,12 +269,14 @@ export class ReflectionServer {
             abortSignal: abortController.signal,
           });
           await flushTracing();
-          response.end(JSON.stringify({
-            result: result.result,
-            telemetry: {
-              traceId: result.telemetry.traceId,
-            },
-          } as RunActionResponse));
+          response.end(
+            JSON.stringify({
+              result: result.result,
+              telemetry: {
+                traceId: result.telemetry.traceId,
+              },
+            } as RunActionResponse)
+          );
         }
       } catch (err) {
         if (isAbortError(err)) {
@@ -362,7 +367,7 @@ export class ReflectionServer {
           stack,
         },
       };
-      
+
       // Headers may have been sent already (via onTelemetry), so check before setting status
       if (!res.headersSent) {
         res.status(500).json(errorResponse);

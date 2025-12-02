@@ -65,4 +65,3 @@ export class RealtimeSpanProcessor implements SpanProcessor {
     return this.exporter.shutdown();
   }
 }
-

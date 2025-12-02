@@ -39,13 +39,13 @@ import {
   retriable,
   type DevToolsInfo,
 } from '../utils/utils';
+import { ProcessManager } from './process-manager';
 import {
   GenkitToolsError,
   RuntimeEvent,
   type RuntimeInfo,
   type StreamingCallback,
 } from './types';
-import { ProcessManager } from './process-manager';
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
@@ -73,7 +73,6 @@ export class RuntimeManager {
     private manageHealth: boolean,
     readonly projectRoot: string,
     readonly processManager?: ProcessManager
-
   ) {}
 
   /**
@@ -83,7 +82,8 @@ export class RuntimeManager {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
       options.manageHealth ?? true,
-      options.projectRoot
+      options.projectRoot,
+      options.processManager
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
@@ -209,12 +209,12 @@ export class RuntimeManager {
       if (response.headers['x-genkit-version']) {
         genkitVersion = response.headers['x-genkit-version'];
       }
-      
+
       const earlyTraceId = response.headers['x-genkit-trace-id'];
       if (earlyTraceId && onTraceId) {
         onTraceId(earlyTraceId);
       }
-      
+
       const stream = response.data;
 
       let buffer = '';
@@ -275,33 +275,33 @@ export class RuntimeManager {
           headers: {
             'Content-Type': 'application/json',
           },
-          responseType: 'stream',  // Use stream to get early headers
+          responseType: 'stream', // Use stream to get early headers
         })
         .catch((err) =>
           this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
         );
-      
+
       const earlyTraceId = response.headers['x-genkit-trace-id'];
       if (earlyTraceId && onTraceId) {
         onTraceId(earlyTraceId);
       }
-      
+
       return new Promise<RunActionResponse>((resolve, reject) => {
         let buffer = '';
-        
+
         response.data.on('data', (chunk: Buffer) => {
           buffer += chunk.toString();
         });
-        
+
         response.data.on('end', () => {
           try {
             const responseData = JSON.parse(buffer);
-            
+
             // Handle backward compatibility - add trace ID from header if not in body
             if (!responseData.telemetry && earlyTraceId) {
               responseData.telemetry = { traceId: earlyTraceId };
             }
-            
+
             const parsed = RunActionResponseSchema.parse(responseData);
             if (response.headers['x-genkit-version']) {
               parsed.genkitVersion = response.headers['x-genkit-version'];
@@ -311,7 +311,7 @@ export class RuntimeManager {
             reject(new GenkitToolsError(`Failed to parse response: ${err}`));
           }
         });
-        
+
         response.data.on('error', (err: Error) => {
           reject(err);
         });
@@ -322,9 +322,10 @@ export class RuntimeManager {
   /**
    * Cancels an in-flight action by trace ID
    */
-  async cancelAction(
-    input: { traceId: string; runtimeId?: string }
-  ): Promise<{ message: string }> {
+  async cancelAction(input: {
+    traceId: string;
+    runtimeId?: string;
+  }): Promise<{ message: string }> {
     const runtime = input.runtimeId
       ? this.getRuntimeById(input.runtimeId)
       : this.getMostRecentRuntime();
@@ -350,9 +351,11 @@ export class RuntimeManager {
     } catch (err) {
       const axiosError = err as AxiosError;
       if (axiosError.response?.status === 404) {
-        const error = new GenkitToolsError('Action not found or already completed');
-        error.data = { 
-          message: 'Action not found or already completed' 
+        const error = new GenkitToolsError(
+          'Action not found or already completed'
+        );
+        error.data = {
+          message: 'Action not found or already completed',
         } as any;
         (error.data as any).statusCode = 404;
         throw error;
@@ -420,7 +423,7 @@ export class RuntimeManager {
     streamingCallback: StreamingCallback<any>
   ): Promise<void> {
     const { traceId } = input;
-    
+
     if (!this.telemetryServerUrl) {
       throw new Error(
         'Telemetry server URL not configured. Cannot stream trace updates.'
@@ -448,7 +451,7 @@ export class RuntimeManager {
     return new Promise<void>((resolve, reject) => {
       stream.on('data', (chunk: Buffer) => {
         buffer += chunk.toString();
-        
+
         // Process complete messages (ending with \n\n)
         while (buffer.includes('\n\n')) {
           const messageEnd = buffer.indexOf('\n\n');
