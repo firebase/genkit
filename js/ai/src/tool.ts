@@ -325,6 +325,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   fn?: ToolFn<I, O> | MultipartToolFn<I, O>
 ): ToolAction<I, O> | MultipartToolAction<I, O> {
   const a = tool(config, fn);
+  delete a.__action.metadata.dynamic;
   registry.registerAction(config.multipart ? 'tool.v2' : 'tool', a);
   if (!config.multipart) {
     // For non-multipart tools, we register a v2 tool action as well
