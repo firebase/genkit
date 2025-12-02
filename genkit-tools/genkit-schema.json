@@ -898,6 +898,19 @@
       ],
       "additionalProperties": false
     },
+    "MultipartToolResponse": {
+      "type": "object",
+      "properties": {
+        "output": {},
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Part"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "Operation": {
       "type": "object",
       "properties": {
@@ -1238,19 +1251,6 @@
       "required": [
         "url"
       ],
-      "additionalProperties": false
-    },
-    "MultipartToolResponse": {
-      "type": "object",
-      "properties": {
-        "output": {},
-        "content": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Part"
-          }
-        }
-      },
       "additionalProperties": false
     },
     "ToolRequest": {
