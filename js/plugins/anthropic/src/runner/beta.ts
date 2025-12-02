@@ -66,6 +66,29 @@ const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
   'container_upload',
 ]);
 
+const BETA_APIS = [
+  // 'message-batches-2024-09-24',
+  // 'prompt-caching-2024-07-31',
+  // 'computer-use-2025-01-24',
+  // 'pdfs-2024-09-25',
+  // 'token-counting-2024-11-01',
+  // 'token-efficient-tools-2025-02-19',
+  // 'output-128k-2025-02-19',
+  // 'files-api-2025-04-14',
+  // 'mcp-client-2025-04-04',
+  // 'dev-full-thinking-2025-05-14',
+  // 'interleaved-thinking-2025-05-14',
+  // 'code-execution-2025-05-22',
+  // 'extended-cache-ttl-2025-04-11',
+  // 'context-1m-2025-08-07',
+  // 'context-management-2025-06-27',
+  // 'model-context-window-exceeded-2025-08-26',
+  // 'skills-2025-10-02',
+  // 'effort-param-2025-11-24',
+  // 'advanced-tool-use-2025-11-20',
+  'structured-outputs-2025-11-13',
+]
+
 const unsupportedServerToolError = (blockType: string): string =>
   `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
 
@@ -281,12 +304,6 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-
     return body;
   }
 
@@ -349,11 +366,14 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
+    if (request.output?.schema) {
+      body.output_format = {
+        type: 'json_schema',
+        schema: request.output?.schema,
+      }
     }
+
+    body.betas = BETA_APIS;
 
     return body;
   }
