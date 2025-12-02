@@ -89,6 +89,42 @@ const BETA_APIS = [
   'structured-outputs-2025-11-13',
 ];
 
+/**
+ * Models that support structured outputs (JSON schema).
+ * See: https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs
+ */
+const STRUCTURED_OUTPUT_MODELS = new Set([
+  'claude-sonnet-4-5',
+  'claude-opus-4-1',
+]);
+
+/**
+ * Transforms a JSON schema to be compatible with Anthropic's structured output requirements.
+ * Anthropic requires `additionalProperties: false` on all object types.
+ */
+function toAnthropicSchema(
+  schema: Record<string, unknown>
+): Record<string, unknown> {
+  const out = structuredClone(schema);
+
+  // Remove $schema if present
+  delete out.$schema;
+
+  // Add additionalProperties: false to objects
+  if (out.type === 'object') {
+    out.additionalProperties = false;
+  }
+
+  // Recursively process nested objects
+  for (const key in out) {
+    if (typeof out[key] === 'object' && out[key] !== null) {
+      out[key] = toAnthropicSchema(out[key] as Record<string, unknown>);
+    }
+  }
+
+  return out;
+}
+
 const unsupportedServerToolError = (blockType: string): string =>
   `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
 
@@ -304,6 +340,21 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
+    // Apply structured output when model supports it and constrained output is requested
+    const useStructuredOutput =
+      STRUCTURED_OUTPUT_MODELS.has(modelName) &&
+      request.output?.constrained &&
+      request.output?.schema;
+
+    if (useStructuredOutput) {
+      body.output_format = {
+        type: 'json_schema',
+        schema: toAnthropicSchema(request.output.schema),
+      };
+    }
+
+    body.betas = BETA_APIS;
+
     return body;
   }
 
@@ -366,10 +417,16 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
-    if (request.output?.schema) {
+    // Apply structured output when model supports it and constrained output is requested
+    const useStructuredOutput =
+      STRUCTURED_OUTPUT_MODELS.has(modelName) &&
+      request.output?.constrained &&
+      request.output?.schema;
+
+    if (useStructuredOutput) {
       body.output_format = {
         type: 'json_schema',
-        schema: request.output?.schema,
+        schema: toAnthropicSchema(request.output.schema),
       };
     }
 
