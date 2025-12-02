@@ -173,10 +173,12 @@ type SpanMetadata struct {
 
 // RunInNewSpan runs f on input in a new span with the provided metadata.
 // The metadata contains all span configuration including name, type, labels, etc.
+// If telemetryCb is provided, it will be called with the trace ID and span ID as soon as the span is created.
 func RunInNewSpan[I, O any](
 	ctx context.Context,
 	metadata *SpanMetadata,
 	input I,
+	telemetryCb func(traceID, spanID string),
 	f func(context.Context, I) (O, error),
 ) (O, error) {
 	// TODO: support span links.
@@ -239,6 +241,12 @@ func RunInNewSpan[I, O any](
 		TraceID: span.SpanContext().TraceID().String(),
 		SpanID:  span.SpanContext().SpanID().String(),
 	}
+
+	// Fire telemetry callback immediately if provided
+	if telemetryCb != nil {
+		telemetryCb(sm.TraceInfo.TraceID, sm.TraceInfo.SpanID)
+	}
+
 	defer span.End()
 	defer func() { span.SetAttributes(sm.attributes()...) }()
 	ctx = spanMetaKey.NewContext(ctx, sm)

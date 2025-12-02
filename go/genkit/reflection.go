@@ -19,6 +19,7 @@ package genkit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -28,6 +29,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/firebase/genkit/go/core"
@@ -52,7 +54,46 @@ type runtimeFileData struct {
 // reflectionServer encapsulates everything needed to serve the Reflection API.
 type reflectionServer struct {
 	*http.Server
-	RuntimeFilePath string // Path to the runtime file that was written at startup.
+	RuntimeFilePath string            // Path to the runtime file that was written at startup.
+	activeActions   *activeActionsMap // Tracks active actions for cancellation support.
+}
+
+// activeAction represents an in-flight action that can be cancelled.
+type activeAction struct {
+	cancel    context.CancelFunc
+	startTime time.Time
+	traceID   string
+}
+
+// activeActionsMap safely manages active actions.
+type activeActionsMap struct {
+	mu      sync.RWMutex
+	actions map[string]*activeAction
+}
+
+func newActiveActionsMap() *activeActionsMap {
+	return &activeActionsMap{
+		actions: make(map[string]*activeAction),
+	}
+}
+
+func (m *activeActionsMap) Set(traceID string, action *activeAction) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.actions[traceID] = action
+}
+
+func (m *activeActionsMap) Get(traceID string) (*activeAction, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	action, ok := m.actions[traceID]
+	return action, ok
+}
+
+func (m *activeActionsMap) Delete(traceID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.actions, traceID)
 }
 
 func (s *reflectionServer) runtimeID() string {
@@ -102,6 +143,7 @@ func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, s
 		Server: &http.Server{
 			Addr: addr,
 		},
+		activeActions: newActiveActionsMap(),
 	}
 	s.Handler = serveMux(g, s)
 
@@ -258,8 +300,9 @@ func serveMux(g *Genkit, s *reflectionServer) *http.ServeMux {
 		w.WriteHeader(http.StatusOK)
 	})
 	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
-	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g)))
+	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g, s.activeActions)))
 	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify()))
+	mux.HandleFunc("POST /api/cancelAction", wrapReflectionHandler(handleCancelAction(s.activeActions)))
 	return mux
 }
 
@@ -290,7 +333,7 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 
 // handleRunAction looks up an action by name in the registry, runs it with the
 // provided JSON input, and writes back the JSON-marshaled request.
-func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
+func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
@@ -312,11 +355,54 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 
 		logger.FromContext(ctx).Debug("running action", "key", body.Key, "stream", stream)
 
+		// Create cancellable context for this action
+		actionCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		// Track whether headers have been sent
+		headersSent := false
+		var traceID string
+		var mu sync.Mutex
+
+		// Set up telemetry callback to capture and send trace ID early
+		// This is used for BOTH streaming and non-streaming to match JS behavior
+		telemetryCb := func(tid string, sid string) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			if !headersSent {
+				traceID = tid
+
+				// Track active action for cancellation
+				activeActions.Set(traceID, &activeAction{
+					cancel:    cancel,
+					startTime: time.Now(),
+					traceID:   traceID,
+				})
+
+				// Send headers immediately with trace ID
+				w.Header().Set("X-Genkit-Trace-Id", traceID)
+				w.Header().Set("X-Genkit-Span-Id", sid)
+				w.Header().Set("X-Genkit-Version", "go/"+internal.Version)
+
+				if stream {
+					w.Header().Set("Content-Type", "text/plain")
+					w.Header().Set("Transfer-Encoding", "chunked")
+				} else {
+					w.Header().Set("Content-Type", "application/json")
+				}
+
+				w.WriteHeader(http.StatusOK)
+				if f, ok := w.(http.Flusher); ok {
+					f.Flush()
+				}
+				headersSent = true
+			}
+		}
+
+		// Set up streaming callback if needed
 		var cb streamingCallback[json.RawMessage]
 		if stream {
-			w.Header().Set("Content-Type", "text/plain")
-			w.Header().Set("Transfer-Encoding", "chunked")
-			// Stream results are newline-separated JSON.
 			cb = func(ctx context.Context, msg json.RawMessage) error {
 				_, err := fmt.Fprintf(w, "%s\n", msg)
 				if err != nil {
@@ -334,35 +420,127 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		resp, err := runAction(ctx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
+		// Run the action with telemetry callback
+		resp, err := runAction(actionCtx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap, telemetryCb)
+
+		// Clean up active action if we have a trace ID
+		if traceID != "" {
+			activeActions.Delete(traceID)
+		} else if resp != nil && resp.Telemetry.TraceID != "" {
+			// If we didn't get trace ID from callback (non-streaming), track and clean up
+			traceID = resp.Telemetry.TraceID
+			activeActions.Set(traceID, &activeAction{
+				cancel:    cancel,
+				startTime: time.Now(),
+				traceID:   traceID,
+			})
+			defer activeActions.Delete(traceID)
+		}
+
 		if err != nil {
-			if stream {
-				refErr := core.ToReflectionError(err)
-				refErr.Details.TraceID = &resp.Telemetry.TraceID
-				reflectErr, err := json.Marshal(refErr)
-				if err != nil {
-					return err
+			// Check if context was cancelled
+			if errors.Is(err, context.Canceled) {
+				errorResponse := map[string]interface{}{
+					"error": map[string]interface{}{
+						"code":    1, // gRPC CANCELLED (matches JS)
+						"message": "Action was cancelled",
+						"details": map[string]interface{}{
+							"traceId": traceID,
+						},
+					},
 				}
 
-				_, err = fmt.Fprintf(w, "{\"error\": %s }", reflectErr)
-				if err != nil {
-					return err
-				}
-
-				if f, ok := w.(http.Flusher); ok {
-					f.Flush()
+				if stream {
+					// For streaming, write error as final chunk
+					json.NewEncoder(w).Encode(errorResponse)
+				} else {
+					// For non-streaming, return error response
+					if !headersSent {
+						w.WriteHeader(499)
+					}
+					json.NewEncoder(w).Encode(errorResponse)
 				}
 				return nil
 			}
+
+			// Handle other errors
+			if stream {
+				refErr := core.ToReflectionError(err)
+				if resp != nil && resp.Telemetry.TraceID != "" {
+					refErr.Details.TraceID = &resp.Telemetry.TraceID
+				}
+
+				errorResp := map[string]interface{}{
+					"error": refErr,
+				}
+				json.NewEncoder(w).Encode(errorResp)
+				return nil
+			}
+
+			// Non-streaming error
 			errorResponse := core.ToReflectionError(err)
-			if resp != nil {
+			if resp != nil && resp.Telemetry.TraceID != "" {
 				errorResponse.Details.TraceID = &resp.Telemetry.TraceID
 			}
-			w.WriteHeader(errorResponse.Code)
+
+			if !headersSent {
+				w.WriteHeader(errorResponse.Code)
+			}
 			return writeJSON(ctx, w, errorResponse)
 		}
 
-		return writeJSON(ctx, w, resp)
+		// Success case
+		if stream {
+			// For streaming, write the final chunk with result and telemetry
+			// This matches JS: response.write(JSON.stringify({result, telemetry}))
+			finalResponse := map[string]interface{}{
+				"result": resp.Result,
+				"telemetry": map[string]interface{}{
+					"traceId": resp.Telemetry.TraceID,
+				},
+			}
+			json.NewEncoder(w).Encode(finalResponse)
+		} else {
+			// For non-streaming, headers were already sent via telemetry callback
+			// Response already includes telemetry.traceId in body
+			return writeJSON(ctx, w, resp)
+		}
+
+		return nil
+	}
+}
+
+// handleCancelAction cancels an in-flight action by trace ID.
+func handleCancelAction(activeActions *activeActionsMap) func(w http.ResponseWriter, r *http.Request) error {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		var body struct {
+			TraceID string `json:"traceId"`
+		}
+
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			return core.NewError(core.INVALID_ARGUMENT, err.Error())
+		}
+
+		if body.TraceID == "" {
+			return core.NewError(core.INVALID_ARGUMENT, "traceId is required")
+		}
+
+		action, exists := activeActions.Get(body.TraceID)
+		if !exists {
+			w.WriteHeader(http.StatusNotFound)
+			return writeJSON(r.Context(), w, map[string]string{
+				"error": "Action not found or already completed",
+			})
+		}
+
+		// Cancel the action's context
+		action.cancel()
+		activeActions.Delete(body.TraceID)
+
+		return writeJSON(r.Context(), w, map[string]string{
+			"message": "Action cancelled",
+		})
 	}
 }
 
@@ -462,7 +640,7 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
+func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any, telemetryCb api.TelemetryCallback) (*runActionResponse, error) {
 	action := g.reg.ResolveAction(key)
 	if action == nil {
 		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
@@ -483,7 +661,7 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	// Run the action and capture trace ID. We need to ensure there's a valid trace context.
 	var traceID string
 	output, err := func() (json.RawMessage, error) {
-		r, err := action.RunJSONWithTelemetry(ctx, input, cb)
+		r, err := action.RunJSONWithTelemetry(ctx, input, cb, telemetryCb)
 		if r != nil {
 			traceID = r.TraceId
 		}

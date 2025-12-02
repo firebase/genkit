@@ -176,7 +176,7 @@ func (a *ActionDef[In, Out, Stream]) Name() string { return a.desc.Name }
 
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb StreamCallback[Stream]) (output Out, err error) {
-	r, err := a.runWithTelemetry(ctx, input, cb)
+	r, err := a.runWithTelemetry(ctx, input, cb, nil)
 	if err != nil {
 		return base.Zero[Out](), err
 	}
@@ -184,7 +184,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 }
 
 // Run executes the Action's function in a new trace span.
-func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
+func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream], telemetryCb func(traceID, spanID string)) (output api.ActionRunResult[Out], err error) {
 	inputBytes, _ := json.Marshal(input)
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.Name(),
@@ -215,7 +215,7 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 
 	var traceID string
 	var spanID string
-	o, err := tracing.RunInNewSpan(ctx, spanMetadata, input,
+	o, err := tracing.RunInNewSpan(ctx, spanMetadata, input, telemetryCb,
 		func(ctx context.Context, input In) (Out, error) {
 			traceInfo := tracing.SpanTraceInfo(ctx)
 			traceID = traceInfo.TraceID
@@ -253,7 +253,7 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 
 // RunJSON runs the action with a JSON input, and returns a JSON result.
 func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
-	r, err := a.RunJSONWithTelemetry(ctx, input, cb)
+	r, err := a.RunJSONWithTelemetry(ctx, input, cb, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result along with telemetry info.
-func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
+func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage], telemetryCb api.TelemetryCallback) (*api.ActionRunResult[json.RawMessage], error) {
 	i, err := base.UnmarshalAndNormalize[In](input, a.desc.InputSchema)
 	if err != nil {
 		return nil, NewError(INVALID_ARGUMENT, err.Error())
@@ -278,7 +278,7 @@ func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, i
 		}
 	}
 
-	r, err := a.runWithTelemetry(ctx, i, scb)
+	r, err := a.runWithTelemetry(ctx, i, scb, telemetryCb)
 	if err != nil {
 		return &api.ActionRunResult[json.RawMessage]{
 			TraceId: r.TraceId,

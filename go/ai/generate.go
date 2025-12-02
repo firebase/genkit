@@ -330,7 +330,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			Subtype: "util",
 		}
 
-		return tracing.RunInNewSpan(ctx, spanMetadata, req, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
+		return tracing.RunInNewSpan(ctx, spanMetadata, req, nil, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
 			var wrappedCb ModelStreamCallback
 			currentRole := RoleModel
 			currentIndex := messageIndex
