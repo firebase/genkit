@@ -24,12 +24,12 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import {
-  MediaPart,
   MessageSchema,
   dynamicTool,
   genkit,
   z,
   type GenerateResponseData,
+  type MediaPart,
 } from 'genkit/beta';
 import { logger } from 'genkit/logging';
 import {

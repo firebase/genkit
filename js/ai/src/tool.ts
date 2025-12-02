@@ -415,7 +415,7 @@ export function isToolResponse(part: Part): part is ToolResponsePart {
 }
 
 export function isDynamicTool(t: unknown): t is ToolAction {
-  return isAction(t) && !t.__registry;
+  return isAction(t) && t.__action?.metadata?.dynamic === true;
 }
 
 export function interrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(

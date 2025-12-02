@@ -172,6 +172,11 @@ describe('toGeminiMessage', () => {
               contentType: 'image/jpeg',
               url: 'data:image/jpeg;base64,SHORTENED_BASE64_DATA',
             },
+            metadata: {
+              mediaResolution: {
+                level: 'MEDIA_RESOLUTION_HIGH',
+              },
+            },
           },
         ],
       },
@@ -183,6 +188,9 @@ describe('toGeminiMessage', () => {
             inlineData: {
               mimeType: 'image/jpeg',
               data: 'SHORTENED_BASE64_DATA',
+            },
+            mediaResolution: {
+              level: 'MEDIA_RESOLUTION_HIGH',
             },
           },
         ],
