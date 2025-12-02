@@ -823,6 +823,14 @@ class Part(
     )
 
 
+class MultipartToolResponse(BaseModel):
+    """Model for multiparttoolresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    output: Any | None = None
+    content: list[Part] | None = None
+
+
 class RankedDocumentData(BaseModel):
     """Model for rankeddocumentdata data."""
 

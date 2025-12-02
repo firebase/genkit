@@ -25,10 +25,9 @@ import type {
   ToolRequestPart,
   ToolResponsePart,
 } from '../model.js';
-import { ToolResponse } from '../parts.js';
+import { MultipartToolResponseSchema, ToolResponse } from '../parts.js';
 import { isPromptAction } from '../prompt.js';
 import {
-  MultipartToolResponseSchema,
   ToolInterruptError,
   isToolRequest,
   resolveTools,

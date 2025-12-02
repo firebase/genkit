@@ -190,3 +190,10 @@ export const PartSchema = z.union([
  * Message part.
  */
 export type Part = z.infer<typeof PartSchema>;
+
+export const MultipartToolResponseSchema = z.object({
+  output: z.unknown().optional(),
+  content: z.array(PartSchema).optional(),
+});
+
+export type MultipartToolResponse = z.infer<typeof MultipartToolResponseSchema>;

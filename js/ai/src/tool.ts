@@ -30,12 +30,12 @@ import type { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import {
-  PartSchema,
   type Part,
   type ToolDefinition,
   type ToolRequestPart,
   type ToolResponsePart,
 } from './model.js';
+import { MultipartToolResponseSchema } from './parts.js';
 import { isExecutablePrompt, type ExecutablePrompt } from './prompt.js';
 
 export interface Resumable<
@@ -524,11 +524,6 @@ function basicToolV2<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   });
 }
 
-export const MultipartToolResponseSchema = z.object({
-  output: z.any().optional(),
-  content: z.array(PartSchema).optional(),
-});
-
 function multipartTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: ToolConfig<I, O>,
   fn?: MultipartToolFn<I, O>
@@ -553,7 +548,7 @@ function multipartTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
           interrupt,
         });
       }
-      return interrupt();
+      return interrupt() as any; // we cast to any because `interrupt` throws.
     }
   ) as MultipartToolAction<I, O>;
   implementTool(a as any, config);
