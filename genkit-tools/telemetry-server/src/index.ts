@@ -258,6 +258,41 @@ export async function startTelemetryServer(params: {
     }
   });
 
+  api.post(
+    '/api/otlp/:parentTraceId/:parentSpanId',
+    async (request, response) => {
+      try {
+        const { parentTraceId, parentSpanId } = request.params;
+
+        if (!request.body.resourceSpans?.length) {
+          // Acknowledge and ignore empty payloads.
+          response.status(200).json({});
+          return;
+        }
+        const traces = traceDataFromOtlp(request.body);
+        for (const traceData of traces) {
+          traceData.traceId = parentTraceId;
+          for (const span of Object.values(traceData.spans)) {
+            span.attributes['genkit:otlp-traceId'] = span.traceId;
+            span.traceId = parentTraceId;
+            if (!span.parentSpanId) {
+              span.parentSpanId = parentSpanId;
+            }
+          }
+          await params.traceStore.save(parentTraceId, traceData);
+        }
+        response.status(200).json({});
+      } catch (err) {
+        logger.error(`Error processing OTLP payload: ${err}`);
+        response.status(500).json({
+          code: 13, // INTERNAL
+          message:
+            'An internal error occurred while processing the OTLP payload.',
+        });
+      }
+    }
+  );
+
   api.post('/api/otlp', async (request, response) => {
     try {
       if (!request.body.resourceSpans?.length) {
@@ -269,9 +304,6 @@ export async function startTelemetryServer(params: {
       for (const trace of traces) {
         const traceData = TraceDataSchema.parse(trace);
         await params.traceStore.save(traceData.traceId, traceData);
-
-        /*
-        TODO: Not sure the otlp use case clearly yet, not sure if need to broadcast.
 
         // Convert each span to an event and broadcast individually
         for (const [_, span] of Object.entries(traceData.spans)) {
@@ -286,7 +318,6 @@ export async function startTelemetryServer(params: {
           };
           broadcastManager.broadcast(traceData.traceId, event);
         }
-        */
       }
       response.status(200).json({});
     } catch (err) {
