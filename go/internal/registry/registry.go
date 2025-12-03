@@ -58,9 +58,8 @@ func New() *Registry {
 			s := r.LookupSchema(name)
 			if s == nil {
 				r.RegisterSchema(name, nil)
-				// Define a schema that Dotprompt can handle
-				// Return a placeholder that signifies "lookup 'name' later"
-				// We use a custom URI scheme "genkit:" to denote registry references
+				// Define a reference schema that Dotprompt can handle
+				// Use a custom URI scheme "genkit:" to denote registry references
 				return &jsonschema.Schema{
 					Ref: "genkit:" + name,
 				}, nil
@@ -129,14 +128,12 @@ func (r *Registry) RegisterSchema(name string, schema json.RawMessage) {
 	if val, ok := r.schemas[name]; ok {
 		if val == nil {
 			r.schemas[name] = schema
-			fmt.Printf("schema registered (overwrite): %q\n", name)
 			slog.Debug("RegisterSchema", "name", name)
 			return
 		}
 		panic(fmt.Sprintf("schema %q is already registered", name))
 	}
 	r.schemas[name] = schema
-	fmt.Printf("schema registered: %q\n", name)
 	slog.Debug("RegisterSchema", "name", name)
 }
 

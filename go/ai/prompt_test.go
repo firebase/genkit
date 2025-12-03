@@ -154,7 +154,8 @@ func definePromptModel(reg api.Registry) Model {
 			Multiturn:  true,
 			ToolChoice: true,
 			SystemRole: true,
-		}}, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+		}},
+		func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 			toolCalled := false
 			for _, msg := range gr.Messages {
 				if msg.Content[0].IsToolResponse() {
@@ -1164,7 +1165,11 @@ func TestDefinePartialAndHelper(t *testing.T) {
 		return strings.ToUpper(s)
 	})
 
-	p := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+	p := DefinePrompt(
+		reg,
+		"test",
+		WithPrompt(`{{> header}} {{uppercase greeting}}`),
+		WithModel(model))
 
 	result, err := p.Execute(context.Background(), WithInput(map[string]any{
 		"name":     "User",
@@ -1229,7 +1234,7 @@ You are a pirate!
 Hello!
 `
 
-	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
@@ -1272,5 +1277,141 @@ Hello!
 	}
 	if strings.TrimSpace(userMsg.Content[0].Text) != "Hello!" {
 		t.Errorf("Expected user message text to be 'Hello!', got '%s'", userMsg.Content[0].Text)
+	}
+}
+
+func TestDeferredSchemaResolution(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// prompt file that references a schema "Recipe"
+	mockPromptFile := filepath.Join(tempDir, "deferred.prompt")
+	mockPromptContent := `---
+model: test-model
+output:
+  schema: Recipe
+---
+Generate a recipe for {{food}}.
+`
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		// Mock response that matches the expected schema structure
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"title": "Tacos", "ingredients": [{"name": "Tortilla", "quantity": "3"}]}`),
+			Request: req,
+		}, nil
+	})
+
+	// this should succeed and create a placeholder schema in the registry
+	prompt := LoadPrompt(reg, tempDir, "deferred.prompt", "test")
+	if prompt == nil {
+		t.Fatal("Failed to load prompt with undefined schema")
+	}
+
+	// verify the prompt is loaded with a reference schema
+	// the internal representation should use the $ref: "genkit:Recipe" mechanism
+	actionDef := prompt.(api.Action).Desc()
+	outputSchema := actionDef.Metadata["prompt"].(map[string]any)["output"].(map[string]any)["schema"]
+	if outputSchema == nil {
+		t.Fatal("Output schema should not be nil")
+	}
+
+	// define the "Recipe" schema (deferred resolution)
+	type Ingredient struct {
+		Name     string `json:"name"`
+		Quantity string `json:"quantity"`
+	}
+	type Recipe struct {
+		Title       string       `json:"title"`
+		Ingredients []Ingredient `json:"ingredients"`
+	}
+	DefineSchema(reg, "Recipe", Recipe{})
+
+	// we should now resolve "Recipe" correctly
+	resp, err := prompt.Execute(context.Background(), WithInput(map[string]any{"food": "tacos"}))
+	if err != nil {
+		t.Fatalf("Failed to execute prompt with deferred schema: %v", err)
+	}
+
+	if resp.Request.Output.Schema == nil {
+		t.Fatal("Expected request to have a resolved output schema")
+	}
+
+	schema := resp.Request.Output.Schema
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("Resolved schema should have properties, got: %v", schema)
+	}
+	if _, ok := props["ingredients"]; !ok {
+		t.Error("Resolved schema should have 'ingredients' property")
+	}
+}
+
+// Define NewSchema for override outside the test function to ensure reflection works reliably
+type NewSchema struct {
+	NewField string `json:"new"`
+}
+
+func TestWithOutputOverridesSchema(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Prompt references "OriginalSchema"
+	mockPromptFile := filepath.Join(tempDir, "override.prompt")
+	mockPromptContent := `---
+model: test-model
+output:
+  schema: OriginalSchema
+---
+Generate something.
+`
+	os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
+
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	// OriginalSchema is the original output schema for prompt, it is defined/referenced in the .prompt file
+	type OriginalSchema struct {
+		OriginalField string `json:"original"`
+	}
+	DefineSchema(reg, "OriginalSchema", OriginalSchema{})
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"new": "value"}`),
+			Request: req,
+		}, nil
+	})
+
+	prompt := LoadPrompt(reg, tempDir, "override.prompt", "test")
+
+	// overriding the `prompt` initial output at runtime
+	resp, err := prompt.Execute(context.Background(), WithOutput(NewSchema{}))
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// verify the request uses NewSchema, not OriginalSchema
+	if resp.Request.Output.Schema == nil {
+		t.Fatal("Expected request to have an output schema")
+	}
+
+	props, ok := resp.Request.Output.Schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("Schema properties missing or invalid. Schema: %+v", resp.Request.Output.Schema)
+	}
+	if _, ok := props["new"]; !ok {
+		t.Error("Expected request schema to be overridden with NewSchema (containing 'new' field)")
+	}
+	if _, ok := props["original"]; ok {
+		t.Error("Did not expect 'original' field in overridden schema")
 	}
 }
