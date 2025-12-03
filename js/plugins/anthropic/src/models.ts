@@ -81,7 +81,17 @@ export const KNOWN_CLAUDE_MODELS: Record<
   'claude-opus-4': commonRef('claude-opus-4', AnthropicThinkingConfigSchema),
   'claude-sonnet-4-5': commonRef(
     'claude-sonnet-4-5',
-    AnthropicThinkingConfigSchema
+    AnthropicThinkingConfigSchema,
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
   ),
   'claude-haiku-4-5': commonRef(
     'claude-haiku-4-5',
@@ -89,7 +99,17 @@ export const KNOWN_CLAUDE_MODELS: Record<
   ),
   'claude-opus-4-1': commonRef(
     'claude-opus-4-1',
-    AnthropicThinkingConfigSchema
+    AnthropicThinkingConfigSchema,
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
   ),
 };
 
@@ -202,15 +222,6 @@ export function claudeModelReference(
 }
 
 /**
- * Models that support structured outputs in the beta API.
- * @see https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs
- */
-const STRUCTURED_OUTPUT_MODELS = new Set([
-  'claude-sonnet-4-5',
-  'claude-opus-4-1',
-]);
-
-/**
  * Defines a Claude model with the given name and Anthropic client.
  * Accepts any model name and lets the API validate it. If the model is in KNOWN_CLAUDE_MODELS, uses that modelRef
  * for better defaults; otherwise creates a generic model reference.
@@ -230,18 +241,6 @@ export function claudeModel(
     ? knownModelRef.info
     : GENERIC_CLAUDE_MODEL_INFO;
   const configSchema = knownModelRef?.configSchema ?? AnthropicConfigSchema;
-
-  // Enhance model info with structured output support when using beta API
-  if (apiVersion === 'beta' && STRUCTURED_OUTPUT_MODELS.has(name)) {
-    modelInfo = {
-      ...modelInfo,
-      supports: {
-        ...modelInfo?.supports,
-        output: ['text', 'json'],
-        constrained: 'all',
-      },
-    };
-  }
 
   return model<
     AnthropicBaseConfigSchemaType | AnthropicThinkingConfigSchemaType

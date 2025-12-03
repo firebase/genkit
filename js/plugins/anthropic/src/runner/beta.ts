@@ -90,15 +90,6 @@ const BETA_APIS = [
 ];
 
 /**
- * Models that support structured outputs (JSON schema).
- * See: https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs
- */
-const STRUCTURED_OUTPUT_MODELS = new Set([
-  'claude-sonnet-4-5',
-  'claude-opus-4-1',
-]);
-
-/**
  * Transforms a JSON schema to be compatible with Anthropic's structured output requirements.
  * Anthropic requires `additionalProperties: false` on all object types.
  */
@@ -341,15 +332,19 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     }
 
     // Apply structured output when model supports it and constrained output is requested
+
+    // TODO: factor out into a helper function? and make it cleaner
     const useStructuredOutput =
-      STRUCTURED_OUTPUT_MODELS.has(modelName) &&
-      request.output?.constrained &&
-      request.output?.schema;
+      request.output !== undefined &&
+      request.output.schema !== undefined &&
+      request.output.constrained &&
+      request.output?.schema !== undefined &&
+      request.output?.format === 'json';
 
     if (useStructuredOutput) {
       body.output_format = {
         type: 'json_schema',
-        schema: toAnthropicSchema(request.output.schema),
+        schema: toAnthropicSchema(request.output!.schema!),
       };
     }
 
@@ -418,15 +413,18 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     }
 
     // Apply structured output when model supports it and constrained output is requested
+    // TODO: factor out into a helper function? and make it cleaner
     const useStructuredOutput =
-      STRUCTURED_OUTPUT_MODELS.has(modelName) &&
+      request.output !== undefined &&
+      request.output.schema !== undefined &&
       request.output?.constrained &&
-      request.output?.schema;
+      request.output?.schema !== undefined &&
+      request.output?.format === 'json';
 
     if (useStructuredOutput) {
       body.output_format = {
         type: 'json_schema',
-        schema: toAnthropicSchema(request.output.schema),
+        schema: toAnthropicSchema(request.output!.schema!),
       };
     }
 

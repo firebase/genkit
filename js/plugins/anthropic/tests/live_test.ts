@@ -21,6 +21,7 @@ import { anthropic } from '../src/index.js';
 
 const SKIP_LIVE_TESTS = !process.env.ANTHROPIC_API_KEY;
 
+// TODO: clean this test up a little bit
 describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
   it('should return structured output matching the schema', async () => {
     const ai = genkit({
@@ -31,13 +32,18 @@ describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
       name: z.string(),
       age: z.number(),
       city: z.string(),
+      isStudent: z.boolean(),
+      isEmployee: z.boolean(),
+      isRetired: z.boolean(),
+      isUnemployed: z.boolean(),
+      isDisabled: z.boolean(),
     });
 
     const result = await ai.generate({
       model: 'anthropic/claude-sonnet-4-5',
       prompt:
         'Generate a fictional person with name "Alice", age 30, and city "New York". Return only the JSON.',
-      output: { schema },
+      output: { schema, format: 'json', constrained: true },
     });
 
     const parsed = result.output;
@@ -45,5 +51,11 @@ describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
     assert.strictEqual(parsed.name, 'Alice');
     assert.strictEqual(parsed.age, 30);
     assert.strictEqual(parsed.city, 'New York');
+    // assert the others are NOT undefined
+    assert.notStrictEqual(parsed.isStudent, undefined);
+    assert.notStrictEqual(parsed.isEmployee, undefined);
+    assert.notStrictEqual(parsed.isRetired, undefined);
+    assert.notStrictEqual(parsed.isUnemployed, undefined);
+    assert.notStrictEqual(parsed.isDisabled, undefined);
   });
 });
