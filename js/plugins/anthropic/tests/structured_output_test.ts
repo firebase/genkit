@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type Anthropic from '@anthropic-ai/sdk';
 import * as assert from 'assert';
 import { genkit, z } from 'genkit';
 import { describe, test } from 'node:test';
@@ -24,9 +25,89 @@ import {
   createMockAnthropicMessage,
 } from './mocks/anthropic-client.js';
 
+/**
+ * Test constants for consistent test setup
+ */
+const TEST_API_KEY = 'test-key';
+const SUPPORTING_MODEL = 'anthropic/claude-sonnet-4-5';
+const NON_SUPPORTING_MODEL = 'anthropic/claude-sonnet-4';
+
+/**
+ * Options for creating a plugin with a mock client
+ */
+interface CreatePluginOptions {
+  apiVersion?: 'beta' | 'stable';
+  mockClient: Anthropic;
+}
+
+/**
+ * Creates an Anthropic plugin configured with a mock client for testing
+ */
+function createPlugin(options: CreatePluginOptions) {
+  return anthropic({
+    apiKey: TEST_API_KEY,
+    apiVersion: options.apiVersion,
+    // @ts-ignore
+    [__testClient]: options.mockClient,
+  });
+}
+
+/**
+ * Creates a Genkit instance with the given plugin
+ */
+function createGenkitInstance(plugin: ReturnType<typeof anthropic>) {
+  return genkit({
+    plugins: [plugin],
+  });
+}
+
+/**
+ * Helper to get the proper create stub from the mock client for a given API version.
+ */
+function getCreateStub(mockClient: Anthropic, apiVersion: 'beta' | 'stable') {
+  return apiVersion === 'beta'
+    ? (mockClient.beta.messages.create as any)
+    : (mockClient.messages.create as any);
+}
+
+/**
+ * Extracts the API request object from the mock for verification
+ * @param apiVersion - 'beta' or 'stable' to determine which API endpoint to check
+ */
+function getApiRequest(
+  mockClient: Anthropic,
+  apiVersion: 'beta' | 'stable',
+  callIndex: number = 0
+) {
+  const stub = getCreateStub(mockClient, apiVersion);
+  return stub.mock.calls[callIndex]?.arguments[0];
+}
+
+/**
+ * Verifies that the API was called the expected number of times
+ * @param apiVersion - 'beta' or 'stable' to determine which API endpoint to verify
+ */
+function verifyApiCalled(
+  mockClient: Anthropic,
+  apiVersion: 'beta' | 'stable',
+  expectedCalls: number = 1
+) {
+  const stub = getCreateStub(mockClient, apiVersion);
+  assert.strictEqual(
+    stub.mock.calls.length,
+    expectedCalls,
+    `${apiVersion === 'beta' ? 'Beta' : 'Stable'} API should be called ${expectedCalls} time(s)`
+  );
+}
+
+/**
+ * Tests for structured output (constrained generation) functionality.
+ * These tests verify that output_format is correctly passed to the Anthropic API
+ * when using the beta API with constrained output, and that it's NOT passed
+ * in various edge cases (stable API, non-json format, missing schema, etc.)
+ */
 describe('Structured Output Tests', () => {
   test('should pass output_format to API when using beta API with constrained output', async () => {
-    // Set up mock client to return a mock response
     const mockClient = createMockAnthropicClient({
       messageResponse: createMockAnthropicMessage({
         text: '{"name":"Alice","age":30,"city":"New York","isStudent":false,"isEmployee":true,"isRetired":false,"isUnemployed":false,"isDisabled":false}',
@@ -34,21 +115,16 @@ describe('Structured Output Tests', () => {
     });
 
     // Set up plugin with beta API enabled
-    const plugin = anthropic({
-      apiKey: 'test-key',
+    const plugin = createPlugin({
       apiVersion: 'beta',
-      // @ts-ignore
-      [__testClient]: mockClient,
+      mockClient,
     });
 
-    // Create Genkit instance with the plugin
-    const ai = genkit({
-      plugins: [plugin],
-    });
+    const ai = createGenkitInstance(plugin);
 
     // Call generate with sonnet 4.5 (supports native constrained output)
     await ai.generate({
-      model: 'anthropic/claude-sonnet-4-5',
+      model: SUPPORTING_MODEL,
       prompt:
         'Generate a fictional person with name "Alice", age 30, and city "New York". Return only the JSON.',
       output: {
@@ -67,15 +143,11 @@ describe('Structured Output Tests', () => {
       },
     });
 
-    // Verify the beta API was called with output_format
-    const betaCreateStub = mockClient.beta.messages.create as any;
-    assert.strictEqual(
-      betaCreateStub.mock.calls.length,
-      1,
-      'Beta API should be called once'
-    );
+    // Verify the beta API was called
+    verifyApiCalled(mockClient, 'beta');
 
-    const apiRequest = betaCreateStub.mock.calls[0].arguments[0];
+    // Verify output_format was included in the API request
+    const apiRequest = getApiRequest(mockClient, 'beta');
     assert.ok(apiRequest.output_format, 'Request should have output_format');
     assert.strictEqual(
       apiRequest.output_format.type,
@@ -86,8 +158,7 @@ describe('Structured Output Tests', () => {
       apiRequest.output_format.schema,
       'output_format should have schema'
     );
-
-    // Verify schema transformation: additionalProperties should be false
+    // Verify schema transformation: additionalProperties should be false for constrained output
     assert.strictEqual(
       apiRequest.output_format.schema.additionalProperties,
       false,
@@ -95,213 +166,193 @@ describe('Structured Output Tests', () => {
     );
   });
 
-  // TODO: finish off this test suite
-  // test('should NOT pass output_format when constrained is false', async () => {
-  //   const mockClient = createMockAnthropicClient({
-  //     messageResponse: createMockAnthropicMessage({
-  //       text: '{"name":"Alice"}',
-  //     }),
-  //   });
+  test('should NOT pass output_format to API when constrained is false and using beta API', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: createMockAnthropicMessage({
+        text: '{"name":"Alice"}',
+      }),
+    });
 
-  //   const plugin = anthropic({
-  //     apiKey: 'test-key',
-  //     apiVersion: 'beta',
-  //     // @ts-ignore
-  //     [__testClient]: mockClient,
-  //   });
+    // Set up plugin with beta API enabled
+    const plugin = createPlugin({
+      apiVersion: 'beta',
+      mockClient,
+    });
 
-  //   // @ts-ignore
-  //   const modelAction = plugin.resolve(
-  //     'model',
-  //     'claude-3-5-sonnet-20241022'
-  //   ) as ModelAction;
+    const ai = createGenkitInstance(plugin);
 
-  //   const request: GenerateRequest = {
-  //     messages: [
-  //       {
-  //         role: 'user',
-  //         content: [{ text: 'Generate JSON' }],
-  //       },
-  //     ],
-  //     output: {
-  //       format: 'json',
-  //       constrained: false,
-  //       schema: {
-  //         type: 'object',
-  //         properties: {
-  //           name: { type: 'string' },
-  //         },
-  //       },
-  //     },
-  //   };
+    // Call generate with constrained: false
+    await ai.generate({
+      model: SUPPORTING_MODEL,
+      prompt: 'Generate JSON',
+      output: {
+        format: 'json',
+        constrained: false,
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
+    });
 
-  //   await modelAction(request, {
-  //     streamingRequested: false,
-  //     sendChunk: mock.fn(),
-  //     abortSignal: new AbortController().signal,
-  //   });
+    // Verify the beta API was called
+    verifyApiCalled(mockClient, 'beta');
 
-  //   const betaCreateStub = mockClient.beta.messages.create as any;
-  //   const apiRequest = betaCreateStub.mock.calls[0].arguments[0];
-  //   assert.strictEqual(
-  //     apiRequest.output_format,
-  //     undefined,
-  //     'Request should NOT have output_format when constrained is false'
-  //   );
-  // });
+    // Verify output_format was NOT included when constrained is false
+    const apiRequest = getApiRequest(mockClient, 'beta');
+    assert.strictEqual(
+      apiRequest.output_format,
+      undefined,
+      'Request should NOT have output_format when constrained is false'
+    );
+  });
 
-  // test('should NOT pass output_format when using stable API', async () => {
-  //   const mockClient = createMockAnthropicClient({
-  //     messageResponse: createMockAnthropicMessage({
-  //       text: '{"name":"Alice","age":30,"city":"New York"}',
-  //     }),
-  //   });
+  test('should NOT pass output_format to API when format is not json and using beta API', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: createMockAnthropicMessage({
+        text: 'Some text response',
+      }),
+    });
 
-  //   const plugin = anthropic({
-  //     apiKey: 'test-key',
-  //     apiVersion: 'stable',
-  //     // @ts-ignore
-  //     [__testClient]: mockClient,
-  //   });
+    // Set up plugin with beta API enabled
+    const plugin = createPlugin({
+      apiVersion: 'beta',
+      mockClient,
+    });
 
-  //   const modelAction = plugin.resolve(
-  //     'model',
-  //     'claude-3-5-sonnet-20241022'
-  //   ) as ModelAction;
+    const ai = createGenkitInstance(plugin);
 
-  //   const request: GenerateRequest = {
-  //     messages: [
-  //       {
-  //         role: 'user',
-  //         content: [{ text: 'Generate JSON' }],
-  //       },
-  //     ],
-  //     output: {
-  //       format: 'json',
-  //       constrained: true,
-  //       schema: {
-  //         type: 'object',
-  //         properties: {
-  //           name: { type: 'string' },
-  //           age: { type: 'number' },
-  //           city: { type: 'string' },
-  //         },
-  //       },
-  //     },
-  //   };
+    // Call generate with format: 'text' (not 'json')
+    await ai.generate({
+      model: SUPPORTING_MODEL,
+      prompt: 'Generate text',
+      output: {
+        format: 'text',
+        constrained: true,
+      },
+    });
 
-  //   await modelAction(request, {
-  //     streamingRequested: false,
-  //     sendChunk: mock.fn(),
-  //     abortSignal: new AbortController().signal,
-  //   });
+    // Verify the beta API was called
+    verifyApiCalled(mockClient, 'beta');
 
-  //   // Stable API should be called, not beta
-  //   const stableCreateStub = mockClient.messages.create as any;
-  //   assert.strictEqual(
-  //     stableCreateStub.mock.calls.length,
-  //     1,
-  //     'Stable API should be called once'
-  //   );
+    // Verify output_format was NOT included when format is not json
+    const apiRequest = getApiRequest(mockClient, 'beta');
+    assert.strictEqual(
+      apiRequest.output_format,
+      undefined,
+      'Request should NOT have output_format when format is text'
+    );
+  });
 
-  //   const apiRequest = stableCreateStub.mock.calls[0].arguments[0];
-  //   assert.strictEqual(
-  //     apiRequest.output_format,
-  //     undefined,
-  //     'Stable API request should NOT have output_format'
-  //   );
-  // });
+  test('should NOT pass output_format to API when schema is not provided and using beta API', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: createMockAnthropicMessage({
+        text: '{"anything": "goes"}',
+      }),
+    });
 
-  // test('should NOT pass output_format when format is not json', async () => {
-  //   const mockClient = createMockAnthropicClient({
-  //     messageResponse: createMockAnthropicMessage({
-  //       text: 'Some text response',
-  //     }),
-  //   });
+    // Set up plugin with beta API enabled
+    const plugin = createPlugin({
+      apiVersion: 'beta',
+      mockClient,
+    });
 
-  //   const plugin = anthropic({
-  //     apiKey: 'test-key',
-  //     apiVersion: 'beta',
-  //     [__testClient]: mockClient,
-  //   });
+    const ai = createGenkitInstance(plugin);
 
-  //   const modelAction = plugin.resolve(
-  //     'model',
-  //     'claude-3-5-sonnet-20241022'
-  //   ) as ModelAction;
+    // Call generate with constrained: true but no schema
+    await ai.generate({
+      model: SUPPORTING_MODEL,
+      prompt: 'Generate JSON',
+      output: {
+        format: 'json',
+        constrained: true,
+        // No schema provided
+      },
+    });
 
-  //   const request: GenerateRequest = {
-  //     messages: [
-  //       {
-  //         role: 'user',
-  //         content: [{ text: 'Generate text' }],
-  //       },
-  //     ],
-  //     output: {
-  //       format: 'text',
-  //       constrained: true,
-  //     },
-  //   };
+    // Verify the beta API was called
+    verifyApiCalled(mockClient, 'beta');
 
-  //   await modelAction(request, {
-  //     streamingRequested: false,
-  //     sendChunk: mock.fn(),
-  //     abortSignal: new AbortController().signal,
-  //   });
+    // Verify output_format was NOT included when schema is missing
+    const apiRequest = getApiRequest(mockClient, 'beta');
+    assert.strictEqual(
+      apiRequest.output_format,
+      undefined,
+      'Request should NOT have output_format when schema is not provided'
+    );
+  });
 
-  //   const betaCreateStub = mockClient.beta.messages.create as any;
-  //   const apiRequest = betaCreateStub.mock.calls[0].arguments[0];
-  //   assert.strictEqual(
-  //     apiRequest.output_format,
-  //     undefined,
-  //     'Request should NOT have output_format when format is text'
-  //   );
-  // });
+  test('should NOT pass output_format to API when model does not support structured output and using beta API', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: createMockAnthropicMessage({
+        text: '{"name":"Alice"}',
+      }),
+    });
 
-  // test('should NOT pass output_format when schema is not provided', async () => {
-  //   const mockClient = createMockAnthropicClient({
-  //     messageResponse: createMockAnthropicMessage({
-  //       text: '{"anything": "goes"}',
-  //     }),
-  //   });
+    // Set up plugin with beta API enabled
+    const plugin = createPlugin({
+      apiVersion: 'beta',
+      mockClient,
+    });
 
-  //   const plugin = anthropic({
-  //     apiKey: 'test-key',
-  //     apiVersion: 'beta',
-  //     [__testClient]: mockClient,
-  //   });
+    const ai = createGenkitInstance(plugin);
 
-  //   const modelAction = plugin.resolve(
-  //     'model',
-  //     'claude-3-5-sonnet-20241022'
-  //   ) as ModelAction;
+    // Call generate with model that does not support structured output
+    await ai.generate({
+      model: NON_SUPPORTING_MODEL,
+      prompt: 'Generate JSON',
+      output: {
+        format: 'json',
+        constrained: true,
+      },
+    });
 
-  //   const request: GenerateRequest = {
-  //     messages: [
-  //       {
-  //         role: 'user',
-  //         content: [{ text: 'Generate JSON' }],
-  //       },
-  //     ],
-  //     output: {
-  //       format: 'json',
-  //       constrained: true,
-  //       // No schema provided
-  //     },
-  //   };
+    // Verify the beta API was called
+    verifyApiCalled(mockClient, 'beta');
 
-  //   await modelAction(request, {
-  //     streamingRequested: false,
-  //     sendChunk: mock.fn(),
-  //     abortSignal: new AbortController().signal,
-  //   });
+    // Verify output_format was NOT included when model does not support structured output
+    const apiRequest = getApiRequest(mockClient, 'beta');
+    assert.strictEqual(
+      apiRequest.output_format,
+      undefined,
+      'Request should NOT have output_format when model does not support structured output'
+    );
+  });
 
-  //   const betaCreateStub = mockClient.beta.messages.create as any;
-  //   const apiRequest = betaCreateStub.mock.calls[0].arguments[0];
-  //   assert.strictEqual(
-  //     apiRequest.output_format,
-  //     undefined,
-  //     'Request should NOT have output_format when schema is not provided'
-  //   );
-  // });
+  test('should throw an error when using stable API with non-text output format', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: createMockAnthropicMessage({
+        text: '{"name":"Alice","age":30,"city":"New York"}',
+      }),
+    });
+
+    // Set up plugin with stable API (not beta)
+    const plugin = createPlugin({
+      apiVersion: 'stable',
+      mockClient,
+    });
+
+    const ai = createGenkitInstance(plugin);
+
+    // Call generate with constrained output (would work with beta API)
+    // Expect an error to be thrown since only text output is supported for stable API
+    await assert.rejects(
+      async () => {
+        await ai.generate({
+          model: SUPPORTING_MODEL,
+          prompt: 'Generate JSON',
+          output: {
+            format: 'json',
+            constrained: true,
+            schema: z.object({
+              name: z.string(),
+              age: z.number(),
+              city: z.string(),
+            }),
+          },
+        });
+      },
+      /Only text output format is supported for Claude models currently/,
+      'Should throw an error for non-text output on stable API'
+    );
+  });
 });
