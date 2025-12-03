@@ -115,11 +115,11 @@ const ToolResponseSchemaBase = z.object({
 /**
  * Tool response part.
  */
-export type ToolResponsePart = z.infer<typeof ToolResponseSchemaBase> & {
+export type ToolResponse = z.infer<typeof ToolResponseSchemaBase> & {
   content?: Part[];
 };
 
-export const ToolResponseSchema: z.ZodType<ToolResponsePart> =
+export const ToolResponseSchema: z.ZodType<ToolResponse> =
   ToolResponseSchemaBase.extend({
     content: z.array(z.any()).optional(),
     // TODO: switch to this once we have effective recursive schema support across the board.
@@ -133,6 +133,8 @@ export const ToolResponsePartSchema = EmptyPartSchema.extend({
   /** A provided response to a tool call. */
   toolResponse: ToolResponseSchema,
 });
+
+export type ToolResponsePart = z.infer<typeof ToolResponsePartSchema>;
 
 /**
  * Zod schema of a data part.
