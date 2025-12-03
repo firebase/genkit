@@ -906,6 +906,13 @@ func (o *promptExecutionOptions) applyPromptExecute(pgOpts *promptExecutionOptio
 		pgOpts.Input = o.Input
 	}
 
+	if o.Output != nil {
+		if pgOpts.Output != nil {
+			return errors.New("cannot set output more than once (WithOutput)")
+		}
+		pgOpts.Output = o.Output
+	}
+
 	return nil
 }
 

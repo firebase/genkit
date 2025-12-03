@@ -486,7 +486,11 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		if !ok {
 			return nil, fmt.Errorf("invalid $ref value: not a string")
 		}
-		return toGeminiSchema(originalSchema, resolveRef(originalSchema, ref))
+		s, err := resolveRef(originalSchema, ref)
+		if err != nil {
+			return nil, err
+		}
+		return toGeminiSchema(originalSchema, s)
 	}
 
 	// Handle "anyOf" subschemas by finding the first valid schema definition
@@ -597,12 +601,24 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 	return schema, nil
 }
 
-func resolveRef(originalSchema map[string]any, ref string) map[string]any {
+func resolveRef(originalSchema map[string]any, ref string) (map[string]any, error) {
 	tkns := strings.Split(ref, "/")
 	// refs look like: $/ref/foo -- we need the foo part
 	name := tkns[len(tkns)-1]
-	defs := originalSchema["$defs"].(map[string]any)
-	return defs[name].(map[string]any)
+	if defs, ok := originalSchema["$defs"].(map[string]any); ok {
+		if def, ok := defs[name].(map[string]any); ok {
+			return def, nil
+		}
+	}
+	// definitions (legacy)
+	if defs, ok := originalSchema["definitions"].(map[string]any); ok {
+		if def, ok := defs[name].(map[string]any); ok {
+			return def, nil
+		}
+	}
+	//
+	// return an empty map to prevent panic
+	return nil, fmt.Errorf("unable to resolve schema reference")
 }
 
 // castToStringArray converts either []any or []string to []string, filtering non-strings.

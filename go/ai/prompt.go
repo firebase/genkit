@@ -51,18 +51,6 @@ type prompt struct {
 	registry api.Registry
 }
 
-// SchemaRef is a reference to a prompt schema
-type SchemaRef interface {
-	Name() string
-}
-
-type SchemaName string
-
-// Name returns the name of the prompt schema
-func (s SchemaName) Name() string {
-	return (string)(s)
-}
-
 // DefinePrompt creates a new [Prompt] and registers it.
 func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 	if name == "" {
@@ -165,6 +153,25 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	actionOpts, err := p.Render(ctx, execOpts.Input)
 	if err != nil {
 		return nil, err
+	}
+
+	if execOpts.Output != nil {
+		actionOpts.Output.JsonSchema = base.SchemaAsMap(base.InferJSONSchema(execOpts.Output))
+		actionOpts.Output.Format = OutputFormatJSON
+	} else if actionOpts.Output != nil && actionOpts.Output.JsonSchema != nil {
+		// Check for deferred schema reference ($ref: "genkit:...")
+		if ref, ok := actionOpts.Output.JsonSchema["$ref"].(string); ok {
+			if schemaName, found := strings.CutPrefix(ref, "genkit:"); found {
+				schemaBytes := p.registry.LookupSchema(schemaName)
+				if schemaBytes != nil {
+					var schema map[string]any
+					if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+						return nil, fmt.Errorf("failed to unmarshal schema %q: %w", schemaName, err)
+					}
+					actionOpts.Output.JsonSchema = schema
+				}
+			}
+		}
 	}
 
 	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
@@ -270,8 +277,6 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 	if input == nil {
 		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
-
-	// TODO: should we consider output atp?
 
 	return p.Run(ctx, input, nil)
 }
@@ -630,8 +635,6 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	for i, tool := range metadata.Tools {
 		toolRefs[i] = ToolName(tool)
 	}
-
-	// TODO: get input/output schemas from metadata
 
 	promptMetadata := map[string]any{
 		"template": parsedPrompt.Template,

@@ -58,14 +58,12 @@ func New() *Registry {
 			s := r.LookupSchema(name)
 			if s == nil {
 				r.RegisterSchema(name, nil)
-
-				// schema not defined in Genkit, but eventually it will be
-				// TODO: we should find a way to add it in the registry with a nil schema, it will be populated
-				// once "genkit.DefineSchema" gets called, but for now, keep the schema reference as nil
-				// if the schema has not been defined when prompt.Execute gets called, it should return an error
-				// keep the nilness gracefully handled
-				fmt.Printf("SchemaResolver did not find the schema\n")
-				return nil, nil
+				// Define a schema that Dotprompt can handle
+				// Return a placeholder that signifies "lookup 'name' later"
+				// We use a custom URI scheme "genkit:" to denote registry references
+				return &jsonschema.Schema{
+					Ref: "genkit:" + name,
+				}, nil
 			}
 			var schema jsonschema.Schema
 			if err := json.Unmarshal(s, &schema); err != nil {
@@ -128,7 +126,13 @@ func (r *Registry) RegisterAction(key string, action api.Action) {
 func (r *Registry) RegisterSchema(name string, schema json.RawMessage) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.schemas[name]; ok {
+	if val, ok := r.schemas[name]; ok {
+		if val == nil {
+			r.schemas[name] = schema
+			fmt.Printf("schema registered (overwrite): %q\n", name)
+			slog.Debug("RegisterSchema", "name", name)
+			return
+		}
 		panic(fmt.Sprintf("schema %q is already registered", name))
 	}
 	r.schemas[name] = schema
