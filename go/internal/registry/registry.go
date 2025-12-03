@@ -17,6 +17,7 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/google/dotprompt/go/dotprompt"
+	"github.com/invopop/jsonschema"
 )
 
 // This file implements registries of actions and other values.
@@ -36,6 +38,7 @@ type Registry struct {
 	parent    api.Registry
 	actions   map[string]api.Action
 	plugins   map[string]api.Plugin
+	schemas   map[string]json.RawMessage
 	values    map[string]any // Values can truly be anything.
 	dotprompt *dotprompt.Dotprompt
 }
@@ -46,10 +49,31 @@ func New() *Registry {
 		actions: map[string]api.Action{},
 		plugins: map[string]api.Plugin{},
 		values:  map[string]any{},
+		schemas: make(map[string]json.RawMessage),
 	}
 	r.dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
 		Helpers:  make(map[string]any),
 		Partials: make(map[string]string),
+		SchemaResolver: func(name string) (*jsonschema.Schema, error) {
+			s := r.LookupSchema(name)
+			if s == nil {
+				r.RegisterSchema(name, nil)
+
+				// schema not defined in Genkit, but eventually it will be
+				// TODO: we should find a way to add it in the registry with a nil schema, it will be populated
+				// once "genkit.DefineSchema" gets called, but for now, keep the schema reference as nil
+				// if the schema has not been defined when prompt.Execute gets called, it should return an error
+				// keep the nilness gracefully handled
+				fmt.Printf("SchemaResolver did not find the schema\n")
+				return nil, nil
+			}
+			var schema jsonschema.Schema
+			if err := json.Unmarshal(s, &schema); err != nil {
+				slog.Error("failed to unmarshal schema from registry", "name", name, "error", err)
+				return nil, fmt.Errorf("failed to unmarshal schema(%q) from registry", name)
+			}
+			return &schema, nil
+		},
 	})
 	return r
 }
@@ -63,6 +87,7 @@ func (r *Registry) NewChild() api.Registry {
 		actions:   map[string]api.Action{},
 		plugins:   map[string]api.Plugin{},
 		values:    map[string]any{},
+		schemas:   make(map[string]json.RawMessage),
 		dotprompt: r.dotprompt,
 	}
 	return child
@@ -96,6 +121,37 @@ func (r *Registry) RegisterAction(key string, action api.Action) {
 	}
 	r.actions[key] = action
 	slog.Debug("RegisterAction", "key", key)
+}
+
+// RegisterSchema records a JSON schema in the registry.
+// It panics if a schema with the same name is already registered.
+func (r *Registry) RegisterSchema(name string, schema json.RawMessage) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.schemas[name]; ok {
+		panic(fmt.Sprintf("schema %q is already registered", name))
+	}
+	r.schemas[name] = schema
+	fmt.Printf("schema registered: %q\n", name)
+	slog.Debug("RegisterSchema", "name", name)
+}
+
+// LookupSchema returns a JSON schema for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the schema is not found in the registry hierarchy.
+func (r *Registry) LookupSchema(name string) json.RawMessage {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if schema, ok := r.schemas[name]; ok {
+		return schema
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupSchema(name)
+	}
+
+	return nil
 }
 
 // LookupPlugin returns the plugin for the given name.

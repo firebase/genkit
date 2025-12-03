@@ -30,7 +30,6 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
 )
@@ -137,8 +136,14 @@ func LookupPrompt(r api.Registry, name string) Prompt {
 
 // DefineSchema defines a schema in the registry
 // It panics if an error was encountered
-func DefineSchema(r *registry.Registry, name string, schema any) {
-	// TODO: marshal the schema and store it into the registry
+func DefineSchema(r api.Registry, name string, schema any) {
+	reflector := &jsonschema.Reflector{}
+	s := reflector.Reflect(schema)
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic(fmt.Errorf("ai.DefineSchema: failed to marshal schema %q: %w", name, err))
+	}
+	r.RegisterSchema(name, b)
 }
 
 // Execute renders a prompt, does variable substitution and

@@ -39,17 +39,17 @@ func main() {
 		genkit.WithPromptDir("prompts"),
 	)
 
-	SimplePrompt(ctx, g)
-	PromptWithMultiMessage(ctx, g)
-	PromptWithInput(ctx, g)
-	PromptWithOutputType(ctx, g)
-	PromptWithComplexOutputType(ctx, g)
-	PromptWithTool(ctx, g)
-	PromptWithMessageHistory(ctx, g)
-	PromptWithExecuteOverrides(ctx, g)
-	PromptWithFunctions(ctx, g)
-	PromptWithOutputTypeDotprompt(ctx, g)
-	PromptWithMediaType(ctx, g)
+	// SimplePrompt(ctx, g)
+	// PromptWithMultiMessage(ctx, g)
+	// PromptWithInput(ctx, g)
+	// PromptWithOutputType(ctx, g)
+	// PromptWithComplexOutputType(ctx, g)
+	// PromptWithTool(ctx, g)
+	// PromptWithMessageHistory(ctx, g)
+	// PromptWithExecuteOverrides(ctx, g)
+	// PromptWithFunctions(ctx, g)
+	// PromptWithOutputTypeDotprompt(ctx, g)
+	// PromptWithMediaType(ctx, g)
 	PromptWithSchema(ctx, g)
 
 	mux := http.NewServeMux()
@@ -374,12 +374,14 @@ func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	resp, err := prompt.Execute(ctx,
-		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithModelName("googleai/gemini-2.5-pro"),
+		ai.WithInput(map[string]any{"food": "tacos", "ingredients": []string{"octopus", "shrimp"}}),
 		ai.WithOutput(RecipeSchema{}),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("output: %#v\n\n", resp.Request.Output)
 	fmt.Println(resp.Text())
 }
 
