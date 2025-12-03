@@ -1345,6 +1345,22 @@ Generate a recipe for {{food}}.
 	}
 
 	schema := resp.Request.Output.Schema
+	if ref, ok := schema["$ref"].(string); ok {
+		// Schema is a reference, resolve it from $defs
+		defs, ok := schema["$defs"].(map[string]any)
+		if !ok {
+			t.Fatalf("Schema has $ref %q but no $defs", ref)
+		}
+		// Assuming ref is like "#/$defs/Recipe"
+		parts := strings.Split(ref, "/")
+		defName := parts[len(parts)-1]
+		if def, ok := defs[defName].(map[string]any); ok {
+			schema = def
+		} else {
+			t.Fatalf("Could not resolve definition for %q", defName)
+		}
+	}
+
 	props, ok := schema["properties"].(map[string]any)
 	if !ok {
 		t.Fatalf("Resolved schema should have properties, got: %v", schema)
