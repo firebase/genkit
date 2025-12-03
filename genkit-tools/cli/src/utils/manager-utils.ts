@@ -33,7 +33,8 @@ import getPort, { makeRange } from 'get-port';
  * This function is not idempotent. Typically you want to make sure it's called only once per cli instance.
  */
 export async function resolveTelemetryServer(
-  projectRoot: string
+  projectRoot: string,
+  allowedTelemetryCorsHostnames?: string[]
 ): Promise<string> {
   let telemetryServerUrl = process.env.GENKIT_TELEMETRY_SERVER;
   if (!telemetryServerUrl) {
@@ -45,6 +46,7 @@ export async function resolveTelemetryServer(
         storeRoot: projectRoot,
         indexRoot: projectRoot,
       }),
+      allowedCorsHostnames: allowedTelemetryCorsHostnames,
     });
   }
   return telemetryServerUrl;
@@ -55,13 +57,19 @@ export async function resolveTelemetryServer(
  */
 export async function startManager(
   projectRoot: string,
-  manageHealth?: boolean
-): Promise<RuntimeManager> {
-  const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
+  manageHealth?: boolean,
+  experimentalReflectionV2?: boolean,
+  allowedTelemetryCorsHostnames?: string[]
+): Promise<RuntimeManager | any> {
+  const telemetryServerUrl = await resolveTelemetryServer(
+    projectRoot,
+    allowedTelemetryCorsHostnames
+  );
   const manager = RuntimeManager.create({
     telemetryServerUrl,
     manageHealth,
     projectRoot,
+    experimentalReflectionV2,
   });
   return manager;
 }
@@ -69,18 +77,36 @@ export async function startManager(
 export async function startDevProcessManager(
   projectRoot: string,
   command: string,
-  args: string[]
-): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
-  const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
-  const processManager = new ProcessManager(command, args, {
+  args: string[],
+  experimentalReflectionV2?: boolean,
+  allowedTelemetryCorsHostnames?: string[]
+): Promise<{
+  manager: RuntimeManager | any;
+  processPromise: Promise<void>;
+}> {
+  const telemetryServerUrl = await resolveTelemetryServer(
+    projectRoot,
+    allowedTelemetryCorsHostnames
+  );
+  const env: Record<string, string> = {
     GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
     GENKIT_ENV: 'dev',
-  });
+  };
+
+  let reflectionV2Port: number | undefined;
+  if (experimentalReflectionV2) {
+    reflectionV2Port = await getPort({ port: makeRange(3200, 3400) });
+    env['GENKIT_REFLECTION_V2_SERVER'] = `ws://localhost:${reflectionV2Port}`;
+  }
+
+  const processManager = new ProcessManager(command, args, env);
   const manager = await RuntimeManager.create({
     telemetryServerUrl,
     manageHealth: true,
     projectRoot,
     processManager,
+    experimentalReflectionV2,
+    reflectionV2Port,
   });
   const processPromise = processManager.start();
   return { manager, processPromise };

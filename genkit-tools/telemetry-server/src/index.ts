@@ -19,6 +19,7 @@ import {
   TraceQueryFilterSchema,
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
+import cors from 'cors';
 import express from 'express';
 import type * as http from 'http';
 import type { TraceStore } from './types';
@@ -43,11 +44,24 @@ export async function startTelemetryServer(params: {
    * Defaults to '5mb'.
    */
   maxRequestBodySize?: string | number;
+  allowedCorsHostnames?: string[];
 }) {
   await params.traceStore.init();
   const api = express();
 
   api.use(express.json({ limit: params.maxRequestBodySize ?? '100mb' }));
+  api.use(
+    cors((req, callback) => {
+      if (
+        req.hostname === 'localhost' ||
+        params.allowedCorsHostnames?.includes(req.hostname)
+      ) {
+        callback(null, { origin: true }); // Allow the request
+      } else {
+        callback(null, { origin: false }); // Deny the request
+      }
+    })
+  );
 
   api.get('/api/__health', async (_, response) => {
     response.status(200).send('OK');
