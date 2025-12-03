@@ -14,7 +14,6 @@ This document provides rules and examples for building with the Genkit API in Go
 
 NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but you should follow the user's preference as mentioned above.
 
-
 ## Best Practices
 
 1.  **Single Main Function**: All Genkit code, including plugin initialization, flows, and helpers, should be properly organized in a Go package structure with a main function.
@@ -190,6 +189,7 @@ You can can automate starting genkit using the following steps:
 2. Use the `start_runtime` tool to start the runtime process. This is required for Genkit to discover flows.
    - Example: If the project uses `go run main.go`, call `start_runtime` with `{ command: "go", args: ["run", "main.go"] }`.
 3. After starting the runtime, instruct the user to run `genkit start` in their terminal to launch the Developer UI.
+
 ## Suggested Models
 
 Here are suggested models to use for various task types. This is NOT an exhaustive list.

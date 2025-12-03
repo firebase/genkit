@@ -18,11 +18,11 @@ import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
-import { lazyLoadManager } from './util.js';
+import { McpRuntimeManager } from './util.js';
 
 export function defineTraceTools(
   server: McpServer,
-  manager: ReturnType<typeof lazyLoadManager>
+  manager: McpRuntimeManager
 ) {
   server.registerTool(
     'get_trace',

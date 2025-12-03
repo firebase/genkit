@@ -18,11 +18,11 @@ import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { z } from 'zod';
 import { McpRunToolEvent } from './analytics.js';
-import { lazyLoadManager } from './util.js';
+import { McpRuntimeManager } from './util.js';
 
 export function defineRuntimeTools(
   server: McpServer,
-  manager: ReturnType<typeof lazyLoadManager>
+  manager: McpRuntimeManager
 ) {
   server.registerTool(
     'start_runtime',
@@ -37,7 +37,7 @@ export function defineRuntimeTools(
     },
     async ({ command, args }) => {
       await record(new McpRunToolEvent('start_runtime'));
-      await manager.initManagerWithDevProcess(command, args);
+      await manager.getManagerWithDevProcess(command, args);
 
       return {
         content: [{ type: 'text', text: `Done.` }],

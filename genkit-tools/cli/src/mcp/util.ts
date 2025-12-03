@@ -17,27 +17,39 @@
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startDevProcessManager, startManager } from '../utils/manager-utils';
 
-/** Lazy loader for RuntimeManager to defer `.genkit/` creation. */
-export function lazyLoadManager(projectRoot: string) {
-  let manager: RuntimeManager | undefined;
-  return {
-    async getManager() {
-      if (!manager) {
-        manager = await startManager(projectRoot, true /* manageHealth */);
-      }
-      return manager;
-    },
-    async initManagerWithDevProcess(command: string, args: string[]) {
-      if (manager) {
-        await manager.processManager?.kill();
-      }
-      const devManager = await startDevProcessManager(
-        projectRoot,
-        command,
-        args
+/** Genkit Runtime manager specifically for the MCP server. Allows lazy
+ * initialization and dev process manangement. */
+export class McpRuntimeManager {
+  private manager: RuntimeManager | undefined;
+
+  constructor(private projectRoot: string) {}
+
+  async getManager() {
+    if (!this.manager) {
+      this.manager = await startManager(
+        this.projectRoot,
+        true /* manageHealth */
       );
-      manager = devManager.manager;
-      return manager;
-    },
-  };
+    }
+    return this.manager;
+  }
+
+  async getManagerWithDevProcess(command: string, args: string[]) {
+    if (this.manager) {
+      await this.manager.stop();
+    }
+    const devManager = await startDevProcessManager(
+      this.projectRoot,
+      command,
+      args
+    );
+    this.manager = devManager.manager;
+    return this.manager;
+  }
+
+  async kill() {
+    if (this.manager) {
+      await this.manager.stop();
+    }
+  }
 }
