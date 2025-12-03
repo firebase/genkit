@@ -78,7 +78,6 @@ export class RuntimeManager {
     this.processManager = processManager;
   }
 
-
   /**
    * Creates a new runtime manager.
    */
