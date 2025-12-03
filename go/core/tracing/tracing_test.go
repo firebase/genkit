@@ -314,7 +314,7 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 			ctx := context.Background()
 			input := "test input"
 
-			output, err := RunInNewSpan(ctx, tc.metadata, input,
+			output, err := RunInNewSpan(ctx, tc.metadata, input, nil,
 				func(ctx context.Context, input string) (string, error) {
 					// Verify that span metadata is available in context
 					sm := spanMetaKey.FromContext(ctx)
@@ -360,7 +360,7 @@ func TestRunInNewSpanWithTypeConvenience(t *testing.T) {
 		Subtype: "tool",
 	}
 
-	output, err := RunInNewSpan(ctx, metadata, "input",
+	output, err := RunInNewSpan(ctx, metadata, "input", nil,
 		func(ctx context.Context, input string) (string, error) {
 			sm := spanMetaKey.FromContext(ctx)
 			if sm == nil {
@@ -390,10 +390,10 @@ func TestNestedSpanPaths(t *testing.T) {
 	ctx := context.Background()
 
 	// Test nested spans to verify path building
-	_, err := RunInNewSpan(ctx, &SpanMetadata{Name: "chatFlow", IsRoot: true, Type: "action", Subtype: "flow"}, "input",
+	_, err := RunInNewSpan(ctx, &SpanMetadata{Name: "chatFlow", IsRoot: true, Type: "action", Subtype: "flow"}, "input", nil,
 		func(ctx context.Context, input string) (string, error) {
 			// Nested action span
-			return RunInNewSpan(ctx, &SpanMetadata{Name: "myTool", IsRoot: false, Type: "action", Subtype: "tool"}, input,
+			return RunInNewSpan(ctx, &SpanMetadata{Name: "myTool", IsRoot: false, Type: "action", Subtype: "tool"}, input, nil,
 				func(ctx context.Context, input string) (string, error) {
 					sm := spanMetaKey.FromContext(ctx)
 					if sm == nil {
@@ -425,7 +425,7 @@ func TestIsFailureSourceOnError(t *testing.T) {
 	_, err := RunInNewSpan(ctx, &SpanMetadata{
 		Name: "failing-action",
 		Type: "action",
-	}, "input", func(ctx context.Context, input string) (string, error) {
+	}, "input", nil, func(ctx context.Context, input string) (string, error) {
 		return "", testErr
 	})
 
@@ -446,7 +446,7 @@ func TestRootSpanAutoDetection(t *testing.T) {
 			Type:    "action",
 			Subtype: "flow",
 			IsRoot:  false, // Even when explicitly set to false, should be overridden
-		}, "input", func(ctx context.Context, input string) (string, error) {
+		}, "input", nil, func(ctx context.Context, input string) (string, error) {
 			sm := spanMetaKey.FromContext(ctx)
 			if sm == nil {
 				t.Fatal("Expected span metadata in context")
@@ -469,7 +469,7 @@ func TestRootSpanAutoDetection(t *testing.T) {
 			Name:   "explicitRootFlow",
 			Type:   "action",
 			IsRoot: true, // Explicitly set to true
-		}, "input", func(ctx context.Context, input string) (string, error) {
+		}, "input", nil, func(ctx context.Context, input string) (string, error) {
 			sm := spanMetaKey.FromContext(ctx)
 			if sm == nil {
 				t.Fatal("Expected span metadata in context")
@@ -492,13 +492,13 @@ func TestRootSpanAutoDetection(t *testing.T) {
 			Name:   "parentFlow",
 			Type:   "action",
 			IsRoot: true,
-		}, "input", func(ctx context.Context, input string) (string, error) {
+		}, "input", nil, func(ctx context.Context, input string) (string, error) {
 			// This is a nested span - should NOT be root
 			_, err := RunInNewSpan(ctx, &SpanMetadata{
 				Name:   "childAction",
 				Type:   "action",
 				IsRoot: false,
-			}, input, func(ctx context.Context, input string) (string, error) {
+			}, input, nil, func(ctx context.Context, input string) (string, error) {
 				sm := spanMetaKey.FromContext(ctx)
 				if sm == nil {
 					t.Fatal("Expected span metadata in context")
