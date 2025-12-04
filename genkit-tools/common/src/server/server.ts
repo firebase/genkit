@@ -91,7 +91,6 @@ export function startServer(manager: RuntimeManager, port: number) {
             res.setHeader('X-Genkit-Trace-Id', traceId);
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
             res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
             res.statusCode = 200;
             res.flushHeaders();
@@ -123,7 +122,6 @@ export function startServer(manager: RuntimeManager, port: number) {
 
       // Set streaming headers immediately
       res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Transfer-Encoding', 'chunked');
@@ -151,7 +149,6 @@ export function startServer(manager: RuntimeManager, port: number) {
 
   app.options('/api/streamTrace', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
     res.status(200).send('');
   });
