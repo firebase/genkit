@@ -20,7 +20,11 @@ import { genkit } from 'genkit';
 const ai = genkit({
   plugins: [
     // Default all flows in this sample to the beta surface
-    anthropic({ apiVersion: 'beta', cacheSystemPrompt: true }),
+    anthropic({
+      apiVersion: 'beta',
+      cacheSystemPrompt: true,
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    }),
   ],
 });
 
@@ -34,6 +38,7 @@ ai.defineFlow('anthropic-beta-hello', async () => {
     prompt:
       'You are Claude on the beta API. Provide a concise greeting that mentions that you are using the beta API.',
     config: { temperature: 0.6 },
+    output: {},
   });
 
   return text;

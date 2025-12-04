@@ -366,6 +366,7 @@ export function mockMessageWithContent(
 }
 
 function toBetaMessage(message: Message): BetaMessage {
+  // @ts-ignore
   return {
     ...message,
     container: null,
