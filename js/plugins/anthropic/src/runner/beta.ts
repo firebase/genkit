@@ -304,6 +304,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
+      betas: BETA_APIS,
     };
 
     if (betaSystem !== undefined) body.system = betaSystem;
@@ -348,8 +349,6 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       };
     }
 
-    body.betas = BETA_APIS;
-
     return body;
   }
 
@@ -385,6 +384,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
+      betas: BETA_APIS,
     };
 
     if (betaSystem !== undefined) body.system = betaSystem;
@@ -427,8 +427,6 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         schema: toAnthropicSchema(request.output!.schema!),
       };
     }
-
-    body.betas = BETA_APIS;
 
     return body;
   }
