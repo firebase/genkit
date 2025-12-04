@@ -113,5 +113,3 @@ export class BroadcastManager {
     return this.connections.has(traceId);
   }
 }
-
-

@@ -16,8 +16,8 @@
 
 import type { SpanData } from '@genkit-ai/tools-common';
 import * as assert from 'assert';
-import type { Response } from 'express';
 import { EventEmitter } from 'events';
+import type { Response } from 'express';
 import { beforeEach, describe, it } from 'node:test';
 import { BroadcastManager, type SpanEvent } from '../src/broadcast-manager';
 
@@ -122,4 +122,3 @@ describe('BroadcastManager', () => {
     assert.strictEqual(manager.hasConnections('trace-1'), false);
   });
 });
-
