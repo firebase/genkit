@@ -495,6 +495,9 @@ func TestValidPrompt(t *testing.T) {
 							"type":                 string("object"),
 						},
 						OutputSchema: map[string]any{"type": string("string")},
+						Metadata: map[string]any{
+							"multipart": false,
+						},
 					},
 				},
 			},
@@ -587,6 +590,9 @@ func TestValidPrompt(t *testing.T) {
 							"type":                 string("object"),
 						},
 						OutputSchema: map[string]any{"type": string("string")},
+						Metadata: map[string]any{
+							"multipart": false,
+						},
 					},
 				},
 			},
