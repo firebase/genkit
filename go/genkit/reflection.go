@@ -437,26 +437,25 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 				if resp != nil && resp.Telemetry.TraceID != "" {
 					traceIDPtr = &resp.Telemetry.TraceID
 				}
-				cancelledErr := core.ReflectionError{
-					Code:    core.CodeCancelled, // gRPC CANCELLED = 1
-					Message: "Action was cancelled",
-					Details: &core.ReflectionErrorDetails{
-						TraceID: traceIDPtr,
+				errResp := errorResponse{
+					Error: core.ReflectionError{
+						Code:    core.CodeCancelled, // gRPC CANCELLED = 1
+						Message: "Action was cancelled",
+						Details: &core.ReflectionErrorDetails{
+							TraceID: traceIDPtr,
+						},
 					},
 				}
-				errorResponse := struct {
-					Error core.ReflectionError `json:"error"`
-				}{Error: cancelledErr}
 
 				if stream {
 					// For streaming, write error as final chunk
-					json.NewEncoder(w).Encode(errorResponse)
+					json.NewEncoder(w).Encode(errResp)
 				} else {
 					// For non-streaming, return error response
 					if !headersSent {
 						w.WriteHeader(http.StatusOK) // Match TS: response.status(200).json(...)
 					}
-					json.NewEncoder(w).Encode(errorResponse)
+					json.NewEncoder(w).Encode(errResp)
 				}
 				return nil
 			}
@@ -468,10 +467,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 					refErr.Details.TraceID = &resp.Telemetry.TraceID
 				}
 
-				errorResp := map[string]interface{}{
-					"error": refErr,
-				}
-				json.NewEncoder(w).Encode(errorResp)
+				json.NewEncoder(w).Encode(errorResponse{Error: refErr})
 				return nil
 			}
 
@@ -634,6 +630,10 @@ type runActionResponse struct {
 
 type telemetry struct {
 	TraceID string `json:"traceId"`
+}
+
+type errorResponse struct {
+	Error core.ReflectionError `json:"error"`
 }
 
 func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
