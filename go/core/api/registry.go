@@ -17,8 +17,6 @@
 package api
 
 import (
-	"encoding/json"
-
 	"github.com/google/dotprompt/go/dotprompt"
 )
 
@@ -48,7 +46,7 @@ type Registry interface {
 
 	// RegisterSchema records a JSON schema in the registry.
 	// It panics if a value with the same name is already registered.
-	RegisterSchema(name string, schema json.RawMessage)
+	RegisterSchema(name string, schema map[string]any)
 
 	// LookupPlugin returns the plugin for the given name.
 	// It first checks the current registry, then falls back to the parent if not found.
@@ -67,7 +65,7 @@ type Registry interface {
 	// LookupSchema returns a JSON schema for the given name.
 	// It first checks the current registry, then falls back to the parent if not found.
 	// Returns nil if the value is not found in the registry hierachy.
-	LookupSchema(name string) json.RawMessage
+	LookupSchema(name string) map[string]any
 
 	// ResolveAction looks up an action by key. If the action is not found, it attempts dynamic resolution.
 	// Returns the action if found, or nil if not found.

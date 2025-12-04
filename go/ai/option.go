@@ -876,8 +876,8 @@ type promptExecutionOptions struct {
 	commonGenOptions
 	executionOptions
 	documentOptions
-	Input  any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
-	Output any // Output fields for the prompt. If not nil, this should be a struct that matches the prompt's desired output schema
+	Input            any    // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
+	OutputSchemaName string // OutputSchemaName fields for the prompt. If not nil, this should be a struct that matches the prompt's desired output schema
 }
 
 // PromptExecuteOption is an option for executing a prompt. It applies only to [prompt.Execute].
@@ -906,11 +906,11 @@ func (o *promptExecutionOptions) applyPromptExecute(pgOpts *promptExecutionOptio
 		pgOpts.Input = o.Input
 	}
 
-	if o.Output != nil {
-		if pgOpts.Output != nil {
-			return errors.New("cannot set output more than once (WithOutput)")
+	if o.OutputSchemaName != "" {
+		if pgOpts.OutputSchemaName != "" {
+			return errors.New("cannot set output more than once (WithOutputSchemaName)")
 		}
-		pgOpts.Output = o.Output
+		pgOpts.OutputSchemaName = o.OutputSchemaName
 	}
 
 	return nil
@@ -922,8 +922,8 @@ func WithInput(input any) PromptExecuteOption {
 	return &promptExecutionOptions{Input: input}
 }
 
-// WithOutput sets the output for the prompt desired output. Output must conform to the
+// WithOutputSchemaName sets the output for the prompt desired output. Output must conform to the
 // prompt's output schema and should be a map[string]any or a struct of the same type.
-func WithOutput(output any) PromptExecuteOption {
-	return &promptExecutionOptions{Output: output}
+func WithOutputSchemaName(schema string) PromptExecuteOption {
+	return &promptExecutionOptions{OutputSchemaName: schema}
 }

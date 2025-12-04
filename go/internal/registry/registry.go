@@ -38,7 +38,7 @@ type Registry struct {
 	parent    api.Registry
 	actions   map[string]api.Action
 	plugins   map[string]api.Plugin
-	schemas   map[string]json.RawMessage
+	schemas   map[string]map[string]any
 	values    map[string]any // Values can truly be anything.
 	dotprompt *dotprompt.Dotprompt
 }
@@ -49,7 +49,7 @@ func New() *Registry {
 		actions: map[string]api.Action{},
 		plugins: map[string]api.Plugin{},
 		values:  map[string]any{},
-		schemas: make(map[string]json.RawMessage),
+		schemas: make(map[string]map[string]any),
 	}
 	r.dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
 		Helpers:  make(map[string]any),
@@ -65,7 +65,11 @@ func New() *Registry {
 				}, nil
 			}
 			var schema jsonschema.Schema
-			if err := json.Unmarshal(s, &schema); err != nil {
+			schemaBytes, err := json.Marshal(s)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal schema map for %q: %w", name, err)
+			}
+			if err := json.Unmarshal(schemaBytes, &schema); err != nil {
 				slog.Error("failed to unmarshal schema from registry", "name", name, "error", err)
 				return nil, fmt.Errorf("failed to unmarshal schema(%q) from registry", name)
 			}
@@ -84,7 +88,7 @@ func (r *Registry) NewChild() api.Registry {
 		actions:   map[string]api.Action{},
 		plugins:   map[string]api.Plugin{},
 		values:    map[string]any{},
-		schemas:   make(map[string]json.RawMessage),
+		schemas:   make(map[string]map[string]any),
 		dotprompt: r.dotprompt,
 	}
 	return child
@@ -122,7 +126,7 @@ func (r *Registry) RegisterAction(key string, action api.Action) {
 
 // RegisterSchema records a JSON schema in the registry.
 // It panics if a schema with the same name is already registered.
-func (r *Registry) RegisterSchema(name string, schema json.RawMessage) {
+func (r *Registry) RegisterSchema(name string, schema map[string]any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if val, ok := r.schemas[name]; ok {
@@ -140,7 +144,7 @@ func (r *Registry) RegisterSchema(name string, schema json.RawMessage) {
 // LookupSchema returns a JSON schema for the given name.
 // It first checks the current registry, then falls back to the parent if not found.
 // Returns nil if the schema is not found in the registry hierarchy.
-func (r *Registry) LookupSchema(name string) json.RawMessage {
+func (r *Registry) LookupSchema(name string) map[string]any {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

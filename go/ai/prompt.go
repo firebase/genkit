@@ -124,14 +124,8 @@ func LookupPrompt(r api.Registry, name string) Prompt {
 
 // DefineSchema defines a schema in the registry
 // It panics if an error was encountered
-func DefineSchema(r api.Registry, name string, schema any) {
-	reflector := &jsonschema.Reflector{}
-	s := reflector.Reflect(schema)
-	b, err := json.Marshal(s)
-	if err != nil {
-		panic(fmt.Errorf("ai.DefineSchema: failed to marshal schema %q: %w", name, err))
-	}
-	r.RegisterSchema(name, b)
+func DefineSchema(r api.Registry, name string, schema map[string]any) {
+	r.RegisterSchema(name, schema)
 }
 
 // Execute renders a prompt, does variable substitution and
@@ -155,19 +149,19 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		return nil, err
 	}
 
-	if execOpts.Output != nil {
-		actionOpts.Output.JsonSchema = base.SchemaAsMap(base.InferJSONSchema(execOpts.Output))
+	if execOpts.OutputSchemaName != "" {
+		schema := p.registry.LookupSchema(execOpts.OutputSchemaName)
+		if schema == nil {
+			return nil, fmt.Errorf("schema %q not found", execOpts.OutputSchemaName)
+		}
+		actionOpts.Output.JsonSchema = schema
 		actionOpts.Output.Format = OutputFormatJSON
 	} else if actionOpts.Output != nil && actionOpts.Output.JsonSchema != nil {
 		// Check for deferred schema reference ($ref: "genkit:...")
 		if ref, ok := actionOpts.Output.JsonSchema["$ref"].(string); ok {
 			if schemaName, found := strings.CutPrefix(ref, "genkit:"); found {
-				schemaBytes := p.registry.LookupSchema(schemaName)
-				if schemaBytes != nil {
-					var schema map[string]any
-					if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-						return nil, fmt.Errorf("failed to unmarshal schema %q: %w", schemaName, err)
-					}
+				schema := p.registry.LookupSchema(schemaName)
+				if schema != nil {
 					actionOpts.Output.JsonSchema = schema
 				}
 			}

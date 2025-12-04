@@ -1324,15 +1324,24 @@ Generate a recipe for {{food}}.
 	}
 
 	// define the "Recipe" schema (deferred resolution)
-	type Ingredient struct {
-		Name     string `json:"name"`
-		Quantity string `json:"quantity"`
-	}
-	type Recipe struct {
-		Title       string       `json:"title"`
-		Ingredients []Ingredient `json:"ingredients"`
-	}
-	DefineSchema(reg, "Recipe", Recipe{})
+	DefineSchema(reg, "Recipe", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"title": map[string]any{"type": "string"},
+			"ingredients": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name":     map[string]any{"type": "string"},
+						"quantity": map[string]any{"type": "string"},
+					},
+					"required": []string{"name", "quantity"},
+				},
+			},
+		},
+		"required": []string{"title", "ingredients"},
+	})
 
 	// we should now resolve "Recipe" correctly
 	resp, err := prompt.Execute(context.Background(), WithInput(map[string]any{"food": "tacos"}))
@@ -1393,10 +1402,13 @@ Generate something.
 	ConfigureFormats(reg)
 
 	// OriginalSchema is the original output schema for prompt, it is defined/referenced in the .prompt file
-	type OriginalSchema struct {
-		OriginalField string `json:"original"`
-	}
-	DefineSchema(reg, "OriginalSchema", OriginalSchema{})
+	DefineSchema(reg, "OriginalSchema", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"original": map[string]any{"type": "string"},
+		},
+		"required": []string{"original"},
+	})
 
 	DefineModel(reg, "test-model", &ModelOptions{
 		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
@@ -1409,8 +1421,15 @@ Generate something.
 
 	prompt := LoadPrompt(reg, tempDir, "override.prompt", "test")
 
+	DefineSchema(reg, "NewSchema", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"new": map[string]any{"type": "string"},
+		},
+	})
+
 	// overriding the `prompt` initial output at runtime
-	resp, err := prompt.Execute(context.Background(), WithOutput(NewSchema{}))
+	resp, err := prompt.Execute(context.Background(), WithOutputSchemaName("NewSchema"))
 	if err != nil {
 		t.Fatalf("Execute failed: %v", err)
 	}
