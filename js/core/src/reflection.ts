@@ -199,7 +199,13 @@ export class ReflectionServer {
         // Set up onTraceStart callback to send trace ID in headers early.
         // This fires once for the root action span, before any streaming chunks
         // or final result are returned.
-        const onTraceStartCallback = ({ traceId: tid, spanId }: { traceId: string; spanId: string }) => {
+        const onTraceStartCallback = ({
+          traceId: tid,
+          spanId,
+        }: {
+          traceId: string;
+          spanId: string;
+        }) => {
           traceId = tid; // Update traceId for cleanup later
           this.activeActions.set(tid, {
             abortController,
