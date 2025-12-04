@@ -152,23 +152,24 @@ export const TraceDataSchema = z
   .openapi('TraceData');
 export type TraceData = z.infer<typeof TraceDataSchema>;
 
+export const SpantEventBaseSchema = z.object({
+  traceId: z.string(),
+  span: SpanDataSchema, // SpanData with endTime = 0
+});
+
 /**
  * Schema for span start event - sent when a span begins execution
  */
-export const SpanStartEventSchema = z.object({
+export const SpanStartEventSchema = SpantEventBaseSchema.extend({
   type: z.literal('span_start'),
-  traceId: z.string(),
-  span: SpanDataSchema, // SpanData with endTime = 0
 });
 export type SpanStartEvent = z.infer<typeof SpanStartEventSchema>;
 
 /**
  * Schema for span end event - sent when a span completes
  */
-export const SpanEndEventSchema = z.object({
+export const SpanEndEventSchema = SpantEventBaseSchema.extend({
   type: z.literal('span_end'),
-  traceId: z.string(),
-  span: SpanDataSchema, // SpanData with valid endTime
 });
 export type SpanEndEvent = z.infer<typeof SpanEndEventSchema>;
 
