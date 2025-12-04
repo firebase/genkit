@@ -379,6 +379,20 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 // spanMetaKey is for storing spanMetadatas in a context.
 var spanMetaKey = base.NewContextKey[*spanMetadata]()
 
+// telemetryCbKey is the context key for telemetry callbacks.
+var telemetryCbKey = base.NewContextKey[func(traceID, spanID string)]()
+
+// WithTelemetryCb returns a context with the telemetry callback attached.
+// Used by the reflection server to pass callbacks to actions.
+func WithTelemetryCb(ctx context.Context, cb func(traceID, spanID string)) context.Context {
+	return telemetryCbKey.NewContext(ctx, cb)
+}
+
+// TelemetryCb retrieves the telemetry callback from context, or nil if not set.
+func TelemetryCb(ctx context.Context) func(traceID, spanID string) {
+	return telemetryCbKey.FromContext(ctx)
+}
+
 // SpanPath returns the path as recorded in the current span metadata.
 func SpanPath(ctx context.Context) string {
 	return spanMetaKey.FromContext(ctx).Path

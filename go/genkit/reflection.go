@@ -361,7 +361,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 
 		// Track whether headers have been sent
 		headersSent := false
-		var traceID string
+		var callbackTraceID string // Trace ID captured from telemetry callback for early header sending
 		var mu sync.Mutex
 
 		// Set up telemetry callback to capture and send trace ID early
@@ -371,17 +371,17 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 			defer mu.Unlock()
 
 			if !headersSent {
-				traceID = tid
+				callbackTraceID = tid
 
 				// Track active action for cancellation
-				activeActions.Set(traceID, &activeAction{
+				activeActions.Set(callbackTraceID, &activeAction{
 					cancel:    cancel,
 					startTime: time.Now(),
-					traceID:   traceID,
+					traceID:   callbackTraceID,
 				})
 
 				// Send headers immediately with trace ID
-				w.Header().Set("X-Genkit-Trace-Id", traceID)
+				w.Header().Set("X-Genkit-Trace-Id", callbackTraceID)
 				w.Header().Set("X-Genkit-Span-Id", sid)
 				w.Header().Set("X-Genkit-Version", "go/"+internal.Version)
 
@@ -420,35 +420,33 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		// Run the action with telemetry callback
-		resp, err := runAction(actionCtx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap, telemetryCb)
+		// Attach telemetry callback to context so action can invoke it when span is created
+		actionCtx = tracing.WithTelemetryCb(actionCtx, telemetryCb)
+		resp, err := runAction(actionCtx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 
-		// Clean up active action if we have a trace ID
-		if traceID != "" {
-			activeActions.Delete(traceID)
-		} else if resp != nil && resp.Telemetry.TraceID != "" {
-			// If we didn't get trace ID from callback (non-streaming), track and clean up
-			traceID = resp.Telemetry.TraceID
-			activeActions.Set(traceID, &activeAction{
-				cancel:    cancel,
-				startTime: time.Now(),
-				traceID:   traceID,
-			})
-			defer activeActions.Delete(traceID)
+		// Clean up active action using the trace ID from response
+		if resp != nil && resp.Telemetry.TraceID != "" {
+			activeActions.Delete(resp.Telemetry.TraceID)
 		}
 
 		if err != nil {
 			// Check if context was cancelled
 			if errors.Is(err, context.Canceled) {
-				errorResponse := map[string]interface{}{
-					"error": map[string]interface{}{
-						"code":    1, // gRPC CANCELLED (matches JS)
-						"message": "Action was cancelled",
-						"details": map[string]interface{}{
-							"traceId": traceID,
-						},
+				// Use gRPC CANCELLED code (1) in JSON body to match TypeScript behavior
+				var traceIDPtr *string
+				if resp != nil && resp.Telemetry.TraceID != "" {
+					traceIDPtr = &resp.Telemetry.TraceID
+				}
+				cancelledErr := core.ReflectionError{
+					Code:    core.CodeCancelled, // gRPC CANCELLED = 1
+					Message: "Action was cancelled",
+					Details: &core.ReflectionErrorDetails{
+						TraceID: traceIDPtr,
 					},
 				}
+				errorResponse := struct {
+					Error core.ReflectionError `json:"error"`
+				}{Error: cancelledErr}
 
 				if stream {
 					// For streaming, write error as final chunk
@@ -456,7 +454,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 				} else {
 					// For non-streaming, return error response
 					if !headersSent {
-						w.WriteHeader(499)
+						w.WriteHeader(http.StatusOK) // Match TS: response.status(200).json(...)
 					}
 					json.NewEncoder(w).Encode(errorResponse)
 				}
@@ -493,11 +491,9 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 		if stream {
 			// For streaming, write the final chunk with result and telemetry
 			// This matches JS: response.write(JSON.stringify({result, telemetry}))
-			finalResponse := map[string]interface{}{
-				"result": resp.Result,
-				"telemetry": map[string]interface{}{
-					"traceId": resp.Telemetry.TraceID,
-				},
+			finalResponse := runActionResponse{
+				Result:    resp.Result,
+				Telemetry: telemetry{TraceID: resp.Telemetry.TraceID},
 			}
 			json.NewEncoder(w).Encode(finalResponse)
 		} else {
@@ -640,7 +636,7 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any, telemetryCb api.TelemetryCallback) (*runActionResponse, error) {
+func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := g.reg.ResolveAction(key)
 	if action == nil {
 		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
@@ -661,7 +657,7 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	// Run the action and capture trace ID. We need to ensure there's a valid trace context.
 	var traceID string
 	output, err := func() (json.RawMessage, error) {
-		r, err := action.RunJSONWithTelemetry(ctx, input, cb, telemetryCb)
+		r, err := action.RunJSONWithTelemetry(ctx, input, cb)
 		if r != nil {
 			traceID = r.TraceId
 		}

@@ -27,10 +27,6 @@ type ActionRunResult[T any] struct {
 	SpanId  string
 }
 
-// TelemetryCallback is called when telemetry information becomes available.
-// It receives the trace ID and span ID as soon as the span is created.
-type TelemetryCallback func(traceID, spanID string)
-
 // Action is the interface that all Genkit primitives (e.g. flows, models, tools) have in common.
 type Action interface {
 	Registerable
@@ -39,8 +35,7 @@ type Action interface {
 	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
 	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
 	// RunJSONWithTelemetry runs the action with the given JSON input and streaming callback and returns the output as JSON along with telemetry info.
-	// The telemetryCb callback, if provided, is called as soon as the trace span is created with the trace ID and span ID.
-	RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error, telemetryCb TelemetryCallback) (*ActionRunResult[json.RawMessage], error)
+	RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (*ActionRunResult[json.RawMessage], error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
 }
