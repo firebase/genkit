@@ -39,18 +39,18 @@ func main() {
 		genkit.WithPromptDir("prompts"),
 	)
 
-	// SimplePrompt(ctx, g)
-	// PromptWithMultiMessage(ctx, g)
-	// PromptWithInput(ctx, g)
-	// PromptWithOutputType(ctx, g)
-	// PromptWithComplexOutputType(ctx, g)
-	// PromptWithTool(ctx, g)
-	// PromptWithMessageHistory(ctx, g)
-	// PromptWithExecuteOverrides(ctx, g)
-	// PromptWithFunctions(ctx, g)
-	// PromptWithOutputTypeDotprompt(ctx, g)
-	// PromptWithMediaType(ctx, g)
-	PromptWithSchema(ctx, g)
+	SimplePrompt(ctx, g)
+	PromptWithMultiMessage(ctx, g)
+	PromptWithInput(ctx, g)
+	PromptWithOutputType(ctx, g)
+	PromptWithComplexOutputType(ctx, g)
+	PromptWithTool(ctx, g)
+	PromptWithMessageHistory(ctx, g)
+	PromptWithExecuteOverrides(ctx, g)
+	PromptWithFunctions(ctx, g)
+	PromptWithOutputTypeDotprompt(ctx, g)
+	PromptWithMediaType(ctx, g)
+	PromptWithOutputSchemaName(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -344,27 +344,7 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 	fmt.Println(resp.Text())
 }
 
-/*
-Inline schema equivalence
-
-	  title: string, recipe title
-	  ingredients(array):
-		name: string
-		quantity: string
-	  steps(array, the steps required to complete the recipe): string
-*/
-type Ingredient struct {
-	Name     string `json:"name" description:"ingredient name"`
-	Quantity string `json:"quantity" description:"ingredient quantity"`
-}
-
-type RecipeSchema struct {
-	Title       string       `json:"title" description:"Recipe name"`
-	Ingredients []Ingredient `json:"ingredients" description:"Recipe ingredients"`
-	Steps       []string     `json:"steps" description:"Recipe steps"`
-}
-
-func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
+func PromptWithOutputSchemaName(ctx context.Context, g *genkit.Genkit) {
 	prompt := genkit.LoadPrompt(g, "./prompts/recipe.prompt", "recipes")
 	if prompt == nil {
 		log.Fatal("empty prompt")
@@ -399,7 +379,7 @@ func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
 	resp, err := prompt.Execute(ctx,
 		ai.WithModelName("googleai/gemini-2.5-pro"),
 		ai.WithInput(map[string]any{"food": "tacos", "ingredients": []string{"octopus", "shrimp"}}),
-		ai.WithOutputSchemaName("recipee"),
+		ai.WithOutputSchemaName("recipe"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -408,8 +388,8 @@ func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
 }
 
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"
-	resp, err := http.Get(imgUrl)
+	imgURL := "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"
+	resp, err := http.Get(imgURL)
 	if err != nil {
 		return "", err
 	}

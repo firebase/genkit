@@ -877,7 +877,7 @@ type promptExecutionOptions struct {
 	executionOptions
 	documentOptions
 	Input            any    // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
-	OutputSchemaName string // OutputSchemaName fields for the prompt. If not nil, this should be a struct that matches the prompt's desired output schema
+	OutputSchemaName string // OutputSchemaName is the name of the schema that will resolve the prompt's output schema
 }
 
 // PromptExecuteOption is an option for executing a prompt. It applies only to [prompt.Execute].
@@ -922,8 +922,7 @@ func WithInput(input any) PromptExecuteOption {
 	return &promptExecutionOptions{Input: input}
 }
 
-// WithOutputSchemaName sets the output for the prompt desired output. Output must conform to the
-// prompt's output schema and should be a map[string]any or a struct of the same type.
+// WithOutputSchemaName sets the schema name that will be used to render the prompt's desired output.
 func WithOutputSchemaName(schema string) PromptExecuteOption {
 	return &promptExecutionOptions{OutputSchemaName: schema}
 }

@@ -616,8 +616,6 @@ func resolveRef(originalSchema map[string]any, ref string) (map[string]any, erro
 			return def, nil
 		}
 	}
-	//
-	// return an empty map to prevent panic
 	return nil, fmt.Errorf("unable to resolve schema reference")
 }
 

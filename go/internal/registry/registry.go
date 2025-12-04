@@ -124,7 +124,7 @@ func (r *Registry) RegisterAction(key string, action api.Action) {
 	slog.Debug("RegisterAction", "key", key)
 }
 
-// RegisterSchema records a JSON schema in the registry.
+// RegisterSchema records a JSON schema (as a map[string]any) in the registry.
 // It panics if a schema with the same name is already registered.
 func (r *Registry) RegisterSchema(name string, schema map[string]any) {
 	r.mu.Lock()
@@ -141,7 +141,7 @@ func (r *Registry) RegisterSchema(name string, schema map[string]any) {
 	slog.Debug("RegisterSchema", "name", name)
 }
 
-// LookupSchema returns a JSON schema for the given name.
+// LookupSchema returns a JSON schema (as a map[string]any) for the given name.
 // It first checks the current registry, then falls back to the parent if not found.
 // Returns nil if the schema is not found in the registry hierarchy.
 func (r *Registry) LookupSchema(name string) map[string]any {

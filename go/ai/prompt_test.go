@@ -1379,11 +1379,6 @@ Generate a recipe for {{food}}.
 	}
 }
 
-// Define NewSchema for override outside the test function to ensure reflection works reliably
-type NewSchema struct {
-	NewField string `json:"new"`
-}
-
 func TestWithOutputOverridesSchema(t *testing.T) {
 	tempDir := t.TempDir()
 
