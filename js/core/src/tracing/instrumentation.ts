@@ -29,8 +29,6 @@ import { ensureBasicTelemetryInstrumentation } from '../tracing.js';
 import type { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAlsKey = 'core.tracing.instrumentation.span';
-export const lastGenkitSpanIdAlsKey =
-  'core.tracing.instrumentation.lastGenkitSpanId';
 
 export const ATTR_PREFIX = 'genkit';
 /** @hidden */
@@ -41,6 +39,7 @@ const TRACER_VERSION = 'v1';
 type SpanContext = {
   metadata: SpanMetadata;
   labels?: Record<string, string>;
+  spanId?: string;
 } & TraceMetadata;
 
 interface RunInNewSpanOpts {
@@ -122,32 +121,26 @@ export async function runInNewSpan<T>(
           opts.labels
         );
 
-        const lastGenkitSpanId =
-          getAsyncContext().getStore<string>(lastGenkitSpanIdAlsKey) || '';
         const isGenkitSpan = !!opts.labels?.[SPAN_TYPE_ATTR];
         if (isGenkitSpan && parentStep) {
           const parentIsGenkit = !!parentStep.labels?.[SPAN_TYPE_ATTR];
-          if (!parentIsGenkit && lastGenkitSpanId) {
+          if (!parentIsGenkit && parentStep.spanId) {
             otSpan.setAttribute(
               ATTR_PREFIX + ':lastKnownParentSpanId',
-              lastGenkitSpanId
+              parentStep.spanId
             );
           }
+        }
+
+        // Store spanId in context for Genkit spans so nested spans can reference it
+        if (isGenkitSpan) {
+          spanContext.spanId = otSpan.spanContext().spanId;
         }
 
         const output = await getAsyncContext().run(
           spanMetadataAlsKey,
           spanContext,
-          () => {
-            if (isGenkitSpan) {
-              return getAsyncContext().run(
-                lastGenkitSpanIdAlsKey,
-                otSpan.spanContext().spanId,
-                () => fn(opts.metadata, otSpan, isInRoot)
-              );
-            }
-            return fn(opts.metadata, otSpan, isInRoot);
-          }
+          () => fn(opts.metadata, otSpan, isInRoot)
         );
         if (opts.metadata.state !== 'error') {
           opts.metadata.state = 'success';

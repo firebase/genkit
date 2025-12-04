@@ -92,7 +92,7 @@ export interface ActionRunOptions<S> {
    * This is useful for scenarios where telemetry needs to be available before the action completes.
    * Note: This only fires once for the root action span, not for nested spans.
    */
-  onTelemetry?: (traceId: string, spanId: string) => void;
+  onTraceStart?: (traceInfo: { traceId: string; spanId: string }) => void;
 }
 
 /**
@@ -349,8 +349,8 @@ export function action<
 
         traceId = span.spanContext().traceId;
         spanId = span.spanContext().spanId;
-        if (options?.onTelemetry) {
-          options.onTelemetry(traceId, spanId);
+        if (options?.onTraceStart) {
+          options.onTraceStart({ traceId, spanId });
         }
         metadata.name = actionName;
         metadata.input = input;

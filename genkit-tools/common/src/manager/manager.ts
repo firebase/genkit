@@ -63,6 +63,7 @@ interface RuntimeManagerOptions {
 }
 
 export class RuntimeManager {
+  readonly processManager?: ProcessManager;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
@@ -72,8 +73,10 @@ export class RuntimeManager {
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
     readonly projectRoot: string,
-    readonly processManager?: ProcessManager
-  ) {}
+    processManager?: ProcessManager
+  ) {
+    this.processManager = processManager;
+  }
 
   /**
    * Creates a new runtime manager.

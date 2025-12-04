@@ -143,10 +143,15 @@ export class LocalFileTraceStore implements TraceStore {
         }
         // Only update metadata if new values are defined
         // Prevents overwriting with undefined when batches arrive without root span
-        if (trace.displayName !== undefined)
+        if (trace.displayName !== undefined) {
           existing.displayName = trace.displayName;
-        if (trace.startTime !== undefined) existing.startTime = trace.startTime;
-        if (trace.endTime !== undefined) existing.endTime = trace.endTime;
+        }
+        if (trace.startTime !== undefined) {
+          existing.startTime = trace.startTime;
+        }
+        if (trace.endTime !== undefined) {
+          existing.endTime = trace.endTime;
+        }
         trace = existing;
       }
       fs.writeFileSync(
@@ -432,6 +437,8 @@ export class Index {
       .sort((a, b) => (b!['start'] as number) - (a!['start'] as number));
 
     // Dedupe by trace ID, keeping the most recent entry (first seen after sorting)
+    // TODO: Real-time span events pollute the index with duplicates. This deduplication
+    // works but may degrade index performance over time. Revisit if we see issues.
     const deduped = [] as Record<string, string | number>[];
     const seenIds = new Set<string>();
     for (const entry of fullData) {

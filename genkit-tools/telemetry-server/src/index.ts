@@ -20,9 +20,9 @@ import {
   type SpanData,
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
-import type { Response } from 'express';
 import express from 'express';
 import type * as http from 'http';
+import { BroadcastManager } from './broadcast-manager.js';
 import type { TraceStore } from './types';
 import { traceDataFromOtlp } from './utils/otlp';
 
@@ -30,96 +30,6 @@ export { LocalFileTraceStore } from './file-trace-store.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
 
 let server: http.Server;
-
-/**
- * Broadcast manager for SSE connections.
- * Tracks active connections per traceId and broadcasts updates.
- */
-class BroadcastManager {
-  private connections: Map<string, Set<Response>> = new Map();
-
-  /**
-   * Register a new SSE connection for a traceId.
-   */
-  subscribe(traceId: string, response: Response): void {
-    if (!this.connections.has(traceId)) {
-      this.connections.set(traceId, new Set());
-    }
-    this.connections.get(traceId)!.add(response);
-
-    // Clean up when connection closes
-    response.on('close', () => {
-      this.unsubscribe(traceId, response);
-    });
-  }
-
-  /**
-   * Remove a connection from subscriptions.
-   */
-  unsubscribe(traceId: string, response: Response): void {
-    const connections = this.connections.get(traceId);
-    if (connections) {
-      connections.delete(response);
-      if (connections.size === 0) {
-        this.connections.delete(traceId);
-      }
-    }
-  }
-
-  /**
-   * Broadcast span updates to all subscribers of a traceId.
-   */
-  broadcast(
-    traceId: string,
-    event: {
-      type: 'span_start' | 'span_end';
-      traceId: string;
-      span: SpanData;
-    }
-  ): void {
-    const connections = this.connections.get(traceId);
-    if (!connections || connections.size === 0) {
-      return;
-    }
-
-    const data = JSON.stringify(event);
-    const messageToSend = `${data}\n\n`;
-
-    // Send to all connections, removing dead ones
-    const deadConnections: Response[] = [];
-    for (const connection of connections) {
-      try {
-        connection.write(messageToSend);
-      } catch (error) {
-        // Connection is dead, mark for removal
-        deadConnections.push(connection);
-      }
-    }
-
-    // Clean up dead connections
-    for (const deadConnection of deadConnections) {
-      this.unsubscribe(traceId, deadConnection);
-    }
-  }
-
-  /**
-   * Close all connections for a traceId.
-   */
-  close(traceId: string): void {
-    const connections = this.connections.get(traceId);
-    if (connections) {
-      for (const connection of connections) {
-        try {
-          connection.end();
-        } catch (error) {
-          // Ignore errors when closing
-        }
-      }
-      this.connections.delete(traceId);
-    }
-  }
-}
-
 const broadcastManager = new BroadcastManager();
 
 /**
@@ -258,6 +168,41 @@ export async function startTelemetryServer(params: {
     }
   });
 
+  api.post(
+    '/api/otlp/:parentTraceId/:parentSpanId',
+    async (request, response) => {
+      try {
+        const { parentTraceId, parentSpanId } = request.params;
+
+        if (!request.body.resourceSpans?.length) {
+          // Acknowledge and ignore empty payloads.
+          response.status(200).json({});
+          return;
+        }
+        const traces = traceDataFromOtlp(request.body);
+        for (const traceData of traces) {
+          traceData.traceId = parentTraceId;
+          for (const span of Object.values(traceData.spans)) {
+            span.attributes['genkit:otlp-traceId'] = span.traceId;
+            span.traceId = parentTraceId;
+            if (!span.parentSpanId) {
+              span.parentSpanId = parentSpanId;
+            }
+          }
+          await params.traceStore.save(parentTraceId, traceData);
+        }
+        response.status(200).json({});
+      } catch (err) {
+        logger.error(`Error processing OTLP payload: ${err}`);
+        response.status(500).json({
+          code: 13, // INTERNAL
+          message:
+            'An internal error occurred while processing the OTLP payload.',
+        });
+      }
+    }
+  );
+
   api.post('/api/otlp', async (request, response) => {
     try {
       if (!request.body.resourceSpans?.length) {
@@ -269,9 +214,6 @@ export async function startTelemetryServer(params: {
       for (const trace of traces) {
         const traceData = TraceDataSchema.parse(trace);
         await params.traceStore.save(traceData.traceId, traceData);
-
-        /*
-        TODO: Not sure the otlp use case clearly yet, not sure if need to broadcast.
 
         // Convert each span to an event and broadcast individually
         for (const [_, span] of Object.entries(traceData.spans)) {
@@ -286,7 +228,6 @@ export async function startTelemetryServer(params: {
           };
           broadcastManager.broadcast(traceData.traceId, event);
         }
-        */
       }
       response.status(200).json({});
     } catch (err) {

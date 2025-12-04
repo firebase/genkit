@@ -1555,21 +1555,21 @@
     "SpanEndEvent": {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "span_end"
-        },
         "traceId": {
           "type": "string"
         },
         "span": {
           "$ref": "#/$defs/SpanData"
+        },
+        "type": {
+          "type": "string",
+          "const": "span_end"
         }
       },
       "required": [
-        "type",
         "traceId",
-        "span"
+        "span",
+        "type"
       ],
       "additionalProperties": false
     },
@@ -1609,21 +1609,21 @@
     "SpanStartEvent": {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "span_start"
-        },
         "traceId": {
-          "type": "string"
+          "$ref": "#/$defs/SpanEndEvent/properties/traceId"
         },
         "span": {
           "$ref": "#/$defs/SpanData"
+        },
+        "type": {
+          "type": "string",
+          "const": "span_start"
         }
       },
       "required": [
-        "type",
         "traceId",
-        "span"
+        "span",
+        "type"
       ],
       "additionalProperties": false
     },
@@ -1639,6 +1639,22 @@
       },
       "required": [
         "code"
+      ],
+      "additionalProperties": false
+    },
+    "SpantEventBase": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "$ref": "#/$defs/SpanEndEvent/properties/traceId"
+        },
+        "span": {
+          "$ref": "#/$defs/SpanData"
+        }
+      },
+      "required": [
+        "traceId",
+        "span"
       ],
       "additionalProperties": false
     },
