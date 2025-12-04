@@ -332,14 +332,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
-    const useStructuredOutput =
-      request.output !== undefined &&
-      request.output.schema !== undefined &&
-      request.output.constrained &&
-      request.output?.schema !== undefined &&
-      request.output?.format === 'json';
-
-    if (useStructuredOutput) {
+    // Apply structured output when model supports it and constrained output is requested
+    if (this.isStructuredOutputEnabled(request)) {
       body.output_format = {
         type: 'json_schema',
         schema: toAnthropicSchema(request.output!.schema!),
@@ -410,21 +404,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     }
 
     // Apply structured output when model supports it and constrained output is requested
-    // TODO: factor out into a helper function? and make it cleaner
-    const useStructuredOutput =
-      request.output !== undefined &&
-      request.output.schema !== undefined &&
-      request.output?.constrained &&
-      request.output?.schema !== undefined &&
-      request.output?.format === 'json';
-
-    if (useStructuredOutput) {
+    if (this.isStructuredOutputEnabled(request)) {
       body.output_format = {
         type: 'json_schema',
         schema: toAnthropicSchema(request.output!.schema!),
       };
     }
-
     return body;
   }
 
@@ -560,5 +545,13 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       default:
         return 'other';
     }
+  }
+
+  private isStructuredOutputEnabled(request: GenerateRequest<typeof AnthropicConfigSchema>): boolean {
+    return !!(
+      request.output?.schema &&
+      request.output.constrained &&
+      request.output.format === 'json'
+    );
   }
 }

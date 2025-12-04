@@ -21,7 +21,6 @@ import { anthropic } from '../src/index.js';
 
 const SKIP_LIVE_TESTS = !process.env.ANTHROPIC_API_KEY;
 
-// TODO: clean this test up a little bit
 describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
   it('should return structured output matching the schema', async () => {
     const ai = genkit({
@@ -41,21 +40,24 @@ describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
 
     const result = await ai.generate({
       model: 'anthropic/claude-sonnet-4-5',
-      prompt:
-        'Generate a fictional person with name "Alice", age 30, and city "New York". Return only the JSON.',
+      prompt: 'Generate a fictional person with name "Alice", age 30, and city "New York". Return only the JSON.',
       output: { schema, format: 'json', constrained: true },
     });
 
     const parsed = result.output;
     assert.ok(parsed, 'Should have parsed output');
-    assert.strictEqual(parsed.name, 'Alice');
-    assert.strictEqual(parsed.age, 30);
-    assert.strictEqual(parsed.city, 'New York');
-    // assert the others are NOT undefined
-    assert.notStrictEqual(parsed.isStudent, undefined);
-    assert.notStrictEqual(parsed.isEmployee, undefined);
-    assert.notStrictEqual(parsed.isRetired, undefined);
-    assert.notStrictEqual(parsed.isUnemployed, undefined);
-    assert.notStrictEqual(parsed.isDisabled, undefined);
+    assert.deepStrictEqual(
+      { name: parsed.name, age: parsed.age, city: parsed.city },
+      { name: 'Alice', age: 30, city: 'New York' }
+    );
+
+    // Check that boolean fields are present and are actually booleans
+    for (const key of ['isStudent', 'isEmployee', 'isRetired', 'isUnemployed', 'isDisabled']) {
+      assert.strictEqual(
+        typeof parsed[key],
+        'boolean',
+        `Field ${key} should be a boolean but got: ${typeof parsed[key]}`
+      );
+    }
   });
 });
