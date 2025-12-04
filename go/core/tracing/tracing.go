@@ -389,7 +389,7 @@ func WithTelemetryCb(ctx context.Context, cb func(traceID, spanID string)) conte
 }
 
 // TelemetryCb retrieves the telemetry callback from context, or nil if not set.
-func TelemetryCb(ctx context.Context) func(traceID, spanID string) {
+func telemetryCallback(ctx context.Context) func(traceID, spanID string) {
 	return telemetryCbKey.FromContext(ctx)
 }
 
