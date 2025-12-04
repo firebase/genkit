@@ -196,8 +196,9 @@ export class ReflectionServer {
           response.status(404).send(`action ${key} not found`);
           return;
         }
-        // Set up onTelemetry callback to send trace ID in headers early
-        // This callback should only fire once for the root action span
+        // Set up onTelemetry callback to send trace ID in headers early.
+        // This fires once for the root action span, before any streaming chunks
+        // or final result are returned.
         const onTelemetryCallback = (tid: string, spanId: string) => {
           traceId = tid; // Update traceId for cleanup later
           this.activeActions.set(tid, {
