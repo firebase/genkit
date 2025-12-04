@@ -173,12 +173,12 @@ type SpanMetadata struct {
 
 // RunInNewSpan runs f on input in a new span with the provided metadata.
 // The metadata contains all span configuration including name, type, labels, etc.
-// If telemetryCb is provided, it will be called with the trace ID and span ID as soon as the span is created.
+// If a telemetry callback was set on the context via WithTelemetryCallback,
+// it will be called with the trace ID and span ID as soon as the span is created.
 func RunInNewSpan[I, O any](
 	ctx context.Context,
 	metadata *SpanMetadata,
 	input I,
-	telemetryCb func(traceID, spanID string),
 	f func(context.Context, I) (O, error),
 ) (O, error) {
 	// TODO: support span links.
@@ -242,9 +242,9 @@ func RunInNewSpan[I, O any](
 		SpanID:  span.SpanContext().SpanID().String(),
 	}
 
-	// Fire telemetry callback immediately if provided
-	if telemetryCb != nil {
-		telemetryCb(sm.TraceInfo.TraceID, sm.TraceInfo.SpanID)
+	// Fire telemetry callback immediately if one was set on the context
+	if cb := telemetryCallback(ctx); cb != nil {
+		cb(sm.TraceInfo.TraceID, sm.TraceInfo.SpanID)
 	}
 
 	defer span.End()
@@ -382,13 +382,13 @@ var spanMetaKey = base.NewContextKey[*spanMetadata]()
 // telemetryCbKey is the context key for telemetry callbacks.
 var telemetryCbKey = base.NewContextKey[func(traceID, spanID string)]()
 
-// WithTelemetryCb returns a context with the telemetry callback attached.
+// WithTelemetryCallback returns a context with the telemetry callback attached.
 // Used by the reflection server to pass callbacks to actions.
 func WithTelemetryCallback(ctx context.Context, cb func(traceID, spanID string)) context.Context {
 	return telemetryCbKey.NewContext(ctx, cb)
 }
 
-// TelemetryCb retrieves the telemetry callback from context, or nil if not set.
+// telemetryCallback retrieves the telemetry callback from context, or nil if not set.
 func telemetryCallback(ctx context.Context) func(traceID, spanID string) {
 	return telemetryCbKey.FromContext(ctx)
 }

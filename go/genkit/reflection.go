@@ -421,7 +421,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 		}
 
 		// Attach telemetry callback to context so action can invoke it when span is created
-		actionCtx = tracing.WithTelemetryCb(actionCtx, telemetryCb)
+		actionCtx = tracing.WithTelemetryCallback(actionCtx, telemetryCb)
 		resp, err := runAction(actionCtx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 
 		// Clean up active action using the trace ID from response

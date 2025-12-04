@@ -93,7 +93,7 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		Type:    "flowStep",
 		Subtype: "flowStep",
 	}
-	return tracing.RunInNewSpan(ctx, spanMetadata, nil, nil, func(ctx context.Context, _ any) (Out, error) {
+	return tracing.RunInNewSpan(ctx, spanMetadata, nil, func(ctx context.Context, _ any) (Out, error) {
 		o, err := fn()
 		if err != nil {
 			return base.Zero[Out](), err
