@@ -259,9 +259,9 @@ func WithToolChoice(toolChoice ToolChoice) CommonGenOption {
 type promptOptions struct {
 	commonGenOptions
 	promptingOptions
+	inputOptions
 	outputOptions
 	Description  string         // Description of the prompt.
-	InputSchema  map[string]any // Schema of the input.
 	DefaultInput map[string]any // Default input that will be used if no input is provided.
 	Metadata     map[string]any // Arbitrary metadata.
 }
@@ -282,6 +282,10 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 		return err
 	}
 
+	if err := o.inputOptions.applyPrompt(opts); err != nil {
+		return err
+	}
+
 	if err := o.outputOptions.applyPrompt(opts); err != nil {
 		return err
 	}
@@ -291,13 +295,6 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 			return errors.New("cannot set description more than once (WithDescription)")
 		}
 		opts.Description = o.Description
-	}
-
-	if o.InputSchema != nil {
-		if opts.InputSchema != nil {
-			return errors.New("cannot set input schema more than once (WithInputType)")
-		}
-		opts.InputSchema = o.InputSchema
 	}
 
 	if o.DefaultInput != nil {
@@ -349,7 +346,7 @@ func WithInputType(input any) PromptOption {
 	}
 
 	return &promptOptions{
-		InputSchema:  core.InferSchemaMap(input),
+		inputOptions: inputOptions{InputSchema: core.InferSchemaMap(input)},
 		DefaultInput: defaultInput,
 	}
 }
@@ -869,6 +866,61 @@ func (w *withResources) applyGenerate(o *generateOptions) error {
 
 func (w *withResources) applyPromptExecute(o *promptExecutionOptions) error {
 	return w.applyCommonGen(&o.commonGenOptions)
+}
+
+// inputOptions holds input schema configuration for tools and prompts.
+type inputOptions struct {
+	InputSchema map[string]any // JSON schema for the input.
+}
+
+// InputSchemaOption is an option for setting input schema on tools and prompts.
+type InputSchemaOption interface {
+	applyTool(*toolOptions) error
+	applyPrompt(*promptOptions) error
+}
+
+// applyTool applies the option to the tool options.
+func (o *inputOptions) applyTool(opts *toolOptions) error {
+	if o.InputSchema != nil {
+		if opts.InputSchema != nil {
+			return errors.New("cannot set input schema more than once (WithInputSchema)")
+		}
+		opts.InputSchema = o.InputSchema
+	}
+	return nil
+}
+
+// applyPrompt applies the option to the prompt options.
+func (o *inputOptions) applyPrompt(opts *promptOptions) error {
+	if o.InputSchema != nil {
+		if opts.InputSchema != nil {
+			return errors.New("cannot set input schema more than once (WithInputSchema or WithInputType)")
+		}
+		opts.InputSchema = o.InputSchema
+	}
+	return nil
+}
+
+// WithInputSchema provides a custom JSON schema for the input instead of inferring it from the type parameter.
+// For tools, the tool function's input type should typically be `any` (e.g., `ToolFunc[any, Out]`).
+// For prompts, use this instead of [WithInputType] when you want to provide a JSON schema directly.
+func WithInputSchema(schema map[string]any) InputSchemaOption {
+	return &inputOptions{InputSchema: schema}
+}
+
+// toolOptions holds configuration options for defining tools.
+type toolOptions struct {
+	inputOptions
+}
+
+// ToolOption is an option for defining a tool.
+type ToolOption interface {
+	applyTool(*toolOptions) error
+}
+
+// applyTool applies the option to the tool options.
+func (o *toolOptions) applyTool(opts *toolOptions) error {
+	return o.inputOptions.applyTool(opts)
 }
 
 // promptExecutionOptions are options for generating a model response by executing a prompt.

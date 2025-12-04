@@ -630,7 +630,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 		return nil, nil, nil
 	}
 
-	resultChan := make(chan result[any])
+	resultChan := make(chan result[*MultipartToolResponse])
 	toolMsg := &Message{Role: RoleTool}
 	revisedMsg := clone(resp.Message)
 
@@ -643,11 +643,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 			toolReq := p.ToolRequest
 			tool := LookupTool(r, p.ToolRequest.Name)
 			if tool == nil {
-				resultChan <- result[any]{idx, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
+				resultChan <- result[*MultipartToolResponse]{index: idx, err: core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
 				return
 			}
 
-			output, err := tool.RunRaw(ctx, toolReq.Input)
+			multipartResp, err := tool.RunRawMultipart(ctx, toolReq.Input)
 			if err != nil {
 				var tie *toolInterruptError
 				if errors.As(err, &tie) {
@@ -665,11 +665,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 					revisedMsg.Content[idx] = newPart
 
-					resultChan <- result[any]{idx, nil, tie}
+					resultChan <- result[*MultipartToolResponse]{index: idx, err: tie}
 					return
 				}
 
-				resultChan <- result[any]{idx, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
+				resultChan <- result[*MultipartToolResponse]{index: idx, err: core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
 				return
 			}
 
@@ -677,10 +677,10 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 			if newPart.Metadata == nil {
 				newPart.Metadata = make(map[string]any)
 			}
-			newPart.Metadata["pendingOutput"] = output
+			newPart.Metadata["pendingOutput"] = multipartResp.Output
 			revisedMsg.Content[idx] = newPart
 
-			resultChan <- result[any]{idx, output, nil}
+			resultChan <- result[*MultipartToolResponse]{index: idx, value: multipartResp}
 		}(i, part)
 	}
 
@@ -700,9 +700,10 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 		toolReq := revisedMsg.Content[res.index].ToolRequest
 		toolResps = append(toolResps, NewToolResponsePart(&ToolResponse{
-			Name:   toolReq.Name,
-			Ref:    toolReq.Ref,
-			Output: res.value,
+			Name:    toolReq.Name,
+			Ref:     toolReq.Ref,
+			Output:  res.value.Output,
+			Content: res.value.Content,
 		}))
 	}
 

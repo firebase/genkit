@@ -464,6 +464,8 @@ func LookupBackgroundModel(g *Genkit, name string) ai.BackgroundModel {
 // `inputSchema` and `outputSchema` in the tool's definition, which guide the model
 // on how to provide input and interpret output.
 //
+// Use [ai.WithInputSchema] to provide a custom JSON schema instead of inferring from the type parameter.
+//
 // Example:
 //
 //	weatherTool := genkit.DefineTool(g, "getWeather", "Fetches the weather for a given city",
@@ -488,8 +490,8 @@ func LookupBackgroundModel(g *Genkit, name string) ai.BackgroundModel {
 //	}
 //
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
-func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc[In, Out]) ai.Tool {
-	return ai.DefineTool(g.reg, name, description, fn)
+func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc[In, Out], opts ...ai.ToolOption) ai.Tool {
+	return ai.DefineTool(g.reg, name, description, fn, opts...)
 }
 
 // DefineToolWithInputSchema defines a tool with a custom input schema that can be used by models during generation,
@@ -503,6 +505,8 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 // understand when to use the tool. The `inputSchema` defines the expected structure and constraints
 // of the input. The function `fn` implements the tool's logic, taking an [ai.ToolContext] and an
 // input of type `any`, and returning an output of type `Out`.
+//
+// Deprecated: Use [DefineTool] with [ai.WithInputSchema] instead.
 //
 // Example:
 //
@@ -520,9 +524,8 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 //	}
 //
 //	// Define the tool with the schema
-//	weatherTool := genkit.DefineToolWithInputSchema(g, "getWeather",
+//	weatherTool := genkit.DefineTool(g, "getWeather",
 //		"Fetches the weather for a given city with unit preference",
-//		inputSchema,
 //		func(ctx *ai.ToolContext, input any) (string, error) {
 //			// Parse and validate input
 //			data := input.(map[string]any)
@@ -534,9 +537,118 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 //			// Implementation...
 //			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
 //		},
+//		ai.WithToolInputSchema(inputSchema),
 //	)
 func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema map[string]any, fn ai.ToolFunc[any, Out]) ai.Tool {
-	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
+	return ai.DefineTool(g.reg, name, description, fn, ai.WithInputSchema(inputSchema))
+}
+
+// DefineMultipartTool defines a multipart tool that can be used by models during generation,
+// registers it as a [core.Action] of type Tool, and returns an [ai.Tool].
+// Unlike regular tools that return just an output value, multipart tools can return
+// both an output value and additional content parts (like images or other media).
+//
+// The `name` is the identifier the model uses to request the tool. The `description`
+// helps the model understand when to use the tool. The function `fn` implements
+// the tool's logic, taking an [ai.ToolContext] and an input of type `In`, and
+// returning an [ai.MultipartToolResponse] which contains both the output and optional
+// content parts.
+//
+// Use [ai.WithInputSchema] to provide a custom JSON schema instead of inferring from the type parameter.
+//
+// Example:
+//
+//	type ImageGenInput struct {
+//		Prompt string `json:"prompt"`
+//		Style  string `json:"style,omitempty"`
+//	}
+//
+//	imageGenTool := genkit.DefineMultipartTool(g, "generateImage", "Generates an image from a text prompt",
+//		func(ctx *ai.ToolContext, input ImageGenInput) (*ai.MultipartToolResponse, error) {
+//			// In a real scenario, call an image generation API
+//			log.Printf("Tool: Generating image for prompt: %s", input.Prompt)
+//
+//			// Generate image bytes (placeholder)
+//			imageBytes := []byte{...}
+//
+//			return &ai.MultipartToolResponse{
+//				Output: map[string]any{
+//					"status": "success",
+//					"prompt": input.Prompt,
+//				},
+//				Content: []*ai.Part{
+//					ai.NewMediaPart("image/png", string(imageBytes)),
+//				},
+//			}, nil
+//		},
+//	)
+//
+//	// Use the tool in a generation request:
+//	resp, err := genkit.Generate(ctx, g,
+//		ai.WithPrompt("Create an image of a sunset over mountains"),
+//		ai.WithTools(imageGenTool),
+//	)
+//	if err != nil {
+//		log.Fatalf("Generate failed: %v", err)
+//	}
+//
+//	fmt.Println(resp.Text())
+func DefineMultipartTool[In any](g *Genkit, name, description string, fn ai.MultipartToolFunc[In], opts ...ai.ToolOption) ai.Tool {
+	return ai.DefineMultipartTool(g.reg, name, description, fn, opts...)
+}
+
+// NewMultipartTool creates a new multipart [ai.Tool] without registering it.
+// It can be passed directly to [Generate] via [ai.WithTools].
+// Unlike regular tools that return just an output value, multipart tools can return
+// both an output value and additional content parts (like images or other media).
+//
+// This is useful when you need a tool only for a specific generation call and
+// don't want to register it globally with the Genkit instance.
+//
+// The `name` is the identifier the model uses to request the tool. The `description`
+// helps the model understand when to use the tool. The function `fn` implements
+// the tool's logic, taking an [ai.ToolContext] and an input of type `In`, and
+// returning an [ai.MultipartToolResponse] which contains both the output and optional
+// content parts.
+//
+// Use [ai.WithInputSchema] to provide a custom JSON schema instead of inferring from the type parameter.
+//
+// Example:
+//
+//	type ChartInput struct {
+//		Data   []float64 `json:"data"`
+//		Title  string    `json:"title"`
+//	}
+//
+//	chartTool := genkit.NewMultipartTool("renderChart", "Renders a chart from data",
+//		func(ctx *ai.ToolContext, input ChartInput) (*ai.MultipartToolResponse, error) {
+//			// Generate chart image bytes (placeholder)
+//			chartBytes := []byte{...}
+//
+//			return &ai.MultipartToolResponse{
+//				Output: map[string]any{
+//					"chartType": "line",
+//					"dataPoints": len(input.Data),
+//				},
+//				Content: []*ai.Part{
+//					ai.NewMediaPart("image/png", string(chartBytes)),
+//				},
+//			}, nil
+//		},
+//	)
+//
+//	// Use the tool directly in a generation request:
+//	resp, err := genkit.Generate(ctx, g,
+//		ai.WithPrompt("Create a chart showing [1, 4, 2, 8, 5, 7]"),
+//		ai.WithTools(chartTool), // Pass unregistered tool directly
+//	)
+//	if err != nil {
+//		log.Fatalf("Generate failed: %v", err)
+//	}
+//
+//	fmt.Println(resp.Text())
+func NewMultipartTool[In any](name, description string, fn ai.MultipartToolFunc[In], opts ...ai.ToolOption) ai.Tool {
+	return ai.NewMultipartTool(name, description, fn, opts...)
 }
 
 // LookupTool retrieves a registered [ai.Tool] by its name.
