@@ -196,10 +196,10 @@ export class ReflectionServer {
           response.status(404).send(`action ${key} not found`);
           return;
         }
-        // Set up onTelemetry callback to send trace ID in headers early.
+        // Set up onTraceStart callback to send trace ID in headers early.
         // This fires once for the root action span, before any streaming chunks
         // or final result are returned.
-        const onTelemetryCallback = (tid: string, spanId: string) => {
+        const onTraceStartCallback = ({ traceId: tid, spanId }: { traceId: string; spanId: string }) => {
           traceId = tid; // Update traceId for cleanup later
           this.activeActions.set(tid, {
             abortController,
@@ -226,7 +226,7 @@ export class ReflectionServer {
               context,
               onChunk: callback,
               telemetryLabels,
-              onTelemetry: onTelemetryCallback,
+              onTraceStart: onTraceStartCallback,
               abortSignal: abortController.signal,
             });
             await flushTracing();
@@ -266,7 +266,7 @@ export class ReflectionServer {
           const result = await action.run(input, {
             context,
             telemetryLabels,
-            onTelemetry: onTelemetryCallback,
+            onTraceStart: onTraceStartCallback,
             abortSignal: abortController.signal,
           });
           await flushTracing();
