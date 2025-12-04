@@ -332,9 +332,6 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
-    // Apply structured output when model supports it and constrained output is requested
-
-    // TODO: factor out into a helper function? and make it cleaner
     const useStructuredOutput =
       request.output !== undefined &&
       request.output.schema !== undefined &&
