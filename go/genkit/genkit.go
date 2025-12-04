@@ -597,60 +597,6 @@ func DefineMultipartTool[In any](g *Genkit, name, description string, fn ai.Mult
 	return ai.DefineMultipartTool(g.reg, name, description, fn, opts...)
 }
 
-// NewMultipartTool creates a new multipart [ai.Tool] without registering it.
-// It can be passed directly to [Generate] via [ai.WithTools].
-// Unlike regular tools that return just an output value, multipart tools can return
-// both an output value and additional content parts (like images or other media).
-//
-// This is useful when you need a tool only for a specific generation call and
-// don't want to register it globally with the Genkit instance.
-//
-// The `name` is the identifier the model uses to request the tool. The `description`
-// helps the model understand when to use the tool. The function `fn` implements
-// the tool's logic, taking an [ai.ToolContext] and an input of type `In`, and
-// returning an [ai.MultipartToolResponse] which contains both the output and optional
-// content parts.
-//
-// Use [ai.WithInputSchema] to provide a custom JSON schema instead of inferring from the type parameter.
-//
-// Example:
-//
-//	type ChartInput struct {
-//		Data   []float64 `json:"data"`
-//		Title  string    `json:"title"`
-//	}
-//
-//	chartTool := genkit.NewMultipartTool("renderChart", "Renders a chart from data",
-//		func(ctx *ai.ToolContext, input ChartInput) (*ai.MultipartToolResponse, error) {
-//			// Generate chart image bytes (placeholder)
-//			chartBytes := []byte{...}
-//
-//			return &ai.MultipartToolResponse{
-//				Output: map[string]any{
-//					"chartType": "line",
-//					"dataPoints": len(input.Data),
-//				},
-//				Content: []*ai.Part{
-//					ai.NewMediaPart("image/png", string(chartBytes)),
-//				},
-//			}, nil
-//		},
-//	)
-//
-//	// Use the tool directly in a generation request:
-//	resp, err := genkit.Generate(ctx, g,
-//		ai.WithPrompt("Create a chart showing [1, 4, 2, 8, 5, 7]"),
-//		ai.WithTools(chartTool), // Pass unregistered tool directly
-//	)
-//	if err != nil {
-//		log.Fatalf("Generate failed: %v", err)
-//	}
-//
-//	fmt.Println(resp.Text())
-func NewMultipartTool[In any](name, description string, fn ai.MultipartToolFunc[In], opts ...ai.ToolOption) ai.Tool {
-	return ai.NewMultipartTool(name, description, fn, opts...)
-}
-
 // LookupTool retrieves a registered [ai.Tool] by its name.
 // It returns the tool instance if found, or `nil` if no tool with the
 // given name is registered (e.g., via [DefineTool]).
