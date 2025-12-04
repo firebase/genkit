@@ -287,7 +287,7 @@ export class ReflectionServer {
         }
       } catch (err) {
         if (isAbortError(err)) {
-          // Handle cancellation - headers may have been sent via onTelemetry
+          // Handle cancellation - headers may have been sent via onTraceStart
           const errorResponse: Status = {
             code: StatusCodes.CANCELLED,
             message: 'Action was cancelled',
@@ -375,7 +375,7 @@ export class ReflectionServer {
         },
       };
 
-      // Headers may have been sent already (via onTelemetry), so check before setting status
+      // Headers may have been sent already (via onTraceStart), so check before setting status
       if (!res.headersSent) {
         res.status(500).json(errorResponse);
       } else {
