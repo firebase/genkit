@@ -197,6 +197,53 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tools streaming with constrained gen", func(t *testing.T) {
+		// t.Skip("skipped until issue #3851 gets resolved")
+		type Output struct {
+			AnswerOfEverything int     `json:"answer_of_everything"`
+			Gablorken          float64 `json:"gablorken"`
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("what's the answer of everything? and what's the gablorken of value 2 over 3"),
+			ai.WithConfig(&genai.GenerateContentConfig{
+				ThinkingConfig: &genai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  genai.Ptr[int32](1024),
+				},
+			}),
+			// ai.WithOutputType(Output{}),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				return nil
+			}),
+
+			ai.WithTools(answerOfEverythingTool, gablorkenTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Printf("== HISTORY:\n")
+		for _, m := range resp.History() {
+			fmt.Printf("\t\t %s", m.Text())
+		}
+
+		fmt.Printf("\n== RESP REQUEST MESSAGES:\n")
+		for _, m := range resp.Request.Messages {
+			fmt.Printf("\t\t %s", m.Text())
+		}
+		fmt.Printf("\n== REASONING:\n \t\t %s", resp.Reasoning())
+		if resp.Reasoning() == "" {
+			t.Fatal("empty reasoning found")
+		}
+
+		var out Output
+		err = resp.Output(&out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.AnswerOfEverything != 42 {
+			t.Fatalf("constrained generation failed, want: 42, got: %d", out.AnswerOfEverything)
+		}
+	})
 	t.Run("api side tools", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		_, err := genkit.Generate(ctx, g,
