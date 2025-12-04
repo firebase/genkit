@@ -384,7 +384,7 @@ var telemetryCbKey = base.NewContextKey[func(traceID, spanID string)]()
 
 // WithTelemetryCb returns a context with the telemetry callback attached.
 // Used by the reflection server to pass callbacks to actions.
-func WithTelemetryCb(ctx context.Context, cb func(traceID, spanID string)) context.Context {
+func WithTelemetryCallback(ctx context.Context, cb func(traceID, spanID string)) context.Context {
 	return telemetryCbKey.NewContext(ctx, cb)
 }
 
