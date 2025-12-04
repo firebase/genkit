@@ -15,32 +15,18 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
+import { z } from 'zod';
 
-export function defineInitPrompt(server: McpServer) {
-  server.registerPrompt(
-    'genkit:init',
-    {
-      title: 'Initialize Genkit',
-      description: 'Initializes a new Genkit project',
-    },
-    () => ({
-      messages: [
-        {
-          role: 'user',
-          content: {
-            type: 'text',
-            text: `You are a Genkit expert. Help the user initialize a Genkit project.
-
-Follow these rules based on the user's environment and preference:
-
+const GENERAL_GUIDELINES = `
 ## General Guidelines
 - ALWAYS refer to documentation when available. Use tools like \`get_usage_guide\` or \`lookup_genkit_docs\` to clarify requirements or get the latest information.
 - Recommend and use the provider that the user prefers. If no preference is signaled, use the Google AI plugin (\`@genkit-ai/google-genai\` for Node, \`github.com/firebase/genkit/go/plugins/googlegenai\` for Go).
 - ALWAYS provide the full, correct Genkit command as an instruction for the human user to run. Do not run Genkit commands yourself.
 - Do NOT modify parts of the project unrelated to Genkit initialization.
 - Respect the user's existing tooling (package manager, language version, project structure).
-- Check if Genkit CLI is already installed before recommending installation.
+- Check if Genkit CLI is already installed before recommending installation.`;
 
+const NODE_SETUP = `
 ## Node.js Setup
 If the user wants to use Node.js:
 
@@ -83,8 +69,9 @@ import { googleAI } from '@genkit-ai/google-genai';
 export const ai = genkit({
   plugins: [googleAI()],
 });
-\`\`\`
+\`\`\``;
 
+const GO_SETUP = `
 ## Go Setup
 If the user wants to use Go:
 
@@ -128,18 +115,56 @@ func main() {
 	// Your flows and logic here
 	<-ctx.Done()
 }
-\`\`\`
+\`\`\``;
 
+const RUNNING_THE_PROJECT = `
 ## Running the Project
 After setting up the project:
 1. Identify the command to run the project's runtime (e.g., \`npm run dev\`, \`go run main.go\`).
 2. Use the \`start_runtime\` tool to start the runtime process. This is required for Genkit to discover flows.
    - Example: If the project uses \`npm run dev\`, call \`start_runtime\` with \`{ command: "npm", args: ["run", "dev"] }\`.
 3. After starting the runtime, instruct the user to run \`genkit start\` in their terminal to launch the Developer UI.
-`,
+`;
+
+export function defineInitPrompt(server: McpServer) {
+  server.registerPrompt(
+    'genkit:init',
+    {
+      title: 'Initialize Genkit',
+      description: 'Initializes a new Genkit project',
+      argsSchema: {
+        lang: z.enum(['js', 'go']).optional(),
+      },
+    },
+    ({ lang }) => {
+      let content = `You are a Genkit expert. Help the user initialize a Genkit project.
+
+Follow these rules based on the user's environment and preference:`;
+
+      content += GENERAL_GUIDELINES;
+
+      if (lang === 'js') {
+        content += NODE_SETUP;
+      } else if (lang === 'go') {
+        content += GO_SETUP;
+      } else {
+        content += NODE_SETUP;
+        content += GO_SETUP;
+      }
+
+      content += RUNNING_THE_PROJECT;
+
+      return {
+        messages: [
+          {
+            role: 'user',
+            content: {
+              type: 'text',
+              text: content,
+            },
           },
-        },
-      ],
-    })
+        ],
+      };
+    }
   );
 }

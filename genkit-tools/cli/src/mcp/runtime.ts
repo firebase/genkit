@@ -28,8 +28,11 @@ export function defineRuntimeTools(
     'start_runtime',
     {
       title: 'Starts a Genkit runtime process',
-      description:
-        'Use this to start a Genkit runtime process. This will be picked up by the `genkit start` command to power the Dev UI features like model and flow playgrounds. The inputSchema for this tool matches the function prototype for `NodeJS.child_process.spawn`',
+      description: `Use this to start a Genkit runtime process (This is typically the entry point to the users app). Once started, the runtime will be picked up by the \`genkit start\` command to power the Dev UI features like model and flow playgrounds. The inputSchema for this tool matches the function prototype for \`NodeJS.child_process.spawn\`.
+        
+      Examples: 
+        {command: 'go', args: ['run', 'main.go']}
+        {command: 'npm', args: ['run', 'dev']}`,
       inputSchema: {
         command: z.string(),
         args: z.array(z.string()),
