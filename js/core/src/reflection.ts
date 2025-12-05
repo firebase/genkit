@@ -286,20 +286,19 @@ export class ReflectionServer {
           );
         }
       } catch (err) {
-        if (isAbortError(err)) {
-          // Handle cancellation - headers may have been sent via onTraceStart
-          const errorResponse: Status = {
-            code: StatusCodes.CANCELLED,
-            message: 'Action was cancelled',
-            details: {},
-          };
-          if (response.headersSent) {
-            response.end(JSON.stringify({ error: errorResponse }));
-          } else {
-            response.status(200).json({ error: errorResponse });
-          }
+        const { message, stack } = err as Error;
+        const errorResponse: Status = {
+          code: isAbortError(err) ? StatusCodes.CANCELLED : StatusCodes.INTERNAL,
+          message: isAbortError(err) ? 'Action was cancelled' : message,
+          details: { stack },
+        };
+        if (response.headersSent) {
+          // Headers already sent via onTraceStart, must send error in response body
+          response.end(
+            JSON.stringify({ error: errorResponse } as RunActionResponse)
+          );
         } else {
-          const { message, stack } = err as Error;
+          // Headers not sent yet, use standard error handling
           next({ message, stack });
         }
       } finally {
