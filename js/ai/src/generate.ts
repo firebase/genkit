@@ -51,7 +51,7 @@ import {
   type GenerationCommonConfigSchema,
   type MessageData,
   type ModelArgument,
-  type ModelMiddleware,
+  type ModelMiddlewareArgument,
   type Part,
   type ToolRequestPart,
   type ToolResponsePart,
@@ -170,7 +170,7 @@ export interface GenerateOptions<
    */
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   /** Middleware to be used with this model call. */
-  use?: ModelMiddleware[];
+  use?: ModelMiddlewareArgument[];
   /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
   context?: ActionContext;
   /** Abort signal for the generate request. */

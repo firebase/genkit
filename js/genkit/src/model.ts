@@ -58,6 +58,8 @@ export {
   type ModelArgument,
   type ModelInfo,
   type ModelMiddleware,
+  type ModelMiddlewareWithOptions,
+  type ModelMiddlewareArgument,
   type ModelReference,
   type ModelRequest,
   type ModelResponseChunkData,
