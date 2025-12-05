@@ -16,38 +16,38 @@ package main
 
 import (
 	"context"
-	"errors"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
+	ant "github.com/firebase/genkit/go/plugins/anthropic"
 )
 
 func main() {
 	ctx := context.Background()
 
-	g := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
+	g := genkit.Init(ctx, genkit.WithPlugins(&ant.Anthropic{}))
 
-	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := modelgarden.AnthropicModel(g, "claude-3-5-sonnet-v2")
-		if m == nil {
-			return "", errors.New("jokesFlow: failed to find model")
-		}
-
+	// Define a simple flow that generates a short story about a given topic
+	genkit.DefineStreamingFlow(g, "storyFlow", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModel(m),
+			ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
 			ai.WithConfig(&anthropic.MessageNewParams{
-				Temperature: anthropic.Float(1.0),
+				Temperature: anthropic.Float(1),
+				MaxTokens:   *anthropic.IntPtr(2000),
+				Thinking: anthropic.ThinkingConfigParamUnion{
+					OfEnabled: &anthropic.ThinkingConfigEnabledParam{
+						BudgetTokens: *anthropic.IntPtr(1024),
+					},
+				},
 			}),
-			ai.WithPrompt(`Tell a short joke about %s`, input))
+			ai.WithStreaming(cb),
+			ai.WithPrompt(`Tell a short story about %s`, input))
 		if err != nil {
 			return "", err
 		}
 
-		text := resp.Text()
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	<-ctx.Done()
