@@ -128,8 +128,13 @@ func LookupPrompt(r api.Registry, name string) Prompt {
 	}
 }
 
-// DefineSchema defines a schema in the registry
-// It panics if an error was encountered
+// DefineSchema defines a named JSON schema and registers it in the registry.
+//
+// Registered schemas can be referenced by name in prompts (both `.prompt` files
+// and programmatic definitions) to define input or output structures.
+// The `schema` argument must be a JSON schema definition represented as a map.
+//
+// It panics if a schema with the same name is already registered.
 func DefineSchema(r api.Registry, name string, schema map[string]any) {
 	r.RegisterSchema(name, schema)
 }

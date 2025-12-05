@@ -19,6 +19,7 @@ package genkit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 )
 
 // Genkit encapsulates a Genkit instance, providing access to its registry,
@@ -610,7 +612,7 @@ func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) ai.Prompt {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.prompt] by its name.
+// LookupPrompt retrieves a registered [ai.Prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
@@ -618,9 +620,55 @@ func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
 }
 
-// DefineSchema defines a prompt schema programmatically
+// DefineSchema defines a named JSON schema and registers it in the registry.
+//
+// Registered schemas can be referenced by name in prompts (both `.prompt` files
+// and programmatic definitions) to define input or output structures.
+// The `schema` argument must be a JSON schema definition represented as a map.
+//
+// Example:
+//
+//	genkit.DefineSchema(g, "UserInfo", map[string]any{
+//	    "type": "object",
+//	    "properties": map[string]any{
+//	        "name": map[string]any{"type": "string"},
+//	        "age":  map[string]any{"type": "integer"},
+//	    },
+//	    "required": []string{"name"}
+//	})
 func DefineSchema(g *Genkit, name string, schema map[string]any) {
 	ai.DefineSchema(g.reg, name, schema)
+}
+
+// DefineSchemaWithType defines a named JSON schema derived from a Go type
+// and registers it in the registry.
+//
+// This is an alternative to [DefineSchema].
+//
+// Example:
+//
+//	type UserInfo struct {
+//	    Name string `json:"name"`
+//	    Age int `json:"age"`
+//	}
+//
+//	genkit.DefineSchemaWithType(g, "UserInfo", UserInfo{})
+func DefineSchemaWithType(g *Genkit, name string, schema any) {
+	reflector := &jsonschema.Reflector{
+		DoNotReference: true,
+	}
+	s := reflector.Reflect(schema)
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic(fmt.Errorf("genkit.DefineSchemaWithType: failed to marshal schema %q: %w", name, err))
+	}
+
+	var schemaAsMap map[string]any
+	err = json.Unmarshal(b, &schemaAsMap)
+	if err != nil {
+		panic(fmt.Errorf("genkit.DefineSchemaWithType: failed to unmarshal schema: %q: %w", name, err))
+	}
+	ai.DefineSchema(g.reg, name, schemaAsMap)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
