@@ -141,9 +141,17 @@ export class LocalFileTraceStore implements TraceStore {
             }
           });
         }
-        existing.displayName = trace.displayName;
-        existing.startTime = trace.startTime;
-        existing.endTime = trace.endTime;
+        // Only update metadata if new values are defined
+        // Prevents overwriting with undefined when batches arrive without root span
+        if (trace.displayName !== undefined) {
+          existing.displayName = trace.displayName;
+        }
+        if (trace.startTime !== undefined) {
+          existing.startTime = trace.startTime;
+        }
+        if (trace.endTime !== undefined) {
+          existing.endTime = trace.endTime;
+        }
         trace = existing;
       }
       fs.writeFileSync(
@@ -428,12 +436,25 @@ export class Index {
       // different index files.
       .sort((a, b) => (b!['start'] as number) - (a!['start'] as number));
 
+    // Dedupe by trace ID, keeping the most recent entry (first seen after sorting)
+    // TODO: Real-time span events pollute the index with duplicates. This deduplication
+    // works but may degrade index performance over time. Revisit if we see issues.
+    const deduped = [] as Record<string, string | number>[];
+    const seenIds = new Set<string>();
+    for (const entry of fullData) {
+      const id = entry['id'] as string;
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        deduped.push(entry);
+      }
+    }
+
     const result = {
-      data: fullData.slice(startFromIndex, startFromIndex + query.limit),
+      data: deduped.slice(startFromIndex, startFromIndex + query.limit),
     } as IndexSearchResult;
 
     // if there are more results, populate stop index.
-    if (startFromIndex + query.limit < fullData.length) {
+    if (startFromIndex + query.limit < deduped.length) {
       result.pageLastIndex = startFromIndex + query.limit;
     }
 

@@ -33,7 +33,7 @@ else:  # noqa
     from enum import StrEnum  # noqa
 
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -606,6 +606,12 @@ class Index(RootModel[float]):
     root: float
 
 
+class TraceId(RootModel[str]):
+    """Root model for traceid."""
+
+    root: str
+
+
 class EmbedResponse(BaseModel):
     """Model for embedresponse data."""
 
@@ -783,6 +789,32 @@ class SpanData(BaseModel):
     truncated: bool | None = None
 
 
+class SpanEndEvent(BaseModel):
+    """Model for spanendevent data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: str = Field(..., alias='traceId')
+    span: SpanData
+    type: Literal['span_end']
+
+
+class SpanStartEvent(BaseModel):
+    """Model for spanstartevent data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
+    span: SpanData
+    type: Literal['span_start']
+
+
+class SpantEventBase(BaseModel):
+    """Model for spanteventbase data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
+    span: SpanData
+
+
 class TraceData(BaseModel):
     """Model for tracedata data."""
 
@@ -794,6 +826,12 @@ class TraceData(BaseModel):
     )
     end_time: float | None = Field(None, alias='endTime', description='end time in milliseconds since the epoch')
     spans: dict[str, SpanData]
+
+
+class TraceEvent(RootModel[SpanStartEvent | SpanEndEvent]):
+    """Root model for traceevent."""
+
+    root: SpanStartEvent | SpanEndEvent
 
 
 class DocumentPart(RootModel[TextPart | MediaPart]):

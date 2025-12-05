@@ -38,6 +38,8 @@ const TRACER_VERSION = 'v1';
 
 type SpanContext = {
   metadata: SpanMetadata;
+  labels?: Record<string, string>;
+  spanId?: string;
 } & TraceMetadata;
 
 interface RunInNewSpanOpts {
@@ -110,6 +112,7 @@ export async function runInNewSpan<T>(
       const spanContext = {
         ...parentStep,
         metadata: opts.metadata,
+        labels: opts.labels,
       } as SpanContext;
       try {
         opts.metadata.path = buildPath(
@@ -117,6 +120,22 @@ export async function runInNewSpan<T>(
           parentStep?.metadata?.path || '',
           opts.labels
         );
+
+        const isGenkitSpan = !!opts.labels?.[SPAN_TYPE_ATTR];
+        if (isGenkitSpan && parentStep) {
+          const parentIsGenkit = !!parentStep.labels?.[SPAN_TYPE_ATTR];
+          if (!parentIsGenkit && parentStep.spanId) {
+            otSpan.setAttribute(
+              ATTR_PREFIX + ':lastKnownParentSpanId',
+              parentStep.spanId
+            );
+          }
+        }
+
+        // Store spanId in context for Genkit spans so nested spans can reference it
+        if (isGenkitSpan) {
+          spanContext.spanId = otSpan.spanContext().spanId;
+        }
 
         const output = await getAsyncContext().run(
           spanMetadataAlsKey,
