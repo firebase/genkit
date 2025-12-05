@@ -39,17 +39,17 @@ func main() {
 		genkit.WithPromptDir("prompts"),
 	)
 
-	SimplePrompt(ctx, g)
-	PromptWithMultiMessage(ctx, g)
-	PromptWithInput(ctx, g)
-	PromptWithOutputType(ctx, g)
-	PromptWithComplexOutputType(ctx, g)
-	PromptWithTool(ctx, g)
-	PromptWithMessageHistory(ctx, g)
-	PromptWithExecuteOverrides(ctx, g)
-	PromptWithFunctions(ctx, g)
-	PromptWithOutputTypeDotprompt(ctx, g)
-	PromptWithMediaType(ctx, g)
+	// SimplePrompt(ctx, g)
+	// PromptWithMultiMessage(ctx, g)
+	// PromptWithInput(ctx, g)
+	// PromptWithOutputType(ctx, g)
+	// PromptWithComplexOutputType(ctx, g)
+	// PromptWithTool(ctx, g)
+	// PromptWithMessageHistory(ctx, g)
+	// PromptWithExecuteOverrides(ctx, g)
+	// PromptWithFunctions(ctx, g)
+	// PromptWithOutputTypeDotprompt(ctx, g)
+	// PromptWithMediaType(ctx, g)
 	PromptWithOutputSchemaName(ctx, g)
 
 	mux := http.NewServeMux()
@@ -350,36 +350,35 @@ func PromptWithOutputSchemaName(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal("empty prompt")
 	}
 
-	// prompt schemas can be referenced at any time
-	genkit.DefineSchema(g, "recipe", map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"title": map[string]any{"type": "string", "description": "Recipe name"},
-			"ingredients": map[string]any{
-				"type":        "array",
-				"description": "Recipe ingredients",
-				"items": map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"name":     map[string]any{"type": "string", "description": "ingredient name"},
-						"quantity": map[string]any{"type": "string", "description": "ingredient quantity"},
-					},
-					"required": []string{"name", "quantity"},
-				},
-			},
-			"steps": map[string]any{
-				"type":        "array",
-				"description": "Recipe steps",
-				"items":       map[string]any{"type": "string"},
-			},
-		},
-		"required": []string{"title", "ingredients", "steps"},
-	})
+	// // prompt schemas can be referenced at any time
+	// genkit.DefineSchema(g, "Recipe", map[string]any{
+	// 	"type": "object",
+	// 	"properties": map[string]any{
+	// 		"title": map[string]any{"type": "string", "description": "Recipe name"},
+	// 		"ingredients": map[string]any{
+	// 			"type":        "array",
+	// 			"description": "Recipe ingredients",
+	// 			"items": map[string]any{
+	// 				"type": "object",
+	// 				"properties": map[string]any{
+	// 					"name":     map[string]any{"type": "string", "description": "ingredient name"},
+	// 					"quantity": map[string]any{"type": "string", "description": "ingredient quantity"},
+	// 				},
+	// 				"required": []string{"name", "quantity"},
+	// 			},
+	// 		},
+	// 		"steps": map[string]any{
+	// 			"type":        "array",
+	// 			"description": "Recipe steps",
+	// 			"items":       map[string]any{"type": "string"},
+	// 		},
+	// 	},
+	// 	"required": []string{"title", "ingredients", "steps"},
+	// })
 
 	resp, err := prompt.Execute(ctx,
 		ai.WithModelName("googleai/gemini-2.5-pro"),
 		ai.WithInput(map[string]any{"food": "tacos", "ingredients": []string{"octopus", "shrimp"}}),
-		ai.WithOutputSchemaName("recipe"),
 	)
 	if err != nil {
 		log.Fatal(err)

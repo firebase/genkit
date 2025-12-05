@@ -1379,69 +1379,112 @@ Generate a recipe for {{food}}.
 	}
 }
 
-func TestWithOutputOverridesSchema(t *testing.T) {
+func TestDeferredSchemaResolution_Missing(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Prompt references "OriginalSchema"
-	mockPromptFile := filepath.Join(tempDir, "override.prompt")
+	// prompt file that references a schema "MissingRecipe"
+	mockPromptFile := filepath.Join(tempDir, "deferred_missing.prompt")
 	mockPromptContent := `---
 model: test-model
 output:
-  schema: OriginalSchema
+  schema: MissingRecipe
 ---
-Generate something.
+Generate a recipe.
 `
-	os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
 
 	reg := registry.New()
 	ConfigureFormats(reg)
-
-	// OriginalSchema is the original output schema for prompt, it is defined/referenced in the .prompt file
-	DefineSchema(reg, "OriginalSchema", map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"original": map[string]any{"type": "string"},
-		},
-		"required": []string{"original"},
-	})
 
 	DefineModel(reg, "test-model", &ModelOptions{
 		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
 	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 		return &ModelResponse{
-			Message: NewModelTextMessage(`{"new": "value"}`),
+			Message: NewModelTextMessage(`{}`),
 			Request: req,
 		}, nil
 	})
 
-	prompt := LoadPrompt(reg, tempDir, "override.prompt", "test")
+	prompt := LoadPrompt(reg, tempDir, "deferred_missing.prompt", "test")
+	if prompt == nil {
+		t.Fatal("Failed to load prompt")
+	}
 
-	DefineSchema(reg, "NewSchema", map[string]any{
+	_, err := prompt.Execute(context.Background())
+	if err == nil {
+		t.Fatal("Expected error when executing prompt with missing schema")
+	}
+	// "schema \"MissingRecipe\" not found"
+	if !strings.Contains(err.Error(), "schema \"MissingRecipe\" not found") {
+		t.Errorf("Expected error 'schema \"MissingRecipe\" not found', got: %v", err)
+	}
+}
+
+func TestWithOutputSchemaName_DefinePrompt(t *testing.T) {
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"foo": "bar"}`),
+			Request: req,
+		}, nil
+	})
+
+	// Define schema
+	DefineSchema(reg, "FooSchema", map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"new": map[string]any{"type": "string"},
+			"foo": map[string]any{"type": "string"},
 		},
 	})
 
-	// overriding the `prompt` initial output at runtime
-	resp, err := prompt.Execute(context.Background(), WithOutputSchemaName("NewSchema"))
+	// Define prompt using WithOutputSchemaName
+	prompt := DefinePrompt(reg, "testPrompt",
+		WithModelName("test-model"),
+		WithPrompt("test"),
+		WithOutputSchemaName("FooSchema"),
+	)
+
+	resp, err := prompt.Execute(context.Background())
 	if err != nil {
 		t.Fatalf("Execute failed: %v", err)
 	}
 
-	// verify the request uses NewSchema, not OriginalSchema
 	if resp.Request.Output.Schema == nil {
-		t.Fatal("Expected request to have an output schema")
+		t.Fatal("Expected output schema to be set")
 	}
+}
 
-	props, ok := resp.Request.Output.Schema["properties"].(map[string]any)
-	if !ok {
-		t.Fatalf("Schema properties missing or invalid. Schema: %+v", resp.Request.Output.Schema)
+func TestWithOutputSchemaName_DefinePrompt_Missing(t *testing.T) {
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{}`),
+			Request: req,
+		}, nil
+	})
+
+	// Define prompt using WithOutputSchemaName, but Schema is missing
+	prompt := DefinePrompt(reg, "testPromptMissing",
+		WithModelName("test-model"),
+		WithPrompt("test"),
+		WithOutputSchemaName("MissingSchema"),
+	)
+
+	_, err := prompt.Execute(context.Background())
+	if err == nil {
+		t.Fatal("Expected error when executing prompt with missing schema")
 	}
-	if _, ok := props["new"]; !ok {
-		t.Error("Expected request schema to be overridden with NewSchema (containing 'new' field)")
-	}
-	if _, ok := props["original"]; ok {
-		t.Error("Did not expect 'original' field in overridden schema")
+	if !strings.Contains(err.Error(), "schema \"MissingSchema\" not found") {
+		t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
 	}
 }

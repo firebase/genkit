@@ -405,6 +405,26 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		}
 	}
 
+	// normalize output options (follow the same reference format as in the registry)
+	if genOpts.OutputSchemaName != "" {
+		genOpts.OutputSchema = map[string]any{"$ref": fmt.Sprintf("genkit:%s", genOpts.OutputSchemaName)}
+		genOpts.OutputFormat = OutputFormatJSON
+	}
+
+	if genOpts.OutputSchema != nil {
+		// deferred schema resolution
+		if ref, ok := genOpts.OutputSchema["$ref"].(string); ok {
+			if schemaName, found := strings.CutPrefix(ref, "genkit:"); found {
+				schema := r.LookupSchema(schemaName)
+				if schema != nil {
+					genOpts.OutputSchema = schema
+				} else {
+					return nil, fmt.Errorf("schema %q not found", schemaName)
+				}
+			}
+		}
+	}
+
 	var modelName string
 	if genOpts.Model != nil {
 		modelName = genOpts.Model.Name()

@@ -64,6 +64,12 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 		}
 	}
 
+	// normalize output options (follow the same reference format as in the registry)
+	if pOpts.OutputSchemaName != "" {
+		pOpts.OutputSchema = map[string]any{"$ref": fmt.Sprintf("genkit:%s", pOpts.OutputSchemaName)}
+		pOpts.OutputFormat = OutputFormatJSON
+	}
+
 	p := &prompt{
 		registry:      r,
 		promptOptions: *pOpts,
@@ -149,20 +155,15 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		return nil, err
 	}
 
-	if execOpts.OutputSchemaName != "" {
-		schema := p.registry.LookupSchema(execOpts.OutputSchemaName)
-		if schema == nil {
-			return nil, fmt.Errorf("schema %q not found", execOpts.OutputSchemaName)
-		}
-		actionOpts.Output.JsonSchema = schema
-		actionOpts.Output.Format = OutputFormatJSON
-	} else if actionOpts.Output != nil && actionOpts.Output.JsonSchema != nil {
+	if actionOpts.Output != nil && actionOpts.Output.JsonSchema != nil {
 		// Check for deferred schema reference ($ref: "genkit:...")
 		if ref, ok := actionOpts.Output.JsonSchema["$ref"].(string); ok {
 			if schemaName, found := strings.CutPrefix(ref, "genkit:"); found {
 				schema := p.registry.LookupSchema(schemaName)
 				if schema != nil {
 					actionOpts.Output.JsonSchema = schema
+				} else {
+					return nil, fmt.Errorf("schema %q not found", schemaName)
 				}
 			}
 		}

@@ -439,6 +439,7 @@ type outputOptions struct {
 	OutputFormat       string         // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
 	OutputInstructions *string        // Instructions to add to conform the output to a schema. If nil, default instructions will be added. If empty string, no instructions will be added.
 	CustomConstrained  bool           // Whether generation should use custom constrained output instead of native model constrained output.
+	OutputSchemaName   string         // OutputSchemaName is the name of the schema that will resolve the prompt's output schema
 }
 
 // OutputOption is an option for the output of a prompt or generate request.
@@ -471,6 +472,13 @@ func (o *outputOptions) applyOutput(opts *outputOptions) error {
 
 	if o.CustomConstrained {
 		opts.CustomConstrained = o.CustomConstrained
+	}
+
+	if o.OutputSchemaName != "" {
+		if opts.OutputSchemaName != "" {
+			return errors.New("cannot set output schema name more than once (WithOutputSchemaName)")
+		}
+		opts.OutputSchemaName = o.OutputSchemaName
 	}
 
 	return nil
@@ -876,8 +884,7 @@ type promptExecutionOptions struct {
 	commonGenOptions
 	executionOptions
 	documentOptions
-	Input            any    // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
-	OutputSchemaName string // OutputSchemaName is the name of the schema that will resolve the prompt's output schema
+	Input any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
 }
 
 // PromptExecuteOption is an option for executing a prompt. It applies only to [prompt.Execute].
@@ -906,13 +913,6 @@ func (o *promptExecutionOptions) applyPromptExecute(pgOpts *promptExecutionOptio
 		pgOpts.Input = o.Input
 	}
 
-	if o.OutputSchemaName != "" {
-		if pgOpts.OutputSchemaName != "" {
-			return errors.New("cannot set output more than once (WithOutputSchemaName)")
-		}
-		pgOpts.OutputSchemaName = o.OutputSchemaName
-	}
-
 	return nil
 }
 
@@ -923,6 +923,6 @@ func WithInput(input any) PromptExecuteOption {
 }
 
 // WithOutputSchemaName sets the schema name that will be used to render the prompt's desired output.
-func WithOutputSchemaName(schema string) PromptExecuteOption {
-	return &promptExecutionOptions{OutputSchemaName: schema}
+func WithOutputSchemaName(schema string) OutputOption {
+	return &outputOptions{OutputSchemaName: schema}
 }
