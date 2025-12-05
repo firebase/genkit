@@ -19,6 +19,7 @@ from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
 from genkit.ai import Genkit
+from genkit.plugins.firebase import add_firebase_telemetry
 from genkit.plugins.firebase.firestore import (
     FirestoreVectorStore,
     firestore_action_name,
@@ -31,6 +32,9 @@ from genkit.types import (
 
 # Important: use the same embedding model for indexing and retrieval.
 EMBEDDING_MODEL = 'vertexai/text-embedding-004'
+
+# Add Firebase telemetry (metrics, logs, traces)
+add_firebase_telemetry()
 
 firestore_client = firestore.Client()
 
