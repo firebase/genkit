@@ -606,6 +606,12 @@ class Index(RootModel[float]):
     root: float
 
 
+class TraceId(RootModel[str]):
+    """Root model for traceid."""
+
+    root: str
+
+
 class EmbedResponse(BaseModel):
     """Model for embedresponse data."""
 
@@ -787,17 +793,25 @@ class SpanEndEvent(BaseModel):
     """Model for spanendevent data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    type: Literal['span_end']
     trace_id: str = Field(..., alias='traceId')
     span: SpanData
+    type: Literal['span_end']
 
 
 class SpanStartEvent(BaseModel):
     """Model for spanstartevent data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
+    span: SpanData
     type: Literal['span_start']
-    trace_id: str = Field(..., alias='traceId')
+
+
+class SpantEventBase(BaseModel):
+    """Model for spanteventbase data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
     span: SpanData
 
 
