@@ -78,7 +78,6 @@ func ReadJSONFile(filename string, pvalue any) error {
 // InferJSONSchema infers a JSON schema from a Go value.
 func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	r := jsonschema.Reflector{
-		DoNotReference: true,
 		Mapper: func(t reflect.Type) *jsonschema.Schema {
 			// []any generates `{ type: "array", items: true }` which is not valid JSON schema.
 			if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Interface {

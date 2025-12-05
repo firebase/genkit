@@ -98,9 +98,8 @@ func TestSchemaAsMap(t *testing.T) {
 	}
 
 	want := map[string]any{
-		"additionalProperties": bool(false),
-		"properties": map[string]any{
-			"BarField": map[string]any{
+		"$defs": map[string]any{
+			"Bar": map[string]any{
 				"additionalProperties": bool(false),
 				"properties": map[string]any{
 					"Bar": map[string]any{"type": string("string")},
@@ -108,14 +107,65 @@ func TestSchemaAsMap(t *testing.T) {
 				"required": []any{string("Bar")},
 				"type":     string("object"),
 			},
-			"Str": map[string]any{"type": string("string")},
+			"Foo": map[string]any{
+				"additionalProperties": bool(false),
+				"properties": map[string]any{
+					"BarField": map[string]any{
+						"$ref": string("#/$defs/Bar"),
+					},
+					"Str": map[string]any{"type": string("string")},
+				},
+				"required": []any{string("BarField"), string("Str")},
+				"type":     string("object"),
+			},
 		},
-		"required": []any{string("BarField"), string("Str")},
-		"type":     string("object"),
+		"$ref": string("#/$defs/Foo"),
 	}
 
 	got := SchemaAsMap(InferJSONSchema(Foo{}))
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("SchemaAsMap diff (+got -want):\n%s", diff)
+	}
+}
+
+func TestSchemaAsMapRecursive(t *testing.T) {
+	type Node struct {
+		Value    string  `json:"value,omitempty"`
+		Children []*Node `json:"children,omitempty"`
+	}
+
+	schema := SchemaAsMap(InferJSONSchema(Node{}))
+
+	defs, ok := schema["$defs"].(map[string]any)
+	if !ok {
+		t.Fatal("expected $defs in schema")
+	}
+
+	if _, ok := defs["Node"]; !ok {
+		t.Error("expected Node in $defs")
+	}
+
+	if ref, ok := schema["$ref"].(string); !ok || ref != "#/$defs/Node" {
+		t.Errorf("expected $ref to be #/$defs/Node, got %v", schema["$ref"])
+	}
+
+	nodeDef, ok := defs["Node"].(map[string]any)
+	if !ok {
+		t.Fatal("expected Node definition to be a map")
+	}
+	nodeProps, ok := nodeDef["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("expected Node to have properties")
+	}
+	childrenField, ok := nodeProps["children"].(map[string]any)
+	if !ok {
+		t.Fatal("expected Node to have children field")
+	}
+	items, ok := childrenField["items"].(map[string]any)
+	if !ok {
+		t.Fatal("expected children to have items")
+	}
+	if ref, ok := items["$ref"].(string); !ok || ref != "#/$defs/Node" {
+		t.Errorf("expected children.items to reference Node, got %v", items)
 	}
 }
