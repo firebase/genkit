@@ -288,7 +288,9 @@ export class ReflectionServer {
       } catch (err) {
         const { message, stack } = err as Error;
         const errorResponse: Status = {
-          code: isAbortError(err) ? StatusCodes.CANCELLED : StatusCodes.INTERNAL,
+          code: isAbortError(err)
+            ? StatusCodes.CANCELLED
+            : StatusCodes.INTERNAL,
           message: isAbortError(err) ? 'Action was cancelled' : message,
           details: { stack },
         };
