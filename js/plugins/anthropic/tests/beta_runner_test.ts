@@ -499,7 +499,7 @@ describe('BetaRunner', () => {
       true
     );
 
-    assert.strictEqual(body.model, 'claude-3-5-haiku');
+    assert.strictEqual(body.model, 'claude-3-5-haiku-20241022');
     assert.ok(Array.isArray(body.system));
     assert.strictEqual(body.max_tokens, 128);
     assert.strictEqual(body.top_k, 4);
