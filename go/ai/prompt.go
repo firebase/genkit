@@ -64,6 +64,12 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 		}
 	}
 
+	// normalize output options (follow the same reference format as in the registry)
+	if pOpts.OutputSchemaName != "" {
+		pOpts.OutputSchema = map[string]any{"$ref": fmt.Sprintf("genkit:%s", pOpts.OutputSchemaName)}
+		pOpts.OutputFormat = OutputFormatJSON
+	}
+
 	p := &prompt{
 		registry:      r,
 		promptOptions: *pOpts,
@@ -122,6 +128,17 @@ func LookupPrompt(r api.Registry, name string) Prompt {
 	}
 }
 
+// DefineSchema defines a named JSON schema and registers it in the registry.
+//
+// Registered schemas can be referenced by name in prompts (both `.prompt` files
+// and programmatic definitions) to define input or output structures.
+// The `schema` argument must be a JSON schema definition represented as a map.
+//
+// It panics if a schema with the same name is already registered.
+func DefineSchema(r api.Registry, name string, schema map[string]any) {
+	r.RegisterSchema(name, schema)
+}
+
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by the prompt.
 func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
@@ -141,6 +158,20 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	actionOpts, err := p.Render(ctx, execOpts.Input)
 	if err != nil {
 		return nil, err
+	}
+
+	if actionOpts.Output != nil && actionOpts.Output.JsonSchema != nil {
+		// Check for deferred schema reference ($ref: "genkit:...")
+		if ref, ok := actionOpts.Output.JsonSchema["$ref"].(string); ok {
+			if schemaName, found := strings.CutPrefix(ref, "genkit:"); found {
+				schema := p.registry.LookupSchema(schemaName)
+				if schema != nil {
+					actionOpts.Output.JsonSchema = schema
+				} else {
+					return nil, fmt.Errorf("schema %q not found", schemaName)
+				}
+			}
+		}
 	}
 
 	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {

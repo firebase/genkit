@@ -34,6 +34,13 @@ func main() {
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineStreamingFlow(g, "jokesFlow", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
+		type Joke struct {
+			Joke     string `json:"joke"`
+			Category string `json:"jokeCategory" description:"What is the joke about"`
+		}
+
+		genkit.DefineSchemaWithType(g, "joke", Joke{})
+
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.5-flash"),
 			ai.WithConfig(&genai.GenerateContentConfig{
@@ -43,6 +50,7 @@ func main() {
 				},
 			}),
 			ai.WithStreaming(cb),
+			ai.WithOutputSchemaName("joke"),
 			ai.WithPrompt(`Tell short jokes about %s`, input))
 		if err != nil {
 			return "", err

@@ -439,6 +439,7 @@ type outputOptions struct {
 	OutputFormat       string         // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
 	OutputInstructions *string        // Instructions to add to conform the output to a schema. If nil, default instructions will be added. If empty string, no instructions will be added.
 	CustomConstrained  bool           // Whether generation should use custom constrained output instead of native model constrained output.
+	OutputSchemaName   string         // OutputSchemaName is the name of the schema that will resolve the prompt's output schema
 }
 
 // OutputOption is an option for the output of a prompt or generate request.
@@ -471,6 +472,13 @@ func (o *outputOptions) applyOutput(opts *outputOptions) error {
 
 	if o.CustomConstrained {
 		opts.CustomConstrained = o.CustomConstrained
+	}
+
+	if o.OutputSchemaName != "" {
+		if opts.OutputSchemaName != "" {
+			return errors.New("cannot set output schema name more than once (WithOutputSchemaName)")
+		}
+		opts.OutputSchemaName = o.OutputSchemaName
 	}
 
 	return nil
@@ -912,4 +920,9 @@ func (o *promptExecutionOptions) applyPromptExecute(pgOpts *promptExecutionOptio
 // prompt's input schema and can either be a map[string]any or a struct of the same api.
 func WithInput(input any) PromptExecuteOption {
 	return &promptExecutionOptions{Input: input}
+}
+
+// WithOutputSchemaName sets the schema name that will be used to render the prompt's desired output.
+func WithOutputSchemaName(schema string) OutputOption {
+	return &outputOptions{OutputSchemaName: schema}
 }

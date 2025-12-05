@@ -860,6 +860,67 @@ func TestGenerate(t *testing.T) {
 	})
 }
 
+func TestGenerateWithOutputSchemaName(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+
+	// Define a model that supports constrained output
+	model := DefineModel(r, "test/constrained", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		// Mock response
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"foo": "bar"}`),
+			Request: req,
+		}, nil
+	})
+
+	DefineSchema(r, "FooSchema", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"foo": map[string]any{"type": "string"},
+		},
+	})
+
+	t.Run("Valid Schema", func(t *testing.T) {
+		resp, err := Generate(context.Background(), r,
+			WithModel(model),
+			WithPrompt("test"),
+			WithOutputSchemaName("FooSchema"),
+		)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+
+		if resp.Request.Output.Schema == nil {
+			t.Fatal("Expected output schema to be set")
+		}
+
+		// Verify schema is resolved
+		if props, ok := resp.Request.Output.Schema["properties"].(map[string]any); ok {
+			if _, ok := props["foo"]; !ok {
+				t.Error("Expected schema to have 'foo' property")
+			}
+		} else {
+			t.Fatalf("Expected properties map in schema, got: %+v", resp.Request.Output.Schema)
+		}
+	})
+
+	t.Run("Missing Schema", func(t *testing.T) {
+		_, err := Generate(context.Background(), r,
+			WithModel(model),
+			WithPrompt("test"),
+			WithOutputSchemaName("MissingSchema"),
+		)
+		if err == nil {
+			t.Fatal("Expected error when executing generate with missing schema")
+		}
+		if !strings.Contains(err.Error(), "schema \"MissingSchema\" not found") {
+			t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
+		}
+	})
+}
+
 func TestModelVersion(t *testing.T) {
 	t.Run("valid version", func(t *testing.T) {
 		_, err := Generate(context.Background(), r,
