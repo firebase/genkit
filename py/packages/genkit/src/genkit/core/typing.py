@@ -63,13 +63,6 @@ class BaseDataPoint(BaseModel):
     test_case_id: str | None = Field(None, alias='testCaseId')
     trace_ids: list[str] | None = Field(None, alias='traceIds')
 
-class EvaluatorOptions(BaseModel):
-    name: str
-    display_name: str = Field(..., alias='displayName')
-    definition: str
-    data_point_type: BaseDataPoint | None = Field(None, alias='dataPointType')
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
-    is_billed: bool | None = Field(None, alias='isBilled')
 
 class EvalRequest(BaseModel):
     """Model for evalrequest data."""

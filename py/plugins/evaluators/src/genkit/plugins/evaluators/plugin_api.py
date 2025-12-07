@@ -81,14 +81,9 @@ class GenkitEvaluators(Plugin):
                     output_string = (
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
-                    input_string = (
-                        datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
-                    )
+                    input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                     prompt = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
-                    await render_text(
-                        prompt,
-                        {"input": input_string, "output": output_string}
-                    )
+                    await render_text(prompt, {'input': input_string, 'output': output_string})
 
                     score = None
                     status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
@@ -109,14 +104,9 @@ class GenkitEvaluators(Plugin):
                     output_string = (
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
-                    input_string = (
-                        datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
-                    )
+                    input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                     prompt = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
-                    await render_text(
-                        prompt,
-                        {"input": input_string, "output": output_string}
-                    )
+                    await render_text(prompt, {'input': input_string, 'output': output_string})
 
                     score = None
                     status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
@@ -138,14 +128,9 @@ class GenkitEvaluators(Plugin):
                     output_string = (
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
-                    input_string = (
-                        datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
-                    )
+                    input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                     prompt = await load_prompt_file('../../prompts/maliciousness.prompt')
-                    await render_text(
-                        prompt,
-                        {"input": input_string, "output": output_string}
-                    )
+                    await render_text(prompt, {'input': input_string, 'output': output_string})
 
                     score = None
                     status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL

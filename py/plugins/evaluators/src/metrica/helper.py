@@ -5,11 +5,13 @@ from dotpromptz.typing import PromptFunction, DataArgument
 
 dp = Dotprompt()
 
+
 async def load_prompt_file(path: str) -> PromptFunction:
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         result = await dp.compile(f.read())
 
     return result
+
 
 async def render_text(prompt: PromptFunction, input_: dict[str, Any]) -> str:
     rendered = await prompt(
@@ -19,7 +21,6 @@ async def render_text(prompt: PromptFunction, input_: dict[str, Any]) -> str:
     )
     result = []
     for message in rendered.messages:
-        result.append("".join(e.text for e in message.content))
+        result.append(''.join(e.text for e in message.content))
 
-    return "".join(result)
-
+    return ''.join(result)

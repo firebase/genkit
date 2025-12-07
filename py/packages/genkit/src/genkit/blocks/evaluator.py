@@ -40,5 +40,3 @@ EvaluatorFn = Callable[[BaseEvalDataPoint, T], EvalFnResponse]
 # User-provided batch evaluator function that evaluates an EvaluationRequest
 # type BatchEvaluatorFn[T] = Callable[[EvalRequest, T], list[EvalFnResponse]]
 BatchEvaluatorFn = Callable[[EvalRequest, T], list[EvalFnResponse]]
-
-
