@@ -20,7 +20,7 @@ import express from 'express';
 
 const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
   const { text } = await ai.generate({
-    model: gemini15Flash,
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: input,
     onChunk: (c) => sendChunk(c.text),
   });

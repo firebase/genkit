@@ -18,7 +18,9 @@ import * as assert from 'assert';
 import { GenkitError, embedderRef, modelRef } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { describe, it } from 'node:test';
+import { GenerateContentResponse } from '../../src/common/types.js';
 import {
+  TEST_ONLY,
   checkModelName,
   checkSupportedMimeType,
   cleanSchema,
@@ -30,6 +32,8 @@ import {
   extractVersion,
   modelName,
 } from '../../src/common/utils.js';
+
+const { aggregateResponses } = TEST_ONLY;
 
 describe('Common Utils', () => {
   describe('extractErrMsg', () => {
@@ -62,8 +66,8 @@ describe('Common Utils', () => {
     });
 
     it('should extract version from name if version field is missing', () => {
-      const ref = modelRef({ name: 'vertexai/gemini-1.5-flash' });
-      assert.strictEqual(extractVersion(ref), 'gemini-1.5-flash');
+      const ref = modelRef({ name: 'vertexai/gemini-2.5-flash' });
+      assert.strictEqual(extractVersion(ref), 'gemini-2.5-flash');
     });
 
     it('should work with embedderRef', () => {
@@ -79,8 +83,8 @@ describe('Common Utils', () => {
         'gemini-1.5-pro'
       );
       assert.strictEqual(
-        modelName('vertexai/gemini-1.5-flash'),
-        'gemini-1.5-flash'
+        modelName('vertexai/gemini-2.5-flash'),
+        'gemini-2.5-flash'
       );
       assert.strictEqual(modelName('model/foo'), 'foo');
       assert.strictEqual(modelName('embedders/bar'), 'bar');
@@ -506,6 +510,128 @@ describe('Common Utils', () => {
       };
       const cleaned = cleanSchema(schema);
       assert.deepStrictEqual(cleaned, schema);
+    });
+  });
+
+  describe('aggregateResponses', () => {
+    it('should aggregate streaming function call parts', () => {
+      const responses: GenerateContentResponse[] = [
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      name: 'findFlights',
+                      id: '1234',
+                      willContinue: true,
+                    },
+                    thoughtSignature: 'thoughtSignature1234',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      willContinue: true,
+                      partialArgs: [
+                        {
+                          jsonPath: '$.flights[0].departure_airport',
+                          stringValue: 'SFO',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      willContinue: true,
+                      partialArgs: [
+                        {
+                          jsonPath: '$.flights[0].arrival_airport',
+                          stringValue: 'JFK',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      name: 'findFlights',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ];
+
+      const aggregated = aggregateResponses(responses);
+
+      const expected = {
+        candidates: [
+          {
+            index: 0,
+            content: {
+              role: 'model',
+              parts: [
+                {
+                  functionCall: {
+                    name: 'findFlights',
+                    id: '1234',
+                    args: {
+                      flights: [
+                        {
+                          departure_airport: 'SFO',
+                          arrival_airport: 'JFK',
+                        },
+                      ],
+                    },
+                  },
+                  thoughtSignature: 'thoughtSignature1234',
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      assert.deepStrictEqual(aggregated, expected);
     });
   });
 });

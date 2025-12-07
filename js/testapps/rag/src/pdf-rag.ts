@@ -18,7 +18,7 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/google-genai';
 import fs from 'fs';
 import { Document, z } from 'genkit';
 import { chunk } from 'llm-chunk';
@@ -117,7 +117,7 @@ export const synthesizeQuestions = ai.defineFlow(
     const questions: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
       const qResponse = await ai.generate({
-        model: gemini15Flash,
+        model: googleAI.model('gemini-2.5-flash'),
         prompt: {
           text: `Generate one question about the text below: ${chunks[i]}`,
         },

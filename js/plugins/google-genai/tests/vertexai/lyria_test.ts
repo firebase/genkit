@@ -168,6 +168,21 @@ describe('Vertex AI Lyria', () => {
       );
     });
 
+    it('should handle location override', async () => {
+      mockFetchResponse(mockPrediction);
+      const request: GenerateRequest<typeof LyriaConfigSchema> = {
+        messages: [{ role: 'user', content: [{ text: prompt }] }],
+        config: { location: 'global' },
+      };
+      const model = defineModel(modelName, defaultRegionalClientOptions);
+      await model.run(request);
+      sinon.assert.calledOnce(fetchStub);
+      const fetchArgs = fetchStub.lastCall.args;
+      const actualUrl = fetchArgs[0];
+      assert.ok(actualUrl.includes('aiplatform.googleapis.com'));
+      assert.ok(!actualUrl.includes('us-central1'));
+    });
+
     it('should throw if no predictions are returned', async () => {
       mockFetchResponse({ predictions: [] });
       const model = defineModel(modelName, defaultRegionalClientOptions);
