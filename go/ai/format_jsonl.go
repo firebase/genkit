@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
 )
 
@@ -38,7 +39,7 @@ func (j jsonlFormatter) Name() string {
 // Handler returns a new formatter handler for the given schema.
 func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	if schema == nil || !base.ValidateIsJSONArray(schema) {
-		return nil, fmt.Errorf("schema is not valid JSONL")
+		return nil, core.NewError(core.INVALID_ARGUMENT, "schema must be an array of objects for JSONL format")
 	}
 
 	jsonBytes, err := json.Marshal(schema["items"])
@@ -48,16 +49,11 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 
 	instructions := fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", string(jsonBytes))
 
-	format := OutputFormatJSONL
-	if j.stateless {
-		format = OutputFormatJSONLV2
-	}
-
 	handler := &jsonlHandler{
 		stateless:    j.stateless,
 		instructions: instructions,
 		config: ModelOutputConfig{
-			Format:      format,
+			Format:      OutputFormatJSONL,
 			Schema:      schema,
 			ContentType: "application/jsonl",
 		},
@@ -82,40 +78,6 @@ func (j *jsonlHandler) Instructions() string {
 // Config returns the output config for the formatter.
 func (j *jsonlHandler) Config() ModelOutputConfig {
 	return j.config
-}
-
-// parseJSONL is the shared parsing logic used by both ParseOutput and ParseChunk.
-func (j *jsonlHandler) parseJSONL(text string, allowPartial bool) []any {
-	if text == "" {
-		return []any{}
-	}
-
-	results := []any{}
-	lines := strings.Split(text, "\n")
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		isLastLine := i == len(lines)-1
-
-		if strings.HasPrefix(trimmed, "{") {
-			var result any
-			err := json.Unmarshal([]byte(trimmed), &result)
-			if err != nil {
-				if allowPartial && isLastLine {
-					partialResult, partialErr := base.ParsePartialJSON(trimmed)
-					if partialErr == nil && partialResult != nil {
-						results = append(results, partialResult)
-					}
-				}
-				continue
-			}
-			if result != nil {
-				results = append(results, result)
-			}
-		}
-	}
-
-	return results
 }
 
 // ParseOutput parses the final message and returns the parsed array of objects.
@@ -145,6 +107,7 @@ func (j *jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 		return m, nil
 	}
 
+	// Legacy behavior.
 	if m == nil {
 		return nil, errors.New("message is empty")
 	}
@@ -183,4 +146,38 @@ func (j *jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 	m.Content = append(newParts, nonTextParts...)
 
 	return m, nil
+}
+
+// parseJSONL is the shared parsing logic used by both ParseOutput and ParseChunk.
+func (j *jsonlHandler) parseJSONL(text string, allowPartial bool) []any {
+	if text == "" {
+		return []any{}
+	}
+
+	results := []any{}
+	lines := strings.Split(text, "\n")
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		isLastLine := i == len(lines)-1
+
+		if strings.HasPrefix(trimmed, "{") {
+			var result any
+			err := json.Unmarshal([]byte(trimmed), &result)
+			if err != nil {
+				if allowPartial && isLastLine {
+					partialResult, partialErr := base.ParsePartialJSON(trimmed)
+					if partialErr == nil && partialResult != nil {
+						results = append(results, partialResult)
+					}
+				}
+				continue
+			}
+			if result != nil {
+				results = append(results, result)
+			}
+		}
+	}
+
+	return results
 }

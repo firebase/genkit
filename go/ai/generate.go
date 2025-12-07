@@ -288,7 +288,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && outputCfg.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -361,6 +361,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 
 			if formatHandler != nil {
 				resp.formatHandler = streamingHandler
+				// This is legacy behavior. New format handlers should implement ParseMessage as a passthrough.
 				resp.Message, err = formatHandler.ParseMessage(resp.Message)
 				if err != nil {
 					logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
@@ -876,11 +877,11 @@ type outputer interface {
 // OutputFrom is a convenience function that parses structured output from a
 // [ModelResponse] or [ModelResponseChunk] and returns it as a typed value.
 // This is equivalent to calling Output() but returns the value directly instead
-// of requiring a pointer argument.
-func OutputFrom[T any](src outputer) (T, error) {
+// of requiring a pointer argument. If you need to handle the error, use Output() instead.
+func OutputFrom[T any](src outputer) T {
 	var v T
-	err := src.Output(&v)
-	return v, err
+	src.Output(&v)
+	return v
 }
 
 // Text returns the contents of a [Message] as a string. It

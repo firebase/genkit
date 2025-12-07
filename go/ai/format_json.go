@@ -47,16 +47,12 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 		instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", string(jsonBytes))
 	}
 
-	format := OutputFormatJSON
-	if j.stateless {
-		format = OutputFormatJSONV2
-	}
-
 	handler := &jsonHandler{
 		stateless:    j.stateless,
 		instructions: instructions,
 		config: ModelOutputConfig{
-			Format:      format,
+			Constrained: true,
+			Format:      OutputFormatJSON,
 			Schema:      schema,
 			ContentType: "application/json",
 		},
@@ -111,6 +107,7 @@ func (j *jsonHandler) ParseMessage(m *Message) (*Message, error) {
 		return m, nil
 	}
 
+	// Legacy behavior.
 	if m == nil {
 		return nil, errors.New("message is empty")
 	}

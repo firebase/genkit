@@ -20,6 +20,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/firebase/genkit/go/core"
 )
 
 type enumFormatter struct{}
@@ -33,7 +35,7 @@ func (e enumFormatter) Name() string {
 func (e enumFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	enums := objectEnums(schema)
 	if schema == nil || len(enums) == 0 {
-		return nil, fmt.Errorf("schema is not valid JSON enum")
+		return nil, core.NewError(core.INVALID_ARGUMENT, "schema must be an object with an 'enum' property for enum format")
 	}
 
 	instructions := fmt.Sprintf("Output should be ONLY one of the following enum values. Do not output any additional information or add quotes.\n\n```%s```", strings.Join(enums, "\n"))
@@ -41,6 +43,7 @@ func (e enumFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	handler := &enumHandler{
 		instructions: instructions,
 		config: ModelOutputConfig{
+			Constrained: true,
 			Format:      OutputFormatEnum,
 			Schema:      schema,
 			ContentType: "text/enum",
@@ -87,7 +90,10 @@ func (e *enumHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
 		}
 	}
 
-	return e.parseEnum(e.accumulatedText)
+	// Ignore error since we are doing best effort parsing.
+	enum, _ := e.parseEnum(e.accumulatedText)
+
+	return enum, nil
 }
 
 // ParseMessage parses the message and returns the formatted message.
@@ -152,18 +158,18 @@ func objectEnums(schema map[string]any) []string {
 }
 
 // parseEnum is the shared parsing logic used by both ParseOutput and ParseChunk.
-func (e *enumHandler) parseEnum(text string) (any, error) {
+func (e *enumHandler) parseEnum(text string) (string, error) {
 	if text == "" {
-		return nil, nil
+		return "", nil
 	}
 
 	re := regexp.MustCompile(`['"]`)
 	clean := re.ReplaceAllString(text, "")
 	trimmed := strings.TrimSpace(clean)
 
-	if slices.Contains(e.enums, trimmed) {
-		return trimmed, nil
+	if !slices.Contains(e.enums, trimmed) {
+		return "", fmt.Errorf("message %s not in list of valid enums: %s", trimmed, strings.Join(e.enums, ", "))
 	}
 
-	return nil, nil
+	return trimmed, nil
 }

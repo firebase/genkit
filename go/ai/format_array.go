@@ -16,22 +16,15 @@ package ai
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-type arrayFormatter struct {
-	stateless bool
-}
+type arrayFormatter struct{}
 
 // Name returns the name of the formatter.
 func (a arrayFormatter) Name() string {
-	if a.stateless {
-		return OutputFormatArrayV2
-	}
 	return OutputFormatArray
 }
 
@@ -48,9 +41,9 @@ func (a arrayFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	instructions := fmt.Sprintf("Output should be a JSON array conforming to the following schema:\n\n```%s```", string(jsonBytes))
 
 	handler := &arrayHandler{
-		stateless:    a.stateless,
 		instructions: instructions,
 		config: ModelOutputConfig{
+			Constrained: true,
 			Format:      OutputFormatArray,
 			Schema:      schema,
 			ContentType: "application/json",
@@ -61,7 +54,6 @@ func (a arrayFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 }
 
 type arrayHandler struct {
-	stateless       bool
 	instructions    string
 	config          ModelOutputConfig
 	accumulatedText string
@@ -106,44 +98,5 @@ func (a *arrayHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
 
 // ParseMessage parses the message and returns the formatted message.
 func (a *arrayHandler) ParseMessage(m *Message) (*Message, error) {
-	if a.stateless {
-		return m, nil
-	}
-
-	if m == nil {
-		return nil, errors.New("message is empty")
-	}
-	if len(m.Content) == 0 {
-		return nil, errors.New("message has no content")
-	}
-
-	var nonTextParts []*Part
-	accumulatedText := strings.Builder{}
-
-	for _, part := range m.Content {
-		if !part.IsText() {
-			nonTextParts = append(nonTextParts, part)
-		} else {
-			accumulatedText.WriteString(part.Text)
-		}
-	}
-
-	var newParts []*Part
-	lines := base.GetJSONObjectLines(accumulatedText.String())
-	for _, line := range lines {
-		var schemaBytes []byte
-		schemaBytes, err := json.Marshal(a.config.Schema["items"])
-		if err != nil {
-			return nil, fmt.Errorf("expected schema is not valid: %w", err)
-		}
-		if err = base.ValidateRaw([]byte(line), schemaBytes); err != nil {
-			return nil, err
-		}
-
-		newParts = append(newParts, NewJSONPart(line))
-	}
-
-	m.Content = append(newParts, nonTextParts...)
-
 	return m, nil
 }

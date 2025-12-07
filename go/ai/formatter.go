@@ -21,15 +21,27 @@ import (
 )
 
 const (
-	OutputFormatText    string = "text"
-	OutputFormatJSON    string = "json"
-	OutputFormatJSONV2  string = "json.v2"
-	OutputFormatJSONL   string = "jsonl"
+	// OutputFormatText is the default format.
+	OutputFormatText string = "text"
+	// OutputFormatJSON is the legacy format for JSON content. It modifies the message content in place by stripping out non-JSON content.
+	//
+	// Deprecated: Use OutputFormatJSONV2 instead.
+	OutputFormatJSON string = "json"
+	// OutputFormatJSONV2 is the format for JSON content.
+	OutputFormatJSONV2 string = "json.v2"
+	// OutputFormatJSONL is the legacy format for JSONL content. It modifies the message content in place by splitting out a single text part into multiple JSON parts, one per JSON object line.
+	// It does not support [ModelResponse.Output] to an array; each JSON part must be unmarshaled manually.
+	//
+	// Deprecated: Use OutputFormatJSONLV2 instead.
+	OutputFormatJSONL string = "jsonl"
+	// OutputFormatJSONLV2 is the format for JSONL content.
 	OutputFormatJSONLV2 string = "jsonl.v2"
-	OutputFormatMedia   string = "media"
-	OutputFormatArray   string = "array"
-	OutputFormatArrayV2 string = "array.v2"
-	OutputFormatEnum    string = "enum"
+	// OutputFormatMedia is the format for media content.
+	OutputFormatMedia string = "media"
+	// OutputFormatArray is the format for array content.
+	OutputFormatArray string = "array"
+	// OutputFormatEnum is the format for enum content.
+	OutputFormatEnum string = "enum"
 )
 
 // Default formats get automatically registered on registry init
@@ -40,7 +52,6 @@ var DEFAULT_FORMATS = []Formatter{
 	jsonlFormatter{},
 	jsonlFormatter{stateless: true},
 	arrayFormatter{},
-	arrayFormatter{stateless: true},
 	enumFormatter{},
 }
 
@@ -53,11 +64,11 @@ type Formatter interface {
 }
 
 // FormatHandler is a handler for formatting messages.
-// A new instance is created via Formatter.Handler() for each request.
+// A new instance is created via [Formatter.Handler] for each request.
 type FormatHandler interface {
 	// ParseMessage parses the message and returns a new formatted message.
 	//
-	// Legacy: New format handlers should implement this as a passthrough and implement [StreamingFormatHandler] instead.
+	// Legacy: New format handlers should implement this as a no-op passthrough and implement [StreamingFormatHandler] instead.
 	ParseMessage(message *Message) (*Message, error)
 	// Instructions returns the formatter instructions to embed in the prompt.
 	Instructions() string
