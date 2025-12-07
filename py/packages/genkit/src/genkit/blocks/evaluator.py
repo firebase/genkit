@@ -22,8 +22,7 @@ model.
 """
 
 from collections.abc import Callable
-from typing import TypeVar, Any
-
+from typing import Any, TypeVar
 
 from genkit.core.typing import (
     BaseEvalDataPoint,

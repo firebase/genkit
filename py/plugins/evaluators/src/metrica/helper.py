@@ -1,7 +1,7 @@
 from typing import Any
 
 from dotpromptz import Dotprompt
-from dotpromptz.typing import PromptFunction, DataArgument
+from dotpromptz.typing import DataArgument, PromptFunction
 
 dp = Dotprompt()
 
