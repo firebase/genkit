@@ -1031,12 +1031,3 @@ class ModelResponse(BaseModel):
     raw: Raw | None = None
     request: Request | None = None
     operation: Operation | None = None
-
-class EvaluatorInfoSchema(BaseModel):
-    name: str | None = None
-    metrics:  list[str]
-
-class EvaluatorReference(BaseModel):
-    name: str
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
-    info: EvaluatorInfoSchema | None = None
