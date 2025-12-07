@@ -538,6 +538,7 @@ export async function toGenerateActionOptions<
     returnToolRequests: options.returnToolRequests,
     maxTurns: options.maxTurns,
     stepName: options.stepName,
+    middleware: options.use?.filter((m): m is string => typeof m === 'string'),
   };
   // if config is empty and it was not explicitly passed in, we delete it, don't want {}
   if (Object.keys(params.config).length === 0 && !options.config) {

@@ -125,6 +125,7 @@ type GenerateActionOptions struct {
 	Docs               []*Document                 `json:"docs,omitempty"`
 	MaxTurns           int                         `json:"maxTurns,omitempty"`
 	Messages           []*Message                  `json:"messages,omitempty"`
+	Middleware         []string                    `json:"middleware,omitempty"`
 	Model              string                      `json:"model,omitempty"`
 	Output             *GenerateActionOutputConfig `json:"output,omitempty"`
 	Resume             *GenerateActionResume       `json:"resume,omitempty"`

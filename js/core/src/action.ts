@@ -209,7 +209,8 @@ export type MiddlewareWithOptions<I = any, O = any, S = any> = (
  */
 export type Middleware<I = any, O = any, S = any> =
   | SimpleMiddleware<I, O>
-  | MiddlewareWithOptions<I, O, S>;
+  | MiddlewareWithOptions<I, O, S>
+  | string;
 
 /**
  * Creates an action with provided middleware.
@@ -246,7 +247,25 @@ export function actionWithMiddleware<
         return result.result;
       }
 
-      const currentMiddleware = middleware[index];
+      let currentMiddleware = middleware[index];
+      if (typeof currentMiddleware === 'string') {
+        const registry = wrapped.__registry;
+        if (!registry) {
+          throw new Error(
+            `Cannot resolve middleware '${currentMiddleware}' for action '${action.__action.name}' because the action is not registered.`
+          );
+        }
+        const resolvedMiddleware = await registry.lookupValue<
+          SimpleMiddleware<I, O> | MiddlewareWithOptions<I, O, S>
+        >('modelMiddleware', currentMiddleware);
+        if (!resolvedMiddleware) {
+          throw new Error(
+            `Middleware '${currentMiddleware}' not found in registry.`
+          );
+        }
+        currentMiddleware = resolvedMiddleware;
+      }
+
       if (currentMiddleware.length === 3) {
         return (currentMiddleware as MiddlewareWithOptions<I, O, z.infer<S>>)(
           req,

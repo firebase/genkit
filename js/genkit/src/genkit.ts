@@ -80,6 +80,8 @@ import {
   type DefineModelOptions,
   type GenerateResponseChunkData,
   type ModelAction,
+  type ModelMiddleware,
+  type ModelMiddlewareWithOptions,
 } from '@genkit-ai/ai/model';
 import {
   defineReranker,
@@ -339,6 +341,16 @@ export class Genkit implements HasRegistry {
     options: DefineBackgroundModelOptions<CustomOptionsSchema>
   ): BackgroundModelAction<CustomOptionsSchema> {
     return defineBackgroundModel(this.registry, options);
+  }
+
+  /**
+   * Registers a middleware with a name.
+   */
+  defineMiddleware(
+    name: string,
+    middleware: ModelMiddleware | ModelMiddlewareWithOptions
+  ) {
+    this.registry.registerValue('modelMiddleware', name, middleware);
   }
 
   /**

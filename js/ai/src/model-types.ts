@@ -410,5 +410,7 @@ export const GenerateActionOptionsSchema = z.object({
   maxTurns: z.number().optional(),
   /** Custom step name for this generate call to display in trace views. Defaults to "generate". */
   stepName: z.string().optional(),
+  /** Registered middleware to be used with this model call. */
+  middleware: z.array(z.string()).optional(),
 });
 export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;

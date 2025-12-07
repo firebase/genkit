@@ -96,8 +96,6 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
           rawRequest: request,
           currentTurn: 0,
           messageIndex: 0,
-          // Generate util action does not support middleware. Maybe when we add named/registered middleware....
-          middleware: [],
           streamingCallback: sendChunk,
           context,
         });
@@ -255,7 +253,7 @@ async function generate(
     context,
   }: {
     rawRequest: GenerateActionOptions;
-    middleware: ModelMiddlewareArgument[] | undefined;
+    middleware?: ModelMiddlewareArgument[] | undefined;
     currentTurn: number;
     messageIndex: number;
     abortSignal?: AbortSignal;
@@ -326,6 +324,13 @@ async function generate(
     streamingCallback(makeChunk('tool', resumedToolMessage));
   }
 
+  const rawMiddleware = rawRequest.middleware || [];
+  const argMiddleware = middleware || [];
+  const effectiveRawMiddleware = rawMiddleware.filter(
+    (m) => !argMiddleware.includes(m)
+  );
+  const allMiddleware = [...argMiddleware, ...effectiveRawMiddleware];
+
   var response: GenerateResponse;
   const sendChunk =
     streamingCallback &&
@@ -337,12 +342,25 @@ async function generate(
     req: z.infer<typeof GenerateRequestSchema>,
     actionOpts: ActionRunOptions<any>
   ) => {
-    if (!middleware || index === middleware.length) {
+    if (index === allMiddleware.length) {
       // end of the chain, call the original model action
       return await model(req, actionOpts);
     }
 
-    const currentMiddleware = middleware[index];
+    let currentMiddleware = allMiddleware[index];
+    if (typeof currentMiddleware === 'string') {
+      const resolvedMiddleware = await registry.lookupValue<
+        ModelMiddleware | ModelMiddlewareWithOptions
+      >('modelMiddleware', currentMiddleware);
+      if (!resolvedMiddleware) {
+        throw new GenkitError({
+          status: 'NOT_FOUND',
+          message: `Middleware '${currentMiddleware}' not found.`,
+        });
+      }
+      currentMiddleware = resolvedMiddleware;
+    }
+
     if (currentMiddleware.length === 3) {
       return (currentMiddleware as ModelMiddlewareWithOptions)(
         req,
@@ -435,7 +453,28 @@ async function generate(
   // then recursively call for another loop
   return await generateHelper(registry, {
     rawRequest: nextRequest,
-    middleware: middleware,
+    middleware: allMiddleware, // Pass the combined middleware to the next recursion to avoid re-combining logic issues if any (but we re-evaluate rawRequest here)
+    // Wait, if we pass 'allMiddleware' here, we are passing functions and strings.
+    // 'generate' function expects that.
+    // However, we are also passing 'rawRequest' which is 'nextRequest'.
+    // 'nextRequest' is derived from 'rawRequest'. Does it keep 'middleware' property?
+    // Yes, spread operator `{...rawRequest, ...}` copies it.
+    // So 'nextRequest' has 'middleware' strings.
+    // 'allMiddleware' has functions + unique strings.
+    // In recursive call, 'generate' will combine them AGAIN.
+    // 'allMiddleware' (from arg) will be 'argMiddleware' in next call.
+    // 'rawRequest.middleware' will be 'rawMiddleware' in next call.
+    // 'effectiveRaw' will filter out strings present in 'allMiddleware'.
+    // If 'allMiddleware' contains the strings (which it does, from effectiveRaw), then they are filtered out.
+    // If 'allMiddleware' contains functions (resolved), they are not filtered.
+    // So we should be fine?
+    // Actually, 'allMiddleware' passed to 'generateHelper' becomes 'middleware' arg.
+    // 'middleware' arg will contain everything.
+    // 'rawRequest.middleware' will contain original strings.
+    // 'effectiveRaw' = raw.filter(m => !all.includes(m)).
+    // If 'all' contains the strings, effectiveRaw is empty.
+    // So we just use 'all'.
+    // This seems correct recursion-wise.
     currentTurn: currentTurn + 1,
     messageIndex: messageIndex + 1,
     streamingCallback,

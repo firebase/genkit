@@ -962,6 +962,7 @@ class GenerateActionOptions(BaseModel):
     return_tool_requests: bool | None = Field(None, alias='returnToolRequests')
     max_turns: float | None = Field(None, alias='maxTurns')
     step_name: str | None = Field(None, alias='stepName')
+    middleware: list[str] | None = None
 
 
 class GenerateRequest(BaseModel):

@@ -117,7 +117,8 @@ export type ModelMiddlewareWithOptions = MiddlewareWithOptions<
 
 export type ModelMiddlewareArgument =
   | ModelMiddleware
-  | ModelMiddlewareWithOptions;
+  | ModelMiddlewareWithOptions
+  | string;
 
 export type DefineModelOptions<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
