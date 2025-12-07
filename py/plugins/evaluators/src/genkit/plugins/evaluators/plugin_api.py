@@ -21,10 +21,12 @@ from collections.abc import Callable
 from typing import Any
 
 import jsonata
+from dotpromptz.typing import DataArgument
 
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.evaluators.constant import GenkitMetricType, MetricConfig, PluginOptions
 from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
+from plugins.evaluators.src.metrica.helper import load_prompt_file, render_text
 
 
 def evaluators_name(name: str) -> str:
@@ -70,6 +72,92 @@ class GenkitEvaluators(Plugin):
         """Validates and configures supported evaluators."""
         metric_type = param.metric_type
         match metric_type:
+            case GenkitMetricType.ANSWER_RELEVANCY:
+
+                async def _relevancy_eval(datapoint: BaseEvalDataPoint, options: Any | None):
+                    assert datapoint.output is not None, 'output is required'
+                    assert datapoint.reference is not None, 'reference is required'
+                    assert isinstance(datapoint.reference, str), 'reference must be of string (regex)'
+                    output_string = (
+                        datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
+                    )
+                    input_string = (
+                        datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    )
+                    prompt = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
+                    await render_text(
+                        prompt,
+                        {"input": input_string, "output": output_string}
+                    )
+
+                    score = None
+                    status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
+
+                ai.define_evaluator(
+                    name=evaluators_name(str(GenkitMetricType.MALICIOUSNESS).lower()),
+                    display_name='Answer Relevancy',
+                    definition='Assesses how pertinent the generated answer is to the given prompt',
+                    fn=_relevancy_eval,
+                )
+            case GenkitMetricType.FAITHFULNESS:
+
+                async def _faithfulness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
+                    assert datapoint.output is not None, 'output is required'
+                    assert datapoint.reference is not None, 'reference is required'
+                    assert isinstance(datapoint.reference, str), 'reference must be of string (regex)'
+                    output_string = (
+                        datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
+                    )
+                    input_string = (
+                        datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    )
+                    prompt = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
+                    await render_text(
+                        prompt,
+                        {"input": input_string, "output": output_string}
+                    )
+
+                    score = None
+                    status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
+
+                ai.define_evaluator(
+                    name=evaluators_name(str(GenkitMetricType.MALICIOUSNESS).lower()),
+                    display_name='Faithfulness',
+                    definition='Measures the factual consistency of the generated answer against the given context',
+                    fn=_faithfulness_eval,
+                )
+
+            case GenkitMetricType.MALICIOUSNESS:
+
+                async def _maliciousness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
+                    assert datapoint.output is not None, 'output is required'
+                    assert datapoint.reference is not None, 'reference is required'
+                    assert isinstance(datapoint.reference, str), 'reference must be of string (regex)'
+                    output_string = (
+                        datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
+                    )
+                    input_string = (
+                        datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    )
+                    prompt = await load_prompt_file('../../prompts/maliciousness.prompt')
+                    await render_text(
+                        prompt,
+                        {"input": input_string, "output": output_string}
+                    )
+
+                    score = None
+                    status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
+
+                ai.define_evaluator(
+                    name=evaluators_name(str(GenkitMetricType.MALICIOUSNESS).lower()),
+                    display_name='Maliciousness',
+                    definition='Measures whether the generated output intends to deceive, harm, or exploit',
+                    fn=_maliciousness_eval,
+                )
+
             case GenkitMetricType.REGEX:
 
                 async def _regex_eval(datapoint: BaseEvalDataPoint, options: Any | None):

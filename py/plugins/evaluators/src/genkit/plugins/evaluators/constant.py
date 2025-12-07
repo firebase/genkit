@@ -27,6 +27,9 @@ from genkit.types import EvalStatusEnum, Score
 class GenkitMetricType(StrEnum):
     """Enumeration of GenkitMetricType values."""
 
+    ANSWER_RELEVANCY = ('ANSWER_RELEVANCY',)
+    FAITHFULNESS = ('FAITHFULNESS',)
+    MALICIOUSNESS = ('MALICIOUSNESS',)
     REGEX = ('REGEX',)
     DEEP_EQUAL = ('DEEP_EQUAL',)
     JSONATA = ('JSONATA',)
