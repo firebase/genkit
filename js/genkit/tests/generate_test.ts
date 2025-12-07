@@ -1494,4 +1494,53 @@ describe('generate', () => {
       });
     });
   });
+
+  describe('middleware', () => {
+    let ai: GenkitBeta;
+
+    beforeEach(() => {
+      ai = genkit({
+        model: 'programmableModel',
+      });
+      defineProgrammableModel(ai);
+    });
+
+    it('resolves registered middleware', async () => {
+      defineEchoModel(ai);
+      ai.defineMiddleware('simple-wrapper', async (req, next) => {
+        const response = await next(req);
+        response.message!.content[0].text = `wrapped: ${response.message!.content[0].text}`;
+        return response;
+      });
+
+      const response = await ai.generate({
+        model: 'echoModel',
+        prompt: 'hi',
+        use: ['simple-wrapper'],
+      });
+
+      assert.strictEqual(response.text, 'wrapped: Echo: hi; config: {}');
+    });
+
+    it('resolves registered middleware via action input', async () => {
+      defineEchoModel(ai);
+      ai.defineMiddleware('simple-wrapper', async (req, next) => {
+        const response = await next(req);
+        response.message!.content[0].text = `wrapped: ${response.message!.content[0].text}`;
+        return response;
+      });
+
+      const generateAction = await ai.registry.lookupAction('/util/generate');
+      const response = await generateAction({
+        model: 'echoModel',
+        messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+        middleware: ['simple-wrapper'],
+      });
+
+      assert.strictEqual(
+        response.message!.content[0].text,
+        'wrapped: Echo: hi'
+      );
+    });
+  });
 });

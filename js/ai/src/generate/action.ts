@@ -326,6 +326,11 @@ async function generate(
     streamingCallback(makeChunk('tool', resumedToolMessage));
   }
 
+  const allMiddleware = [
+    ...(rawRequest.middleware || []),
+    ...(middleware || []),
+  ];
+
   var response: GenerateResponse;
   const sendChunk =
     streamingCallback &&
@@ -337,12 +342,25 @@ async function generate(
     req: z.infer<typeof GenerateRequestSchema>,
     actionOpts: ActionRunOptions<any>
   ) => {
-    if (!middleware || index === middleware.length) {
+    if (index === allMiddleware.length) {
       // end of the chain, call the original model action
       return await model(req, actionOpts);
     }
 
-    const currentMiddleware = middleware[index];
+    let currentMiddleware = allMiddleware[index];
+    if (typeof currentMiddleware === 'string') {
+      const resolvedMiddleware = await registry.lookupValue<
+        ModelMiddleware | ModelMiddlewareWithOptions
+      >('modelMiddleware', currentMiddleware);
+      if (!resolvedMiddleware) {
+        throw new GenkitError({
+          status: 'NOT_FOUND',
+          message: `Middleware '${currentMiddleware}' not found.`,
+        });
+      }
+      currentMiddleware = resolvedMiddleware;
+    }
+
     if (currentMiddleware.length === 3) {
       return (currentMiddleware as ModelMiddlewareWithOptions)(
         req,

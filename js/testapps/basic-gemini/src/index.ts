@@ -50,31 +50,38 @@ ai.defineFlow('basic-hi', async () => {
   return text;
 });
 
+ai.defineMiddleware(
+  'basic-retry',
+  retry({
+    maxRetries: 2,
+    onError: (e, attempt) => console.log('--- oops ', attempt, e),
+  })
+);
+
 ai.defineFlow('basic-hi-with-retry', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.5-pro'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
-    use: [
-      retry({
-        maxRetries: 2,
-        onError: (e, attempt) => console.log('--- oops ', attempt, e),
-      }),
-    ],
+    use: ['basic-retry'],
   });
 
   return text;
 });
 
+ai.defineMiddleware(
+  'basic-fallback',
+  fallback(ai, {
+    models: [googleAI.model('gemini-2.5-flash')],
+    statuses: ['UNKNOWN'],
+    onError: (e) => console.log('--- oops fallback', e),
+  })
+);
+
 ai.defineFlow('basic-hi-with-fallback', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.5-something-that-does-not-exist'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
-    use: [
-      fallback(ai, {
-        models: [googleAI.model('gemini-2.5-flash')],
-        statuses: ['UNKNOWN'],
-      }),
-    ],
+    use: ['basic-fallback'],
   });
 
   return text;
