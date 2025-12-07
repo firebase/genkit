@@ -466,6 +466,12 @@
         },
         "stepName": {
           "type": "string"
+        },
+        "middleware": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
