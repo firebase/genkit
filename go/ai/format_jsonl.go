@@ -25,12 +25,13 @@ import (
 )
 
 type jsonlFormatter struct {
-	stateless bool
+	// v2 does not implement ParseMessage.
+	v2 bool
 }
 
 // Name returns the name of the formatter.
 func (j jsonlFormatter) Name() string {
-	if j.stateless {
+	if j.v2 {
 		return OutputFormatJSONLV2
 	}
 	return OutputFormatJSONL
@@ -50,7 +51,7 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	instructions := fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", string(jsonBytes))
 
 	handler := &jsonlHandler{
-		stateless:    j.stateless,
+		v2:           j.v2,
 		instructions: instructions,
 		config: ModelOutputConfig{
 			Format:      OutputFormatJSONL,
@@ -63,11 +64,12 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 }
 
 type jsonlHandler struct {
-	stateless       bool
+	v2              bool
 	instructions    string
 	config          ModelOutputConfig
 	accumulatedText string
 	currentIndex    int
+	cursor          int
 }
 
 // Instructions returns the instructions for the formatter.
@@ -82,7 +84,39 @@ func (j *jsonlHandler) Config() ModelOutputConfig {
 
 // ParseOutput parses the final message and returns the parsed array of objects.
 func (j *jsonlHandler) ParseOutput(m *Message) (any, error) {
-	return j.parseJSONL(m.Text(), false), nil
+	// Handle legacy behavior where ParseMessage split out content into multiple JSON parts.
+	var jsonParts []string
+	for _, part := range m.Content {
+		if part.IsText() && part.ContentType == "application/json" {
+			jsonParts = append(jsonParts, part.Text)
+		}
+	}
+
+	var text string
+	if len(jsonParts) > 0 {
+		text = strings.Join(jsonParts, "\n")
+	} else {
+		var sb strings.Builder
+		for _, part := range m.Content {
+			if part.IsText() {
+				sb.WriteString(part.Text)
+			}
+		}
+		text = sb.String()
+	}
+
+	result, _, err := j.parseJSONL(text, 0, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if j.config.Schema != nil {
+		if err := base.ValidateValue(result, j.config.Schema); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
 
 // ParseChunk processes a streaming chunk and returns parsed output.
@@ -90,6 +124,7 @@ func (j *jsonlHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
 	if chunk.Index != j.currentIndex {
 		j.accumulatedText = ""
 		j.currentIndex = chunk.Index
+		j.cursor = 0
 	}
 
 	for _, part := range chunk.Content {
@@ -98,12 +133,17 @@ func (j *jsonlHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
 		}
 	}
 
-	return j.parseJSONL(j.accumulatedText, true), nil
+	items, newCursor, err := j.parseJSONL(j.accumulatedText, j.cursor, true)
+	if err != nil {
+		return nil, err
+	}
+	j.cursor = newCursor
+	return items, nil
 }
 
 // ParseMessage parses the message and returns the formatted message.
 func (j *jsonlHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.stateless {
+	if j.v2 {
 		return m, nil
 	}
 
@@ -148,18 +188,22 @@ func (j *jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
 }
 
-// parseJSONL is the shared parsing logic used by both ParseOutput and ParseChunk.
-func (j *jsonlHandler) parseJSONL(text string, allowPartial bool) []any {
-	if text == "" {
-		return []any{}
+// parseJSONL parses JSONL starting from the cursor position.
+// Returns the parsed items, the new cursor position, and any error.
+func (j *jsonlHandler) parseJSONL(text string, cursor int, allowPartial bool) ([]any, int, error) {
+	if text == "" || cursor >= len(text) {
+		return nil, cursor, nil
 	}
 
 	results := []any{}
-	lines := strings.Split(text, "\n")
+	remaining := text[cursor:]
+	lines := strings.Split(remaining, "\n")
+	currentPos := cursor
 
 	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
 		isLastLine := i == len(lines)-1
+		lineLen := len(line)
+		trimmed := strings.TrimSpace(line)
 
 		if strings.HasPrefix(trimmed, "{") {
 			var result any
@@ -170,14 +214,20 @@ func (j *jsonlHandler) parseJSONL(text string, allowPartial bool) []any {
 					if partialErr == nil && partialResult != nil {
 						results = append(results, partialResult)
 					}
+					// Don't advance cursor for partial line.
+					break
 				}
-				continue
+				return nil, cursor, fmt.Errorf("invalid JSON on line %d: %w", i+1, err)
 			}
 			if result != nil {
 				results = append(results, result)
 			}
 		}
+
+		if !isLastLine {
+			currentPos += lineLen + 1 // +1 for newline
+		}
 	}
 
-	return results
+	return results, currentPos, nil
 }

@@ -48,9 +48,9 @@ const (
 var DEFAULT_FORMATS = []Formatter{
 	textFormatter{},
 	jsonFormatter{},
-	jsonFormatter{stateless: true},
+	jsonFormatter{v2: true},
 	jsonlFormatter{},
-	jsonlFormatter{stateless: true},
+	jsonlFormatter{v2: true},
 	arrayFormatter{},
 	enumFormatter{},
 }

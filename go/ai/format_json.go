@@ -24,12 +24,13 @@ import (
 )
 
 type jsonFormatter struct {
-	stateless bool
+	// v2 does not implement ParseMessage.
+	v2 bool
 }
 
 // Name returns the name of the formatter.
 func (j jsonFormatter) Name() string {
-	if j.stateless {
+	if j.v2 {
 		return OutputFormatJSONV2
 	}
 	return OutputFormatJSON
@@ -48,7 +49,7 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	}
 
 	handler := &jsonHandler{
-		stateless:    j.stateless,
+		v2:           j.v2,
 		instructions: instructions,
 		config: ModelOutputConfig{
 			Constrained: true,
@@ -63,7 +64,7 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 
 // jsonHandler is a handler for the JSON formatter.
 type jsonHandler struct {
-	stateless       bool
+	v2              bool
 	instructions    string
 	config          ModelOutputConfig
 	accumulatedText string
@@ -82,7 +83,18 @@ func (j *jsonHandler) Config() ModelOutputConfig {
 
 // ParseOutput parses the final message and returns the parsed JSON value.
 func (j *jsonHandler) ParseOutput(m *Message) (any, error) {
-	return j.parseJSON(m.Text())
+	result, err := j.parseJSON(m.Text())
+	if err != nil {
+		return nil, err
+	}
+
+	if j.config.Schema != nil {
+		if err := base.ValidateValue(result, j.config.Schema); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
 
 // ParseChunk processes a streaming chunk and returns parsed output.
@@ -103,7 +115,7 @@ func (j *jsonHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
 
 // ParseMessage parses the message and returns the formatted message.
 func (j *jsonHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.stateless {
+	if j.v2 {
 		return m, nil
 	}
 
