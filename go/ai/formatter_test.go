@@ -1518,3 +1518,349 @@ func TestEnumParserStreaming(t *testing.T) {
 		})
 	}
 }
+
+func TestJSONFormatterProcessChunk(t *testing.T) {
+	tests := []struct {
+		name    string
+		text    string
+		want    any
+		wantNil bool
+	}{
+		{
+			name: "complete JSON",
+			text: `{"name": "John", "age": 30}`,
+			want: map[string]any{"name": "John", "age": float64(30)},
+		},
+		{
+			name: "partial JSON",
+			text: `{"name": "John", "age": 3`,
+			want: map[string]any{"name": "John", "age": float64(3)},
+		},
+		{
+			name: "JSON in markdown",
+			text: "```json\n{\"name\": \"Jane\"}\n```",
+			want: map[string]any{"name": "Jane"},
+		},
+		{
+			name:    "empty text",
+			text:    "",
+			wantNil: true,
+		},
+		{
+			name: "incremental chunks simulated",
+			text: `{"name": "John", "age": 30}`,
+			want: map[string]any{"name": "John", "age": float64(30)},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, err := jsonFormatter{}.Handler(map[string]any{"type": "object"})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			sfh, ok := handler.(StreamingFormatHandler)
+			if !ok {
+				t.Fatal("handler does not implement StreamingFormatHandler")
+			}
+
+			chunk := &ModelResponseChunk{
+				Content: []*Part{NewTextPart(tt.text)},
+				Index:   0,
+			}
+			got, err := sfh.ParseChunk(chunk)
+			if err != nil {
+				t.Errorf("ProcessChunk() error = %v", err)
+				return
+			}
+			if tt.wantNil {
+				if got != nil {
+					t.Errorf("ProcessChunk() = %v, want nil", got)
+				}
+				return
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("ProcessChunk() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestJSONLFormatterProcessChunk(t *testing.T) {
+	schema := map[string]any{
+		"type": "array",
+		"items": map[string]any{
+			"type": "object",
+		},
+	}
+
+	tests := []struct {
+		name    string
+		text    string
+		want    []any
+		wantNil bool
+	}{
+		{
+			name: "two complete lines",
+			text: "{\"name\": \"John\"}\n{\"name\": \"Jane\"}",
+			want: []any{
+				map[string]any{"name": "John"},
+				map[string]any{"name": "Jane"},
+			},
+		},
+		{
+			name: "one complete, one partial",
+			text: "{\"name\": \"John\"}\n{\"name\": \"J",
+			want: []any{
+				map[string]any{"name": "John"},
+				map[string]any{"name": "J"},
+			},
+		},
+		{
+			name: "incremental chunks simulated",
+			text: "{\"name\": \"John\"}\n{\"name\": \"Jane\"}",
+			want: []any{
+				map[string]any{"name": "John"},
+				map[string]any{"name": "Jane"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, err := jsonlFormatter{}.Handler(schema)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			sfh, ok := handler.(StreamingFormatHandler)
+			if !ok {
+				t.Fatal("handler does not implement StreamingFormatHandler")
+			}
+
+			chunk := &ModelResponseChunk{
+				Content: []*Part{NewTextPart(tt.text)},
+				Index:   0,
+			}
+			got, err := sfh.ParseChunk(chunk)
+			if err != nil {
+				t.Errorf("ProcessChunk() error = %v", err)
+				return
+			}
+			if tt.wantNil {
+				if got != nil {
+					t.Errorf("ProcessChunk() = %v, want nil", got)
+				}
+				return
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("ProcessChunk() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestArrayFormatterProcessChunk(t *testing.T) {
+	schema := map[string]any{
+		"type": "array",
+		"items": map[string]any{
+			"type": "object",
+		},
+	}
+
+	tests := []struct {
+		name    string
+		text    string
+		want    []any
+		wantNil bool
+	}{
+		{
+			name: "complete array",
+			text: `[{"name": "John"}, {"name": "Jane"}]`,
+			want: []any{
+				map[string]any{"name": "John"},
+				map[string]any{"name": "Jane"},
+			},
+		},
+		{
+			name: "partial array",
+			text: `[{"name": "John"}, {"name": "J`,
+			want: []any{
+				map[string]any{"name": "John"},
+			},
+		},
+		{
+			name: "incremental chunks simulated",
+			text: `[{"name": "John"}, {"name": "Jane"}]`,
+			want: []any{
+				map[string]any{"name": "John"},
+				map[string]any{"name": "Jane"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, err := arrayFormatter{}.Handler(schema)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			sfh, ok := handler.(StreamingFormatHandler)
+			if !ok {
+				t.Fatal("handler does not implement StreamingFormatHandler")
+			}
+
+			chunk := &ModelResponseChunk{
+				Content: []*Part{NewTextPart(tt.text)},
+				Index:   0,
+			}
+			got, err := sfh.ParseChunk(chunk)
+			if err != nil {
+				t.Errorf("ProcessChunk() error = %v", err)
+				return
+			}
+			if tt.wantNil {
+				if got != nil {
+					t.Errorf("ProcessChunk() = %v, want nil", got)
+				}
+				return
+			}
+
+			gotSlice, ok := got.([]any)
+			if !ok {
+				t.Errorf("ProcessChunk() returned %T, want []any", got)
+				return
+			}
+
+			if diff := cmp.Diff(tt.want, gotSlice); diff != "" {
+				t.Errorf("ProcessChunk() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestTextFormatterProcessChunk(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{
+			name: "simple text",
+			text: "Hello, world!",
+			want: "Hello, world!",
+		},
+		{
+			name: "incremental text simulated",
+			text: "Hello, world!",
+			want: "Hello, world!",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, err := textFormatter{}.Handler(nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			sfh, ok := handler.(StreamingFormatHandler)
+			if !ok {
+				t.Fatal("handler does not implement StreamingFormatHandler")
+			}
+
+			chunk := &ModelResponseChunk{
+				Content: []*Part{NewTextPart(tt.text)},
+				Index:   0,
+			}
+			got, err := sfh.ParseChunk(chunk)
+			if err != nil {
+				t.Errorf("ProcessChunk() error = %v", err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ProcessChunk() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEnumFormatterProcessChunk(t *testing.T) {
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"value": map[string]any{
+				"type": "string",
+				"enum": []any{"option1", "option2", "option3"},
+			},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		text    string
+		want    string
+		wantNil bool
+	}{
+		{
+			name: "valid enum",
+			text: "option1",
+			want: "option1",
+		},
+		{
+			name: "valid enum with quotes",
+			text: "\"option2\"",
+			want: "option2",
+		},
+		{
+			name:    "invalid enum",
+			text:    "invalid",
+			wantNil: true,
+		},
+		{
+			name:    "partial match",
+			text:    "opt",
+			wantNil: true,
+		},
+		{
+			name: "incremental chunks simulated",
+			text: "option1",
+			want: "option1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, err := enumFormatter{}.Handler(schema)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			sfh, ok := handler.(StreamingFormatHandler)
+			if !ok {
+				t.Fatal("handler does not implement StreamingFormatHandler")
+			}
+
+			chunk := &ModelResponseChunk{
+				Content: []*Part{NewTextPart(tt.text)},
+				Index:   0,
+			}
+			got, err := sfh.ParseChunk(chunk)
+			if err != nil {
+				t.Errorf("ProcessChunk() error = %v", err)
+				return
+			}
+			if tt.wantNil {
+				if got != nil {
+					t.Errorf("ProcessChunk() = %v, want nil", got)
+				}
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ProcessChunk() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

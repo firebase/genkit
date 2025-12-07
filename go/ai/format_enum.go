@@ -52,23 +52,46 @@ func (e enumFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 }
 
 type enumHandler struct {
-	instructions string
-	config       ModelOutputConfig
-	enums        []string
+	instructions    string
+	config          ModelOutputConfig
+	enums           []string
+	accumulatedText string
+	currentIndex    int
 }
 
 // Instructions returns the instructions for the formatter.
-func (e enumHandler) Instructions() string {
+func (e *enumHandler) Instructions() string {
 	return e.instructions
 }
 
 // Config returns the output config for the formatter.
-func (e enumHandler) Config() ModelOutputConfig {
+func (e *enumHandler) Config() ModelOutputConfig {
 	return e.config
 }
 
+// ParseOutput parses the final message and returns the enum value.
+func (e *enumHandler) ParseOutput(m *Message) (any, error) {
+	return e.parseEnum(m.Text())
+}
+
+// ParseChunk processes a streaming chunk and returns parsed output.
+func (e *enumHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
+	if chunk.Index != e.currentIndex {
+		e.accumulatedText = ""
+		e.currentIndex = chunk.Index
+	}
+
+	for _, part := range chunk.Content {
+		if part.IsText() {
+			e.accumulatedText += part.Text
+		}
+	}
+
+	return e.parseEnum(e.accumulatedText)
+}
+
 // ParseMessage parses the message and returns the formatted message.
-func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
+func (e *enumHandler) ParseMessage(m *Message) (*Message, error) {
 	if e.config.Format == OutputFormatEnum {
 		if m == nil {
 			return nil, errors.New("message is empty")
@@ -126,4 +149,21 @@ func objectEnums(schema map[string]any) []string {
 	}
 
 	return enums
+}
+
+// parseEnum is the shared parsing logic used by both ParseOutput and ParseChunk.
+func (e *enumHandler) parseEnum(text string) (any, error) {
+	if text == "" {
+		return nil, nil
+	}
+
+	re := regexp.MustCompile(`['"]`)
+	clean := re.ReplaceAllString(text, "")
+	trimmed := strings.TrimSpace(clean)
+
+	if slices.Contains(e.enums, trimmed) {
+		return trimmed, nil
+	}
+
+	return nil, nil
 }

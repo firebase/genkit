@@ -21,20 +21,26 @@ import (
 )
 
 const (
-	OutputFormatText  string = "text"
-	OutputFormatJSON  string = "json"
-	OutputFormatJSONL string = "jsonl"
-	OutputFormatMedia string = "media"
-	OutputFormatArray string = "array"
-	OutputFormatEnum  string = "enum"
+	OutputFormatText    string = "text"
+	OutputFormatJSON    string = "json"
+	OutputFormatJSONV2  string = "json.v2"
+	OutputFormatJSONL   string = "jsonl"
+	OutputFormatJSONLV2 string = "jsonl.v2"
+	OutputFormatMedia   string = "media"
+	OutputFormatArray   string = "array"
+	OutputFormatArrayV2 string = "array.v2"
+	OutputFormatEnum    string = "enum"
 )
 
 // Default formats get automatically registered on registry init
 var DEFAULT_FORMATS = []Formatter{
-	jsonFormatter{},
-	jsonlFormatter{},
 	textFormatter{},
+	jsonFormatter{},
+	jsonFormatter{stateless: true},
+	jsonlFormatter{},
+	jsonlFormatter{stateless: true},
 	arrayFormatter{},
+	arrayFormatter{stateless: true},
 	enumFormatter{},
 }
 
@@ -46,14 +52,28 @@ type Formatter interface {
 	Handler(schema map[string]any) (FormatHandler, error)
 }
 
-// FormatHandler represents the handler part of the Formatter interface.
+// FormatHandler is a handler for formatting messages.
+// A new instance is created via Formatter.Handler() for each request.
 type FormatHandler interface {
 	// ParseMessage parses the message and returns a new formatted message.
+	//
+	// Legacy: New format handlers should implement this as a passthrough and implement [StreamingFormatHandler] instead.
 	ParseMessage(message *Message) (*Message, error)
 	// Instructions returns the formatter instructions to embed in the prompt.
 	Instructions() string
 	// Config returns the output config for the model request.
 	Config() ModelOutputConfig
+}
+
+// StreamingFormatHandler is a handler for formatting messages that supports streaming.
+// This interface must be implemented to be able to use [ModelResponse.Output] and [ModelResponseChunk.Output].
+type StreamingFormatHandler interface {
+	// ParseOutput parses the final output and returns parsed output.
+	ParseOutput(message *Message) (any, error)
+	// ParseChunk processes a streaming chunk and returns parsed output.
+	// The handler maintains its own internal state. When the chunk's index changes, the state is reset for the new turn.
+	// Returns parsed output, or nil if nothing can be parsed yet.
+	ParseChunk(chunk *ModelResponseChunk) (any, error)
 }
 
 // ConfigureFormats registers default formats in the registry

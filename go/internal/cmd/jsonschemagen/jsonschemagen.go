@@ -410,6 +410,9 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		jsonTag := fmt.Sprintf(`json:"%s,omitempty"`, field)
 		g.pr(fmt.Sprintf("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag))
 	}
+	for _, f := range tcfg.fields {
+		g.pr(fmt.Sprintf("  %s %s\n", f.name, f.typeExpr))
+	}
 	g.pr("}\n\n")
 	return nil
 }
@@ -580,6 +583,13 @@ type itemConfig struct {
 	pkgPath  string
 	typeExpr string
 	docLines []string
+	fields   []extraField
+}
+
+// extraField represents an additional unexported field to add to a struct.
+type extraField struct {
+	name     string
+	typeExpr string
 }
 
 // parseConfigFile parses the config file.
@@ -602,6 +612,8 @@ type itemConfig struct {
 //	    package path, relative to outdir (last component is package name)
 //	import
 //	    path of package to import (for packages only)
+//	field NAME TYPE
+//	    add an unexported field to the struct (for types only)
 func parseConfigFile(filename string) (config, error) {
 	c := config{
 		itemConfigs: map[string]*itemConfig{},
@@ -667,6 +679,11 @@ func parseConfigFile(filename string) (config, error) {
 				return errf("need NAME import PATH")
 			}
 			ic.pkgPath = words[2]
+		case "field":
+			if len(words) < 4 {
+				return errf("need NAME field FIELDNAME TYPE")
+			}
+			ic.fields = append(ic.fields, extraField{name: words[2], typeExpr: words[3]})
 		default:
 			return errf("unknown directive %q", words[1])
 		}
