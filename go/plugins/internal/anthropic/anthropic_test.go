@@ -172,7 +172,45 @@ func TestToAnthropicTools(t *testing.T) {
 					OfTool: &anthropic.ToolParam{
 						Name:        "my-tool",
 						Description: anthropic.String("my tool description"),
-						InputSchema: anthropic.ToolInputSchemaParam{},
+						InputSchema: anthropic.ToolInputSchemaParam{
+							Type:       "object",
+							Properties: map[string]any{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "valid tool with schema",
+			tools: []*ai.ToolDefinition{
+				{
+					Name:        "weather",
+					Description: "get weather",
+					InputSchema: map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"location": map[string]any{
+								"type": "string",
+							},
+						},
+						"required": []string{"location"},
+					},
+				},
+			},
+			expected: []anthropic.ToolUnionParam{
+				{
+					OfTool: &anthropic.ToolParam{
+						Name:        "weather",
+						Description: anthropic.String("get weather"),
+						InputSchema: anthropic.ToolInputSchemaParam{
+							Type: "object",
+							Properties: map[string]any{
+								"location": map[string]any{
+									"type": "string",
+								},
+							},
+							Required: []string{"location"},
+						},
 					},
 				},
 			},
