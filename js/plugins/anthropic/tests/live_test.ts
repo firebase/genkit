@@ -40,7 +40,8 @@ describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
 
     const result = await ai.generate({
       model: 'anthropic/claude-sonnet-4-5',
-      prompt: 'Generate a fictional person with name "Alice", age 30, and city "New York". Return only the JSON.',
+      prompt:
+        'Generate a fictional person with name "Alice", age 30, and city "New York". Return only the JSON.',
       output: { schema, format: 'json', constrained: true },
     });
 
@@ -52,7 +53,13 @@ describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
     );
 
     // Check that boolean fields are present and are actually booleans
-    for (const key of ['isStudent', 'isEmployee', 'isRetired', 'isUnemployed', 'isDisabled']) {
+    for (const key of [
+      'isStudent',
+      'isEmployee',
+      'isRetired',
+      'isUnemployed',
+      'isDisabled',
+    ]) {
       assert.strictEqual(
         typeof parsed[key],
         'boolean',

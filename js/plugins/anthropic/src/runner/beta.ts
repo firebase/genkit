@@ -547,7 +547,9 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     }
   }
 
-  private isStructuredOutputEnabled(request: GenerateRequest<typeof AnthropicConfigSchema>): boolean {
+  private isStructuredOutputEnabled(
+    request: GenerateRequest<typeof AnthropicConfigSchema>
+  ): boolean {
     return !!(
       request.output?.schema &&
       request.output.constrained &&
