@@ -25,6 +25,7 @@ import {
   z,
 } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
+import { applyGeminiPartialArgs } from './converters.js';
 import {
   GenerateContentCandidate,
   GenerateContentResponse,
@@ -416,6 +417,67 @@ async function getResponsePromise(
   }
 }
 
+function handleFunctionCall(
+  part: Part,
+  newPart: Partial<Part>,
+  activePartialToolRequest: Part | null
+): {
+  shouldContinue: boolean;
+  newActivePartialToolRequest: Part | null;
+} {
+  // If there's an active partial tool request, we're in the middle of a stream.
+  if (activePartialToolRequest) {
+    if (part.functionCall?.partialArgs) {
+      applyGeminiPartialArgs(
+        activePartialToolRequest.functionCall!.args!,
+        part.functionCall.partialArgs
+      );
+    }
+    // If `willContinue` is false, this is the end of the stream.
+    if (!part.functionCall!.willContinue) {
+      newPart.thoughtSignature = activePartialToolRequest.thoughtSignature;
+      part.functionCall = activePartialToolRequest.functionCall;
+      delete part.functionCall!.willContinue;
+      activePartialToolRequest = null;
+    } else {
+      // If `willContinue` is true, we're still in the middle of a stream.
+      // This is a partial result, so we skip adding it to the parts list.
+      return {
+        shouldContinue: true,
+        newActivePartialToolRequest: activePartialToolRequest,
+      };
+    }
+    // If `willContinue` is true on a part and there's no active partial request,
+    // this is the start of a new streaming tool call.
+  } else if (part.functionCall!.willContinue) {
+    activePartialToolRequest = {
+      ...part,
+      functionCall: {
+        ...part.functionCall,
+        args: part.functionCall!.args || {},
+      },
+    };
+    if (part.functionCall?.partialArgs) {
+      applyGeminiPartialArgs(
+        activePartialToolRequest.functionCall!.args!,
+        part.functionCall.partialArgs
+      );
+    }
+    // This is the start of a partial, so we skip adding it to the parts list.
+    return {
+      shouldContinue: true,
+      newActivePartialToolRequest: activePartialToolRequest,
+    };
+  }
+
+  // If we're here, it's a regular, non-streaming tool call.
+  newPart.functionCall = part.functionCall;
+  return {
+    shouldContinue: false,
+    newActivePartialToolRequest: activePartialToolRequest,
+  };
+}
+
 function aggregateResponses(
   responses: GenerateContentResponse[]
 ): GenerateContentResponse {
@@ -429,6 +491,7 @@ function aggregateResponses(
   if (lastResponse.promptFeedback) {
     aggregatedResponse.promptFeedback = lastResponse.promptFeedback;
   }
+  let activePartialToolRequest: Part | null = null;
   for (const response of responses) {
     for (const candidate of response.candidates ?? []) {
       const index = candidate.index ?? 0;
@@ -479,17 +542,31 @@ function aggregateResponses(
           if (part.thought) {
             newPart.thought = part.thought;
           }
-          if (part.text) {
+          if (part.thoughtSignature) {
+            newPart.thoughtSignature = part.thoughtSignature;
+          }
+          if (typeof part.text === 'string') {
             newPart.text = part.text;
           }
           if (part.functionCall) {
-            newPart.functionCall = part.functionCall;
+            // function calls are special, there can be partials, so we need aggregate
+            // the partials into final functionCall.
+            const { shouldContinue, newActivePartialToolRequest } =
+              handleFunctionCall(part, newPart, activePartialToolRequest);
+            if (shouldContinue) {
+              activePartialToolRequest = newActivePartialToolRequest;
+              continue;
+            }
+            activePartialToolRequest = newActivePartialToolRequest;
           }
           if (part.executableCode) {
             newPart.executableCode = part.executableCode;
           }
           if (part.codeExecutionResult) {
             newPart.codeExecutionResult = part.codeExecutionResult;
+          }
+          if (part.inlineData) {
+            newPart.inlineData = part.inlineData;
           }
           if (Object.keys(newPart).length === 0) {
             newPart.text = '';
@@ -537,3 +614,5 @@ export function getGenkitClientHeader() {
   }
   return defaultGetClientHeader();
 }
+
+export const TEST_ONLY = { aggregateResponses };

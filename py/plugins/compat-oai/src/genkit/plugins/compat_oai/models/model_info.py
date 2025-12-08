@@ -151,6 +151,7 @@ SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            longRunning=False,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),

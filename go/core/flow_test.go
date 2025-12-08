@@ -66,3 +66,26 @@ func TestRunFlow(t *testing.T) {
 		t.Errorf("got %d, want %d", got, want)
 	}
 }
+
+func TestFlowNameFromContext(t *testing.T) {
+	r := registry.New()
+	flows := []*Flow[struct{}, string, struct{}]{
+		DefineFlow(r, "DefineFlow", func(ctx context.Context, _ struct{}) (string, error) {
+			return FlowNameFromContext(ctx), nil
+		}),
+		DefineStreamingFlow(r, "DefineStreamingFlow", func(ctx context.Context, _ struct{}, s StreamCallback[struct{}]) (string, error) {
+			return FlowNameFromContext(ctx), nil
+		}),
+	}
+	for _, flow := range flows {
+		t.Run(flow.Name(), func(t *testing.T) {
+			got, err := flow.Run(context.Background(), struct{}{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := flow.Name(); got != want {
+				t.Errorf("got '%s', want '%s'", got, want)
+			}
+		})
+	}
+}

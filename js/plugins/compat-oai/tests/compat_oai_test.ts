@@ -31,6 +31,7 @@ import type {
   ChatCompletionRole,
 } from 'openai/resources/index.mjs';
 
+import { APIError } from 'openai';
 import {
   fromOpenAIChoice,
   fromOpenAIChunkChoice,
@@ -43,10 +44,16 @@ import {
   toOpenAITextAndMedia,
 } from '../src/model';
 
-jest.mock('@genkit-ai/ai/model', () => ({
-  ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),
-  defineModel: jest.fn(),
-}));
+jest.mock('genkit/model', () => {
+  const originalModule =
+    jest.requireActual<typeof import('genkit/model')>('genkit/model');
+  return {
+    ...originalModule,
+    defineModel: jest.fn((_, runner) => {
+      return runner;
+    }),
+  };
+});
 
 describe('toOpenAIRole', () => {
   const testCases: {
@@ -1504,5 +1511,93 @@ describe('openAIModelRunner', () => {
       },
       { signal: undefined }
     );
+  });
+
+  describe('error handling', () => {
+    const testCases = [
+      {
+        name: '429',
+        error: new APIError(
+          429,
+          { error: { message: 'Rate limit exceeded' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'RESOURCE_EXHAUSTED',
+      },
+      {
+        name: '400',
+        error: new APIError(
+          400,
+          { error: { message: 'Invalid request' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'INVALID_ARGUMENT',
+      },
+      {
+        name: '500',
+        error: new APIError(
+          500,
+          { error: { message: 'Internal server error' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'INTERNAL',
+      },
+      {
+        name: '503',
+        error: new APIError(
+          503,
+          { error: { message: 'Service unavailable' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'UNAVAILABLE',
+      },
+    ];
+
+    for (const tc of testCases) {
+      it(`should convert ${tc.name} error to GenkitError`, async () => {
+        const openaiClient = {
+          chat: {
+            completions: {
+              create: jest.fn(async () => {
+                throw tc.error;
+              }),
+            },
+          },
+        };
+        const runner = openAIModelRunner(
+          'gpt-4o',
+          openaiClient as unknown as OpenAI
+        );
+        await expect(runner({ messages: [] })).rejects.toThrow(
+          expect.objectContaining({
+            status: tc.expectedStatus,
+          })
+        );
+      });
+    }
+
+    it('should re-throw non-APIError', async () => {
+      const error = new Error('Some other error');
+      const openaiClient = {
+        chat: {
+          completions: {
+            create: jest.fn(async () => {
+              throw error;
+            }),
+          },
+        },
+      };
+      const runner = openAIModelRunner(
+        'gpt-4o',
+        openaiClient as unknown as OpenAI
+      );
+      await expect(runner({ messages: [] })).rejects.toThrow(
+        'Some other error'
+      );
+    });
   });
 });

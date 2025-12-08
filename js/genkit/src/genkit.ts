@@ -97,7 +97,12 @@ import {
   type RetrieverFn,
   type SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
-import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
+import {
+  dynamicTool,
+  type MultipartToolAction,
+  type MultipartToolFn,
+  type ToolFn,
+} from '@genkit-ai/ai/tool';
 import {
   ActionFnArg,
   GenkitError,
@@ -223,6 +228,16 @@ export class Genkit implements HasRegistry {
   }
 
   /**
+   * Defines and registers a tool that can return multiple parts of content.
+   *
+   * Tools can be passed to models by name or value during `generate` calls to be called automatically based on the prompt and situation.
+   */
+  defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: { multipart: true } & ToolConfig<I, O>,
+    fn: MultipartToolFn<I, O>
+  ): MultipartToolAction<I, O>;
+
+  /**
    * Defines and registers a tool.
    *
    * Tools can be passed to models by name or value during `generate` calls to be called automatically based on the prompt and situation.
@@ -230,8 +245,13 @@ export class Genkit implements HasRegistry {
   defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: ToolConfig<I, O>,
     fn: ToolFn<I, O>
-  ): ToolAction<I, O> {
-    return defineTool(this.registry, config, fn);
+  ): ToolAction<I, O>;
+
+  defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: ({ multipart?: true } & ToolConfig<I, O>) | string,
+    fn: ToolFn<I, O> | MultipartToolFn<I, O>
+  ): ToolAction<I, O> | MultipartToolAction<I, O> {
+    return defineTool(this.registry, config as any, fn as any);
   }
 
   /**
@@ -1053,7 +1073,7 @@ export function genkit(options: GenkitOptions): Genkit {
 }
 
 const shutdown = async () => {
-  logger.info('Shutting down all Genkit servers...');
+  logger.debug('Shutting down all Genkit servers...');
   await ReflectionServer.stopAll();
   process.exit(0);
 };

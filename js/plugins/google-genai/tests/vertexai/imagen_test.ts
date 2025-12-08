@@ -253,12 +253,11 @@ describe('Vertex AI Imagen', () => {
         fetchStub.rejects(error);
 
         const modelRunner = captureModelRunner(clientOptions);
-        await assert.rejects(
-          modelRunner(request, {}),
-          new RegExp(
-            `^Error: Failed to fetch from ${escapeRegExp(expectedUrl)}: Network Error`
-          )
-        );
+        await assert.rejects(modelRunner(request, {}), (err: any) => {
+          assert.strictEqual(err.name, 'Error');
+          assert.match(err.message, /Network Error/);
+          return true;
+        });
       });
 
       it(`should handle API error response for ${clientOptions.kind}`, async () => {
@@ -270,13 +269,35 @@ describe('Vertex AI Imagen', () => {
         mockFetchResponse(errorBody, 400);
 
         const modelRunner = captureModelRunner(clientOptions);
-        let expectedUrlRegex = escapeRegExp(expectedUrl);
-        await assert.rejects(
-          modelRunner(request, {}),
-          new RegExp(
-            `^Error: Failed to fetch from ${expectedUrlRegex}: Error fetching from ${expectedUrlRegex}: \\[400 Error\\] ${errorMsg}`
-          )
-        );
+        await assert.rejects(modelRunner(request, {}), (err: any) => {
+          assert.strictEqual(err.name, 'GenkitError');
+          assert.strictEqual(err.status, 'INVALID_ARGUMENT');
+          assert.match(
+            err.message,
+            /Error fetching from .* \[400 Error\] Invalid argument/
+          );
+          return true;
+        });
+      });
+
+      it(`should throw a resource exhausted error on 429 for ${clientOptions.kind}`, async () => {
+        const request: GenerateRequest = {
+          messages: [{ role: 'user', content: [{ text: 'A bird' }] }],
+        };
+        const errorMsg = 'Too many requests';
+        const errorBody = { error: { message: errorMsg, code: 429 } };
+        mockFetchResponse(errorBody, 429);
+
+        const modelRunner = captureModelRunner(clientOptions);
+        await assert.rejects(modelRunner(request, {}), (err: any) => {
+          assert.strictEqual(err.name, 'GenkitError');
+          assert.strictEqual(err.status, 'RESOURCE_EXHAUSTED');
+          assert.match(
+            err.message,
+            /Error fetching from .* \[429 Error\] Too many requests/
+          );
+          return true;
+        });
       });
     }
 

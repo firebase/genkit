@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -182,10 +183,26 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			},
 		}
 
-		actionOpts.Messages, err = renderMessages(ctx, tempOpts, actionOpts.Messages, m, execOpts.Input, p.registry.Dotprompt())
+		execMsgs, err := renderMessages(ctx, tempOpts, []*Message{}, m, execOpts.Input, p.registry.Dotprompt())
 		if err != nil {
 			return nil, err
 		}
+
+		var systemMsgs []*Message
+		var msgs []*Message
+		foundNonSystem := false
+
+		for _, msg := range actionOpts.Messages {
+			if msg.Role == RoleSystem && !foundNonSystem {
+				systemMsgs = append(systemMsgs, msg)
+			} else {
+				foundNonSystem = true
+				msgs = append(msgs, msg)
+			}
+		}
+
+		actionOpts.Messages = append(systemMsgs, execMsgs...)
+		actionOpts.Messages = append(actionOpts.Messages, msgs...)
 	}
 
 	toolRefs := execOpts.Tools
@@ -244,7 +261,16 @@ func buildVariables(variables any) (map[string]any, error) {
 
 	v := reflect.Indirect(reflect.ValueOf(variables))
 	if v.Kind() == reflect.Map {
-		return variables.(map[string]any), nil
+		// ensure JSON tags are taken in consideration (allowing snake case fields)
+		jsonData, err := json.Marshal(variables)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal prompt field values: %w", err)
+		}
+		var resultVariables map[string]any
+		if err := json.Unmarshal(jsonData, &resultVariables); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal prompt field values: %w", err)
+		}
+		return resultVariables, nil
 	}
 	if v.Kind() != reflect.Struct {
 		return nil, errors.New("prompt.buildVariables: fields not a struct or pointer to a struct or a map")
@@ -401,6 +427,8 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 		return nil, err
 	}
 
+	// Create new message copies to avoid mutating shared messages during concurrent execution
+	renderedMsgs := make([]*Message, 0, len(msgs))
 	for _, msg := range msgs {
 		msgParts := []*Part{}
 		for _, part := range msg.Content {
@@ -410,12 +438,21 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 					return nil, err
 				}
 				msgParts = append(msgParts, parts...)
+			} else {
+				// Preserve non-text parts as-is
+				msgParts = append(msgParts, part)
 			}
 		}
-		msg.Content = msgParts
+		// Create a new message with rendered content instead of mutating the original
+		renderedMsg := &Message{
+			Role:     msg.Role,
+			Content:  msgParts,
+			Metadata: msg.Metadata,
+		}
+		renderedMsgs = append(renderedMsgs, renderedMsg)
 	}
 
-	return append(messages, msgs...), nil
+	return append(messages, renderedMsgs...), nil
 }
 
 // renderPrompt renders a prompt template using dotprompt functionalities
@@ -624,7 +661,54 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	}
 
 	key := promptKey(name, variant, namespace)
-	prompt := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
+
+	dpMessages, err := dotprompt.ToMessages(parsedPrompt.Template, &dotprompt.DataArgument{})
+	if err != nil {
+		slog.Error("Failed to convert prompt template to messages", "file", sourceFile, "error", err)
+		return nil
+	}
+
+	var systemText string
+	var nonSystemMessages []*Message
+	for _, dpMsg := range dpMessages {
+		parts, err := convertToPartPointers(dpMsg.Content)
+		if err != nil {
+			slog.Error("Failed to convert message parts", "file", sourceFile, "error", err)
+			return nil
+		}
+
+		role := Role(dpMsg.Role)
+		if role == RoleSystem {
+			var textParts []string
+			for _, part := range parts {
+				if part.IsText() {
+					textParts = append(textParts, part.Text)
+				}
+			}
+
+			if len(textParts) > 0 {
+				systemText = strings.Join(textParts, " ")
+			}
+		} else {
+			nonSystemMessages = append(nonSystemMessages, &Message{Role: role, Content: parts})
+		}
+	}
+
+	promptOpts := []PromptOption{opts}
+
+	// Add system prompt if found
+	if systemText != "" {
+		promptOpts = append(promptOpts, WithSystem(systemText))
+	}
+
+	// If there are non-system messages, use WithMessages, otherwise use WithPrompt for template
+	if len(nonSystemMessages) > 0 {
+		promptOpts = append(promptOpts, WithMessages(nonSystemMessages...))
+	} else if systemText == "" {
+		promptOpts = append(promptOpts, WithPrompt(parsedPrompt.Template))
+	}
+
+	prompt := DefinePrompt(r, key, promptOpts...)
 
 	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
 

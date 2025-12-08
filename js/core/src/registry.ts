@@ -53,6 +53,7 @@ const ACTION_TYPES = [
   'reranker',
   'retriever',
   'tool',
+  'tool.v2',
   'util',
   'resource',
 ] as const;
@@ -291,9 +292,8 @@ export class Registry {
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
     if (this.actionsById.hasOwnProperty(key)) {
-      // TODO: Make this an error!
-      logger.warn(
-        `WARNING: ${key} already has an entry in the registry. Overwriting.`
+      logger.error(
+        `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
     }
     this.actionsById[key] = action;
@@ -318,9 +318,8 @@ export class Registry {
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
     if (this.actionsById.hasOwnProperty(key)) {
-      // TODO: Make this an error!
-      logger.warn(
-        `WARNING: ${key} already has an entry in the registry. Overwriting.`
+      logger.error(
+        `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
     }
     this.actionsById[key] = action;
