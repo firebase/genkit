@@ -71,7 +71,7 @@ export class BroadcastManager {
     }
 
     const data = JSON.stringify(event);
-    const messageToSend = `${data}\n\n`;
+    const messageToSend = `data: ${data}\n\n`;
 
     // Note: response.write() doesn't throw on dead sockets in Express - it
     // returns false and the 'close' event handles cleanup. No try/catch needed.

@@ -81,7 +81,7 @@ export async function startTelemetryServer(params: {
       const currentTrace = await params.traceStore.load(traceId);
       if (currentTrace) {
         const snapshot = JSON.stringify(currentTrace);
-        response.write(`${snapshot}\n\n`);
+        response.write(`data: ${snapshot}\n\n`);
       }
 
       // Register this connection for broadcasts

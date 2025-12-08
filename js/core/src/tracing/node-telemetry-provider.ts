@@ -89,8 +89,8 @@ async function cleanUpTracing(): Promise<void> {
  */
 function createTelemetryServerProcessor(): SpanProcessor {
   const exporter = new TraceServerExporter();
-  // Use RealtimeSpanProcessor in dev for real-time span updates
-  return isDevEnv()
+  // Use RealtimeSpanProcessor when explicitly enabled via env var (set by CLI)
+  return isDevEnv() && process.env.GENKIT_ENABLE_REALTIME_TELEMETRY === 'true'
     ? new RealtimeSpanProcessor(exporter)
     : new BatchSpanProcessor(exporter);
 }
