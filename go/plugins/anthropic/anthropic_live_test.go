@@ -198,6 +198,38 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatal("expected a response but nothing was returned")
 		}
 	})
+	t.Run("tools with schema", func(t *testing.T) {
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
+
+		type WeatherInput struct {
+			Location string `json:"location"`
+		}
+
+		weatherTool := genkit.DefineTool(
+			g,
+			"weather",
+			"Returns the weather for the given location",
+			func(ctx *ai.ToolContext, input *WeatherInput) (string, error) {
+				return "sunny", nil
+			},
+		)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				MaxTokens:   1024,
+			}),
+			ai.WithPrompt("what is the weather in San Francisco?"),
+			ai.WithTools(weatherTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(resp.Text()) == 0 {
+			t.Fatal("expected a response but nothing was returned")
+		}
+	})
 	t.Run("streaming", func(t *testing.T) {
 		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		out := ""

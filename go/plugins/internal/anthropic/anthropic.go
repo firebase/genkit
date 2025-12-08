@@ -239,7 +239,11 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 		}
 
 		var schema anthropic.ToolInputSchemaParam
-		if err := mapToStruct(t.InputSchema, &schema); err != nil {
+		inputSchema := t.InputSchema
+		if len(inputSchema) == 0 {
+			inputSchema = map[string]any{"type": "object", "properties": map[string]any{}}
+		}
+		if err := mapToStruct(inputSchema, &schema); err != nil {
 			return nil, fmt.Errorf("unable to parse tool input schema: %w", err)
 		}
 
