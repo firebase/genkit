@@ -299,46 +299,40 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         : system;
     }
 
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as BetaMessageCreateParams['thinking'] | undefined;
+
+    const { thinking: defaultThinkingConfig, ...restConfig } =
+      request.config || {};
+
     const body: BetaMessageCreateParamsNonStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
-      betas: BETA_APIS,
+      system: betaSystem,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: request.config?.topK,
+      top_p: request.config?.topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking:
+        (defaultThinkingConfig as BetaMessageCreateParams['thinking']) ??
+        thinkingConfig,
+      output_format: this.isStructuredOutputEnabled(request)
+        ? {
+            type: 'json_schema',
+            schema: toAnthropicSchema(request.output!.schema!),
+          }
+        : undefined,
+      betas: Array.isArray(request.config?.betas)
+        ? [...BETA_APIS, ...(request.config?.betas ?? [])]
+        : [...BETA_APIS],
+      ...restConfig,
     };
-
-    if (betaSystem !== undefined) body.system = betaSystem;
-    if (request.config?.stopSequences !== undefined)
-      body.stop_sequences = request.config.stopSequences;
-    if (request.config?.temperature !== undefined)
-      body.temperature = request.config.temperature;
-    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
-    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config
-        .tool_choice as BetaMessageCreateParams['tool_choice'];
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config
-        .metadata as BetaMessageCreateParams['metadata'];
-    }
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
-    }
-
-    // Apply structured output when model supports it and constrained output is requested
-    if (this.isStructuredOutputEnabled(request)) {
-      body.output_format = {
-        type: 'json_schema',
-        schema: toAnthropicSchema(request.output!.schema!),
-      };
-    }
 
     return body;
   }
@@ -369,47 +363,42 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
             ]
           : system;
 
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as BetaMessageCreateParams['thinking'] | undefined;
+
+    const { thinking: defaultThinkingConfig, ...restConfig } =
+      request.config || {};
+
     const body: BetaMessageCreateParamsStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
-      betas: BETA_APIS,
+      system: betaSystem,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: request.config?.topK,
+      top_p: request.config?.topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking:
+        (defaultThinkingConfig as BetaMessageCreateParams['thinking']) ??
+        thinkingConfig,
+      output_format: this.isStructuredOutputEnabled(request)
+        ? {
+            type: 'json_schema',
+            schema: toAnthropicSchema(request.output!.schema!),
+          }
+        : undefined,
+      betas: Array.isArray(request.config?.betas)
+        ? [...BETA_APIS, ...(request.config?.betas ?? [])]
+        : [...BETA_APIS],
+      ...restConfig,
     };
 
-    if (betaSystem !== undefined) body.system = betaSystem;
-    if (request.config?.stopSequences !== undefined)
-      body.stop_sequences = request.config.stopSequences;
-    if (request.config?.temperature !== undefined)
-      body.temperature = request.config.temperature;
-    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
-    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config
-        .tool_choice as BetaMessageCreateParams['tool_choice'];
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config
-        .metadata as BetaMessageCreateParams['metadata'];
-    }
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
-    }
-
-    // Apply structured output when model supports it and constrained output is requested
-    if (this.isStructuredOutputEnabled(request)) {
-      body.output_format = {
-        type: 'json_schema',
-        schema: toAnthropicSchema(request.output!.schema!),
-      };
-    }
     return body;
   }
 

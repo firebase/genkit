@@ -86,7 +86,7 @@ export const AnthropicBaseConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
   /** Optional shorthand to pick API surface for this request. */
   apiVersion: z.enum(['stable', 'beta']).optional(),
-});
+}).passthrough();
 
 export type AnthropicBaseConfigSchemaType = typeof AnthropicBaseConfigSchema;
 
