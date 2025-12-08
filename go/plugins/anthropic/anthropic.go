@@ -19,6 +19,7 @@ package anthropic
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"sync"
@@ -103,15 +104,14 @@ func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	actions := []api.ActionDesc{}
 
 	models, err := listModels(ctx, &a.aclient)
-	fmt.Printf("models found: %#v\n\n", models)
 	if err != nil {
+		slog.Error("unable to list anthropic models from Anthropic API", "error", err)
 		return nil
 	}
 
 	for _, name := range models {
 		model := newModel(a.aclient, name, defaultClaudeOpts)
 		if actionDef, ok := model.(api.Action); ok {
-			fmt.Printf("model: %s\n", actionDef.Desc())
 			actions = append(actions, actionDef.Desc())
 		}
 	}

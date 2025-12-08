@@ -41,7 +41,7 @@ func listModels(ctx context.Context, client *anthropic.Client) ([]string, error)
 	}
 
 	if err := iter.Err(); err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
 	return models, nil

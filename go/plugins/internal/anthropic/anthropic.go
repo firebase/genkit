@@ -27,7 +27,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
-	"github.com/invopop/jsonschema"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -239,29 +238,21 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 			return nil, fmt.Errorf("tool name must match regex: %s", ToolNameRegex)
 		}
 
+		var schema anthropic.ToolInputSchemaParam
+		if err := mapToStruct(t.InputSchema, &schema); err != nil {
+			return nil, fmt.Errorf("unable to parse tool input schema: %w", err)
+		}
+
 		resp = append(resp, anthropic.ToolUnionParam{
 			OfTool: &anthropic.ToolParam{
 				Name:        t.Name,
 				Description: anthropic.String(t.Description),
-				InputSchema: toAnthropicSchema[map[string]any](),
+				InputSchema: schema,
 			},
 		})
 	}
 
 	return resp, nil
-}
-
-// toAnthropicSchema generates a JSON schema for the requested input type
-func toAnthropicSchema[T any]() anthropic.ToolInputSchemaParam {
-	reflector := jsonschema.Reflector{
-		AllowAdditionalProperties: true,
-		DoNotReference:            true,
-	}
-	var v T
-	schema := reflector.Reflect(v)
-	return anthropic.ToolInputSchemaParam{
-		Properties: schema.Properties,
-	}
 }
 
 // toAnthropicParts translates [ai.Part] to an anthropic.ContentBlockParamUnion type
@@ -273,10 +264,16 @@ func toAnthropicParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, err
 		case p.IsText():
 			blocks = append(blocks, anthropic.NewTextBlock(p.Text))
 		case p.IsMedia():
-			contentType, data, _ := uri.Data(p)
+			contentType, data, err := uri.Data(p)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse media part: %w", err)
+			}
 			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, base64.StdEncoding.EncodeToString(data)))
 		case p.IsData():
-			contentType, data, _ := uri.Data(p)
+			contentType, data, err := uri.Data(p)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse data part: %w", err)
+			}
 			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, base64.RawStdEncoding.EncodeToString(data)))
 		case p.IsToolRequest():
 			toolReq := p.ToolRequest

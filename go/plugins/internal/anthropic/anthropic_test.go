@@ -172,7 +172,7 @@ func TestToAnthropicTools(t *testing.T) {
 					OfTool: &anthropic.ToolParam{
 						Name:        "my-tool",
 						Description: anthropic.String("my tool description"),
-						InputSchema: toAnthropicSchema[map[string]any](),
+						InputSchema: anthropic.ToolInputSchemaParam{},
 					},
 				},
 			},
