@@ -17,6 +17,7 @@
 import * as trpcExpress from '@trpc/server/adapters/express';
 import * as bodyParser from 'body-parser';
 import * as clc from 'colorette';
+import cors from 'cors';
 import express, { type ErrorRequestHandler } from 'express';
 import type { Server } from 'http';
 import os from 'os';
@@ -49,6 +50,15 @@ export function startServer(manager: RuntimeManager, port: number) {
   let server: Server;
   const app = express();
 
+  // Allow all origins and expose trace ID header
+  app.use(
+    cors({
+      origin: '*',
+      allowedHeaders: ['Content-Type'],
+      exposedHeaders: ['X-Genkit-Trace-Id'],
+    })
+  );
+
   // Download UI assets from public GCS bucket and serve locally
   downloadAndExtractUiAssets({
     fileUrl: UI_ASSETS_ZIP_GCS_PATH,
@@ -60,21 +70,6 @@ export function startServer(manager: RuntimeManager, port: number) {
   // tRPC doesn't support simple streaming mutations (https://github.com/trpc/trpc/issues/4477).
   // Don't want a separate WebSocket server for subscriptions - https://trpc.io/docs/subscriptions.
   // TODO: migrate to streamingMutation when it becomes available in tRPC.
-  app.options('/api/streamAction', async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
-    res.status(200).send('');
-  });
-
-  // Plain HTTP runAction endpoint (non-streaming)
-  app.options('/api/runAction', async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
-    res.status(200).send('');
-  });
-
   app.post(
     '/api/runAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
@@ -90,8 +85,6 @@ export function startServer(manager: RuntimeManager, port: number) {
             // This is the first place headers are sent, so no check needed
             res.setHeader('X-Genkit-Trace-Id', traceId);
             res.setHeader('Content-Type', 'application/json');
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
             res.statusCode = 200;
             res.flushHeaders();
           }
@@ -106,7 +99,6 @@ export function startServer(manager: RuntimeManager, port: number) {
         if (!res.headersSent) {
           res.writeHead(500, {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
           });
         }
         res.end(JSON.stringify({ error: error.data }));
@@ -121,8 +113,6 @@ export function startServer(manager: RuntimeManager, port: number) {
       const { key, input, context } = req.body;
 
       // Set streaming headers immediately
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Transfer-Encoding', 'chunked');
       res.statusCode = 200;
@@ -147,12 +137,6 @@ export function startServer(manager: RuntimeManager, port: number) {
     }
   );
 
-  app.options('/api/streamTrace', async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
-    res.status(200).send('');
-  });
-
   app.post(
     '/api/streamTrace',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
@@ -165,9 +149,6 @@ export function startServer(manager: RuntimeManager, port: number) {
       }
 
       // Set streaming headers immediately
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      res.setHeader('Access-Control-Expose-Headers', 'X-Genkit-Trace-Id');
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Transfer-Encoding', 'chunked');
       res.setHeader('X-Genkit-Trace-Id', traceId);
@@ -185,7 +166,6 @@ export function startServer(manager: RuntimeManager, port: number) {
         if (!res.headersSent) {
           res.writeHead(500, {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
           });
         }
         res.write(
@@ -211,12 +191,6 @@ export function startServer(manager: RuntimeManager, port: number) {
   // Endpoints for CLI control
   app.use(
     API_BASE_PATH,
-    (req, res, next) => {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      if (req.method === 'OPTIONS') res.send('');
-      else next();
-    },
     trpcExpress.createExpressMiddleware({
       router: TOOLS_SERVER_ROUTER(manager),
       maxBodySize: MAX_PAYLOAD_SIZE,
