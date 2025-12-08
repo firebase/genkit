@@ -929,6 +929,14 @@ class ModelResponseChunk(BaseModel):
     aggregated: Aggregated | None = None
 
 
+class MultipartToolResponse(BaseModel):
+    """Model for multiparttoolresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    output: Any | None = None
+    content: list[Part] | None = None
+
+
 class RerankerRequest(BaseModel):
     """Model for rerankerrequest data."""
 

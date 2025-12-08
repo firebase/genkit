@@ -898,6 +898,19 @@
       ],
       "additionalProperties": false
     },
+    "MultipartToolResponse": {
+      "type": "object",
+      "properties": {
+        "output": {},
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Part"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "Operation": {
       "type": "object",
       "properties": {

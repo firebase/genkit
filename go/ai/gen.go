@@ -274,8 +274,13 @@ type ModelResponseChunk struct {
 	Aggregated bool    `json:"aggregated,omitempty"`
 	Content    []*Part `json:"content,omitempty"`
 	Custom     any     `json:"custom,omitempty"`
-	Index      int     `json:"index,omitempty"`
+	Index      int     `json:"index"`
 	Role       Role    `json:"role,omitempty"`
+}
+
+type MultipartToolResponse struct {
+	Content []*Part `json:"content,omitempty"`
+	Output  any     `json:"output,omitempty"`
 }
 
 type Operation struct {

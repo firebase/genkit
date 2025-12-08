@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
+import { McpRuntimeManager } from './util.js';
 
-export function defineTraceTools(server: McpServer, manager: RuntimeManager) {
+export function defineTraceTools(
+  server: McpServer,
+  manager: McpRuntimeManager
+) {
   server.registerTool(
     'get_trace',
     {
@@ -38,7 +41,8 @@ export function defineTraceTools(server: McpServer, manager: RuntimeManager) {
       await record(new McpRunToolEvent('get_trace'));
 
       try {
-        const response = await manager.getTrace({ traceId });
+        const runtimeManager = await manager.getManager();
+        const response = await runtimeManager.getTrace({ traceId });
         return {
           content: [
             // TODO: render the trace insetad of of dumping it as is.
