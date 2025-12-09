@@ -376,7 +376,7 @@ export class ReflectionServer {
         },
       };
 
-      // Headers may have been sent already (via onTelemetry), so check before setting status
+      // Headers may have been sent already (via onTraceStart), so check before setting status
       if (!res.headersSent) {
         res.status(500).json(errorResponse);
       } else {
