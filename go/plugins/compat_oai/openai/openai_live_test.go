@@ -31,7 +31,7 @@ import (
 	"github.com/openai/openai-go"
 )
 
-func TestPlugin(t *testing.T) {
+func TestOpenAILive(t *testing.T) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")

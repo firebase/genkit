@@ -26,7 +26,7 @@ import (
 	"github.com/openai/openai-go/option"
 )
 
-func TestPlugin(t *testing.T) {
+func TestAnthropicLive(t *testing.T) {
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
 		t.Skip("Skipping test: ANTHROPIC_API_KEY environment variable not set")

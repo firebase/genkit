@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compat_oai_test
+package compat_oai
 
 import (
 	"context"
@@ -23,15 +23,13 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
-	"github.com/stretchr/testify/assert"
 )
 
 const defaultModel = "gpt-4o-mini"
 
-func setupTestClient(t *testing.T) *compat_oai.ModelGenerator {
+func setupTestClient(t *testing.T) *openai.Client {
 	t.Helper()
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
@@ -39,11 +37,11 @@ func setupTestClient(t *testing.T) *compat_oai.ModelGenerator {
 	}
 
 	client := openai.NewClient(option.WithAPIKey(apiKey))
-	return compat_oai.NewModelGenerator(&client, defaultModel)
+	return &client
 }
 
 func TestGenerator_Complete(t *testing.T) {
-	g := setupTestClient(t)
+	client := setupTestClient(t)
 	messages := []*ai.Message{
 		{
 			Role: ai.RoleUser,
@@ -68,7 +66,7 @@ func TestGenerator_Complete(t *testing.T) {
 		Messages: messages,
 	}
 
-	resp, err := g.WithMessages(messages).Generate(context.Background(), req, nil)
+	resp, err := generate(context.Background(), client, defaultModel, req, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -81,7 +79,7 @@ func TestGenerator_Complete(t *testing.T) {
 }
 
 func TestGenerator_Stream(t *testing.T) {
-	g := setupTestClient(t)
+	client := setupTestClient(t)
 	messages := []*ai.Message{
 		{
 			Role: ai.RoleUser,
@@ -102,7 +100,7 @@ func TestGenerator_Stream(t *testing.T) {
 		return nil
 	}
 
-	_, err := g.WithMessages(messages).Generate(context.Background(), req, handleChunk)
+	_, err := generate(context.Background(), client, defaultModel, req, handleChunk)
 	if err != nil {
 		t.Error(err)
 	}
@@ -234,28 +232,37 @@ func TestWithConfig(t *testing.T) {
 			},
 		},
 	}
-	req := &ai.ModelRequest{
-		Messages: messages,
-	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			generator := setupTestClient(t)
-			result, err := generator.WithMessages(messages).WithConfig(tt.config).Generate(context.Background(), req, nil)
+			req := &ai.ModelRequest{
+				Messages: messages,
+				Config:   tt.config,
+			}
+
+			oaiReq, err := toOpenAIRequest(defaultModel, req)
 
 			if tt.err != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tt.err.Error(), err.Error())
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if err.Error() != tt.err.Error() {
+					t.Errorf("got error %q, want %q", err.Error(), tt.err.Error())
+				}
 				return
 			}
 
 			// validate that the response was successful
-			assert.NoError(t, err)
-			assert.NotNil(t, result)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if oaiReq == nil {
+				t.Fatal("expected oaiReq to be not nil")
+			}
 
 			// validate the input request was transformed correctly
 			if tt.validate != nil {
-				tt.validate(t, generator.GetRequest())
+				tt.validate(t, oaiReq)
 			}
 		})
 	}
