@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package modelgarden_test
+package anthropic_test
 
 import (
 	"context"
@@ -28,29 +28,18 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
+	anthropicPlugin "github.com/firebase/genkit/go/plugins/anthropic"
 )
 
 func TestAnthropicLive(t *testing.T) {
-	if _, ok := requireEnv("GOOGLE_CLOUD_PROJECT"); !ok {
-		t.Skip("GOOGLE_CLOUD_PROJECT not found in the environment")
-	}
-	if _, ok := requireEnv("GOOGLE_CLOUD_LOCATION"); !ok {
-		t.Skip("GOOGLE_CLOUD_LOCATION not found in the environment")
+	if _, ok := requireEnv("ANTHROPIC_API_KEY"); !ok {
+		t.Skip("ANTHROPIC_API_KEY not found in the environment")
 	}
 
 	ctx := context.Background()
-	g := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
-
-	t.Run("invalid model", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-not-valid-v2")
-		if m != nil {
-			t.Fatalf("model should have been empty, got: %#v", m)
-		}
-	})
-
+	g := genkit.Init(ctx, genkit.WithPlugins(&anthropicPlugin.Anthropic{}))
 	t.Run("model version ok", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-opus-4@20250514")
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&anthropic.MessageNewParams{
 				Temperature: anthropic.Float(1),
@@ -68,9 +57,8 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatalf("not a pirate :( :%s", resp.Text())
 		}
 	})
-
-	t.Run("model version nok", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-opus-4@20250514")
+	t.Run("model version not ok", func(t *testing.T) {
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&anthropic.MessageNewParams{
 				Temperature: anthropic.Float(1),
@@ -82,13 +70,12 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatal("should have failed due wrong model version")
 		}
 	})
-
 	t.Run("media content", func(t *testing.T) {
 		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
 		}
-		m := modelgarden.AnthropicModel(g, "claude-opus-4@20250514")
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithSystem("You are a professional image detective that talks like an evil pirate that loves animals, your task is to tell the name of the animal in the image but be very short"),
 			ai.WithModel(m),
@@ -107,9 +94,86 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatalf("want: cat, got: %s", resp.Text())
 		}
 	})
-
+	t.Run("media content stream", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := ""
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem("You are a professional image detective that talks like an evil pirate that loves animals, your task is to tell the name of the animal in the image but be very short"),
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				MaxTokens:   1024,
+			}),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				out += c.Content[0].Text
+				return nil
+			}),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != resp.Text() {
+			t.Fatalf("want: %s, got: %s", resp.Text(), out)
+		}
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("want: cat, got: %s", resp.Text())
+		}
+	})
+	t.Run("media content stream with thinking", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := ""
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem(`You are a professional image detective that
+			talks like an evil pirate that loves animals, your task is to tell the name
+			of the animal in the image but be very short`),
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				MaxTokens:   2048,
+				Thinking: anthropic.ThinkingConfigParamUnion{
+					OfEnabled: &anthropic.ThinkingConfigEnabledParam{
+						BudgetTokens: 1024,
+					},
+				},
+			}),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				for _, p := range c.Content {
+					if p.IsText() {
+						out += c.Content[0].Text
+					}
+				}
+				return nil
+			}),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != resp.Text() {
+			t.Fatalf("want: %s, got: %s", resp.Text(), out)
+		}
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("want: cat, got: %s", resp.Text())
+		}
+		if resp.Reasoning() == "" {
+			t.Fatalf("empty reasoning found")
+		}
+	})
 	t.Run("tools", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-opus-4@20250514")
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		myJokeTool := genkit.DefineTool(
 			g,
 			"myJoke",
@@ -134,9 +198,40 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatal("expected a response but nothing was returned")
 		}
 	})
+	t.Run("tools with schema", func(t *testing.T) {
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 
+		type WeatherInput struct {
+			Location string `json:"location"`
+		}
+
+		weatherTool := genkit.DefineTool(
+			g,
+			"weather",
+			"Returns the weather for the given location",
+			func(ctx *ai.ToolContext, input *WeatherInput) (string, error) {
+				return "sunny", nil
+			},
+		)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				MaxTokens:   1024,
+			}),
+			ai.WithPrompt("what is the weather in San Francisco?"),
+			ai.WithTools(weatherTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(resp.Text()) == 0 {
+			t.Fatal("expected a response but nothing was returned")
+		}
+	})
 	t.Run("streaming", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-opus-4@20250514")
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		out := ""
 
 		final, err := genkit.Generate(ctx, g,
@@ -168,8 +263,9 @@ func TestAnthropicLive(t *testing.T) {
 		}
 	})
 	t.Run("streaming with thinking", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-opus-4@20250514")
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		out := ""
+		reasoningStream := ""
 
 		final, err := genkit.Generate(ctx, g,
 			ai.WithPrompt("Tell me a short story about a frog and a princess"),
@@ -187,6 +283,9 @@ func TestAnthropicLive(t *testing.T) {
 				for _, p := range c.Content {
 					if p.IsText() {
 						out += p.Text
+					}
+					if p.IsReasoning() {
+						reasoningStream += p.Text
 					}
 				}
 				return nil
@@ -208,13 +307,15 @@ func TestAnthropicLive(t *testing.T) {
 		if final.Reasoning() == "" {
 			t.Fatal("empty reasoning found")
 		}
+		if final.Reasoning() != reasoningStream {
+			t.Fatalf("mismatch reasoning, got: %s, want: %s", reasoningStream, final.Reasoning())
+		}
 		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
 		}
 	})
-
 	t.Run("tools streaming", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-opus-4@20250514")
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		out := ""
 
 		myStoryTool := genkit.DefineTool(
@@ -257,12 +358,61 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
 		}
 	})
+	t.Run("tools streaming with constrained gen", func(t *testing.T) {
+		t.Skip("skipped until issue #3851 gets resolved")
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
+		answerOfEverythingTool := genkit.DefineTool(
+			g,
+			"answerOfEverythingTool",
+			"use this tool when the user asks for the answer of everything or the universe",
+			func(ctx *ai.ToolContext, input *any) (int, error) {
+				return 42, nil
+			},
+		)
+		type Output struct {
+			AnswerOfEverything int `json:"answer_of_everything"`
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("what's the answer of everything?"),
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				Thinking: anthropic.ThinkingConfigParamUnion{
+					OfEnabled: &anthropic.ThinkingConfigEnabledParam{
+						BudgetTokens: 1024,
+					},
+				},
+				MaxTokens: 2048,
+			}),
+			ai.WithOutputType(Output{}),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				return nil
+			}),
+
+			ai.WithTools(answerOfEverythingTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Reasoning() == "" {
+			t.Fatal("empty reasoning found")
+		}
+
+		var out Output
+		err = resp.Output(&out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.AnswerOfEverything != 42 {
+			t.Fatalf("constrained generation failed, want: 42, got: %d", out.AnswerOfEverything)
+		}
+	})
 }
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
-	resp, err := http.Get(imgUrl)
+	imgURL := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
+	resp, err := http.Get(imgURL)
 	if err != nil {
 		return "", err
 	}
