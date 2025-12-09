@@ -98,8 +98,9 @@ func TestSchemaAsMap(t *testing.T) {
 	}
 
 	want := map[string]any{
-		"$defs": map[string]any{
-			"Bar": map[string]any{
+		"additionalProperties": bool(false),
+		"properties": map[string]any{
+			"BarField": map[string]any{
 				"additionalProperties": bool(false),
 				"properties": map[string]any{
 					"Bar": map[string]any{"type": string("string")},
@@ -107,19 +108,10 @@ func TestSchemaAsMap(t *testing.T) {
 				"required": []any{string("Bar")},
 				"type":     string("object"),
 			},
-			"Foo": map[string]any{
-				"additionalProperties": bool(false),
-				"properties": map[string]any{
-					"BarField": map[string]any{
-						"$ref": string("#/$defs/Bar"),
-					},
-					"Str": map[string]any{"type": string("string")},
-				},
-				"required": []any{string("BarField"), string("Str")},
-				"type":     string("object"),
-			},
+			"Str": map[string]any{"type": string("string")},
 		},
-		"$ref": string("#/$defs/Foo"),
+		"required": []any{string("BarField"), string("Str")},
+		"type":     string("object"),
 	}
 
 	got := SchemaAsMap(InferJSONSchema(Foo{}))
@@ -136,36 +128,50 @@ func TestSchemaAsMapRecursive(t *testing.T) {
 
 	schema := SchemaAsMap(InferJSONSchema(Node{}))
 
-	defs, ok := schema["$defs"].(map[string]any)
-	if !ok {
-		t.Fatal("expected $defs in schema")
+	// With DoNotReference and recursion limiting, the schema should be flat
+	// and recursive references should become "any" schema.
+	if _, ok := schema["$defs"]; ok {
+		t.Error("expected no $defs with DoNotReference: true")
 	}
 
-	if _, ok := defs["Node"]; !ok {
-		t.Error("expected Node in $defs")
+	if _, ok := schema["$ref"]; ok {
+		t.Error("expected no $ref with DoNotReference: true")
 	}
 
-	if ref, ok := schema["$ref"].(string); !ok || ref != "#/$defs/Node" {
-		t.Errorf("expected $ref to be #/$defs/Node, got %v", schema["$ref"])
+	// Check top-level structure
+	if schema["type"] != "object" {
+		t.Errorf("expected type to be object, got %v", schema["type"])
 	}
 
-	nodeDef, ok := defs["Node"].(map[string]any)
+	props, ok := schema["properties"].(map[string]any)
 	if !ok {
-		t.Fatal("expected Node definition to be a map")
+		t.Fatal("expected properties in schema")
 	}
-	nodeProps, ok := nodeDef["properties"].(map[string]any)
+
+	// Check value field
+	valueField, ok := props["value"].(map[string]any)
 	if !ok {
-		t.Fatal("expected Node to have properties")
+		t.Fatal("expected value field in properties")
 	}
-	childrenField, ok := nodeProps["children"].(map[string]any)
+	if valueField["type"] != "string" {
+		t.Errorf("expected value.type to be string, got %v", valueField["type"])
+	}
+
+	// Check children field - recursive reference should be "any" schema
+	childrenField, ok := props["children"].(map[string]any)
 	if !ok {
-		t.Fatal("expected Node to have children field")
+		t.Fatal("expected children field in properties")
 	}
+	if childrenField["type"] != "array" {
+		t.Errorf("expected children.type to be array, got %v", childrenField["type"])
+	}
+
 	items, ok := childrenField["items"].(map[string]any)
 	if !ok {
 		t.Fatal("expected children to have items")
 	}
-	if ref, ok := items["$ref"].(string); !ok || ref != "#/$defs/Node" {
-		t.Errorf("expected children.items to reference Node, got %v", items)
+	// The recursive Node reference should have become an "any" schema
+	if items["additionalProperties"] != true {
+		t.Errorf("expected children.items to be 'any' schema (additionalProperties: true), got %v", items)
 	}
 }

@@ -107,44 +107,13 @@ func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
 }
 
-// resolveRef resolves a $ref in the schema to its actual definition.
-func resolveRef(schema map[string]any, ref string) map[string]any {
-	if !strings.HasPrefix(ref, "#/$defs/") {
-		return nil
-	}
-	defName := strings.TrimPrefix(ref, "#/$defs/")
-	defs, ok := schema["$defs"].(map[string]any)
-	if !ok {
-		return nil
-	}
-	def, ok := defs[defName].(map[string]any)
-	if !ok {
-		return nil
-	}
-	return def
-}
-
 // Get enum strings from json schema
 func objectEnums(schema map[string]any) []string {
 	var enums []string
 
-	rootSchema := schema
-	if ref, ok := schema["$ref"].(string); ok {
-		rootSchema = resolveRef(schema, ref)
-		if rootSchema == nil {
-			return nil
-		}
-	}
-
-	if properties, ok := rootSchema["properties"].(map[string]any); ok {
+	if properties, ok := schema["properties"].(map[string]any); ok {
 		for _, propValue := range properties {
 			if propMap, ok := propValue.(map[string]any); ok {
-				if ref, ok := propMap["$ref"].(string); ok {
-					propMap = resolveRef(schema, ref)
-					if propMap == nil {
-						continue
-					}
-				}
 				if enumSlice, ok := propMap["enum"].([]any); ok {
 					for _, enumVal := range enumSlice {
 						if enumStr, ok := enumVal.(string); ok {
