@@ -65,16 +65,6 @@ export async function startTelemetryServer(params: {
     }
   });
 
-  api.delete('/api/traces/:traceId', async (request, response, next) => {
-    try {
-      const { traceId } = request.params;
-      await params.traceStore.delete(traceId);
-      response.status(200).send('OK');
-    } catch (e) {
-      next(e);
-    }
-  });
-
   // SSE endpoint for live trace streaming
   api.get('/api/traces/:traceId/stream', async (request, response, next) => {
     try {
