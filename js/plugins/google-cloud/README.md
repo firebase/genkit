@@ -58,6 +58,9 @@ const response = await ai.generate({
       filters: ['pi_and_jailbreak', 'malicious_uris'], // Specific filters to enforce
       strictSdpEnforcement: true, // Block if sensitive data is found even if masked
       protectionTarget: 'all', // 'all', 'userPrompt', or 'modelResponse'
+      clientOptions: {
+        apiEndpoint: 'modelarmor.us-central1.rep.googleapis.com',
+      },
     }),
   ],
 });
