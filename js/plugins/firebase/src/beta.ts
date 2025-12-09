@@ -14,13 +14,5 @@
  * limitations under the License.
  */
 
-export {
-  InMemoryStreamManager,
-  StreamNotFoundError,
-  type ActionStreamInput,
-  type ActionStreamSubscriber,
-  type StreamManager,
-} from '@genkit-ai/core';
-export { AsyncTaskQueue, lazy } from '@genkit-ai/core/async';
-export * from './common.js';
-export { GenkitBeta, genkit, type GenkitBetaOptions } from './genkit-beta.js';
+export { FirestoreStreamManager } from './stream-manager/firestore.js';
+export { RtdbStreamManager } from './stream-manager/rtdb.js';
