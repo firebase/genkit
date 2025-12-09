@@ -34,7 +34,6 @@ func mapToStruct(m map[string]any, v any) error {
 	return json.Unmarshal(jsonData, v)
 }
 
-
 // generate executes the generation request using the new functional approach
 func generate(
 	ctx context.Context,
