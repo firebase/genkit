@@ -56,12 +56,33 @@ describe('FirestoreStreamManager', () => {
     const data = snapshot.data();
     assert.ok(data);
 
-    assert.deepStrictEqual(data.stream, [
-      { type: 'chunk', chunk: { foo: 'bar' } },
-      { type: 'chunk', chunk: { bar: 'baz' } },
-    ]);
+    assert.strictEqual(data.stream.length, 2);
+    assert.strictEqual(data.stream[0].type, 'chunk');
+    assert.deepStrictEqual(data.stream[0].chunk, { foo: 'bar' });
+    assert.ok(data.stream[0].uuid);
+    assert.strictEqual(data.stream[1].type, 'chunk');
+    assert.deepStrictEqual(data.stream[1].chunk, { bar: 'baz' });
+    assert.ok(data.stream[1].uuid);
     assert.ok(data.createdAt);
     assert.ok(data.updatedAt);
+  });
+
+  it('should preserve duplicate chunks', async () => {
+    const streamId = 'test-stream-dupes';
+    const stream = await streamManager.open(streamId);
+
+    await stream.write({ foo: 'bar' });
+    await stream.write({ foo: 'bar' });
+
+    const db = getFirestore(app);
+    const snapshot = await db.collection('genkit-streams').doc(streamId).get();
+    const data = snapshot.data();
+    assert.ok(data);
+
+    assert.strictEqual(data.stream.length, 2);
+    assert.deepStrictEqual(data.stream[0].chunk, { foo: 'bar' });
+    assert.deepStrictEqual(data.stream[1].chunk, { foo: 'bar' });
+    assert.notStrictEqual(data.stream[0].uuid, data.stream[1].uuid);
   });
 
   it('should open a stream and write done', async () => {

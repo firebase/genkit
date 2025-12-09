@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+import { randomUUID } from 'crypto';
 import { App } from 'firebase-admin/app';
 import {
+  DocumentReference,
   FieldValue,
   getFirestore,
   type Firestore,
@@ -38,7 +40,7 @@ export interface FirestoreStreamManagerOptions {
 class FirestoreActionStream<S, O> implements ActionStreamInput<S, O> {
   private streamDoc;
 
-  constructor(streamDoc) {
+  constructor(streamDoc: DocumentReference) {
     this.streamDoc = streamDoc;
   }
 
@@ -51,7 +53,13 @@ class FirestoreActionStream<S, O> implements ActionStreamInput<S, O> {
 
   async write(chunk: S): Promise<void> {
     await this.update({
-      stream: FieldValue.arrayUnion({ type: 'chunk', chunk }),
+      // We add a random ID to the chunk to prevent Firestore from deduplicating chunks
+      // that have the same content.
+      stream: FieldValue.arrayUnion({
+        type: 'chunk',
+        chunk,
+        uuid: randomUUID(),
+      }),
     });
   }
 
@@ -146,10 +154,4 @@ export class FirestoreStreamManager implements StreamManager {
     resetTimeout();
     return { unsubscribe };
   }
-}
-
-export function firestoreStreamManager(
-  opts: FirestoreStreamManagerOptions
-): FirestoreStreamManager {
-  return new FirestoreStreamManager(opts);
 }

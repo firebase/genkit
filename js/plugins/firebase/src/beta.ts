@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 
-export { firestoreStreamManager } from './stream-manager/firestore.js';
-export { rtdbStreamManager } from './stream-manager/rtdb.js';
+export { FirestoreStreamManager } from './stream-manager/firestore.js';
+export { RtdbStreamManager } from './stream-manager/rtdb.js';

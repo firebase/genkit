@@ -78,7 +78,7 @@ app.post(
 );
 ```
 
-For production environments, you should use a durable `StreamManager` implementation, such as `firestoreStreamManager` or `rtdbStreamManager` from the `@genkit-ai/firebase` plugin, or a custom implementation.
+For production environments, you should use a durable `StreamManager` implementation, such as `FirestoreStreamManager` or `RtdbStreamManager` from the `@genkit-ai/firebase` plugin, or a custom implementation.
 
 Clients can then connect and reconnect to the stream using the `streamId`:
 

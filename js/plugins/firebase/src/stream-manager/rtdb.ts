@@ -144,9 +144,3 @@ export class RtdbStreamManager implements StreamManager {
     return { unsubscribe };
   }
 }
-
-export function rtdbStreamManager(
-  opts: RtdbStreamManagerOptions
-): RtdbStreamManager {
-  return new RtdbStreamManager(opts);
-}

@@ -16,8 +16,8 @@
 
 import { expressHandler } from '@genkit-ai/express';
 import {
-  firestoreStreamManager,
-  rtdbStreamManager,
+  FirestoreStreamManager,
+  RtdbStreamManager,
 } from '@genkit-ai/firebase/beta';
 import express from 'express';
 import { initializeApp } from 'firebase-admin/app';
@@ -65,11 +65,11 @@ export const streamyThrowy = ai.defineFlow(
 );
 
 const fApp = initializeApp();
-export const rtdb = rtdbStreamManager({
+export const rtdb = new RtdbStreamManager({
   firebaseApp: fApp,
   refPrefix: 'streamy',
 });
-export const firestore = firestoreStreamManager({
+export const firestore = new FirestoreStreamManager({
   firebaseApp: fApp,
   db: getFirestore(fApp),
   collection: 'streamy',
