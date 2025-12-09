@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
@@ -40,15 +41,8 @@ func main() {
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithDefaultModel("googleai/gemini-2.5-flash"))
 
-	var callback func(context.Context, *ai.ModelResponseChunk) error
-
 	// Define a simple streaming flow that generates jokes about a given topic
-	genkit.DefineStreamingFlow(g, "joke-teller", func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {
-		if cb != nil {
-			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
-				return cb(ctx, c.Text())
-			}
-		}
+	genkit.DefineStreamingFlow(g, "joke-teller", func(ctx context.Context, input string, cb core.StreamCallback[string]) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
@@ -57,7 +51,10 @@ func main() {
 				},
 			}),
 			ai.WithPrompt("Tell short jokes about %s", input),
-			ai.WithStreaming(callback))
+			ai.WithStreaming(func(tx context.Context, chunk *ai.ModelResponseChunk) error {
+				return cb(ctx, chunk.Text())
+			}),
+		)
 		if err != nil {
 			return "", err
 		}
@@ -66,20 +63,14 @@ func main() {
 	})
 
 	// Define a simple streaming flow that generates jokes about a given topic with a context of bananas
-	genkit.DefineStreamingFlow(g, "context", func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {
-		if cb != nil {
-			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
-				return cb(ctx, c.Text())
-			}
-		}
-
+	genkit.DefineStreamingFlow(g, "context", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.0-flash"),
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 			}),
 			ai.WithPrompt("Tell short jokes about %s", input),
-			ai.WithStreaming(callback),
+			ai.WithStreaming(cb),
 			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))
 		if err != nil {
 			return "", err
@@ -89,14 +80,21 @@ func main() {
 		return text, nil
 	})
 
+	type ComicStripDetails struct {
+		Topic        string `json:"topic"`
+		DrawingStyle string `json:"drawingStyle"`
+	}
+
 	// Simple flow that generates a brief comic strip
-	genkit.DefineStreamingFlow(g, "comic-strip-generator", func(ctx context.Context, input string, cb func(context.Context, string) error) ([]string, error) {
-		if input == "" {
-			input = `A little blue gopher with big eyes trying to learn Python,
+	genkit.DefineStreamingFlow(g, "comic-strip-generator", func(ctx context.Context, input ComicStripDetails, cb func(context.Context, string) error) ([]string, error) {
+		if input.Topic == "" {
+			input.Topic = `A little blue gopher with big eyes trying to learn Python,
 				use a cartoon style, the story should be tragic because he
 				chose the wrong programming language, the proper programing
 				language for a gopher should be Go`
 		}
+
+		var callback func(ctx context.Context, c *ai.ModelResponseChunk) error
 		if cb != nil {
 			var story string
 			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
@@ -110,10 +108,10 @@ func main() {
 		}
 
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModelName("googleai/gemini-2.5-flash-image-preview"), // nano banana
+			ai.WithModelName("googleai/gemini-3-pro-preview"),
 			ai.WithConfig(&genai.GenerateContentConfig{
-				Temperature:        genai.Ptr[float32](0.5),
-				ResponseModalities: []string{"IMAGE", "TEXT"},
+				Temperature: genai.Ptr[float32](0.5),
+				// ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithStreaming(callback),
 			ai.WithPrompt("generate a short story about %s and for each scene, generate an image for it", input))
@@ -132,13 +130,7 @@ func main() {
 	})
 
 	// A flow that uses Romeo and Juliet as cached contents to answer questions about the book
-	genkit.DefineStreamingFlow(g, "cached-contents", func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {
-		if cb != nil {
-			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
-				return cb(ctx, c.Text())
-			}
-		}
-
+	genkit.DefineStreamingFlow(g, "cached-contents", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
 		// Romeo and Juliet
 		url := "https://www.gutenberg.org/cache/epub/1513/pg1513.txt"
 		prompt := "I'll provide you with some text contents that I want you to use to answer further questions"
@@ -157,7 +149,7 @@ func main() {
 			ai.WithMessages(
 				ai.NewUserTextMessage(content).WithCacheTTL(360), // create cache contents
 			),
-			ai.WithStreaming(callback),
+			ai.WithStreaming(cb),
 			ai.WithPrompt(prompt))
 		if err != nil {
 			return "", err
@@ -177,7 +169,7 @@ func main() {
 				},
 			}),
 			ai.WithMessages(resp.History()...),
-			ai.WithStreaming(callback),
+			ai.WithStreaming(cb),
 			ai.WithPrompt(prompt))
 		if err != nil {
 			return "", nil
@@ -187,7 +179,7 @@ func main() {
 	})
 
 	// Define a flow to demonstrate code execution
-	genkit.DefineFlow(g, "code-execution", func(ctx context.Context, _ any) (string, error) {
+	genkit.DefineStreamingFlow(g, "code-execution", func(ctx context.Context, _ any, cb ai.ModelStreamCallback) (string, error) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		if m == nil {
 			return "", fmt.Errorf("failed to find model")
@@ -200,6 +192,7 @@ func main() {
 		fmt.Println("Sending request to Gemini...")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
+			ai.WithStreaming(cb),
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.2),
 				Tools: []*genai.Tool{
@@ -224,7 +217,7 @@ func main() {
 		return text, nil
 	})
 
-	genkit.DefineFlow(g, "image-descriptor", func(ctx context.Context, foo string) (string, error) {
+	genkit.DefineStreamingFlow(g, "image-descriptor", func(ctx context.Context, _ any, cb ai.ModelStreamCallback) (string, error) {
 		img, err := fetchImgAsBase64()
 		if err != nil {
 			return "", err
@@ -233,6 +226,7 @@ func main() {
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 			}),
+			ai.WithStreaming(cb),
 			ai.WithMessages(ai.NewUserMessage(
 				ai.NewTextPart("Can you describe what's in this image?"),
 				ai.NewMediaPart("image/jpeg", "data:image/jpeg;base64,"+img)),
@@ -245,7 +239,10 @@ func main() {
 		return text, nil
 	})
 
-	genkit.DefineFlow(g, "image-generation", func(ctx context.Context, input string) ([]string, error) {
+	type ImageGeneration struct {
+		Prompt string `json:"prompt"`
+	}
+	genkit.DefineStreamingFlow(g, "image-generation", func(ctx context.Context, input ImageGeneration, cb ai.ModelStreamCallback) ([]string, error) {
 		r, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/imagen-4.0-generate-001"),
 			ai.WithPrompt("Generate an image of %s", input),
@@ -269,7 +266,7 @@ func main() {
 	})
 
 	// Define a simple flow that generates audio transcripts from a given audio
-	genkit.DefineFlow(g, "speech-to-text-flow", func(ctx context.Context, input any) (string, error) {
+	genkit.DefineStreamingFlow(g, "speech-to-text-flow", func(ctx context.Context, input any, cb ai.ModelStreamCallback) (string, error) {
 		audio, err := os.Open("./genkit.wav")
 		if err != nil {
 			return "", err
@@ -282,6 +279,7 @@ func main() {
 		}
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.5-flash"),
+			ai.WithStreaming(cb),
 			ai.WithMessages(ai.NewUserMessage(
 				ai.NewTextPart("Can you transcribe the next audio?"),
 				ai.NewMediaPart("audio/wav", "data:audio/wav;base64,"+base64.StdEncoding.EncodeToString(audioBytes)))),
@@ -294,7 +292,7 @@ func main() {
 	})
 
 	// Simple flow that generates an audio from a given text
-	genkit.DefineFlow(g, "text-to-speech-flow", func(ctx context.Context, input string) (string, error) {
+	genkit.DefineStreamingFlow(g, "text-to-speech-flow", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
 		prompt := "Genkit is the best Gen AI library!"
 		if input != "" {
 			prompt = input
@@ -312,6 +310,7 @@ func main() {
 				},
 			}),
 			ai.WithModelName("googleai/gemini-2.5-flash-preview-tts"),
+			ai.WithStreaming(cb),
 			ai.WithPrompt("Say: %s", prompt))
 		if err != nil {
 			return "", err
@@ -333,7 +332,7 @@ func main() {
 
 	// Define a simple flow that prompts an LLM to generate greetings using a
 	// given style.
-	genkit.DefineFlow(g, "assistant-greeting", func(ctx context.Context, input greetingStyle) (string, error) {
+	genkit.DefineStreamingFlow(g, "assistant-greeting", func(ctx context.Context, input greetingStyle, cb ai.ModelStreamCallback) (string, error) {
 		// Look up the prompt by name
 		prompt := genkit.LookupPrompt(g, "example")
 		if prompt == nil {
