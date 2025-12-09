@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// TODO: Create a testapp in js/testapps to verify Model Armor integration
 
 import { ModelArmorClient } from '@google-cloud/modelarmor';
 import { GenkitError } from 'genkit';
