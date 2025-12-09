@@ -82,6 +82,10 @@ export class ReflectionServer {
     };
   }
 
+  get runtimeId() {
+    return `${process.pid}${this.port !== null ? `-${this.port}` : ''}`;
+  }
+
   /**
    * Finds a free port to run the server on based on the original chosen port and environment.
    */
@@ -112,7 +116,11 @@ export class ReflectionServer {
       next();
     });
 
-    server.get('/api/__health', async (_, response) => {
+    server.get('/api/__health', async (req, response) => {
+      if (req.query['id'] && req.query['id'] !== this.runtimeId) {
+        response.status(503).send('Invalid runtime ID');
+        return;
+      }
       await this.registry.listActions();
       response.status(200).send('OK');
     });
@@ -322,16 +330,13 @@ export class ReflectionServer {
       const date = new Date();
       const time = date.getTime();
       const timestamp = date.toISOString();
-      const runtimeId = `${process.pid}${
-        this.port !== null ? `-${this.port}` : ''
-      }`;
       this.runtimeFilePath = path.join(
         runtimesDir,
-        `${runtimeId}-${time}.json`
+        `${this.runtimeId}-${time}.json`
       );
       const fileContent = JSON.stringify(
         {
-          id: process.env.GENKIT_RUNTIME_ID || runtimeId,
+          id: process.env.GENKIT_RUNTIME_ID || this.runtimeId,
           pid: process.pid,
           name: this.options.name,
           reflectionServerUrl: `http://localhost:${this.port}`,

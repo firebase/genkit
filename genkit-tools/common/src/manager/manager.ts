@@ -17,6 +17,7 @@
 import axios, { type AxiosError } from 'axios';
 import chokidar from 'chokidar';
 import EventEmitter from 'events';
+import * as fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import {
@@ -38,6 +39,7 @@ import {
   retriable,
   type DevToolsInfo,
 } from '../utils/utils';
+import { ProcessManager } from './process-manager';
 import {
   GenkitToolsError,
   RuntimeEvent,
@@ -56,19 +58,27 @@ interface RuntimeManagerOptions {
   manageHealth?: boolean;
   /** Project root dir. If not provided will be inferred from CWD. */
   projectRoot: string;
+  /** An optional process manager for the main application process. */
+  processManager?: ProcessManager;
 }
 
 export class RuntimeManager {
+  readonly processManager?: ProcessManager;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
   private eventEmitter = new EventEmitter();
+  private watchers: chokidar.FSWatcher[] = [];
+  private healthCheckInterval?: NodeJS.Timeout;
 
   private constructor(
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
-    readonly projectRoot: string
-  ) {}
+    readonly projectRoot: string,
+    processManager?: ProcessManager
+  ) {
+    this.processManager = processManager;
+  }
 
   /**
    * Creates a new runtime manager.
@@ -77,17 +87,31 @@ export class RuntimeManager {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
       options.manageHealth ?? true,
-      options.projectRoot
+      options.projectRoot,
+      options.processManager
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
     if (manager.manageHealth) {
-      setInterval(
+      manager.healthCheckInterval = setInterval(
         async () => await manager.performHealthChecks(),
         HEALTH_CHECK_INTERVAL
       );
     }
     return manager;
+  }
+
+  /**
+   * Stops the runtime manager and cleans up resources.
+   */
+  async stop() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+    await Promise.all(this.watchers.map((watcher) => watcher.close()));
+    if (this.processManager) {
+      await this.processManager.kill();
+    }
   }
 
   /**
@@ -324,6 +348,17 @@ export class RuntimeManager {
   }
 
   /**
+   * Adds a trace to the trace store
+   */
+  async addTrace(input: TraceData): Promise<void> {
+    await axios
+      .post(`${this.telemetryServerUrl}/api/traces/`, input)
+      .catch((err) =>
+        this.httpErrorHandler(err, 'Error writing trace to store.')
+      );
+  }
+
+  /**
    * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
   private async notifyRuntime(runtime: RuntimeInfo) {
@@ -348,6 +383,7 @@ export class RuntimeManager {
         persistent: true,
         ignoreInitial: false,
       });
+      this.watchers.push(watcher);
       watcher.on('add', (filePath) => this.handleNewRuntime(filePath));
       if (this.manageHealth) {
         watcher.on('unlink', (filePath) => this.handleRemovedRuntime(filePath));
@@ -372,6 +408,7 @@ export class RuntimeManager {
         persistent: true,
         ignoreInitial: false,
       });
+      this.watchers.push(watcher);
       watcher.on('add', (filePath) => this.handleNewDevUi(filePath));
       if (this.manageHealth) {
         watcher.on('unlink', (filePath) => this.handleRemovedDevUi(filePath));
@@ -390,6 +427,10 @@ export class RuntimeManager {
    */
   private async handleNewDevUi(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, toolsInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -433,6 +474,10 @@ export class RuntimeManager {
    */
   private async handleNewRuntime(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, runtimeInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -448,7 +493,12 @@ export class RuntimeManager {
           runtimeInfo.name = runtimeInfo.id;
         }
         const fileName = path.basename(filePath);
-        if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
+        if (
+          await checkServerHealth(
+            runtimeInfo.reflectionServerUrl,
+            runtimeInfo.id
+          )
+        ) {
           if (
             runtimeInfo.reflectionApiSpecVersion !=
             GENKIT_REFLECTION_API_SPEC_VERSION
@@ -529,7 +579,9 @@ export class RuntimeManager {
   private async performHealthChecks() {
     const healthCheckPromises = Object.entries(this.filenameToRuntimeMap).map(
       async ([fileName, runtime]) => {
-        if (!(await checkServerHealth(runtime.reflectionServerUrl))) {
+        if (
+          !(await checkServerHealth(runtime.reflectionServerUrl, runtime.id))
+        ) {
           await this.removeRuntime(fileName);
         }
       }
@@ -541,19 +593,14 @@ export class RuntimeManager {
    * Removes the runtime file which will trigger the removal watcher.
    */
   private async removeRuntime(fileName: string) {
-    const runtime = this.filenameToRuntimeMap[fileName];
-    if (runtime) {
-      try {
-        const runtimesDir = await findRuntimesDir(this.projectRoot);
-        const runtimeFilePath = path.join(runtimesDir, fileName);
-        await fs.unlink(runtimeFilePath);
-      } catch (error) {
-        logger.debug(`Failed to delete runtime file: ${error}`);
-      }
-      logger.debug(
-        `Removed unhealthy runtime with ID ${runtime.id} from manager.`
-      );
+    try {
+      const runtimesDir = await findRuntimesDir(this.projectRoot);
+      const runtimeFilePath = path.join(runtimesDir, fileName);
+      await fs.unlink(runtimeFilePath);
+    } catch (error) {
+      logger.debug(`Failed to delete runtime file: ${error}`);
     }
+    logger.debug(`Removed unhealthy runtime ${fileName} from manager.`);
   }
 }
 

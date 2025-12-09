@@ -42,6 +42,14 @@ var (
 	outputDir  = flag.String("outdir", "", "directory to write to, or '-' for stdout")
 	noFormat   = flag.Bool("nofmt", false, "do not format output")
 	configFile = flag.String("config", "", "config filename")
+
+	// fieldOmitEmptyTag maps schemas (e.g., "ModelResponseChunk") to fields (e.g., "index")
+	// that should not receive the `omitempty` JSON tag.
+	fieldOmitEmptyTag = map[string]map[string]struct{}{
+		"ModelResponseChunk": {
+			"index": {}, // fields should be as defined in core/schemas.config
+		},
+	}
 )
 
 func main() {
@@ -241,7 +249,6 @@ func nameAnonymousTypes(schemas map[string]*Schema) {
 				nameFields(prefix+fname, fs.Properties)
 			}
 		}
-
 	}
 	for typeName, ts := range schemas {
 		nameFields(typeName, ts.Properties)
@@ -407,11 +414,26 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 			}
 		}
 		g.generateDoc(fs, fcfg)
+
 		jsonTag := fmt.Sprintf(`json:"%s,omitempty"`, field)
+		if skipOmitEmpty(goName, field) {
+			jsonTag = fmt.Sprintf(`json:"%s"`, field)
+		}
 		g.pr(fmt.Sprintf("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag))
 	}
 	g.pr("}\n\n")
 	return nil
+}
+
+// skipOmitEmpty determines whether a schema field should include the
+// `omitempty` JSON tag
+func skipOmitEmpty(schema, field string) bool {
+	fields, ok := fieldOmitEmptyTag[schema]
+	if !ok {
+		return false
+	}
+	_, ok = fields[field]
+	return ok
 }
 
 func (g *generator) generateStringEnum(name string, s *Schema, tcfg *itemConfig) error {
@@ -454,6 +476,9 @@ func (g *generator) generateDoc(s *Schema, ic *itemConfig) {
 // typeExpr returns a Go type expression denoting the type represented by the schema.
 func (g *generator) typeExpr(s *Schema) (string, error) {
 	// A reference to another type refers to that type by name. Use the name.
+	if s == nil {
+		return "any", nil
+	}
 	if s.Ref != "" {
 		name, ok := strings.CutPrefix(s.Ref, refPrefix)
 		if !ok {

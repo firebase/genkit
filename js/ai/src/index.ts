@@ -15,13 +15,7 @@
  */
 
 export { checkOperation } from './check-operation.js';
-export {
-  Document,
-  DocumentDataSchema,
-  type DocumentData,
-  type ToolRequest,
-  type ToolResponse,
-} from './document.js';
+export { Document, DocumentDataSchema, type DocumentData } from './document.js';
 export {
   embed,
   embedderActionMetadata,
@@ -88,6 +82,7 @@ export {
   type ToolRequestPart,
   type ToolResponsePart,
 } from './model.js';
+export { type ToolRequest, type ToolResponse } from './parts.js';
 export {
   defineHelper,
   definePartial,
@@ -116,6 +111,7 @@ export {
   defineResource,
   dynamicResource,
   isDynamicResourceAction,
+  resource,
   type DynamicResourceAction,
   type ResourceAction,
   type ResourceFn,
@@ -144,6 +140,7 @@ export {
   asTool,
   defineInterrupt,
   defineTool,
+  interrupt,
   type InterruptConfig,
   type ToolAction,
   type ToolArgument,

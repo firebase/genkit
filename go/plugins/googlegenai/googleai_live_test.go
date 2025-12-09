@@ -66,7 +66,7 @@ func TestGoogleAILive(t *testing.T) {
 	ctx := context.Background()
 
 	g := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
 
@@ -79,6 +79,12 @@ func TestGoogleAILive(t *testing.T) {
 		},
 		) (float64, error) {
 			return math.Pow(float64(input.Value), input.Over), nil
+		},
+	)
+
+	answerOfEverythingTool := genkit.DefineTool(g, "answerOfEverything", "use this tool when the user asks for the answer of life, the universe and everything",
+		func(ctx *ai.ToolContext, input any) (int, error) {
+			return 42, nil
 		},
 	)
 
@@ -170,6 +176,34 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool stream", func(t *testing.T) {
+		parts := 0
+		out := ""
+		final, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				parts++
+				out += c.Content[0].Text
+				return nil
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+
+		const want = "11.31"
+		if !strings.Contains(final.Text(), want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
+
 	t.Run("tool with thinking", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
@@ -191,7 +225,45 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
-
+	t.Run("api side tools", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		_, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}},
+					{CodeExecution: &genai.ToolCodeExecution{}},
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("When is the next lunar eclipse in US?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("api and custom tools with GoogleSearch", func(t *testing.T) {
+		// Note: The Gemini API does not support combining GoogleSearch with function calling.
+		// This test verifies that tools are properly merged (not silently dropped),
+		// even though the API will reject this specific combination.
+		// See: https://github.com/google/adk-python/issues/53
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		_, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}},
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithTools(gablorkenTool, answerOfEverythingTool),
+			ai.WithPrompt("What is the answer of life?"))
+		// Expect API error because GoogleSearch + function calling is unsupported
+		if err == nil {
+			t.Fatal("expected error combining GoogleSearch with function calling, but got none")
+		}
+		if !strings.Contains(err.Error(), "Tool use with function calling is unsupported") &&
+			!strings.Contains(err.Error(), "INVALID_ARGUMENT") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
 			Location string `json:"location"`
@@ -317,7 +389,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you what animal is in the image?"),
-					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
+					ai.NewMediaPart("image/jpeg", "data:image/jpeg;base64,"+i),
 				),
 			),
 		)
@@ -354,7 +426,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/jpg;base64,"+i),
+					ai.NewDataPart("data:image/jpeg;base64,"+i),
 				),
 			),
 		)
@@ -366,7 +438,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-preview-image-generation")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-image")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				ResponseModalities: []string{"IMAGE", "TEXT"},
@@ -447,6 +519,45 @@ func TestGoogleAILive(t *testing.T) {
 		}
 		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1024 {
 			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
+		}
+	})
+	t.Run("thinking stream with structured output", func(t *testing.T) {
+		type Output struct {
+			Text string `json:"text"`
+		}
+
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.4),
+				ThinkingConfig: &genai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  genai.Ptr[int32](1024),
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithOutputType(Output{}),
+			ai.WithPrompt("Analogize photosynthesis and growing up."),
+			ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		var out Output
+		err = resp.Output(&out)
+		if err != nil {
+			t.Fatalf("unable to unmarshal response: %v", err)
+		}
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1024 {
+			t.Fatalf("thoughts tokens should not be zero or greater than 1024, got: %d", resp.Usage.ThoughtsTokens)
+		}
+		if resp.Reasoning() == "" {
+			t.Fatalf("no reasoning found")
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
@@ -560,8 +671,8 @@ func TestCacheHelper(t *testing.T) {
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
-	resp, err := http.Get(imgUrl)
+	imgURL := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
+	resp, err := http.Get(imgURL)
 	if err != nil {
 		return "", err
 	}

@@ -88,6 +88,122 @@ var gablorkenTool = DefineTool(r, "gablorken", "use when need to calculate a gab
 	},
 )
 
+func TestStreamingChunksHaveRoleAndIndex(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	convertTempTool := DefineTool(r, "convertTemp", "converts temperature",
+		func(ctx *ToolContext, input struct {
+			From        string
+			To          string
+			Temperature float64
+		},
+		) (float64, error) {
+			if input.From == "celsius" && input.To == "fahrenheit" {
+				return input.Temperature*9/5 + 32, nil
+			}
+			return input.Temperature, nil
+		},
+	)
+
+	toolModel := DefineModel(r, "test/toolModel", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+		hasToolResponse := false
+		for _, msg := range gr.Messages {
+			if msg.Role == RoleTool {
+				hasToolResponse = true
+				break
+			}
+		}
+
+		if hasToolResponse {
+			if msc != nil {
+				msc(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("20 degrees Celsius is 68 degrees Fahrenheit.")},
+				})
+			}
+			return &ModelResponse{
+				Request: gr,
+				Message: NewModelTextMessage("20 degrees Celsius is 68 degrees Fahrenheit."),
+			}, nil
+		}
+
+		if msc != nil {
+			msc(ctx, &ModelResponseChunk{
+				Content: []*Part{NewToolRequestPart(&ToolRequest{
+					Name: "convertTemp",
+					Input: map[string]any{
+						"From":        "celsius",
+						"To":          "fahrenheit",
+						"Temperature": 20.0,
+					},
+					Ref: "0",
+				})},
+			})
+		}
+		return &ModelResponse{
+			Request: gr,
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{NewToolRequestPart(&ToolRequest{
+					Name: "convertTemp",
+					Input: map[string]any{
+						"From":        "celsius",
+						"To":          "fahrenheit",
+						"Temperature": 20.0,
+					},
+					Ref: "0",
+				})},
+			},
+		}, nil
+	})
+
+	var chunks []*ModelResponseChunk
+	_, err := Generate(ctx, r,
+		WithModel(toolModel),
+		WithMessages(NewUserTextMessage("convert 20 c to f")),
+		WithTools(convertTempTool),
+		WithStreaming(func(ctx context.Context, chunk *ModelResponseChunk) error {
+			chunks = append(chunks, chunk)
+			return nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	if len(chunks) < 2 {
+		t.Fatalf("Expected at least 2 chunks, got %d", len(chunks))
+	}
+
+	for i, chunk := range chunks {
+		if chunk.Role == "" {
+			t.Errorf("Chunk %d: Role is empty", i)
+		}
+		t.Logf("Chunk %d: Role=%s, Index=%d", i, chunk.Role, chunk.Index)
+	}
+
+	if chunks[0].Role != RoleModel {
+		t.Errorf("Expected first chunk to have role 'model', got %s", chunks[0].Role)
+	}
+	if chunks[0].Index != 0 {
+		t.Errorf("Expected first chunk to have index 0, got %d", chunks[0].Index)
+	}
+
+	toolChunkFound := false
+	for _, chunk := range chunks {
+		if chunk.Role == RoleTool {
+			toolChunkFound = true
+			if chunk.Index != 1 {
+				t.Errorf("Expected tool chunk to have index 1, got %d", chunk.Index)
+			}
+		}
+	}
+	if !toolChunkFound {
+		t.Error("Expected to find at least one tool chunk")
+	}
+}
+
 func TestValidMessage(t *testing.T) {
 	t.Parallel()
 
@@ -242,7 +358,7 @@ func TestValidMessage(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	JSON := "\n{\"subject\": \"bananas\", \"location\": \"tropics\"}\n"
+	JSON := "{\"subject\": \"bananas\", \"location\": \"tropics\"}"
 	JSONmd := "```json" + JSON + "```"
 
 	bananaModel := DefineModel(r, "test/banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
@@ -629,7 +745,8 @@ func TestGenerate(t *testing.T) {
 		dynamicTool := NewTool("dynamicTestTool", "a tool that is dynamically registered",
 			func(ctx *ToolContext, input struct {
 				Message string
-			}) (string, error) {
+			},
+			) (string, error) {
 				return "Dynamic: " + input.Message, nil
 			},
 		)
@@ -815,7 +932,8 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		func(ctx *ToolContext, input struct {
 			Value     string
 			Interrupt bool
-		}) (string, error) {
+		},
+		) (string, error) {
 			if input.Interrupt {
 				return "", ctx.Interrupt(&InterruptOptions{
 					Metadata: map[string]any{
@@ -833,7 +951,8 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		func(ctx *ToolContext, input struct {
 			Action string
 			Data   string
-		}) (string, error) {
+		},
+		) (string, error) {
 			if ctx.Resumed != nil {
 				resumedData, ok := ctx.Resumed["data"].(string)
 				if ok {

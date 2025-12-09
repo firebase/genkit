@@ -46,6 +46,8 @@ type StreamCallback[Stream any] = func(context.Context, Stream) error
 // output which it validates against.
 //
 // Each time an ActionDef is run, it results in a new trace span.
+//
+// For internal use only.
 type ActionDef[In, Out, Stream any] struct {
 	fn   StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
 	desc *api.ActionDesc                // Descriptor of the action.
@@ -159,7 +161,7 @@ func newAction[In, Out, Stream any](
 		},
 		desc: &api.ActionDesc{
 			Type:         atype,
-			Key:          fmt.Sprintf("/%s/%s", atype, name),
+			Key:          api.KeyFromName(atype, name),
 			Name:         name,
 			Description:  description,
 			InputSchema:  inputSchema,
@@ -183,13 +185,15 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
+	inputBytes, _ := json.Marshal(input)
 	logger.FromContext(ctx).Debug("Action.Run",
-		"name", a.Name,
-		"input", fmt.Sprintf("%#v", input))
+		"name", a.Name(),
+		"input", inputBytes)
 	defer func() {
+		outputBytes, _ := json.Marshal(output)
 		logger.FromContext(ctx).Debug("Action.Run",
-			"name", a.Name,
-			"output", fmt.Sprintf("%#v", output),
+			"name", a.Name(),
+			"output", outputBytes,
 			"err", err)
 	}()
 
@@ -258,26 +262,9 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 
 // RunJSON runs the action with a JSON input, and returns a JSON result along with telemetry info.
 func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
-	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
+	i, err := base.UnmarshalAndNormalize[In](input, a.desc.InputSchema)
+	if err != nil {
 		return nil, NewError(INVALID_ARGUMENT, err.Error())
-	}
-
-	var i In
-	if len(input) > 0 {
-		if err := json.Unmarshal(input, &i); err != nil {
-			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
-		}
-
-		// Adhere to the input schema if the number type is ambiguous and the input type is an any.
-		converted, err := base.ConvertJSONNumbers(i, a.desc.InputSchema)
-		if err != nil {
-			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
-		}
-
-		if result, ok := converted.(In); ok {
-			i = result
-		}
 	}
 
 	var scb StreamCallback[Stream]
@@ -337,6 +324,8 @@ func ResolveActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType,
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong api.
+//
+// Deprecated: Use ResolveActionFor.
 func LookupActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType, name string) *ActionDef[In, Out, Stream] {
 	provider, id := api.ParseName(name)
 	key := api.NewKey(atype, provider, id)

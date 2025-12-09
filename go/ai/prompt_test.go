@@ -511,7 +511,45 @@ func TestValidPrompt(t *testing.T) {
 				WithInput(HelloPromptInput{Name: "foo"}),
 				WithMessages(NewModelTextMessage("I remember you said your name is {{Name}}")),
 			},
-			wantTextOutput: "Echo: system: say hello; my name is foo; I remember you said your name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: say hello; I remember you said your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewTextPart("I remember you said your name is foo")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+				},
+			},
+		},
+		{
+			name:       "execute with tools overriding prompt-level tools",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			tools:      []ToolRef{testTool(reg, "promptTool")},
+			input:      HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptExecuteOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+				WithTools(testTool(reg, "executeOverrideTool")),
+			},
+			wantTextOutput: "Echo: system: tool: say hello; my name is foo; ; Bar; ; config: {\n  \"temperature\": 11\n}; context: null",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
@@ -531,7 +569,24 @@ func TestValidPrompt(t *testing.T) {
 					},
 					{
 						Role:    RoleModel,
-						Content: []*Part{NewTextPart("I remember you said your name is foo")},
+						Content: []*Part{NewToolRequestPart(&ToolRequest{Name: "executeOverrideTool", Input: map[string]any{"Test": "Bar"}})},
+					},
+					{
+						Role:    RoleTool,
+						Content: []*Part{NewToolResponsePart(&ToolResponse{Output: "Bar"})},
+					},
+				},
+				Tools: []*ToolDefinition{
+					{
+						Name:        "executeOverrideTool",
+						Description: "use when need to execute a test",
+						InputSchema: map[string]any{
+							"additionalProperties": bool(false),
+							"properties":           map[string]any{"Test": map[string]any{"type": string("string")}},
+							"required":             []any{string("Test")},
+							"type":                 string("object"),
+						},
+						OutputSchema: map[string]any{"type": string("string")},
 					},
 				},
 			},
@@ -830,9 +885,9 @@ func TestLoadPrompt(t *testing.T) {
 	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockPromptContent := `---
 model: test-model
+maxTurns: 5
 description: A test prompt
 toolChoice: required
-maxTurns: 5
 returnToolRequests: true
 input:
   schema:
@@ -849,7 +904,7 @@ output:
 ---
 Hello, {{name}}!
 `
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
@@ -881,6 +936,74 @@ Hello, {{name}}!
 	if promptMetadata["model"] != "test-model" {
 		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(api.Action).Desc().Metadata["model"])
 	}
+	if promptMetadata["maxTurns"] != 5 {
+		t.Errorf("Expected maxTurns set to 5, got: %d", promptMetadata["maxTurns"])
+	}
+}
+
+func TestLoadPromptSnakeCase(t *testing.T) {
+	tempDir := t.TempDir()
+	mockPromptFile := filepath.Join(tempDir, "snake.prompt")
+	mockPromptContent := `---
+model: googleai/gemini-2.5-flash
+input:
+  schema:
+    items(array):
+      teamColor: string
+      team_name: string
+---
+{{#each items as |it|}}
+{{ it.teamColor }},{{ it.team_name }}
+{{/each}}
+`
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	reg := registry.New()
+	LoadPrompt(reg, tempDir, "snake.prompt", "snake-namespace")
+
+	prompt := LookupPrompt(reg, "snake-namespace/snake")
+	if prompt == nil {
+		t.Fatalf("prompt was not registered")
+	}
+
+	type SnakeInput struct {
+		TeamColor string `json:"teamColor"` // intentionally leaving camel case to test snake + camel support
+		TeamName  string `json:"team_name"`
+	}
+
+	input := map[string]any{"items": []SnakeInput{
+		{TeamColor: "RED", TeamName: "Firebase"},
+		{TeamColor: "BLUE", TeamName: "Gophers"},
+		{TeamColor: "GREEN", TeamName: "Google"},
+	}}
+
+	actionOpts, err := prompt.Render(context.Background(), input)
+	if err != nil {
+		t.Fatalf("error rendering prompt: %v", err)
+	}
+	if actionOpts.Messages == nil {
+		t.Fatal("expecting messages to be rendered")
+	}
+	renderedPrompt := actionOpts.Messages[0].Text()
+	for line := range strings.SplitSeq(renderedPrompt, "\n") {
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "RED") {
+			if !strings.Contains(trimmedLine, "Firebase") {
+				t.Fatalf("wrong template render, want: RED,Firebase, got: %s", trimmedLine)
+			}
+		} else if strings.HasPrefix(trimmedLine, "BLUE") {
+			if !strings.Contains(trimmedLine, "Gophers") {
+				t.Fatalf("wrong template render, want: BLUE,Gophers, got: %s", trimmedLine)
+			}
+		} else if strings.HasPrefix(trimmedLine, "GREEN") {
+			if !strings.Contains(trimmedLine, "Google") {
+				t.Fatalf("wrong template render, want: GREEN,Google, got: %s", trimmedLine)
+			}
+		}
+	}
 }
 
 func TestLoadPrompt_FileNotFound(t *testing.T) {
@@ -904,7 +1027,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	// Create an invalid .prompt file
 	invalidPromptFile := filepath.Join(tempDir, "invalid.prompt")
 	invalidPromptContent := `invalid json content`
-	err := os.WriteFile(invalidPromptFile, []byte(invalidPromptContent), 0644)
+	err := os.WriteFile(invalidPromptFile, []byte(invalidPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create invalid prompt file: %v", err)
 	}
@@ -935,7 +1058,7 @@ description: A test prompt
 
 Hello, {{name}}!
 `
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
@@ -960,7 +1083,7 @@ func TestLoadPromptFolder(t *testing.T) {
 	// Create mock prompt and partial files
 	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockSubDir := filepath.Join(tempDir, "subdir")
-	err := os.Mkdir(mockSubDir, 0755)
+	err := os.Mkdir(mockSubDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create subdirectory: %v", err)
 	}
@@ -983,14 +1106,14 @@ output:
 Hello, {{name}}!
 `
 
-	err = os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	err = os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
 	// Create a mock prompt file in the subdirectory
 	mockSubPromptFile := filepath.Join(mockSubDir, "sub_example.prompt")
-	err = os.WriteFile(mockSubPromptFile, []byte(mockPromptContent), 0644)
+	err = os.WriteFile(mockSubPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file in subdirectory: %v", err)
 	}
@@ -1073,7 +1196,7 @@ You are a pirate!
 {{ role "user" }}
 Hello!
 `
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
@@ -1088,5 +1211,66 @@ Hello!
 	_, err = prompt.Execute(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+}
+
+func TestMultiMessagesRenderPrompt(t *testing.T) {
+	tempDir := t.TempDir()
+
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+---
+<<<dotprompt:role:system>>>
+You are a pirate!
+
+<<<dotprompt:role:user>>>
+Hello!
+`
+
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	prompt := LoadPrompt(registry.New(), tempDir, "example.prompt", "multi-namespace-roles")
+
+	actionOpts, err := prompt.Render(context.Background(), map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+
+	// Check that actionOpts is not nil
+	if actionOpts == nil {
+		t.Fatal("Expected actionOpts to be non-nil")
+	}
+
+	// Check that we have exactly 2 messages (system and user)
+	if len(actionOpts.Messages) != 2 {
+		t.Fatalf("Expected 2 messages, got %d", len(actionOpts.Messages))
+	}
+
+	// Check first message (system role)
+	systemMsg := actionOpts.Messages[0]
+	if systemMsg.Role != RoleSystem {
+		t.Errorf("Expected first message role to be 'system', got '%s'", systemMsg.Role)
+	}
+	if len(systemMsg.Content) == 0 {
+		t.Fatal("Expected system message to have content")
+	}
+	if strings.TrimSpace(systemMsg.Content[0].Text) != "You are a pirate!" {
+		t.Errorf("Expected system message text to be 'You are a pirate!', got '%s'", systemMsg.Content[0].Text)
+	}
+
+	// Check second message (user role)
+	userMsg := actionOpts.Messages[1]
+	if userMsg.Role != RoleUser {
+		t.Errorf("Expected second message role to be 'user', got '%s'", userMsg.Role)
+	}
+	if len(userMsg.Content) == 0 {
+		t.Fatal("Expected user message to have content")
+	}
+	if strings.TrimSpace(userMsg.Content[0].Text) != "Hello!" {
+		t.Errorf("Expected user message text to be 'Hello!', got '%s'", userMsg.Content[0].Text)
 	}
 }
