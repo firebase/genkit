@@ -179,6 +179,12 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsNonStreaming {
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
@@ -201,8 +207,17 @@ export class Runner extends BaseRunner<RunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    const { thinking: defaultThinkingConfig, ...restConfig } =
-      request.config || {};
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _,
+      thinking: defaultThinkingConfig,
+      ...restConfig
+    } = request.config ?? {};
 
     const body: MessageCreateParamsNonStreaming = {
       model: mappedModelName,
@@ -212,8 +227,8 @@ export class Runner extends BaseRunner<RunnerTypes> {
       system: systemValue,
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
-      top_k: request.config?.topK,
-      top_p: request.config?.topP,
+      top_k: topK,
+      top_p: topP,
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
       tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
@@ -223,12 +238,6 @@ export class Runner extends BaseRunner<RunnerTypes> {
       ...restConfig,
     };
 
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-
     return body;
   }
 
@@ -237,6 +246,12 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsStreaming {
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
@@ -259,8 +274,17 @@ export class Runner extends BaseRunner<RunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    const { thinking: defaultThinkingConfig, ...restConfig } =
-      request.config || {};
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _,
+      thinking: defaultThinkingConfig,
+      ...restConfig
+    } = request.config ?? {};
 
     const body: MessageCreateParamsStreaming = {
       model: mappedModelName,
@@ -271,8 +295,8 @@ export class Runner extends BaseRunner<RunnerTypes> {
       system: systemValue,
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
-      top_k: request.config?.topK,
-      top_p: request.config?.topP,
+      top_k: topK,
+      top_p: topP,
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
       tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
@@ -281,12 +305,6 @@ export class Runner extends BaseRunner<RunnerTypes> {
         thinkingConfig,
       ...restConfig,
     };
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
 
     return body;
   }

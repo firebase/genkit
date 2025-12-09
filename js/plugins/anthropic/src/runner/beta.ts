@@ -303,8 +303,17 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    const { thinking: defaultThinkingConfig, ...restConfig } =
-      request.config || {};
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _,
+      thinking: defaultThinkingConfig,
+      ...restConfig
+    } = request.config ?? {};
 
     const body: BetaMessageCreateParamsNonStreaming = {
       model: mappedModelName,
@@ -314,8 +323,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       system: betaSystem,
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
-      top_k: request.config?.topK,
-      top_p: request.config?.topP,
+      top_k: topK,
+      top_p: topP,
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
       tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
@@ -329,7 +338,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
           }
         : undefined,
       betas: Array.isArray(request.config?.betas)
-        ? [...BETA_APIS, ...(request.config?.betas ?? [])]
+        ? [...(request.config?.betas ?? [])]
         : [...BETA_APIS],
       ...restConfig,
     };
@@ -367,8 +376,17 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    const { thinking: defaultThinkingConfig, ...restConfig } =
-      request.config || {};
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _,
+      thinking: defaultThinkingConfig,
+      ...restConfig
+    } = request.config ?? {};
 
     const body: BetaMessageCreateParamsStreaming = {
       model: mappedModelName,
@@ -379,8 +397,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       system: betaSystem,
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
-      top_k: request.config?.topK,
-      top_p: request.config?.topP,
+      top_k: topK,
+      top_p: topP,
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
       tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
@@ -394,7 +412,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
           }
         : undefined,
       betas: Array.isArray(request.config?.betas)
-        ? [...BETA_APIS, ...(request.config?.betas ?? [])]
+        ? [...(request.config?.betas ?? [])]
         : [...BETA_APIS],
       ...restConfig,
     };
