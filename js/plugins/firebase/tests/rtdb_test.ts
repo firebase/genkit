@@ -100,8 +100,8 @@ describe('RtdbStreamManager', () => {
 
     const db = getDatabase(app);
     const streamRef = db.ref(`genkit-streams/${streamId}`);
-    streamRef.set({ metadata: { createdAt: Date.now() } }).then(() => {
-      streamManager.subscribe(streamId, {
+    streamRef.set({ metadata: { createdAt: Date.now() } }).then(async () => {
+      await streamManager.subscribe(streamId, {
         onChunk: (chunk) => {
           chunks.push(chunk);
         },
