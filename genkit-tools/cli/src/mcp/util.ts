@@ -36,7 +36,7 @@ export class McpRuntimeManager {
 
   async getManagerWithDevProcess(command: string, args: string[]) {
     if (this.manager) {
-      await this.manager.stop();
+      await this.manager.processManager?.kill();
     }
     const devManager = await startDevProcessManager(
       this.projectRoot,
@@ -49,7 +49,7 @@ export class McpRuntimeManager {
 
   async kill() {
     if (this.manager) {
-      await this.manager.stop();
+      await this.manager.processManager?.kill();
     }
   }
 }
