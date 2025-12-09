@@ -72,6 +72,7 @@ from genkit.core.typing import (
     SpanMetadata,
     ToolChoice,
     EmbedderOptions,
+    EmbedderFn,
 )
 
 EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'

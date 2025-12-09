@@ -41,11 +41,7 @@ def test_embedder_action_metadata():
     options = EmbedderOptions(label='Test Embedder', dimensions=128)
     action_metadata = embedder_action_metadata(
         name='test_model',
-        info={
-            'label': options.label.root,
-            'dimensions': options.dimensions.root,
-        },
-        config_schema=None,
+        options=options,
     )
 
     assert isinstance(action_metadata, ActionMetadata)
@@ -53,8 +49,8 @@ def test_embedder_action_metadata():
     assert action_metadata.output_json_schema is not None
     assert action_metadata.metadata == {
         'embedder': {
-            'label': options.label.root,
-            'dimensions': options.dimensions.root,
+            'label': options.label,
+            'dimensions': options.dimensions,
             'customOptions': None,
         }
     }
@@ -70,7 +66,7 @@ def test_embedder_action_metadata_with_supports_and_config_schema():
     options = EmbedderOptions(
         label='Advanced Embedder',
         dimensions=256,
-        supports=EmbedderSupports(input=['text', 'image'], multilingual=True),
+        supports=EmbedderSupports(input=['text', 'image']),
         config_schema=to_json_schema(CustomConfig),
     )
     action_metadata = embedder_action_metadata(
@@ -80,10 +76,9 @@ def test_embedder_action_metadata_with_supports_and_config_schema():
 
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata['embedder']['label'] == 'Advanced Embedder'
-    assert action_metadata.metadata['embedder']['dimensions'] == options.label.root
+    assert action_metadata.metadata['embedder']['dimensions'] == options.dimensions
     assert action_metadata.metadata['embedder']['supports'] == {
         'input': ['text', 'image'],
-        'multilingual': True,
     }
     assert action_metadata.metadata['embedder']['customOptions'] == {
         'title': 'CustomConfig',

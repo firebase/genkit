@@ -96,15 +96,6 @@ class ToolResponse(BaseModel):
     output: Any | None = None
 
 
-class EmbedderSupports(BaseModel):
-    """Model for embeddersupports data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    input: list[str] | None = None
-    multiturn: bool | None = None
-    multilingual: bool | None = None
-
-
 class Embedding(BaseModel):
     """Model for embedding data."""
 
@@ -726,35 +717,6 @@ class EmbedResponse(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     embeddings: list[Embedding]
-
-
-class EmbedderInfo(BaseModel):
-    """Model for embedderinfo data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    label: str | None = None
-    dimensions: float | None = None
-    supports: EmbedderSupports | None = None
-
-
-class EmbedderOptions(BaseModel):
-    """Model for embedderoptions data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    label: str | None = None
-    dimensions: float | None = None
-    supports: EmbedderSupports | None = None
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
-
-
-class EmbedderRef(BaseModel):
-    """Model for embedderref data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    name: str
-    info: EmbedderInfo | None = None
-    config: Any | None = None
-    version: str | None = None
 
 
 class BaseEvalDataPoint(BaseModel):
