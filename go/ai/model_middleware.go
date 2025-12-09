@@ -48,6 +48,36 @@ type DownloadMediaOptions struct {
 	Filter   func(part *Part) bool // Filter to apply to parts that are media URLs.
 }
 
+func CalculateInputOutputUsage(req *ModelRequest, resp *ModelResponse) {
+	if resp.Usage == nil {
+		resp.Usage = &GenerationUsage{}
+	}
+	if resp.Usage.InputCharacters == 0 {
+		resp.Usage.InputCharacters = countInputCharacters(req)
+	}
+	if resp.Usage.OutputCharacters == 0 {
+		resp.Usage.OutputCharacters = countOutputCharacters(resp)
+	}
+	if resp.Usage.InputImages == 0 {
+		resp.Usage.InputImages = countInputParts(req, func(part *Part) bool { return part.IsImage() })
+	}
+	if resp.Usage.OutputImages == 0 {
+		resp.Usage.OutputImages = countOutputParts(resp, func(part *Part) bool { return part.IsImage() })
+	}
+	if resp.Usage.InputVideos == 0 {
+		resp.Usage.InputVideos = countInputParts(req, func(part *Part) bool { return part.IsVideo() })
+	}
+	if resp.Usage.OutputVideos == 0 {
+		resp.Usage.OutputVideos = countOutputParts(resp, func(part *Part) bool { return part.IsVideo() })
+	}
+	if resp.Usage.InputAudioFiles == 0 {
+		resp.Usage.InputAudioFiles = countInputParts(req, func(part *Part) bool { return part.IsAudio() })
+	}
+	if resp.Usage.OutputAudioFiles == 0 {
+		resp.Usage.OutputAudioFiles = countOutputParts(resp, func(part *Part) bool { return part.IsAudio() })
+	}
+}
+
 // addAutomaticTelemetry creates middleware that automatically measures latency and calculates character and media counts.
 func addAutomaticTelemetry() ModelMiddleware {
 	return func(fn ModelFunc) ModelFunc {
@@ -66,33 +96,7 @@ func addAutomaticTelemetry() ModelMiddleware {
 				resp.LatencyMs = latencyMs
 			}
 
-			if resp.Usage == nil {
-				resp.Usage = &GenerationUsage{}
-			}
-			if resp.Usage.InputCharacters == 0 {
-				resp.Usage.InputCharacters = countInputCharacters(req)
-			}
-			if resp.Usage.OutputCharacters == 0 {
-				resp.Usage.OutputCharacters = countOutputCharacters(resp)
-			}
-			if resp.Usage.InputImages == 0 {
-				resp.Usage.InputImages = countInputParts(req, func(part *Part) bool { return part.IsImage() })
-			}
-			if resp.Usage.OutputImages == 0 {
-				resp.Usage.OutputImages = countOutputParts(resp, func(part *Part) bool { return part.IsImage() })
-			}
-			if resp.Usage.InputVideos == 0 {
-				resp.Usage.InputVideos = countInputParts(req, func(part *Part) bool { return part.IsVideo() })
-			}
-			if resp.Usage.OutputVideos == 0 {
-				resp.Usage.OutputVideos = countOutputParts(resp, func(part *Part) bool { return part.IsVideo() })
-			}
-			if resp.Usage.InputAudioFiles == 0 {
-				resp.Usage.InputAudioFiles = countInputParts(req, func(part *Part) bool { return part.IsAudio() })
-			}
-			if resp.Usage.OutputAudioFiles == 0 {
-				resp.Usage.OutputAudioFiles = countOutputParts(resp, func(part *Part) bool { return part.IsAudio() })
-			}
+			CalculateInputOutputUsage(req, resp)
 
 			return resp, nil
 		}

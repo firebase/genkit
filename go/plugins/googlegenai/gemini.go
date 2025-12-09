@@ -294,11 +294,12 @@ func generate(
 
 	// Streaming version.
 	iter := client.Models.GenerateContentStream(ctx, model, contents, gcc)
-	var r *ai.ModelResponse
 
-	// merge all streamed responses
-	var resp *genai.GenerateContentResponse
-	var chunks []*genai.Part
+	var r *ai.ModelResponse
+	var genaiResp *genai.GenerateContentResponse
+
+	genaiParts := []*genai.Part{}
+	chunks := []*ai.Part{}
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -311,27 +312,38 @@ func generate(
 			}
 			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
+				Role:    ai.RoleModel,
 			})
 			if err != nil {
 				return nil, err
 			}
-			chunks = append(chunks, c.Content.Parts...)
+			genaiParts = append(genaiParts, c.Content.Parts...)
+			chunks = append(chunks, tc.Message.Content...)
 		}
-		// keep the last chunk for usage metadata
-		resp = chunk
+		genaiResp = chunk
+
 	}
 
-	// manually merge all candidate responses, iterator does not provide a
-	// merged response utility
+	if len(genaiResp.Candidates) == 0 {
+		return nil, fmt.Errorf("no valid candidates found")
+	}
+
+	// preserve original parts since they will be included in the
+	// "custom" response field
 	merged := []*genai.Candidate{
 		{
+			FinishReason: genaiResp.Candidates[0].FinishReason,
 			Content: &genai.Content{
-				Parts: chunks,
+				Role:  string(ai.RoleModel),
+				Parts: genaiParts,
 			},
 		},
 	}
-	resp.Candidates = merged
-	r, err = translateResponse(resp)
+
+	genaiResp.Candidates = merged
+	r, err = translateResponse(genaiResp)
+	r.Message.Content = chunks
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate contents: %w", err)
 	}
@@ -746,16 +758,14 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonOther:
 		m.FinishReason = ai.FinishReasonOther
-	default: // Unspecified
-		m.FinishReason = ai.FinishReasonUnknown
 	}
 
+	m.FinishMessage = cand.FinishMessage
 	if cand.Content == nil {
 		return nil, fmt.Errorf("no valid candidates were found in the generate response")
 	}
 	msg := &ai.Message{}
 	msg.Role = ai.Role(cand.Content.Role)
-
 	// iterate over the candidate parts, only one struct member
 	// must be populated, more than one is considered an error
 	for _, part := range cand.Content.Parts {
@@ -830,13 +840,20 @@ func translateResponse(resp *genai.GenerateContentResponse) (*ai.ModelResponse, 
 		r.Usage = &ai.GenerationUsage{}
 	}
 
+	// populate "custom" with plugin custom information
+	custom := make(map[string]any)
+	custom["candidates"] = resp.Candidates
+
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
 		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
+		custom["usageMetadata"] = resp.UsageMetadata
 	}
+
+	r.Custom = custom
 	return r, nil
 }
 
