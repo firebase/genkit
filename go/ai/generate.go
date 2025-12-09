@@ -617,15 +617,7 @@ func clone[T any](obj *T) *T {
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
 func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int) (*ModelRequest, *Message, error) {
-	toolCount := 0
-	if resp.Message != nil {
-		for _, part := range resp.Message.Content {
-			if part.IsToolRequest() {
-				toolCount++
-			}
-		}
-	}
-
+	toolCount := len(resp.ToolRequests())
 	if toolCount == 0 {
 		return nil, nil, nil
 	}
