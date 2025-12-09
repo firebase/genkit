@@ -197,6 +197,16 @@ export class LocalFileTraceStore implements TraceStore {
     };
   }
 
+  async delete(traceId: string): Promise<void> {
+    const filePath = path.resolve(this.storeRoot, `${traceId}`);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      logger.debug(`[Telemetry Server] Deleted trace ${traceId}`);
+    }
+    // Index entry is left orphaned but will be filtered out on load
+    // and cleaned up on next reindex
+  }
+
   private async listFromFiles(query?: TraceQuery): Promise<TraceQueryResponse> {
     const files = fs.readdirSync(this.storeRoot);
     files.sort((a, b) => {

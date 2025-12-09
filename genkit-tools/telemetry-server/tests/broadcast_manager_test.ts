@@ -92,7 +92,8 @@ describe('BroadcastManager', () => {
     const event = createSpanEvent('trace-1');
     manager.broadcast('trace-1', event);
 
-    const expectedData = JSON.stringify(event) + '\n\n';
+    // SSE format: "data: <json>\n\n"
+    const expectedData = `data: ${JSON.stringify(event)}\n\n`;
     assert.strictEqual(response1.writtenData[0], expectedData);
     assert.strictEqual(response2.writtenData[0], expectedData);
   });

@@ -269,6 +269,86 @@ describe('local-file-store', () => {
     );
   });
 
+  it('deletes traces', async () => {
+    const traceData = {
+      traceId: TRACE_ID,
+      displayName: 'trace',
+      spans: { [SPAN_A]: span(TRACE_ID, SPAN_A, 100, 100) },
+    } as TraceData;
+
+    // Create the trace
+    const createRes = await fetch(`${url}/api/traces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(traceData),
+    });
+    assert.strictEqual(createRes.status, 200);
+
+    // Verify it exists
+    const getRes1 = await fetch(`${url}/api/traces/${TRACE_ID}`);
+    assert.strictEqual(getRes1.status, 200);
+    const retrieved = await getRes1.json();
+    assert.strictEqual(retrieved.traceId, TRACE_ID);
+
+    // Delete the trace
+    const deleteRes = await fetch(`${url}/api/traces/${TRACE_ID}`, {
+      method: 'DELETE',
+    });
+    assert.strictEqual(deleteRes.status, 200);
+
+    // Verify it's gone
+    const getRes2 = await fetch(`${url}/api/traces/${TRACE_ID}`);
+    assert.strictEqual(getRes2.status, 200);
+    const responseText = await getRes2.text();
+    assert.strictEqual(responseText, '');
+  });
+
+  it('deletes trace and filters from list', async () => {
+    // Create multiple traces
+    for (let i = 0; i < 3; i++) {
+      const spanId = `abc_${i}`;
+      const traceId = TRACE_ID + `_${i}`;
+      const spanData = span(traceId, spanId, 100 + i, 100 + i);
+      const trace = {
+        traceId: traceId,
+        displayName: 'trace',
+        spans: { [spanId]: spanData },
+      };
+
+      const res = await fetch(`${url}/api/traces`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trace),
+      });
+      assert.strictEqual(res.status, 200);
+      await sleep(1);
+    }
+
+    // Delete the middle trace
+    const deleteRes = await fetch(`${url}/api/traces/${TRACE_ID}_1`, {
+      method: 'DELETE',
+    });
+    assert.strictEqual(deleteRes.status, 200);
+
+    // List should only return 2 traces
+    const listRes = await fetch(`${url}/api/traces`);
+    assert.strictEqual(listRes.status, 200);
+    const tracesResponse = await listRes.json();
+    assert.strictEqual(tracesResponse.traces.length, 2);
+    assert.ok(
+      tracesResponse.traces.every(
+        (t: TraceData) => t.traceId !== `${TRACE_ID}_1`
+      )
+    );
+  });
+
+  it('delete is idempotent for non-existent trace', async () => {
+    const deleteRes = await fetch(`${url}/api/traces/non-existent-trace`, {
+      method: 'DELETE',
+    });
+    assert.strictEqual(deleteRes.status, 200);
+  });
+
   async function assertTraceData(traceId: string, traceData: TraceData) {
     const getResp = await fetch(`${url}/api/traces/${traceId}`);
     assert.strictEqual(getResp.status, 200);

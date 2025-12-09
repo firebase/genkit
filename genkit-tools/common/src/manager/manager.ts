@@ -68,8 +68,6 @@ export class RuntimeManager {
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
   private eventEmitter = new EventEmitter();
-  private watchers: chokidar.FSWatcher[] = [];
-  private healthCheckInterval?: NodeJS.Timeout;
 
   private constructor(
     readonly telemetryServerUrl: string | undefined,
@@ -93,25 +91,12 @@ export class RuntimeManager {
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
     if (manager.manageHealth) {
-      manager.healthCheckInterval = setInterval(
+      setInterval(
         async () => await manager.performHealthChecks(),
         HEALTH_CHECK_INTERVAL
       );
     }
     return manager;
-  }
-
-  /**
-   * Stops the runtime manager and cleans up resources.
-   */
-  async stop() {
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-    }
-    await Promise.all(this.watchers.map((watcher) => watcher.close()));
-    if (this.processManager) {
-      await this.processManager.kill();
-    }
   }
 
   /**
@@ -365,6 +350,10 @@ export class RuntimeManager {
           },
         }
       );
+
+      // Delete the trace from the telemetry server
+      await this.deleteTrace(input.traceId);
+
       return response.data;
     } catch (err) {
       const axiosError = err as AxiosError;
@@ -379,6 +368,18 @@ export class RuntimeManager {
         throw error;
       }
       throw this.httpErrorHandler(axiosError);
+    }
+  }
+
+  /**
+   * Deletes a trace by ID
+   */
+  async deleteTrace(traceId: string): Promise<void> {
+    try {
+      await axios.delete(`${this.telemetryServerUrl}/api/traces/${traceId}`);
+    } catch (err) {
+      // Log but don't fail - trace deletion is best-effort
+      logger.debug(`Failed to delete trace ${traceId}: ${err}`);
     }
   }
 
@@ -538,7 +539,6 @@ export class RuntimeManager {
         persistent: true,
         ignoreInitial: false,
       });
-      this.watchers.push(watcher);
       watcher.on('add', (filePath) => this.handleNewRuntime(filePath));
       if (this.manageHealth) {
         watcher.on('unlink', (filePath) => this.handleRemovedRuntime(filePath));
@@ -563,7 +563,6 @@ export class RuntimeManager {
         persistent: true,
         ignoreInitial: false,
       });
-      this.watchers.push(watcher);
       watcher.on('add', (filePath) => this.handleNewDevUi(filePath));
       if (this.manageHealth) {
         watcher.on('unlink', (filePath) => this.handleRemovedDevUi(filePath));

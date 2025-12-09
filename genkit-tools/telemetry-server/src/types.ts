@@ -50,4 +50,5 @@ export interface TraceStore {
   save(traceId: string, trace: TraceData): Promise<void>;
   load(traceId: string): Promise<TraceData | undefined>;
   list(query?: TraceQuery): Promise<TraceQueryResponse>;
+  delete(traceId: string): Promise<void>;
 }
