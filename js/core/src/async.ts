@@ -128,10 +128,26 @@ export function lazy<T>(fn: () => T | PromiseLike<T>): PromiseLike<T> {
 }
 
 /**
+ * Options for AsyncTaskQueue.
+ */
+export interface AsyncTaskQueueOptions {
+  /**
+   * If true, the queue will stop executing subsequent tasks if a task fails.
+   * If false (default), the queue will continue executing subsequent tasks even if a task fails.
+   */
+  stopOnError?: boolean;
+}
+
+/**
  * A queue for asynchronous tasks. The queue ensures that only one task runs at a time in order.
  */
 export class AsyncTaskQueue {
   private last: Promise<any> = Promise.resolve();
+  private options: AsyncTaskQueueOptions;
+
+  constructor(options?: AsyncTaskQueueOptions) {
+    this.options = options || {};
+  }
 
   /**
    * Adds a task to the queue.
@@ -139,7 +155,14 @@ export class AsyncTaskQueue {
    * @param task A function that returns a value or a PromiseLike.
    */
   enqueue(task: () => any | PromiseLike<any>) {
-    this.last = this.last.then(() => lazy(task)).then((res) => res);
+    if (this.options.stopOnError) {
+      this.last = this.last.then(() => lazy(task)).then((res) => res);
+    } else {
+      this.last = this.last
+        .catch(() => {})
+        .then(() => lazy(task))
+        .then((res) => res);
+    }
     // Prevent unhandled promise rejections.
     this.last.catch(() => {});
   }

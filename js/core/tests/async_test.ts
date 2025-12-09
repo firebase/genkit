@@ -90,6 +90,41 @@ describe('AsyncTaskQueue', () => {
 
     assert.deepStrictEqual(results, [1, 2]);
   });
+
+  it('should continue execution after an error', async () => {
+    const queue = new AsyncTaskQueue();
+    const results: number[] = [];
+    const error = new Error('test error');
+
+    queue.enqueue(async () => {
+      throw error;
+    });
+
+    queue.enqueue(() => {
+      results.push(2);
+    });
+
+    await queue.merge();
+
+    assert.deepStrictEqual(results, [2]);
+  });
+
+  it('should stop execution on error when configured', async () => {
+    const queue = new AsyncTaskQueue({ stopOnError: true });
+    const results: number[] = [];
+    const error = new Error('test error');
+
+    queue.enqueue(async () => {
+      throw error;
+    });
+
+    queue.enqueue(() => {
+      results.push(2);
+    });
+
+    await assert.rejects(queue.merge(), error);
+    assert.deepStrictEqual(results, []);
+  });
 });
 
 describe('LazyPromise', () => {
