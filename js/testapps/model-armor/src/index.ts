@@ -46,7 +46,7 @@ ai.defineFlow(
         use: [
           modelArmor({
             templateName: templateName,
-            filters: ['pi_and_jailbreak'],
+            filters: ['pi_and_jailbreak', 'sdp'],
             clientOptions: {
               apiEndpoint: 'modelarmor.us-central1.rep.googleapis.com',
             },

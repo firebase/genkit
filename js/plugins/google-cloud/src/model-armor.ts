@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 import { ModelArmorClient } from '@google-cloud/modelarmor';
 import { GenkitError } from 'genkit';
 import {
@@ -59,6 +58,53 @@ function extractText(parts: Part[]): string {
   return parts.map((p) => p.text || '').join('');
 }
 
+function applySdp(
+  content: Part[],
+  result: any
+): { sdpApplied: boolean; content: Part[] } {
+  const sdpResult =
+    result.filterResults?.['sdp']?.sdpFilterResult?.deidentifyResult;
+
+  if (sdpResult && sdpResult.data?.text) {
+    const nonTextParts = content.filter((p) => !p.text);
+    return {
+      sdpApplied: true,
+      content: [...nonTextParts, { text: sdpResult.data.text }],
+    };
+  }
+  return { sdpApplied: false, content };
+}
+
+function shouldBlock(
+  result: any,
+  options: ModelArmorOptions,
+  sdpApplied: boolean
+): boolean {
+  if (result.filterMatchState !== 'MATCH_FOUND') {
+    return false;
+  }
+  // Check if we should block.
+  // If strict SDP enforcement is enabled and SDP was applied, we must block.
+  if (options.strictSdpEnforcement && sdpApplied) {
+    return true;
+  }
+  // Otherwise, check if any active filter matched.
+  if (result.filterResults) {
+    for (const [key, filterResult] of Object.entries(result.filterResults)) {
+      if (options.filters && !options.filters.includes(key)) continue;
+      if (key === 'sdp' && sdpApplied) continue;
+
+      // Look for matchState in the nested object
+      // e.g. filterResult.raiFilterResult.matchState
+      const nestedResult = Object.values(filterResult as any)[0] as any;
+      if (nestedResult?.matchState === 'MATCH_FOUND') {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 async function sanitizeUserPrompt(
   req: GenerateRequest,
   client: ModelArmorClient,
@@ -97,50 +143,20 @@ async function sanitizeUserPrompt(
 
           if (response.sanitizationResult) {
             const result = response.sanitizationResult;
-            const sdpResult =
-              result.filterResults?.['sdp']?.sdpFilterResult?.deidentifyResult;
-
-            let sdpApplied = false;
-            if (sdpResult && sdpResult.data?.text) {
-              const nonTextParts = userMessage.content.filter((p) => !p.text);
-              req.messages[targetMessageIndex].content = [
-                ...nonTextParts,
-                { text: sdpResult.data.text },
-              ];
-              sdpApplied = true;
+            const { sdpApplied, content } = applySdp(
+              userMessage.content,
+              result
+            );
+            if (sdpApplied) {
+              req.messages[targetMessageIndex].content = content;
             }
 
-            if (result.filterMatchState === 'MATCH_FOUND') {
-              // Check if we should block.
-              // If SDP applied, we might be safe, but check other filters.
-              // If ANY filter matched (except SDP when remediated), block.
-              let block = false;
-              if (options.strictSdpEnforcement && sdpApplied) {
-                block = true;
-              } else if (result.filterResults) {
-                for (const [key, filterResult] of Object.entries(
-                  result.filterResults
-                )) {
-                  if (options.filters && !options.filters.includes(key))
-                    continue;
-                  if (key === 'sdp' && sdpApplied) continue;
-
-                  // Look for matchState in the nested object
-                  // e.g. filterResult.raiFilterResult.matchState
-                  const nestedResult = Object.values(filterResult)[0] as any;
-                  if (nestedResult?.matchState === 'MATCH_FOUND') {
-                    block = true;
-                    break;
-                  }
-                }
-              }
-              if (block) {
-                throw new GenkitError({
-                  status: 'PERMISSION_DENIED',
-                  message: 'Model Armor blocked user prompt.',
-                  detail: result,
-                });
-              }
+            if (shouldBlock(result, options, sdpApplied)) {
+              throw new GenkitError({
+                status: 'PERMISSION_DENIED',
+                message: 'Model Armor blocked user prompt.',
+                detail: result,
+              });
             }
           }
         }
@@ -154,11 +170,9 @@ async function sanitizeModelResponse(
   client: ModelArmorClient,
   options: ModelArmorOptions
 ) {
-  const candidates =
-    response.candidates ||
-    (response.message
-      ? [{ index: 0, message: response.message, finishReason: 'stop' }]
-      : []);
+  const candidates = response.message
+    ? [{ index: 0, message: response.message, finishReason: 'stop' }]
+    : response.candidates || [];
 
   for (const candidate of candidates) {
     const modelText = extractText(candidate.message.content);
@@ -183,46 +197,20 @@ async function sanitizeModelResponse(
 
           if (response.sanitizationResult) {
             const result = response.sanitizationResult;
-            const sdpResult =
-              result.filterResults?.['sdp']?.sdpFilterResult?.deidentifyResult;
-
-            let sdpApplied = false;
-            if (sdpResult && sdpResult.data?.text) {
-              const nonTextParts = candidate.message.content.filter(
-                (p) => !p.text
-              );
-              candidate.message.content = [
-                ...nonTextParts,
-                { text: sdpResult.data.text },
-              ];
-              sdpApplied = true;
+            const { sdpApplied, content } = applySdp(
+              candidate.message.content,
+              result
+            );
+            if (sdpApplied) {
+              candidate.message.content = content;
             }
 
-            if (result.filterMatchState === 'MATCH_FOUND') {
-              let block = false;
-              if (options.strictSdpEnforcement && sdpApplied) {
-                block = true;
-              } else if (result.filterResults) {
-                for (const [key, filterResult] of Object.entries(
-                  result.filterResults
-                )) {
-                  if (options.filters && !options.filters.includes(key))
-                    continue;
-                  if (key === 'sdp' && sdpApplied) continue;
-                  const nestedResult = Object.values(filterResult)[0] as any;
-                  if (nestedResult?.matchState === 'MATCH_FOUND') {
-                    block = true;
-                    break;
-                  }
-                }
-              }
-              if (block) {
-                throw new GenkitError({
-                  status: 'PERMISSION_DENIED',
-                  message: 'Model Armor blocked model response.',
-                  detail: result,
-                });
-              }
+            if (shouldBlock(result, options, sdpApplied)) {
+              throw new GenkitError({
+                status: 'PERMISSION_DENIED',
+                message: 'Model Armor blocked model response.',
+                detail: result,
+              });
             }
           }
         }
