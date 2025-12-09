@@ -108,13 +108,13 @@ func main() {
 		}
 
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModelName("googleai/gemini-3-pro-preview"),
+			ai.WithModelName("googleai/gemini-3-pro-image-preview"),
 			ai.WithConfig(&genai.GenerateContentConfig{
-				Temperature: genai.Ptr[float32](0.5),
-				// ResponseModalities: []string{"IMAGE", "TEXT"},
+				Temperature:        genai.Ptr[float32](0.5),
+				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithStreaming(callback),
-			ai.WithPrompt("generate a short story about %s and for each scene, generate an image for it", input))
+			ai.WithPrompt("generate a short story about %s and for each scene, generate an image for it with a %s drawing style", input.Topic, input.DrawingStyle))
 		if err != nil {
 			return nil, err
 		}
