@@ -31,10 +31,14 @@ import {
 import { getApiKeyFromEnvVar } from './common.js';
 import { Operation as ApiOperation, checkOp, predictModel } from './predict.js';
 
+/**
+ * @deprecated
+ */
 export type KNOWN_VEO_MODELS = 'veo-2.0-generate-001';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/video
+ * @deprecated
  */
 export const VeoConfigSchema = z
   .object({
@@ -114,6 +118,9 @@ interface VeoInstance {
   image?: VeoImage;
 }
 
+/**
+ * @deprecated
+ */
 export const GENERIC_VEO_INFO = {
   label: `Google AI - Generic Veo`,
   supports: {
@@ -126,6 +133,9 @@ export const GENERIC_VEO_INFO = {
   },
 } as ModelInfo;
 
+/**
+ * @deprecated
+ */
 export function defineVeoModel(
   ai: Genkit,
   name: string,
