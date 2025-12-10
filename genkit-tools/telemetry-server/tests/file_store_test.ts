@@ -115,6 +115,40 @@ describe('local-file-store', () => {
     });
   });
 
+  it('prevents overwriting completed span with incomplete span (race condition)', async () => {
+    const spanA = span(TRACE_ID, SPAN_A, 100, 200);
+    const spanA_incomplete = span(TRACE_ID, SPAN_A, 100, 100);
+    delete (spanA_incomplete as any).endTime;
+
+    // Save complete span first
+    await fetch(`${url}/api/traces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        traceId: TRACE_ID,
+        spans: { [SPAN_A]: spanA },
+      } as TraceData),
+    });
+
+    // Save incomplete span second (stale start event)
+    await fetch(`${url}/api/traces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        traceId: TRACE_ID,
+        spans: { [SPAN_A]: spanA_incomplete },
+      } as TraceData),
+    });
+
+    // Verify trace is still complete
+    await assertTraceData(TRACE_ID, {
+      traceId: TRACE_ID,
+      spans: {
+        [SPAN_A]: spanA,
+      },
+    });
+  });
+
   it('updated final trace data', async () => {
     const spanA = span(TRACE_ID, SPAN_A, 100, 100);
     const spanB = span(TRACE_ID, SPAN_B, 200, 200);

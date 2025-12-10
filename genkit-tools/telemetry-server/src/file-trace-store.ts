@@ -124,9 +124,20 @@ export class LocalFileTraceStore implements TraceStore {
     try {
       const existing = (await this.load(id)) || trace;
       if (existing) {
-        Object.keys(trace.spans).forEach(
-          (spanId) => (existing.spans[spanId] = trace.spans[spanId])
-        );
+        Object.keys(trace.spans).forEach((spanId) => {
+          // If the existing span is already completed (has endTime), and the incoming
+          // span is incomplete (no endTime), we assume the incoming span is a stale
+          // "start" event that arrived out of order. We ignore it to prevent overwriting
+          // the completed span with incomplete data.
+          if (
+            existing.spans[spanId] &&
+            existing.spans[spanId].endTime &&
+            !trace.spans[spanId].endTime
+          ) {
+            return;
+          }
+          existing.spans[spanId] = trace.spans[spanId];
+        });
         // If it's one of those weird roots (internal span that we filter) we try to fix
         // whoever was referencing it by making them root.
         if (possibleRoot) {
