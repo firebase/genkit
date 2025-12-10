@@ -401,6 +401,74 @@
       ],
       "additionalProperties": false
     },
+    "EmbedderInfo": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "number"
+        },
+        "supports": {
+          "$ref": "#/$defs/EmbedderSupports"
+        }
+      },
+      "additionalProperties": false
+    },
+    "EmbedderOptions": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "number"
+        },
+        "supports": {
+          "$ref": "#/$defs/EmbedderSupports"
+        },
+        "configSchema": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "additionalProperties": false
+    },
+    "EmbedderRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "info": {
+          "$ref": "#/$defs/EmbedderInfo"
+        },
+        "config": {},
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "EmbedderSupports": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "multiturn": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "Embedding": {
       "type": "object",
       "properties": {

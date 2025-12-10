@@ -51,3 +51,32 @@ export const EmbedResponseSchema = z.object({
   embeddings: z.array(EmbeddingSchema),
 });
 export type EmbedResponse = z.infer<typeof EmbedResponseSchema>;
+
+export const EmbedderSupportsSchema = z.object({
+  input: z.array(z.string()).optional(),
+  multiturn: z.boolean().optional(),
+});
+export type EmbedderSupports = z.infer<typeof EmbedderSupportsSchema>;
+
+export const EmbedderInfoSchema = z.object({
+  label: z.string().optional(),
+  dimensions: z.number().optional(),
+  supports: EmbedderSupportsSchema.optional(),
+});
+export type EmbedderInfo = z.infer<typeof EmbedderInfoSchema>;
+
+export const EmbedderOptionsSchema = z.object({
+  label: z.string().optional(),
+  dimensions: z.number().optional(),
+  supports: EmbedderSupportsSchema.optional(),
+  configSchema: z.record(z.any()).optional(),
+});
+export type EmbedderOptions = z.infer<typeof EmbedderOptionsSchema>;
+
+export const EmbedderRefSchema = z.object({
+  name: z.string(),
+  info: EmbedderInfoSchema.optional(),
+  config: z.any().optional(),
+  version: z.string().optional(),
+});
+export type EmbedderRef = z.infer<typeof EmbedderRefSchema>;
