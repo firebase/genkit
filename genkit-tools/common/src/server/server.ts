@@ -76,16 +76,17 @@ export function startServer(manager: RuntimeManager, port: number) {
     async (req, res) => {
       const { key, input, context, runtimeId } = req.body;
 
+      // Set headers but don't flush yet - wait for trace ID
+      res.setHeader('Content-Type', 'application/json');
+      res.statusCode = 200;
+
       try {
         const resultPromise = manager.runAction(
           { key, input, context, runtimeId },
           undefined, // no streaming callback
           (traceId) => {
-            // Send headers immediately when trace ID is available
-            // This is the first place headers are sent, so no check needed
+            // Set trace ID header and flush - this fires before response body
             res.setHeader('X-Genkit-Trace-Id', traceId);
-            res.setHeader('Content-Type', 'application/json');
-            res.statusCode = 200;
             res.flushHeaders();
           }
         );
@@ -110,23 +111,23 @@ export function startServer(manager: RuntimeManager, port: number) {
     '/api/streamAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
-      const { key, input, context } = req.body;
+      const { key, input, context, runtimeId } = req.body;
 
-      // Set streaming headers immediately
+      // Set streaming headers but don't flush yet - wait for trace ID
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Transfer-Encoding', 'chunked');
       res.statusCode = 200;
-      res.flushHeaders();
 
       try {
         const result = await manager.runAction(
-          { key, input, context },
+          { key, input, context, runtimeId },
           (chunk) => {
             res.write(JSON.stringify(chunk) + '\n');
           },
           (traceId) => {
-            // Add trace ID to headers when available (headers already sent, but we can add more)
+            // Set trace ID header and flush - this fires before first chunk
             res.setHeader('X-Genkit-Trace-Id', traceId);
+            res.flushHeaders();
           }
         );
         res.write(JSON.stringify(result));
@@ -168,9 +169,7 @@ export function startServer(manager: RuntimeManager, port: number) {
             'Content-Type': 'application/json',
           });
         }
-        res.write(
-          JSON.stringify({ error: error.data || { message: error.message } })
-        );
+        res.write(JSON.stringify({ error: error.data || { message: error.message } }));
         res.end();
       }
     }
