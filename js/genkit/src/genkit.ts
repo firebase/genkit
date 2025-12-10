@@ -108,6 +108,7 @@ import {
   GenkitError,
   Operation,
   ReflectionServer,
+  ReflectionServerV2,
   defineDynamicActionProvider,
   defineFlow,
   defineJsonSchema,
@@ -184,7 +185,7 @@ export class Genkit implements HasRegistry {
   /** Registry instance that is exclusively modified by this Genkit instance. */
   readonly registry: Registry;
   /** Reflection server for this registry. May be null if not started. */
-  private reflectionServer: ReflectionServer | null = null;
+  private reflectionServer: ReflectionServer | ReflectionServerV2 | null = null;
   /** List of flows that have been registered in this instance. */
   readonly flows: Action<any, any, any>[] = [];
 
@@ -200,10 +201,18 @@ export class Genkit implements HasRegistry {
     }
     this.configure();
     if (isDevEnv() && !disableReflectionApi) {
-      this.reflectionServer = new ReflectionServer(this.registry, {
-        configuredEnvs: ['dev'],
-        name: this.options.name,
-      });
+      if (process.env.GENKIT_REFLECTION_V2_SERVER) {
+        this.reflectionServer = new ReflectionServerV2(this.registry, {
+          configuredEnvs: ['dev'],
+          name: this.options.name,
+          url: process.env.GENKIT_REFLECTION_V2_SERVER,
+        });
+      } else {
+        this.reflectionServer = new ReflectionServer(this.registry, {
+          configuredEnvs: ['dev'],
+          name: this.options.name,
+        });
+      }
       this.reflectionServer.start().catch((e) => logger.error);
     }
     if (options?.clientHeader) {

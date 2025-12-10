@@ -60,10 +60,117 @@ interface RuntimeManagerOptions {
   projectRoot: string;
   /** An optional process manager for the main application process. */
   processManager?: ProcessManager;
+  /** Whether to use the experimental reflection V2 (WebSocket). */
+  experimentalReflectionV2?: boolean;
+  /** Port for the reflection V2 server. */
+  reflectionV2Port?: number;
 }
 
-export class RuntimeManager {
-  readonly processManager?: ProcessManager;
+export abstract class BaseRuntimeManager {
+  constructor(
+    readonly telemetryServerUrl: string | undefined,
+    readonly processManager?: ProcessManager
+  ) {}
+
+  abstract listRuntimes(): RuntimeInfo[];
+  abstract getRuntimeById(id: string): RuntimeInfo | undefined;
+  abstract getMostRecentRuntime(): RuntimeInfo | undefined;
+  abstract getMostRecentDevUI(): DevToolsInfo | undefined;
+  abstract onRuntimeEvent(
+    listener: (eventType: RuntimeEvent, runtime: RuntimeInfo) => void
+  ): void;
+  abstract listActions(
+    input?: apis.ListActionsRequest
+  ): Promise<Record<string, Action>>;
+  abstract runAction(
+    input: apis.RunActionRequest,
+    streamingCallback?: StreamingCallback<any>
+  ): Promise<RunActionResponse>;
+
+  /**
+   * Retrieves all traces
+   */
+  async listTraces(
+    input: apis.ListTracesRequest
+  ): Promise<apis.ListTracesResponse> {
+    const { limit, continuationToken, filter } = input;
+    let query = '';
+    if (limit) {
+      query += `limit=${limit}`;
+    }
+    if (continuationToken) {
+      if (query !== '') {
+        query += '&';
+      }
+      query += `continuationToken=${continuationToken}`;
+    }
+    if (filter) {
+      if (query !== '') {
+        query += '&';
+      }
+      query += `filter=${encodeURI(JSON.stringify(filter))}`;
+    }
+
+    const response = await axios
+      .get(`${this.telemetryServerUrl}/api/traces?${query}`)
+      .catch((err) =>
+        this.httpErrorHandler(err, `Error listing traces for query='${query}'.`)
+      );
+
+    return apis.ListTracesResponseSchema.parse(response.data);
+  }
+
+  /**
+   * Retrieves a trace for a given ID.
+   */
+  async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
+    const { traceId } = input;
+    const response = await axios
+      .get(`${this.telemetryServerUrl}/api/traces/${traceId}`)
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error getting trace for traceId='${traceId}'`
+        )
+      );
+
+    return response.data as TraceData;
+  }
+
+  /**
+   * Adds a trace to the trace store
+   */
+  async addTrace(input: TraceData): Promise<void> {
+    await axios
+      .post(`${this.telemetryServerUrl}/api/traces/`, input)
+      .catch((err) =>
+        this.httpErrorHandler(err, 'Error writing trace to store.')
+      );
+  }
+
+  /**
+   * Handles an HTTP error.
+   */
+  protected httpErrorHandler(error: AxiosError, message?: string): any {
+    const newError = new GenkitToolsError(message || 'Internal Error');
+
+    if (error.response) {
+      if ((error.response?.data as any).message) {
+        newError.message = (error.response?.data as any).message;
+      }
+      // we got a non-200 response; copy the payload and rethrow
+      newError.data = error.response.data as GenkitError;
+      throw newError;
+    }
+
+    // We actually have an exception; wrap it and re-throw.
+    throw new GenkitToolsError(message || 'Internal Error', {
+      cause: error.cause,
+    });
+  }
+}
+
+export class RuntimeManager extends BaseRuntimeManager {
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
@@ -72,18 +179,24 @@ export class RuntimeManager {
   private healthCheckInterval?: NodeJS.Timeout;
 
   private constructor(
-    readonly telemetryServerUrl: string | undefined,
+    telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
     readonly projectRoot: string,
     processManager?: ProcessManager
   ) {
-    this.processManager = processManager;
+    super(telemetryServerUrl, processManager);
   }
 
   /**
    * Creates a new runtime manager.
    */
-  static async create(options: RuntimeManagerOptions) {
+  static async create(
+    options: RuntimeManagerOptions
+  ): Promise<RuntimeManager | BaseRuntimeManager> {
+    if (options.experimentalReflectionV2) {
+      const { RuntimeManagerV2 } = await import('./manager-v2');
+      return RuntimeManagerV2.create(options);
+    }
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
       options.manageHealth ?? true,
@@ -298,67 +411,6 @@ export class RuntimeManager {
   }
 
   /**
-   * Retrieves all traces
-   */
-  async listTraces(
-    input: apis.ListTracesRequest
-  ): Promise<apis.ListTracesResponse> {
-    const { limit, continuationToken, filter } = input;
-    let query = '';
-    if (limit) {
-      query += `limit=${limit}`;
-    }
-    if (continuationToken) {
-      if (query !== '') {
-        query += '&';
-      }
-      query += `continuationToken=${continuationToken}`;
-    }
-    if (filter) {
-      if (query !== '') {
-        query += '&';
-      }
-      query += `filter=${encodeURI(JSON.stringify(filter))}`;
-    }
-
-    const response = await axios
-      .get(`${this.telemetryServerUrl}/api/traces?${query}`)
-      .catch((err) =>
-        this.httpErrorHandler(err, `Error listing traces for query='${query}'.`)
-      );
-
-    return apis.ListTracesResponseSchema.parse(response.data);
-  }
-
-  /**
-   * Retrieves a trace for a given ID.
-   */
-  async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
-    const { traceId } = input;
-    const response = await axios
-      .get(`${this.telemetryServerUrl}/api/traces/${traceId}`)
-      .catch((err) =>
-        this.httpErrorHandler(
-          err,
-          `Error getting trace for traceId='${traceId}'`
-        )
-      );
-
-    return response.data as TraceData;
-  }
-
-  /**
-   * Adds a trace to the trace store
-   */
-  async addTrace(input: TraceData): Promise<void> {
-    await axios
-      .post(`${this.telemetryServerUrl}/api/traces/`, input)
-      .catch((err) =>
-        this.httpErrorHandler(err, 'Error writing trace to store.')
-      );
-  }
-
-  /**
    * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
   private async notifyRuntime(runtime: RuntimeInfo) {
@@ -550,27 +602,6 @@ export class RuntimeManager {
       this.eventEmitter.emit(RuntimeEvent.REMOVE, runtime);
       logger.debug(`Removed runtime with id ${runtime.id}.`);
     }
-  }
-
-  /**
-   * Handles an HTTP error.
-   */
-  private httpErrorHandler(error: AxiosError, message?: string): any {
-    const newError = new GenkitToolsError(message || 'Internal Error');
-
-    if (error.response) {
-      if ((error.response?.data as any).message) {
-        newError.message = (error.response?.data as any).message;
-      }
-      // we got a non-200 response; copy the payload and rethrow
-      newError.data = error.response.data as GenkitError;
-      throw newError;
-    }
-
-    // We actually have an exception; wrap it and re-throw.
-    throw new GenkitToolsError(message || 'Internal Error', {
-      cause: error.cause,
-    });
   }
 
   /**
