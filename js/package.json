@@ -31,7 +31,10 @@
   },
   "pnpm": {
     "overrides": {
-      "cross-spawn": "^7.0.5"
+      "cross-spawn": "^7.0.5",
+      "@genkit-ai/vertexai>@anthropic-ai/sdk": "^0.24.3",
+      "@anthropic-ai/vertex-sdk>@anthropic-ai/sdk": "^0.24.3",
+      "@genkit-ai/anthropic>@anthropic-ai/sdk": "^0.71.2"
     }
   },
   "packageManager": "pnpm@10.23.0+sha512.21c4e5698002ade97e4efe8b8b4a89a8de3c85a37919f957e7a0f30f38fbc5bbdd05980ffe29179b2fb6e6e691242e098d945d1601772cad0fef5fb6411e2a4b"
