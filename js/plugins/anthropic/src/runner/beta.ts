@@ -44,6 +44,7 @@ import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import { RunnerTypes } from './types.js';
 
@@ -310,8 +311,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     const {
       topP,
       topK,
-      apiVersion: _,
-      thinking: defaultThinkingConfig,
+      apiVersion: _1,
+      thinking: _2,
       ...restConfig
     } = request.config ?? {};
 
@@ -328,9 +329,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
       tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
-      thinking:
-        (defaultThinkingConfig as BetaMessageCreateParams['thinking']) ??
-        thinkingConfig,
+      thinking: thinkingConfig,
       output_format: this.isStructuredOutputEnabled(request)
         ? {
             type: 'json_schema',
@@ -343,7 +342,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       ...restConfig,
     };
 
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   /**
@@ -383,8 +382,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     const {
       topP,
       topK,
-      apiVersion: _,
-      thinking: defaultThinkingConfig,
+      apiVersion: _1,
+      thinking: _2,
       ...restConfig
     } = request.config ?? {};
 
@@ -402,9 +401,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
       tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
-      thinking:
-        (defaultThinkingConfig as BetaMessageCreateParams['thinking']) ??
-        thinkingConfig,
+      thinking: thinkingConfig,
       output_format: this.isStructuredOutputEnabled(request)
         ? {
             type: 'json_schema',
@@ -417,7 +414,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       ...restConfig,
     };
 
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   protected toGenkitResponse(message: BetaMessage): GenerateResponseData {
