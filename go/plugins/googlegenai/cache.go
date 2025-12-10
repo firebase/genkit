@@ -62,9 +62,7 @@ func handleCache(
 		return nil, fmt.Errorf("end of cached contents, index %d is invalid", cs.endIndex)
 	}
 
-	// since context caching is only available for specific model versions, we
-	// must make sure the configuration has the right version
-	err = validateContextCacheRequest(request, model)
+	err = validateContextCacheRequest(request)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +104,7 @@ func handleCache(
 
 // messagesToCache collects all the messages that should be cached
 func messagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error) {
+	var role string
 	var messagesToCache []*genai.Content
 	for i := cacheEndIdx; i >= 0; i-- {
 		m := m[i]
@@ -116,17 +115,23 @@ func messagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error)
 		if err != nil {
 			return nil, err
 		}
+
+		role = string(ai.RoleUser)
+		if i == cacheEndIdx {
+			role = string(ai.RoleModel)
+		}
+
 		messagesToCache = append(messagesToCache, &genai.Content{
 			Parts: parts,
-			Role:  string(m.Role),
+			Role:  role,
 		})
 	}
 	return messagesToCache, nil
 }
 
-// validateContextCacheRequest checks for supported models and checks if Tools
+// validateContextCacheRequest checks if Tools or SystemInstructions
 // are being provided in the request
-func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
+func validateContextCacheRequest(request *ai.ModelRequest) error {
 	if len(request.Tools) > 0 {
 		return fmt.Errorf("%s", invalidArgMessages.tools)
 	}

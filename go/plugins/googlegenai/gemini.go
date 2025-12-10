@@ -765,6 +765,10 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		return nil, fmt.Errorf("no valid candidates were found in the generate response")
 	}
 	msg := &ai.Message{}
+	if cand.Content == nil {
+		return nil, fmt.Errorf("no valid candidates were found in the generate response")
+	}
+
 	msg.Role = ai.Role(cand.Content.Role)
 	// iterate over the candidate parts, only one struct member
 	// must be populated, more than one is considered an error
@@ -830,7 +834,7 @@ func translateResponse(resp *genai.GenerateContentResponse) (*ai.ModelResponse, 
 	if len(resp.Candidates) > 0 {
 		r, err = translateCandidate(resp.Candidates[0])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to translate response: %w", err)
 		}
 	} else {
 		r = &ai.ModelResponse{}
