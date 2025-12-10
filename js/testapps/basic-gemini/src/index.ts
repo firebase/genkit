@@ -32,6 +32,7 @@ import {
   deleteFileSearchStore,
   uploadBlobToFileSearchStore,
 } from './helper.js';
+import { RpgCharacterSchema } from './types.js';
 
 const ai = genkit({
   plugins: [
@@ -247,6 +248,22 @@ const getWeather = ai.defineTool(
   }
 );
 
+const screenshot = ai.defineTool(
+  {
+    name: 'screenshot',
+    multipart: true,
+    description: 'takes a screenshot',
+  },
+  async () => {
+    // pretend we call an actual API
+    const picture = fs.readFileSync('my_room.png', { encoding: 'base64' });
+    return {
+      output: 'success',
+      content: [{ media: { url: `data:image/png;base64,${picture}` } }],
+    };
+  }
+);
+
 const celsiusToFahrenheit = ai.defineTool(
   {
     name: 'celsiusToFahrenheit',
@@ -280,6 +297,31 @@ ai.defineFlow(
 
     for await (const chunk of stream) {
       sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+// Multipart tool calling
+ai.defineFlow(
+  {
+    name: 'multipart-tool-calling',
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (_, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-3-pro-preview'),
+      config: {
+        temperature: 1,
+      },
+      tools: [screenshot],
+      prompt: `Tell me what I'm seeing on the screen.`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.output);
     }
 
     return (await response).text;
@@ -323,37 +365,6 @@ ai.defineFlow(
   }
 );
 
-const baseCategorySchema = z.object({
-  name: z.string(),
-});
-
-type Category = z.infer<typeof baseCategorySchema> & {
-  subcategories?: Category[];
-};
-
-const categorySchema: z.ZodType<Category> = baseCategorySchema.extend({
-  subcategories: z.lazy(() =>
-    categorySchema
-      .array()
-      .describe('make sure there are at least 2-3 levels of subcategories')
-      .optional()
-  ),
-});
-
-const WeaponSchema = z.object({
-  name: z.string(),
-  damage: z.number(),
-  category: categorySchema,
-});
-
-const RpgCharacterSchema = z.object({
-  name: z.string().describe('name of the character'),
-  backstory: z.string().describe("character's backstory, about a paragraph"),
-  weapons: z.array(WeaponSchema),
-  class: z.enum(['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER']),
-  affiliation: z.string().optional(),
-});
-
 // A simple example of structured output.
 ai.defineFlow(
   {
@@ -396,6 +407,31 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   return message;
 });
 
+// Media resolution
+ai.defineFlow('gemini-media-resolution', async (_) => {
+  const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-3-pro-preview'),
+    prompt: [
+      { text: 'What is in this picture?' },
+      {
+        media: { url: `data:image/png;base64,${plant}` },
+        metadata: {
+          mediaResolution: {
+            // Or MEDIA_RESOLUTION_LOW Or MEDIA_RESOLUTION_MEDIUM
+            level: 'MEDIA_RESOLUTION_HIGH',
+          },
+        },
+      },
+    ],
+    config: {
+      // MediaResolution is currently only supported in v1alpha for googleAI
+      apiVersion: 'v1alpha',
+    },
+  });
+  return text;
+});
+
 // Image editing with Gemini.
 ai.defineFlow('gemini-image-editing', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
@@ -410,6 +446,26 @@ ai.defineFlow('gemini-image-editing', async (_) => {
     ],
     config: {
       responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '1:1',
+      },
+    },
+  });
+
+  return media;
+});
+
+// Nano banana pro config
+ai.defineFlow('nano-banana-pro', async (_) => {
+  const { media } = await ai.generate({
+    model: googleAI.model('gemini-3-pro-image-preview'),
+    prompt: 'Generate a picture of a sunset in the mountains by a lake',
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '3:4',
+        imageSize: '1K',
+      },
     },
   });
 

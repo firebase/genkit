@@ -17,6 +17,9 @@
 import { getClientHeader as defaultGetClientHeader } from 'genkit';
 import process from 'process';
 
+/**
+ * @deprecated
+ */
 export function getApiKeyFromEnvVar(): string | undefined {
   return (
     process.env.GEMINI_API_KEY ||
@@ -25,6 +28,9 @@ export function getApiKeyFromEnvVar(): string | undefined {
   );
 }
 
+/**
+ * @deprecated
+ */
 export function getGenkitClientHeader() {
   if (process.env.MONOSPACE_ENV == 'true') {
     return defaultGetClientHeader() + ' firebase-studio-vm';

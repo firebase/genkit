@@ -15,17 +15,17 @@
  */
 
 import { OperationSchema, z } from '@genkit-ai/core';
+import { DocumentDataSchema } from './document.js';
 import {
   CustomPartSchema,
   DataPartSchema,
-  DocumentDataSchema,
   MediaPartSchema,
   ReasoningPartSchema,
   ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
-} from './document.js';
+} from './parts.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -381,7 +381,7 @@ export const GenerateActionOutputConfig = z.object({
 
 export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
-  model: z.string(),
+  model: z.string().optional(),
   /** Retrieved documents to be used as context for this generation. */
   docs: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */

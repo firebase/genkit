@@ -45,6 +45,7 @@ import { Message } from './message.js';
 import {
   GenerateResponseChunkData,
   GenerateResponseData,
+  ResolvedModel,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -494,7 +495,10 @@ export async function toGenerateActionOptions<
   registry: Registry,
   options: GenerateOptions<O, CustomOptions>
 ): Promise<GenerateActionOptions> {
-  const resolvedModel = await resolveModel(registry, options.model);
+  let resolvedModel: ResolvedModel<CustomOptions> | undefined;
+  if (options.model) {
+    resolvedModel = await resolveModel(registry, options.model);
+  }
   const tools = await toolsToActionRefs(registry, options.tools);
   const resources = await resourcesToActionRefs(registry, options.resources);
   const messages: MessageData[] = messagesFromOptions(options);
@@ -513,15 +517,15 @@ export async function toGenerateActionOptions<
   }
 
   const params: GenerateActionOptions = {
-    model: resolvedModel.modelAction.__action.name,
+    model: resolvedModel?.modelAction.__action.name,
     docs: options.docs,
     messages: messages,
     tools,
     resources,
     toolChoice: options.toolChoice,
     config: {
-      version: resolvedModel.version,
-      ...stripUndefinedOptions(resolvedModel.config),
+      version: resolvedModel?.version,
+      ...stripUndefinedOptions(resolvedModel?.config),
       ...stripUndefinedOptions(options.config),
     },
     output: options.output && {
@@ -587,6 +591,9 @@ async function resolveFullToolNames(
   }
   if (await registry.lookupAction(`/tool/${name}`)) {
     return [`/tool/${name}`];
+  }
+  if (await registry.lookupAction(`/tool.v2/${name}`)) {
+    return [`/tool.v2/${name}`];
   }
   if (await registry.lookupAction(`/prompt/${name}`)) {
     return [`/prompt/${name}`];
