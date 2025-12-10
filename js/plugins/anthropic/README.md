@@ -56,11 +56,6 @@ const response = await ai.generate({
     { text: 'What animal is in the photo?' },
     { media: { url: imageUrl } },
   ],
-  config: {
-    // control of the level of visual detail when processing image embeddings
-    // Low detail level also decreases the token usage
-    visualDetailLevel: 'low',
-  },
 });
 console.log(response.text);
 ```
