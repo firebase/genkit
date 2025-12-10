@@ -315,6 +315,23 @@ export class RuntimeManager {
           try {
             const responseData = JSON.parse(buffer);
 
+            if (responseData.error) {
+              const err = new GenkitToolsError(
+                `Error running action key='${input.key}'.`
+              );
+              // massage the error into a shape dev ui expects
+              err.data = {
+                ...responseData.error,
+                stack: (responseData.error?.details as any).stack,
+                data: {
+                  genkitErrorMessage: responseData.error?.message,
+                  genkitErrorDetails: responseData.error?.details,
+                },
+              };
+              reject(err);
+              return;
+            }
+
             // Handle backward compatibility - add trace ID from header if not in body
             if (!responseData.telemetry && earlyTraceId) {
               responseData.telemetry = { traceId: earlyTraceId };
