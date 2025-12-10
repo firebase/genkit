@@ -100,7 +100,13 @@ describe('modelArmor', () => {
     const response = await ai.generate({
       model: 'echoModel',
       prompt: 'hello',
-      use: [modelArmor({ templateName: 'test', client: mockClient as any })],
+      use: [
+        modelArmor({
+          templateName: 'test',
+          client: mockClient as any,
+          applyDeidentificationResults: true,
+        }),
+      ],
     });
 
     // The echo model should receive the SANITIZED prompt
@@ -133,7 +139,13 @@ describe('modelArmor', () => {
     const response = await ai.generate({
       model: 'echoModel',
       prompt: 'hello',
-      use: [modelArmor({ templateName: 'test', client: mockClient as any })],
+      use: [
+        modelArmor({
+          templateName: 'test',
+          client: mockClient as any,
+          applyDeidentificationResults: true,
+        }),
+      ],
     });
 
     expect(response.text).toBe('sanitized_response');
@@ -171,6 +183,7 @@ describe('modelArmor', () => {
           templateName: 'test',
           client: mockClient as any,
           protectionTarget: 'userPrompt',
+          applyDeidentificationResults: true,
         }),
       ],
     });
@@ -192,6 +205,7 @@ describe('modelArmor', () => {
             templateName: 'test',
             client: mockClient as any,
             strictSdpEnforcement: true,
+            applyDeidentificationResults: true,
           }),
         ],
       })
@@ -229,5 +243,94 @@ describe('modelArmor', () => {
     });
 
     expect(response.text).toMatch(/Echo: bad stuff/);
+  });
+
+  it('preserves non-text parts when SDP replaces text', async () => {
+    mockClient.sanitizeUserPrompt = async () => [
+      createSdpResult('sanitized_text'),
+    ];
+
+    ai.defineModel({ name: 'inspectionModel' }, async (req: any) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: JSON.stringify(req.messages) }],
+        },
+      };
+    });
+
+    const response = await ai.generate({
+      model: 'inspectionModel',
+      messages: [
+        {
+          role: 'user',
+          content: [{ text: 'old stuff' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'response' }],
+        },
+        {
+          role: 'user',
+          content: [
+            { text: 'sensitive info' },
+            { media: { url: 'http://example.com/image.png' } },
+          ],
+        },
+      ],
+      use: [
+        modelArmor({
+          templateName: 'test',
+          client: mockClient as any,
+          applyDeidentificationResults: true,
+        }),
+      ],
+    });
+
+    const content = JSON.parse(response.text);
+    // content should have preserved media and replaced text
+    expect(content).toEqual([
+      {
+        role: 'user',
+        content: [{ text: 'old stuff' }],
+      },
+      {
+        role: 'model',
+        content: [{ text: 'response' }],
+      },
+      {
+        role: 'user',
+        content: [
+          { media: { url: 'http://example.com/image.png' } },
+          { text: 'sanitized_text' },
+        ],
+      },
+    ]);
+  });
+
+  it('supports custom function for applying SDP', async () => {
+    mockClient.sanitizeUserPrompt = async () => [
+      createSdpResult('sanitized_text'),
+    ];
+
+    const applyFn = ({ messages, sdpResult }: any) => {
+      // Custom logic: replace with "CUSTOM APPLIED" instead of sdpResult data
+      const newContent = [{ text: 'CUSTOM APPLIED' }];
+      return [{ ...messages[0], content: newContent }];
+    };
+
+    const response = await ai.generate({
+      model: 'echoModel',
+      prompt: 'hello',
+      use: [
+        modelArmor({
+          templateName: 'test',
+          client: mockClient as any,
+          applyDeidentificationResults: applyFn,
+        }),
+      ],
+    });
+
+    expect(response.text).toMatch(/Echo: CUSTOM APPLIED/);
   });
 });

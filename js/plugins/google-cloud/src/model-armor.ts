@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { ModelArmorClient } from '@google-cloud/modelarmor';
+import { ModelArmorClient, protos } from '@google-cloud/modelarmor';
 import { GenkitError } from 'genkit';
 import {
   GenerateRequest,
   GenerateResponseData,
+  MessageData,
   ModelMiddleware,
   Part,
 } from 'genkit/model';
@@ -30,7 +31,7 @@ export interface ModelArmorOptions {
   /**
    * Options for the Model Armor client (e.g. apiEndpoint).
    */
-  clientOptions?: any;
+  clientOptions?: ConstructorParameters<typeof ModelArmorClient>[0];
   /**
    * What to sanitize. Defaults to 'all'.
    */
@@ -52,31 +53,81 @@ export interface ModelArmorOptions {
     | 'sdp'
     | (string & {})
   )[];
+  /**
+   * Whether to apply the de-identification results to the content.
+   * - If true, the default logic (replace text, preserve structure) is used.
+   * - If false, no changes are applied.
+   * - If a function, it is called with the messages and SDP result, and should return the new messages.
+   *
+   * Defaults to false.
+   */
+  applyDeidentificationResults?:
+    | boolean
+    | ((data: {
+        messages: MessageData[];
+        sdpResult: protos.google.cloud.modelarmor.v1.ISdpFilterResult;
+      }) => MessageData[] | undefined);
 }
 
 function extractText(parts: Part[]): string {
   return parts.map((p) => p.text || '').join('');
 }
 
+/**
+ * If SDP (Sensitive Data Protection) filter returns sanitized data,
+ * we swap out the data with sanitized data.
+ */
 function applySdp(
-  content: Part[],
-  result: any
-): { sdpApplied: boolean; content: Part[] } {
-  const sdpResult =
-    result.filterResults?.['sdp']?.sdpFilterResult?.deidentifyResult;
+  messages: MessageData[],
+  targetIndex: number,
+  result: protos.google.cloud.modelarmor.v1.ISanitizationResult,
+  options: ModelArmorOptions
+): { sdpApplied: boolean; messages: MessageData[] } {
+  const sdpFilterResult = result.filterResults?.['sdp']?.sdpFilterResult;
 
-  if (sdpResult && sdpResult.data?.text) {
-    const nonTextParts = content.filter((p) => !p.text);
-    return {
-      sdpApplied: true,
-      content: [...nonTextParts, { text: sdpResult.data.text }],
-    };
+  if (!sdpFilterResult) {
+    return { sdpApplied: false, messages };
   }
-  return { sdpApplied: false, content };
+
+  // If user provided applyDeidentificationResults, we use it to apply
+  // the deidentification results.
+  if (typeof options.applyDeidentificationResults === 'function') {
+    const newMessages = options.applyDeidentificationResults({
+      messages,
+      sdpResult: sdpFilterResult,
+    });
+    if (!newMessages) {
+      return { sdpApplied: false, messages };
+    }
+    const sdpApplied = !!sdpFilterResult.deidentifyResult?.data?.text;
+    return { sdpApplied, messages: newMessages };
+  }
+
+  // if applyDeidentificationResults is set to true, we use the default/basic
+  // approach to apply the results.
+  if (options.applyDeidentificationResults === true) {
+    const deidentifyResult = sdpFilterResult.deidentifyResult;
+    if (deidentifyResult && deidentifyResult.data?.text) {
+      const targetMessage = messages[targetIndex];
+      const nonTextParts = targetMessage.content.filter((p) => !p.text);
+      const newContent = [
+        ...nonTextParts,
+        { text: deidentifyResult.data.text },
+      ];
+      const newMessages = [...messages];
+      newMessages[targetIndex] = { ...targetMessage, content: newContent };
+      return {
+        sdpApplied: true,
+        messages: newMessages,
+      };
+    }
+  }
+
+  return { sdpApplied: false, messages };
 }
 
 function shouldBlock(
-  result: any,
+  result: protos.google.cloud.modelarmor.v1.ISanitizationResult,
   options: ModelArmorOptions,
   sdpApplied: boolean
 ): boolean {
@@ -96,7 +147,7 @@ function shouldBlock(
 
       // Look for matchState in the nested object
       // e.g. filterResult.raiFilterResult.matchState
-      const nestedResult = Object.values(filterResult as any)[0] as any;
+      const nestedResult = Object.values(filterResult)[0];
       if (nestedResult?.matchState === 'MATCH_FOUND') {
         return true;
       }
@@ -143,12 +194,18 @@ async function sanitizeUserPrompt(
 
           if (response.sanitizationResult) {
             const result = response.sanitizationResult;
-            const { sdpApplied, content } = applySdp(
-              userMessage.content,
-              result
+            const { sdpApplied, messages: modifiedMessages } = applySdp(
+              req.messages,
+              targetMessageIndex,
+              result,
+              options
             );
-            if (sdpApplied) {
-              req.messages[targetMessageIndex].content = content;
+
+            if (
+              sdpApplied ||
+              typeof options.applyDeidentificationResults === 'function'
+            ) {
+              req.messages = modifiedMessages;
             }
 
             if (shouldBlock(result, options, sdpApplied)) {
@@ -170,6 +227,7 @@ async function sanitizeModelResponse(
   client: ModelArmorClient,
   options: ModelArmorOptions
 ) {
+  const usingMessageProp = !!response.message;
   const candidates = response.message
     ? [{ index: 0, message: response.message, finishReason: 'stop' }]
     : response.candidates || [];
@@ -187,22 +245,28 @@ async function sanitizeModelResponse(
               text: modelText,
             },
           };
-          const [response] = await client.sanitizeModelResponse({
+          const [apiResponse] = await client.sanitizeModelResponse({
             name: options.templateName,
             modelResponseData: {
               text: modelText,
             },
           });
-          meta.output = response;
+          meta.output = apiResponse;
 
-          if (response.sanitizationResult) {
-            const result = response.sanitizationResult;
-            const { sdpApplied, content } = applySdp(
-              candidate.message.content,
-              result
+          if (apiResponse.sanitizationResult) {
+            const result = apiResponse.sanitizationResult;
+            const { sdpApplied, messages: modifiedMessages } = applySdp(
+              [candidate.message],
+              0,
+              result,
+              options
             );
-            if (sdpApplied) {
-              candidate.message.content = content;
+
+            if (
+              sdpApplied ||
+              typeof options.applyDeidentificationResults === 'function'
+            ) {
+              candidate.message = modifiedMessages[0];
             }
 
             if (shouldBlock(result, options, sdpApplied)) {
@@ -216,6 +280,10 @@ async function sanitizeModelResponse(
         }
       );
     }
+  }
+
+  if (usingMessageProp && candidates.length > 0) {
+    response.message = candidates[0].message;
   }
 }
 
