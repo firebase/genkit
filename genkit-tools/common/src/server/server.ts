@@ -171,7 +171,9 @@ export function startServer(manager: RuntimeManager, port: number) {
             'Content-Type': 'application/json',
           });
         }
-        res.write(JSON.stringify({ error: error.data || { message: error.message } }));
+        res.write(
+          JSON.stringify({ error: error.data || { message: error.message } })
+        );
         res.end();
       }
     }
