@@ -23,8 +23,11 @@ function endpoint(options: {
   location: string;
   model: string;
 }) {
+  const baseUrl = options.location === 'global'
+    ? 'https://aiplatform.googleapis.com'
+    : `https://${options.location}-aiplatform.googleapis.com`;
   return (
-    `https://${options.location}-aiplatform.googleapis.com/v1/` +
+    `${baseUrl}/v1/` +
     `projects/${options.projectId}/locations/${options.location}/` +
     `publishers/google/models/${options.model}:predict`
   );

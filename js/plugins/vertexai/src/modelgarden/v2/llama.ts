@@ -146,10 +146,13 @@ async function resolveOptions(
   clientOptions: ClientOptions,
   requestConfig?: LlamaConfig
 ) {
-  const baseUrlTemplate =
-    clientOptions.baseUrlTemplate ??
-    'https://{location}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{location}/endpoints/openapi';
   const location = requestConfig?.location || clientOptions.location;
+  const defaultTemplate = location === 'global'
+    ? 'https://aiplatform.googleapis.com/v1/projects/{projectId}/locations/{location}/endpoints/openapi'
+    : 'https://{location}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{location}/endpoints/openapi';
+
+  const baseUrlTemplate = clientOptions.baseUrlTemplate ?? defaultTemplate;
+
   const baseURL = baseUrlTemplate
     .replace(/{location}/g, location)
     .replace(/{projectId}/g, clientOptions.projectId);
