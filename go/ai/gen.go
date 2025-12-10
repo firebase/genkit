@@ -80,6 +80,31 @@ type EmbedResponse struct {
 	Embeddings []*Embedding `json:"embeddings,omitempty"`
 }
 
+type EmbedderInfo struct {
+	Dimensions float64           `json:"dimensions,omitempty"`
+	Label      string            `json:"label,omitempty"`
+	Supports   *EmbedderSupports `json:"supports,omitempty"`
+}
+
+type EmbedderOptions struct {
+	ConfigSchema map[string]any    `json:"configSchema,omitempty"`
+	Dimensions   float64           `json:"dimensions,omitempty"`
+	Label        string            `json:"label,omitempty"`
+	Supports     *EmbedderSupports `json:"supports,omitempty"`
+}
+
+type EmbedderRef struct {
+	Config  any           `json:"config,omitempty"`
+	Info    *EmbedderInfo `json:"info,omitempty"`
+	Name    string        `json:"name,omitempty"`
+	Version string        `json:"version,omitempty"`
+}
+
+type EmbedderSupports struct {
+	Input     []string `json:"input,omitempty"`
+	Multiturn bool     `json:"multiturn,omitempty"`
+}
+
 type Embedding struct {
 	Embedding []float32      `json:"embedding,omitempty"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
