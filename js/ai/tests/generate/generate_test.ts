@@ -22,6 +22,7 @@ import { beforeEach, describe, it } from 'node:test';
 import {
   generate,
   generateStream,
+  toGenerateActionOptions,
   toGenerateRequest,
   type GenerateOptions,
 } from '../../src/generate.js';
@@ -338,6 +339,21 @@ describe('toGenerateRequest', () => {
       }
     });
   }
+});
+
+describe('toGenerateActionOptions', () => {
+  const registry = new Registry();
+
+  it('should return action options with undefined model', async () => {
+    const options: GenerateOptions = {
+      prompt: 'hello',
+    };
+    const actionOptions = await toGenerateActionOptions(registry, options);
+    assert.strictEqual(actionOptions.model, undefined);
+    assert.deepStrictEqual(actionOptions.messages, [
+      { role: 'user', content: [{ text: 'hello' }] },
+    ]);
+  });
 });
 
 describe('generate', () => {

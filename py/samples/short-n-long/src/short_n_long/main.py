@@ -69,7 +69,7 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-2.0-flash-exp'),
+    model=googleai_name('gemini-2.5-flash'),
 )
 
 

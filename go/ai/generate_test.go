@@ -98,7 +98,8 @@ func TestStreamingChunksHaveRoleAndIndex(t *testing.T) {
 			From        string
 			To          string
 			Temperature float64
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			if input.From == "celsius" && input.To == "fahrenheit" {
 				return input.Temperature*9/5 + 32, nil
 			}
