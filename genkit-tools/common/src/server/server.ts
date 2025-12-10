@@ -76,24 +76,33 @@ export function startServer(manager: RuntimeManager, port: number) {
     async (req, res) => {
       const { key, input, context, runtimeId } = req.body;
 
-      // Set headers but don't flush yet - wait for trace ID
+      // Set headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
       res.setHeader('Content-Type', 'application/json');
       res.statusCode = 200;
 
+      // When realtime telemetry is disabled, flush headers immediately.
+      // The trace ID will be available in the response body.
+      if (!manager.enableRealtimeTelemetry) {
+        res.flushHeaders();
+      }
+
       try {
-        const resultPromise = manager.runAction(
+        const onTraceIdCallback = manager.enableRealtimeTelemetry
+          ? (traceId: string) => {
+              // Set trace ID header and flush - this fires before response body
+              res.setHeader('X-Genkit-Trace-Id', traceId);
+              // Force chunked encoding so we can flush headers early
+              res.setHeader('Transfer-Encoding', 'chunked');
+              res.flushHeaders();
+            }
+          : undefined;
+
+        const result = await manager.runAction(
           { key, input, context, runtimeId },
           undefined, // no streaming callback
-          (traceId) => {
-            // Set trace ID header and flush - this fires before response body
-            res.setHeader('X-Genkit-Trace-Id', traceId);
-            // Force chunked encoding so we can flush headers early
-            res.setHeader('Transfer-Encoding', 'chunked');
-            res.flushHeaders();
-          }
+          onTraceIdCallback
         );
 
-        const result = await resultPromise;
         res.end(JSON.stringify(result));
       } catch (err) {
         const error = err as GenkitToolsError;
@@ -115,22 +124,32 @@ export function startServer(manager: RuntimeManager, port: number) {
     async (req, res) => {
       const { key, input, context, runtimeId } = req.body;
 
-      // Set streaming headers but don't flush yet - wait for trace ID
+      // Set streaming headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Transfer-Encoding', 'chunked');
       res.statusCode = 200;
 
+      // When realtime telemetry is disabled, flush headers immediately.
+      // The trace ID will be available in the response body.
+      if (!manager.enableRealtimeTelemetry) {
+        res.flushHeaders();
+      }
+
       try {
+        const onTraceIdCallback = manager.enableRealtimeTelemetry
+          ? (traceId: string) => {
+              // Set trace ID header and flush - this fires before first chunk
+              res.setHeader('X-Genkit-Trace-Id', traceId);
+              res.flushHeaders();
+            }
+          : undefined;
+
         const result = await manager.runAction(
           { key, input, context, runtimeId },
           (chunk) => {
             res.write(JSON.stringify(chunk) + '\n');
           },
-          (traceId) => {
-            // Set trace ID header and flush - this fires before first chunk
-            res.setHeader('X-Genkit-Trace-Id', traceId);
-            res.flushHeaders();
-          }
+          onTraceIdCallback
         );
         res.write(JSON.stringify(result));
       } catch (err) {

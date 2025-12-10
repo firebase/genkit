@@ -60,10 +60,13 @@ interface RuntimeManagerOptions {
   projectRoot: string;
   /** An optional process manager for the main application process. */
   processManager?: ProcessManager;
+  /** Whether realtime telemetry streaming is enabled. */
+  enableRealtimeTelemetry?: boolean;
 }
 
 export class RuntimeManager {
   readonly processManager?: ProcessManager;
+  readonly enableRealtimeTelemetry: boolean;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
@@ -75,9 +78,11 @@ export class RuntimeManager {
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
     readonly projectRoot: string,
-    processManager?: ProcessManager
+    processManager?: ProcessManager,
+    enableRealtimeTelemetry?: boolean
   ) {
     this.processManager = processManager;
+    this.enableRealtimeTelemetry = enableRealtimeTelemetry ?? false;
   }
 
   /**
@@ -88,7 +93,8 @@ export class RuntimeManager {
       options.telemetryServerUrl,
       options.manageHealth ?? true,
       options.projectRoot,
-      options.processManager
+      options.processManager,
+      options.enableRealtimeTelemetry
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();

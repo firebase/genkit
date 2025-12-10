@@ -90,6 +90,7 @@ export async function startDevProcessManager(
     manageHealth: true,
     projectRoot,
     processManager,
+    enableRealtimeTelemetry: options?.enableRealtimeTelemetry,
   });
   const processPromise = processManager.start();
   return { manager, processPromise };
