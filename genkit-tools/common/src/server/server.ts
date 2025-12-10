@@ -87,6 +87,8 @@ export function startServer(manager: RuntimeManager, port: number) {
           (traceId) => {
             // Set trace ID header and flush - this fires before response body
             res.setHeader('X-Genkit-Trace-Id', traceId);
+            // Force chunked encoding so we can flush headers early
+            res.setHeader('Transfer-Encoding', 'chunked');
             res.flushHeaders();
           }
         );

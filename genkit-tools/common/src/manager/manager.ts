@@ -480,10 +480,12 @@ export class RuntimeManager {
           if (!message) {
             continue;
           }
-
-          // Parse JSON directly
+          // Parse SSE data line - strip "data: " prefix
           try {
-            const parsed = JSON.parse(message);
+            const jsonData = message.startsWith('data: ')
+              ? message.slice(6)
+              : message;
+            const parsed = JSON.parse(jsonData);
             streamingCallback(parsed);
           } catch (err) {
             logger.error(`Error parsing stream data: ${err}`);

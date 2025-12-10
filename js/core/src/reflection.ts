@@ -219,6 +219,8 @@ export class ReflectionServer {
             response.setHeader('Transfer-Encoding', 'chunked');
           } else {
             response.setHeader('Content-Type', 'application/json');
+            // Force chunked encoding so we can flush headers early
+            response.setHeader('Transfer-Encoding', 'chunked');
           }
           response.statusCode = 200;
           response.flushHeaders();
