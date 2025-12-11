@@ -48,7 +48,7 @@ class SimpleCache {
    * @param skipTrace Don't run the action. i.e. don't create a trace log.
    * @returns The DAP data
    */
-  async getOrFetch(params?: {skipTrace?: boolean}): Promise<DapValue> {
+  async getOrFetch(params?: { skipTrace?: boolean }): Promise<DapValue> {
     const isStale =
       !this.value ||
       !this.expiresAt ||
@@ -230,7 +230,7 @@ function implementDap(
     // every time the DevUI requests the list of actions.
     // This is ok, because the DevUI will show the actions, so
     // not having them in the trace is fine.
-    const result = await dap.__cache.getOrFetch({skipTrace: true});
+    const result = await dap.__cache.getOrFetch({ skipTrace: true });
     for (const [actionType, actions] of Object.entries(result)) {
       const metadataList = actions.map((a) => a.__action);
       for (const metadata of metadataList) {
