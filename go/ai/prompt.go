@@ -517,6 +517,31 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 	return result, nil
 }
 
+// convertDotpromptMessages converts []dotprompt.Message to []*Message
+func convertDotpromptMessages(msgs []dotprompt.Message) ([]*Message, error) {
+	result := make([]*Message, 0, len(msgs))
+	for _, msg := range msgs {
+		parts, err := convertToPartPointers(msg.Content)
+		if err != nil {
+			return nil, err
+		}
+		// Filter out nil parts
+		filteredParts := make([]*Part, 0, len(parts))
+		for _, p := range parts {
+			if p != nil {
+				filteredParts = append(filteredParts, p)
+			}
+		}
+		if len(filteredParts) > 0 {
+			result = append(result, &Message{
+				Role:    Role(msg.Role),
+				Content: filteredParts,
+			})
+		}
+	}
+	return result, nil
+}
+
 // LoadPromptDir loads prompts and partials from the input directory for the given namespace.
 func LoadPromptDir(r api.Registry, dir string, namespace string) {
 	useDefaultDir := false
@@ -662,51 +687,57 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 
 	key := promptKey(name, variant, namespace)
 
-	dpMessages, err := dotprompt.ToMessages(parsedPrompt.Template, &dotprompt.DataArgument{})
-	if err != nil {
-		slog.Error("Failed to convert prompt template to messages", "file", sourceFile, "error", err)
-		return nil
-	}
-
-	var systemText string
-	var nonSystemMessages []*Message
-	for _, dpMsg := range dpMessages {
-		parts, err := convertToPartPointers(dpMsg.Content)
-		if err != nil {
-			slog.Error("Failed to convert message parts", "file", sourceFile, "error", err)
-			return nil
-		}
-
-		role := Role(dpMsg.Role)
-		if role == RoleSystem {
-			var textParts []string
-			for _, part := range parts {
-				if part.IsText() {
-					textParts = append(textParts, part.Text)
-				}
-			}
-
-			if len(textParts) > 0 {
-				systemText = strings.Join(textParts, " ")
-			}
-		} else {
-			nonSystemMessages = append(nonSystemMessages, &Message{Role: role, Content: parts})
-		}
-	}
+	// Store the raw template text to defer rendering until Execute() is called.
+	// This ensures template variables are properly substituted with actual input values.
+	// Previously, ToMessages was called with empty DataArgument which caused template
+	// variables to be replaced with empty values at load time.
+	// See: https://github.com/firebase/genkit/issues/3924
+	templateText := parsedPrompt.Template
 
 	promptOpts := []PromptOption{opts}
 
-	// Add system prompt if found
-	if systemText != "" {
-		promptOpts = append(promptOpts, WithSystem(systemText))
+	// Use WithMessagesFn to defer template rendering until execution time.
+	// This approach properly handles:
+	// 1. Template variable substitution with actual input values
+	// 2. Multi-role messages (<<<dotprompt:role:XXX>>> markers)
+	// 3. History insertion (<<<dotprompt:history>>> markers)
+	compiledTemplate, err := dp.Compile(templateText, &dotprompt.PromptMetadata{
+		Input: dotprompt.PromptMetadataInput{
+			Default: opts.DefaultInput,
+		},
+	})
+	if err != nil {
+		slog.Error("Failed to compile prompt template", "file", sourceFile, "error", err)
+		return nil
 	}
 
-	// If there are non-system messages, use WithMessages, otherwise use WithPrompt for template
-	if len(nonSystemMessages) > 0 {
-		promptOpts = append(promptOpts, WithMessages(nonSystemMessages...))
-	} else if systemText == "" {
-		promptOpts = append(promptOpts, WithPrompt(parsedPrompt.Template))
-	}
+	promptOpts = append(promptOpts, WithMessagesFn(func(ctx context.Context, input any) ([]*Message, error) {
+		inputMap, err := buildVariables(input)
+		if err != nil {
+			return nil, err
+		}
+
+		// Prepare the data context for rendering
+		dataContext := map[string]any{}
+		actionCtx := core.FromContext(ctx)
+		maps.Copy(dataContext, actionCtx)
+
+		// Render with actual input values at execution time
+		rendered, err := compiledTemplate(&dotprompt.DataArgument{
+			Input:   inputMap,
+			Context: dataContext,
+		}, &dotprompt.PromptMetadata{
+			Input: dotprompt.PromptMetadataInput{
+				Default: opts.DefaultInput,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to render template: %w", err)
+		}
+
+		// Convert dotprompt messages to ai messages
+		return convertDotpromptMessages(rendered.Messages)
+	}))
 
 	prompt := DefinePrompt(r, key, promptOpts...)
 
