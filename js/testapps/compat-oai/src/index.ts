@@ -358,6 +358,42 @@ async function toWav(
   });
 }
 
+// PDF file input example
+ai.defineFlow(
+  {
+    name: 'pdf',
+    inputSchema: z.string().default(''),
+    outputSchema: z.string(),
+  },
+  async (pdfPath) => {
+    // Use a provided PDF path or create a minimal test PDF
+    let pdfBase64: string;
+    
+    if (pdfPath && fs.existsSync(pdfPath)) {
+      pdfBase64 = fs.readFileSync(pdfPath, { encoding: 'base64' });
+    } else {
+      // Minimal valid PDF for testing (just contains "Hello World")
+      // This is a real PDF that can be parsed
+      pdfBase64 = 'JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0NvdW50IDEvS2lkc1szIDAgUl0+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL1BhZ2UvTWVkaWFCb3hbMCAwIDYxMiA3OTJdL1BhcmVudCAyIDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjE8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+Pj4+Pj4vQ29udGVudHMgNCAwIFI+PgplbmRvYmoKNCAwIG9iago8PC9MZW5ndGggNDQ+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjEwMCA3MDAgVGQKKEhlbGxvIFdvcmxkKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDY0IDAwMDAwIG4gCjAwMDAwMDAxMjEgMDAwMDAgbiAKMDAwMDAwMDI2MCAwMDAwMCBuIAp0cmFpbGVyCjw8L1NpemUgNS9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjM1MgolJUVPRgo=';
+    }
+
+    const { text } = await ai.generate({
+      model: openAI.model('gpt-4o'),
+      prompt: [
+        {
+          media: {
+            contentType: 'application/pdf',
+            url: `data:application/pdf;base64,${pdfBase64}`,
+          },
+        },
+        { text: 'What text is in this PDF document? Please extract and return all the text you can read.' },
+      ],
+    });
+
+    return text;
+  }
+);
+
 startFlowServer({
   flows: [jokeFlow, embedFlow],
 });

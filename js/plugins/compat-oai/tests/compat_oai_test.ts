@@ -99,7 +99,7 @@ describe('toOpenAiTextAndMedia', () => {
     expect(actualOutput).toStrictEqual({ type: 'text', text: 'hi' });
   });
 
-  it('should transform media content correctly', () => {
+  it('should transform image media content correctly', () => {
     const part: Part = {
       media: {
         contentType: 'image/jpeg',
@@ -114,6 +114,67 @@ describe('toOpenAiTextAndMedia', () => {
         detail: 'low',
       },
     });
+  });
+
+  it('should transform PDF file content correctly with base64 data', () => {
+    const part: Part = {
+      media: {
+        contentType: 'application/pdf',
+        url: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MK',
+      },
+    };
+    const actualOutput = toOpenAITextAndMedia(part, 'low');
+    expect(actualOutput).toStrictEqual({
+      type: 'file',
+      file: {
+        filename: 'file.pdf',
+        file_data: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MK',
+      },
+    });
+  });
+
+  it('should transform PDF file without explicit contentType from data URL', () => {
+    const part: Part = {
+      media: {
+        url: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MK',
+      },
+    };
+    const actualOutput = toOpenAITextAndMedia(part, 'low');
+    expect(actualOutput).toStrictEqual({
+      type: 'file',
+      file: {
+        filename: 'file.pdf',
+        file_data: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MK',
+      },
+    });
+  });
+
+  it('should transform image from data URL without explicit contentType', () => {
+    const part: Part = {
+      media: {
+        url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA',
+      },
+    };
+    const actualOutput = toOpenAITextAndMedia(part, 'high');
+    expect(actualOutput).toStrictEqual({
+      type: 'image_url',
+      image_url: {
+        url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA',
+        detail: 'high',
+      },
+    });
+  });
+
+  it('should throw error for file URLs (non-base64 PDFs)', () => {
+    const part: Part = {
+      media: {
+        contentType: 'application/pdf',
+        url: 'https://example.com/document.pdf',
+      },
+    };
+    expect(() => toOpenAITextAndMedia(part, 'low')).toThrowError(
+      'File URLs are not supported for chat completions'
+    );
   });
 
   it('should throw an error for unknown parts', () => {
