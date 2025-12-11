@@ -550,7 +550,56 @@ func GenerateText(ctx context.Context, r api.Registry, opts ...GenerateOption) (
 	return res.Text(), nil
 }
 
-// Generate run generate request for this model. Returns ModelResponse struct.
+// StreamValue is either a streamed chunk or the final response of a generate request.
+type StreamValue[Out, Stream any] struct {
+	Done     bool
+	Chunk    Stream         // valid if Done is false
+	Output   Out            // valid if Done is true
+	Response *ModelResponse // valid if Done is true
+}
+
+// ModelStreamValue is a stream value for a model response.
+type ModelStreamValue = StreamValue[*ModelResponse, *ModelResponseChunk]
+
+// errGenerateStop is a sentinel error used to signal early termination of streaming.
+var errGenerateStop = errors.New("stop")
+
+// GenerateStream generates a model response and streams the output.
+// It returns a function whose argument function (the "yield function") will be repeatedly
+// called with the results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [StreamValue] argument has Done == true, the value's
+// Response field contains the final response; the yield function will not be called
+// again.
+//
+// Otherwise the Chunk field of the passed [StreamValue] holds a streamed chunk.
+func GenerateStream(ctx context.Context, r api.Registry, opts ...GenerateOption) func(func(*ModelStreamValue, error) bool) {
+	return func(yield func(*ModelStreamValue, error) bool) {
+		cb := func(ctx context.Context, chunk *ModelResponseChunk) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if !yield(&ModelStreamValue{Chunk: chunk}, nil) {
+				return errGenerateStop
+			}
+			return nil
+		}
+
+		allOpts := append(slices.Clone(opts), WithStreaming(cb))
+
+		resp, err := Generate(ctx, r, allOpts...)
+		if err != nil {
+			yield(nil, err)
+		} else {
+			yield(&ModelStreamValue{Done: true, Response: resp}, nil)
+		}
+	}
+}
+
+// GenerateData runs a generate request and returns strongly-typed output.
 func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
 	var value Out
 	opts = append(opts, WithOutputType(value))
@@ -566,6 +615,50 @@ func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...Generate
 	}
 
 	return &value, resp, nil
+}
+
+// GenerateDataStream generates a model response with streaming and returns strongly-typed output.
+// It returns a function whose argument function (the "yield function") will be repeatedly
+// called with the results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [StreamValue] argument has Done == true, the value's
+// Output and Response fields contain the final typed output and response; the yield function
+// will not be called again.
+//
+// Otherwise the Chunk field of the passed [StreamValue] holds a streamed chunk.
+func GenerateDataStream[Out, Stream any](ctx context.Context, r api.Registry, opts ...GenerateOption) func(func(*StreamValue[Out, Stream], error) bool) {
+	return func(yield func(*StreamValue[Out, Stream], error) bool) {
+		cb := func(ctx context.Context, chunk *ModelResponseChunk) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			// TODO: Convert ModelResponseChunk to Stream type.
+			if !yield(&StreamValue[Out, Stream]{}, nil) {
+				return errGenerateStop
+			}
+			return nil
+		}
+
+		var value Out
+		allOpts := append(slices.Clone(opts), WithOutputType(value), WithStreaming(cb))
+
+		resp, err := Generate(ctx, r, allOpts...)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+
+		err = resp.Output(&value)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+
+		yield(&StreamValue[Out, Stream]{Done: true, Output: value, Response: resp}, nil)
+	}
 }
 
 // Generate applies the [Action] to provided request.
