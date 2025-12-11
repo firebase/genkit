@@ -353,7 +353,7 @@ export class Registry {
    * @returns All resolvable action metadata as a map of <key, action metadata>.
    */
   async listResolvableActions(): Promise<ActionMetadataRecord> {
-    const resolvableActions = {} as ActionMetadataRecord;
+    let resolvableActions = {} as ActionMetadataRecord;
     // We listActions for all plugins in parallel.
     await Promise.all(
       Object.entries(this.pluginsByName).map(async ([pluginName, plugin]) => {
@@ -380,9 +380,16 @@ export class Registry {
         }
       })
     );
-    // Also add actions that are already registered.
+    // Also add actions that are already registered, and expand DAP actions
     for (const [key, action] of Object.entries(await this.listActions())) {
       resolvableActions[key] = action.__action;
+      if (isDynamicActionProvider(action)) {
+        // Include the dynamic actions
+        const dapPrefix = `${action.__action.actionType}/${action.__action.name}`;
+        const dapMetadataRecord =
+          await action.getActionMetadataRecord(dapPrefix);
+        resolvableActions = { ...resolvableActions, ...dapMetadataRecord };
+      }
     }
     return {
       ...(await this.parent?.listResolvableActions()),

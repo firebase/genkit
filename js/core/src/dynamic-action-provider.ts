@@ -16,7 +16,8 @@
 
 import type * as z from 'zod';
 import { Action, ActionMetadata, defineAction } from './action.js';
-import { ActionType, Registry } from './registry.js';
+import { GenkitError } from './error.js';
+import { ActionMetadataRecord, ActionType, Registry } from './registry.js';
 
 type DapValue = {
   [K in ActionType]?: Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>[];
@@ -60,7 +61,7 @@ class SimpleCache {
           this.expiresAt = Date.now() + this.ttlMillis;
 
           // Also run the action
-          this.dap.run(this.value); // This returns metadata and shows up in dev UI
+          await this.dap.run(this.value); // This returns metadata and shows up in dev UI
 
           return this.value;
         } catch (error) {
@@ -92,6 +93,7 @@ export interface DynamicRegistry {
     actionType: string,
     actionName: string
   ): Promise<ActionMetadata[]>;
+  getActionMetadataRecord(dapPrefix: string): Promise<ActionMetadataRecord>;
 }
 
 export type DynamicActionProviderAction = Action<
@@ -209,5 +211,24 @@ function implementDap(
 
     // Single match or empty array
     return metadata.filter((m) => m.name == actionName);
+  };
+
+  dap.getActionMetadataRecord = async (dapPrefix: string) => {
+    const dapActions = {} as ActionMetadataRecord;
+    const result = await dap.__cache.getOrFetch();
+    for (const [actionType, actions] of Object.entries(result)) {
+      const metadataList = actions.map((a) => a.__action);
+      for (const metadata of metadataList) {
+        if (!metadata.name) {
+          throw new GenkitError({
+            status: 'INVALID_ARGUMENT',
+            message: `Invalid metadata when listing dynamic actions from ${dapPrefix} - name required`,
+          });
+        }
+        const key = `${dapPrefix}:${actionType}/${metadata.name}`;
+        dapActions[key] = metadata;
+      }
+    }
+    return dapActions;
   };
 }

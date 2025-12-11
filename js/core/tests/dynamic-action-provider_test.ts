@@ -171,6 +171,25 @@ describe('dynamic action provider', () => {
     assert.strictEqual(callCount, 1);
   });
 
+  it('gets action metadata record', async () => {
+    let callCount = 0;
+    const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
+      callCount++;
+      return {
+        tool: [tool1, tool2],
+        flow: [tool1],
+      };
+    });
+
+    const record = await dap.getActionMetadataRecord('dap/my-dap');
+    assert.deepStrictEqual(record, {
+      'dap/my-dap:tool/tool1': tool1.__action,
+      'dap/my-dap:tool/tool2': tool2.__action,
+      'dap/my-dap:flow/tool1': tool1.__action,
+    });
+    assert.strictEqual(callCount, 1);
+  });
+
   it('handles concurrent requests', async () => {
     let callCount = 0;
     const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
