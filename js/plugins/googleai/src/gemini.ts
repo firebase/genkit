@@ -1016,7 +1016,7 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if ('thought' in part) return fromThought(part as any);
+  if ('thought' in part || 'thoughtSignature' in part) return fromThought(part as any);
   if (typeof part.text === 'string') return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);

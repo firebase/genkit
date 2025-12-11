@@ -888,7 +888,7 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref?: string
 ): Part {
-  if ('thought' in part) return fromGeminiThought(part as any);
+  if ('thought' in part || 'thoughtSignature' in part) return fromGeminiThought(part as any);
   if (typeof part.text === 'string') return { text: part.text };
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
