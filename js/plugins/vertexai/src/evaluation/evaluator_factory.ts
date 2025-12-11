@@ -82,7 +82,10 @@ export class EvaluatorFactory {
 
         metadata.input = request;
         const client = await this.auth.getClient();
-        const url = `https://${this.location}-aiplatform.googleapis.com/v1beta1/${locationName}:evaluateInstances`;
+        const baseUrl = this.location === 'global'
+          ? 'https://aiplatform.googleapis.com'
+          : `https://${this.location}-aiplatform.googleapis.com`;
+        const url = `${baseUrl}/v1beta1/${locationName}:evaluateInstances`;
         const response = await client.request({
           url,
           method: 'POST',

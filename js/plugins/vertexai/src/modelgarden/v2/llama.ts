@@ -150,9 +150,14 @@ async function resolveOptions(
     clientOptions.baseUrlTemplate ??
     'https://{location}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{location}/endpoints/openapi';
   const location = requestConfig?.location || clientOptions.location;
-  const baseURL = baseUrlTemplate
-    .replace(/{location}/g, location)
-    .replace(/{projectId}/g, clientOptions.projectId);
+  const baseURL = location === 'global'
+    ? baseUrlTemplate
+        .replace(/{location}-aiplatform\.googleapis\.com/g, 'aiplatform.googleapis.com')
+        .replace(/{location}/g, location)
+        .replace(/{projectId}/g, clientOptions.projectId)
+    : baseUrlTemplate
+        .replace(/{location}/g, location)
+        .replace(/{projectId}/g, clientOptions.projectId);
   const apiKey = await clientOptions.authClient.getAccessToken();
   if (!apiKey) {
     throw new GenkitError({
