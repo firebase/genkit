@@ -45,7 +45,11 @@ export async function upsertDatapoints(
 ): Promise<void> {
   const { datapoints, authClient, projectId, location, indexId } = params;
   const accessToken = await authClient.getAccessToken();
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/indexes/${indexId}:upsertDatapoints`;
+  const baseUrl = location === 'global'
+    ? 'https://aiplatform.googleapis.com'
+    : `https://${location}-aiplatform.googleapis.com`;
+
+  const url = `${baseUrl}/v1/projects/${projectId}/locations/${location}/indexes/${indexId}:upsertDatapoints`;
 
   const requestBody = {
     datapoints: datapoints.map((dp) => {

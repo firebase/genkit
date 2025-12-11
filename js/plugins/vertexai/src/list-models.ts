@@ -38,8 +38,14 @@ export async function listModels(
 ): Promise<Model[]> {
   const fetch = (await import('node-fetch')).default;
   const accessToken = await authClient.getAccessToken();
+  
+  // Global endpoint uses base URL without location prefix
+  const baseUrl = location === 'global'
+    ? 'https://aiplatform.googleapis.com'
+    : `https://${location}-aiplatform.googleapis.com`;
+  
   const response = await fetch(
-    `https://${location}-aiplatform.googleapis.com/v1beta1/publishers/google/models`,
+    `${baseUrl}/v1beta1/publishers/google/models`,
     {
       method: 'GET',
       headers: {
