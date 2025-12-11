@@ -18,6 +18,7 @@
 dependencies = [
   "dotpromptz==0.1.3",
   "genkit",
+  "genkit-plugin-anthropic",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-compat-oai",
   "genkit-plugin-firebase",
@@ -99,6 +100,7 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 genkit                              = { workspace = true }
+genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
