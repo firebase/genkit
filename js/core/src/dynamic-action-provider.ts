@@ -43,7 +43,12 @@ class SimpleCache {
       : config.cacheConfig?.ttlMillis;
   }
 
-  async getOrFetch(): Promise<DapValue> {
+  /**
+   * Gets or fetches the DAP data.
+   * @param skipTrace Don't run the action. i.e. don't create a trace log.
+   * @returns The DAP data
+   */
+  async getOrFetch(params?: {skipTrace?: boolean}): Promise<DapValue> {
     const isStale =
       !this.value ||
       !this.expiresAt ||
@@ -60,9 +65,13 @@ class SimpleCache {
           this.value = await this.dapFn(); // this returns the actual actions
           this.expiresAt = Date.now() + this.ttlMillis;
 
-          // Also run the action
-          await this.dap.run(this.value); // This returns metadata and shows up in dev UI
-
+          if (!params?.skipTrace) {
+            // Also run the action
+            // This returns metadata and shows up in dev UI
+            // It does not change what we return, it just makes
+            // the content of the DAP visible in the trace.
+            await this.dap.run(this.value);
+          }
           return this.value;
         } catch (error) {
           console.error('Error fetching Dynamic Action Provider value:', error);
@@ -213,9 +222,15 @@ function implementDap(
     return metadata.filter((m) => m.name == actionName);
   };
 
+  // This is called by listResolvableActions which is used by the
+  // reflection API.
   dap.getActionMetadataRecord = async (dapPrefix: string) => {
     const dapActions = {} as ActionMetadataRecord;
-    const result = await dap.__cache.getOrFetch();
+    // We want to skip traces so we don't get a new action trace
+    // every time the DevUI requests the list of actions.
+    // This is ok, because the DevUI will show the actions, so
+    // not having them in the trace is fine.
+    const result = await dap.__cache.getOrFetch({skipTrace: true});
     for (const [actionType, actions] of Object.entries(result)) {
       const metadataList = actions.map((a) => a.__action);
       for (const metadata of metadataList) {

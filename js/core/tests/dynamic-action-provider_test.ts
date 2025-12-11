@@ -243,6 +243,33 @@ describe('dynamic action provider', () => {
     });
   });
 
+  it('skips trace when requested', async () => {
+    let callCount = 0;
+    const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
+      callCount++;
+      return {
+        tool: [tool1, tool2],
+      };
+    });
+
+    const originalRun = dap.run.bind(dap);
+    let runCalled = false;
+    dap.run = async (input, options) => {
+      runCalled = true;
+      return originalRun(input, options);
+    };
+
+    await dap.__cache.getOrFetch({ skipTrace: true });
+    assert.strictEqual(runCalled, false);
+    assert.strictEqual(callCount, 1);
+
+    dap.invalidateCache();
+
+    await dap.__cache.getOrFetch();
+    assert.strictEqual(runCalled, true);
+    assert.strictEqual(callCount, 2);
+  });
+
   it('identifies dynamic action providers', async () => {
     const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
       return {};
