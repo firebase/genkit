@@ -486,7 +486,7 @@ func (o *outputOptions) applyGenerate(genOpts *generateOptions) error {
 	return o.applyOutput(&genOpts.outputOptions)
 }
 
-// WithOutputType sets the schema and format of the output based on the value provided.
+// WithOutputType sets the output format to JSON and the schema derived from the given value.
 func WithOutputType(output any) OutputOption {
 	return &outputOptions{
 		OutputSchema: base.SchemaAsMap(base.InferJSONSchema(output)),
@@ -497,6 +497,22 @@ func WithOutputType(output any) OutputOption {
 // WithOutputFormat sets the format of the output.
 func WithOutputFormat(format string) OutputOption {
 	return &outputOptions{OutputFormat: format}
+}
+
+// WithOutputEnums sets the output format to enum and the schema based on the given values.
+// Accepts any string-based type (e.g. type MyEnum string).
+func WithOutputEnums[T ~string](values ...T) OutputOption {
+	enumStrs := make([]string, len(values))
+	for i, v := range values {
+		enumStrs[i] = string(v)
+	}
+	return &outputOptions{
+		OutputSchema: map[string]any{
+			"type": "string",
+			"enum": enumStrs,
+		},
+		OutputFormat: OutputFormatEnum,
+	}
 }
 
 // WithOutputInstructions sets custom instructions for constraining output format in the prompt.

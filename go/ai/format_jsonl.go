@@ -16,7 +16,6 @@ package ai
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -24,16 +23,10 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-type jsonlFormatter struct {
-	// v2 does not implement ParseMessage.
-	v2 bool
-}
+type jsonlFormatter struct{}
 
 // Name returns the name of the formatter.
 func (j jsonlFormatter) Name() string {
-	if j.v2 {
-		return OutputFormatJSONLV2
-	}
 	return OutputFormatJSONL
 }
 
@@ -51,7 +44,6 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	instructions := fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", string(jsonBytes))
 
 	handler := &jsonlHandler{
-		v2:           j.v2,
 		instructions: instructions,
 		config: ModelOutputConfig{
 			Format:      OutputFormatJSONL,
@@ -64,7 +56,6 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 }
 
 type jsonlHandler struct {
-	v2              bool
 	instructions    string
 	config          ModelOutputConfig
 	accumulatedText string
@@ -84,28 +75,14 @@ func (j *jsonlHandler) Config() ModelOutputConfig {
 
 // ParseOutput parses the final message and returns the parsed array of objects.
 func (j *jsonlHandler) ParseOutput(m *Message) (any, error) {
-	// Handle legacy behavior where ParseMessage split out content into multiple JSON parts.
-	var jsonParts []string
+	var sb strings.Builder
 	for _, part := range m.Content {
-		if part.IsText() && part.ContentType == "application/json" {
-			jsonParts = append(jsonParts, part.Text)
+		if part.IsText() {
+			sb.WriteString(part.Text)
 		}
 	}
 
-	var text string
-	if len(jsonParts) > 0 {
-		text = strings.Join(jsonParts, "\n")
-	} else {
-		var sb strings.Builder
-		for _, part := range m.Content {
-			if part.IsText() {
-				sb.WriteString(part.Text)
-			}
-		}
-		text = sb.String()
-	}
-
-	result, _, err := j.parseJSONL(text, 0, false)
+	result, _, err := j.parseJSONL(sb.String(), 0, false)
 	if err != nil {
 		return nil, err
 	}
@@ -143,48 +120,6 @@ func (j *jsonlHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
 
 // ParseMessage parses the message and returns the formatted message.
 func (j *jsonlHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.v2 {
-		return m, nil
-	}
-
-	// Legacy behavior.
-	if m == nil {
-		return nil, errors.New("message is empty")
-	}
-	if len(m.Content) == 0 {
-		return nil, errors.New("message has no content")
-	}
-
-	var nonTextParts []*Part
-	accumulatedText := strings.Builder{}
-
-	for _, part := range m.Content {
-		if !part.IsText() {
-			nonTextParts = append(nonTextParts, part)
-		} else {
-			accumulatedText.WriteString(part.Text)
-		}
-	}
-
-	var newParts []*Part
-	lines := base.GetJSONObjectLines(accumulatedText.String())
-	for _, line := range lines {
-		if j.config.Schema != nil {
-			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(j.config.Schema["items"])
-			if err != nil {
-				return nil, fmt.Errorf("expected schema is not valid: %w", err)
-			}
-			if err = base.ValidateRaw([]byte(line), schemaBytes); err != nil {
-				return nil, err
-			}
-		}
-
-		newParts = append(newParts, NewJSONPart(line))
-	}
-
-	m.Content = append(newParts, nonTextParts...)
-
 	return m, nil
 }
 

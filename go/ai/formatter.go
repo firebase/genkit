@@ -23,24 +23,19 @@ import (
 const (
 	// OutputFormatText is the default format.
 	OutputFormatText string = "text"
-	// OutputFormatJSON is the legacy format for JSON content. It modifies the message content in place by stripping out non-JSON content.
-	//
-	// Deprecated: Use OutputFormatJSONV2 instead.
+	// OutputFormatJSON is the legacy format for JSON content.
+	// For streaming, each chunk represents the full object received up to that point.
 	OutputFormatJSON string = "json"
-	// OutputFormatJSONV2 is the format for JSON content.
-	OutputFormatJSONV2 string = "json.v2"
-	// OutputFormatJSONL is the legacy format for JSONL content. It modifies the message content in place by splitting out a single text part into multiple JSON parts, one per JSON object line.
-	// It does not support [ModelResponse.Output] to an array; each JSON part must be unmarshaled manually.
-	//
-	// Deprecated: Use OutputFormatJSONLV2 instead.
+	// OutputFormatJSONL is the format for JSONL content.
+	// For streaming, each chunk represents new items since the last chunk.
 	OutputFormatJSONL string = "jsonl"
-	// OutputFormatJSONLV2 is the format for JSONL content.
-	OutputFormatJSONLV2 string = "jsonl.v2"
 	// OutputFormatMedia is the format for media content.
 	OutputFormatMedia string = "media"
 	// OutputFormatArray is the format for array content.
+	// For streaming, each chunk represents new items since the last chunk.
 	OutputFormatArray string = "array"
 	// OutputFormatEnum is the format for enum content.
+	// The value must be a string.
 	OutputFormatEnum string = "enum"
 )
 
@@ -48,9 +43,7 @@ const (
 var DEFAULT_FORMATS = []Formatter{
 	textFormatter{},
 	jsonFormatter{},
-	jsonFormatter{v2: true},
 	jsonlFormatter{},
-	jsonlFormatter{v2: true},
 	arrayFormatter{},
 	enumFormatter{},
 }

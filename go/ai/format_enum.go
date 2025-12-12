@@ -136,25 +136,48 @@ func (e *enumHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
 }
 
-// Get enum strings from json schema
+// Get enum strings from json schema.
+// Supports both top-level enum (e.g. {"type": "string", "enum": ["a", "b"]})
+// and nested property enum (e.g. {"properties": {"value": {"enum": ["a", "b"]}}}).
 func objectEnums(schema map[string]any) []string {
-	var enums []string
+	if enums := extractEnumStrings(schema["enum"]); len(enums) > 0 {
+		return enums
+	}
 
 	if properties, ok := schema["properties"].(map[string]any); ok {
 		for _, propValue := range properties {
 			if propMap, ok := propValue.(map[string]any); ok {
-				if enumSlice, ok := propMap["enum"].([]any); ok {
-					for _, enumVal := range enumSlice {
-						if enumStr, ok := enumVal.(string); ok {
-							enums = append(enums, enumStr)
-						}
-					}
+				if enums := extractEnumStrings(propMap["enum"]); len(enums) > 0 {
+					return enums
 				}
 			}
 		}
 	}
 
-	return enums
+	return nil
+}
+
+// Extracts string values from an enum field, supporting both []any (from JSON) and []string (from Go code).
+func extractEnumStrings(v any) []string {
+	if v == nil {
+		return nil
+	}
+
+	if strs, ok := v.([]string); ok {
+		return strs
+	}
+
+	if slice, ok := v.([]any); ok {
+		enums := make([]string, 0, len(slice))
+		for _, val := range slice {
+			if s, ok := val.(string); ok {
+				enums = append(enums, s)
+			}
+		}
+		return enums
+	}
+
+	return nil
 }
 
 // parseEnum is the shared parsing logic used by both ParseOutput and ParseChunk.

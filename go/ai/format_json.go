@@ -23,16 +23,10 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-type jsonFormatter struct {
-	// v2 does not implement ParseMessage.
-	v2 bool
-}
+type jsonFormatter struct{}
 
 // Name returns the name of the formatter.
 func (j jsonFormatter) Name() string {
-	if j.v2 {
-		return OutputFormatJSONV2
-	}
 	return OutputFormatJSON
 }
 
@@ -49,7 +43,6 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	}
 
 	handler := &jsonHandler{
-		v2:           j.v2,
 		instructions: instructions,
 		config: ModelOutputConfig{
 			Constrained: true,
@@ -64,7 +57,6 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 
 // jsonHandler is a handler for the JSON formatter.
 type jsonHandler struct {
-	v2              bool
 	instructions    string
 	config          ModelOutputConfig
 	accumulatedText string
@@ -115,11 +107,6 @@ func (j *jsonHandler) ParseChunk(chunk *ModelResponseChunk) (any, error) {
 
 // ParseMessage parses the message and returns the formatted message.
 func (j *jsonHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.v2 {
-		return m, nil
-	}
-
-	// Legacy behavior.
 	if m == nil {
 		return nil, errors.New("message is empty")
 	}
