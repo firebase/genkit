@@ -78,33 +78,40 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 		pOpts.Config = modelRef.Config()
 	}
 
-	meta := p.Metadata
-	if meta == nil {
-		meta = map[string]any{}
-	}
-
 	var tools []string
 	for _, value := range pOpts.commonGenOptions.Tools {
 		tools = append(tools, value.Name())
 	}
 
-	promptMeta := map[string]any{
-		"type": api.ActionTypeExecutablePrompt,
-		"prompt": map[string]any{
-			"name":         name,
-			"description":  p.Description,
-			"model":        modelName,
-			"config":       p.Config,
-			"input":        map[string]any{"schema": p.InputSchema},
-			"output":       map[string]any{"schema": p.OutputSchema},
-			"defaultInput": p.DefaultInput,
-			"tools":        tools,
-			"maxTurns":     p.MaxTurns,
-		},
+	metadata := p.Metadata
+	if metadata == nil {
+		metadata = map[string]any{}
 	}
-	maps.Copy(meta, promptMeta)
+	metadata["type"] = api.ActionTypeExecutablePrompt
 
-	p.ActionDef = *core.DefineAction(r, name, api.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	baseName := name
+	if idx := strings.LastIndex(name, "."); idx != -1 {
+		baseName = name[:idx]
+	}
+
+	promptMetadata := map[string]any{
+		"name":         baseName,
+		"description":  p.Description,
+		"model":        modelName,
+		"config":       p.Config,
+		"input":        map[string]any{"schema": p.InputSchema},
+		"output":       map[string]any{"schema": p.OutputSchema},
+		"defaultInput": p.DefaultInput,
+		"tools":        tools,
+		"maxTurns":     p.MaxTurns,
+	}
+	if m, ok := metadata["prompt"].(map[string]any); ok {
+		maps.Copy(m, promptMetadata)
+	} else {
+		metadata["prompt"] = promptMetadata
+	}
+
+	p.ActionDef = *core.DefineAction(r, name, api.ActionTypeExecutablePrompt, metadata, p.InputSchema, p.buildRequest)
 
 	return p
 }
@@ -608,10 +615,13 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	promptMetadata := map[string]any{
 		"template": parsedPrompt.Template,
 	}
+	if variant != "" {
+		promptMetadata["variant"] = variant
+	}
 	maps.Copy(promptMetadata, metadata.Metadata)
 
 	promptOptMetadata := map[string]any{
-		"type":   "prompt",
+		"type":   api.ActionTypeExecutablePrompt,
 		"prompt": promptMetadata,
 	}
 	maps.Copy(promptOptMetadata, metadata.Metadata)
