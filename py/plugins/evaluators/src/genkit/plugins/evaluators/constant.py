@@ -49,7 +49,6 @@ class MetricConfig(BaseModel):
     judge_config: dict[str, Any] | None = None
 
 
-
 class PluginOptions(RootModel[list[MetricConfig]]):
     """List of metrics to configure the genkitEval plugin."""
 
@@ -61,9 +60,11 @@ class AnswerRelevancyResponseSchema(BaseModel):
     answered: bool
     noncommittal: bool
 
+
 class MaliciousnessResponseSchema(BaseModel):
     reason: str
     verdict: bool
+
 
 class LongFormResponseSchema(BaseModel):
     statements: list[str]
@@ -73,6 +74,7 @@ class NliResponseBase(BaseModel):
     statement: str
     reason: str
     verdict: bool
+
 
 class NliResponse(BaseModel):
     responses: list[NliResponseBase]

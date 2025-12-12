@@ -23,11 +23,15 @@ from typing import Any
 import jsonata
 from dotpromptz.typing import DataArgument
 
-from genkit.ai import Plugin, Genkit
+from genkit.ai import Genkit, Plugin
 from genkit.plugins.evaluators.constant import GenkitMetricType, MetricConfig, PluginOptions
 from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
-from plugins.evaluators.src.genkit.plugins.evaluators.constant import AnswerRelevancyResponseSchema, \
-    LongFormResponseSchema, MaliciousnessResponseSchema, NliResponse
+from plugins.evaluators.src.genkit.plugins.evaluators.constant import (
+    AnswerRelevancyResponseSchema,
+    LongFormResponseSchema,
+    MaliciousnessResponseSchema,
+    NliResponse,
+)
 from plugins.evaluators.src.metrics.helper import load_prompt_file, render_text
 
 
@@ -85,14 +89,9 @@ class GenkitEvaluators(Plugin):
                     )
                     input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                     prompt_function = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
-                    context = " ".join(json.dumps(e) for e in datapoint.context)
+                    context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
-                        prompt_function,
-                        {
-                            'input': input_string,
-                            'output': output_string,
-                            'context': context
-                        }
+                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                     )
 
                     response = await ai.generate(
@@ -100,7 +99,6 @@ class GenkitEvaluators(Plugin):
                         prompt=prompt,
                         config=param.config,
                         output_schema=AnswerRelevancyResponseSchema,
-
                     )
                     # TODO: embedding comparison between the input and the result of the llm
                     status = EvalStatusEnum.PASS_ if response.output else EvalStatusEnum.FAIL
@@ -123,14 +121,9 @@ class GenkitEvaluators(Plugin):
                     )
                     input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                     prompt_function = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
-                    context = " ".join(json.dumps(e) for e in datapoint.context)
+                    context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
-                        prompt_function,
-                        {
-                            'input': input_string,
-                            'output': output_string,
-                            'context': context
-                        }
+                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                     )
 
                     longform_response = await ai.generate(
@@ -138,18 +131,12 @@ class GenkitEvaluators(Plugin):
                         prompt=prompt,
                         config=param.config,
                         output_schema=LongFormResponseSchema,
-
                     )
 
                     prompt_function = await load_prompt_file('../../prompts/faithfulness_nli.prompt')
-                    context = " ".join(json.dumps(e) for e in datapoint.context)
+                    context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
-                        prompt_function,
-                        {
-                            'input': input_string,
-                            'output': output_string,
-                            'context': context
-                        }
+                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                     )
 
                     longform_response = await ai.generate(
@@ -157,11 +144,12 @@ class GenkitEvaluators(Plugin):
                         prompt=prompt,
                         config=param.config,
                         output_schema=LongFormResponseSchema,
-
                     )
 
                     status = EvalStatusEnum.PASS_ if longform_response else EvalStatusEnum.FAIL
-                    return fill_scores(datapoint, Score(score=longform_response, status=status), param.status_override_fn)
+                    return fill_scores(
+                        datapoint, Score(score=longform_response, status=status), param.status_override_fn
+                    )
 
                 ai.define_evaluator(
                     name=evaluators_name(str(GenkitMetricType.MALICIOUSNESS).lower()),
@@ -181,14 +169,9 @@ class GenkitEvaluators(Plugin):
                     )
                     input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                     prompt_function = await load_prompt_file('../../prompts/maliciousness.prompt')
-                    context = " ".join(json.dumps(e) for e in datapoint.context)
+                    context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
-                        prompt_function,
-                        {
-                            'input': input_string,
-                            'output': output_string,
-                            'context': context
-                        }
+                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                     )
 
                     score = await ai.generate(
@@ -196,7 +179,6 @@ class GenkitEvaluators(Plugin):
                         prompt=prompt,
                         config=param.config,
                         output_schema=MaliciousnessResponseSchema,
-
                     )
                     status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
                     return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
@@ -207,7 +189,7 @@ class GenkitEvaluators(Plugin):
                     definition='Measures whether the generated output intends to deceive, harm, or exploit',
                     fn=_maliciousness_eval,
                 )
-#
+            #
             case GenkitMetricType.REGEX:
 
                 async def _regex_eval(datapoint: BaseEvalDataPoint, options: Any | None):
