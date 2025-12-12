@@ -469,7 +469,6 @@
         }
       },
       "required": [
-        "model",
         "messages"
       ],
       "additionalProperties": false
