@@ -384,11 +384,17 @@ export class Registry {
     for (const [key, action] of Object.entries(await this.listActions())) {
       resolvableActions[key] = action.__action;
       if (isDynamicActionProvider(action)) {
-        // Include the dynamic actions
-        const dapPrefix = `${action.__action.actionType}/${action.__action.name}`;
-        const dapMetadataRecord =
-          await action.getActionMetadataRecord(dapPrefix);
-        resolvableActions = { ...resolvableActions, ...dapMetadataRecord };
+        try {
+          // Include the dynamic actions
+          const dapPrefix = `${action.__action.actionType}/${action.__action.name}`;
+          const dapMetadataRecord =
+            await action.getActionMetadataRecord(dapPrefix);
+          resolvableActions = { ...resolvableActions, ...dapMetadataRecord };
+        } catch (e) {
+          logger.error(
+            `Error listing actions for Dynamic Action Provider ${action.__action.name}`
+          );
+        }
       }
     }
     return {
