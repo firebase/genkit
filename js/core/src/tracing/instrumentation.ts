@@ -99,7 +99,10 @@ export async function runInNewSpan<T>(
   const isInRoot = parentStep?.metadata?.isRoot === true;
   if (!parentStep) opts.metadata.isRoot ||= true;
 
-  const spanOptions: SpanOptions = { links: opts.links };
+  const spanOptions: SpanOptions = { 
+    links: opts.links, 
+    attributes: opts.labels,
+  };
   if (!isDisableRootSpanDetection()) {
     spanOptions.root = opts.metadata.isRoot;
   }
@@ -108,7 +111,6 @@ export async function runInNewSpan<T>(
     opts.metadata.name,
     spanOptions,
     async (otSpan) => {
-      if (opts.labels) otSpan.setAttributes(opts.labels);
       const spanContext = {
         ...parentStep,
         metadata: opts.metadata,
