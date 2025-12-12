@@ -216,7 +216,7 @@ export const throwy = ai.defineFlow(
  */
 export const throwy2 = ai.defineFlow(
   { name: 'throwy2', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject: string) => {
+  async (subject) => {
     const foo = await ai.run('call-llm', async () => {
       if (subject) {
         throw new Error(subject);
