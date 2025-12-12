@@ -112,15 +112,18 @@ export const testLongBroadcast = ai.defineFlow(
  * To run this flow;
  *   genkit flow:run basic "\"hello\""
  */
-export const basic = ai.defineFlow({name: 'basic', inputSchema: z.string() }, async (subject) => {
-  const foo = await ai.run('call-llm', async () => {
-    return `subject: ${subject}`;
-  });
+export const basic = ai.defineFlow(
+  { name: 'basic', inputSchema: z.string() },
+  async (subject) => {
+    const foo = await ai.run('call-llm', async () => {
+      return `subject: ${subject}`;
+    });
 
-  return await ai.run('call-llm1', async () => {
-    return `foo: ${foo}`;
-  });
-});
+    return await ai.run('call-llm1', async () => {
+      return `foo: ${foo}`;
+    });
+  }
+);
 
 export const parent = ai.defineFlow(
   { name: 'parent', outputSchema: z.string() },
