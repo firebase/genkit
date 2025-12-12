@@ -245,12 +245,13 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 
 			output, err = a.fn(ctx, input, cb)
 			if err != nil {
-				if err = base.ValidateValue(output, outputSchema); err != nil {
-					err = NewError(INTERNAL, "invalid output from action %q: %v", a.desc.Key, err)
-				}
+				return output, err
+			}
+			if err = base.ValidateValue(output, outputSchema); err != nil {
+				err = NewError(INTERNAL, "invalid output from action %q: %v", a.desc.Key, err)
 			}
 
-			return output, nil
+			return output, err
 		},
 	)
 

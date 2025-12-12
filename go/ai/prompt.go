@@ -263,14 +263,21 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 // Desc returns a descriptor of the prompt with resolved schema references.
 func (p *prompt) Desc() api.ActionDesc {
 	desc := p.ActionDef.Desc()
-	// Resolution is best effort.
-	inputSchema, _ := core.ResolveSchema(p.registry, desc.InputSchema)
-	outputSchema, _ := core.ResolveSchema(p.registry, desc.OutputSchema)
-	schemas := map[string]any{
-		"input":  map[string]any{"schema": inputSchema},
-		"output": map[string]any{"schema": outputSchema},
+	promptMeta := desc.Metadata["prompt"].(map[string]any)
+	if inputMeta, ok := promptMeta["input"].(map[string]any); ok {
+		if inputSchema, ok := inputMeta["schema"].(map[string]any); ok {
+			if resolved, err := core.ResolveSchema(p.registry, inputSchema); err == nil {
+				inputMeta["schema"] = resolved
+			}
+		}
 	}
-	maps.Copy(desc.Metadata["prompt"].(map[string]any), schemas)
+	if outputMeta, ok := promptMeta["output"].(map[string]any); ok {
+		if outputSchema, ok := outputMeta["schema"].(map[string]any); ok {
+			if resolved, err := core.ResolveSchema(p.registry, outputSchema); err == nil {
+				outputMeta["schema"] = resolved
+			}
+		}
+	}
 	return desc
 }
 
