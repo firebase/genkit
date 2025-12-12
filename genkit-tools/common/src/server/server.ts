@@ -74,8 +74,6 @@ export function startServer(manager: RuntimeManager, port: number) {
     '/api/runAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
-      const { key, input, context, runtimeId } = req.body;
-
       // Set headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
       res.setHeader('Content-Type', 'application/json');
       res.statusCode = 200;
@@ -98,7 +96,7 @@ export function startServer(manager: RuntimeManager, port: number) {
           : undefined;
 
         const result = await manager.runAction(
-          { key, input, context, runtimeId },
+          req.body,
           undefined, // no streaming callback
           onTraceIdCallback
         );
@@ -122,8 +120,6 @@ export function startServer(manager: RuntimeManager, port: number) {
     '/api/streamAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
-      const { key, input, context, runtimeId } = req.body;
-
       // Set streaming headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Transfer-Encoding', 'chunked');
@@ -145,7 +141,7 @@ export function startServer(manager: RuntimeManager, port: number) {
           : undefined;
 
         const result = await manager.runAction(
-          { key, input, context, runtimeId },
+          req.body,
           (chunk) => {
             res.write(JSON.stringify(chunk) + '\n');
           },
