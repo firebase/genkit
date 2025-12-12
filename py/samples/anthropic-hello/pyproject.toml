@@ -1,0 +1,21 @@
+[project]
+name = "anthropic-hello"
+version = "0.1.0"
+description = "Anthropic Hello Sample"
+requires-python = ">=3.10"
+dependencies = [
+    "genkit",
+    "genkit-plugin-anthropic",
+    "pydantic>=2.0.0",
+    "structlog>=24.0.0",
+]
+
+[tool.uv.sources]
+genkit-plugin-anthropic = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
