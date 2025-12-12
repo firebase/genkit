@@ -112,7 +112,7 @@ export const testLongBroadcast = ai.defineFlow(
  * To run this flow;
  *   genkit flow:run basic "\"hello\""
  */
-export const basic = ai.defineFlow('basic', async (subject: string) => {
+export const basic = ai.defineFlow({name: 'basic', inputSchema: z.string() }, async (subject) => {
   const foo = await ai.run('call-llm', async () => {
     return `subject: ${subject}`;
   });
@@ -131,7 +131,7 @@ export const parent = ai.defineFlow(
 
 export const withInputSchema = ai.defineFlow(
   { name: 'withInputSchema', inputSchema: z.object({ subject: z.string() }) },
-  async (input: { subject: string }) => {
+  async (input) => {
     const foo = await ai.run('call-llm', async () => {
       return `subject: ${input.subject}`;
     });
@@ -147,7 +147,7 @@ export const withContext = ai.defineFlow(
     name: 'withContext',
     inputSchema: z.object({ subject: z.string() }),
   },
-  async (input: { subject: string }, { context }: any) => {
+  async (input: { subject }, { context }) => {
     return `subject: ${input.subject}, context: ${JSON.stringify(context)}`;
   }
 );
@@ -178,7 +178,7 @@ export const streamyThrowy = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.object({ count: z.number() }),
   },
-  async (count: number, { sendChunk }: any) => {
+  async (count, { sendChunk }) => {
     let i = 0;
     for (; i < count; i++) {
       if (i == 3) {
@@ -197,7 +197,7 @@ export const streamyThrowy = ai.defineFlow(
  */
 export const throwy = ai.defineFlow(
   { name: 'throwy', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject: string) => {
+  async (subject) => {
     const foo = await ai.run('call-llm', async () => {
       return `subject: ${subject}`;
     });
@@ -216,7 +216,7 @@ export const throwy = ai.defineFlow(
  */
 export const throwy2 = ai.defineFlow(
   { name: 'throwy2', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject: string) => {
+  async (subject) => {
     const foo = await ai.run('call-llm', async () => {
       if (subject) {
         throw new Error(subject);
@@ -256,7 +256,7 @@ export const flowMultiStepCaughtError = ai.defineFlow(
 
 export const multiSteps = ai.defineFlow(
   { name: 'multiSteps', inputSchema: z.string(), outputSchema: z.number() },
-  async (input: string) => {
+  async (input) => {
     const out1 = await ai.run('step1', async () => {
       return `Hello, ${input}! step 1`;
     });
