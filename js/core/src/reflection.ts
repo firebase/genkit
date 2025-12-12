@@ -294,7 +294,7 @@ export class ReflectionServer {
             ? StatusCodes.CANCELLED
             : StatusCodes.INTERNAL,
           message: isAbortError(err) ? 'Action was cancelled' : message,
-          details: { stack },
+          details: { stack, traceId: (err as any).traceId || traceId },
         };
         if (response.headersSent) {
           // Headers already sent via onTraceStart, must send error in response body
