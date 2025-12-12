@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -1315,16 +1316,27 @@ Generate a recipe for {{food}}.
 		t.Fatal("Failed to load prompt with undefined schema")
 	}
 
-	// verify the prompt is loaded with a reference schema
-	// the internal representation should use the $ref: "genkit:Recipe" mechanism
+	// verify the prompt is loaded with a schema reference
+	// the internal representation stores the schema with $ref for lazy resolution
 	actionDef := prompt.(api.Action).Desc()
 	outputSchema := actionDef.Metadata["prompt"].(map[string]any)["output"].(map[string]any)["schema"]
 	if outputSchema == nil {
 		t.Fatal("Output schema should not be nil")
 	}
+	schemaMap, ok := outputSchema.(map[string]any)
+	if !ok {
+		t.Fatalf("Expected output schema to be a map, got: %T", outputSchema)
+	}
+	ref, ok := schemaMap["$ref"].(string)
+	if !ok {
+		t.Fatalf("Expected output schema to have $ref, got: %v", schemaMap)
+	}
+	if ref != "genkit:Recipe" {
+		t.Fatalf("Expected output schema $ref to be 'genkit:Recipe', got: %v", ref)
+	}
 
 	// define the "Recipe" schema (deferred resolution)
-	DefineSchema(reg, "Recipe", map[string]any{
+	core.DefineSchema(reg, "Recipe", map[string]any{
 		"type": "object",
 		"properties": map[string]any{
 			"title": map[string]any{"type": "string"},
@@ -1436,7 +1448,7 @@ func TestWithOutputSchemaName_DefinePrompt(t *testing.T) {
 	})
 
 	// Define schema
-	DefineSchema(reg, "FooSchema", map[string]any{
+	core.DefineSchema(reg, "FooSchema", map[string]any{
 		"type": "object",
 		"properties": map[string]any{
 			"foo": map[string]any{"type": "string"},

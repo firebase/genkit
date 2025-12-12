@@ -39,7 +39,7 @@ func main() {
 			Category string `json:"jokeCategory" description:"What is the joke about"`
 		}
 
-		genkit.DefineSchemaWithType(g, "joke", Joke{})
+		genkit.DefineSchemaFor[Joke](g)
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.5-flash"),

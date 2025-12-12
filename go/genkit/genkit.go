@@ -19,7 +19,6 @@ package genkit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -32,7 +31,6 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 )
 
 // Genkit encapsulates a Genkit instance, providing access to its registry,
@@ -628,7 +626,7 @@ func LookupPrompt(g *Genkit, name string) ai.Prompt {
 //
 // Example:
 //
-//	genkit.DefineSchema(g, "UserInfo", map[string]any{
+//	genkit.DefineSchema(g, "User", map[string]any{
 //	    "type": "object",
 //	    "properties": map[string]any{
 //	        "name": map[string]any{"type": "string"},
@@ -636,39 +634,29 @@ func LookupPrompt(g *Genkit, name string) ai.Prompt {
 //	    },
 //	    "required": []string{"name"}
 //	})
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
 func DefineSchema(g *Genkit, name string, schema map[string]any) {
-	ai.DefineSchema(g.reg, name, schema)
+	core.DefineSchema(g.reg, name, schema)
 }
 
-// DefineSchemaWithType defines a named JSON schema derived from a Go type
+// DefineSchemaFor defines a named JSON schema derived from a Go type
 // and registers it in the registry.
 //
 // This is an alternative to [DefineSchema].
 //
 // Example:
 //
-//	type UserInfo struct {
+//	type User struct {
 //	    Name string `json:"name"`
 //	    Age int `json:"age"`
 //	}
 //
-//	genkit.DefineSchemaWithType(g, "UserInfo", UserInfo{})
-func DefineSchemaWithType(g *Genkit, name string, schema any) {
-	reflector := &jsonschema.Reflector{
-		DoNotReference: true,
-	}
-	s := reflector.Reflect(schema)
-	b, err := json.Marshal(s)
-	if err != nil {
-		panic(fmt.Errorf("genkit.DefineSchemaWithType: failed to marshal schema %q: %w", name, err))
-	}
-
-	var schemaAsMap map[string]any
-	err = json.Unmarshal(b, &schemaAsMap)
-	if err != nil {
-		panic(fmt.Errorf("genkit.DefineSchemaWithType: failed to unmarshal schema: %q: %w", name, err))
-	}
-	ai.DefineSchema(g.reg, name, schemaAsMap)
+//	genkit.DefineSchemaFor[User](g)
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
+func DefineSchemaFor[T any](g *Genkit) {
+	core.DefineSchemaFor[T](g.reg)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided

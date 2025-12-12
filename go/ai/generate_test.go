@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
@@ -875,7 +876,7 @@ func TestGenerateWithOutputSchemaName(t *testing.T) {
 		}, nil
 	})
 
-	DefineSchema(r, "FooSchema", map[string]any{
+	core.DefineSchema(r, "FooSchema", map[string]any{
 		"type": "object",
 		"properties": map[string]any{
 			"foo": map[string]any{"type": "string"},

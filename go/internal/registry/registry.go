@@ -57,11 +57,11 @@ func New() *Registry {
 		SchemaResolver: func(name string) (*jsonschema.Schema, error) {
 			s := r.LookupSchema(name)
 			if s == nil {
-				r.RegisterSchema(name, nil)
-				// Define a reference schema that Dotprompt can handle
-				// Use a custom URI scheme "genkit:" to denote registry references
+				// Schema not found - return a reference schema with just the name.
+				// The caller (LoadPrompt) will detect this and store the name
+				// for lazy resolution at execution time.
 				return &jsonschema.Schema{
-					Ref: "genkit:" + name,
+					Ref: name,
 				}, nil
 			}
 			var schema jsonschema.Schema
@@ -129,12 +129,7 @@ func (r *Registry) RegisterAction(key string, action api.Action) {
 func (r *Registry) RegisterSchema(name string, schema map[string]any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if val, ok := r.schemas[name]; ok {
-		if val == nil {
-			r.schemas[name] = schema
-			slog.Debug("RegisterSchema", "name", name)
-			return
-		}
+	if _, ok := r.schemas[name]; ok {
 		panic(fmt.Sprintf("schema %q is already registered", name))
 	}
 	r.schemas[name] = schema

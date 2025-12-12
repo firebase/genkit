@@ -19,7 +19,6 @@ package core
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -49,8 +48,9 @@ type StreamCallback[Stream any] = func(context.Context, Stream) error
 //
 // For internal use only.
 type ActionDef[In, Out, Stream any] struct {
-	fn   StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
-	desc *api.ActionDesc                // Descriptor of the action.
+	fn       StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
+	desc     *api.ActionDesc                // Descriptor of the action.
+	registry api.Registry                   // Registry for schema resolution. Set when registered.
 }
 
 type noStream = func(context.Context, struct{}) error
@@ -121,9 +121,7 @@ func defineAction[In, Out, Stream any](
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
 	a := newAction(name, atype, metadata, inputSchema, fn)
-	provider, id := api.ParseName(name)
-	key := api.NewKey(atype, provider, id)
-	r.RegisterAction(key, a)
+	a.Register(r)
 	return a
 }
 
@@ -199,51 +197,63 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 
 	// Create span metadata and inject flow name if we're in a flow context
 	spanMetadata := &tracing.SpanMetadata{
-		Name:    a.desc.Name,
-		Type:    "action",
-		Subtype: string(a.desc.Type), // The actual action type becomes the subtype
+		Name:     a.desc.Name,
+		Type:     "action",
+		Subtype:  string(a.desc.Type), // The actual action type becomes the subtype
+		Metadata: make(map[string]string),
 		// IsRoot will be automatically determined in tracing.go based on parent span presence
 	}
 
 	// Auto-inject flow name if we're in a flow context
 	if flowName := FlowNameFromContext(ctx); flowName != "" {
-		if spanMetadata.Metadata == nil {
-			spanMetadata.Metadata = make(map[string]string)
-		}
 		spanMetadata.Metadata["flow:name"] = flowName
 	}
 
 	var traceID string
 	var spanID string
 	o, err := tracing.RunInNewSpan(ctx, spanMetadata, input,
-		func(ctx context.Context, input In) (Out, error) {
+		func(ctx context.Context, input In) (output Out, err error) {
 			traceInfo := tracing.SpanTraceInfo(ctx)
 			traceID = traceInfo.TraceID
 			spanID = traceInfo.SpanID
 
 			start := time.Now()
-			var err error
-			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
-				err = fmt.Errorf("invalid input: %w", err)
+			defer func() {
+				latency := time.Since(start)
+				if err != nil {
+					metrics.WriteActionFailure(ctx, a.desc.Name, latency, err)
+				} else {
+					metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
+				}
+			}()
+
+			var inputSchema map[string]any
+			inputSchema, err = ResolveSchema(a.registry, a.desc.InputSchema)
+			if err != nil {
+				return base.Zero[Out](), NewError(INVALID_ARGUMENT, "invalid input schema for action %q: %v", a.desc.Key, err)
 			}
-			var output Out
-			if err == nil {
-				output, err = a.fn(ctx, input, cb)
-				if err == nil {
-					if err = base.ValidateValue(output, a.desc.OutputSchema); err != nil {
-						err = fmt.Errorf("invalid output: %w", err)
-					}
+
+			var outputSchema map[string]any
+			outputSchema, err = ResolveSchema(a.registry, a.desc.OutputSchema)
+			if err != nil {
+				return base.Zero[Out](), NewError(INVALID_ARGUMENT, "invalid output schema for action %q: %v", a.desc.Key, err)
+			}
+
+			if err = base.ValidateValue(input, inputSchema); err != nil {
+				return base.Zero[Out](), NewError(INVALID_ARGUMENT, "invalid input to action %q: %v", a.desc.Key, err)
+			}
+
+			output, err = a.fn(ctx, input, cb)
+			if err != nil {
+				if err = base.ValidateValue(output, outputSchema); err != nil {
+					err = NewError(INTERNAL, "invalid output from action %q: %v", a.desc.Key, err)
 				}
 			}
-			latency := time.Since(start)
-			if err != nil {
-				metrics.WriteActionFailure(ctx, a.desc.Name, latency, err)
-				return base.Zero[Out](), err
-			}
-			metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
-			return output, nil
 
-		})
+			return output, nil
+		},
+	)
+
 	return api.ActionRunResult[Out]{
 		Result:  o,
 		TraceId: traceID,
@@ -298,13 +308,14 @@ func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, i
 	}, nil
 }
 
-// Desc returns a descriptor of the action.
+// Desc returns a descriptor of the action with resolved schema references.
 func (a *ActionDef[In, Out, Stream]) Desc() api.ActionDesc {
 	return *a.desc
 }
 
 // Register registers the action with the given registry.
 func (a *ActionDef[In, Out, Stream]) Register(r api.Registry) {
+	a.registry = r
 	r.RegisterAction(a.desc.Key, a)
 }
 

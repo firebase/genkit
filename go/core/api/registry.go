@@ -22,6 +22,8 @@ import (
 
 // Registry holds all registered actions and associated types,
 // and provides methods to register, query, and look up actions.
+//
+// For internal use only. API may change without notice.
 type Registry interface {
 	// NewChild creates a new child registry that inherits from this registry.
 	// Child registries are cheap to create and will fall back to the parent
