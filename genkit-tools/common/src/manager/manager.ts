@@ -234,9 +234,9 @@ export class RuntimeManager {
         genkitVersion = response.headers['x-genkit-version'];
       }
 
-      const earlyTraceId = response.headers['x-genkit-trace-id'];
-      if (earlyTraceId && onTraceId) {
-        onTraceId(earlyTraceId);
+      const traceId = response.headers['x-genkit-trace-id'];
+      if (traceId && onTraceId) {
+        onTraceId(traceId);
       }
 
       const stream = response.data;
@@ -305,9 +305,9 @@ export class RuntimeManager {
           this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
         );
 
-      const earlyTraceId = response.headers['x-genkit-trace-id'];
-      if (earlyTraceId && onTraceId) {
-        onTraceId(earlyTraceId);
+      const traceId = response.headers['x-genkit-trace-id'];
+      if (traceId && onTraceId) {
+        onTraceId(traceId);
       }
 
       return new Promise<RunActionResponse>((resolve, reject) => {
@@ -339,8 +339,8 @@ export class RuntimeManager {
             }
 
             // Handle backward compatibility - add trace ID from header if not in body
-            if (!responseData.telemetry && earlyTraceId) {
-              responseData.telemetry = { traceId: earlyTraceId };
+            if (!responseData.telemetry && traceId) {
+              responseData.telemetry = { traceId: traceId };
             }
 
             const parsed = RunActionResponseSchema.parse(responseData);
