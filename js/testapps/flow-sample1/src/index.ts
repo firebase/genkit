@@ -178,7 +178,7 @@ export const streamyThrowy = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.object({ count: z.number() }),
   },
-  async (count: number, { sendChunk }: any) => {
+  async (count, { sendChunk }) => {
     let i = 0;
     for (; i < count; i++) {
       if (i == 3) {
