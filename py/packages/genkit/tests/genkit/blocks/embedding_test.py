@@ -103,6 +103,8 @@ def test_create_embedder_ref_basic():
     assert ref.name == 'my-embedder'
     assert ref.config is None
     assert ref.version is None
+    assert ref.info is None
+    assert ref.config_schema is None
 
 
 def test_create_embedder_ref_with_config():
@@ -129,6 +131,15 @@ def test_create_embedder_ref_with_config_and_version():
     assert ref.name == 'full-embedder'
     assert ref.config == config
     assert ref.version == 'beta'
+
+
+def test_create_embedder_ref_with_namespace():
+    """Test creation of EmbedderRef with namespace."""
+    ref = create_embedder_ref('my-embedder', namespace='my-plugin')
+    assert ref.name == 'my-plugin/my-embedder'
+
+    ref = create_embedder_ref('my-plugin/my-embedder', namespace='my-plugin')
+    assert ref.name == 'my-plugin/my-embedder'
 
 
 class MockGenkitRegistry:

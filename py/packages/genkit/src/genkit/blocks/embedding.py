@@ -47,6 +47,16 @@ class EmbedderOptions(BaseModel):
     dimensions: int | None = None
 
 
+class EmbedderInfo(BaseModel):
+    """Information about an embedder."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    label: str | None = None
+    supports: EmbedderSupports | None = None
+    dimensions: int | None = None
+
+
 class EmbedderRef(BaseModel):
     """Reference to an embedder with configuration."""
 
@@ -54,6 +64,8 @@ class EmbedderRef(BaseModel):
 
     name: str
     config: Any | None = None
+    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    info: EmbedderInfo | None = None
     version: str | None = None
 
 
@@ -86,6 +98,15 @@ def embedder_action_metadata(
     )
 
 
-def create_embedder_ref(name: str, config: dict[str, Any] | None = None, version: str | None = None) -> EmbedderRef:
+def create_embedder_ref(
+    name: str,
+    config: dict[str, Any] | None = None,
+    version: str | None = None,
+    config_schema: dict[str, Any] | None = None,
+    info: EmbedderInfo | None = None,
+    namespace: str | None = None,
+) -> EmbedderRef:
     """Creates an EmbedderRef instance."""
-    return EmbedderRef(name=name, config=config, version=version)
+    if namespace and not name.startswith(f'{namespace}/'):
+        name = f'{namespace}/{name}'
+    return EmbedderRef(name=name, config=config, version=version, config_schema=config_schema, info=info)
