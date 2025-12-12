@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -141,6 +142,9 @@ func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model 
 	config = &genai.GenerateContentConfig{}
 	if strings.Contains(name, "imagen") {
 		config = &genai.GenerateImagesConfig{}
+	} else if vi, fnd := supportedVideoModels[name]; fnd {
+		config = &genai.GenerateVideosConfig{}
+		opts = vi
 	}
 	meta := &ai.ModelOptions{
 		Label:        opts.Label,
@@ -290,11 +294,12 @@ func generate(
 
 	// Streaming version.
 	iter := client.Models.GenerateContentStream(ctx, model, contents, gcc)
-	var r *ai.ModelResponse
 
-	// merge all streamed responses
-	var resp *genai.GenerateContentResponse
-	var chunks []*genai.Part
+	var r *ai.ModelResponse
+	var genaiResp *genai.GenerateContentResponse
+
+	genaiParts := []*genai.Part{}
+	chunks := []*ai.Part{}
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -307,27 +312,38 @@ func generate(
 			}
 			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
+				Role:    ai.RoleModel,
 			})
 			if err != nil {
 				return nil, err
 			}
-			chunks = append(chunks, c.Content.Parts...)
+			genaiParts = append(genaiParts, c.Content.Parts...)
+			chunks = append(chunks, tc.Message.Content...)
 		}
-		// keep the last chunk for usage metadata
-		resp = chunk
+		genaiResp = chunk
+
 	}
 
-	// manually merge all candidate responses, iterator does not provide a
-	// merged response utility
+	if len(genaiResp.Candidates) == 0 {
+		return nil, fmt.Errorf("no valid candidates found")
+	}
+
+	// preserve original parts since they will be included in the
+	// "custom" response field
 	merged := []*genai.Candidate{
 		{
+			FinishReason: genaiResp.Candidates[0].FinishReason,
 			Content: &genai.Content{
-				Parts: chunks,
+				Role:  string(ai.RoleModel),
+				Parts: genaiParts,
 			},
 		},
 	}
-	resp.Candidates = merged
-	r, err = translateResponse(resp)
+
+	genaiResp.Candidates = merged
+	r, err = translateResponse(genaiResp)
+	r.Message.Content = chunks
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate contents: %w", err)
 	}
@@ -360,13 +376,6 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 	}
 	if gcc.SystemInstruction != nil {
 		return nil, errors.New("system instruction must be set using Genkit feature: ai.WithSystemPrompt()")
-	}
-	if gcc.Tools != nil {
-		for _, t := range gcc.Tools {
-			if t.FunctionDeclarations != nil {
-				return nil, errors.New("tool functions must be set using Genkit feature: ai.WithTools()")
-			}
-		}
 	}
 	if gcc.CachedContent != "" {
 		return nil, errors.New("cached content must be set using Genkit feature: ai.WithCacheTTL()")
@@ -403,21 +412,20 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 	}
 
 	// Add tool configuration from input.Tools and input.ToolChoice directly
-	// This overrides any functionCallingConfig in the passed config
+	// Merge with existing tools to preserve Gemini-specific tools (Retrieval, GoogleSearch, CodeExecution)
 	if len(input.Tools) > 0 {
 		// First convert the tools
 		tools, err := toGeminiTools(input.Tools)
 		if err != nil {
 			return nil, err
 		}
-		gcc.Tools = tools
+		gcc.Tools = mergeTools(append(gcc.Tools, tools...))
 
 		// Then set up the tool configuration based on ToolChoice
 		tc, err := toGeminiToolChoice(input.ToolChoice, input.Tools)
 		if err != nil {
 			return nil, err
 		}
-
 		gcc.ToolConfig = tc
 	}
 
@@ -476,6 +484,41 @@ func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	return outTools, nil
 }
 
+// mergeTools consolidates all FunctionDeclarations into a single Tool
+// while preserving non-function tools (Retrieval, GoogleSearch, CodeExecution, etc.)
+func mergeTools(ts []*genai.Tool) []*genai.Tool {
+	var decls []*genai.FunctionDeclaration
+	var out []*genai.Tool
+
+	for _, t := range ts {
+		if t == nil {
+			continue
+		}
+		if len(t.FunctionDeclarations) == 0 {
+			out = append(out, t)
+			continue
+		}
+		decls = append(decls, t.FunctionDeclarations...)
+		if cpy := cloneToolWithoutFunctions(t); cpy != nil && !reflect.ValueOf(*cpy).IsZero() {
+			out = append(out, cpy)
+		}
+	}
+
+	if len(decls) > 0 {
+		out = append([]*genai.Tool{{FunctionDeclarations: decls}}, out...)
+	}
+	return out
+}
+
+func cloneToolWithoutFunctions(t *genai.Tool) *genai.Tool {
+	if t == nil {
+		return nil
+	}
+	clone := *t
+	clone.FunctionDeclarations = nil
+	return &clone
+}
+
 // toGeminiSchema translates a map representing a standard JSON schema to a more
 // limited [genai.Schema].
 func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
@@ -489,7 +532,11 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		if !ok {
 			return nil, fmt.Errorf("invalid $ref value: not a string")
 		}
-		return toGeminiSchema(originalSchema, resolveRef(originalSchema, ref))
+		s, err := resolveRef(originalSchema, ref)
+		if err != nil {
+			return nil, err
+		}
+		return toGeminiSchema(originalSchema, s)
 	}
 
 	// Handle "anyOf" subschemas by finding the first valid schema definition
@@ -600,12 +647,22 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 	return schema, nil
 }
 
-func resolveRef(originalSchema map[string]any, ref string) map[string]any {
+func resolveRef(originalSchema map[string]any, ref string) (map[string]any, error) {
 	tkns := strings.Split(ref, "/")
 	// refs look like: $/ref/foo -- we need the foo part
 	name := tkns[len(tkns)-1]
-	defs := originalSchema["$defs"].(map[string]any)
-	return defs[name].(map[string]any)
+	if defs, ok := originalSchema["$defs"].(map[string]any); ok {
+		if def, ok := defs[name].(map[string]any); ok {
+			return def, nil
+		}
+	}
+	// definitions (legacy)
+	if defs, ok := originalSchema["definitions"].(map[string]any); ok {
+		if def, ok := defs[name].(map[string]any); ok {
+			return def, nil
+		}
+	}
+	return nil, fmt.Errorf("unable to resolve schema reference")
 }
 
 // castToStringArray converts either []any or []string to []string, filtering non-strings.
@@ -721,16 +778,14 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonOther:
 		m.FinishReason = ai.FinishReasonOther
-	default: // Unspecified
-		m.FinishReason = ai.FinishReasonUnknown
 	}
 
+	m.FinishMessage = cand.FinishMessage
 	if cand.Content == nil {
 		return nil, fmt.Errorf("no valid candidates were found in the generate response")
 	}
 	msg := &ai.Message{}
 	msg.Role = ai.Role(cand.Content.Role)
-
 	// iterate over the candidate parts, only one struct member
 	// must be populated, more than one is considered an error
 	for _, part := range cand.Content.Parts {
@@ -805,13 +860,20 @@ func translateResponse(resp *genai.GenerateContentResponse) (*ai.ModelResponse, 
 		r.Usage = &ai.GenerationUsage{}
 	}
 
+	// populate "custom" with plugin custom information
+	custom := make(map[string]any)
+	custom["candidates"] = resp.Candidates
+
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
 		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
+		custom["usageMetadata"] = resp.UsageMetadata
 	}
+
+	r.Custom = custom
 	return r, nil
 }
 

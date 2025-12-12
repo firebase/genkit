@@ -300,22 +300,83 @@ export declare interface GenerativeContentBlob {
  * values.
  */
 export declare interface FunctionCall {
+  /**
+   * The unique id of the function call. If populated, the client to execute the
+   * `function_call` and return the response with the matching `id`.
+   */
+  id?: string;
   /** The name of the function specified in FunctionDeclaration.name. */
-  name: string;
+  name?: string;
   /** The arguments to pass to the function. */
-  args: object;
+  args?: object;
+  /** Optional. The partial argument value of the function call. If provided, represents the arguments/fields that are streamed incrementally. */
+  partialArgs?: PartialArg[];
+  /** Optional. Whether this is the last part of the FunctionCall. If true, another partial message for the current FunctionCall is expected to follow. */
+  willContinue?: boolean;
 }
 
+/** Partial argument value of the function call. This data type is not supported in Gemini API. */
+export declare interface PartialArg {
+  /** Optional. Represents a null value. */
+  nullValue?: 'NULL_VALUE';
+  /** Optional. Represents a double value. */
+  numberValue?: number;
+  /** Optional. Represents a string value. */
+  stringValue?: string;
+  /** Optional. Represents a boolean value. */
+  boolValue?: boolean;
+  /** Required. A JSON Path (RFC 9535) to the argument being streamed. https://datatracker.ietf.org/doc/html/rfc9535. e.g. "$.foo.bar[0].data". */
+  jsonPath?: string;
+  /** Optional. Whether this is not the last part of the same json_path. If true, another PartialArg message for the current json_path is expected to follow. */
+  willContinue?: boolean;
+}
 /**
  * The result output of a FunctionCall that contains a string representing
  * the FunctionDeclaration.name and a structured JSON object containing any
  * output from the function call. It is used as context to the model.
  */
 export declare interface FunctionResponse {
+  /** Optional. The id of the function call this response is for. Populated by the client to match the corresponding function call `id`. */
+  id?: string;
   /** The name of the function specified in FunctionDeclaration.name. */
   name: string;
   /** The expected response from the model. */
   response: object;
+  /** List of parts that constitute a function response. Each part may
+      have a different IANA MIME type. */
+  parts?: FunctionResponsePart[];
+}
+
+/**
+ * A datatype containing media that is part of a `FunctionResponse` message.
+ *
+ * A `FunctionResponsePart` consists of data which has an associated datatype. A
+ * `FunctionResponsePart` can only contain one of the accepted types in
+ * `FunctionResponsePart.data`.
+ *
+ * A `FunctionResponsePart` must have a fixed IANA MIME type identifying the
+ * type and subtype of the media if the `inline_data` field is filled with raw
+ * bytes.
+ */
+export class FunctionResponsePart {
+  /** Optional. Inline media bytes. */
+  inlineData?: FunctionResponseBlob;
+}
+
+/**
+ * Raw media bytes for function response.
+ *
+ * Text should not be sent as raw bytes, use the FunctionResponse.response field.
+ */
+export class FunctionResponseBlob {
+  /** Required. The IANA standard MIME type of the source data. */
+  mimeType?: string;
+  /** Required. Inline media bytes.
+   * @remarks Encoded as base64 string. */
+  data?: string;
+  /** Optional. Display name of the blob.
+      Used to provide a label or filename to distinguish blobs. */
+  displayName?: string;
 }
 
 /**
@@ -691,6 +752,16 @@ export declare interface VideoMetadata {
   fps?: number;
 }
 
+export enum MediaResolutionLevel {
+  MEDIA_RESOUTION_LOW = 'MEDIA_RESOUTION_LOW',
+  MEDIA_RESOLUTION_MEDIUM = 'MEDIA_RESOLUTION_MEDIUM',
+  MEDIA_RESOLUTION_HIGH = 'MEDIA_RESOLUTION_HIGH',
+}
+
+export declare interface MediaResolution {
+  level?: MediaResolutionLevel;
+}
+
 /**
  * This is a Gemini Part. (Users never see this
  * structure, it is just built by the converters.)
@@ -706,6 +777,7 @@ export declare interface Part {
   executableCode?: ExecutableCode;
   codeExecutionResult?: CodeExecutionResult;
   videoMetadata?: VideoMetadata;
+  mediaResolution?: MediaResolution;
 }
 
 /**
@@ -1056,6 +1128,13 @@ export declare interface FunctionCallingConfig {
    * will predict a function call from the set of function names provided.
    */
   allowedFunctionNames?: string[];
+
+  /**
+   * When set to true, arguments of a single function call will be streamed out
+   * in multiple parts/contents/responses. Partial parameter results will be
+   * returned in the [FunctionCall.partial_args] field.
+   */
+  streamFunctionCallArguments?: boolean;
 }
 
 export declare interface LatLng {

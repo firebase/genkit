@@ -208,10 +208,10 @@ export async function runEvaluation(params: {
       evalRunId,
       createdAt: new Date().toISOString(),
       metricSummaries,
+      metricsMetadata: metadata,
       ...augments,
     },
     results: scoredResults,
-    metricsMetadata: metadata,
   };
 
   logger.info('Finished evaluation, writing key...');

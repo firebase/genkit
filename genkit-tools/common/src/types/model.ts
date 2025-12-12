@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 import { z } from 'zod';
+import { DocumentDataSchema } from './document';
 import {
   CustomPartSchema,
   DataPartSchema,
-  DocumentDataSchema,
   MediaPartSchema,
+  MultipartToolResponseSchema,
+  PartSchema,
   ReasoningPartSchema,
   ResourcePartSchema,
   TextPartSchema,
@@ -27,16 +29,20 @@ import {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type MultipartToolResponse,
+  type Part,
   type ReasoningPart,
   type ResourcePart,
   type TextPart,
   type ToolRequestPart,
   type ToolResponsePart,
-} from './document';
+} from './parts';
 export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
+  MultipartToolResponseSchema,
+  PartSchema,
   ReasoningPartSchema,
   ResourcePartSchema,
   TextPartSchema,
@@ -45,6 +51,8 @@ export {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type MultipartToolResponse,
+  type Part,
   type ReasoningPart,
   type ResourcePart,
   type TextPart,
@@ -72,25 +80,6 @@ export const OperationSchema = z.object({
  * Operation data.
  */
 export type OperationData = z.infer<typeof OperationSchema>;
-
-/**
- * Zod schema of message part.
- */
-export const PartSchema = z.union([
-  TextPartSchema,
-  MediaPartSchema,
-  ToolRequestPartSchema,
-  ToolResponsePartSchema,
-  DataPartSchema,
-  CustomPartSchema,
-  ReasoningPartSchema,
-  ResourcePartSchema,
-]);
-
-/**
- * Message part.
- */
-export type Part = z.infer<typeof PartSchema>;
 
 /**
  * Zod schema of a message role.
@@ -147,6 +136,8 @@ export const ModelInfoSchema = z.object({
       constrained: z.enum(['none', 'all', 'no-tools']).optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
+      /** Model supports long running operations. */
+      longRunning: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.
@@ -381,7 +372,7 @@ export const GenerateActionOutputConfig = z.object({
 
 export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
-  model: z.string(),
+  model: z.string().optional(),
   /** Retrieved documents to be used as context for this generation. */
   docs: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */

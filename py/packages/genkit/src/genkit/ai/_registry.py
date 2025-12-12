@@ -47,7 +47,7 @@ from typing import Any, Type
 import structlog
 from pydantic import BaseModel
 
-from genkit.blocks.embedding import EmbedderFn
+from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
@@ -458,8 +458,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        options: EmbedderOptions | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
@@ -471,12 +470,19 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata if metadata else {}
+        embedder_meta: dict[str, Any] = {}
+        if options:
+            if options.label:
+                embedder_meta['embedder']['label'] = options.label
+            if options.dimensions:
+                embedder_meta['embedder']['dimensions'] = options.dimensions
+            if options.supports:
+                embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+            if options.config_schema:
+                embedder_meta['embedder']['customOptions'] = to_json_schema(options.config_schema)
+
         if 'embedder' not in embedder_meta:
             embedder_meta['embedder'] = {}
-
-        if config_schema:
-            embedder_meta['embedder']['customOptions'] = to_json_schema(config_schema)
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(

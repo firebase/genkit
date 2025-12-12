@@ -427,6 +427,16 @@ func DefineModel(g *Genkit, name string, opts *ai.ModelOptions, fn ai.ModelFunc)
 	return ai.DefineModel(g.reg, name, opts, fn)
 }
 
+// DefineBackgroundModel defines a background model, registers it as a [ai.BackgroundModel],
+// and returns an [ai.BackgroundModel].
+//
+// The `name` is the identifier the model uses to request the background model. The `opts`
+// are the options for the background model. The `startFn` is the function that starts the background model.
+// The `checkFn` is the function that checks the status of the background model.
+func DefineBackgroundModel(g *Genkit, name string, opts *ai.BackgroundModelOptions, startFn ai.StartModelOpFunc, checkFn ai.CheckModelOpFunc) ai.BackgroundModel {
+	return ai.DefineBackgroundModel(g.reg, name, opts, startFn, checkFn)
+}
+
 // LookupModel retrieves a registered [ai.Model] by its provider and name.
 // It returns the model instance if found, or `nil` if no model with the
 // given identifier is registered (e.g., via [DefineModel] or a plugin).
@@ -434,6 +444,13 @@ func DefineModel(g *Genkit, name string, opts *ai.ModelOptions, fn ai.ModelFunc)
 // this does not necessarily mean the model is valid.
 func LookupModel(g *Genkit, name string) ai.Model {
 	return ai.LookupModel(g.reg, name)
+}
+
+// LookupBackgroundModel retrieves a registered background model by its provider and name.
+// It returns the background action instance if found, or `nil` if no background model with the
+// given identifier is registered.
+func LookupBackgroundModel(g *Genkit, name string) ai.BackgroundModel {
+	return ai.LookupBackgroundModel(g.reg, name)
 }
 
 // DefineTool defines a tool that can be used by models during generation,
@@ -593,12 +610,53 @@ func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) ai.Prompt {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.prompt] by its name.
+// LookupPrompt retrieves a registered [ai.Prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
 func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
+}
+
+// DefineSchema defines a named JSON schema and registers it in the registry.
+//
+// Registered schemas can be referenced by name in prompts (both `.prompt` files
+// and programmatic definitions) to define input or output structures.
+// The `schema` argument must be a JSON schema definition represented as a map.
+//
+// Example:
+//
+//	genkit.DefineSchema(g, "User", map[string]any{
+//	    "type": "object",
+//	    "properties": map[string]any{
+//	        "name": map[string]any{"type": "string"},
+//	        "age":  map[string]any{"type": "integer"},
+//	    },
+//	    "required": []string{"name"}
+//	})
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
+func DefineSchema(g *Genkit, name string, schema map[string]any) {
+	core.DefineSchema(g.reg, name, schema)
+}
+
+// DefineSchemaFor defines a named JSON schema derived from a Go type
+// and registers it in the registry.
+//
+// This is an alternative to [DefineSchema].
+//
+// Example:
+//
+//	type User struct {
+//	    Name string `json:"name"`
+//	    Age int `json:"age"`
+//	}
+//
+//	genkit.DefineSchemaFor[User](g)
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
+func DefineSchemaFor[T any](g *Genkit) {
+	core.DefineSchemaFor[T](g.reg)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
@@ -648,6 +706,44 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //	fmt.Println(resp.Text())
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.Generate(ctx, g.reg, opts...)
+}
+
+// GenerateOperation performs a model generation request using a flexible set of options
+// provided via [ai.GenerateOption] arguments. It's a convenient way to make
+// generation calls without pre-defining a prompt object.
+//
+// Unlike [Generate], this function returns a [ai.ModelOperation] which can be used to
+// check the status of the operation and get the result.
+//
+// Example:
+//
+//	op, err := genkit.GenerateOperation(ctx, g,
+//		ai.WithModelName("googleai/veo-2.0-generate-001"),
+//		ai.WithPrompt("A banana riding a bicycle."),
+//	)
+//	if err != nil {
+//		log.Fatalf("GenerateOperation failed: %v", err)
+//	}
+//
+//	fmt.Println(op.ID)
+//
+//	// Check the status of the operation
+//	op, err = genkit.CheckModelOperation(ctx, g, op)
+//	if err != nil {
+//		log.Fatalf("failed to check operation status: %v", err)
+//	}
+//
+//	fmt.Println(op.Done)
+//
+//	// Get the result of the operation
+//	fmt.Println(op.Output.Text())
+func GenerateOperation(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelOperation, error) {
+	return ai.GenerateOperation(ctx, g.reg, opts...)
+}
+
+// CheckModelOperation checks the status of a background model operation by looking up the model and calling its Check method.
+func CheckModelOperation(ctx context.Context, g *Genkit, op *ai.ModelOperation) (*ai.ModelOperation, error) {
+	return ai.CheckModelOperation(ctx, g.reg, op)
 }
 
 // GenerateText performs a model generation request similar to [Generate], but

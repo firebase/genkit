@@ -24,6 +24,7 @@ import {
 import {
   TEST_ONLY as GEMINI_TEST_ONLY,
   GeminiConfigSchema,
+  GeminiImageConfigSchema,
   GeminiTtsConfigSchema,
   GemmaConfigSchema,
 } from '../../src/googleai/gemini.js';
@@ -316,6 +317,54 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
+    it('should return an image model reference for new models', () => {
+      const modelRef = googleAI.model('gemini-new-image-foo');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.multiturn,
+        'Gemini Image model should support multiturn'
+      );
+    });
+
+    it('should return an Image model reference with correct schema', () => {
+      const modelRef = googleAI.model('gemini-2.5-flash-image');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.multiturn,
+        'Gemini Image model should support multiturn'
+      );
+    });
+
+    it('should have config values for image model', () => {
+      const modelRef = googleAI.model('gemini-2.5-flash-image', {
+        imageConfig: {
+          aspectRatio: '16:9',
+          imageSize: '1K',
+        },
+      });
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.deepStrictEqual(
+        modelRef.config?.imageConfig,
+        {
+          aspectRatio: '16:9',
+          imageSize: '1K',
+        },
+        'should have correct imageConfig'
+      );
+    });
+
     it('should return a Veo model reference with correct schema', () => {
       const modelRef = googleAI.model('veo-new-model');
       assert.strictEqual(
@@ -539,7 +588,7 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('should return empty array if API key is missing for listActions', async () => {
+    it('should still call list if API key is missing for listActions', async () => {
       delete process.env.GOOGLE_API_KEY;
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_GENAI_API_KEY;
@@ -551,11 +600,7 @@ describe('GoogleAI Plugin', () => {
         [],
         'Should return empty array if API key is not found'
       );
-      assert.strictEqual(
-        fetchMock.mock.callCount(),
-        0,
-        'Fetch should not be called'
-      );
+      assert.strictEqual(fetchMock.mock.callCount(), 1);
     });
 
     it('should use listActions cache', async () => {

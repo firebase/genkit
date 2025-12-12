@@ -19,7 +19,6 @@ import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import process from 'process';
 import {
-  API_KEY_FALSE_ERROR,
   MISSING_API_KEY_ERROR,
   calculateApiKey,
   checkApiKey,
@@ -276,11 +275,8 @@ describe('API Key Utils', () => {
       assert.strictEqual(calculateApiKey(undefined, undefined), 'env_key');
     });
 
-    it('throws API_KEY_FALSE_ERROR if apiKey1 is false and apiKey2 is undefined', () => {
-      assert.throws(
-        () => calculateApiKey(false, undefined),
-        API_KEY_FALSE_ERROR
-      );
+    it('returns undefined if apiKey1 is false and apiKey2 is undefined', () => {
+      assert.strictEqual(calculateApiKey(false, undefined), undefined);
     });
 
     it('throws MISSING_API_KEY_ERROR if apiKey1 and apiKey2 are undefined and no env var', () => {

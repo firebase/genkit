@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import {
   GeminiConfigSchema,
+  GeminiImageConfigSchema,
   GeminiTtsConfigSchema,
   defineModel,
   model,
@@ -138,13 +139,11 @@ describe('Google AI Gemini', () => {
         );
       });
 
-      it('throws if apiKey is false and not in call config', async () => {
+      it('works if apiKey is false and not in call config', async () => {
+        mockFetchResponse(defaultApiResponse);
         const model = defineModel('gemini-2.0-flash', { apiKey: false });
-        await assert.rejects(
-          model.run(minimalRequest),
-          /GoogleAI plugin was initialized with \{apiKey: false\}/
-        );
-        sinon.assert.notCalled(fetchStub);
+        assert.ok(await model.run(minimalRequest));
+        sinon.assert.calledOnce(fetchStub);
       });
 
       it('uses API key from call config if apiKey is false', async () => {
@@ -349,6 +348,34 @@ describe('Google AI Gemini', () => {
           },
         });
       });
+
+      it('passes imageConfig to the API', async () => {
+        const model = defineModel(
+          'gemini-2.5-flash-image',
+          defaultPluginOptions
+        );
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiImageConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            imageConfig: {
+              aspectRatio: '16:9',
+              imageSize: '2K',
+            },
+          },
+        };
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.generationConfig, {
+          imageConfig: {
+            aspectRatio: '16:9',
+            imageSize: '2K',
+          },
+        });
+      });
     });
 
     describe('Error Handling', () => {
@@ -415,7 +442,7 @@ describe('Google AI Gemini', () => {
       const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);
-      assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
+      assert.strictEqual(modelRef.configSchema, GeminiImageConfigSchema);
     });
 
     it('returns a ModelReference for an unknown model string', () => {

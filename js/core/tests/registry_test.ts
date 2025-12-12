@@ -21,10 +21,11 @@ import {
   defineAction,
   runInActionRuntimeContext,
 } from '../src/action.js';
-import { initNodeAsyncContext } from '../src/node-async-context.js';
+import { defineDynamicActionProvider } from '../src/dynamic-action-provider.js';
+import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 
-initNodeAsyncContext();
+initNodeFeatures();
 
 describe('registry class', () => {
   var registry: Registry;
@@ -342,6 +343,37 @@ describe('registry class', () => {
           actionType: 'model',
           description: 'sings a song',
         },
+      });
+    });
+    it('expands actions from dynamic action providers', async () => {
+      const tool1 = action(
+        { name: 'fs/tool1', actionType: 'tool' },
+        async () => {}
+      );
+      const tool2 = action(
+        { name: 'fs/tool2', actionType: 'tool' },
+        async () => {}
+      );
+      const resource1 = action(
+        { name: 'abc/res1', actionType: 'resource' },
+        async () => {}
+      );
+      const resource2 = action(
+        { name: 'abc/res2', actionType: 'resource' },
+        async () => {}
+      );
+      const dap = defineDynamicActionProvider(registry, 'my-dap', async () => ({
+        tool: [tool1, tool2],
+        resource: [resource1, resource2],
+      }));
+
+      const resolvableActions = await registry.listResolvableActions();
+      assert.deepStrictEqual(resolvableActions, {
+        '/dynamic-action-provider/my-dap': dap.__action,
+        'dynamic-action-provider/my-dap:tool/fs/tool1': tool1.__action,
+        'dynamic-action-provider/my-dap:tool/fs/tool2': tool2.__action,
+        'dynamic-action-provider/my-dap:resource/abc/res1': resource1.__action,
+        'dynamic-action-provider/my-dap:resource/abc/res2': resource2.__action,
       });
     });
   });

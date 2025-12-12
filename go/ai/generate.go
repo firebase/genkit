@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
@@ -99,16 +98,11 @@ type resumedToolRequestOutput struct {
 
 // ModelOptions represents the configuration options for a model.
 type ModelOptions struct {
-	// ConfigSchema is the JSON schema for the model's config.
-	ConfigSchema map[string]any `json:"configSchema,omitempty"`
-	// Label is a user-friendly name for the model.
-	Label string `json:"label,omitempty"`
-	// Stage indicates the maturity stage of the model.
-	Stage ModelStage `json:"stage,omitempty"`
-	// Supports defines the capabilities of the model.
-	Supports *ModelSupports `json:"supports,omitempty"`
-	// Versions lists the available versions of the model.
-	Versions []string `json:"versions,omitempty"`
+	ConfigSchema map[string]any // JSON schema for the model's config.
+	Label        string         // User-friendly name for the model.
+	Stage        ModelStage     // Indicates the maturity stage of the model.
+	Supports     *ModelSupports // Capabilities of the model.
+	Versions     []string       // Available versions of the model.
 }
 
 // DefineGenerateAction defines a utility generate action.
@@ -158,6 +152,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 				"constrained": opts.Supports.Constrained,
 				"output":      opts.Supports.Output,
 				"contentType": opts.Supports.ContentType,
+				"longRunning": opts.Supports.LongRunning,
 			},
 			"versions":      opts.Versions,
 			"stage":         opts.Stage,
@@ -180,9 +175,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return &model{
-		ActionDef: *core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn),
-	}
+	return &model{*core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn)}
 }
 
 // DefineModel creates a new [Model] and registers it.
@@ -217,7 +210,8 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	}
 
 	m := LookupModel(r, opts.Model)
-	if m == nil {
+	bm := LookupBackgroundModel(r, opts.Model)
+	if m == nil && bm == nil {
 		return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: model %q not found", opts.Model)
 	}
 
@@ -317,7 +311,14 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		Output:     &outputCfg,
 	}
 
-	fn := core.ChainMiddleware(mw...)(m.Generate)
+	fn := m.Generate
+	if bm != nil {
+		if cb != nil {
+			logger.FromContext(ctx).Warn("background model does not support streaming", "model", bm.Name())
+		}
+		fn = backgroundModelToModelFn(bm.Start)
+	}
+	fn = core.ChainMiddleware(mw...)(fn)
 
 	// Inline recursive helper function that captures variables from parent scope.
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
@@ -357,6 +358,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			resp, err := fn(ctx, req, wrappedCb)
 			if err != nil {
 				return nil, err
+			}
+
+			// If this is a long-running operation response, return it immediately without further processing
+			if bm != nil && resp.Operation != nil {
+				return resp, nil
 			}
 
 			if formatHandler != nil {
@@ -407,6 +413,17 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		}
 	}
 
+	if genOpts.OutputSchema != nil {
+		resolved, err := core.ResolveSchema(r, genOpts.OutputSchema)
+		if err != nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: invalid output schema: %v", err)
+		}
+		genOpts.OutputSchema = resolved
+		if genOpts.OutputFormat == "" {
+			genOpts.OutputFormat = OutputFormatJSON
+		}
+	}
+
 	var modelName string
 	if genOpts.Model != nil {
 		modelName = genOpts.Model.Name()
@@ -431,7 +448,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 			r = r.NewChild()
 		}
 		for _, res := range genOpts.Resources {
-			res.(*resource).Register(r)
+			res.Register(r)
 		}
 	}
 
@@ -733,11 +750,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 // Text returns the contents of the first candidate in a
 // [ModelResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
-func (gr *ModelResponse) Text() string {
-	if gr.Message == nil {
+func (mr *ModelResponse) Text() string {
+	if mr.Message == nil {
 		return ""
 	}
-	return gr.Message.Text()
+	return mr.Message.Text()
 }
 
 // History returns messages from the request combined with the response message
@@ -844,6 +861,21 @@ func (c *ModelResponseChunk) Text() string {
 	var sb strings.Builder
 	for _, p := range c.Content {
 		if p.IsText() || p.IsData() {
+			sb.WriteString(p.Text)
+		}
+	}
+	return sb.String()
+}
+
+// Reasoning returns the reasoning content of the ModelResponseChunk as a string.
+// It returns an empty string if there is no Content in the response chunk.
+func (c *ModelResponseChunk) Reasoning() string {
+	if len(c.Content) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, p := range c.Content {
+		if p.IsReasoning() {
 			sb.WriteString(p.Text)
 		}
 	}
@@ -1166,127 +1198,6 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 		},
 		toolMessage: toolMessage,
 	}, nil
-}
-
-// addAutomaticTelemetry creates middleware that automatically measures latency and calculates character and media counts.
-func addAutomaticTelemetry() ModelMiddleware {
-	return func(fn ModelFunc) ModelFunc {
-		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-			startTime := time.Now()
-
-			// Call the underlying model function
-			resp, err := fn(ctx, req, cb)
-			if err != nil {
-				return nil, err
-			}
-
-			// Calculate latency
-			latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
-			if resp.LatencyMs == 0 {
-				resp.LatencyMs = latencyMs
-			}
-
-			if resp.Usage == nil {
-				resp.Usage = &GenerationUsage{}
-			}
-			if resp.Usage.InputCharacters == 0 {
-				resp.Usage.InputCharacters = countInputCharacters(req)
-			}
-			if resp.Usage.OutputCharacters == 0 {
-				resp.Usage.OutputCharacters = countOutputCharacters(resp)
-			}
-			if resp.Usage.InputImages == 0 {
-				resp.Usage.InputImages = countInputParts(req, func(part *Part) bool { return part.IsImage() })
-			}
-			if resp.Usage.OutputImages == 0 {
-				resp.Usage.OutputImages = countOutputParts(resp, func(part *Part) bool { return part.IsImage() })
-			}
-			if resp.Usage.InputVideos == 0 {
-				resp.Usage.InputVideos = countInputParts(req, func(part *Part) bool { return part.IsVideo() })
-			}
-			if resp.Usage.OutputVideos == 0 {
-				resp.Usage.OutputVideos = countOutputParts(resp, func(part *Part) bool { return part.IsVideo() })
-			}
-			if resp.Usage.InputAudioFiles == 0 {
-				resp.Usage.InputAudioFiles = countInputParts(req, func(part *Part) bool { return part.IsAudio() })
-			}
-			if resp.Usage.OutputAudioFiles == 0 {
-				resp.Usage.OutputAudioFiles = countOutputParts(resp, func(part *Part) bool { return part.IsAudio() })
-			}
-
-			return resp, nil
-		}
-	}
-}
-
-// countInputParts counts parts in the input request that match the given predicate.
-func countInputParts(req *ModelRequest, predicate func(*Part) bool) int {
-	if req == nil {
-		return 0
-	}
-
-	count := 0
-	for _, msg := range req.Messages {
-		if msg == nil {
-			continue
-		}
-		for _, part := range msg.Content {
-			if part != nil && predicate(part) {
-				count++
-			}
-		}
-	}
-	return count
-}
-
-// countInputCharacters counts the total characters in the input request.
-func countInputCharacters(req *ModelRequest) int {
-	if req == nil {
-		return 0
-	}
-
-	total := 0
-	for _, msg := range req.Messages {
-		if msg == nil {
-			continue
-		}
-		for _, part := range msg.Content {
-			if part != nil && part.Text != "" {
-				total += len(part.Text)
-			}
-		}
-	}
-	return total
-}
-
-// countOutputParts counts parts in the output response that match the given predicate.
-func countOutputParts(resp *ModelResponse, predicate func(*Part) bool) int {
-	if resp == nil || resp.Message == nil {
-		return 0
-	}
-
-	count := 0
-	for _, part := range resp.Message.Content {
-		if part != nil && predicate(part) {
-			count++
-		}
-	}
-	return count
-}
-
-// countOutputCharacters counts the total characters in the output response.
-func countOutputCharacters(resp *ModelResponse) int {
-	if resp == nil || resp.Message == nil {
-		return 0
-	}
-
-	total := 0
-	for _, part := range resp.Message.Content {
-		if part != nil && part.Text != "" {
-			total += len(part.Text)
-		}
-	}
-	return total
 }
 
 // processResources processes messages to replace resource parts with actual content.
