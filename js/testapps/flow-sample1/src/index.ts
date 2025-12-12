@@ -131,7 +131,7 @@ export const parent = ai.defineFlow(
 
 export const withInputSchema = ai.defineFlow(
   { name: 'withInputSchema', inputSchema: z.object({ subject: z.string() }) },
-  async (input: { subject: string }) => {
+  async (input) => {
     const foo = await ai.run('call-llm', async () => {
       return `subject: ${input.subject}`;
     });
