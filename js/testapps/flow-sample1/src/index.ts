@@ -147,7 +147,7 @@ export const withContext = ai.defineFlow(
     name: 'withContext',
     inputSchema: z.object({ subject: z.string() }),
   },
-  async (input: { subject: string }, { context }: any) => {
+  async (input: { subject }, { context }) => {
     return `subject: ${input.subject}, context: ${JSON.stringify(context)}`;
   }
 );
