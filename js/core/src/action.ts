@@ -22,13 +22,24 @@ import { getContext, runWithContext, type ActionContext } from './context.js';
 import type { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
+  type ActionStreamInput,
+  type ActionStreamSubscriber,
+  type StreamManager,
+} from './streaming.js';
+import {
   SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttributes,
 } from './tracing.js';
 
 export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
-export type { JSONSchema7 };
+export { InMemoryStreamManager, StreamNotFoundError } from './streaming.js';
+export type {
+  ActionStreamInput,
+  ActionStreamSubscriber,
+  JSONSchema7,
+  StreamManager,
+};
 
 const makeNoopAbortSignal = () => new AbortController().signal;
 

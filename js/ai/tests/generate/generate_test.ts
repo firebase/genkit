@@ -22,6 +22,7 @@ import { beforeEach, describe, it } from 'node:test';
 import {
   generate,
   generateStream,
+  toGenerateActionOptions,
   toGenerateRequest,
   type GenerateOptions,
 } from '../../src/generate.js';
@@ -29,6 +30,7 @@ import {
   defineModel,
   type ModelAction,
   type ModelMiddleware,
+  type ModelMiddlewareWithOptions,
 } from '../../src/model.js';
 import { defineResource } from '../../src/resource.js';
 import { defineTool } from '../../src/tool.js';
@@ -337,6 +339,21 @@ describe('toGenerateRequest', () => {
       }
     });
   }
+});
+
+describe('toGenerateActionOptions', () => {
+  const registry = new Registry();
+
+  it('should return action options with undefined model', async () => {
+    const options: GenerateOptions = {
+      prompt: 'hello',
+    };
+    const actionOptions = await toGenerateActionOptions(registry, options);
+    assert.strictEqual(actionOptions.model, undefined);
+    assert.deepStrictEqual(actionOptions.messages, [
+      { role: 'user', content: [{ text: 'hello' }] },
+    ]);
+  });
 });
 
 describe('generate', () => {
@@ -787,5 +804,160 @@ describe('generate', () => {
         ],
       },
     ]);
+  });
+
+  it('middleware can intercept streaming callback', async () => {
+    const registry = new Registry();
+    const echoModel = defineModel(
+      registry,
+      {
+        apiVersion: 'v2',
+        name: 'echoModel',
+        supports: { tools: true },
+      },
+      async (_, { sendChunk }) => {
+        if (sendChunk) {
+          sendChunk({ content: [{ text: 'chunk1' }] });
+          sendChunk({ content: [{ text: 'chunk2' }] });
+        }
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: 'done' }],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const interceptMiddleware: ModelMiddlewareWithOptions = async (
+      req,
+      opts,
+      next
+    ) => {
+      const originalOnChunk = opts!.onChunk;
+      return next(req, {
+        ...opts,
+        onChunk: (chunk) => {
+          if (originalOnChunk) {
+            const text = chunk.content?.[0]?.text;
+            originalOnChunk({
+              ...chunk,
+              content: [{ text: `intercepted: ${text}` }],
+            });
+          }
+        },
+      });
+    };
+
+    const { response, stream } = generateStream(registry, {
+      model: echoModel,
+      prompt: 'test',
+      use: [interceptMiddleware],
+    });
+
+    const streamed: any[] = [];
+    for await (const chunk of stream) {
+      streamed.push(chunk.content[0].text);
+    }
+
+    assert.deepStrictEqual(streamed, [
+      'intercepted: chunk1',
+      'intercepted: chunk2',
+    ]);
+    await response;
+  });
+
+  it('middleware can modify context', async () => {
+    const registry = new Registry();
+    const checkContextModel = defineModel(
+      registry,
+      {
+        apiVersion: 'v2',
+        name: 'checkContextModel',
+        supports: { context: true },
+      },
+      async (request, { context }) => {
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: `Context: ${context?.myValue}` }],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const contextMiddleware: ModelMiddlewareWithOptions = async (
+      req,
+      opts,
+      next
+    ) => {
+      return next(req, {
+        ...opts,
+        context: {
+          ...opts?.context,
+          myValue: 'foo',
+        },
+      });
+    };
+
+    const response = await generate(registry, {
+      model: checkContextModel,
+      prompt: 'test',
+      use: [contextMiddleware],
+    });
+
+    assert.strictEqual(response.text, 'Context: foo');
+  });
+
+  it('middleware can chain option modifications', async () => {
+    const registry = new Registry();
+    const checkContextModel = defineModel(
+      registry,
+      {
+        apiVersion: 'v2',
+        name: 'checkContextModel',
+        supports: { context: true },
+      },
+      async (request, { context }) => {
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: `Context: ${JSON.stringify(context)}` }],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const middleware1: ModelMiddlewareWithOptions = async (req, opts, next) => {
+      return next(req, {
+        ...opts,
+        context: {
+          ...opts?.context,
+          val: [...(opts?.context?.val ?? []), 'A'],
+        },
+      });
+    };
+
+    const middleware2: ModelMiddlewareWithOptions = async (req, opts, next) => {
+      return next(req, {
+        ...opts,
+        context: {
+          ...opts?.context,
+          val: [...(opts?.context?.val ?? []), 'B'],
+        },
+      });
+    };
+
+    const response = await generate(registry, {
+      model: checkContextModel,
+      prompt: 'test',
+      use: [middleware1, middleware2],
+    });
+
+    const context = JSON.parse(response.text.substring('Context: '.length));
+    assert.deepStrictEqual(context.val, ['A', 'B']);
   });
 });
