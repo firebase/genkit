@@ -197,7 +197,7 @@ export const streamyThrowy = ai.defineFlow(
  */
 export const throwy = ai.defineFlow(
   { name: 'throwy', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject: string) => {
+  async (subject) => {
     const foo = await ai.run('call-llm', async () => {
       return `subject: ${subject}`;
     });
