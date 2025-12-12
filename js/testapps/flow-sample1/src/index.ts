@@ -256,7 +256,7 @@ export const flowMultiStepCaughtError = ai.defineFlow(
 
 export const multiSteps = ai.defineFlow(
   { name: 'multiSteps', inputSchema: z.string(), outputSchema: z.number() },
-  async (input: string) => {
+  async (input) => {
     const out1 = await ai.run('step1', async () => {
       return `Hello, ${input}! step 1`;
     });
