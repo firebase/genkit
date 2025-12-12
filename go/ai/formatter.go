@@ -15,8 +15,7 @@
 package ai
 
 import (
-	"fmt"
-
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 )
 
@@ -72,18 +71,13 @@ func DefineFormat(r api.Registry, name string, formatter Formatter) {
 func resolveFormat(reg api.Registry, schema map[string]any, format string) (Formatter, error) {
 	var formatter any
 
-	// If schema is set but no explicit format is set we default to json.
-	if schema != nil && format == "" {
-		formatter = reg.LookupValue("/format/" + OutputFormatJSON)
-	}
-
-	// If format is not set we default to text
 	if format == "" {
-		formatter = reg.LookupValue("/format/" + OutputFormatText)
-	}
-
-	// Lookup format in registry
-	if format != "" {
+		if schema != nil {
+			formatter = reg.LookupValue("/format/" + OutputFormatJSON)
+		} else {
+			formatter = reg.LookupValue("/format/" + OutputFormatText)
+		}
+	} else {
 		formatter = reg.LookupValue("/format/" + format)
 	}
 
@@ -91,7 +85,7 @@ func resolveFormat(reg api.Registry, schema map[string]any, format string) (Form
 		return f, nil
 	}
 
-	return nil, fmt.Errorf("output format %q is invalid", format)
+	return nil, core.NewError(core.INVALID_ARGUMENT, "output format %q is invalid", format)
 }
 
 // injectInstructions looks through the messages and injects formatting directives

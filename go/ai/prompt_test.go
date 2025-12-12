@@ -1074,6 +1074,18 @@ Hello, {{name}}!
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
+
+	// Verify that the metadata name does NOT include the variant
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected Metadata['prompt'] to be a map")
+	}
+	if promptMetadata["name"] != "test-namespace/example" {
+		t.Errorf("Expected metadata name 'test-namespace/example', got '%s'", promptMetadata["name"])
+	}
+	if promptMetadata["variant"] != "variant" {
+		t.Errorf("Expected variant 'variant', got '%s'", promptMetadata["variant"])
+	}
 }
 
 func TestLoadPromptFolder(t *testing.T) {
