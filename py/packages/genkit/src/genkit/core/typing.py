@@ -1024,3 +1024,25 @@ class ModelResponse(BaseModel):
     raw: Raw | None = None
     request: Request | None = None
     operation: Operation | None = None
+
+
+class ModelReference(BaseModel):
+    name: str
+    config_schema: Any | None = None
+    info: ModelInfo | None = None
+    version: str | None = None
+    config: dict[str, Any] | None = None
+
+    def with_config(self, cfg: dict[str, Any]) -> "ModelReference":
+        """
+        Returns a new instance with the updated config.
+        """
+        return self.model_copy(update={"config": cfg})
+
+    def with_version(self, version: str) -> "ModelReference":
+        """
+        Returns a new instance with the updated version.
+        """
+        return self.model_copy(update={"version": version})
+
+

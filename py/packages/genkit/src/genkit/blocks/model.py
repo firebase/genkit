@@ -49,7 +49,7 @@ from genkit.core.typing import (
     GenerationUsage,
     Message,
     Part,
-    ToolRequestPart,
+    ToolRequestPart, ModelReference,
 )
 
 # type ModelFn = Callable[[GenerateRequest], GenerateResponse]
@@ -440,4 +440,27 @@ def model_action_metadata(
         input_json_schema=to_json_schema(GenerateRequest),
         output_json_schema=to_json_schema(GenerateResponse),
         metadata={'model': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
+    )
+
+
+def model_ref(
+    name: str,
+    namespace: str | None = None,
+    **options: Any
+) -> ModelReference:
+    """
+    The factory function equivalent to export function modelRef(...)
+    """
+
+    # Logic: if (options.namespace && !name.startsWith(options.namespace + '/'))
+    if namespace and not name.startswith(f"{namespace}/"):
+        final_name = f"{namespace}/{name}"
+    else:
+        final_name = name
+
+    # Create and return the Pydantic model instance
+    # We pass **options to capture any other properties passed in
+    return ModelReference(
+        name=final_name,
+        **options
     )
