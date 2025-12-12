@@ -58,7 +58,7 @@ class BaseDataPoint(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     input: Any | None = None
     output: Any | None = None
-    context: list[Any] | None = None
+    context: list | None = None
     reference: Any | None = None
     test_case_id: str | None = Field(None, alias='testCaseId')
     trace_ids: list[str] | None = Field(None, alias='traceIds')
@@ -74,7 +74,7 @@ class EvalRequest(BaseModel):
 
 
 class EvalStatusEnum(StrEnum):
-    """EvalStatusEnum data type class."""
+    """Enumeration of evalstatusenum values."""
 
     UNKNOWN = 'UNKNOWN'
     PASS_ = 'PASS'
@@ -126,7 +126,7 @@ class GenkitError(BaseModel):
 
 
 class Code(StrEnum):
-    """Code data type class."""
+    """Enumeration of code values."""
 
     BLOCKED = 'blocked'
     OTHER = 'other'
@@ -158,7 +158,7 @@ class CustomPart(BaseModel):
 
 
 class FinishReason(StrEnum):
-    """FinishReason data type class."""
+    """Enumeration of finishreason values."""
 
     STOP = 'stop'
     LENGTH = 'length'
@@ -169,7 +169,7 @@ class FinishReason(StrEnum):
 
 
 class ToolChoice(StrEnum):
-    """ToolChoice data type class."""
+    """Enumeration of toolchoice values."""
 
     AUTO = 'auto'
     REQUIRED = 'required'
@@ -220,7 +220,7 @@ class GenerationUsage(BaseModel):
 
 
 class Constrained(StrEnum):
-    """Constrained data type class."""
+    """Enumeration of constrained values."""
 
     NONE = 'none'
     ALL = 'all'
@@ -244,7 +244,7 @@ class Supports(BaseModel):
 
 
 class Stage(StrEnum):
-    """Stage data type class."""
+    """Enumeration of stage values."""
 
     FEATURED = 'featured'
     STABLE = 'stable'
@@ -301,7 +301,7 @@ class Resource1(BaseModel):
 
 
 class Role(StrEnum):
-    """Role data type class."""
+    """Enumeration of role values."""
 
     SYSTEM = 'system'
     USER = 'user'
@@ -349,7 +349,7 @@ class ToolResponse(BaseModel):
     ref: str | None = None
     name: str
     output: Any | None = None
-    content: list[Any] | None = None
+    content: list | None = None
 
 
 class CommonRerankerOptions(BaseModel):
@@ -410,7 +410,7 @@ class SameProcessAsParentSpan(BaseModel):
 
 
 class State(StrEnum):
-    """State data type class."""
+    """Enumeration of state values."""
 
     SUCCESS = 'success'
     ERROR = 'error'
@@ -462,10 +462,10 @@ class TraceMetadata(BaseModel):
     timestamp: float
 
 
-class Context(RootModel[list[Any]]):
+class Context(RootModel[list]):
     """Root model for context."""
 
-    root: list[Any]
+    root: list
 
 
 class Input(RootModel[Any]):
@@ -504,10 +504,10 @@ class MediaModel(RootModel[Any]):
     root: Any
 
 
-class Metadata(RootModel[dict[str, Any]]):
+class Metadata(RootModel[dict[str, Any] | None]):
     """Root model for metadata."""
 
-    root: dict[str, Any]
+    root: dict[str, Any] | None = None
 
 
 class Reasoning(RootModel[Any]):
@@ -540,10 +540,10 @@ class ToolResponseModel(RootModel[Any]):
     root: Any
 
 
-class Custom(RootModel[dict[str, Any]]):
+class Custom(RootModel[dict[str, Any] | None]):
     """Root model for custom."""
 
-    root: dict[str, Any]
+    root: dict[str, Any] | None = None
 
 
 class Config(RootModel[Any]):
