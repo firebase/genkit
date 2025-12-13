@@ -265,17 +265,19 @@ type ModelResponse struct {
 	// Request is the [ModelRequest] struct used to trigger this response.
 	Request *ModelRequest `json:"request,omitempty"`
 	// Usage describes how many resources were used by this generation request.
-	Usage *GenerationUsage `json:"usage,omitempty"`
+	Usage         *GenerationUsage `json:"usage,omitempty"`
+	formatHandler StreamingFormatHandler
 }
 
 // A ModelResponseChunk is the portion of the [ModelResponse]
 // that is passed to a streaming callback.
 type ModelResponseChunk struct {
-	Aggregated bool    `json:"aggregated,omitempty"`
-	Content    []*Part `json:"content,omitempty"`
-	Custom     any     `json:"custom,omitempty"`
-	Index      int     `json:"index"`
-	Role       Role    `json:"role,omitempty"`
+	Aggregated    bool    `json:"aggregated,omitempty"`
+	Content       []*Part `json:"content,omitempty"`
+	Custom        any     `json:"custom,omitempty"`
+	Index         int     `json:"index"`
+	Role          Role    `json:"role,omitempty"`
+	formatHandler StreamingFormatHandler
 }
 
 type MultipartToolResponse struct {
