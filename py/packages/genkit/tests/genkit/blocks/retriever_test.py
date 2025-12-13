@@ -130,9 +130,9 @@ async def test_define_retriever():
     """Test define_retriever registration."""
     registry = MagicMock()
     fn = AsyncMock(return_value=RetrieverResponse(documents=[]))
-    
+
     define_retriever(registry, 'test_retriever', fn)
-    
+
     registry.register_action.assert_called_once()
     call_args = registry.register_action.call_args
     assert call_args.kwargs['kind'] == 'retriever'
@@ -144,9 +144,9 @@ async def test_define_indexer():
     """Test define_indexer registration."""
     registry = MagicMock()
     fn = AsyncMock()
-    
+
     define_indexer(registry, 'test_indexer', fn)
-    
+
     registry.register_action.assert_called_once()
     call_args = registry.register_action.call_args
     assert call_args.kwargs['kind'] == 'indexer'

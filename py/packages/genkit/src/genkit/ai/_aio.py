@@ -27,7 +27,6 @@ from typing import Any
 from genkit.aio import Channel
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
-from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -38,6 +37,7 @@ from genkit.blocks.model import (
     ModelMiddleware,
 )
 from genkit.blocks.prompt import PromptConfig, to_generate_action_options
+from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import EmbedRequest, EmbedResponse
@@ -294,41 +294,6 @@ class Genkit(GenkitBase):
         stream.set_close_future(resp)
 
         return stream, stream.closed
-
-    async def embed(
-        self,
-        embedder: str | EmbedderRef | None = None,
-        documents: list[Document] | None = None,
-        options: dict[str, Any] | None = None,
-    ) -> EmbedResponse:
-        embedder_name: str
-        embedder_config: dict[str, Any] = {}
-        """Calculates embeddings for documents.
-
-        Args:
-            embedder: Optional embedder model name to use.
-            documents: Texts to embed.
-            options: embedding options
-
-        Returns:
-            The generated response with embeddings.
-        """
-        if isinstance(embedder, EmbedderRef):
-            embedder_name = embedder.name
-            embedder_config = embedder.config or {}
-            if embedder.version:
-                embedder_config['version'] = embedder.version  # Handle version from ref
-        elif isinstance(embedder, str):
-            embedder_name = embedder
-        else:
-            # Handle case where embedder is None
-            raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
-
-        # Merge options passed to embed() with config from EmbedderRef
-        final_options = {**(embedder_config or {}), **(options or {})}
-        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder_name)
-
-        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
 
     async def retrieve(
         self,

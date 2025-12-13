@@ -103,5 +103,3 @@ class DevLocalVectorStore(Plugin):
             name=self.index_name,
             fn=indexer.index,
         )
-
-
