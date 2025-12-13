@@ -48,9 +48,9 @@ from genkit.core.typing import (
     GenerateResponseChunk,
     GenerationUsage,
     Message,
-    ModelReference,
     Part,
     ToolRequestPart,
+    ModelInfo,
 )
 
 # type ModelFn = Callable[[GenerateRequest], GenerateResponse]
@@ -74,6 +74,14 @@ ModelMiddleware = Callable[
     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
     Awaitable[GenerateResponse],
 ]
+
+
+class ModelReference(BaseModel):
+    name: str
+    config_schema: Any | None = None
+    info: ModelInfo | None = None
+    version: str | None = None
+    config: dict[str, Any] | None = None
 
 
 class MessageWrapper(Message):
