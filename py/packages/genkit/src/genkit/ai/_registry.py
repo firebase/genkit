@@ -288,7 +288,7 @@ class GenkitRegistry:
         config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define a evaluator action.
 
         This action runs the callback function on the every sample of

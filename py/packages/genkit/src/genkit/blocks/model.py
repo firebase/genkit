@@ -48,6 +48,7 @@ from genkit.core.typing import (
     GenerateResponseChunk,
     GenerationUsage,
     Message,
+    ModelInfo,
     Part,
     ToolRequestPart,
 )
@@ -73,6 +74,14 @@ ModelMiddleware = Callable[
     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
     Awaitable[GenerateResponse],
 ]
+
+
+class ModelReference(BaseModel):
+    name: str
+    config_schema: Any | None = None
+    info: ModelInfo | None = None
+    version: str | None = None
+    config: dict[str, Any] | None = None
 
 
 class MessageWrapper(Message):
@@ -441,3 +450,19 @@ def model_action_metadata(
         output_json_schema=to_json_schema(GenerateResponse),
         metadata={'model': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
     )
+
+
+def model_ref(name: str, namespace: str | None = None, **options: Any) -> ModelReference:
+    """
+    The factory function equivalent to export function modelRef(...)
+    """
+
+    # Logic: if (options.namespace && !name.startsWith(options.namespace + '/'))
+    if namespace and not name.startswith(f'{namespace}/'):
+        final_name = f'{namespace}/{name}'
+    else:
+        final_name = name
+
+    # Create and return the Pydantic model instance
+    # We pass **options to capture any other properties passed in
+    return ModelReference(name=final_name, **options)
