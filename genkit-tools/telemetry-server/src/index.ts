@@ -17,10 +17,12 @@
 import {
   TraceDataSchema,
   TraceQueryFilterSchema,
+  type SpanData,
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import express from 'express';
 import type * as http from 'http';
+import { BroadcastManager } from './broadcast-manager.js';
 import type { TraceStore } from './types';
 import { traceDataFromOtlp } from './utils/otlp';
 
@@ -28,6 +30,7 @@ export { LocalFileTraceStore } from './file-trace-store.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
 
 let server: http.Server;
+const broadcastManager = new BroadcastManager();
 
 /**
  * Starts the telemetry server with the provided params
@@ -62,10 +65,84 @@ export async function startTelemetryServer(params: {
     }
   });
 
+  // SSE endpoint for live trace streaming
+  api.get('/api/traces/:traceId/stream', async (request, response, next) => {
+    try {
+      const { traceId } = request.params;
+
+      // Set SSE headers
+      response.setHeader('Content-Type', 'text/event-stream');
+      response.setHeader('Cache-Control', 'no-cache');
+      response.setHeader('Connection', 'keep-alive');
+      response.setHeader('Access-Control-Allow-Origin', '*');
+      response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+      // Send initial snapshot of current trace data
+      const currentTrace = await params.traceStore.load(traceId);
+      if (currentTrace) {
+        const snapshot = JSON.stringify(currentTrace);
+        response.write(`data: ${snapshot}\n\n`);
+      }
+
+      // Register this connection for broadcasts
+      broadcastManager.subscribe(traceId, response);
+
+      // Clean up on disconnect
+      response.on('close', () => {
+        broadcastManager.unsubscribe(traceId, response);
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   api.post('/api/traces', async (request, response, next) => {
     try {
       const traceData = TraceDataSchema.parse(request.body);
       await params.traceStore.save(traceData.traceId, traceData);
+
+      // Create events for all spans and sort them by start time to ensure
+      // correct ordering.
+      const allSpans = Object.values(traceData.spans);
+      const events: {
+        type: 'span_start' | 'span_end';
+        traceId: string;
+        span: SpanData;
+      }[] = [];
+
+      // Create span_start and span_end events
+      for (const span of allSpans) {
+        events.push({
+          type: 'span_start',
+          traceId: traceData.traceId,
+          span,
+        });
+        if (span.endTime > 0) {
+          events.push({
+            type: 'span_end',
+            traceId: traceData.traceId,
+            span,
+          });
+        }
+      }
+
+      // Sort events chronologically. If times are equal, start comes before end.
+      events.sort((a, b) => {
+        const aTime =
+          a.type === 'span_start' ? a.span.startTime : a.span.endTime;
+        const bTime =
+          b.type === 'span_start' ? b.span.startTime : b.span.endTime;
+        if (aTime !== bTime) {
+          return aTime - bTime;
+        }
+        return a.type === 'span_start' ? -1 : 1;
+      });
+
+      // Broadcast events in chronological order.
+      for (const event of events) {
+        broadcastManager.broadcast(traceData.traceId, event);
+      }
+
       response.status(200).send('OK');
     } catch (e) {
       next(e);
@@ -134,8 +211,23 @@ export async function startTelemetryServer(params: {
         return;
       }
       const traces = traceDataFromOtlp(request.body);
-      for (const traceData of traces) {
+      for (const trace of traces) {
+        const traceData = TraceDataSchema.parse(trace);
         await params.traceStore.save(traceData.traceId, traceData);
+
+        // Convert each span to an event and broadcast individually
+        for (const [_, span] of Object.entries(traceData.spans)) {
+          const event: {
+            type: 'span_start' | 'span_end';
+            traceId: string;
+            span: SpanData;
+          } = {
+            type: span.endTime > 0 ? 'span_end' : 'span_start',
+            traceId: traceData.traceId,
+            span,
+          };
+          broadcastManager.broadcast(traceData.traceId, event);
+        }
       }
       response.status(200).json({});
     } catch (err) {

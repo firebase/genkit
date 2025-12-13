@@ -25,6 +25,7 @@ import type { TelemetryConfig } from '../telemetryTypes.js';
 import { setTelemetryProvider } from '../tracing.js';
 import { isDevEnv } from '../utils.js';
 import { TraceServerExporter, setTelemetryServerUrl } from './exporter.js';
+import { RealtimeSpanProcessor } from './realtime-span-processor.js';
 
 let telemetrySDK: NodeSDK | null = null;
 let nodeOtelConfig: TelemetryConfig | null = null;
@@ -89,9 +90,15 @@ async function cleanUpTracing(): Promise<void> {
  */
 function createTelemetryServerProcessor(): SpanProcessor {
   const exporter = new TraceServerExporter();
-  return isDevEnv()
-    ? new SimpleSpanProcessor(exporter)
-    : new BatchSpanProcessor(exporter);
+  // Use RealtimeSpanProcessor in dev environment (unless disabled), or when explicitly enabled
+  const enableRealTimeTelemetry =
+    process.env.GENKIT_ENABLE_REALTIME_TELEMETRY === 'true';
+  if (isDevEnv() && enableRealTimeTelemetry) {
+    return new RealtimeSpanProcessor(exporter);
+  } else if (isDevEnv()) {
+    return new SimpleSpanProcessor(exporter);
+  }
+  return new BatchSpanProcessor(exporter);
 }
 
 /** Flush metrics if present. */
