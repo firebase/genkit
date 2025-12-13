@@ -618,6 +618,42 @@ func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
 }
 
+// DefineDataPrompt creates a new [ai.DataPrompt] with strongly-typed input and output.
+// It automatically infers input schema from the In type parameter and configures
+// output schema and JSON format from the Out type parameter (unless Out is string).
+//
+// Example:
+//
+//	type GeoInput struct {
+//		Country string `json:"country"`
+//	}
+//
+//	type GeoOutput struct {
+//		Capital string `json:"capital"`
+//	}
+//
+//	capitalPrompt := genkit.DefineDataPrompt[GeoInput, GeoOutput, *ai.ModelResponseChunk](g, "findCapital",
+//		ai.WithModelName("googleai/gemini-2.5-flash"),
+//		ai.WithSystem("You are a helpful geography assistant."),
+//		ai.WithPrompt("What is the capital of {{country}}?"),
+//	)
+//
+//	output, resp, err := capitalPrompt.Execute(ctx, GeoInput{Country: "France"})
+//	if err != nil {
+//		log.Fatalf("Execute failed: %v", err)
+//	}
+//	fmt.Printf("Capital: %s\n", output.Capital)
+func DefineDataPrompt[In, Out, Stream any](g *Genkit, name string, opts ...ai.PromptOption) *ai.DataPrompt[In, Out, Stream] {
+	return ai.DefineDataPrompt[In, Out, Stream](g.reg, name, opts...)
+}
+
+// LookupDataPrompt looks up a prompt by name and wraps it with type information.
+// This is useful for wrapping prompts loaded from .prompt files with strong types.
+// It returns nil if the prompt was not found.
+func LookupDataPrompt[In, Out, Stream any](g *Genkit, name string) *ai.DataPrompt[In, Out, Stream] {
+	return ai.LookupDataPrompt[In, Out, Stream](g.reg, name)
+}
+
 // DefineSchema defines a named JSON schema and registers it in the registry.
 //
 // Registered schemas can be referenced by name in prompts (both `.prompt` files
