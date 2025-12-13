@@ -127,21 +127,25 @@ function extractDataFromBase64Url(url: string): {
 }
 
 /**
+ * Map of content types to file extensions.
+ */
+const FILE_EXTENSIONS: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    'docx',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+};
+
+/**
  * Generates a filename from a content type.
  * @param contentType The content type.
  * @returns A filename with appropriate extension.
  */
 function generateFilenameFromContentType(contentType: string): string {
-  const extensions: Record<string, string> = {
-    'application/pdf': 'pdf',
-    'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-      'docx',
-    'text/plain': 'txt',
-    'text/csv': 'csv',
-  };
-  const ext = extensions[contentType] || 'file';
-  return `file.${ext}`;
+  const ext = FILE_EXTENSIONS[contentType] || '';
+  return ext ? `file.${ext}` : 'file';
 }
 
 /**
