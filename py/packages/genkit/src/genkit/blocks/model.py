@@ -48,9 +48,9 @@ from genkit.core.typing import (
     GenerateResponseChunk,
     GenerationUsage,
     Message,
+    ModelInfo,
     Part,
     ToolRequestPart,
-    ModelInfo,
 )
 
 # type ModelFn = Callable[[GenerateRequest], GenerateResponse]
