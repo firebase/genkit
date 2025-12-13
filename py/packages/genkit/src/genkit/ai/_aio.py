@@ -27,6 +27,7 @@ from typing import Any
 from genkit.aio import Channel
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
+from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -331,26 +332,73 @@ class Genkit(GenkitBase):
 
     async def retrieve(
         self,
-        retriever: str | None = None,
+        retriever: str | RetrieverRef | None = None,
         query: str | DocumentData | None = None,
         options: dict[str, Any] | None = None,
     ) -> RetrieverResponse:
         """Retrieves documents based on query.
 
         Args:
-            retriever: Optional retriever name to use.
+            retriever: Optional retriever name or reference to use.
             query: Text query or a DocumentData containing query text.
             options: retriever options
 
         Returns:
-            The generated response with embeddings.
+            The generated response with documents.
         """
+        retriever_name: str
+        retriever_config: dict[str, Any] = {}
+
+        if isinstance(retriever, RetrieverRef):
+            retriever_name = retriever.name
+            retriever_config = retriever.config or {}
+            if retriever.version:
+                retriever_config['version'] = retriever.version
+        elif isinstance(retriever, str):
+            retriever_name = retriever
+        else:
+            raise ValueError('Retriever must be specified as a string name or a RetrieverRef.')
+
         if isinstance(query, str):
             query = Document.from_text(query)
 
-        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever)
+        final_options = {**(retriever_config or {}), **(options or {})}
 
-        return (await retrieve_action.arun(RetrieverRequest(query=query, options=options))).response
+        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever_name)
+
+        return (await retrieve_action.arun(RetrieverRequest(query=query, options=final_options))).response
+
+    async def index(
+        self,
+        indexer: str | IndexerRef | None = None,
+        documents: list[Document] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> None:
+        """Indexes documents.
+
+        Args:
+            indexer: Optional indexer name or reference to use.
+            documents: Documents to index.
+            options: indexer options
+        """
+        indexer_name: str
+        indexer_config: dict[str, Any] = {}
+
+        if isinstance(indexer, IndexerRef):
+            indexer_name = indexer.name
+            indexer_config = indexer.config or {}
+            if indexer.version:
+                indexer_config['version'] = indexer.version
+        elif isinstance(indexer, str):
+            indexer_name = indexer
+        else:
+            raise ValueError('Indexer must be specified as a string name or an IndexerRef.')
+
+        final_options = {**(indexer_config or {}), **(options or {})}
+
+        index_action = self.registry.lookup_action(ActionKind.INDEXER, indexer_name)
+
+        await index_action.arun(IndexerRequest(documents=documents, options=final_options))
 
     async def embed(
         self,

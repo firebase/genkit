@@ -38,7 +38,6 @@ class DevLocalVectorStore(Plugin):
     """
 
     name = 'devLocalVectorstore'
-    _indexers: dict[str, DevLocalVectorStoreIndexer] = {}
 
     def __init__(self, name: str, embedder: str, embedder_options: dict[str, Any] | None = None):
         self.index_name = name
@@ -100,27 +99,9 @@ class DevLocalVectorStore(Plugin):
             embedder_options=self.embedder_options,
         )
 
-        DevLocalVectorStore._indexers[self.index_name] = indexer
+        return ai.define_indexer(
+            name=self.index_name,
+            fn=indexer.index,
+        )
 
-    @classmethod
-    async def index(cls, index_name: str, documents: Docs) -> None:
-        """Lookups the Local Vector Store indexer for provided index name.
 
-        If matching indexer found - invokes indexing for provided documents
-
-        Args:
-            index_name: name of the indexer to look up
-            documents: list of documents to index
-
-        Returns:
-            None
-
-        Raises:
-            KeyError: if index name is not found among registered indexers.
-        """
-        matching_indexer = cls._indexers.get(index_name)
-        if not matching_indexer:
-            raise KeyError(
-                f'Failed to find indexer matching name: {index_name}!r\nRegistered indexers: {cls._indexers.keys()}'
-            )
-        return await matching_indexer.index(documents)
