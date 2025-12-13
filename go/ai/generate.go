@@ -550,6 +550,24 @@ func GenerateText(ctx context.Context, r api.Registry, opts ...GenerateOption) (
 	return res.Text(), nil
 }
 
+// GenerateData runs a generate request and returns strongly-typed output.
+func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
+	var value Out
+	opts = append(opts, WithOutputType(value))
+
+	resp, err := Generate(ctx, r, opts...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = resp.Output(&value)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &value, resp, nil
+}
+
 // StreamValue is either a streamed chunk or the final response of a generate request.
 type StreamValue[Out, Stream any] struct {
 	Done     bool
@@ -597,24 +615,6 @@ func GenerateStream(ctx context.Context, r api.Registry, opts ...GenerateOption)
 			yield(&ModelStreamValue{Done: true, Response: resp}, nil)
 		}
 	}
-}
-
-// GenerateData runs a generate request and returns strongly-typed output.
-func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
-	var value Out
-	opts = append(opts, WithOutputType(value))
-
-	resp, err := Generate(ctx, r, opts...)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = resp.Output(&value)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return &value, resp, nil
 }
 
 // GenerateDataStream generates a model response with streaming and returns strongly-typed output.
