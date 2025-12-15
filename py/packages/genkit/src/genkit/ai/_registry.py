@@ -52,7 +52,7 @@ from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
-from genkit.blocks.retriever import RetrieverFn
+from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
 from genkit.core.action import Action
@@ -276,6 +276,40 @@ class GenkitRegistry:
             fn=fn,
             metadata=retriever_meta,
             description=retriever_description,
+        )
+
+    def define_indexer(
+        self,
+        name: str,
+        fn: IndexerFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        description: str | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Define an indexer action.
+
+        Args:
+            name: Name of the indexer.
+            fn: Function implementing the indexer behavior.
+            config_schema: Optional schema for indexer configuration.
+            metadata: Optional metadata for the indexer.
+            description: Optional description for the indexer.
+        """
+        indexer_meta = metadata if metadata else {}
+        if 'indexer' not in indexer_meta:
+            indexer_meta['indexer'] = {}
+        if 'label' not in indexer_meta['indexer'] or not indexer_meta['indexer']['label']:
+            indexer_meta['indexer']['label'] = name
+        if config_schema:
+            indexer_meta['indexer']['customOptions'] = to_json_schema(config_schema)
+
+        indexer_description = get_func_description(fn, description)
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.INDEXER,
+            fn=fn,
+            metadata=indexer_meta,
+            description=indexer_description,
         )
 
     def define_evaluator(
