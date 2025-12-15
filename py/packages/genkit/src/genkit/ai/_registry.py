@@ -47,12 +47,12 @@ from typing import Any, Type
 import structlog
 from pydantic import BaseModel
 
-from genkit.blocks.embedding import EmbedderFn
+from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
-from genkit.blocks.retriever import RetrieverFn
+from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
 from genkit.core.action import Action
@@ -278,6 +278,40 @@ class GenkitRegistry:
             description=retriever_description,
         )
 
+    def define_indexer(
+        self,
+        name: str,
+        fn: IndexerFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        description: str | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Define an indexer action.
+
+        Args:
+            name: Name of the indexer.
+            fn: Function implementing the indexer behavior.
+            config_schema: Optional schema for indexer configuration.
+            metadata: Optional metadata for the indexer.
+            description: Optional description for the indexer.
+        """
+        indexer_meta = metadata if metadata else {}
+        if 'indexer' not in indexer_meta:
+            indexer_meta['indexer'] = {}
+        if 'label' not in indexer_meta['indexer'] or not indexer_meta['indexer']['label']:
+            indexer_meta['indexer']['label'] = name
+        if config_schema:
+            indexer_meta['indexer']['customOptions'] = to_json_schema(config_schema)
+
+        indexer_description = get_func_description(fn, description)
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.INDEXER,
+            fn=fn,
+            metadata=indexer_meta,
+            description=indexer_description,
+        )
+
     def define_evaluator(
         self,
         name: str,
@@ -288,7 +322,7 @@ class GenkitRegistry:
         config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define a evaluator action.
 
         This action runs the callback function on the every sample of
@@ -458,8 +492,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        options: EmbedderOptions | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
@@ -471,12 +504,19 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata if metadata else {}
+        embedder_meta: dict[str, Any] = {}
+        if options:
+            if options.label:
+                embedder_meta['embedder']['label'] = options.label
+            if options.dimensions:
+                embedder_meta['embedder']['dimensions'] = options.dimensions
+            if options.supports:
+                embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+            if options.config_schema:
+                embedder_meta['embedder']['customOptions'] = to_json_schema(options.config_schema)
+
         if 'embedder' not in embedder_meta:
             embedder_meta['embedder'] = {}
-
-        if config_schema:
-            embedder_meta['embedder']['customOptions'] = to_json_schema(config_schema)
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(

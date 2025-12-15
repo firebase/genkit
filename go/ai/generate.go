@@ -405,6 +405,17 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		}
 	}
 
+	if genOpts.OutputSchema != nil {
+		resolved, err := core.ResolveSchema(r, genOpts.OutputSchema)
+		if err != nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: invalid output schema: %v", err)
+		}
+		genOpts.OutputSchema = resolved
+		if genOpts.OutputFormat == "" {
+			genOpts.OutputFormat = OutputFormatJSON
+		}
+	}
+
 	var modelName string
 	if genOpts.Model != nil {
 		modelName = genOpts.Model.Name()
@@ -429,7 +440,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 			r = r.NewChild()
 		}
 		for _, res := range genOpts.Resources {
-			res.(*resource).Register(r)
+			res.Register(r)
 		}
 	}
 

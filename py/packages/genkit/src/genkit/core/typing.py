@@ -989,7 +989,7 @@ class GenerateActionOptions(BaseModel):
     """Model for generateactionoptions data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    model: str
+    model: str | None = None
     docs: list[DocumentData] | None = None
     messages: list[Message]
     tools: list[str] | None = None
