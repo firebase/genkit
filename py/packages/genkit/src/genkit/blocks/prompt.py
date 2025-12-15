@@ -24,7 +24,9 @@ generation and management across different parts of the application.
 
 from asyncio import Future
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
+import os
 
 from dotpromptz.typing import (
     DataArgument,
@@ -45,6 +47,7 @@ from genkit.blocks.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
+from genkit.core.action.types import ActionKind
 from genkit.core.action import ActionRunContext
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
@@ -679,3 +682,137 @@ async def render_user_prompt(
         )
 
     return Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))
+
+
+async def load_prompt_folder(
+    registry: Registry, root: str | Path = './prompts', ns: str = 'dotprompt'
+) -> None:
+    """Loads prompt files from a directory.
+
+    Args:
+        registry: The registry to use for resolving models and tools.
+        root: The root directory to load prompts from.
+        ns: The namespace to use for the loaded prompts.
+    """
+    if isinstance(root, str):
+        root = Path(root)
+
+    if not root.exists():
+        return
+
+    for path in root.rglob('*'):
+        if path.is_file() and path.suffix == '.prompt':
+            rel_path = path.relative_to(root)
+            parts = rel_path.parts
+            
+            # Check if it's a partial (starts with _)
+            if path.name.startswith('_'):
+                partial_name = path.name[1:-7] 
+                registry.dotprompt.define_partial(
+                    partial_name, path.read_text(encoding='utf-8')
+                )
+                continue
+
+            # Construct prompt name from path
+            # e.g. sub/dir/my.prompt -> sub.dir.my
+            name_parts = list(parts[:-1]) + [path.stem]
+            
+            # Handle variant if present in filename (e.g. my.variant.prompt)
+            variant = None
+            if '.' in name_parts[-1]:
+                stem_parts = name_parts[-1].split('.')
+                name_parts[-1] = stem_parts[0]
+                variant = stem_parts[1]
+            
+            name = '.'.join(name_parts)
+            if ns:
+                name = f'{ns}/{name}'
+            
+            await load_prompt_file(registry, path, name, variant)
+
+
+async def load_prompt_file(
+    registry: Registry,
+    path: str | Path,
+    name: str,
+    variant: str | None = None,
+) -> ExecutablePrompt:
+    """Loads a prompt from a file.
+
+    Args:
+        registry: The registry to use for resolving models and tools.
+        path: The path to the prompt file.
+        name: The name of the prompt.
+        variant: The variant of the prompt.
+
+    Returns:
+        The loaded ExecutablePrompt.
+    """
+    if isinstance(path, str):
+        path = Path(path)
+    
+    source = path.read_text(encoding='utf-8')
+    parsed_prompt = registry.dotprompt.parse(source)
+    
+    # We use a deferred execution to ensure all schemas and tools are available
+    # when the prompt is actually rendered.
+    
+    # Define a lazy loading mechanism
+    # Since define_prompt expects immediate config, we'll parse metadata now
+    # but actual compilation happens during execution/rendering via ExecutablePrompt
+    
+    metadata = await registry.dotprompt.render_metadata(parsed_prompt)
+    
+    # Clean up metadata description if null
+    if (
+        metadata.output
+        and metadata.output.schema
+        and isinstance(metadata.output.schema, dict)
+        and metadata.output.schema.get('description') is None
+    ):
+        del metadata.output.schema['description']
+    
+    if (
+        metadata.input
+        and metadata.input.schema
+        and isinstance(metadata.input.schema, dict)
+        and metadata.input.schema.get('description') is None
+    ):
+        del metadata.input.schema['description']
+
+    executable_prompt = define_prompt(
+        registry,
+        variant=variant or metadata.variant,
+        model=metadata.model or (metadata.raw.get('model') if metadata.raw else None),
+        config=metadata.config,
+        description=metadata.description,
+        input_schema=metadata.input.schema if metadata.input else None,
+        output_format=metadata.output.format if metadata.output else None,
+        output_schema=metadata.output.schema if metadata.output else None,
+        tools=metadata.tools or (metadata.raw.get('tools') if metadata.raw else None),
+        metadata={**(metadata.metadata or {}), 'type': 'prompt'},
+        prompt=parsed_prompt.template,
+        # TODO: Handle messages
+    )
+    
+    async def wrapper(input: Any, ctx: ActionRunContext):
+        return await executable_prompt(
+            input=input,
+            context=ctx.context,
+            on_chunk=ctx.send_chunk if ctx.is_streaming else None,
+        )
+
+    register_name = name
+    if variant:
+        register_name = f"{name}.{variant}"
+
+    registry.register_action(
+        kind=ActionKind.PROMPT,
+        name=register_name,
+        fn=wrapper,
+        description=metadata.description,
+        metadata=metadata.metadata,
+    )
+    
+    return executable_prompt
+

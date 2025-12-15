@@ -1,0 +1,9 @@
+---
+model: googleai/gemini-2.5-flash
+input:
+  schema:
+    user: string
+---
+
+Goodbye, {{user}}!
+This prompt was loaded from a subfolder.

@@ -111,6 +111,7 @@ genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
+intro-prompt-loading                = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]

@@ -1,0 +1,10 @@
+[project]
+name = "intro-prompt-loading"
+version = "0.0.1"
+dependencies = [
+    "genkit",
+    "genkit-plugin-google-genai",
+]
+
+[tool.setuptools]
+packages = ["src"]

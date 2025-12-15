@@ -1,0 +1,11 @@
+---
+model: googleai/gemini-2.5-flash
+config:
+  temperature: 0.9
+input:
+  schema:
+    user: string
+---
+
+Welcome to the Genkit sample, {{user}}!
+This prompt was loaded from a file.
