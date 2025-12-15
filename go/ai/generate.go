@@ -282,7 +282,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && m != nil && m.(*model).supportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && m != nil && supportsConstrained(m, len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -571,12 +571,18 @@ func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamC
 }
 
 // supportsConstrained returns whether the model supports constrained output.
-func (m *model) supportsConstrained(hasTools bool) bool {
+func supportsConstrained(m Model, hasTools bool) bool {
+	var (
+		metadata map[string]any
+	)
 	if m == nil {
 		return false
 	}
 
-	metadata := m.ActionDef.Desc().Metadata
+	if act, ok := m.(api.Action); ok {
+		metadata = act.Desc().Metadata
+	}
+
 	if metadata == nil {
 		return false
 	}
