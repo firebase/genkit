@@ -82,7 +82,9 @@ export async function startDevProcessManager(
     projectRoot,
     processManager,
   });
-  const processPromise = processManager.start();
+  const processPromise = processManager.start({
+    cwd: projectRoot,
+  });
   return { manager, processPromise };
 }
 

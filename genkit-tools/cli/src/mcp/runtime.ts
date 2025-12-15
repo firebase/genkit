@@ -18,12 +18,13 @@ import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { z } from 'zod';
 import { McpRunToolEvent } from './analytics.js';
-import { McpRuntimeManager } from './util.js';
+import {
+  McpRuntimeManager,
+  getCommonSchema,
+  resolveProjectRoot,
+} from './util.js';
 
-export function defineRuntimeTools(
-  server: McpServer,
-  manager: McpRuntimeManager
-) {
+export function defineRuntimeTools(server: McpServer, projectRoot: string) {
   server.registerTool(
     'start_runtime',
     {
@@ -33,14 +34,21 @@ export function defineRuntimeTools(
       Examples: 
         {command: 'go', args: ['run', 'main.go']}
         {command: 'npm', args: ['run', 'dev']}`,
-      inputSchema: {
+      inputSchema: getCommonSchema({
         command: z.string(),
         args: z.array(z.string()),
-      },
+      }),
     },
-    async ({ command, args }) => {
+    async (opts) => {
       await record(new McpRunToolEvent('start_runtime'));
-      await manager.getManagerWithDevProcess(command, args);
+      const rootOrError = resolveProjectRoot(opts, projectRoot);
+      if (typeof rootOrError !== 'string') return rootOrError;
+
+      await McpRuntimeManager.getManagerWithDevProcess(
+        rootOrError,
+        opts.command,
+        opts.args
+      );
 
       return {
         content: [{ type: 'text', text: `Done.` }],
@@ -48,55 +56,49 @@ export function defineRuntimeTools(
     }
   );
 
-  server.registerTool(
+  const registerControlTool = (
+    name: string,
+    title: string,
+    action: 'kill' | 'restart'
+  ) => {
+    server.registerTool(
+      name,
+      {
+        title,
+        description: `Use this to ${action} an existing runtime that was started using the \`start_runtime\` tool`,
+        inputSchema: getCommonSchema(),
+      },
+      async (opts) => {
+        await record(new McpRunToolEvent(name));
+        const rootOrError = resolveProjectRoot(opts, projectRoot);
+        if (typeof rootOrError !== 'string') return rootOrError;
+
+        const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
+        if (!runtimeManager.processManager) {
+          return {
+            isError: true,
+            content: [
+              { type: 'text', text: `No runtime process currently running.` },
+            ],
+          };
+        }
+
+        await runtimeManager.processManager[action]();
+        return {
+          content: [{ type: 'text', text: `Done.` }],
+        };
+      }
+    );
+  };
+
+  registerControlTool(
     'kill_runtime',
-    {
-      title: 'Kills any existing Genkit runtime process',
-      description:
-        'Use this to stop an existing runtime that was started using the `start_runtime` tool',
-    },
-    async () => {
-      await record(new McpRunToolEvent('kill_runtime'));
-      const runtimeManager = await manager.getManager();
-      if (!runtimeManager.processManager) {
-        return {
-          isError: true,
-          content: [
-            { type: 'text', text: `No runtime process currently running.` },
-          ],
-        };
-      }
-
-      await runtimeManager.processManager?.kill();
-      return {
-        content: [{ type: 'text', text: `Done.` }],
-      };
-    }
+    'Kills any existing Genkit runtime process',
+    'kill'
   );
-
-  server.registerTool(
+  registerControlTool(
     'restart_runtime',
-    {
-      title: 'Restarts any existing Genkit runtime process',
-      description:
-        'Use this to restart an existing runtime that was started using the `start_runtime` tool',
-    },
-    async () => {
-      await record(new McpRunToolEvent('restart_runtime'));
-      const runtimeManager = await manager.getManager();
-      if (!runtimeManager.processManager) {
-        return {
-          isError: true,
-          content: [
-            { type: 'text', text: `No runtime process currently running.` },
-          ],
-        };
-      }
-
-      await runtimeManager.processManager?.restart();
-      return {
-        content: [{ type: 'text', text: `Done.` }],
-      };
-    }
+    'Restarts any existing Genkit runtime process',
+    'restart'
   );
 }

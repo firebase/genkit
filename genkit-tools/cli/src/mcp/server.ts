@@ -31,21 +31,21 @@ export async function startMcpServer(projectRoot: string) {
     version: '0.0.2',
   });
 
-  const manager = new McpRuntimeManager(projectRoot);
+  // new McpRuntimeManager(projectRoot);
 
   await defineDocsTool(server);
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
-  defineRuntimeTools(server, manager);
 
-  defineFlowTools(server, manager);
-  defineTraceTools(server, manager);
+  defineRuntimeTools(server, projectRoot);
+  defineFlowTools(server, projectRoot);
+  defineTraceTools(server, projectRoot);
 
   return new Promise(async (resolve) => {
     const transport = new StdioServerTransport();
     const cleanup = async () => {
       try {
-        await manager.kill();
+        await McpRuntimeManager.kill();
       } catch (e) {
         // ignore
       }
@@ -54,7 +54,7 @@ export async function startMcpServer(projectRoot: string) {
     };
     transport.onclose = async () => {
       try {
-        await manager.kill();
+        await McpRuntimeManager.kill();
       } catch (e) {
         // ignore
       }

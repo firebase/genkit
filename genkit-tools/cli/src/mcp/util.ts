@@ -15,39 +15,72 @@
  */
 
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import { z } from 'zod';
 import { startDevProcessManager, startManager } from '../utils/manager-utils';
+
+export const isAntigravity = !!process.env.ANTIGRAVITY_ENV;
+
+export function getCommonSchema(shape: z.ZodRawShape = {}): z.ZodRawShape {
+  return !isAntigravity
+    ? shape
+    : {
+        projectRoot: z
+          .string()
+          .describe(
+            'The path to the current project root (a.k.a workspace directory or project directory)'
+          ),
+        ...shape,
+      };
+}
+
+export function resolveProjectRoot(
+  opts: any,
+  fallback: string
+): string | { content: any[]; isError: boolean } {
+  if (isAntigravity && !opts?.projectRoot) {
+    return {
+      content: [
+        { type: 'text', text: 'Project root is required for this tool.' },
+      ],
+      isError: true,
+    };
+  }
+  return opts?.projectRoot ?? fallback;
+}
 
 /** Genkit Runtime manager specifically for the MCP server. Allows lazy
  * initialization and dev process manangement. */
 export class McpRuntimeManager {
-  private manager: RuntimeManager | undefined;
+  private static manager: RuntimeManager | undefined;
+  private static currentProjectRoot: string | undefined;
 
-  constructor(private projectRoot: string) {}
-
-  async getManager() {
-    if (!this.manager) {
-      this.manager = await startManager(
-        this.projectRoot,
-        true /* manageHealth */
-      );
+  static async getManager(projectRoot: string) {
+    if (this.manager && this.currentProjectRoot === projectRoot) {
+      return this.manager;
     }
-    return this.manager;
-  }
-
-  async getManagerWithDevProcess(command: string, args: string[]) {
     if (this.manager) {
       await this.manager.stop();
     }
-    const devManager = await startDevProcessManager(
-      this.projectRoot,
-      command,
-      args
-    );
-    this.manager = devManager.manager;
+    this.manager = await startManager(projectRoot, true /* manageHealth */);
+    this.currentProjectRoot = projectRoot;
     return this.manager;
   }
 
-  async kill() {
+  static async getManagerWithDevProcess(
+    projectRoot: string,
+    command: string,
+    args: string[]
+  ) {
+    if (this.manager) {
+      await this.manager.stop();
+    }
+    const devManager = await startDevProcessManager(projectRoot, command, args);
+    this.manager = devManager.manager;
+    this.currentProjectRoot = projectRoot;
+    return this.manager;
+  }
+
+  static async kill() {
     if (this.manager) {
       await this.manager.stop();
     }
