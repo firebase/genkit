@@ -99,8 +99,8 @@ export async function runInNewSpan<T>(
   const isInRoot = parentStep?.metadata?.isRoot === true;
   if (!parentStep) opts.metadata.isRoot ||= true;
 
-  const spanOptions: SpanOptions = { 
-    links: opts.links, 
+  const spanOptions: SpanOptions = {
+    links: opts.links,
     attributes: opts.labels,
   };
   if (!isDisableRootSpanDetection()) {
