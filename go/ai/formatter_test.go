@@ -681,7 +681,7 @@ func TestJsonlParser(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "parses jsonl schema",
+			name: "passthrough jsonl schema",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -702,35 +702,13 @@ func TestJsonlParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("{\"id\": 1, \"name\": \"test\"}"),
-					NewJSONPart("{\"id\": 2}"),
+					NewTextPart(JSONMarkdown(`{"id": 1, "name": "test"}\n{"id": 2}\n`)),
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "contains unexpected field fails",
-			schema: map[string]any{
-				"type": "array",
-				"items": map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"name": map[string]any{"type": "string"},
-						"age":  map[string]any{"type": "integer"},
-					},
-				},
-				"additionalProperties": false,
-			},
-			response: &Message{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart(JSONMarkdown(`{"id": 1, "foo": "bar"}\n{"id": 2}\n`)),
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "parses JSONl with preamble and code fence",
+			name: "passthrough JSONl with preamble and code fence",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -750,8 +728,7 @@ func TestJsonlParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("{\"id\": 1}"),
-					NewJSONPart("{\"id\": 2}"),
+					NewTextPart("Here are the objects:\n\n```\n{\"id\": 1}\n{\"id\": 2}\n```"),
 				},
 			},
 			wantErr: false,
@@ -794,7 +771,7 @@ func TestArrayParser(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "parses array schema",
+			name: "passthrough array schema",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -816,36 +793,13 @@ func TestArrayParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("{\"id\": 1, \"name\": \"test\"}"),
-					NewJSONPart("{\"id\": 2}"),
+					NewTextPart(JSONMarkdown(`{"id": 1, "name": "test"}\n{"id": 2}\n`)),
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "contains unexpected field fails",
-			schema: map[string]any{
-				"type": "array",
-				"items": map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"name": map[string]any{"type": "string"},
-						"age":  map[string]any{"type": "integer"},
-					},
-					"required": []string{"name", "age"},
-				},
-				"additionalProperties": false,
-			},
-			response: &Message{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart(JSONMarkdown(`{"id": 1, "foo": "bar"}`)),
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "parses empty array",
+			name: "passthrough empty array",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -863,13 +817,15 @@ func TestArrayParser(t *testing.T) {
 				},
 			},
 			want: &Message{
-				Role:    RoleModel,
-				Content: nil,
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("[]"),
+				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "parses array with preamble and code fence",
+			name: "passthrough array with preamble and code fence",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -889,8 +845,7 @@ func TestArrayParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("{\"id\": 1}"),
-					NewJSONPart("{\"id\": 2}"),
+					NewTextPart("Here are the objects:\n\n```\n{\"id\": 1}\n{\"id\": 2}\n```"),
 				},
 			},
 			wantErr: false,
@@ -1153,7 +1108,7 @@ func TestJsonlParserStreaming(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "parses streaming JSONL from multiple parts",
+			name: "passthrough streaming JSONL from multiple parts",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1177,14 +1132,16 @@ func TestJsonlParserStreaming(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart(`{"id": 1, "name": "Alice"}`),
-					NewJSONPart(`{"id": 2, "name": "Bob"}`),
+					NewTextPart(`{"id": 1, "na`),
+					NewTextPart(`me": "Alice"}\n`),
+					NewTextPart(`{"id": 2, "`),
+					NewTextPart(`name": "Bob"}`),
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "parses streaming JSONL with mixed content",
+			name: "passthrough streaming JSONL with mixed content",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1206,15 +1163,15 @@ func TestJsonlParserStreaming(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart(`{"id": 1}`),
-					NewJSONPart(`{"id": 2}`),
+					NewTextPart(`{"id"`),
+					NewTextPart(`: 1}\n{"id": 2}`),
 					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "no text part present streaming JSONL",
+			name: "passthrough no text part present streaming JSONL",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1275,7 +1232,7 @@ func TestArrayParserStreaming(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "parses streaming array from multiple parts",
+			name: "passthrough streaming array from multiple parts",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1300,14 +1257,16 @@ func TestArrayParserStreaming(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart(`{"id": 1, "name": "test"}`),
-					NewJSONPart(`{"id": 2}`),
+					NewTextPart(`{"id": 1, "na`),
+					NewTextPart(`me": "test"}\n`),
+					NewTextPart(`{"id"`),
+					NewTextPart(`: 2}`),
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "parses array with preamble and code fence",
+			name: "passthrough array with preamble and code fence",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1330,14 +1289,16 @@ func TestArrayParserStreaming(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("{\"id\": 1}"),
-					NewJSONPart("{\"id\": 2}"),
+					NewTextPart("Here are the"),
+					NewTextPart("objects:\n\n```\n"),
+					NewTextPart(" {\"id\": 1}\n"),
+					NewTextPart("{\"id\": 2}\n```"),
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "no text part present streaming array",
+			name: "passthrough no text part present streaming array",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1800,10 +1761,9 @@ func TestEnumFormatterProcessChunk(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		text    string
-		want    string
-		wantNil bool
+		name string
+		text string
+		want string
 	}{
 		{
 			name: "valid enum",
@@ -1816,14 +1776,14 @@ func TestEnumFormatterProcessChunk(t *testing.T) {
 			want: "option2",
 		},
 		{
-			name:    "invalid enum",
-			text:    "invalid",
-			wantNil: true,
+			name: "invalid enum returns empty string",
+			text: "invalid",
+			want: "",
 		},
 		{
-			name:    "partial match",
-			text:    "opt",
-			wantNil: true,
+			name: "partial match returns empty string",
+			text: "opt",
+			want: "",
 		},
 		{
 			name: "incremental chunks simulated",
@@ -1851,12 +1811,6 @@ func TestEnumFormatterProcessChunk(t *testing.T) {
 			got, err := sfh.ParseChunk(chunk)
 			if err != nil {
 				t.Errorf("ProcessChunk() error = %v", err)
-				return
-			}
-			if tt.wantNil {
-				if got != nil {
-					t.Errorf("ProcessChunk() = %v, want nil", got)
-				}
 				return
 			}
 			if got != tt.want {
