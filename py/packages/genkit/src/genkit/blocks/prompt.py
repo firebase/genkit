@@ -27,6 +27,7 @@ from asyncio import Future
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
+import weakref
 
 import structlog
 from dotpromptz.typing import (
@@ -985,8 +986,8 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             return_tool_requests=metadata.get('returnToolRequests'),
             metadata=metadata.get('metadata'),
             tools=metadata.get('tools'),
-            # _name=name,  # Store name for action lookup
-            # _ns=ns,  # Store namespace for action lookup
+            _name=name,  # Store name for action lookup
+            _ns=ns,  # Store namespace for action lookup
         )
 
         # Store reference to PROMPT action on the ExecutablePrompt
@@ -996,7 +997,8 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         if prompt_action and prompt_action.kind == ActionKind.PROMPT:
             executable_prompt._prompt_action = prompt_action
             # Also store ExecutablePrompt reference on the action
-            prompt_action._executable_prompt = executable_prompt
+            # prompt_action._executable_prompt = executable_prompt
+            prompt_action._executable_prompt = weakref.ref(executable_prompt)
 
         return executable_prompt
 
