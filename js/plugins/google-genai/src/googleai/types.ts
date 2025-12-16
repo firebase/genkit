@@ -80,6 +80,10 @@ export interface GoogleAIPluginOptions {
   experimental_debugTraces?: boolean;
   /** Use `responseSchema` field instead of `responseJsonSchema`. */
   legacyResponseSchema?: boolean;
+  /**
+   * Additional headers to send along with the request.
+   */
+  customHeaders?: Record<string, string>;
 }
 
 /**

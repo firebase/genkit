@@ -24,6 +24,7 @@ import pytest
 from pydantic import BaseModel
 
 from genkit.ai import ActionKind, Genkit
+from genkit.core.schema import to_json_schema
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition
@@ -126,7 +127,7 @@ def test__initialize_embedders(ollama_plugin_instance):
     ai_mock.define_embedder.assert_called_once_with(
         name=ollama_name(name),
         fn=ANY,
-        config_schema=ollama_api.Options,
+        config_schema=to_json_schema(ollama_api.Options),
         metadata={
             'label': f'Ollama Embedding - {name}',
             'dimensions': 1024,
@@ -165,7 +166,7 @@ def test_resolve_action(kind, name, ollama_plugin_instance):
         ai_mock.define_embedder.assert_called_once_with(
             name=ollama_name(name),
             fn=ANY,
-            config_schema=ollama_api.Options,
+            config_schema=to_json_schema(ollama_api.Options),
             metadata={
                 'label': f'Ollama Embedding - {name}',
                 'dimensions': None,
@@ -218,7 +219,7 @@ def test_define_ollama_embedder(name, expected_name, clean_name, ollama_plugin_i
     ai_mock.define_embedder.assert_called_once_with(
         name=expected_name,
         fn=ANY,
-        config_schema=ollama_api.Options,
+        config_schema=to_json_schema(ollama_api.Options),
         metadata={
             'label': f'Ollama Embedding - {clean_name}',
             'dimensions': 1024,

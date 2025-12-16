@@ -506,6 +506,10 @@ func TestPromptOptionsComplete(t *testing.T) {
 			SystemFn: opts.SystemFn,
 			PromptFn: opts.PromptFn,
 		},
+		inputOptions: inputOptions{
+			InputSchema:  opts.InputSchema,
+			DefaultInput: map[string]any{"test": "value"},
+		},
 		outputOptions: outputOptions{
 			OutputFormat: OutputFormatJSON,
 			OutputSchema: opts.OutputSchema,
@@ -515,10 +519,8 @@ func TestPromptOptionsComplete(t *testing.T) {
 			}(),
 			CustomConstrained: true,
 		},
-		inputOptions: inputOptions{InputSchema: opts.InputSchema},
-		Description:  "test description",
-		Metadata:     map[string]any{"key": "value"},
-		DefaultInput: map[string]any{"test": "value"},
+		Description: "test description",
+		Metadata:    map[string]any{"key": "value"},
 	}
 
 	if diff := cmp.Diff(expected, opts,
@@ -528,7 +530,7 @@ func TestPromptOptionsComplete(t *testing.T) {
 		cmpopts.IgnoreFields(inputOptions{}, "InputSchema"),
 		cmpopts.IgnoreUnexported(mockModel{}, mockTool{}),
 		cmp.AllowUnexported(promptOptions{}, commonGenOptions{}, promptingOptions{},
-			outputOptions{}, inputOptions{})); diff != "" {
+			inputOptions{}, outputOptions{})); diff != "" {
 		t.Errorf("Options not applied correctly, diff (-want +got):\n%s", diff)
 	}
 

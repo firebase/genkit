@@ -668,12 +668,53 @@ func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) ai.Prompt {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.prompt] by its name.
+// LookupPrompt retrieves a registered [ai.Prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
 func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
+}
+
+// DefineSchema defines a named JSON schema and registers it in the registry.
+//
+// Registered schemas can be referenced by name in prompts (both `.prompt` files
+// and programmatic definitions) to define input or output structures.
+// The `schema` argument must be a JSON schema definition represented as a map.
+//
+// Example:
+//
+//	genkit.DefineSchema(g, "User", map[string]any{
+//	    "type": "object",
+//	    "properties": map[string]any{
+//	        "name": map[string]any{"type": "string"},
+//	        "age":  map[string]any{"type": "integer"},
+//	    },
+//	    "required": []string{"name"}
+//	})
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
+func DefineSchema(g *Genkit, name string, schema map[string]any) {
+	core.DefineSchema(g.reg, name, schema)
+}
+
+// DefineSchemaFor defines a named JSON schema derived from a Go type
+// and registers it in the registry.
+//
+// This is an alternative to [DefineSchema].
+//
+// Example:
+//
+//	type User struct {
+//	    Name string `json:"name"`
+//	    Age int `json:"age"`
+//	}
+//
+//	genkit.DefineSchemaFor[User](g)
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
+func DefineSchemaFor[T any](g *Genkit) {
+	core.DefineSchemaFor[T](g.reg)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided

@@ -1,0 +1,44 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Run tests for all supported Python versions using tox
+
+from typing import Any
+
+from dotpromptz import Dotprompt
+from dotpromptz.typing import DataArgument, PromptFunction
+
+dp = Dotprompt()
+
+
+async def load_prompt_file(path: str) -> PromptFunction:
+    with open(path, 'r') as f:
+        result = await dp.compile(f.read())
+
+    return result
+
+
+async def render_text(prompt: PromptFunction, input_: dict[str, Any]) -> str:
+    rendered = await prompt(
+        data=DataArgument[dict[str, Any]](
+            input=input_,
+        )
+    )
+    result = []
+    for message in rendered.messages:
+        result.append(''.join(e.text for e in message.content))
+
+    return ''.join(result)
