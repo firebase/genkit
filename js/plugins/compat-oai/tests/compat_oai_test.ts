@@ -1479,7 +1479,7 @@ describe('openAIModelRunner', () => {
     };
     const runner = openAIModelRunner(
       'gpt-4o',
-      openaiClient as unknown as OpenAI,
+      openaiClient as unknown as OpenAI
     );
     await runner({ messages: [] });
     expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
