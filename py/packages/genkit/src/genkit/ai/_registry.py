@@ -286,8 +286,17 @@ class GenkitRegistry:
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Callable[[Callable], Callable]:
+        """Define an indexer action.
 
+        Args:
+            name: Name of the indexer.
+            fn: Function implementing the indexer behavior.
+            config_schema: Optional schema for indexer configuration.
+            metadata: Optional metadata for the indexer.
+            description: Optional description for the indexer.
+        """
         indexer_meta = metadata if metadata else {}
+
         if 'indexer' not in indexer_meta:
             indexer_meta['indexer'] = {}
         if 'label' not in indexer_meta['indexer'] or not indexer_meta['indexer']['label']:
@@ -315,7 +324,7 @@ class GenkitRegistry:
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
-        """Define a evaluator action.
+        """Define an evaluator action.
 
         This action runs the callback function on the every sample of
         the input dataset.
@@ -604,6 +613,26 @@ class GenkitRegistry:
         name: str,
         variant: str | None = None,
     ):
+        """Look up a prompt by name and optional variant.
+
+            This matches the JavaScript prompt() function behavior.
+
+            Can look up prompts that were:
+            1. Defined programmatically using define_prompt()
+            2. Loaded from .prompt files using load_prompt_folder()
+
+            Args:
+                registry: The registry to look up the prompt from.
+                name: The name of the prompt.
+                variant: Optional variant name.
+                dir: Optional directory parameter (accepted for compatibility but not used).
+
+            Returns:
+                An ExecutablePrompt instance.
+
+            Raises:
+                GenkitError: If the prompt is not found.
+            """
 
         return await lookup_prompt(
             registry=self.registry,

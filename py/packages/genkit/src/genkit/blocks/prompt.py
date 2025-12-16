@@ -22,14 +22,13 @@ used with AI models in the Genkit framework. It enables consistent prompt
 generation and management across different parts of the application.
 """
 
-import structlog
 import os
-from pathlib import Path
-
 from asyncio import Future
 from collections.abc import AsyncIterator, Callable
+from pathlib import Path
 from typing import Any
 
+import structlog
 from dotpromptz.typing import (
     DataArgument,
     PromptFunction,
@@ -69,6 +68,7 @@ from genkit.core.typing import (
     Tools,
 )
 
+logger = structlog.get_logger(__name__)
 
 class PromptCache:
     """Model for a prompt cache."""
@@ -129,9 +129,9 @@ class ExecutablePrompt:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        # _name: str | None = None,  # Internal: prompt name for action lookup
-        # _ns: str | None = None,  # Internal: namespace for action lookup
-        # _prompt_action: Action | None = None,  # Internal: reference to PROMPT action
+        _name: str | None = None,  # prompt name for action lookup
+        _ns: str | None = None,  # namespace for action lookup
+        _prompt_action: Action | None = None,  # reference to PROMPT action
         # TODO:
         #  docs: list[Document]):
     ):
@@ -180,10 +180,9 @@ class ExecutablePrompt:
         self._tool_choice = tool_choice
         self._use = use
         self._cache_prompt = PromptCache()
-        # Store name/ns for action lookup (used by as_tool())
-        # self._name = _name
-        # self._ns = _ns
-        # self._prompt_action = _prompt_action
+        self._name = _name# Store name/ns for action lookup (used by as_tool())
+        self._ns = _ns
+        self._prompt_action = _prompt_action
 
     async def __call__(
         self,
@@ -337,7 +336,6 @@ class ExecutablePrompt:
         """Expose this prompt as a tool.
 
         Returns the PROMPT action, which can be used as a tool.
-        Similar to JS asTool().
         """
         # If we have a direct reference to the action, use it
         if self._prompt_action is not None:
@@ -509,14 +507,28 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
         resume=resume,
     )
 
-async def to_generate_request(
-    registry: Registry,
-    options: GenerateActionOptions
-) -> GenerateRequest:
-    """Convert GenerateActionOptions to GenerateRequest.
 
-    Similar to JS toGenerateRequest(). Resolves tools and converts to GenerateRequest format.
-    """
+async def to_generate_request(registry: Registry, options: GenerateActionOptions) -> GenerateRequest:
+    """Converts GenerateActionOptions to a GenerateRequest.
+
+        This function resolves tool names into their respective tool definitions
+        by looking them up in the provided registry. it also validates that the
+        provided options contain at least one message.
+
+        Args:
+            registry: The Registry instance used to look up tool actions.
+            options: The GenerateActionOptions containing the configuration,
+                messages, and tool references to be converted.
+
+        Returns:
+            A GenerateRequest object populated with messages, config, resolved
+            tools, and output configurations.
+
+        Raises:
+            Exception: If a tool name provided in options cannot be found in
+                the registry.
+            GenkitError: If the options do not contain any messages.
+        """
 
     tools: list[Action] = []
     if options.tools:
@@ -529,7 +541,7 @@ async def to_generate_request(
     tool_defs = [to_tool_definition(tool) for tool in tools] if tools else []
 
     if not options.messages:
-        from genkit.core.error import GenkitError
+
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='at least one message is required in generate request',
@@ -548,6 +560,7 @@ async def to_generate_request(
             constrained=options.output.constrained if options.output else None,
         ),
     )
+
 
 def _normalize_prompt_arg(
     prompt: str | Part | list[Part] | None,
@@ -763,9 +776,6 @@ async def render_user_prompt(
     return Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))
 
 
-logger = structlog.get_logger(__name__)
-
-
 def registry_definition_key(name: str, variant: str | None = None, ns: str | None = None) -> str:
     """Generate a registry definition key for a prompt.
 
@@ -784,8 +794,8 @@ def registry_definition_key(name: str, variant: str | None = None, ns: str | Non
         parts.append(ns)
     parts.append(name)
     if variant:
-        parts[-1] = f"{parts[-1]}.{variant}"
-    return "/".join(parts)
+        parts[-1] = f'{parts[-1]}.{variant}'
+    return '/'.join(parts)
 
 
 def registry_lookup_key(name: str, variant: str | None = None, ns: str | None = None) -> str:
@@ -799,14 +809,14 @@ def registry_lookup_key(name: str, variant: str | None = None, ns: str | None = 
     Returns:
         Registry lookup key string.
     """
-    return f"/prompt/{registry_definition_key(name, variant, ns)}"
+    return f'/prompt/{registry_definition_key(name, variant, ns)}'
 
 
 def define_partial(registry: Registry, name: str, source: str) -> None:
     """Define a partial template in the registry.
 
     Partials are reusable template fragments that can be included in other prompts.
-    In JS, files starting with `_` are treated as partials.
+    Files starting with `_` are treated as partials.
 
     Args:
         registry: The registry to register the partial in.
@@ -829,13 +839,7 @@ def define_helper(registry: Registry, name: str, fn: Callable) -> None:
     logger.debug(f'Registered Dotprompt helper "{name}"')
 
 
-def load_prompt(
-    registry: Registry,
-    path: Path,
-    filename: str,
-    prefix: str = '',
-    ns: str = 'dotprompt'
-) -> None:
+def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = 'dotprompt') -> None:
     """Load a single prompt file and register it in the registry.
 
     This function loads a .prompt file, parses it, and registers it as a lazy-loaded
@@ -849,26 +853,27 @@ def load_prompt(
         ns: Namespace for the prompt.
     """
     # Extract name and variant from filename
-    # Matches JS behavior: prefix is included in name before variant extraction
     # "myPrompt.prompt" -> name="myPrompt", variant=None
     # "myPrompt.variant.prompt" -> name="myPrompt", variant="variant"
     # "subdir/myPrompt.prompt" -> name="subdir/myPrompt", variant=None
-    base_name = filename[:-7]  # Remove ".prompt" extension
-    # Include prefix in name (matches JS: `${prefix ?? ''}${basename(filename, '.prompt')}`)
+    if not filename.endswith('.prompt'):
+        raise ValueError(f"Invalid prompt filename: {filename}. Must end with '.prompt'")
+
+    base_name = filename.removesuffix('.prompt')
+
     if prefix:
-        name = f"{prefix}{base_name}"
+        name = f'{prefix}{base_name}'
     else:
         name = base_name
     variant: str | None = None
 
-    # Extract variant (matches JS: only takes parts[1], not all remaining parts)
+    # Extract variant (only takes parts[1], not all remaining parts)
     if '.' in name:
         parts = name.split('.')
         name = parts[0]
-        variant = parts[1]  # Only first part after split (matches JS behavior)
+        variant = parts[1]  # Only first part after split
 
     # Build full file path
-    # Match JS: join(path, prefix ?? '', filename)
     # prefix may have trailing slash, so we need to handle it
     if prefix:
         # Strip trailing slash for path construction (pathlib handles it)
@@ -905,7 +910,7 @@ def load_prompt(
         if variant:
             prompt_metadata_dict['variant'] = variant
 
-        # Clean up null descriptions (matches JS behavior)
+        # Clean up null descriptions
         output = prompt_metadata_dict.get('output')
         if output and isinstance(output, dict):
             schema = output.get('schema')
@@ -989,7 +994,7 @@ def load_prompt(
         prompt_action = registry.lookup_action_by_key(lookup_key)
         if prompt_action and prompt_action.kind == ActionKind.PROMPT:
             executable_prompt._prompt_action = prompt_action
-            # Also store ExecutablePrompt reference on the action (matches JS __executablePrompt)
+            # Also store ExecutablePrompt reference on the action
             prompt_action._executable_prompt = executable_prompt
 
         return executable_prompt
@@ -1003,15 +1008,12 @@ def load_prompt(
         '_async_factory': create_prompt_from_file,
     }
 
-    # Create two separate action functions to match JavaScript structure:
+    # Create two separate action functions :
     # 1. PROMPT action - returns GenerateRequest (for rendering prompts)
     # 2. EXECUTABLE_PROMPT action - returns GenerateActionOptions (for executing prompts)
 
     async def prompt_action_fn(input: Any = None) -> GenerateRequest:
         """PROMPT action function - renders prompt and returns GenerateRequest.
-
-        This matches the JavaScript behavior where the PROMPT action's fn
-        returns GenerateRequest by calling toGenerateRequest().
         """
         # Load the prompt (lazy loading)
         prompt = await create_prompt_from_file()
@@ -1024,9 +1026,6 @@ def load_prompt(
 
     async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:
         """EXECUTABLE_PROMPT action function - renders prompt and returns GenerateActionOptions.
-
-        This matches the JavaScript behavior where the EXECUTABLE_PROMPT action's fn
-        returns GenerateActionOptions by calling toGenerateActionOptions().
         """
         # Load the prompt (lazy loading)
         prompt = await create_prompt_from_file()
@@ -1058,19 +1057,14 @@ def load_prompt(
     prompt_action._async_factory = create_prompt_from_file
     executable_prompt_action._async_factory = create_prompt_from_file
 
-    # Store ExecutablePrompt reference on actions (matches JS __executablePrompt pattern)
+    # Store ExecutablePrompt reference on actions
     # This will be set when the prompt is first accessed (lazy loading)
     # We'll update it in create_prompt_from_file after the prompt is created
 
     logger.debug(f'Registered prompt "{registry_key}" from "{file_path}"')
 
 
-def load_prompt_folder_recursively(
-    registry: Registry,
-    dir_path: Path,
-    ns: str,
-    sub_dir: str = ''
-) -> None:
+def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, sub_dir: str = '') -> None:
     """Recursively load all prompt files from a directory.
 
     Args:
@@ -1097,15 +1091,8 @@ def load_prompt_folder_recursively(
                     logger.debug(f'Registered Dotprompt partial "{partial_name}" from "{entry.path}"')
                 else:
                     # This is a regular prompt
-                    # Match JS: subDir ? `${subDir}/` : ''
-                    prefix_with_slash = f"{sub_dir}/" if sub_dir else ''
-                    load_prompt(
-                        registry,
-                        dir_path,
-                        entry.name,
-                        prefix_with_slash,
-                        ns
-                    )
+                    prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
+                    load_prompt(registry, dir_path, entry.name, prefix_with_slash, ns)
             elif entry.is_directory():
                 # Recursively process subdirectories
                 new_sub_dir = os.path.join(sub_dir, entry.name) if sub_dir else entry.name
@@ -1116,11 +1103,7 @@ def load_prompt_folder_recursively(
         logger.error(f'Error loading prompts from {full_path}: {e}')
 
 
-def load_prompt_folder(
-    registry: Registry,
-    dir_path: str | Path = './prompts',
-    ns: str = 'dotprompt'
-) -> None:
+def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = 'dotprompt') -> None:
     """Load all prompt files from a directory.
 
     This is the main entry point for loading prompts from a directory.
@@ -1145,14 +1128,8 @@ def load_prompt_folder(
     logger.info(f'Loaded prompts from directory: {path}')
 
 
-async def lookup_prompt(
-    registry: Registry,
-    name: str,
-    variant: str | None = None
-) -> ExecutablePrompt:
+async def lookup_prompt(registry: Registry, name: str, variant: str | None = None) -> ExecutablePrompt:
     """Look up a prompt from the registry.
-
-    This matches the JavaScript lookupPrompt function behavior.
 
     Args:
         registry: The registry to look up the prompt from.
@@ -1165,9 +1142,6 @@ async def lookup_prompt(
     Raises:
         GenkitError: If the prompt is not found.
     """
-    from genkit.core.error import GenkitError
-
-    # Match JS: registryLookupKey(name, variant) - no ns parameter
     # Try without namespace first (for programmatic prompts)
     # Use create_action_key to build the full key: "/prompt/<definition_key>"
     definition_key = registry_definition_key(name, variant, None)
@@ -1182,8 +1156,7 @@ async def lookup_prompt(
         action = registry.lookup_action_by_key(lookup_key)
 
     if action:
-        # Match JS: (registryPrompt as PromptAction).__executablePrompt
-        # First check if we've stored the ExecutablePrompt directly (matches JS pattern)
+        # First check if we've stored the ExecutablePrompt directly
         if hasattr(action, '_executable_prompt') and action._executable_prompt is not None:
             return action._executable_prompt
         elif hasattr(action, '_async_factory'):
@@ -1209,8 +1182,7 @@ async def lookup_prompt(
                 message=f'Prompt action found but no ExecutablePrompt available for {name}',
             )
 
-    # Match JS: throw GenkitError with status 'NOT_FOUND'
-    variant_str = f" (variant {variant})" if variant else ""
+    variant_str = f' (variant {variant})' if variant else ''
     raise GenkitError(
         status='NOT_FOUND',
         message=f'Prompt {name}{variant_str} not found',
@@ -1221,11 +1193,9 @@ async def prompt(
     registry: Registry,
     name: str,
     variant: str | None = None,
-    dir: str | Path | None = None  # Accepted but not used, matching JS behavior
+    dir: str | Path | None = None,  # Accepted but not used
 ) -> ExecutablePrompt:
     """Look up a prompt by name and optional variant.
-
-    This matches the JavaScript prompt() function behavior.
 
     Can look up prompts that were:
     1. Defined programmatically using define_prompt()
@@ -1243,311 +1213,5 @@ async def prompt(
     Raises:
         GenkitError: If the prompt is not found.
     """
-    # Match JS: return await lookupPrompt(registry, name, options?.variant)
-    # The dir parameter is accepted in JS but not used in the prompt function
+
     return await lookup_prompt(registry, name, variant)
-# logger = structlog.get_logger(__name__)
-#
-# def registry_definition_key(name: str, variant: str | None = None, ns: str | None = None) -> str:
-#     """
-#     Format: "ns/name.variant" where ns and variant are optional.
-#     """
-#     parts = []
-#     if ns:
-#         parts.append(ns)
-#     parts.append(name)
-#     if variant:
-#         parts[-1] = f"{parts[-1]}.{variant}"
-#     return "/".join(parts)
-#
-#
-# def registry_lookup_key(name: str, variant: str | None = None, ns: str | None = None) -> str:
-#
-#     return f"/prompt/{registry_definition_key(name, variant, ns)}"
-#
-#
-# def define_partial(registry: Registry, name: str, source: str) -> None:
-#
-#     registry.dotprompt.define_partial(name, source)
-#     logger.debug(f'Registered Dotprompt partial "{name}"')
-#
-#
-# def define_helper(registry: Registry, name: str, fn: Callable) -> None:
-#
-#     registry.dotprompt.define_helper(name, fn)
-#     logger.debug(f'Registered Dotprompt helper "{name}"')
-#
-#
-# def load_prompt(
-#     registry: Registry,
-#     path: str,
-#     filename: str,
-#     prefix: str = '',
-#     ns: str = 'dotprompt'
-# ) -> None:
-#
-#     # Extract name and variant from filename
-#     # "myPrompt.prompt" -> name="myPrompt", variant=None
-#     # "myPrompt.variant.prompt" -> name="myPrompt", variant="variant"
-#     # "subdir/myPrompt.prompt" -> name="subdir/myPrompt", variant=None
-#     base_name = filename[:-7]
-#     if prefix:
-#         name = f"{prefix}{base_name}"
-#     else:
-#         name = base_name
-#
-#     variant: str | None = None
-#
-#     if '.' in name:
-#         parts = base_name.split('.')
-#         name = parts[0]
-#         variant = parts[1]
-#
-#     if prefix:
-#         prefix_clean = prefix.rstrip('/')
-#         file_path = path/prefix_clean/filename
-#     else:
-#         file_path = path/filename
-#
-#     with open(file_path, 'r', encoding='utf-8') as f:
-#         source = f.read()
-#
-#     parsed_prompt = registry.dotprompt.parse(source)
-#     registry_key = registry_definition_key(name, variant, ns)
-#
-#     # Create a lazy-loaded prompt definition,the prompt will only be fully loaded when first accessed
-#     async def load_prompt_metadata():
-#         prompt_metadata = await registry.dotprompt.render_metadata(parsed_prompt)
-#
-#         if variant:
-#             prompt_metadata['variant'] = variant
-#
-#         if prompt_metadata.get('output', {}).get('schema', {}).get('description') is None:
-#             prompt_metadata.setdefault('output', {}).setdefault('schema', {}).pop('description', None)
-#         if prompt_metadata.get('input', {}).get('schema', {}).get('description') is None:
-#             prompt_metadata.setdefault('input', {}).setdefault('schema', {}).pop('description', None)
-#
-#         metadata = {
-#             **prompt_metadata.get('metadata', {}),
-#             'type': 'prompt',
-#             'prompt': {
-#                 **prompt_metadata,
-#                 'template': parsed_prompt.template,
-#             },
-#         }
-#
-#         if prompt_metadata.get('raw', {}).get('metadata'):
-#             metadata['metadata'] = {**prompt_metadata['raw']['metadata']}
-#
-#         return {
-#             'name': registry_key,
-#             'model': prompt_metadata.get('model'),
-#             'config': prompt_metadata.get('config'),
-#             'tools': prompt_metadata.get('tools'),
-#             'description': prompt_metadata.get('description'),
-#             'output': {
-#                 'jsonSchema': prompt_metadata.get('output', {}).get('schema'),
-#                 'format': prompt_metadata.get('output', {}).get('format'),
-#             },
-#             'input': {
-#                 'jsonSchema': prompt_metadata.get('input', {}).get('schema'),
-#             },
-#             'metadata': metadata,
-#             'maxTurns': prompt_metadata.get('raw', {}).get('maxTurns'),
-#             'toolChoice': prompt_metadata.get('raw', {}).get('toolChoice'),
-#             'returnToolRequests': prompt_metadata.get('raw', {}).get('returnToolRequests'),
-#             'messages': parsed_prompt.template,
-#         }
-#
-#     # Create a factory function that will create the ExecutablePrompt when accessed
-#     # This is similar to "definePromptAsync" in prompt.ts
-#     async def create_prompt_from_file():
-#
-#         metadata = await load_prompt_metadata()
-#
-#         return define_prompt(
-#             registry=registry,
-#             variant=metadata.get('variant'),
-#             model=metadata.get('model'),
-#             config=metadata.get('config'),
-#             description=metadata.get('description'),
-#             input_schema=metadata.get('input', {}).get('jsonSchema'),
-#             output_schema=metadata.get('output', {}).get('jsonSchema'),
-#             output_format=metadata.get('output', {}).get('format'),
-#             messages=metadata.get('messages'),
-#             max_turns=metadata.get('maxTurns'),
-#             tool_choice=metadata.get('toolChoice'),
-#             return_tool_requests=metadata.get('returnToolRequests'),
-#             metadata=metadata.get('metadata'),
-#             tools=metadata.get('tools'),
-#         )
-#
-#     # Store the async factory in a way that can be accessed later
-#     # We'll store it in the action metadata
-#     action_metadata = {
-#         'type': 'prompt',
-#         'lazy': True,
-#         'source': 'file',
-#         '_async_factory': create_prompt_from_file,
-#     }
-#
-#     async def prompt_action_fn(Any=None)->GenerateRequest:
-#         prompt = await create_prompt_from_file()
-#         options = await prompt.render(input=input)
-#
-#         return await to_generate_request(registry,options)
-#
-#     async def executable_prompt_action_fn(Any=None) -> GenerateActionOptions:
-#         prompt = await create_prompt_file()
-#
-#         return await prompt.render(input=input)
-#
-#     # register the PROMPT action
-#     prompt_action = registry.register_action(
-#         kind=ActionKind.PROMPT,
-#         name=registry_lookup_key(name, variant, ns),
-#         fn=prompt_action_fn,
-#         metadata=action_metadata,
-#     )
-#     # register the EXECUTABLE_PROMPT action
-#     executable_prompt_action = registry.register_action(
-#         kind=ActionKind.EXECUTABLE_PROMPT,
-#         name=registry_lookup_key(name, variant, ns),
-#         fn=executable_prompt_action_fn,
-#         metadata=action_metadata,
-#     )
-#
-#     prompt_action._async_factory = create_prompt_from_file
-#     executable_prompt_action._async_factory = create_prompt_from_file
-#
-#     logger.debug(f'Registered prompt "{registry_key}" from "{file_path}"')
-#
-# def load_prompt_folder_recursively(
-#     registry: Registry,
-#     dir_path: str,
-#     ns: str,
-#     sub_dir: str = ''
-# ) -> None:
-#     """Recursively load all prompt files from a directory.
-#     """
-#     full_path = dir_path / sub_dir if sub_dir else dir_path
-#
-#     if not full_path.exists() or not full_path.is_dir():
-#         return
-#
-#     try:
-#         for entry in os.scandir(full_path):
-#             if entry.is_file() and entry.name.endswith('.prompt'):
-#                 if entry.name.startswith('_'):
-#                     # This is a partial
-#                     partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-#                     with open(entry.path, 'r', encoding='utf-8') as f:
-#                         source = f.read()
-#                     define_partial(registry, partial_name, source)
-#                     logger.debug(f'Registered Dotprompt partial "{partial_name}" from "{entry.path}"')
-#                 else:
-#
-#                     load_prompt(
-#                         registry,
-#                         dir_path,
-#                         entry.name,
-#                         sub_dir,
-#                         ns
-#                     )
-#             elif entry.is_directory():
-#                 new_sub_dir = os.path.join(sub_dir, entry.name) if sub_dir else entry.name
-#                 load_prompt_folder_recursively(registry, dir_path, ns, new_sub_dir)
-#     except PermissionError:
-#         logger.warning(f'Permission denied accessing directory: {full_path}')
-#     except Exception as e:
-#         logger.error(f'Error loading prompts from {full_path}: {e}')
-#
-#
-# def load_prompt_folder(
-#     registry: Registry,
-#     dir_path: str | Path = './prompts',
-#     ns: str = 'dotprompt'
-# ) -> None:
-#
-#     path = Path(dir_path).resolve()
-#
-#     if not path.exists():
-#         logger.warning(f'Prompt directory does not exist: {path}')
-#         return
-#
-#     if not path.is_dir():
-#         logger.warning(f'Prompt path is not a directory: {path}')
-#         return
-#
-#     load_prompt_folder_recursively(registry, path, ns, '')
-#     logger.info(f'Loaded prompts from directory: {path}')
-#
-# async def lookup_prompt(
-#     registry: Registry,
-#     name: str,
-#     variant: str | None = None,
-#     # ns: str | None = None
-# ) -> ExecutablePrompt:
-#     """Look up a prompt from the registry.
-#     """
-#     # if ns is None:
-#     #     ns = 'dotprompt'
-#
-#     # lookup_key = registry_lookup_key(name, variant, ns)
-#     lookup_key = registry_lookup_key(name, variant, None)
-#     action = registry.lookup_action_by_key(lookup_key)
-#
-#     if action:
-#         # Get the async factory and create the prompt
-#         if hasattr(action, '_async_factory'):
-#             return await action._async_factory()
-#         elif hasattr(action.fn, '_async_factory'):
-#             return await action.fn._async_factory()
-#         elif action.metadata.get('_async_factory'):
-#             factory = action.metadata['_async_factory']
-#             return await factory()
-#         else:
-#             # If it's already an ExecutablePrompt, return it
-#             # Otherwise, try to call it
-#             import asyncio
-#             try:
-#                 loop = asyncio.get_event_loop()
-#             except RuntimeError:
-#                 loop = asyncio.new_event_loop()
-#                 asyncio.set_event_loop(loop)
-#             result = loop.run_until_complete(action.fn())
-#             # If result is an ExecutablePrompt, return it
-#             if isinstance(result, ExecutablePrompt):
-#                 return result
-#             # Otherwise, it might be a coroutine
-#             if asyncio.iscoroutine(result):
-#                 return await result
-#             return result
-#
-#     variant_str = f" (variant {variant})" if variant else ""
-#     raise ValueError(f"Prompt {name}{variant_str} not found")
-#
-#
-# async def prompt(
-#     registry: Registry,
-#     name: str,
-#     variant: str | None = None,
-#     dir: str | Path | None = None
-# ) -> ExecutablePrompt:
-#     """Look up a prompt by name and optional variant. """
-#
-#     try:
-#         return await lookup_prompt(registry, name, variant)
-#     except ValueError:
-#         pass
-#
-#     # If not found and directory provided, try loading from directory
-#     if dir is not None:
-#         load_prompt_folder(registry, dir)
-#         return await lookup_prompt(registry, name, variant)
-#
-#     # Still not found
-#     variant_str = f" (variant {variant})" if variant else ""
-#     raise ValueError(f"Prompt {name}{variant_str} not found")
-#
-#     return await lookup_prompt(registry, name, variant)
