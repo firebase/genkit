@@ -1033,15 +1033,9 @@ importers:
       '@genkit-ai/anthropic':
         specifier: workspace:*
         version: link:../../plugins/anthropic
-      form-data:
-        specifier: ^4.0.5
-        version: 4.0.5
       genkit:
         specifier: workspace:*
         version: link:../../genkit
-      node-fetch:
-        specifier: ^3.3.2
-        version: 3.3.2
     devDependencies:
       cross-env:
         specifier: ^10.1.0

@@ -15,10 +15,8 @@
  */
 
 import { anthropic } from '@genkit-ai/anthropic';
-import FormData from 'form-data';
 import * as fs from 'fs';
 import { genkit } from 'genkit';
-import fetch from 'node-fetch';
 import * as path from 'path';
 
 // Ensure the API key is set.
@@ -31,13 +29,14 @@ export async function uploadPdfToAnthropic() {
 
   // Path to the PDF file to upload
   const pdfPath = path.join(__dirname, '../attention-first-page.pdf');
-  const stream = fs.createReadStream(pdfPath);
+  const fileBuffer = fs.readFileSync(pdfPath);
 
   const form = new FormData();
-  form.append('file', stream, {
-    filename: 'attention-first-page.pdf',
-    contentType: 'application/pdf',
-  });
+  form.append(
+    'file',
+    new Blob([fileBuffer], { type: 'application/pdf' }),
+    'attention-first-page.pdf'
+  );
 
   const response = await fetch('https://api.anthropic.com/v1/files', {
     method: 'POST',
@@ -45,7 +44,6 @@ export async function uploadPdfToAnthropic() {
       'x-api-key': API_KEY,
       'anthropic-version': '2023-06-01',
       'anthropic-beta': 'files-api-2025-04-14',
-      ...form.getHeaders(),
     },
     body: form,
   });

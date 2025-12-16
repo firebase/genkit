@@ -27,9 +27,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/anthropic": "workspace:*",
-    "genkit": "workspace:*",
-    "form-data": "^4.0.5",
-    "node-fetch": "^3.3.2"
+    "genkit": "workspace:*"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
