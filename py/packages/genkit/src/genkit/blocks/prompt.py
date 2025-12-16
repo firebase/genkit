@@ -70,6 +70,7 @@ from genkit.core.typing import (
 
 logger = structlog.get_logger(__name__)
 
+
 class PromptCache:
     """Model for a prompt cache."""
 
@@ -180,7 +181,7 @@ class ExecutablePrompt:
         self._tool_choice = tool_choice
         self._use = use
         self._cache_prompt = PromptCache()
-        self._name = _name# Store name/ns for action lookup (used by as_tool())
+        self._name = _name  # Store name/ns for action lookup (used by as_tool())
         self._ns = _ns
         self._prompt_action = _prompt_action
 
@@ -360,6 +361,7 @@ class ExecutablePrompt:
 
         return action
 
+
 def define_prompt(
     registry: Registry,
     variant: str | None = None,
@@ -511,37 +513,36 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 async def to_generate_request(registry: Registry, options: GenerateActionOptions) -> GenerateRequest:
     """Converts GenerateActionOptions to a GenerateRequest.
 
-        This function resolves tool names into their respective tool definitions
-        by looking them up in the provided registry. it also validates that the
-        provided options contain at least one message.
+    This function resolves tool names into their respective tool definitions
+    by looking them up in the provided registry. it also validates that the
+    provided options contain at least one message.
 
-        Args:
-            registry: The Registry instance used to look up tool actions.
-            options: The GenerateActionOptions containing the configuration,
-                messages, and tool references to be converted.
+    Args:
+        registry: The Registry instance used to look up tool actions.
+        options: The GenerateActionOptions containing the configuration,
+            messages, and tool references to be converted.
 
-        Returns:
-            A GenerateRequest object populated with messages, config, resolved
-            tools, and output configurations.
+    Returns:
+        A GenerateRequest object populated with messages, config, resolved
+        tools, and output configurations.
 
-        Raises:
-            Exception: If a tool name provided in options cannot be found in
-                the registry.
-            GenkitError: If the options do not contain any messages.
-        """
+    Raises:
+        Exception: If a tool name provided in options cannot be found in
+            the registry.
+        GenkitError: If the options do not contain any messages.
+    """
 
     tools: list[Action] = []
     if options.tools:
         for tool_name in options.tools:
             tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
-                raise Exception(f'Unable to resolve tool {tool_name}')
+                raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
 
     tool_defs = [to_tool_definition(tool) for tool in tools] if tools else []
 
     if not options.messages:
-
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='at least one message is required in generate request',
@@ -1013,8 +1014,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     # 2. EXECUTABLE_PROMPT action - returns GenerateActionOptions (for executing prompts)
 
     async def prompt_action_fn(input: Any = None) -> GenerateRequest:
-        """PROMPT action function - renders prompt and returns GenerateRequest.
-        """
+        """PROMPT action function - renders prompt and returns GenerateRequest."""
         # Load the prompt (lazy loading)
         prompt = await create_prompt_from_file()
 
@@ -1025,8 +1025,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         return await to_generate_request(registry, options)
 
     async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:
-        """EXECUTABLE_PROMPT action function - renders prompt and returns GenerateActionOptions.
-        """
+        """EXECUTABLE_PROMPT action function - renders prompt and returns GenerateActionOptions."""
         # Load the prompt (lazy loading)
         prompt = await create_prompt_from_file()
 

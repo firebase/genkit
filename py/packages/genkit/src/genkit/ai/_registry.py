@@ -615,30 +615,31 @@ class GenkitRegistry:
     ):
         """Look up a prompt by name and optional variant.
 
-            This matches the JavaScript prompt() function behavior.
+        This matches the JavaScript prompt() function behavior.
 
-            Can look up prompts that were:
-            1. Defined programmatically using define_prompt()
-            2. Loaded from .prompt files using load_prompt_folder()
+        Can look up prompts that were:
+        1. Defined programmatically using define_prompt()
+        2. Loaded from .prompt files using load_prompt_folder()
 
-            Args:
-                registry: The registry to look up the prompt from.
-                name: The name of the prompt.
-                variant: Optional variant name.
-                dir: Optional directory parameter (accepted for compatibility but not used).
+        Args:
+            registry: The registry to look up the prompt from.
+            name: The name of the prompt.
+            variant: Optional variant name.
+            dir: Optional directory parameter (accepted for compatibility but not used).
 
-            Returns:
-                An ExecutablePrompt instance.
+        Returns:
+            An ExecutablePrompt instance.
 
-            Raises:
-                GenkitError: If the prompt is not found.
-            """
+        Raises:
+            GenkitError: If the prompt is not found.
+        """
 
         return await lookup_prompt(
             registry=self.registry,
             name=name,
             variant=variant,
         )
+
 
 class FlowWrapper:
     """A wapper for flow functions to add `stream` method."""

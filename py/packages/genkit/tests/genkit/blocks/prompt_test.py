@@ -249,7 +249,7 @@ async def test_load_prompt_variant() -> None:
 
         # Create variant prompt
         variant_prompt = prompt_dir / 'greeting.casual.prompt'
-        variant_prompt.write_text('---\nmodel: echoModel\n---\nHey {{name}}, what\'s up?')
+        variant_prompt.write_text("---\nmodel: echoModel\n---\nHey {{name}}, what's up?")
 
         load_prompt_folder(ai.registry, prompt_dir)
 
@@ -262,7 +262,7 @@ async def test_load_prompt_variant() -> None:
         # Test variant prompt
         casual_exec = await prompt(ai.registry, 'greeting', variant='casual')
         casual_response = await casual_exec({'name': 'Bob'})
-        assert 'Hey' in casual_response.text or 'what\'s up' in casual_response.text.lower()
+        assert 'Hey' in casual_response.text or "what's up" in casual_response.text.lower()
         assert 'Bob' in casual_response.text
 
 
