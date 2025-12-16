@@ -15,7 +15,14 @@
  * limitations under the License.
  */
 
-import { describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import type {
   GenerateRequest,
   GenerateResponseData,
@@ -23,26 +30,25 @@ import type {
   Part,
   Role,
 } from 'genkit';
-import type OpenAI from 'openai';
+import OpenAI, { APIError } from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionMessageToolCall,
   ChatCompletionRole,
 } from 'openai/resources/index.mjs';
-
-import { APIError } from 'openai';
 import {
+  ModelRequestBuilder,
   fromOpenAIChoice,
   fromOpenAIChunkChoice,
   fromOpenAIToolCall,
-  ModelRequestBuilder,
   openAIModelRunner,
   toOpenAIMessages,
   toOpenAIRequestBody,
   toOpenAIRole,
   toOpenAITextAndMedia,
 } from '../src/model';
+import { FakeOpenAIServer } from './fake_openai_server';
 
 jest.mock('genkit/model', () => {
   const originalModule =
@@ -1577,6 +1583,146 @@ describe('openAIModelRunner', () => {
       },
       { signal: undefined }
     );
+  });
+
+  describe('request scoping with fake server', () => {
+    let server: FakeOpenAIServer;
+
+    beforeEach(async () => {
+      server = new FakeOpenAIServer('scoped-key');
+      await server.start();
+    });
+
+    afterEach(() => {
+      server.stop();
+    });
+
+    it('should use request scoped client when apiKey is provided', async () => {
+      server.setNextResponse({
+        body: {
+          choices: [
+            {
+              message: { role: 'assistant', content: 'scoped response' },
+              finish_reason: 'stop',
+            },
+          ],
+        },
+      });
+
+      const defaultClient = new OpenAI({ apiKey: 'default-key' });
+      const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
+        name: 'openai',
+        apiKey: 'test',
+        baseURL: server.baseUrl,
+      });
+
+      const result = await runner({
+        messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+        config: { apiKey: 'scoped-key' },
+      });
+
+      expect(result.message?.content[0].text).toBe('scoped response');
+      // Verify server received correct key
+      expect(server.requests.length).toBe(1);
+      expect(server.requests[0].headers['authorization']).toBe(
+        'Bearer scoped-key'
+      );
+    });
+
+    it('should handle streaming response with scoped client', async () => {
+      server.setNextResponse({
+        stream: true,
+        chunks: [
+          {
+            id: '1',
+            choices: [
+              {
+                index: 0,
+                delta: { role: 'assistant', content: 'chunk1' },
+                finish_reason: null,
+              },
+            ],
+          },
+          {
+            id: '2',
+            choices: [
+              { index: 0, delta: { content: 'chunk2' }, finish_reason: null },
+            ],
+          },
+          {
+            id: '3',
+            choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+          },
+        ],
+      });
+
+      const defaultClient = new OpenAI({ apiKey: 'default-key' });
+      const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
+        name: 'openai',
+        apiKey: 'test',
+        baseURL: server.baseUrl,
+      });
+
+      let streamedContent = '';
+      const result = await runner(
+        {
+          messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+          config: { apiKey: 'scoped-key' },
+        },
+        {
+          streamingRequested: true,
+          sendChunk: (chunk) => {
+            if (chunk.content.length > 0) {
+              streamedContent += chunk.content[0].text;
+            }
+          },
+        }
+      );
+
+      expect(streamedContent).toBe('chunk1chunk2');
+      expect(result.message?.content[0].text).toBe('chunk1chunk2');
+    });
+
+    it('should fail when invalid apiKey is provided in request', async () => {
+      const defaultClient = new OpenAI({ apiKey: 'default-key' });
+      const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
+        name: 'openai',
+        apiKey: 'test',
+        baseURL: server.baseUrl,
+      });
+
+      await expect(
+        runner({
+          messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+          config: { apiKey: 'wrong-key' },
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: 'PERMISSION_DENIED',
+          message: expect.stringContaining('Incorrect API key provided'),
+        })
+      );
+    });
+
+    it('should fail when invalid apiKey is provided in plugin options', async () => {
+      const defaultClient = new OpenAI({ apiKey: 'default-key' });
+      const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
+        name: 'openai',
+        apiKey: 'wrong-key',
+        baseURL: server.baseUrl,
+      });
+
+      await expect(
+        runner({
+          messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: 'PERMISSION_DENIED',
+          message: expect.stringContaining('Incorrect API key provided'),
+        })
+      );
+    });
   });
 
   describe('error handling', () => {
