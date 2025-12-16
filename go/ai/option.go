@@ -254,6 +254,13 @@ func WithToolChoice(toolChoice ToolChoice) CommonGenOption {
 	return &commonGenOptions{ToolChoice: toolChoice}
 }
 
+// WithResources specifies resources to be temporarily available during generation.
+// Resources are unregistered resources that get attached to a temporary registry
+// during the generation request and cleaned up afterward.
+func WithResources(resources ...Resource) CommonGenOption {
+	return &commonGenOptions{Resources: resources}
+}
+
 // inputOptions are options for the input of a prompt.
 type inputOptions struct {
 	InputSchema  map[string]any // JSON schema of the input.
@@ -265,6 +272,7 @@ type inputOptions struct {
 type InputOption interface {
 	applyInput(*inputOptions) error
 	applyPrompt(*promptOptions) error
+	applyTool(*toolOptions) error
 }
 
 // applyInput applies the option to the input options.
@@ -291,9 +299,14 @@ func (o *inputOptions) applyPrompt(pOpts *promptOptions) error {
 	return o.applyInput(&pOpts.inputOptions)
 }
 
+// applyTool applies the option to the tool options.
+func (o *inputOptions) applyTool(tOpts *toolOptions) error {
+	return o.applyInput(&tOpts.inputOptions)
+}
+
 // WithInputType uses the type provided to derive the input schema.
-// The inputted value will serve as the default input if no input is given at generation time.
-// Only supports structs and map[string]any api.
+// The inputted value may serve as the default input if no input is given at generation time depending on the action.
+// Only supports structs and map[string]any.
 func WithInputType(input any) InputOption {
 	var defaultInput map[string]any
 
@@ -894,74 +907,6 @@ func WithToolResponses(parts ...*Part) GenerateOption {
 // WithToolRestarts sets the tool requests to restart interrupted tools with.
 func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
-}
-
-// WithResources specifies resources to be temporarily available during generation.
-// Resources are unregistered resources that get attached to a temporary registry
-// during the generation request and cleaned up afterward.
-func WithResources(resources ...Resource) CommonGenOption {
-	return &withResources{resources: resources}
-}
-
-type withResources struct {
-	resources []Resource
-}
-
-func (w *withResources) applyCommonGen(o *commonGenOptions) error {
-	o.Resources = w.resources
-	return nil
-}
-
-func (w *withResources) applyPrompt(o *promptOptions) error {
-	return w.applyCommonGen(&o.commonGenOptions)
-}
-
-func (w *withResources) applyGenerate(o *generateOptions) error {
-	return w.applyCommonGen(&o.commonGenOptions)
-}
-
-func (w *withResources) applyPromptExecute(o *promptExecutionOptions) error {
-	return w.applyCommonGen(&o.commonGenOptions)
-}
-
-// inputOptions holds input schema configuration for tools and prompts.
-type inputOptions struct {
-	InputSchema map[string]any // JSON schema for the input.
-}
-
-// InputSchemaOption is an option for setting input schema on tools and prompts.
-type InputSchemaOption interface {
-	applyTool(*toolOptions) error
-	applyPrompt(*promptOptions) error
-}
-
-// applyTool applies the option to the tool options.
-func (o *inputOptions) applyTool(opts *toolOptions) error {
-	if o.InputSchema != nil {
-		if opts.InputSchema != nil {
-			return errors.New("cannot set input schema more than once (WithInputSchema)")
-		}
-		opts.InputSchema = o.InputSchema
-	}
-	return nil
-}
-
-// applyPrompt applies the option to the prompt options.
-func (o *inputOptions) applyPrompt(opts *promptOptions) error {
-	if o.InputSchema != nil {
-		if opts.InputSchema != nil {
-			return errors.New("cannot set input schema more than once (WithInputSchema or WithInputType)")
-		}
-		opts.InputSchema = o.InputSchema
-	}
-	return nil
-}
-
-// WithInputSchema provides a custom JSON schema for the input instead of inferring it from the type parameter.
-// For tools, the tool function's input type should typically be `any` (e.g., `ToolFunc[any, Out]`).
-// For prompts, use this instead of [WithInputType] when you want to provide a JSON schema directly.
-func WithInputSchema(schema map[string]any) InputSchemaOption {
-	return &inputOptions{InputSchema: schema}
 }
 
 // toolOptions holds configuration options for defining tools.

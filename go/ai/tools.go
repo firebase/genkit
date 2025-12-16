@@ -59,7 +59,8 @@ func (t ToolName) Name() string {
 // For regular tools, RunRaw unwraps the Output field for backward compatibility.
 type tool struct {
 	api.Action
-	multipart bool // Whether this is a multipart-only tool.
+	multipart bool         // Whether this is a multipart-only tool.
+	registry  api.Registry // Registry for schema resolution. Set when registered.
 }
 
 // Tool represents a tool that can be called by a model.
@@ -152,8 +153,7 @@ func DefineTool[In, Out any](
 
 	// If the user provided a custom input schema, enforce that In is 'any'
 	if toolOpts.InputSchema != nil {
-		var zeroIn *In
-		typ := reflect.TypeOf(zeroIn)
+		typ := reflect.TypeFor[*In]()
 		if typ != nil && typ.Elem().Kind() != reflect.Interface {
 			panic(fmt.Errorf("ai.DefineTool %q: WithInputSchema requires In to be of type 'any', but got %v", name, typ.Elem()))
 		}
@@ -166,7 +166,7 @@ func DefineTool[In, Out any](
 	provider, id := api.ParseName(name)
 	r.RegisterAction(api.NewKey(api.ActionTypeTool, provider, id), action)
 
-	return &tool{Action: action, multipart: false}
+	return &tool{Action: action, multipart: false, registry: r}
 }
 
 // DefineToolWithInputSchema creates a new [Tool] with a custom input schema and registers it.
@@ -231,7 +231,7 @@ func DefineMultipartTool[In any](
 
 	metadata, wrappedFn := wrapMultipartToolFunc(name, description, fn)
 	action := core.DefineAction(r, name, api.ActionTypeToolV2, metadata, toolOpts.InputSchema, wrappedFn)
-	return &tool{Action: action, multipart: true}
+	return &tool{Action: action, multipart: true, registry: r}
 }
 
 // NewMultipartTool creates a new multipart [Tool]. It can be passed directly to [Generate].
@@ -317,16 +317,31 @@ func wrapMultipartToolFunc[In any](name, description string, fn MultipartToolFun
 func (t *tool) Definition() *ToolDefinition {
 	desc := t.Action.Desc()
 
+	// Resolve the input schema if it contains a $ref.
+	inputSchema := desc.InputSchema
+	if t.registry != nil {
+		if resolved, err := core.ResolveSchema(t.registry, inputSchema); err == nil {
+			inputSchema = resolved
+		}
+	}
+
 	// Use the original output schema if available (for non-multipart tools).
 	outputSchema := desc.OutputSchema
 	if origSchema, ok := desc.Metadata["originalOutputSchema"].(map[string]any); ok {
 		outputSchema = origSchema
 	}
 
+	// Resolve the output schema if it contains a $ref.
+	if t.registry != nil {
+		if resolved, err := core.ResolveSchema(t.registry, outputSchema); err == nil {
+			outputSchema = resolved
+		}
+	}
+
 	return &ToolDefinition{
 		Name:         desc.Name,
 		Description:  desc.Description,
-		InputSchema:  desc.InputSchema,
+		InputSchema:  inputSchema,
 		OutputSchema: outputSchema,
 		Metadata: map[string]any{
 			"multipart": t.multipart,
@@ -336,6 +351,7 @@ func (t *tool) Definition() *ToolDefinition {
 
 // Register registers the tool with the given registry.
 func (t *tool) Register(r api.Registry) {
+	t.registry = r
 	t.Action.Register(r)
 	if !t.multipart {
 		// Also register under the "tool" key for backward compatibility.
@@ -407,7 +423,7 @@ func LookupTool(r api.Registry, name string) Tool {
 		}
 	}
 
-	return &tool{Action: action, multipart: multipart}
+	return &tool{Action: action, multipart: multipart, registry: r}
 }
 
 // IsMultipart returns true if the tool is a multipart tool (tool.v2 only).
