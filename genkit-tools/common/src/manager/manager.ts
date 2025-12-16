@@ -228,7 +228,9 @@ export class RuntimeManager {
             responseType: 'stream',
           }
         )
-        .catch(this.httpErrorHandler);
+        .catch((err) =>
+          this.handleStreamError(err, `Error running action key='${input.key}'.`)
+        );
       let genkitVersion: string;
       if (response.headers['x-genkit-version']) {
         genkitVersion = response.headers['x-genkit-version'];
@@ -302,7 +304,7 @@ export class RuntimeManager {
           responseType: 'stream', // Use stream to get early headers
         })
         .catch((err) =>
-          this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
+          this.handleStreamError(err, `Error running action key='${input.key}'.`)
         );
 
       const traceId = response.headers['x-genkit-trace-id'];
@@ -479,7 +481,7 @@ export class RuntimeManager {
         responseType: 'stream',
       })
       .catch((err) =>
-        this.httpErrorHandler(
+        this.handleStreamError(
           err,
           `Error streaming trace for traceId='${traceId}'`
         )
@@ -735,7 +737,7 @@ export class RuntimeManager {
   /**
    * Handles an HTTP error.
    */
-  private httpErrorHandler(error: AxiosError, message?: string): any {
+  private httpErrorHandler(error: AxiosError, message?: string): never {
     const newError = new GenkitToolsError(message || 'Internal Error');
 
     if (error.response) {
@@ -750,6 +752,57 @@ export class RuntimeManager {
     // We actually have an exception; wrap it and re-throw.
     throw new GenkitToolsError(message || 'Internal Error', {
       cause: error.cause,
+    });
+  }
+
+  /**
+   * Handles a stream error by reading the stream and then calling httpErrorHandler.
+   */
+  private async handleStreamError(
+    error: AxiosError,
+    message: string
+  ): Promise<never> {
+    if (
+      error.response &&
+      error.config?.responseType === 'stream' &&
+      (error.response.data as any).on
+    ) {
+      try {
+        const body = await this.streamToString(error.response.data);
+        try {
+          error.response.data = JSON.parse(body);
+        } catch (e) {
+          error.response.data = {
+            message: body || 'Unknown error',
+          };
+        }
+      } catch (e) {
+        // If stream reading fails, we must replace the stream object with a safe error object
+        // to prevent circular structure errors during JSON serialization.
+        error.response.data = {
+          message: 'Failed to read error response stream',
+          details: String(e),
+        };
+      }
+    }
+    this.httpErrorHandler(error, message);
+  }
+
+  /**
+   * Helper to convert a stream to string.
+   */
+  private streamToString(stream: any): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let buffer = '';
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+      });
+      stream.on('end', () => {
+        resolve(buffer);
+      });
+      stream.on('error', (err: Error) => {
+        reject(err);
+      });
     });
   }
 
