@@ -96,7 +96,7 @@ async function main() {
             {
               media: {
                 url: fileId,
-                contentType: 'file/document',
+                contentType: 'anthropic/file',
               },
             },
           ],

@@ -190,7 +190,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
     // Media
     if (part.media) {
-      if (part.media.contentType === 'file/document') {
+      if (part.media.contentType === 'anthropic/file') {
         return {
           type: 'document',
           source: {
@@ -200,7 +200,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         };
       }
 
-      if (part.media.contentType === 'file/image') {
+      if (part.media.contentType === 'anthropic/image') {
         return {
           type: 'image',
           source: {
