@@ -178,3 +178,10 @@ export type ResourcePart = z.infer<typeof ResourcePartSchema>;
 
 export const PartSchema = z.union([TextPartSchema, MediaPartSchema]);
 export type Part = z.infer<typeof PartSchema>;
+
+export const MultipartToolResponseSchema = z.object({
+  output: z.unknown().optional(),
+  content: z.array(PartSchema).optional(),
+});
+
+export type MultipartToolResponse = z.infer<typeof MultipartToolResponseSchema>;

@@ -405,6 +405,17 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		}
 	}
 
+	if genOpts.OutputSchema != nil {
+		resolved, err := core.ResolveSchema(r, genOpts.OutputSchema)
+		if err != nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: invalid output schema: %v", err)
+		}
+		genOpts.OutputSchema = resolved
+		if genOpts.OutputFormat == "" {
+			genOpts.OutputFormat = OutputFormatJSON
+		}
+	}
+
 	var modelName string
 	if genOpts.Model != nil {
 		modelName = genOpts.Model.Name()
@@ -429,7 +440,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 			r = r.NewChild()
 		}
 		for _, res := range genOpts.Resources {
-			res.(*resource).Register(r)
+			res.Register(r)
 		}
 	}
 
@@ -732,11 +743,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 // Text returns the contents of the first candidate in a
 // [ModelResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
-func (gr *ModelResponse) Text() string {
-	if gr.Message == nil {
+func (mr *ModelResponse) Text() string {
+	if mr.Message == nil {
 		return ""
 	}
-	return gr.Message.Text()
+	return mr.Message.Text()
 }
 
 // History returns messages from the request combined with the response message
@@ -828,6 +839,19 @@ func (c *ModelResponseChunk) Text() string {
 	var sb strings.Builder
 	for _, p := range c.Content {
 		if p.IsText() || p.IsData() {
+			sb.WriteString(p.Text)
+		}
+	}
+	return sb.String()
+}
+
+func (c *ModelResponseChunk) Reasoning() string {
+	if len(c.Content) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, p := range c.Content {
+		if p.IsReasoning() {
 			sb.WriteString(p.Text)
 		}
 	}

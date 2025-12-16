@@ -26,10 +26,14 @@ import {
 import { getApiKeyFromEnvVar } from './common.js';
 import { predictModel } from './predict.js';
 
+/**
+ * @deprecated
+ */
 export type KNOWN_IMAGEN_MODELS = 'imagen-3.0-generate-002';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/image-generation#imagen-model
+ * @deprecated
  */
 export const ImagenConfigSchema = z
   .object({
@@ -97,6 +101,9 @@ interface ImagenInstance {
   mask?: { image?: { bytesBase64Encoded: string } };
 }
 
+/**
+ * @deprecated
+ */
 export const GENERIC_IMAGEN_INFO = {
   label: `Google AI - Generic Imagen`,
   supports: {
@@ -108,6 +115,9 @@ export const GENERIC_IMAGEN_INFO = {
   },
 } as ModelInfo;
 
+/**
+ * @deprecated
+ */
 export function defineImagenModel(
   ai: Genkit,
   name: string,

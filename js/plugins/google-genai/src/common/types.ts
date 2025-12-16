@@ -342,6 +342,41 @@ export declare interface FunctionResponse {
   name: string;
   /** The expected response from the model. */
   response: object;
+  /** List of parts that constitute a function response. Each part may
+      have a different IANA MIME type. */
+  parts?: FunctionResponsePart[];
+}
+
+/**
+ * A datatype containing media that is part of a `FunctionResponse` message.
+ *
+ * A `FunctionResponsePart` consists of data which has an associated datatype. A
+ * `FunctionResponsePart` can only contain one of the accepted types in
+ * `FunctionResponsePart.data`.
+ *
+ * A `FunctionResponsePart` must have a fixed IANA MIME type identifying the
+ * type and subtype of the media if the `inline_data` field is filled with raw
+ * bytes.
+ */
+export class FunctionResponsePart {
+  /** Optional. Inline media bytes. */
+  inlineData?: FunctionResponseBlob;
+}
+
+/**
+ * Raw media bytes for function response.
+ *
+ * Text should not be sent as raw bytes, use the FunctionResponse.response field.
+ */
+export class FunctionResponseBlob {
+  /** Required. The IANA standard MIME type of the source data. */
+  mimeType?: string;
+  /** Required. Inline media bytes.
+   * @remarks Encoded as base64 string. */
+  data?: string;
+  /** Optional. Display name of the blob.
+      Used to provide a label or filename to distinguish blobs. */
+  displayName?: string;
 }
 
 /**

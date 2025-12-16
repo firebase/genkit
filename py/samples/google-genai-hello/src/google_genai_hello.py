@@ -38,9 +38,11 @@ Key features demonstrated in this sample:
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
-| GCP otel tracing                                         | `add_gcp_telemetry()`                  |
+| GCP Telemetry (Traces and Metrics)                       | `add_gcp_telemetry()`                  |
 
 """
+
+import os
 
 import structlog
 from pydantic import BaseModel, Field
@@ -52,9 +54,7 @@ from genkit.plugins.evaluators import (
     MetricConfig,
     PluginOptions,
 )
-from genkit.plugins.google_cloud.telemetry.tracing import (
-    add_gcp_telemetry,
-)
+from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -82,7 +82,7 @@ ai = Genkit(
             ])
         ),
     ],
-    model='googleai/gemini-2.5-flash-preview-04-17',
+    model='googleai/gemini-2.5-flash',
 )
 
 
@@ -116,7 +116,7 @@ async def simple_generate_with_tools_flow(value: int, ctx: ActionRunContext) -> 
         The generated response with a function.
     """
     response = await ai.generate(
-        model='googleai/gemini-2.0-flash',
+        model='googleai/gemini-2.5-flash',
         prompt=f'what is a gablorken of {value}',
         tools=['gablorkenTool'],
         on_chunk=ctx.send_chunk,
@@ -149,7 +149,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         The generated response with a function.
     """
     response1 = await ai.generate(
-        model='googleai/gemini-2.0-flash',
+        model='googleai/gemini-2.5-flash',
         messages=[
             Message(
                 role=Role.USER,
@@ -164,7 +164,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.interrupts[0], 178)
     response = await ai.generate(
-        model='googleai/gemini-2.0-flash',
+        model='googleai/gemini-2.5-flash',
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -185,6 +185,14 @@ async def say_hi(name: str):
     resp = await ai.generate(
         prompt=f'hi {name}',
     )
+
+    await logger.ainfo(
+        'generation_response',
+        has_usage=hasattr(resp, 'usage'),
+        usage_dict=resp.usage.model_dump() if hasattr(resp, 'usage') and resp.usage else None,
+        text_length=len(resp.text),
+    )
+
     return resp.text
 
 

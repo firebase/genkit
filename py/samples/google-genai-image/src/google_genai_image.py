@@ -40,7 +40,7 @@ async def draw_image_with_gemini() -> str:
     return await ai.generate(
         prompt='Draw a cat in a hat.',
         config={'response_modalities': ['Text', 'Image']},
-        model=googleai_name('gemini-2.0-flash-exp'),
+        model=googleai_name('gemini-2.5-flash'),
     )
 
 
@@ -64,7 +64,7 @@ async def describe_image_with_gemini(data: str) -> str:
                 ],
             ),
         ],
-        model=googleai_name('gemini-2.5-pro-preview-03-25'),
+        model=googleai_name('gemini-2.5-flash'),
     )
     return result.text
 

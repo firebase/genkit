@@ -46,7 +46,7 @@ import {
  * @returns A promise that resolves to an array of Model objects.
  */
 export async function listModels(
-  apiKey: string,
+  apiKey: string | undefined,
   clientOptions?: ClientOptions
 ): Promise<Model[]> {
   const url = getGoogleAIUrl({
@@ -75,7 +75,7 @@ export async function listModels(
  * @throws {Error} If the API request fails or the response cannot be parsed.
  */
 export async function generateContent(
-  apiKey: string,
+  apiKey: string | undefined,
   model: string,
   generateContentRequest: GenerateContentRequest,
   clientOptions?: ClientOptions
@@ -108,7 +108,7 @@ export async function generateContent(
  * @throws {Error} If the API request fails.
  */
 export async function generateContentStream(
-  apiKey: string,
+  apiKey: string | undefined,
   model: string,
   generateContentRequest: GenerateContentRequest,
   clientOptions?: ClientOptions
@@ -140,7 +140,7 @@ export async function generateContentStream(
  * @throws {Error} If the API request fails or the response cannot be parsed.
  */
 export async function embedContent(
-  apiKey: string,
+  apiKey: string | undefined,
   model: string,
   embedContentRequest: EmbedContentRequest,
   clientOptions?: ClientOptions
@@ -162,7 +162,7 @@ export async function embedContent(
 }
 
 export async function imagenPredict(
-  apiKey: string,
+  apiKey: string | undefined,
   model: string,
   imagenPredictRequest: ImagenPredictRequest,
   clientOptions?: ClientOptions
@@ -185,7 +185,7 @@ export async function imagenPredict(
 }
 
 export async function veoPredict(
-  apiKey: string,
+  apiKey: string | undefined,
   model: string,
   veoPredictRequest: VeoPredictRequest,
   clientOptions?: ClientOptions
@@ -208,7 +208,7 @@ export async function veoPredict(
 }
 
 export async function veoCheckOperation(
-  apiKey: string,
+  apiKey: string | undefined,
   operation: string,
   clientOptions?: ClientOptions
 ): Promise<VeoOperation> {
@@ -265,7 +265,7 @@ export function getGoogleAIUrl(params: {
 
 function getFetchOptions(params: {
   method: 'POST' | 'GET';
-  apiKey: string;
+  apiKey: string | undefined;
   body?: string;
   clientOptions?: ClientOptions;
 }) {
@@ -310,7 +310,7 @@ function getAbortSignal(
  * @returns {HeadersInit} An object containing the headers to be included in the request.
  */
 function getHeaders(
-  apiKey: string,
+  apiKey?: string,
   clientOptions?: ClientOptions
 ): HeadersInit {
   let customHeaders = {};
@@ -322,9 +322,12 @@ function getHeaders(
   const headers: HeadersInit = {
     ...customHeaders,
     'Content-Type': 'application/json',
-    'x-goog-api-key': apiKey,
     'x-goog-api-client': getGenkitClientHeader(),
   };
+
+  if (apiKey) {
+    headers['x-goog-api-key'] = apiKey;
+  }
 
   return headers;
 }

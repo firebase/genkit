@@ -469,7 +469,6 @@
         }
       },
       "required": [
-        "model",
         "messages"
       ],
       "additionalProperties": false
@@ -896,6 +895,19 @@
       "required": [
         "finishReason"
       ],
+      "additionalProperties": false
+    },
+    "MultipartToolResponse": {
+      "type": "object",
+      "properties": {
+        "output": {},
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Part"
+          }
+        }
+      },
       "additionalProperties": false
     },
     "Operation": {

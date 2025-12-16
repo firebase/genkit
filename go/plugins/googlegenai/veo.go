@@ -19,6 +19,7 @@ package googlegenai
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
@@ -55,7 +56,15 @@ func newVeoModel(
 			return nil, fmt.Errorf("veo video generation failed: %w", err)
 		}
 
-		return fromVeoOperation(operation), nil
+		op := fromVeoOperation(operation)
+
+		if op.Metadata == nil {
+			op.Metadata = make(map[string]any)
+		}
+		op.Metadata["inputRequest"] = req
+		op.Metadata["startTime"] = time.Now()
+
+		return op, nil
 	}
 
 	checkFunc := func(ctx context.Context, op *ai.ModelOperation) (*ai.ModelOperation, error) {
@@ -64,7 +73,36 @@ func newVeoModel(
 			return nil, fmt.Errorf("veo operation status check failed: %w", err)
 		}
 
-		return fromVeoOperation(veoOp), nil
+		updatedOp := fromVeoOperation(veoOp)
+
+		// Restore metadata from the original operation
+		if op.Metadata != nil {
+			if updatedOp.Metadata == nil {
+				updatedOp.Metadata = make(map[string]any)
+			}
+			for k, v := range op.Metadata {
+				updatedOp.Metadata[k] = v
+			}
+		}
+
+		// Add telemetry metrics when operation completes
+		if updatedOp.Done && updatedOp.Output != nil {
+			if req, ok := updatedOp.Metadata["inputRequest"].(*ai.ModelRequest); ok {
+				ai.CalculateInputOutputUsage(req, updatedOp.Output)
+			} else {
+				ai.CalculateInputOutputUsage(nil, updatedOp.Output)
+			}
+
+			// Calculate latency if startTime is available
+			if startTime, ok := updatedOp.Metadata["startTime"].(time.Time); ok {
+				latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
+				if updatedOp.Output.LatencyMs == 0 {
+					updatedOp.Output.LatencyMs = latencyMs
+				}
+			}
+		}
+
+		return updatedOp, nil
 	}
 
 	return ai.NewBackgroundModel(name, &ai.BackgroundModelOptions{ModelOptions: info}, startFunc, checkFunc)
