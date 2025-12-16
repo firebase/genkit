@@ -24,15 +24,17 @@ import jsonata
 from dotpromptz.typing import DataArgument
 
 from genkit.ai import Genkit, Plugin
-from genkit.plugins.evaluators.constant import GenkitMetricType, MetricConfig, PluginOptions
-from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
 from genkit.plugins.evaluators.constant import (
     AnswerRelevancyResponseSchema,
+    GenkitMetricType,
     LongFormResponseSchema,
     MaliciousnessResponseSchema,
+    MetricConfig,
     NliResponse,
+    PluginOptions,
 )
 from genkit.plugins.metrics.helper import load_prompt_file, render_text
+from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
 
 
 def evaluators_name(name: str) -> str:
