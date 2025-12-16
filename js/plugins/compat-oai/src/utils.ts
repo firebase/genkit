@@ -35,7 +35,8 @@ export function maybeCreateRequestScopedOpenAIClient(
     return defaultClient;
   }
   return new OpenAI({
-    ...pluginOptions,
+    // if pluginOptions are not passed in we attempt to get options from the default client.
+    ...(pluginOptions ?? defaultClient['_options']),
     apiKey: requestApiKey,
   });
 }
