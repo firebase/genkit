@@ -26,6 +26,7 @@ interface RunOptions {
   noui?: boolean;
   port?: string;
   open?: boolean;
+  experimentalRealtimeTelemetry?: boolean;
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -34,6 +35,10 @@ export const start = new Command('start')
   .option('-n, --noui', 'do not start the Dev UI', false)
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
+  .option(
+    '--experimental-realtime-telemetry',
+    'Enable real-time telemetry streaming (experimental)'
+  )
   .action(async (options: RunOptions) => {
     const projectRoot = await findProjectRoot();
     if (projectRoot.includes('/.Trash/')) {
@@ -49,7 +54,8 @@ export const start = new Command('start')
       const result = await startDevProcessManager(
         projectRoot,
         start.args[0],
-        start.args.slice(1)
+        start.args.slice(1),
+        { enableRealtimeTelemetry: options.experimentalRealtimeTelemetry }
       );
       manager = result.manager;
       processPromise = result.processPromise;
