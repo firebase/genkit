@@ -16,11 +16,11 @@
 
 import { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.js';
 import type {
-  MessageCreateParams,
   ContentBlock,
   DocumentBlockParam,
   ImageBlockParam,
   Message,
+  MessageCreateParams,
   MessageCreateParamsNonStreaming,
   MessageCreateParamsStreaming,
   MessageParam,
