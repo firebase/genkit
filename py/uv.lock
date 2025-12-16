@@ -1347,6 +1347,7 @@ dependencies = [
     { name = "genkit" },
     { name = "jsonata-python" },
     { name = "pydantic" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
 ]
 
 [package.metadata]
@@ -1354,6 +1355,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "jsonata-python", specifier = ">=0.5.3" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
 ]
 
 [[package]]

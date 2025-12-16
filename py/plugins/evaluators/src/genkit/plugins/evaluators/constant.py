@@ -16,7 +16,10 @@
 
 
 from collections.abc import Callable
-from enum import StrEnum
+try:
+    from enum import StrEnum
+except ImportError:
+    from strenum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, RootModel
