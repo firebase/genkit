@@ -119,7 +119,17 @@ export const KNOWN_CLAUDE_MODELS: Record<
   ),
   'claude-opus-4-5': commonRef(
     'claude-opus-4-5',
-    AnthropicThinkingConfigSchema
+    AnthropicThinkingConfigSchema,
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
   ),
   'claude-opus-4-1': commonRef(
     'claude-opus-4-1',
