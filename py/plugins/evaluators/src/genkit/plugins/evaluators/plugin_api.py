@@ -26,13 +26,13 @@ from dotpromptz.typing import DataArgument
 from genkit.ai import Genkit, Plugin
 from genkit.plugins.evaluators.constant import GenkitMetricType, MetricConfig, PluginOptions
 from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
-from plugins.evaluators.src.genkit.plugins.evaluators.constant import (
+from genkit.plugins.evaluators.constant import (
     AnswerRelevancyResponseSchema,
     LongFormResponseSchema,
     MaliciousnessResponseSchema,
     NliResponse,
 )
-from plugins.evaluators.src.metrics.helper import load_prompt_file, render_text
+from genkit.plugins.metrics.helper import load_prompt_file, render_text
 
 
 def evaluators_name(name: str) -> str:
