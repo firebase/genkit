@@ -121,6 +121,20 @@ export const KNOWN_CLAUDE_MODELS: Record<
       },
     }
   ),
+  'claude-opus-4-5': commonRef(
+    'claude-opus-4-5',
+    AnthropicThinkingConfigSchema,
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
+  ),
 };
 
 /**
