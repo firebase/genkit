@@ -97,6 +97,10 @@ export const KNOWN_CLAUDE_MODELS: Record<
     'claude-haiku-4-5',
     AnthropicThinkingConfigSchema
   ),
+  'claude-opus-4-5': commonRef(
+    'claude-opus-4-5',
+    AnthropicThinkingConfigSchema
+  ),
   'claude-opus-4-1': commonRef(
     'claude-opus-4-1',
     AnthropicThinkingConfigSchema
