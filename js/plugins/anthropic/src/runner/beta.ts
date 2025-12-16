@@ -92,6 +92,7 @@ const BETA_APIS = [
 /**
  * Transforms a JSON schema to be compatible with Anthropic's structured output requirements.
  * Anthropic requires `additionalProperties: false` on all object types.
+ * @see https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs#json-schema-limitations
  */
 function toAnthropicSchema(
   schema: Record<string, unknown>

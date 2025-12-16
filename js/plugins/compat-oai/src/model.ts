@@ -49,6 +49,8 @@ import type {
   ChatCompletionTool,
   CompletionChoice,
 } from 'openai/resources/index.mjs';
+import { PluginOptions } from './index.js';
+import { maybeCreateRequestScopedOpenAIClient } from './utils.js';
 
 const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
@@ -479,6 +481,7 @@ export function toOpenAIRequestBody(
     stopSequences: stop,
     version: modelVersion,
     tools: toolsFromConfig,
+    apiKey,
     ...restOfConfig
   } = request.config ?? {};
 
@@ -541,8 +544,9 @@ export function toOpenAIRequestBody(
  */
 export function openAIModelRunner(
   name: string,
-  client: OpenAI,
-  requestBuilder?: ModelRequestBuilder
+  defaultClient: OpenAI,
+  requestBuilder?: ModelRequestBuilder,
+  pluginOptions?: Omit<PluginOptions, 'apiKey'>
 ) {
   return async (
     request: GenerateRequest,
@@ -552,6 +556,11 @@ export function openAIModelRunner(
       abortSignal?: AbortSignal;
     }
   ): Promise<GenerateResponseData> => {
+    const client = maybeCreateRequestScopedOpenAIClient(
+      pluginOptions,
+      request,
+      defaultClient
+    );
     try {
       let response: ChatCompletion;
       const body = toOpenAIRequestBody(name, request, requestBuilder);
@@ -605,6 +614,12 @@ export function openAIModelRunner(
           case 429:
             status = 'RESOURCE_EXHAUSTED';
             break;
+          case 401:
+            status = 'PERMISSION_DENIED';
+            break;
+          case 403:
+            status = 'UNAUTHENTICATED';
+            break;
           case 400:
             status = 'INVALID_ARGUMENT';
             break;
@@ -648,8 +663,9 @@ export function defineCompatOpenAIModel<
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: ModelRequestBuilder;
+  pluginOptions?: PluginOptions;
 }): ModelAction {
-  const { name, client, modelRef, requestBuilder } = params;
+  const { name, client, pluginOptions, modelRef, requestBuilder } = params;
   const modelName = name.substring(name.indexOf('/') + 1);
 
   return model(
@@ -658,7 +674,7 @@ export function defineCompatOpenAIModel<
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(modelName!, client, requestBuilder)
+    openAIModelRunner(modelName!, client, requestBuilder, pluginOptions)
   );
 }
 

@@ -17,6 +17,7 @@
 import * as trpcExpress from '@trpc/server/adapters/express';
 import * as bodyParser from 'body-parser';
 import * as clc from 'colorette';
+import cors from 'cors';
 import express, { type ErrorRequestHandler } from 'express';
 import type { Server } from 'http';
 import os from 'os';
@@ -49,6 +50,15 @@ export function startServer(manager: RuntimeManager, port: number) {
   let server: Server;
   const app = express();
 
+  // Allow all origins and expose trace ID header
+  app.use(
+    cors({
+      origin: '*',
+      allowedHeaders: ['Content-Type'],
+      exposedHeaders: ['X-Genkit-Trace-Id'],
+    })
+  );
+
   // Download UI assets from public GCS bucket and serve locally
   downloadAndExtractUiAssets({
     fileUrl: UI_ASSETS_ZIP_GCS_PATH,
@@ -60,36 +70,127 @@ export function startServer(manager: RuntimeManager, port: number) {
   // tRPC doesn't support simple streaming mutations (https://github.com/trpc/trpc/issues/4477).
   // Don't want a separate WebSocket server for subscriptions - https://trpc.io/docs/subscriptions.
   // TODO: migrate to streamingMutation when it becomes available in tRPC.
-  app.options('/api/streamAction', async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(200).send('');
-  });
+  app.post(
+    '/api/runAction',
+    bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
+    async (req, res) => {
+      // Set headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
+      res.setHeader('Content-Type', 'application/json');
+      res.statusCode = 200;
+
+      // When realtime telemetry is disabled, flush headers immediately.
+      // The trace ID will be available in the response body.
+      if (!manager.enableRealtimeTelemetry) {
+        res.flushHeaders();
+      }
+
+      try {
+        const onTraceIdCallback = manager.enableRealtimeTelemetry
+          ? (traceId: string) => {
+              // Set trace ID header and flush - this fires before response body
+              res.setHeader('X-Genkit-Trace-Id', traceId);
+              // Force chunked encoding so we can flush headers early
+              res.setHeader('Transfer-Encoding', 'chunked');
+              res.flushHeaders();
+            }
+          : undefined;
+
+        const result = await manager.runAction(
+          req.body,
+          undefined, // no streaming callback
+          onTraceIdCallback
+        );
+
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        const error = err as GenkitToolsError;
+
+        // If headers not sent, we can send error status
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+          });
+        }
+        res.end(JSON.stringify({ error: error.data }));
+      }
+    }
+  );
 
   app.post(
     '/api/streamAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
-      const { key, input, context } = req.body;
-      res.writeHead(200, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'text/plain',
-        'Transfer-Encoding': 'chunked',
-      });
+      // Set streaming headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      res.statusCode = 200;
+
+      // When realtime telemetry is disabled, flush headers immediately.
+      // The trace ID will be available in the response body.
+      if (!manager.enableRealtimeTelemetry) {
+        res.flushHeaders();
+      }
 
       try {
+        const onTraceIdCallback = manager.enableRealtimeTelemetry
+          ? (traceId: string) => {
+              // Set trace ID header and flush - this fires before first chunk
+              res.setHeader('X-Genkit-Trace-Id', traceId);
+              res.flushHeaders();
+            }
+          : undefined;
+
         const result = await manager.runAction(
-          { key, input, context },
+          req.body,
           (chunk) => {
             res.write(JSON.stringify(chunk) + '\n');
-          }
+          },
+          onTraceIdCallback
         );
         res.write(JSON.stringify(result));
       } catch (err) {
         res.write(JSON.stringify({ error: (err as GenkitToolsError).data }));
       }
       res.end();
+    }
+  );
+
+  app.post(
+    '/api/streamTrace',
+    bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
+    async (req, res) => {
+      const { traceId } = req.body;
+
+      if (!traceId) {
+        res.status(400).json({ error: 'traceId is required' });
+        return;
+      }
+
+      // Set streaming headers immediately
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      res.setHeader('X-Genkit-Trace-Id', traceId);
+      res.statusCode = 200;
+      res.flushHeaders();
+
+      try {
+        await manager.streamTrace({ traceId }, (chunk) => {
+          // Forward each chunk from telemetry server as chunked JSON
+          res.write(JSON.stringify(chunk) + '\n');
+        });
+        res.end();
+      } catch (err) {
+        const error = err as GenkitToolsError;
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+          });
+        }
+        res.write(
+          JSON.stringify({ error: error.data || { message: error.message } })
+        );
+        res.end();
+      }
     }
   );
 
@@ -108,12 +209,6 @@ export function startServer(manager: RuntimeManager, port: number) {
   // Endpoints for CLI control
   app.use(
     API_BASE_PATH,
-    (req, res, next) => {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      if (req.method === 'OPTIONS') res.send('');
-      else next();
-    },
     trpcExpress.createExpressMiddleware({
       router: TOOLS_SERVER_ROUTER(manager),
       maxBodySize: MAX_PAYLOAD_SIZE,

@@ -14,17 +14,76 @@
  * limitations under the License.
  */
 
+/**
+ * Live integration tests that call the real Anthropic API.
+ * Only runs when ANTHROPIC_API_KEY environment variable is set.
+ *
+ * Run with: ANTHROPIC_API_KEY=your-key pnpm test:live
+ */
+
 import * as assert from 'assert';
 import { genkit, z } from 'genkit';
 import { describe, it } from 'node:test';
 import { anthropic } from '../src/index.js';
 
-const SKIP_LIVE_TESTS = !process.env.ANTHROPIC_API_KEY;
+const API_KEY = process.env.ANTHROPIC_API_KEY;
 
-describe('Anthropic Live Tests', { skip: SKIP_LIVE_TESTS }, () => {
+describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
+  it('should work with short model name claude-3-5-haiku', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY })],
+    });
+
+    const result = await ai.generate({
+      model: 'anthropic/claude-3-5-haiku',
+      prompt: 'Say "hello" and nothing else.',
+    });
+
+    assert.ok(result.text.toLowerCase().includes('hello'));
+  });
+
+  it('should work with short model name claude-3-haiku', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY })],
+    });
+
+    const result = await ai.generate({
+      model: 'anthropic/claude-3-haiku',
+      prompt: 'Say "hello" and nothing else.',
+    });
+
+    assert.ok(result.text.toLowerCase().includes('hello'));
+  });
+
+  it('should work with full versioned model name', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY })],
+    });
+
+    const result = await ai.generate({
+      model: 'anthropic/claude-3-5-haiku-20241022',
+      prompt: 'Say "hello" and nothing else.',
+    });
+
+    assert.ok(result.text.toLowerCase().includes('hello'));
+  });
+
+  it('should work with anthropic.model() helper', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY })],
+    });
+
+    const result = await ai.generate({
+      model: anthropic.model('claude-3-5-haiku'),
+      prompt: 'Say "hello" and nothing else.',
+    });
+
+    assert.ok(result.text.toLowerCase().includes('hello'));
+  });
+
   it('should return structured output matching the schema', async () => {
     const ai = genkit({
-      plugins: [anthropic({ apiVersion: 'beta' })],
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
     });
 
     const schema = z.object({
