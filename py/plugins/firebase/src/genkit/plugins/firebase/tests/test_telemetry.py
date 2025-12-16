@@ -23,8 +23,8 @@ from genkit.plugins.google_cloud.telemetry.metrics import record_generate_metric
 
 
 def _create_model_span(
-    model_name: str = "gemini-pro",
-    path: str = "/{myflow,t:flow}",
+    model_name: str = 'gemini-pro',
+    path: str = '/{myflow,t:flow}',
     output: str = '{"usage": {"inputTokens": 100, "outputTokens": 50}}',
     is_ok: bool = True,
     start_time: int = 1000000000,
@@ -45,11 +45,11 @@ def _create_model_span(
     """
     mock_span = MagicMock(spec=ReadableSpan)
     mock_span.attributes = {
-        "genkit:type": "action",
-        "genkit:metadata:subtype": "model",
-        "genkit:name": model_name,
-        "genkit:path": path,
-        "genkit:output": output,
+        'genkit:type': 'action',
+        'genkit:metadata:subtype': 'model',
+        'genkit:name': model_name,
+        'genkit:path': path,
+        'genkit:output': output,
     }
     mock_span.status.is_ok = is_ok
     mock_span.start_time = start_time
@@ -57,18 +57,18 @@ def _create_model_span(
     return mock_span
 
 
-@patch("genkit.plugins.firebase.add_gcp_telemetry")
+@patch('genkit.plugins.firebase.add_gcp_telemetry')
 def test_firebase_telemetry_delegates_to_gcp(mock_add_gcp_telemetry):
     """Test that Firebase telemetry delegates to GCP telemetry."""
     add_firebase_telemetry()
     mock_add_gcp_telemetry.assert_called_once_with(force_export=False)
 
 
-@patch("genkit.plugins.google_cloud.telemetry.metrics._output_tokens")
-@patch("genkit.plugins.google_cloud.telemetry.metrics._input_tokens")
-@patch("genkit.plugins.google_cloud.telemetry.metrics._latency")
-@patch("genkit.plugins.google_cloud.telemetry.metrics._failures")
-@patch("genkit.plugins.google_cloud.telemetry.metrics._requests")
+@patch('genkit.plugins.google_cloud.telemetry.metrics._output_tokens')
+@patch('genkit.plugins.google_cloud.telemetry.metrics._input_tokens')
+@patch('genkit.plugins.google_cloud.telemetry.metrics._latency')
+@patch('genkit.plugins.google_cloud.telemetry.metrics._failures')
+@patch('genkit.plugins.google_cloud.telemetry.metrics._requests')
 def test_record_generate_metrics_with_model_action(
     mock_requests,
     mock_failures,
@@ -91,8 +91,8 @@ def test_record_generate_metrics_with_model_action(
 
     # Create test span using helper
     mock_span = _create_model_span(
-        model_name="gemini-pro",
-        path="/{myflow,t:flow}",
+        model_name='gemini-pro',
+        path='/{myflow,t:flow}',
         output='{"usage": {"inputTokens": 100, "outputTokens": 50}}',
     )
 
@@ -100,7 +100,7 @@ def test_record_generate_metrics_with_model_action(
     record_generate_metrics(mock_span)
 
     # Verify dimensions
-    expected_dimensions = {"model": "gemini-pro", "source": "myflow", "error": "none"}
+    expected_dimensions = {'model': 'gemini-pro', 'source': 'myflow', 'error': 'none'}
 
     # Verify requests counter
     mock_request_counter.add.assert_called_once_with(1, expected_dimensions)

@@ -46,6 +46,7 @@ dependencies = [
   "sse-starlette>=2.2.1",
   "pillow",
   "strenum>=0.4.15; python_version < '3.11'",
+  "dotpromptz>=0.1.4",
   "uvicorn>=0.34.0",
   "anyio>=4.9.0",
 ]

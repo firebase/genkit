@@ -16,7 +16,7 @@
 
 [project]
 dependencies = [
-  "dotpromptz==0.1.3",
+  "dotpromptz==0.1.4",
   "genkit",
   "genkit-plugin-anthropic",
   "genkit-plugin-dev-local-vectorstore",
