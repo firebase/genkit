@@ -16,7 +16,7 @@
 
 import { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.js';
 import type {
-  MessageCreateParams as BetaMessageCreateParams,
+  MessageCreateParams,
   ContentBlock,
   DocumentBlockParam,
   ImageBlockParam,
@@ -207,7 +207,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
     const thinkingConfig = this.toAnthropicThinkingConfig(
       request.config?.thinking
-    ) as BetaMessageCreateParams['thinking'] | undefined;
+    ) as MessageCreateParams['thinking'] | undefined;
 
     // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
     // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
@@ -272,7 +272,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
     const thinkingConfig = this.toAnthropicThinkingConfig(
       request.config?.thinking
-    ) as BetaMessageCreateParams['thinking'] | undefined;
+    ) as MessageCreateParams['thinking'] | undefined;
 
     // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
     // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
