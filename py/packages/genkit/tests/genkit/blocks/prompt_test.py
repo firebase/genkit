@@ -267,6 +267,35 @@ async def test_load_prompt_variant() -> None:
 
 
 @pytest.mark.asyncio
+async def test_load_nested_prompt() -> None:
+    """Test loading prompts from subdirectories."""
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+        
+        # Create subdirectory
+        sub_dir = prompt_dir / 'admin'
+        sub_dir.mkdir()
+
+        # Create prompt in subdirectory
+        admin_prompt = sub_dir / 'dashboard.prompt'
+        admin_prompt.write_text('---\nmodel: echoModel\n---\nWelcome Admin {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Test loading nested prompt
+        # Based on logic: name = "admin/dashboard"
+        admin_exec = await prompt(ai.registry, 'admin/dashboard')
+        response = await admin_exec({'name': 'SuperUser'})
+        
+        assert 'Welcome Admin' in response.text
+        assert 'SuperUser' in response.text
+
+
+
+@pytest.mark.asyncio
 async def test_load_and_use_partial() -> None:
     """Test loading and using partials in prompts."""
     ai, *_ = setup_test()
@@ -481,6 +510,7 @@ async def test_prompt_and_executable_prompt_return_types() -> None:
 @pytest.mark.asyncio
 async def test_lookup_prompt_returns_executable_prompt() -> None:
     """lookup_prompt should return an ExecutablePrompt that can be called."""
+
     ai, *_ = setup_test()
 
     with tempfile.TemporaryDirectory() as tmpdir:

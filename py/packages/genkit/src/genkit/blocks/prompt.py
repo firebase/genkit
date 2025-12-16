@@ -23,11 +23,11 @@ generation and management across different parts of the application.
 """
 
 import os
+import weakref
 from asyncio import Future
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
-import weakref
 
 import structlog
 from dotpromptz.typing import (
@@ -1094,7 +1094,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                     # This is a regular prompt
                     prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
                     load_prompt(registry, dir_path, entry.name, prefix_with_slash, ns)
-            elif entry.is_directory():
+            elif entry.is_dir():
                 # Recursively process subdirectories
                 new_sub_dir = os.path.join(sub_dir, entry.name) if sub_dir else entry.name
                 load_prompt_folder_recursively(registry, dir_path, ns, new_sub_dir)
