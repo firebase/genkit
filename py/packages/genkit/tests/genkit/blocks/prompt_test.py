@@ -18,13 +18,18 @@
 """Tests for the action module."""
 
 from typing import Any
+import tempfile
+from pathlib import Path
 
 import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.blocks.prompt import load_prompt_folder, lookup_prompt, prompt
+from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
     GenerateActionOptions,
+    GenerateRequest,
     GenerationCommonConfig,
     Message,
     Role,
@@ -226,3 +231,108 @@ async def test_prompt_rendering_dotprompt(
     response = await my_prompt(input, input_option, context=context)
 
     assert response.text == want_rendered
+
+
+# Tests for file-based prompt loading and two-action structure
+@pytest.mark.asyncio
+async def test_file_based_prompt_registers_two_actions() -> None:
+    """File-based prompts create both PROMPT and EXECUTABLE_PROMPT actions."""
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        # Simple prompt file: name is "filePrompt"
+        prompt_file = prompt_dir / 'filePrompt.prompt'
+        prompt_file.write_text('hello {{name}}')
+
+        # Load prompts from directory
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Actions are registered with registry_definition_key (e.g., "dotprompt/filePrompt")
+        # We need to look them up by kind and name (without the /prompt/ prefix)
+        action_name = 'dotprompt/filePrompt'  # registry_definition_key format
+
+        prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
+        executable_prompt_action = ai.registry.lookup_action(
+            ActionKind.EXECUTABLE_PROMPT, action_name
+        )
+
+        assert prompt_action is not None
+        assert executable_prompt_action is not None
+
+
+@pytest.mark.asyncio
+async def test_prompt_and_executable_prompt_return_types() -> None:
+    """PROMPT action returns GenerateRequest, EXECUTABLE_PROMPT returns GenerateActionOptions."""
+    ai, *_ = setup_test()
+
+    # Test with file-based prompt (which creates both actions)
+    # Programmatic prompts don't create actions - they're just ExecutablePrompt instances
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        prompt_file = prompt_dir / 'testPrompt.prompt'
+        prompt_file.write_text('hello {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+        action_name = 'dotprompt/testPrompt'
+
+        prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
+        executable_prompt_action = ai.registry.lookup_action(
+            ActionKind.EXECUTABLE_PROMPT, action_name
+        )
+
+        assert prompt_action is not None
+        assert executable_prompt_action is not None
+
+        prompt_result = await prompt_action.arun(
+            input={'name': 'World'}
+        )
+        assert isinstance(prompt_result.response, GenerateRequest)
+
+        exec_result = await executable_prompt_action.arun(
+            input={'name': 'World'}
+        )
+        assert isinstance(exec_result.response, GenerateActionOptions)
+
+
+@pytest.mark.asyncio
+async def test_lookup_prompt_returns_executable_prompt() -> None:
+    """lookup_prompt should return an ExecutablePrompt that can be called."""
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        prompt_file = prompt_dir / 'lookupTest.prompt'
+        prompt_file.write_text('hi {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        executable = await lookup_prompt(ai.registry, 'lookupTest')
+
+        response = await executable({'name': 'World'})
+        assert 'World' in response.text
+
+
+@pytest.mark.asyncio
+async def test_prompt_function_uses_lookup_prompt() -> None:
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        prompt_file = prompt_dir / 'promptFuncTest.prompt'
+        prompt_file.write_text('hello {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Use prompt() function to look up the file-based prompt
+        executable = await prompt(ai.registry, 'promptFuncTest')
+        response = await executable({'name': 'World'})
+        assert 'World' in response.text

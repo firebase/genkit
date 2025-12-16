@@ -286,15 +286,7 @@ class GenkitRegistry:
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Callable[[Callable], Callable]:
-        """Define an indexer action.
 
-        Args:
-            name: Name of the indexer.
-            fn: Function implementing the indexer behavior.
-            config_schema: Optional schema for indexer configuration.
-            metadata: Optional metadata for the indexer.
-            description: Optional description for the indexer.
-        """
         indexer_meta = metadata if metadata else {}
         if 'indexer' not in indexer_meta:
             indexer_meta['indexer'] = {}
@@ -607,6 +599,17 @@ class GenkitRegistry:
             use=use,
         )
 
+    async def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+    ):
+
+        return await lookup_prompt(
+            registry=self.registry,
+            name=name,
+            variant=variant,
+        )
 
 class FlowWrapper:
     """A wapper for flow functions to add `stream` method."""
