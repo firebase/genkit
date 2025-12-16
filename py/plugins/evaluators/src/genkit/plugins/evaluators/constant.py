@@ -27,7 +27,6 @@ from typing import Any
 
 from pydantic import BaseModel, RootModel
 
-
 from genkit.types import EvalStatusEnum, Score
 
 
