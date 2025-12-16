@@ -546,7 +546,7 @@ export function openAIModelRunner(
   name: string,
   defaultClient: OpenAI,
   requestBuilder?: ModelRequestBuilder,
-  pluginOptions?: PluginOptions
+  pluginOptions?: Omit<PluginOptions, 'apiKey'>
 ) {
   return async (
     request: GenerateRequest,

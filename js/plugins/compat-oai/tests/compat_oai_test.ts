@@ -1481,7 +1481,7 @@ describe('openAIModelRunner', () => {
       'gpt-4o',
       openaiClient as unknown as OpenAI,
       undefined,
-      { name: 'openai', apiKey: 'test' }
+      { name: 'openai' }
     );
     await runner({ messages: [] });
     expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
@@ -1531,9 +1531,7 @@ describe('openAIModelRunner', () => {
     const abortSignal = jest.fn();
     const runner = openAIModelRunner(
       'gpt-4o',
-      openaiClient as unknown as OpenAI,
-      undefined,
-      { name: 'openai', apiKey: 'test' }
+      openaiClient as unknown as OpenAI
     );
     await runner(
       { messages: [] },
@@ -1571,8 +1569,7 @@ describe('openAIModelRunner', () => {
     const runner = openAIModelRunner(
       'gpt-4o',
       openaiClient as unknown as OpenAI,
-      requestBuilder,
-      { name: 'openai', apiKey: 'test' }
+      requestBuilder
     );
     await runner({ messages: [], config: { temperature: 0.1 } });
     expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
@@ -1612,7 +1609,6 @@ describe('openAIModelRunner', () => {
       const defaultClient = new OpenAI({ apiKey: 'default-key' });
       const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
         name: 'openai',
-        apiKey: 'test',
         baseURL: server.baseUrl,
       });
 
@@ -1659,7 +1655,6 @@ describe('openAIModelRunner', () => {
       const defaultClient = new OpenAI({ apiKey: 'default-key' });
       const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
         name: 'openai',
-        apiKey: 'test',
         baseURL: server.baseUrl,
       });
 
@@ -1687,7 +1682,6 @@ describe('openAIModelRunner', () => {
       const defaultClient = new OpenAI({ apiKey: 'default-key' });
       const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
         name: 'openai',
-        apiKey: 'test',
         baseURL: server.baseUrl,
       });
 
@@ -1708,7 +1702,6 @@ describe('openAIModelRunner', () => {
       const defaultClient = new OpenAI({ apiKey: 'default-key' });
       const runner = openAIModelRunner('gpt-4o', defaultClient, undefined, {
         name: 'openai',
-        apiKey: 'wrong-key',
         baseURL: server.baseUrl,
       });
 
@@ -1782,9 +1775,7 @@ describe('openAIModelRunner', () => {
         };
         const runner = openAIModelRunner(
           'gpt-4o',
-          openaiClient as unknown as OpenAI,
-          undefined,
-          { name: 'openai', apiKey: 'test' }
+          openaiClient as unknown as OpenAI
         );
         await expect(runner({ messages: [] })).rejects.toThrow(
           expect.objectContaining({
@@ -1807,9 +1798,7 @@ describe('openAIModelRunner', () => {
       };
       const runner = openAIModelRunner(
         'gpt-4o',
-        openaiClient as any as OpenAI,
-        undefined,
-        { name: 'openai', apiKey: 'test' }
+        openaiClient as unknown as OpenAI
       );
       await expect(runner({ messages: [] })).rejects.toThrow(
         'Some other error'
