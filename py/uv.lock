@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1487,6 +1487,7 @@ dependencies = [
     { name = "genkit-plugin-anthropic" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore" },
+    { name = "genkit-plugin-evaluators" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-cloud" },
@@ -1529,6 +1530,7 @@ requires-dist = [
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
+    { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
