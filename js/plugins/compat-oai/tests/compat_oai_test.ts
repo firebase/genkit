@@ -1473,7 +1473,9 @@ describe('openAIModelRunner', () => {
     };
     const runner = openAIModelRunner(
       'gpt-4o',
-      openaiClient as unknown as OpenAI
+      openaiClient as unknown as OpenAI,
+      undefined,
+      { name: 'openai', apiKey: 'test' }
     );
     await runner({ messages: [] });
     expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
@@ -1523,7 +1525,9 @@ describe('openAIModelRunner', () => {
     const abortSignal = jest.fn();
     const runner = openAIModelRunner(
       'gpt-4o',
-      openaiClient as unknown as OpenAI
+      openaiClient as unknown as OpenAI,
+      undefined,
+      { name: 'openai', apiKey: 'test' }
     );
     await runner(
       { messages: [] },
@@ -1561,7 +1565,8 @@ describe('openAIModelRunner', () => {
     const runner = openAIModelRunner(
       'gpt-4o',
       openaiClient as unknown as OpenAI,
-      requestBuilder
+      requestBuilder,
+      { name: 'openai', apiKey: 'test' }
     );
     await runner({ messages: [], config: { temperature: 0.1 } });
     expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
@@ -1631,7 +1636,9 @@ describe('openAIModelRunner', () => {
         };
         const runner = openAIModelRunner(
           'gpt-4o',
-          openaiClient as unknown as OpenAI
+          openaiClient as unknown as OpenAI,
+          undefined,
+          { name: 'openai', apiKey: 'test' }
         );
         await expect(runner({ messages: [] })).rejects.toThrow(
           expect.objectContaining({
@@ -1654,7 +1661,9 @@ describe('openAIModelRunner', () => {
       };
       const runner = openAIModelRunner(
         'gpt-4o',
-        openaiClient as unknown as OpenAI
+        openaiClient as any as OpenAI,
+        undefined,
+        { name: 'openai', apiKey: 'test' }
       );
       await expect(runner({ messages: [] })).rejects.toThrow(
         'Some other error'

@@ -17,8 +17,8 @@
 
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { modelRef, type GenerateRequest } from 'genkit/model';
-import type OpenAI from 'openai';
 
+import OpenAI from 'openai';
 import {
   ChatCompletionCommonConfigSchema,
   defineCompatOpenAIModel,
@@ -34,6 +34,7 @@ describe('gptModel', () => {
     const model = defineCompatOpenAIModel({
       name: 'openai/gpt-4o',
       client: {} as OpenAI,
+      pluginOptions: { name: 'openai', apiKey: 'test' },
       modelRef: testModelRef('openai/gpt-4o'),
     });
     expect({
@@ -55,6 +56,7 @@ describe('gptModel', () => {
     const gpt41 = defineCompatOpenAIModel({
       name: 'openai/gpt-4.1',
       client: {} as OpenAI,
+      pluginOptions: { name: 'openai', apiKey: 'test' },
       modelRef: testModelRef('openai/gpt-4.1'),
     });
     expect({
@@ -74,6 +76,7 @@ describe('gptModel', () => {
     const gpt41mini = defineCompatOpenAIModel({
       name: 'openai/gpt-4.1-mini',
       client: {} as OpenAI,
+      pluginOptions: { name: 'openai', apiKey: 'test' },
       modelRef: testModelRef('openai/gpt-4.1-mini'),
     });
     expect({
@@ -93,6 +96,7 @@ describe('gptModel', () => {
     const gpt41nano = defineCompatOpenAIModel({
       name: 'openai/gpt-4.1-nano',
       client: {} as OpenAI,
+      pluginOptions: { name: 'openai', apiKey: 'test' },
       modelRef: testModelRef('openai/gpt-4.1-nano'),
     });
     expect({
