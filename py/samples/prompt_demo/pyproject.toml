@@ -51,5 +51,5 @@ packages = ["src"]
 allow-direct-references = true
 
 [tool.uv.sources]
-genkit = { workspace = true }
+genkit                     = { workspace = true }
 genkit-plugin-google-genai = { workspace = true }
