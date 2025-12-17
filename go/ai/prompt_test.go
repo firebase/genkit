@@ -914,7 +914,7 @@ Hello, {{name}}!
 	reg := registry.New()
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "example.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "test-namespace/example")
@@ -963,7 +963,7 @@ input:
 	}
 
 	reg := registry.New()
-	LoadPrompt(reg, tempDir, "snake.prompt", "snake-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "snake.prompt", "snake-namespace")
 
 	prompt := LookupPrompt(reg, "snake-namespace/snake")
 	if prompt == nil {
@@ -1011,8 +1011,9 @@ func TestLoadPrompt_FileNotFound(t *testing.T) {
 	// Initialize a mock registry
 	reg := registry.New()
 
-	// Call loadPrompt with a non-existent file
-	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
+	// Call loadPrompt with a non-existent file in a valid temp directory
+	tempDir := t.TempDir()
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "missing.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "missing")
@@ -1037,7 +1038,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	reg := registry.New()
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "invalid.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "invalid")
@@ -1068,7 +1069,7 @@ Hello, {{name}}!
 	reg := registry.New()
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "example.variant.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "test-namespace/example.variant")
@@ -1123,7 +1124,7 @@ Hello, {{name}}!
 	reg := registry.New()
 
 	// Call LoadPromptFolder
-	LoadPromptDir(reg, tempDir, "test-namespace")
+	LoadPromptDirFromFS(reg, os.DirFS(tempDir), ".", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "test-namespace/example")
@@ -1138,16 +1139,19 @@ Hello, {{name}}!
 	}
 }
 
-func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
+func TestLoadPromptFolder_EmptyDirectory(t *testing.T) {
 	// Initialize a mock registry
-	reg := &registry.Registry{}
+	reg := registry.New()
 
-	// Call LoadPromptFolder with a non-existent directory
-	LoadPromptDir(reg, "", "test-namespace")
+	// Create an empty temp directory
+	tempDir := t.TempDir()
+
+	// Call LoadPromptFolder with an empty directory
+	LoadPromptDirFromFS(reg, os.DirFS(tempDir), ".", "test-namespace")
 
 	// Verify that no prompts were registered
 	if prompt := LookupPrompt(reg, "example"); prompt != nil {
-		t.Fatalf("Prompt should not have been registered for a non-existent directory")
+		t.Fatalf("Prompt should not have been registered for an empty directory")
 	}
 }
 
@@ -1179,7 +1183,7 @@ Hello, {{name}}!
 
 	reg := registry.New()
 
-	LoadPromptFS(reg, fsys, "prompts", "test-namespace")
+	LoadPromptDirFromFS(reg, fsys, "prompts", "test-namespace")
 
 	prompt := LookupPrompt(reg, "test-namespace/example")
 	if prompt == nil {
@@ -1207,7 +1211,7 @@ Hello from variant!
 
 	reg := registry.New()
 
-	LoadPromptFS(reg, fsys, "prompts", "")
+	LoadPromptDirFromFS(reg, fsys, "prompts", "")
 
 	prompt := LookupPrompt(reg, "greeting.experimental")
 	if prompt == nil {
@@ -1218,7 +1222,7 @@ Hello from variant!
 func TestLoadPromptFS_NilFS(t *testing.T) {
 	reg := registry.New()
 
-	LoadPromptFS(reg, nil, "prompts", "test-namespace")
+	LoadPromptDirFromFS(reg, nil, "prompts", "test-namespace")
 
 	if prompt := LookupPrompt(reg, "test-namespace/example"); prompt != nil {
 		t.Fatalf("Prompt should not have been registered with nil filesystem")
@@ -1238,7 +1242,7 @@ func TestLoadPromptFS_InvalidRoot(t *testing.T) {
 		}
 	}()
 
-	LoadPromptFS(reg, fsys, "nonexistent", "test-namespace")
+	LoadPromptDirFromFS(reg, fsys, "nonexistent", "test-namespace")
 }
 
 func TestLoadPromptFromFS(t *testing.T) {
@@ -1323,7 +1327,7 @@ Hello!
 	ConfigureFormats(reg)
 	definePromptModel(reg)
 
-	prompt := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
+	prompt := LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "example.prompt", "multi-namespace")
 
 	_, err = prompt.Execute(context.Background())
 	if err != nil {
@@ -1350,7 +1354,7 @@ Hello!
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
-	prompt := LoadPrompt(registry.New(), tempDir, "example.prompt", "multi-namespace-roles")
+	prompt := LoadPromptFromFS(registry.New(), os.DirFS(tempDir), ".", "example.prompt", "multi-namespace-roles")
 
 	actionOpts, err := prompt.Render(context.Background(), map[string]any{})
 	if err != nil {

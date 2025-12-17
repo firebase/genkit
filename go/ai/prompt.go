@@ -22,9 +22,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"maps"
-	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -519,56 +517,18 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 	return result, nil
 }
 
-// LoadPromptDir loads prompts and partials from the input directory for the given namespace.
-func LoadPromptDir(r api.Registry, dir string, namespace string) {
-	useDefaultDir := false
-	if dir == "" {
-		dir = "./prompts"
-		useDefaultDir = true
-	}
-
-	path, err := filepath.Abs(dir)
-	if err != nil {
-		if !useDefaultDir {
-			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
-		}
-		slog.Debug("default prompt directory not found, skipping loading .prompt files", "dir", dir)
-		return
-	}
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if !useDefaultDir {
-			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
-		}
-		slog.Debug("Default prompt directory not found, skipping loading .prompt files", "dir", dir)
-		return
-	}
-
-	loadPromptDirFromFS(r, os.DirFS(path), ".", namespace)
-}
-
-// LoadPromptFS loads prompts and partials from an embedded filesystem for the given namespace.
-// The fsys parameter should be an fs.FS implementation (e.g., embed.FS).
-// The root parameter specifies the root directory within the filesystem where prompts are located.
-func LoadPromptFS(r api.Registry, fsys fs.FS, root string, namespace string) {
+// LoadPromptDirFromFS loads prompts and partials from a filesystem for the given namespace.
+// The fsys parameter should be an fs.FS implementation (e.g., embed.FS or os.DirFS).
+// The dir parameter specifies the directory within the filesystem where prompts are located.
+func LoadPromptDirFromFS(r api.Registry, fsys fs.FS, dir, namespace string) {
 	if fsys == nil {
-		slog.Debug("No prompt filesystem provided, skipping loading .prompt files")
-		return
+		panic(errors.New("no prompt filesystem provided"))
 	}
 
-	if root == "" {
-		root = "."
+	if _, err := fs.Stat(fsys, dir); err != nil {
+		panic(fmt.Errorf("failed to access prompt directory %q in filesystem: %w", dir, err))
 	}
 
-	if _, err := fs.Stat(fsys, root); err != nil {
-		panic(fmt.Errorf("failed to access prompt directory %q in filesystem: %w", root, err))
-	}
-
-	loadPromptDirFromFS(r, fsys, root, namespace)
-}
-
-// loadPromptDirFromFS is the unified implementation for recursively loading prompts from any fs.FS.
-func loadPromptDirFromFS(r api.Registry, fsys fs.FS, dir string, namespace string) {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
@@ -578,7 +538,7 @@ func loadPromptDirFromFS(r api.Registry, fsys fs.FS, dir string, namespace strin
 		filename := entry.Name()
 		filePath := path.Join(dir, filename)
 		if entry.IsDir() {
-			loadPromptDirFromFS(r, fsys, filePath, namespace)
+			LoadPromptDirFromFS(r, fsys, filePath, namespace)
 		} else if strings.HasSuffix(filename, ".prompt") {
 			if strings.HasPrefix(filename, "_") {
 				partialName := strings.TrimSuffix(filename[1:], ".prompt")
@@ -590,24 +550,16 @@ func loadPromptDirFromFS(r api.Registry, fsys fs.FS, dir string, namespace strin
 				r.RegisterPartial(partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", filePath)
 			} else {
-				loadPromptFromFS(r, fsys, dir, filename, namespace)
+				LoadPromptFromFS(r, fsys, dir, filename, namespace)
 			}
 		}
 	}
 }
 
-// LoadPromptFromFS loads a single prompt from an embedded filesystem into the registry.
+// LoadPromptFromFS loads a single prompt from a filesystem into the registry.
+// The fsys parameter should be an fs.FS implementation (e.g., embed.FS or os.DirFS).
+// The dir parameter specifies the directory within the filesystem where the prompt is located.
 func LoadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace string) Prompt {
-	return loadPromptFromFS(r, fsys, dir, filename, namespace)
-}
-
-// LoadPrompt loads a single prompt into the registry.
-func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
-	return loadPromptFromFS(r, os.DirFS(dir), ".", filename, namespace)
-}
-
-// loadPromptFromFS is the unified implementation for loading a single prompt from any fs.FS.
-func loadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 
@@ -618,11 +570,6 @@ func loadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace strin
 		return nil
 	}
 
-	return loadPromptFromSource(r, sourceFile, name, variant, namespace, source)
-}
-
-// loadPromptFromSource parses and registers a prompt from its source content.
-func loadPromptFromSource(r api.Registry, sourceFile, name, variant, namespace string, source []byte) Prompt {
 	dp := r.Dotprompt()
 
 	parsedPrompt, err := dp.Parse(string(source))

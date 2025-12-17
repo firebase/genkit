@@ -232,9 +232,13 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 	ai.ConfigureFormats(r)
 	ai.DefineGenerateAction(ctx, r)
 	if gOpts.PromptFS != nil {
-		ai.LoadPromptFS(r, gOpts.PromptFS, gOpts.PromptDir, "")
+		dir := gOpts.PromptDir
+		if dir == "" {
+			dir = "prompts"
+		}
+		ai.LoadPromptDirFromFS(r, gOpts.PromptFS, dir, "")
 	} else {
-		ai.LoadPromptDir(r, gOpts.PromptDir, "")
+		loadPromptDirOS(r, gOpts.PromptDir, "")
 	}
 
 	r.RegisterValue(api.DefaultModelKey, gOpts.DefaultModel)
@@ -979,10 +983,38 @@ func Evaluate(ctx context.Context, g *Genkit, opts ...ai.EvaluatorOption) (*ai.E
 // by [WithPromptDir], but can be called explicitly to load prompts from other
 // locations or with different namespaces.
 func LoadPromptDir(g *Genkit, dir string, namespace string) {
-	ai.LoadPromptDir(g.reg, dir, namespace)
+	loadPromptDirOS(g.reg, dir, namespace)
 }
 
-// LoadPromptFS loads all `.prompt` files from the specified embedded filesystem `fsys`
+// loadPromptDirOS loads prompts from an OS directory by converting to os.DirFS.
+func loadPromptDirOS(r api.Registry, dir string, namespace string) {
+	useDefaultDir := false
+	if dir == "" {
+		dir = "./prompts"
+		useDefaultDir = true
+	}
+
+	absPath, err := filepath.Abs(dir)
+	if err != nil {
+		if !useDefaultDir {
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
+		}
+		slog.Debug("default prompt directory not found, skipping loading .prompt files", "dir", dir)
+		return
+	}
+
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		if !useDefaultDir {
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
+		}
+		slog.Debug("Default prompt directory not found, skipping loading .prompt files", "dir", dir)
+		return
+	}
+
+	ai.LoadPromptDirFromFS(r, os.DirFS(absPath), ".", namespace)
+}
+
+// LoadPromptDirFromFS loads all `.prompt` files from the specified embedded filesystem `fsys`
 // into the registry, associating them with the given `namespace`.
 // Files starting with `_` are treated as partials and are not registered as
 // executable prompts but can be included in other prompts.
@@ -1007,10 +1039,10 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 //
 //	func main() {
 //		g := genkit.Init(ctx)
-//		genkit.LoadPromptFS(g, promptsFS, "prompts", "myNamespace")
+//		genkit.LoadPromptDirFromFS(g, promptsFS, "prompts", "myNamespace")
 //	}
-func LoadPromptFS(g *Genkit, fsys fs.FS, root string, namespace string) {
-	ai.LoadPromptFS(g.reg, fsys, root, namespace)
+func LoadPromptDirFromFS(g *Genkit, fsys fs.FS, dir string, namespace string) {
+	ai.LoadPromptDirFromFS(g.reg, fsys, dir, namespace)
 }
 
 // LoadPrompt loads a single `.prompt` file specified by `path` into the registry,
@@ -1037,11 +1069,13 @@ func LoadPromptFS(g *Genkit, fsys fs.FS, root string, namespace string) {
 //	// ... handle response and error ...
 func LoadPrompt(g *Genkit, path string, namespace string) ai.Prompt {
 	dir, filename := filepath.Split(path)
-	if dir != "" {
+	if dir == "" {
+		dir = "."
+	} else {
 		dir = filepath.Clean(dir)
 	}
 
-	return ai.LoadPrompt(g.reg, dir, filename, namespace)
+	return ai.LoadPromptFromFS(g.reg, os.DirFS(dir), ".", filename, namespace)
 }
 
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
