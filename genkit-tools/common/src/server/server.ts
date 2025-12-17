@@ -111,7 +111,7 @@ export function startServer(manager: RuntimeManager, port: number) {
             'Content-Type': 'application/json',
           });
         }
-        res.end(JSON.stringify({ error: error.data }));
+        res.end('error:' + JSON.stringify({ error: error.data }));
       }
     }
   );
