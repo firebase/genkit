@@ -494,6 +494,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 			data, err := json.Marshal(finalResponse)
 			if err != nil {
 				json.NewEncoder(w).Encode(errorResponse{Error: core.ReflectionError{Message: err.Error()}})
+				return nil
 			}
 
 			w.Write(data)
