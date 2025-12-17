@@ -610,10 +610,16 @@ func loadPromptDir(r api.Registry, dir string, namespace string) {
 	}
 }
 
+// LoadPromptFromSource loads a single prompt from a string source into the registry.
+// The name parameter can optionally include a variant suffix (e.g. "promptName.variant"),
+// which will be parsed and used as the variant for the prompt.
+func LoadPromptFromSource(r api.Registry, source, name, namespace string) Prompt {
+	return registerPrompt(r, source, name, namespace, "LoadPromptFromSource/"+name)
+}
+
 // LoadPrompt loads a single prompt into the registry.
 func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
-	name, variant, _ := strings.Cut(name, ".")
 
 	sourceFile := filepath.Join(dir, filename)
 	source, err := os.ReadFile(sourceFile)
@@ -622,17 +628,22 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		return nil
 	}
 
+	return registerPrompt(r, string(source), name, namespace, sourceFile)
+}
+
+func registerPrompt(r api.Registry, source, name, namespace, sourceInfo string) Prompt {
+	name, variant, _ := strings.Cut(name, ".")
 	dp := r.Dotprompt()
 
-	parsedPrompt, err := dp.Parse(string(source))
+	parsedPrompt, err := dp.Parse(source)
 	if err != nil {
-		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
+		slog.Error("Failed to parse file as dotprompt", "source", sourceInfo, "error", err)
 		return nil
 	}
 
-	metadata, err := dp.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
+	metadata, err := dp.RenderMetadata(source, &parsedPrompt.PromptMetadata)
 	if err != nil {
-		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
+		slog.Error("Failed to render dotprompt metadata", "source", sourceInfo, "error", err)
 		return nil
 	}
 
@@ -710,7 +721,7 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 
 	dpMessages, err := dotprompt.ToMessages(parsedPrompt.Template, &dotprompt.DataArgument{})
 	if err != nil {
-		slog.Error("Failed to convert prompt template to messages", "file", sourceFile, "error", err)
+		slog.Error("Failed to convert prompt template to messages", "source", sourceInfo, "error", err)
 		return nil
 	}
 
@@ -719,7 +730,7 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	for _, dpMsg := range dpMessages {
 		parts, err := convertToPartPointers(dpMsg.Content)
 		if err != nil {
-			slog.Error("Failed to convert message parts", "file", sourceFile, "error", err)
+			slog.Error("Failed to convert message parts", "source", sourceInfo, "error", err)
 			return nil
 		}
 
@@ -754,7 +765,7 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 
 	prompt := DefinePrompt(r, key, promptOpts...)
 
-	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
+	slog.Debug("Registered Dotprompt", "name", key, "source", sourceInfo)
 
 	return prompt
 }

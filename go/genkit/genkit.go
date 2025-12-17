@@ -1030,6 +1030,22 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 	ai.LoadPromptDir(g.reg, dir, namespace)
 }
 
+// LoadPromptFromSource loads a single prompt from a string source into the registry,
+// associating it with the given `namespace`, and returns the resulting [ai.prompt].
+//
+// The `source` should be the string content of the prompt.
+// The `name` is the name of the prompt (e.g. "greeting"). If the name contains a dot,
+// the suffix is treated as the variant (e.g. "greeting.formal").
+// The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
+// name "greeting" results in prompt name "myApp/greeting"). Use an empty
+// string for no namespace.
+//
+// This provides a way to load specific prompt sources programmatically, outside of the
+// automatic loading done by [Init] or [LoadPromptDir].
+func LoadPromptFromSource(g *Genkit, source, name, namespace string) ai.Prompt {
+	return ai.LoadPromptFromSource(g.reg, source, name, namespace)
+}
+
 // LoadPrompt loads a single `.prompt` file specified by `path` into the registry,
 // associating it with the given `namespace`, and returns the resulting [ai.prompt].
 //

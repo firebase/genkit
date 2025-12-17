@@ -1506,3 +1506,52 @@ func TestWithOutputSchemaName_DefinePrompt_Missing(t *testing.T) {
 		t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
 	}
 }
+
+func TestLoadPromptFromSource(t *testing.T) {
+	reg := registry.New()
+
+	source := `---
+description: Test Prompt
+model: test/model
+input:
+  schema:
+    username: string
+---
+Hello {{username}}`
+
+	p := LoadPromptFromSource(reg, source, "testPrompt", "testNamespace")
+	if p == nil {
+		t.Fatal("LoadPromptFromSource returned nil")
+	}
+
+	if p.Name() != "testNamespace/testPrompt" {
+		t.Errorf("got name %q, want %q", p.Name(), "testNamespace/testPrompt")
+	}
+
+	// Verify variant handling in name
+	pVariant := LoadPromptFromSource(reg, source, "testPrompt.variant1", "testNamespace")
+	if pVariant == nil {
+		t.Fatal("LoadPromptFromSource with variant returned nil")
+	}
+
+	if pVariant.Name() != "testNamespace/testPrompt.variant1" {
+		t.Errorf("got name %q, want %q", pVariant.Name(), "testNamespace/testPrompt.variant1")
+	}
+
+	// Test rendering
+	input := map[string]any{"username": "Developer"}
+	req, err := p.Render(t.Context(), input)
+	if err != nil {
+		t.Fatalf("Render failed: %v", err)
+	}
+
+	if len(req.Messages) == 0 || len(req.Messages[0].Content) == 0 {
+		t.Fatal("Render produced empty messages")
+	}
+
+	gotText := req.Messages[0].Content[0].Text
+	wantText := "Hello Developer"
+	if gotText != wantText {
+		t.Errorf("Render got text %q, want %q", gotText, wantText)
+	}
+}
