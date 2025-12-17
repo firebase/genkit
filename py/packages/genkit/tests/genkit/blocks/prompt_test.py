@@ -274,7 +274,7 @@ async def test_load_nested_prompt() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         prompt_dir = Path(tmpdir) / 'prompts'
         prompt_dir.mkdir()
-        
+
         # Create subdirectory
         sub_dir = prompt_dir / 'admin'
         sub_dir.mkdir()
@@ -289,10 +289,9 @@ async def test_load_nested_prompt() -> None:
         # Based on logic: name = "admin/dashboard"
         admin_exec = await prompt(ai.registry, 'admin/dashboard')
         response = await admin_exec({'name': 'SuperUser'})
-        
+
         assert 'Welcome Admin' in response.text
         assert 'SuperUser' in response.text
-
 
 
 @pytest.mark.asyncio

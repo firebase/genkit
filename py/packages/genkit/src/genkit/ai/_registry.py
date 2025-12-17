@@ -506,7 +506,10 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata if metadata else {}
+        embedder_meta: dict[str, Any] = metadata or {}
+        if 'embedder' not in embedder_meta:
+            embedder_meta['embedder'] = {}
+
         if options:
             if options.label:
                 embedder_meta['embedder']['label'] = options.label
@@ -516,9 +519,6 @@ class GenkitRegistry:
                 embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
             if options.config_schema:
                 embedder_meta['embedder']['customOptions'] = to_json_schema(options.config_schema)
-
-        if 'embedder' not in embedder_meta:
-            embedder_meta['embedder'] = {}
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
