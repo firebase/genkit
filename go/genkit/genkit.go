@@ -982,12 +982,12 @@ func Evaluate(ctx context.Context, g *Genkit, opts ...ai.EvaluatorOption) (*ai.E
 // This function is often called implicitly by [Init] using the directory specified
 // by [WithPromptDir], but can be called explicitly to load prompts from other
 // locations or with different namespaces.
-func LoadPromptDir(g *Genkit, dir string, namespace string) {
+func LoadPromptDir(g *Genkit, dir, namespace string) {
 	loadPromptDirOS(g.reg, dir, namespace)
 }
 
 // loadPromptDirOS loads prompts from an OS directory by converting to os.DirFS.
-func loadPromptDirOS(r api.Registry, dir string, namespace string) {
+func loadPromptDirOS(r api.Registry, dir, namespace string) {
 	useDefaultDir := false
 	if dir == "" {
 		dir = "./prompts"
