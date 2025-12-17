@@ -51,7 +51,7 @@ from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
-from genkit.blocks.prompt import define_prompt
+from genkit.blocks.prompt import define_prompt, lookup_prompt
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -494,6 +494,7 @@ class GenkitRegistry:
         name: str,
         fn: EmbedderFn,
         options: EmbedderOptions | None = None,
+        metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
@@ -505,7 +506,7 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = {}
+        embedder_meta: dict[str, Any] = metadata if metadata else {}
         if options:
             if options.label:
                 embedder_meta['embedder']['label'] = options.label
