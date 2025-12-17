@@ -41,6 +41,7 @@ logger = structlog.get_logger(__name__)
 T = TypeVar('T')
 
 _instance_count = -1
+_instance_lock = threading.Lock()
 
 class GenkitBase(GenkitRegistry):
     """Base class with shared infra for Genkit instances (sync and async)."""
@@ -61,6 +62,7 @@ class GenkitBase(GenkitRegistry):
         """
         super().__init__()
         global _instance_count
+        global _instance_lock
         with _instance_lock:
             _instance_count += 1
             self.id = f'{os.getpid()}-{_instance_count}'
