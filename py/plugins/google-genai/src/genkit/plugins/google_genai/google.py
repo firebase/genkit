@@ -145,10 +145,15 @@ class GoogleAI(Plugin):
 
         for version in GeminiEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
+            embedder_info = default_embedder_info(version)
             ai.define_embedder(
                 name=googleai_name(version),
                 fn=embedder.generate,
-                metadata=default_embedder_info(version),
+                options=EmbedderOptions(
+                    label=embedder_info.get('label'),
+                    dimensions=embedder_info.get('dimensions'),
+                    supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+                ),
             )
 
     def resolve_action(
@@ -211,10 +216,15 @@ class GoogleAI(Plugin):
         _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
         embedder = Embedder(version=_clean_name, client=self._client)
 
+        embedder_info = default_embedder_info(_clean_name)
         ai.define_embedder(
             name=googleai_name(_clean_name),
             fn=embedder.generate,
-            metadata=default_embedder_info(_clean_name),
+            options=EmbedderOptions(
+                label=embedder_info.get('label'),
+                dimensions=embedder_info.get('dimensions'),
+                supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+            ),
         )
 
     @cached_property
@@ -325,11 +335,15 @@ class VertexAI(Plugin):
 
         for version in VertexEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
+            embedder_info = default_embedder_info(version)
             ai.define_embedder(
                 name=vertexai_name(version),
                 fn=embedder.generate,
-                metadata=default_embedder_info(version),
-                # config_schema=to_json_schema(EmbedContentConfig),
+                options=EmbedderOptions(
+                    label=embedder_info.get('label'),
+                    dimensions=embedder_info.get('dimensions'),
+                    supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+                ),
             )
 
         for version in ImagenVersion:
@@ -407,10 +421,15 @@ class VertexAI(Plugin):
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
         embedder = Embedder(version=_clean_name, client=self._client)
 
+        embedder_info = default_embedder_info(_clean_name)
         ai.define_embedder(
             name=vertexai_name(_clean_name),
             fn=embedder.generate,
-            metadata=default_embedder_info(_clean_name),
+            options=EmbedderOptions(
+                label=embedder_info.get('label'),
+                dimensions=embedder_info.get('dimensions'),
+                supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+            ),
         )
 
     @cached_property

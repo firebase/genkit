@@ -153,7 +153,7 @@ def test_googleai_initialize():
         ai_mock.define_embedder.assert_any_call(
             name=googleai_name(version),
             fn=ANY,
-            metadata=ANY,
+            options=ANY,
         )
 
 
@@ -244,9 +244,14 @@ def test_googleai__resolve_embedder(
         name=model_name,
     )
 
-    ai_mock.define_embedder.assert_called_once_with(
-        name=expected_model_name, fn=ANY, metadata=default_embedder_info(clean_name)
+    info = default_embedder_info(clean_name)
+    options = EmbedderOptions(
+        label=info.get('label'),
+        supports=EmbedderSupports(input=info.get('supports', {}).get('input')),
+        dimensions=info.get('dimensions'),
     )
+
+    ai_mock.define_embedder.assert_called_once_with(name=expected_model_name, fn=ANY, options=options)
 
 
 def test_googleai_list_actions(googleai_plugin_instance):
@@ -491,6 +496,7 @@ def test_vertexai_initialize(vertexai_plugin_instance):
     plugin.initialize(ai_mock)
 
     assert ai_mock.define_model.call_count == len(VertexAIGeminiVersion) + len(ImagenVersion)
+    # The actual call passes EmbedderOptions, so verify we are calling passing options
     assert ai_mock.define_embedder.call_count == len(VertexEmbeddingModels)
 
     for version in VertexAIGeminiVersion:
@@ -507,7 +513,7 @@ def test_vertexai_initialize(vertexai_plugin_instance):
         ai_mock.define_embedder.assert_any_call(
             name=vertexai_name(version),
             fn=ANY,
-            metadata=ANY,
+            options=ANY,
         )
 
 
@@ -648,9 +654,14 @@ def test_vertexai__resolve_embedder(
         name=model_name,
     )
 
-    ai_mock.define_embedder.assert_called_once_with(
-        name=expected_model_name, fn=ANY, metadata=default_embedder_info(clean_name)
+    info = default_embedder_info(clean_name)
+    options = EmbedderOptions(
+        label=info.get('label'),
+        supports=EmbedderSupports(input=info.get('supports', {}).get('input')),
+        dimensions=info.get('dimensions'),
     )
+
+    ai_mock.define_embedder.assert_called_once_with(name=expected_model_name, fn=ANY, options=options)
 
 
 def test_vertexai_list_actions(vertexai_plugin_instance):

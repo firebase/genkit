@@ -198,14 +198,12 @@ class Ollama(Plugin):
         ai.define_embedder(
             name=ollama_name(embedder_ref.name),
             fn=embedder.embed,
-            config_schema=to_json_schema(ollama_api.Options),
-            metadata={
-                'label': f'Ollama Embedding - {_clean_name}',
-                'dimensions': embedder_ref.dimensions,
-                'supports': {
-                    'input': ['text'],
-                },
-            },
+            options=EmbedderOptions(
+                config_schema=to_json_schema(ollama_api.Options),
+                label=f'Ollama Embedding - {_clean_name}',
+                dimensions=embedder_ref.dimensions,
+                supports=EmbedderSupports(input=['text']),
+            ),
         )
 
     @cached_property
