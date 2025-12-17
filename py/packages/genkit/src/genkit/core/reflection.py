@@ -113,7 +113,7 @@ def make_reflection_server(
             For the /api/actions endpoint, returns a JSON object mapping action
             keys to their metadata, including input/output schemas.
             """
-            if self.path == '/api/__health':
+            if urllib.parse.urlparse(self.path).path == '/api/__health':
                 self.send_response(200, 'OK')
                 self.end_headers()
 

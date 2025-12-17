@@ -38,6 +38,8 @@ from pathlib import Path
 
 import structlog
 
+from genkit.core.constants import DEFAULT_GENKIT_VERSION
+
 logger = structlog.get_logger(__name__)
 
 
@@ -87,6 +89,7 @@ def create_runtime(
         'reflectionApiSpecVersion': 1,
         'id': f'{os.getpid()}',
         'pid': os.getpid(),
+        'genkitVersion': 'py/' + DEFAULT_GENKIT_VERSION,
         'reflectionServerUrl': reflection_server_spec.url,
         'timestamp': f'{current_datetime.isoformat()}',
     })
