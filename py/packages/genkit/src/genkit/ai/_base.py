@@ -61,8 +61,9 @@ class GenkitBase(GenkitRegistry):
         """
         super().__init__()
         global _instance_count
-        _instance_count+=1
-        self.id = f'{os.getpid()}-{_instance_count}'
+        with _instance_lock:
+            _instance_count += 1
+            self.id = f'{os.getpid()}-{_instance_count}'
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
         define_generate_action(self.registry)
