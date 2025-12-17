@@ -491,7 +491,12 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 				Result:    resp.Result,
 				Telemetry: telemetry{TraceID: resp.Telemetry.TraceID},
 			}
-			json.NewEncoder(w).Encode(finalResponse)
+			data, err := json.Marshal(finalResponse)
+			if err != nil {
+				json.NewEncoder(w).Encode(errorResponse{Error: core.ReflectionError{Message: err.Error()}})
+			}
+
+			w.Write(data)
 		} else {
 			// For non-streaming, headers were already sent via telemetry callback
 			// Response already includes telemetry.traceId in body
