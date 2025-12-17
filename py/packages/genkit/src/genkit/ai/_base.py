@@ -16,8 +16,8 @@
 
 """Base/shared implementation for Genkit user-facing API."""
 
-import os
 import asyncio
+import os
 import threading
 from collections.abc import Coroutine
 from http.server import HTTPServer
@@ -42,6 +42,7 @@ T = TypeVar('T')
 
 _instance_count = -1
 _instance_lock = threading.Lock()
+
 
 class GenkitBase(GenkitRegistry):
     """Base class with shared infra for Genkit instances (sync and async)."""

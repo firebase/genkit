@@ -108,9 +108,4 @@ def create_runtime(
 def init_default_runtime(spec: ServerSpec, id: str) -> None:
     """Initialize the runtime for the Genkit instance."""
     runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
-    create_runtime(
-        runtime_dir=runtimes_dir,
-        reflection_server_spec=spec,
-        id=id,
-        at_exit_fn=os.remove
-    )
+    create_runtime(runtime_dir=runtimes_dir, reflection_server_spec=spec, id=id, at_exit_fn=os.remove)
