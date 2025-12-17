@@ -1020,7 +1020,7 @@ func loadPromptDirOS(r api.Registry, dir string, namespace string) {
 // executable prompts but can be included in other prompts.
 //
 // The `fsys` parameter should be an [fs.FS] implementation (e.g., [embed.FS]).
-// The `root` parameter specifies the root directory within the filesystem where
+// The `dir` parameter specifies the directory within the filesystem where
 // prompts are located (e.g., "prompts" if using `//go:embed prompts/*`).
 // The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
 // file "greeting.prompt" results in prompt name "myApp/greeting"). Use an empty
@@ -1041,7 +1041,7 @@ func loadPromptDirOS(r api.Registry, dir string, namespace string) {
 //		g := genkit.Init(ctx)
 //		genkit.LoadPromptDirFromFS(g, promptsFS, "prompts", "myNamespace")
 //	}
-func LoadPromptDirFromFS(g *Genkit, fsys fs.FS, dir string, namespace string) {
+func LoadPromptDirFromFS(g *Genkit, fsys fs.FS, dir, namespace string) {
 	ai.LoadPromptDirFromFS(g.reg, fsys, dir, namespace)
 }
 
@@ -1067,7 +1067,7 @@ func LoadPromptDirFromFS(g *Genkit, fsys fs.FS, dir string, namespace string) {
 //	// Execute the loaded prompt
 //	resp, err := customPrompt.Execute(ctx, ai.WithInput(map[string]any{"text": "some data"}))
 //	// ... handle response and error ...
-func LoadPrompt(g *Genkit, path string, namespace string) ai.Prompt {
+func LoadPrompt(g *Genkit, path, namespace string) ai.Prompt {
 	dir, filename := filepath.Split(path)
 	if dir == "" {
 		dir = "."
