@@ -36,7 +36,7 @@ import (
 
 // HandlerOption configures a Handler.
 type HandlerOption interface {
-	applyHandler(*handlerOptions)
+	applyHandler(*handlerOptions) error
 }
 
 // handlerOptions are options for an action HTTP handler.
@@ -45,20 +45,22 @@ type handlerOptions struct {
 	StreamManager    core.StreamManager     // Optional manager for durable stream storage.
 }
 
-func (o *handlerOptions) applyHandler(opts *handlerOptions) {
+func (o *handlerOptions) applyHandler(opts *handlerOptions) error {
 	if o.ContextProviders != nil {
 		if opts.ContextProviders != nil {
-			panic("genkit.WithContextProviders: cannot set ContextProviders more than once")
+			return errors.New("cannot set ContextProviders more than once (WithContextProviders)")
 		}
 		opts.ContextProviders = o.ContextProviders
 	}
 
 	if o.StreamManager != nil {
 		if opts.StreamManager != nil {
-			panic("genkit.WithStreamManager: cannot set StreamManager more than once")
+			return errors.New("cannot set StreamManager more than once (WithStreamManager)")
 		}
 		opts.StreamManager = o.StreamManager
 	}
+
+	return nil
 }
 
 // requestID is a unique ID for each request.
@@ -87,7 +89,9 @@ func WithStreamManager(manager core.StreamManager) HandlerOption {
 func Handler(a api.Action, opts ...HandlerOption) http.HandlerFunc {
 	options := &handlerOptions{}
 	for _, opt := range opts {
-		opt.applyHandler(options)
+		if err := opt.applyHandler(options); err != nil {
+			panic(fmt.Errorf("genkit.Handler: error applying options: %w", err))
+		}
 	}
 
 	return wrapHandler(handler(a, options))
