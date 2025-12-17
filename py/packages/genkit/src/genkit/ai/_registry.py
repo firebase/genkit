@@ -506,7 +506,7 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata if metadata else {}
+        embedder_meta: dict[str, Any] = metadata or {}
         if 'embedder' not in embedder_meta:
             embedder_meta['embedder'] = {}
 

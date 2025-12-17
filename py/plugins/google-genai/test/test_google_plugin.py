@@ -247,7 +247,7 @@ def test_googleai__resolve_embedder(
     info = default_embedder_info(clean_name)
     options = EmbedderOptions(
         label=info.get('label'),
-        supports=EmbedderSupports(input=info.get('supports', {}).get('input')),
+        supports=EmbedderSupports(**info.get('supports', {})),
         dimensions=info.get('dimensions'),
     )
 
@@ -657,7 +657,7 @@ def test_vertexai__resolve_embedder(
     info = default_embedder_info(clean_name)
     options = EmbedderOptions(
         label=info.get('label'),
-        supports=EmbedderSupports(input=info.get('supports', {}).get('input')),
+        supports=EmbedderSupports(**info.get('supports', {})),
         dimensions=info.get('dimensions'),
     )
 
