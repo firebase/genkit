@@ -39,19 +39,19 @@ def test_create_runtime() -> None:
         spec = ServerSpec(port=3100)
 
         # Test runtime file creation
-        runtime_path = create_runtime(temp_dir, spec)
+        runtime_path = create_runtime(temp_dir, spec, '123')
         assert runtime_path.exists()
 
         # Verify file content
         content = json.loads(runtime_path.read_text(encoding='utf-8'))
         assert isinstance(content, dict)
-        assert 'id' in content
+        assert content['id'] == '123'
         assert 'pid' in content
         assert content['reflectionServerUrl'] == 'http://localhost:3100'
         assert 'timestamp' in content
 
         # Test directory creation
         new_dir = os.path.join(temp_dir, 'new_dir')
-        runtime_path = create_runtime(new_dir, spec)
+        runtime_path = create_runtime(new_dir, spec, '123')
         assert os.path.exists(new_dir)
         assert runtime_path.exists()

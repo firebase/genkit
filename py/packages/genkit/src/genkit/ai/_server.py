@@ -63,6 +63,7 @@ class ServerSpec:
 def create_runtime(
     runtime_dir: str,
     reflection_server_spec: ServerSpec,
+    id: str,
     at_exit_fn: Callable[[Path], None] | None = None,
 ) -> Path:
     """Create a runtime configuration for use with the genkit CLI.
@@ -87,7 +88,7 @@ def create_runtime(
     runtime_file_path = Path(os.path.join(runtime_dir, runtime_file_name))
     metadata = json.dumps({
         'reflectionApiSpecVersion': 1,
-        'id': f'{os.getpid()}',
+        'id': id,
         'pid': os.getpid(),
         'genkitVersion': 'py/' + DEFAULT_GENKIT_VERSION,
         'reflectionServerUrl': reflection_server_spec.url,
@@ -104,11 +105,7 @@ def create_runtime(
     return runtime_file_path
 
 
-def init_default_runtime(spec: ServerSpec) -> None:
+def init_default_runtime(spec: ServerSpec, id: str) -> None:
     """Initialize the runtime for the Genkit instance."""
     runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
-    create_runtime(
-        runtime_dir=runtimes_dir,
-        reflection_server_spec=spec,
-        at_exit_fn=os.remove,
-    )
+    create_runtime(runtime_dir=runtimes_dir, reflection_server_spec=spec, id=id, at_exit_fn=os.remove)

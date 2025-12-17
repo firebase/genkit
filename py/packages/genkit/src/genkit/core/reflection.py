@@ -76,6 +76,7 @@ logger = structlog.get_logger(__name__)
 def make_reflection_server(
     registry: Registry,
     loop: asyncio.AbstractEventLoop,
+    id: str,
     encoding='utf-8',
     quiet=True,
 ):
@@ -113,11 +114,19 @@ def make_reflection_server(
             For the /api/actions endpoint, returns a JSON object mapping action
             keys to their metadata, including input/output schemas.
             """
-            if urllib.parse.urlparse(self.path).path == '/api/__health':
+            parsed_url = urllib.parse.urlparse(self.path)
+            if parsed_url.path == '/api/__health':
+                query_params = urllib.parse.parse_qs(parsed_url.query)
+                expected_id = query_params.get('id', [None])[0]
+                if expected_id is not None and expected_id != id:
+                    self.send_response(500)
+                    self.end_headers()
+                    return
+
                 self.send_response(200, 'OK')
                 self.end_headers()
 
-            elif self.path == '/api/actions':
+            elif parsed_url.path == '/api/actions':
                 self.send_response(200)
                 self.send_header('content-type', 'application/json')
                 self.end_headers()
