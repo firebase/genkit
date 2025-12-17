@@ -222,17 +222,17 @@ func TestStreamingHandler(t *testing.T) {
 			t.Errorf("want status code %d, got %d", http.StatusOK, resp.StatusCode)
 		}
 
-		expected := `data: {"message": "h"}
+		expected := `data: {"message":"h"}
 
-data: {"message": "e"}
+data: {"message":"e"}
 
-data: {"message": "l"}
+data: {"message":"l"}
 
-data: {"message": "l"}
+data: {"message":"l"}
 
-data: {"message": "o"}
+data: {"message":"o"}
 
-data: {"result": "hello-end"}
+data: {"result":"hello-end"}
 
 `
 		if string(body) != expected {
@@ -256,11 +256,126 @@ data: {"result": "hello-end"}
 			t.Errorf("want status code %d, got %d", http.StatusOK, resp.StatusCode)
 		}
 
-		expected := `data: {"error": {"status": "INTERNAL", "message": "stream flow error", "details": "streaming error"}}
+		expected := `data: {"error":{"status":"INTERNAL_SERVER_ERROR","message":"stream flow error","details":"streaming error"}}
 
 `
 		if string(body) != expected {
 			t.Errorf("want error body:\n%q\n\nGot:\n%q", expected, string(body))
+		}
+	})
+}
+
+func TestDurableStreamingHandler(t *testing.T) {
+	g := Init(context.Background())
+
+	streamingFlow := DefineStreamingFlow(g, "durableStreaming",
+		func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {
+			for _, c := range input {
+				if err := cb(ctx, string(c)); err != nil {
+					return "", err
+				}
+			}
+			return input + "-done", nil
+		})
+
+	t.Run("returns stream ID header", func(t *testing.T) {
+		sm := core.NewInMemoryStreamManager()
+		handler := Handler(streamingFlow, WithStreamManager(sm))
+
+		req := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":"hi"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+
+		resp := w.Result()
+		body, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("want status code %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+
+		streamID := resp.Header.Get("X-Genkit-Stream-Id")
+		if streamID == "" {
+			t.Error("want X-Genkit-Stream-Id header to be set")
+		}
+
+		expected := `data: {"message":"h"}
+
+data: {"message":"i"}
+
+data: {"result":"hi-done"}
+
+`
+		if string(body) != expected {
+			t.Errorf("want streaming body:\n%q\n\nGot:\n%q", expected, string(body))
+		}
+	})
+
+	t.Run("subscribe to completed stream", func(t *testing.T) {
+		sm := core.NewInMemoryStreamManager()
+		handler := Handler(streamingFlow, WithStreamManager(sm))
+
+		// First request - run the stream to completion
+		req1 := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":"ab"}`))
+		req1.Header.Set("Content-Type", "application/json")
+		req1.Header.Set("Accept", "text/event-stream")
+		w1 := httptest.NewRecorder()
+
+		handler(w1, req1)
+
+		resp1 := w1.Result()
+		streamID := resp1.Header.Get("X-Genkit-Stream-Id")
+		if streamID == "" {
+			t.Fatal("want X-Genkit-Stream-Id header to be set")
+		}
+
+		// Second request - subscribe to the completed stream
+		req2 := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":"ignored"}`))
+		req2.Header.Set("Content-Type", "application/json")
+		req2.Header.Set("Accept", "text/event-stream")
+		req2.Header.Set("X-Genkit-Stream-Id", streamID)
+		w2 := httptest.NewRecorder()
+
+		handler(w2, req2)
+
+		resp2 := w2.Result()
+		body2, _ := io.ReadAll(resp2.Body)
+
+		if resp2.StatusCode != http.StatusOK {
+			t.Errorf("want status code %d, got %d", http.StatusOK, resp2.StatusCode)
+		}
+
+		// Should replay all chunks and the final result
+		expected := `data: {"message":"a"}
+
+data: {"message":"b"}
+
+data: {"result":"ab-done"}
+
+`
+		if string(body2) != expected {
+			t.Errorf("want replayed body:\n%q\n\nGot:\n%q", expected, string(body2))
+		}
+	})
+
+	t.Run("subscribe to non-existent stream returns 204", func(t *testing.T) {
+		sm := core.NewInMemoryStreamManager()
+		handler := Handler(streamingFlow, WithStreamManager(sm))
+
+		req := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":"test"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		req.Header.Set("X-Genkit-Stream-Id", "non-existent-stream-id")
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+
+		resp := w.Result()
+
+		if resp.StatusCode != http.StatusNoContent {
+			t.Errorf("want status code %d, got %d", http.StatusNoContent, resp.StatusCode)
 		}
 	})
 }
