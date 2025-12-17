@@ -1,12 +1,22 @@
 // Copyright 2025 Google LLC
-// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // This sample demonstrates how to use embedded prompts with genkit.
 // Prompts are embedded directly into the binary using Go's embed package,
 // which allows you to ship a self-contained binary without needing to
 // distribute prompt files separately.
 
-// [START main]
 package main
 
 import (
@@ -14,7 +24,6 @@ import (
 	"embed"
 	"errors"
 
-	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
@@ -33,36 +42,19 @@ func main() {
 		genkit.WithPromptFS(promptsFS),
 	)
 
-	type greetingStyle struct {
-		Style    string `json:"style"`
-		Location string `json:"location"`
-		Name     string `json:"name"`
-	}
-
-	type greeting struct {
-		Greeting string `json:"greeting"`
-	}
-
-	genkit.DefineFlow(g, "assistantGreetingFlow", func(ctx context.Context, input greetingStyle) (string, error) {
+	genkit.DefineFlow(g, "sayHello", func(ctx context.Context, name string) (string, error) {
 		prompt := genkit.LookupPrompt(g, "example")
 		if prompt == nil {
-			return "", errors.New("assistantGreetingFlow: failed to find prompt")
+			return "", errors.New("prompt not found")
 		}
 
-		resp, err := prompt.Execute(ctx, ai.WithInput(input))
+		resp, err := prompt.Execute(ctx)
 		if err != nil {
 			return "", err
 		}
 
-		var output greeting
-		if err = resp.Output(&output); err != nil {
-			return "", err
-		}
-
-		return output.Greeting, nil
+		return resp.Text(), nil
 	})
 
 	<-ctx.Done()
 }
-
-// [END main]
