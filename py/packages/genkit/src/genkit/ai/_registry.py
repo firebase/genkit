@@ -493,8 +493,8 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
-        metadata: dict[str, Any] | None = None,
         options: EmbedderOptions | None = None,
+        metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
