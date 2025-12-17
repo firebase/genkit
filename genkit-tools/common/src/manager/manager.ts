@@ -229,7 +229,10 @@ export class RuntimeManager {
           }
         )
         .catch((err) =>
-          this.handleStreamError(err, `Error running action key='${input.key}'.`)
+          this.handleStreamError(
+            err,
+            `Error running action key='${input.key}'.`
+          )
         );
       let genkitVersion: string;
       if (response.headers['x-genkit-version']) {
@@ -304,7 +307,10 @@ export class RuntimeManager {
           responseType: 'stream', // Use stream to get early headers
         })
         .catch((err) =>
-          this.handleStreamError(err, `Error running action key='${input.key}'.`)
+          this.handleStreamError(
+            err,
+            `Error running action key='${input.key}'.`
+          )
         );
 
       const traceId = response.headers['x-genkit-trace-id'];
