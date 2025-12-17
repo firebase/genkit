@@ -273,7 +273,7 @@ func (s *inMemoryStreamInput) Write(chunk json.RawMessage) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return NewPublicError(FAILED_PRECONDITION, "stream is closed", nil)
+		return NewPublicError(FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.mu.Unlock()
 
@@ -281,7 +281,7 @@ func (s *inMemoryStreamInput) Write(chunk json.RawMessage) error {
 	defer s.state.mu.Unlock()
 
 	if s.state.status != streamStatusOpen {
-		return NewPublicError(FAILED_PRECONDITION, "stream is not open", nil)
+		return NewPublicError(FAILED_PRECONDITION, "stream has already completed", nil)
 	}
 
 	s.state.chunks = append(s.state.chunks, chunk)
@@ -303,7 +303,7 @@ func (s *inMemoryStreamInput) Done(output json.RawMessage) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return NewPublicError(FAILED_PRECONDITION, "stream is closed", nil)
+		return NewPublicError(FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
 	s.mu.Unlock()
@@ -312,7 +312,7 @@ func (s *inMemoryStreamInput) Done(output json.RawMessage) error {
 	defer s.state.mu.Unlock()
 
 	if s.state.status != streamStatusOpen {
-		return NewPublicError(FAILED_PRECONDITION, "stream is not open", nil)
+		return NewPublicError(FAILED_PRECONDITION, "stream has already completed", nil)
 	}
 
 	s.state.status = streamStatusDone
@@ -336,7 +336,7 @@ func (s *inMemoryStreamInput) Error(err error) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return NewPublicError(FAILED_PRECONDITION, "stream is closed", nil)
+		return NewPublicError(FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
 	s.mu.Unlock()
@@ -345,7 +345,7 @@ func (s *inMemoryStreamInput) Error(err error) error {
 	defer s.state.mu.Unlock()
 
 	if s.state.status != streamStatusOpen {
-		return NewPublicError(FAILED_PRECONDITION, "stream is not open", nil)
+		return NewPublicError(FAILED_PRECONDITION, "stream has already completed", nil)
 	}
 
 	s.state.status = streamStatusError
