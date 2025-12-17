@@ -30,7 +30,7 @@ func main() {
 
 	g := genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
-		genkit.WithPromptFS(promptsFS, "prompts"),
+		genkit.WithPromptFS(promptsFS),
 	)
 
 	type greetingStyle struct {
