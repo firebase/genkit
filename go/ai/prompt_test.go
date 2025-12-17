@@ -1222,11 +1222,13 @@ Hello from variant!
 func TestLoadPromptFS_NilFS(t *testing.T) {
 	reg := registry.New()
 
-	LoadPromptDirFromFS(reg, nil, "prompts", "test-namespace")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic for nil filesystem")
+		}
+	}()
 
-	if prompt := LookupPrompt(reg, "test-namespace/example"); prompt != nil {
-		t.Fatalf("Prompt should not have been registered with nil filesystem")
-	}
+	LoadPromptDirFromFS(reg, nil, "prompts", "test-namespace")
 }
 
 func TestLoadPromptFS_InvalidRoot(t *testing.T) {
