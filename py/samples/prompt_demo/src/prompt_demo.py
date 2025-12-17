@@ -31,8 +31,6 @@ ai = Genkit(plugins=[GoogleAI()])
 
 
 async def main():
-
-
     # Load the prompts from the directory (data)
     current_dir = Path(__file__).resolve().parent
     prompts_path = current_dir.parent / 'data'
