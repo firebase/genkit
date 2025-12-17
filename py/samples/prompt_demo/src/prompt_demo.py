@@ -15,19 +15,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
-import structlog
 from pathlib import Path
+
+import structlog
+
 from genkit.ai import Genkit
 from genkit.blocks.prompt import load_prompt_folder
+from genkit.plugins.google_genai import GoogleAI
 
 logger = structlog.get_logger(__name__)
+
+
+# Initialize with GoogleAI plugin
+ai = Genkit(plugins=[GoogleAI()])
+
+
 async def main():
-    # No plugins
-    ai = Genkit(plugins=[])
+
 
     # Load the prompts from the directory (data)
     current_dir = Path(__file__).resolve().parent
-    prompts_path = current_dir.parent / "data"
+    prompts_path = current_dir.parent / 'data'
     load_prompt_folder(ai.registry, prompts_path)
 
     # List actions to verify loading
@@ -35,13 +43,13 @@ async def main():
 
     # Filter for prompts to be specific
     # Keys start with /prompt
-    prompts = [key for key in actions.keys() if '/prompt' in key or '/executable-prompt' in key]
+    prompts = [key for key in actions.keys() if key.startswith(('/prompt/', '/executable-prompt/'))]
 
-    await logger.ainfo("Registry Status", total_actions=len(actions), loaded_prompts=prompts)
+    await logger.ainfo('Registry Status', total_actions=len(actions), loaded_prompts=prompts)
 
     if not prompts:
-        await logger.awarning("No prompts found! Check directory structure.")
+        await logger.awarning('No prompts found! Check directory structure.')
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+if __name__ == '__main__':
+    ai.run_main(main())
