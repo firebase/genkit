@@ -119,7 +119,7 @@ def make_reflection_server(
                 query_params = urllib.parse.parse_qs(parsed_url.query)
                 expected_id = query_params.get('id', [None])[0]
                 if expected_id is not None and expected_id != id:
-                    self.send_response(500, 'OK')
+                    self.send_response(500)
                     self.end_headers()
                     return
 
