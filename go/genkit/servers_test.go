@@ -280,6 +280,7 @@ func TestDurableStreamingHandler(t *testing.T) {
 
 	t.Run("returns stream ID header", func(t *testing.T) {
 		sm := core.NewInMemoryStreamManager()
+		defer sm.Close()
 		handler := Handler(streamingFlow, WithStreamManager(sm))
 
 		req := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":"hi"}`))
@@ -315,6 +316,7 @@ data: {"result":"hi-done"}
 
 	t.Run("subscribe to completed stream", func(t *testing.T) {
 		sm := core.NewInMemoryStreamManager()
+		defer sm.Close()
 		handler := Handler(streamingFlow, WithStreamManager(sm))
 
 		// First request - run the stream to completion
@@ -362,6 +364,7 @@ data: {"result":"ab-done"}
 
 	t.Run("subscribe to non-existent stream returns 204", func(t *testing.T) {
 		sm := core.NewInMemoryStreamManager()
+		defer sm.Close()
 		handler := Handler(streamingFlow, WithStreamManager(sm))
 
 		req := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":"test"}`))

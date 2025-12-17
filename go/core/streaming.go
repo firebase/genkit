@@ -23,6 +23,9 @@ import (
 	"time"
 )
 
+// inMemoryStreamBufferSize is the buffer size for subscriber event channels.
+const inMemoryStreamBufferSize = 100
+
 // StreamEventType indicates the type of stream event.
 type StreamEventType int
 
@@ -87,12 +90,13 @@ type streamState struct {
 
 // InMemoryStreamManager is an in-memory implementation of StreamManager.
 // Useful for testing or single-instance deployments where persistence is not required.
+// Call Close to stop the background cleanup goroutine when the manager is no longer needed.
 type InMemoryStreamManager struct {
-	streams     map[string]*streamState
-	mu          sync.RWMutex
-	ttl         time.Duration
-	cleanupMu   sync.Mutex
-	lastCleanup time.Time
+	streams map[string]*streamState
+	mu      sync.RWMutex
+	ttl     time.Duration
+	stopCh  chan struct{}
+	doneCh  chan struct{}
 }
 
 // StreamManagerOption configures an InMemoryStreamManager.
@@ -119,6 +123,8 @@ func WithTTL(ttl time.Duration) StreamManagerOption {
 }
 
 // NewInMemoryStreamManager creates a new InMemoryStreamManager.
+// A background goroutine is started to periodically clean up expired streams.
+// Call Close to stop the goroutine when the manager is no longer needed.
 func NewInMemoryStreamManager(opts ...StreamManagerOption) *InMemoryStreamManager {
 	options := &streamManagerOptions{
 		TTL: 5 * time.Minute,
@@ -126,22 +132,34 @@ func NewInMemoryStreamManager(opts ...StreamManagerOption) *InMemoryStreamManage
 	for _, opt := range opts {
 		opt.applyInMemoryStreamManager(options)
 	}
-	return &InMemoryStreamManager{
+	m := &InMemoryStreamManager{
 		streams: make(map[string]*streamState),
 		ttl:     options.TTL,
+		stopCh:  make(chan struct{}),
+		doneCh:  make(chan struct{}),
+	}
+	go m.cleanupLoop()
+	return m
+}
+
+// cleanupLoop runs periodically to remove expired streams.
+func (m *InMemoryStreamManager) cleanupLoop() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	defer close(m.doneCh)
+
+	for {
+		select {
+		case <-m.stopCh:
+			return
+		case <-ticker.C:
+			m.cleanupExpiredStreams()
+		}
 	}
 }
 
-// cleanup removes expired streams. Called periodically during operations.
-func (m *InMemoryStreamManager) cleanup() {
-	m.cleanupMu.Lock()
-	if time.Since(m.lastCleanup) < time.Minute {
-		m.cleanupMu.Unlock()
-		return
-	}
-	m.lastCleanup = time.Now()
-	m.cleanupMu.Unlock()
-
+// cleanupExpiredStreams removes streams that have completed and exceeded the TTL.
+func (m *InMemoryStreamManager) cleanupExpiredStreams() {
 	now := time.Now()
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -156,10 +174,15 @@ func (m *InMemoryStreamManager) cleanup() {
 	}
 }
 
+// Close stops the background cleanup goroutine and releases resources.
+// This method blocks until the cleanup goroutine has stopped.
+func (m *InMemoryStreamManager) Close() {
+	close(m.stopCh)
+	<-m.doneCh
+}
+
 // Open creates a new stream for writing.
 func (m *InMemoryStreamManager) Open(ctx context.Context, streamID string) (ActionStreamInput, error) {
-	m.cleanup()
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -192,7 +215,7 @@ func (m *InMemoryStreamManager) Subscribe(ctx context.Context, streamID string) 
 		return nil, nil, NewPublicError(NOT_FOUND, "stream not found", nil)
 	}
 
-	ch := make(chan StreamEvent, 100)
+	ch := make(chan StreamEvent, inMemoryStreamBufferSize)
 
 	state.mu.Lock()
 	defer state.mu.Unlock()
