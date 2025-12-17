@@ -544,36 +544,7 @@ func LoadPromptDir(r api.Registry, dir string, namespace string) {
 		return
 	}
 
-	loadPromptDir(r, path, namespace)
-}
-
-// loadPromptDir recursively loads prompts and partials from the directory.
-func loadPromptDir(r api.Registry, dir string, namespace string) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
-	}
-
-	for _, entry := range entries {
-		filename := entry.Name()
-		path := filepath.Join(dir, filename)
-		if entry.IsDir() {
-			loadPromptDir(r, path, namespace)
-		} else if strings.HasSuffix(filename, ".prompt") {
-			if strings.HasPrefix(filename, "_") {
-				partialName := strings.TrimSuffix(filename[1:], ".prompt")
-				source, err := os.ReadFile(path)
-				if err != nil {
-					slog.Error("Failed to read partial file", "error", err)
-					continue
-				}
-				r.RegisterPartial(partialName, string(source))
-				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
-			} else {
-				LoadPrompt(r, dir, filename, namespace)
-			}
-		}
-	}
+	loadPromptDirFromFS(r, os.DirFS(path), ".", namespace)
 }
 
 // LoadPromptFS loads prompts and partials from an embedded filesystem for the given namespace.
@@ -593,33 +564,33 @@ func LoadPromptFS(r api.Registry, fsys fs.FS, root string, namespace string) {
 		panic(fmt.Errorf("failed to access prompt directory %q in filesystem: %w", root, err))
 	}
 
-	loadPromptFS(r, fsys, root, namespace)
+	loadPromptDirFromFS(r, fsys, root, namespace)
 }
 
-// loadPromptFS recursively loads prompts and partials from the embedded filesystem.
-func loadPromptFS(r api.Registry, fsys fs.FS, dir string, namespace string) {
+// loadPromptDirFromFS is the unified implementation for recursively loading prompts from any fs.FS.
+func loadPromptDirFromFS(r api.Registry, fsys fs.FS, dir string, namespace string) {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		panic(fmt.Errorf("failed to read prompt directory structure from filesystem: %w", err))
+		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
 	}
 
 	for _, entry := range entries {
 		filename := entry.Name()
 		filePath := path.Join(dir, filename)
 		if entry.IsDir() {
-			loadPromptFS(r, fsys, filePath, namespace)
+			loadPromptDirFromFS(r, fsys, filePath, namespace)
 		} else if strings.HasSuffix(filename, ".prompt") {
 			if strings.HasPrefix(filename, "_") {
 				partialName := strings.TrimSuffix(filename[1:], ".prompt")
 				source, err := fs.ReadFile(fsys, filePath)
 				if err != nil {
-					slog.Error("Failed to read partial file from filesystem", "error", err)
+					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
 				r.RegisterPartial(partialName, string(source))
-				slog.Debug("Registered Dotprompt partial from filesystem", "name", partialName, "file", filePath)
+				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", filePath)
 			} else {
-				LoadPromptFromFS(r, fsys, dir, filename, namespace)
+				loadPromptFromFS(r, fsys, dir, filename, namespace)
 			}
 		}
 	}
@@ -627,26 +598,21 @@ func loadPromptFS(r api.Registry, fsys fs.FS, dir string, namespace string) {
 
 // LoadPromptFromFS loads a single prompt from an embedded filesystem into the registry.
 func LoadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace string) Prompt {
+	return loadPromptFromFS(r, fsys, dir, filename, namespace)
+}
+
+// LoadPrompt loads a single prompt into the registry.
+func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
+	return loadPromptFromFS(r, os.DirFS(dir), ".", filename, namespace)
+}
+
+// loadPromptFromFS is the unified implementation for loading a single prompt from any fs.FS.
+func loadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 
 	sourceFile := path.Join(dir, filename)
 	source, err := fs.ReadFile(fsys, sourceFile)
-	if err != nil {
-		slog.Error("Failed to read prompt file from filesystem", "file", sourceFile, "error", err)
-		return nil
-	}
-
-	return loadPromptFromSource(r, sourceFile, name, variant, namespace, source)
-}
-
-// LoadPrompt loads a single prompt into the registry.
-func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
-	name := strings.TrimSuffix(filename, ".prompt")
-	name, variant, _ := strings.Cut(name, ".")
-
-	sourceFile := filepath.Join(dir, filename)
-	source, err := os.ReadFile(sourceFile)
 	if err != nil {
 		slog.Error("Failed to read prompt file", "file", sourceFile, "error", err)
 		return nil
