@@ -493,6 +493,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
+        metadata: dict[str, Any] | None = None,
         options: EmbedderOptions | None = None,
         description: str | None = None,
     ) -> Action:
@@ -505,7 +506,7 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = {}
+        embedder_meta: dict[str, Any] = metadata if metadata else {}
         if options:
             if options.label:
                 embedder_meta['embedder']['label'] = options.label

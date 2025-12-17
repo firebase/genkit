@@ -35,6 +35,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from genkit.core.constants import DEFAULT_GENKIT_VERSION
 
 import structlog
 
@@ -87,6 +88,7 @@ def create_runtime(
         'reflectionApiSpecVersion': 1,
         'id': f'{os.getpid()}',
         'pid': os.getpid(),
+        'genkitVersion': 'py/' + DEFAULT_GENKIT_VERSION,
         'reflectionServerUrl': reflection_server_spec.url,
         'timestamp': f'{current_datetime.isoformat()}',
     })
