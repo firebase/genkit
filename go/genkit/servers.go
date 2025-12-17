@@ -233,15 +233,13 @@ func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.A
 	w.Header().Set("X-Genkit-Stream-Id", streamID)
 
 	callback := func(ctx context.Context, msg json.RawMessage) error {
+		durableStream.Write(msg)
 		if err := writeSSEMessage(w, msg); err != nil {
 			return err
 		}
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
-
-		// Fire-and-forget write to durable stream.
-		go durableStream.Write(msg)
 		return nil
 	}
 
