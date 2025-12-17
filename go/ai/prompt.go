@@ -19,9 +19,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -574,6 +576,70 @@ func loadPromptDir(r api.Registry, dir string, namespace string) {
 	}
 }
 
+// LoadPromptFS loads prompts and partials from an embedded filesystem for the given namespace.
+// The fsys parameter should be an fs.FS implementation (e.g., embed.FS).
+// The root parameter specifies the root directory within the filesystem where prompts are located.
+func LoadPromptFS(r api.Registry, fsys fs.FS, root string, namespace string) {
+	if fsys == nil {
+		slog.Debug("No prompt filesystem provided, skipping loading .prompt files")
+		return
+	}
+
+	if root == "" {
+		root = "."
+	}
+
+	if _, err := fs.Stat(fsys, root); err != nil {
+		panic(fmt.Errorf("failed to access prompt directory %q in filesystem: %w", root, err))
+	}
+
+	loadPromptFS(r, fsys, root, namespace)
+}
+
+// loadPromptFS recursively loads prompts and partials from the embedded filesystem.
+func loadPromptFS(r api.Registry, fsys fs.FS, dir string, namespace string) {
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		panic(fmt.Errorf("failed to read prompt directory structure from filesystem: %w", err))
+	}
+
+	for _, entry := range entries {
+		filename := entry.Name()
+		filePath := path.Join(dir, filename)
+		if entry.IsDir() {
+			loadPromptFS(r, fsys, filePath, namespace)
+		} else if strings.HasSuffix(filename, ".prompt") {
+			if strings.HasPrefix(filename, "_") {
+				partialName := strings.TrimSuffix(filename[1:], ".prompt")
+				source, err := fs.ReadFile(fsys, filePath)
+				if err != nil {
+					slog.Error("Failed to read partial file from filesystem", "error", err)
+					continue
+				}
+				r.RegisterPartial(partialName, string(source))
+				slog.Debug("Registered Dotprompt partial from filesystem", "name", partialName, "file", filePath)
+			} else {
+				LoadPromptFromFS(r, fsys, dir, filename, namespace)
+			}
+		}
+	}
+}
+
+// LoadPromptFromFS loads a single prompt from an embedded filesystem into the registry.
+func LoadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace string) Prompt {
+	name := strings.TrimSuffix(filename, ".prompt")
+	name, variant, _ := strings.Cut(name, ".")
+
+	sourceFile := path.Join(dir, filename)
+	source, err := fs.ReadFile(fsys, sourceFile)
+	if err != nil {
+		slog.Error("Failed to read prompt file from filesystem", "file", sourceFile, "error", err)
+		return nil
+	}
+
+	return loadPromptFromSource(r, sourceFile, name, variant, namespace, source)
+}
+
 // LoadPrompt loads a single prompt into the registry.
 func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
@@ -586,6 +652,11 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		return nil
 	}
 
+	return loadPromptFromSource(r, sourceFile, name, variant, namespace, source)
+}
+
+// loadPromptFromSource parses and registers a prompt from its source content.
+func loadPromptFromSource(r api.Registry, sourceFile, name, variant, namespace string, source []byte) Prompt {
 	dp := r.Dotprompt()
 
 	parsedPrompt, err := dp.Parse(string(source))
@@ -696,12 +767,10 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 
 	promptOpts := []PromptOption{opts}
 
-	// Add system prompt if found
 	if systemText != "" {
 		promptOpts = append(promptOpts, WithSystem(systemText))
 	}
 
-	// If there are non-system messages, use WithMessages, otherwise use WithPrompt for template
 	if len(nonSystemMessages) > 0 {
 		promptOpts = append(promptOpts, WithMessages(nonSystemMessages...))
 	} else if systemText == "" {

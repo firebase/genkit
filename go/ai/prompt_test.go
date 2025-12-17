@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
@@ -1147,6 +1148,122 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 	// Verify that no prompts were registered
 	if prompt := LookupPrompt(reg, "example"); prompt != nil {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
+	}
+}
+
+func TestLoadPromptFS(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+input:
+  schema:
+    type: object
+    properties:
+      name:
+        type: string
+output:
+  format: text
+  schema:
+    type: string
+---
+
+Hello, {{name}}!
+`
+	mockPartialContent := `Welcome {{name}}!`
+
+	fsys := fstest.MapFS{
+		"prompts/example.prompt":    &fstest.MapFile{Data: []byte(mockPromptContent)},
+		"prompts/sub/nested.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+		"prompts/_greeting.prompt":  &fstest.MapFile{Data: []byte(mockPartialContent)},
+	}
+
+	reg := registry.New()
+
+	LoadPromptFS(reg, fsys, "prompts", "test-namespace")
+
+	prompt := LookupPrompt(reg, "test-namespace/example")
+	if prompt == nil {
+		t.Fatalf("Prompt 'test-namespace/example' was not registered")
+	}
+
+	nestedPrompt := LookupPrompt(reg, "test-namespace/nested")
+	if nestedPrompt == nil {
+		t.Fatalf("Nested prompt 'test-namespace/nested' was not registered")
+	}
+}
+
+func TestLoadPromptFS_WithVariant(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt with variant
+---
+
+Hello from variant!
+`
+
+	fsys := fstest.MapFS{
+		"prompts/greeting.experimental.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+	}
+
+	reg := registry.New()
+
+	LoadPromptFS(reg, fsys, "prompts", "")
+
+	prompt := LookupPrompt(reg, "greeting.experimental")
+	if prompt == nil {
+		t.Fatalf("Prompt with variant 'greeting.experimental' was not registered")
+	}
+}
+
+func TestLoadPromptFS_NilFS(t *testing.T) {
+	reg := registry.New()
+
+	LoadPromptFS(reg, nil, "prompts", "test-namespace")
+
+	if prompt := LookupPrompt(reg, "test-namespace/example"); prompt != nil {
+		t.Fatalf("Prompt should not have been registered with nil filesystem")
+	}
+}
+
+func TestLoadPromptFS_InvalidRoot(t *testing.T) {
+	fsys := fstest.MapFS{
+		"other/example.prompt": &fstest.MapFile{Data: []byte("test")},
+	}
+
+	reg := registry.New()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic for invalid root directory")
+		}
+	}()
+
+	LoadPromptFS(reg, fsys, "nonexistent", "test-namespace")
+}
+
+func TestLoadPromptFromFS(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A single prompt test
+---
+
+Test content
+`
+
+	fsys := fstest.MapFS{
+		"prompts/single.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+	}
+
+	reg := registry.New()
+
+	prompt := LoadPromptFromFS(reg, fsys, "prompts", "single.prompt", "ns")
+	if prompt == nil {
+		t.Fatalf("LoadPromptFromFS failed to load prompt")
+	}
+
+	lookedUp := LookupPrompt(reg, "ns/single")
+	if lookedUp == nil {
+		t.Fatalf("Prompt 'ns/single' was not registered")
 	}
 }
 
