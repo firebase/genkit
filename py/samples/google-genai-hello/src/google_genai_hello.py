@@ -42,7 +42,7 @@ Key features demonstrated in this sample:
 
 """
 
-import os
+import argparse
 
 import structlog
 from pydantic import BaseModel, Field
@@ -69,7 +69,7 @@ from genkit.types import (
 )
 
 logger = structlog.get_logger(__name__)
-add_gcp_telemetry()
+
 
 ai = Genkit(
     plugins=[
@@ -340,4 +340,13 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Google GenAI Hello Sample')
+    parser.add_argument(
+        '--enable-gcp-telemetry',
+        action='store_true',
+        help='Enable Google Cloud Platform telemetry',
+    )
+    args = parser.parse_args()
+    if args.enable_gcp_telemetry:
+        add_gcp_telemetry()
     ai.run_main(main())
