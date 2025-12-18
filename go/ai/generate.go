@@ -389,7 +389,18 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return resp, nil
 			}
 
-			return generate(ctx, newReq, currentTurn+1, currentIndex+1)
+			finalResp, err := generate(ctx, newReq, currentTurn+1, currentIndex+1)
+			if err != nil {
+				return nil, err
+			}
+
+			if finalResp.Message != nil && resp.Message != nil {
+				var reasoningParts []*Part
+				reasoningParts = append(reasoningParts, resp.Message.Content...)
+				finalResp.Message.Content = append(reasoningParts, finalResp.Message.Content...)
+			}
+			return finalResp, nil
+			// return generate(ctx, newReq, currentTurn+1, currentIndex+1)
 		})
 	}
 
