@@ -485,14 +485,12 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 				errorResponse.Details.TraceID = &resp.Telemetry.TraceID
 			}
 
-			if !headersSent {
-				w.WriteHeader(errorResponse.Code)
-			}
 			reflectErr, err := json.Marshal(errorResponse)
 			if err != nil {
 				logger.FromContext(ctx).Error("writing output", "err", err)
 				return nil
 			}
+
 			_, err = fmt.Fprintf(w, "{\"error\": %s }", reflectErr)
 			if err != nil {
 				return err

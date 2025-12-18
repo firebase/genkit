@@ -750,7 +750,6 @@ export class RuntimeManager {
       // we got a non-200 response; copy the payload and rethrow
       newError.data = error.response.data as GenkitError;
       newError.stack = (error.response?.data as any).message;
-      console.log('error.response?.data ', error.response?.data);
       if ((error.response?.data as any).message) {
         newError.data.data = {
           ...newError.data.data,
