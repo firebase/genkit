@@ -1008,7 +1008,10 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         'type': 'prompt',
         'lazy': True,
         'source': 'file',
-        '_async_factory': create_prompt_from_file,
+        'prompt': {
+            'name': name,
+            'variant': variant or '',
+        },
     }
 
     # Create two separate action functions :

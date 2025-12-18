@@ -17,6 +17,7 @@
 """Base/shared implementation for Genkit user-facing API."""
 
 import asyncio
+import os
 import threading
 from collections.abc import Coroutine
 from http.server import HTTPServer
@@ -39,6 +40,9 @@ logger = structlog.get_logger(__name__)
 
 T = TypeVar('T')
 
+_instance_count = -1
+_instance_lock = threading.Lock()
+
 
 class GenkitBase(GenkitRegistry):
     """Base class with shared infra for Genkit instances (sync and async)."""
@@ -58,6 +62,11 @@ class GenkitBase(GenkitRegistry):
                 server.
         """
         super().__init__()
+        global _instance_count
+        global _instance_lock
+        with _instance_lock:
+            _instance_count += 1
+            self.id = f'{os.getpid()}-{_instance_count}'
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
         define_generate_action(self.registry)
@@ -165,10 +174,10 @@ class GenkitBase(GenkitRegistry):
         """
         httpd = HTTPServer(
             (spec.host, spec.port),
-            make_reflection_server(registry=self.registry, loop=loop),
+            make_reflection_server(registry=self.registry, loop=loop, id=self.id),
         )
         # We need to write the runtime file closest to the point of starting up
         # the server to avoid race conditions with the manager's runtime
         # handler.
-        init_default_runtime(spec)
+        init_default_runtime(spec, self.id)
         httpd.serve_forever()
