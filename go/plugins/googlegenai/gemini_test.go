@@ -780,18 +780,18 @@ func TestToGeminiParts_SimpleToolResponse(t *testing.T) {
 		Name:   "search",
 		Output: map[string]any{"result": "foo"},
 	}
-	
+
 	part := ai.NewToolResponsePart(toolResp)
-	
+
 	geminiParts, err := toGeminiParts([]*ai.Part{part})
 	if err != nil {
 		t.Fatalf("toGeminiParts failed: %v", err)
 	}
-	
+
 	if len(geminiParts) != 1 {
 		t.Fatalf("expected 1 Gemini part, got %d", len(geminiParts))
 	}
-	
+
 	if geminiParts[0].FunctionResponse == nil {
 		t.Error("expected part to be FunctionResponse")
 	}
