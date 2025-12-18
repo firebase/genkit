@@ -279,10 +279,7 @@ func (p *prompt) ExecuteStream(ctx context.Context, opts ...PromptExecuteOption)
 			return nil
 		}
 
-		allOpts := make([]PromptExecuteOption, 0, len(opts)+1)
-		allOpts = append(allOpts, opts...)
-		allOpts = append(allOpts, WithStreaming(cb))
-
+		allOpts := append(slices.Clone(opts), WithStreaming(cb))
 		resp, err := p.Execute(ctx, allOpts...)
 		if err != nil {
 			yield(nil, err)
@@ -879,7 +876,6 @@ func DefineDataPrompt[In, Out any](r api.Registry, name string, opts ...PromptOp
 	}
 
 	allOpts = append(allOpts, opts...)
-
 	p := DefinePrompt(r, name, allOpts...)
 
 	return &DataPrompt[In, Out]{prompt: *p.(*prompt)}
@@ -911,7 +907,6 @@ func (dp *DataPrompt[In, Out]) Execute(ctx context.Context, input In, opts ...Pr
 	}
 
 	allOpts := append(slices.Clone(opts), WithInput(input))
-
 	resp, err := dp.prompt.Execute(ctx, allOpts...)
 	if err != nil {
 		return base.Zero[Out](), nil, err
@@ -961,7 +956,6 @@ func (dp *DataPrompt[In, Out]) ExecuteStream(ctx context.Context, input In, opts
 		}
 
 		allOpts := append(slices.Clone(opts), WithInput(input), WithStreaming(cb))
-
 		resp, err := dp.prompt.Execute(ctx, allOpts...)
 		if err != nil {
 			yield(nil, err)
