@@ -707,19 +707,8 @@ func TestValidToolName(t *testing.T) {
 	}
 }
 
-// genToolName generates a string of a specified length using only
-// the valid characters for a Gemini Tool name
-func genToolName(length int, chars string) string {
-	r := make([]byte, length)
-
-	for i := range length {
-		r[i] = chars[i%len(chars)]
-	}
-	return string(r)
-}
-
 func TestToGeminiParts_MultipartToolResponse(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+	t.Run("ValidPartType", func(t *testing.T) {
 		// Create a tool response with both output and additional content (media)
 		toolResp := &ai.ToolResponse{
 			Name:   "generateImage",
@@ -729,12 +718,10 @@ func TestToGeminiParts_MultipartToolResponse(t *testing.T) {
 			},
 		}
 
-		// Create an ai.Part wrapping the tool response
+		// create a mock ToolResponsePart, setting "multipart" to true is required
 		part := ai.NewToolResponsePart(toolResp)
-		// CRITICAL: Set the multipart metadata
 		part.Metadata = map[string]any{"multipart": true}
 
-		// Convert to Gemini parts
 		geminiParts, err := toGeminiParts([]*ai.Part{part})
 		if err != nil {
 			t.Fatalf("toGeminiParts failed: %v", err)
@@ -745,7 +732,6 @@ func TestToGeminiParts_MultipartToolResponse(t *testing.T) {
 			t.Fatalf("expected 1 Gemini part, got %d", len(geminiParts))
 		}
 
-		// Check first part (FunctionResponse)
 		if geminiParts[0].FunctionResponse == nil {
 			t.Error("expected first part to be FunctionResponse")
 		}
@@ -754,7 +740,7 @@ func TestToGeminiParts_MultipartToolResponse(t *testing.T) {
 		}
 	})
 
-	t.Run("Fail_UnsupportedPartType", func(t *testing.T) {
+	t.Run("UnsupportedPartType", func(t *testing.T) {
 		// Create a tool response with text content (unsupported for multipart)
 		toolResp := &ai.ToolResponse{
 			Name:   "generateText",
@@ -795,4 +781,15 @@ func TestToGeminiParts_SimpleToolResponse(t *testing.T) {
 	if geminiParts[0].FunctionResponse == nil {
 		t.Error("expected part to be FunctionResponse")
 	}
+}
+
+// genToolName generates a string of a specified length using only
+// the valid characters for a Gemini Tool name
+func genToolName(length int, chars string) string {
+	r := make([]byte, length)
+
+	for i := range length {
+		r[i] = chars[i%len(chars)]
+	}
+	return string(r)
 }

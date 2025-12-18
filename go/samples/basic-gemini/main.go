@@ -34,7 +34,7 @@ func main() {
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Define a multipart tool.
-	// This simulates a tool that "generates" an invitation card and returns content (description)
+	// This simulates a tool that "generates" an invitation card
 	invitationTool := genkit.DefineMultipartTool(g, "createInvitationCard", "Creates a greeting card",
 		func(ctx *ai.ToolContext, input struct {
 			Name     string `json:"name"`
@@ -46,7 +46,6 @@ func main() {
 			return &ai.MultipartToolResponse{
 				Output: map[string]any{"success": true},
 				Content: []*ai.Part{
-					// ai.NewTextPart(fmt.Sprintf("I created an invitation card for %s for their %s. It features a beautiful rectangle.", input.Name, input.Occasion)),
 					ai.NewMediaPart("image/png", rectangle),
 				},
 			}, nil
@@ -54,11 +53,11 @@ func main() {
 	)
 
 	type InvitationCard struct {
-		Ocassion string `json:"occasion"`
+		Occasion string `json:"occasion"`
 	}
 
 	// Define a simple flow that uses the multipart tool
-	genkit.DefineStreamingFlow(g, "cardFlow", func(ctx context.Context, input InvitationCard, cb ai.ModelStreamCallback) (string, error) {
+	genkit.DefineStreamingFlow(g, "cardFlow", func(ctx context.Context, input InvitationCard, cb ai.ModelStreamCallback) ([]string, error) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-3-pro-preview"),
 			ai.WithConfig(&genai.GenerateContentConfig{
@@ -69,13 +68,27 @@ func main() {
 			}),
 			ai.WithTools(invitationTool),
 			ai.WithStreaming(cb),
-			ai.WithPrompt(fmt.Sprintf("Create an invitation card for the following ocassion: %s. Create one for Alex and another one for Pavel. Describe what you made.", input.Ocassion)),
+			ai.WithPrompt(fmt.Sprintf("Create an invitation card for the following ocassion: %s. Create one for Alex and another one for Pavel", input.Occasion)),
 		)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		return resp.Text(), nil
+		invitations := []string{}
+		for _, m := range resp.History() {
+			if m.Role == ai.RoleTool {
+				for _, p := range m.Content {
+					if p.IsToolResponse() {
+						for _, contentPart := range p.ToolResponse.Content {
+							if contentPart.IsMedia() {
+								invitations = append(invitations, contentPart.Text)
+							}
+						}
+					}
+				}
+			}
+		}
+		return invitations, nil
 	})
 
 	<-ctx.Done()
