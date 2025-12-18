@@ -783,23 +783,24 @@ func (mr *ModelResponse) Output(v any) error {
 		return errors.New("no content in response")
 	}
 
-	if mr.formatHandler != nil {
-		output, err := mr.formatHandler.ParseOutput(mr.Message)
-		if err != nil {
-			return err
-		}
-
-		b, err := json.Marshal(output)
-		if err != nil {
-			return fmt.Errorf("failed to marshal output: %w", err)
-		}
-		if err := json.Unmarshal(b, v); err != nil {
-			return fmt.Errorf("failed to unmarshal output: %w", err)
-		}
+	if mr.formatHandler == nil {
+		// For backward compatibility, extract JSON from the response text.
+		return json.Unmarshal([]byte(base.ExtractJSONFromMarkdown(mr.Message.Text())), v)
 	}
 
-	// For backward compatibility, extract JSON from the response text.
-	return json.Unmarshal([]byte(base.ExtractJSONFromMarkdown(mr.Message.Text())), v)
+	output, err := mr.formatHandler.ParseOutput(mr.Message)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal output: %w", err)
+	}
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
 }
 
 // ToolRequests returns the tool requests from the response.
