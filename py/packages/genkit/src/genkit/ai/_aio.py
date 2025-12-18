@@ -20,6 +20,7 @@ To use Genkit in your application, construct an instance of the `Genkit`
 class while customizing it with any plugins.
 """
 
+import uuid
 from asyncio import Future
 from collections.abc import AsyncIterator
 from typing import Any
@@ -27,6 +28,7 @@ from typing import Any
 from genkit.aio import Channel
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
+from genkit.blocks.evaluator import EvaluatorRef
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -37,9 +39,17 @@ from genkit.blocks.model import (
     ModelMiddleware,
 )
 from genkit.blocks.prompt import PromptConfig, to_generate_action_options
+from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
-from genkit.core.typing import EmbedRequest, EmbedResponse
+from genkit.core.typing import (
+    BaseDataPoint,
+    BaseEvalDataPoint,
+    EmbedRequest,
+    EmbedResponse,
+    EvalRequest,
+    EvalResponse,
+)
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -294,63 +304,75 @@ class Genkit(GenkitBase):
 
         return stream, stream.closed
 
-    async def embed(
-        self,
-        embedder: str | EmbedderRef | None = None,
-        documents: list[Document] | None = None,
-        options: dict[str, Any] | None = None,
-    ) -> EmbedResponse:
-        embedder_name: str
-        embedder_config: dict[str, Any] = {}
-        """Calculates embeddings for documents.
-
-        Args:
-            embedder: Optional embedder model name to use.
-            documents: Texts to embed.
-            options: embedding options
-
-        Returns:
-            The generated response with embeddings.
-        """
-        if isinstance(embedder, EmbedderRef):
-            embedder_name = embedder.name
-            embedder_config = embedder.config or {}
-            if embedder.version:
-                embedder_config['version'] = embedder.version  # Handle version from ref
-        elif isinstance(embedder, str):
-            embedder_name = embedder
-        else:
-            # Handle case where embedder is None
-            raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
-
-        # Merge options passed to embed() with config from EmbedderRef
-        final_options = {**(embedder_config or {}), **(options or {})}
-        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder_name)
-
-        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
-
     async def retrieve(
         self,
-        retriever: str | None = None,
+        retriever: str | RetrieverRef | None = None,
         query: str | DocumentData | None = None,
         options: dict[str, Any] | None = None,
     ) -> RetrieverResponse:
         """Retrieves documents based on query.
 
         Args:
-            retriever: Optional retriever name to use.
+            retriever: Optional retriever name or reference to use.
             query: Text query or a DocumentData containing query text.
             options: retriever options
 
         Returns:
-            The generated response with embeddings.
+            The generated response with documents.
         """
+        retriever_name: str
+        retriever_config: dict[str, Any] = {}
+
+        if isinstance(retriever, RetrieverRef):
+            retriever_name = retriever.name
+            retriever_config = retriever.config or {}
+            if retriever.version:
+                retriever_config['version'] = retriever.version
+        elif isinstance(retriever, str):
+            retriever_name = retriever
+        else:
+            raise ValueError('Retriever must be specified as a string name or a RetrieverRef.')
+
         if isinstance(query, str):
             query = Document.from_text(query)
 
-        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever)
+        final_options = {**(retriever_config or {}), **(options or {})}
 
-        return (await retrieve_action.arun(RetrieverRequest(query=query, options=options))).response
+        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever_name)
+
+        return (await retrieve_action.arun(RetrieverRequest(query=query, options=final_options))).response
+
+    async def index(
+        self,
+        indexer: str | IndexerRef | None = None,
+        documents: list[Document] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> None:
+        """Indexes documents.
+
+        Args:
+            indexer: Optional indexer name or reference to use.
+            documents: Documents to index.
+            options: indexer options
+        """
+        indexer_name: str
+        indexer_config: dict[str, Any] = {}
+
+        if isinstance(indexer, IndexerRef):
+            indexer_name = indexer.name
+            indexer_config = indexer.config or {}
+            if indexer.version:
+                indexer_config['version'] = indexer.version
+        elif isinstance(indexer, str):
+            indexer_name = indexer
+        else:
+            raise ValueError('Indexer must be specified as a string name or an IndexerRef.')
+
+        final_options = {**(indexer_config or {}), **(options or {})}
+
+        index_action = self.registry.lookup_action(ActionKind.INDEXER, indexer_name)
+
+        await index_action.arun(IndexerRequest(documents=documents, options=final_options))
 
     async def embed(
         self,
@@ -378,3 +400,49 @@ class Genkit(GenkitBase):
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder_name)
 
         return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
+
+    async def evaluate(
+        self,
+        evaluator: str | EvaluatorRef | None = None,
+        dataset: list[BaseDataPoint] | None = None,
+        options: Any | None = None,
+        eval_run_id: str | None = None,
+    ) -> EvalResponse:
+        """Evaluates a dataset using an evaluator.
+
+        Args:
+            evaluator: Name or reference of the evaluator to use.
+            dataset: Dataset to evaluate.
+            options: Evaluation options.
+            eval_run_id: Optional ID for the evaluation run.
+
+        Returns:
+            The evaluation results.
+        """
+        evaluator_name: str = ''
+        evaluator_config: dict[str, Any] = {}
+
+        if isinstance(evaluator, EvaluatorRef):
+            evaluator_name = evaluator.name
+            evaluator_config = evaluator.config_schema or {}
+        elif isinstance(evaluator, str):
+            evaluator_name = evaluator
+        else:
+            raise ValueError('Evaluator must be specified as a string name or an EvaluatorRef.')
+
+        final_options = {**(evaluator_config or {}), **(options or {})}
+
+        eval_action = self.registry.lookup_action(ActionKind.EVALUATOR, evaluator_name)
+
+        if not eval_run_id:
+            eval_run_id = str(uuid.uuid4())
+
+        return (
+            await eval_action.arun(
+                EvalRequest(
+                    dataset=dataset,
+                    options=final_options,
+                    eval_run_id=eval_run_id,
+                )
+            )
+        ).response

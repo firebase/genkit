@@ -734,20 +734,12 @@ func clone[T any](obj *T) *T {
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
 func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int) (*ModelRequest, *Message, error) {
-	toolCount := 0
-	if resp.Message != nil {
-		for _, part := range resp.Message.Content {
-			if part.IsToolRequest() {
-				toolCount++
-			}
-		}
-	}
-
+	toolCount := len(resp.ToolRequests())
 	if toolCount == 0 {
 		return nil, nil, nil
 	}
 
-	resultChan := make(chan result[any])
+	resultChan := make(chan result[*MultipartToolResponse])
 	toolMsg := &Message{Role: RoleTool}
 	revisedMsg := clone(resp.Message)
 
@@ -760,11 +752,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 			toolReq := p.ToolRequest
 			tool := LookupTool(r, p.ToolRequest.Name)
 			if tool == nil {
-				resultChan <- result[any]{idx, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
+				resultChan <- result[*MultipartToolResponse]{index: idx, err: core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
 				return
 			}
 
-			output, err := tool.RunRaw(ctx, toolReq.Input)
+			multipartResp, err := tool.RunRawMultipart(ctx, toolReq.Input)
 			if err != nil {
 				var tie *toolInterruptError
 				if errors.As(err, &tie) {
@@ -782,11 +774,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 					revisedMsg.Content[idx] = newPart
 
-					resultChan <- result[any]{idx, nil, tie}
+					resultChan <- result[*MultipartToolResponse]{index: idx, err: tie}
 					return
 				}
 
-				resultChan <- result[any]{idx, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
+				resultChan <- result[*MultipartToolResponse]{index: idx, err: core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
 				return
 			}
 
@@ -794,10 +786,10 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 			if newPart.Metadata == nil {
 				newPart.Metadata = make(map[string]any)
 			}
-			newPart.Metadata["pendingOutput"] = output
+			newPart.Metadata["pendingOutput"] = multipartResp.Output
 			revisedMsg.Content[idx] = newPart
 
-			resultChan <- result[any]{idx, output, nil}
+			resultChan <- result[*MultipartToolResponse]{index: idx, value: multipartResp}
 		}(i, part)
 	}
 
@@ -817,9 +809,10 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 		toolReq := revisedMsg.Content[res.index].ToolRequest
 		toolResps = append(toolResps, NewToolResponsePart(&ToolResponse{
-			Name:   toolReq.Name,
-			Ref:    toolReq.Ref,
-			Output: res.value,
+			Name:    toolReq.Name,
+			Ref:     toolReq.Ref,
+			Output:  res.value.Output,
+			Content: res.value.Content,
 		}))
 	}
 
@@ -885,25 +878,28 @@ func (mr *ModelResponse) Reasoning() string {
 // If a format handler is set, it uses the handler's ParseOutput method.
 // Otherwise, it falls back to parsing the response text as JSON.
 func (mr *ModelResponse) Output(v any) error {
-	if mr == nil || mr.Message == nil || len(mr.Message.Content) == 0 {
+	if mr.Message == nil || len(mr.Message.Content) == 0 {
 		return errors.New("no content in response")
 	}
 
-	if mr.formatHandler != nil {
-		output, err := mr.formatHandler.ParseOutput(mr.Message)
-		if err != nil {
-			return err
-		}
-
-		b, err := json.Marshal(output)
-		if err != nil {
-			return fmt.Errorf("failed to marshal output: %w", err)
-		}
-		return json.Unmarshal(b, v)
+	if mr.formatHandler == nil {
+		// For backward compatibility, extract JSON from the response text.
+		return json.Unmarshal([]byte(base.ExtractJSONFromMarkdown(mr.Message.Text())), v)
 	}
 
-	// For backward compatibility, extract JSON from the response text.
-	return json.Unmarshal([]byte(base.ExtractJSONFromMarkdown(mr.Message.Text())), v)
+	output, err := mr.formatHandler.ParseOutput(mr.Message)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal output: %w", err)
+	}
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
 }
 
 // ToolRequests returns the tool requests from the response.
@@ -997,7 +993,10 @@ func (c *ModelResponseChunk) Output(v any) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal chunk output: %w", err)
 	}
-	return json.Unmarshal(b, v)
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
 }
 
 // outputer is an interface for types that can unmarshal structured output.

@@ -37,7 +37,7 @@ jobs:
           - "3.13"
           #- "pypy-3.10" # TODO: Fix build failures.
           #- "pypy-3.11" # TODO: Fix build failures.
-          #- "3.14" # TODO: This still fails.
+          - "3.14"
       fail-fast: false
 
     steps:
@@ -46,7 +46,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev cmake curl ripgrep
+          sudo apt-get install -y build-essential libffi-dev cmake curl ripgrep libjpeg-dev zlib1g-dev
 
       - name: Set up Go
         uses: actions/setup-go@main

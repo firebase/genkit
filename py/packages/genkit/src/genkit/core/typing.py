@@ -33,7 +33,7 @@ else:  # noqa
     from enum import StrEnum  # noqa
 
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -58,7 +58,7 @@ class BaseDataPoint(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     input: Any | None = None
     output: Any | None = None
-    context: list | None = None
+    context: list[Any] | None = None
     reference: Any | None = None
     test_case_id: str | None = Field(None, alias='testCaseId')
     trace_ids: list[str] | None = Field(None, alias='traceIds')
@@ -74,7 +74,7 @@ class EvalRequest(BaseModel):
 
 
 class EvalStatusEnum(StrEnum):
-    """Enumeration of evalstatusenum values."""
+    """EvalStatusEnum data type class."""
 
     UNKNOWN = 'UNKNOWN'
     PASS_ = 'PASS'
@@ -126,7 +126,7 @@ class GenkitError(BaseModel):
 
 
 class Code(StrEnum):
-    """Enumeration of code values."""
+    """Code data type class."""
 
     BLOCKED = 'blocked'
     OTHER = 'other'
@@ -158,7 +158,7 @@ class CustomPart(BaseModel):
 
 
 class FinishReason(StrEnum):
-    """Enumeration of finishreason values."""
+    """FinishReason data type class."""
 
     STOP = 'stop'
     LENGTH = 'length'
@@ -169,7 +169,7 @@ class FinishReason(StrEnum):
 
 
 class ToolChoice(StrEnum):
-    """Enumeration of toolchoice values."""
+    """ToolChoice data type class."""
 
     AUTO = 'auto'
     REQUIRED = 'required'
@@ -220,7 +220,7 @@ class GenerationUsage(BaseModel):
 
 
 class Constrained(StrEnum):
-    """Enumeration of constrained values."""
+    """Constrained data type class."""
 
     NONE = 'none'
     ALL = 'all'
@@ -244,7 +244,7 @@ class Supports(BaseModel):
 
 
 class Stage(StrEnum):
-    """Enumeration of stage values."""
+    """Stage data type class."""
 
     FEATURED = 'featured'
     STABLE = 'stable'
@@ -301,7 +301,7 @@ class Resource1(BaseModel):
 
 
 class Role(StrEnum):
-    """Enumeration of role values."""
+    """Role data type class."""
 
     SYSTEM = 'system'
     USER = 'user'
@@ -349,7 +349,7 @@ class ToolResponse(BaseModel):
     ref: str | None = None
     name: str
     output: Any | None = None
-    content: list | None = None
+    content: list[Any] | None = None
 
 
 class CommonRerankerOptions(BaseModel):
@@ -410,7 +410,7 @@ class SameProcessAsParentSpan(BaseModel):
 
 
 class State(StrEnum):
-    """Enumeration of state values."""
+    """State data type class."""
 
     SUCCESS = 'success'
     ERROR = 'error'
@@ -462,10 +462,10 @@ class TraceMetadata(BaseModel):
     timestamp: float
 
 
-class Context(RootModel[list]):
+class Context(RootModel[list[Any]]):
     """Root model for context."""
 
-    root: list
+    root: list[Any]
 
 
 class Input(RootModel[Any]):
@@ -504,10 +504,10 @@ class MediaModel(RootModel[Any]):
     root: Any
 
 
-class Metadata(RootModel[dict[str, Any] | None]):
+class Metadata(RootModel[dict[str, Any]]):
     """Root model for metadata."""
 
-    root: dict[str, Any] | None = None
+    root: dict[str, Any]
 
 
 class Reasoning(RootModel[Any]):
@@ -540,10 +540,10 @@ class ToolResponseModel(RootModel[Any]):
     root: Any
 
 
-class Custom(RootModel[dict[str, Any] | None]):
+class Custom(RootModel[dict[str, Any]]):
     """Root model for custom."""
 
-    root: dict[str, Any] | None = None
+    root: dict[str, Any]
 
 
 class Config(RootModel[Any]):
@@ -604,6 +604,12 @@ class Index(RootModel[float]):
     """Root model for index."""
 
     root: float
+
+
+class TraceId(RootModel[str]):
+    """Root model for traceid."""
+
+    root: str
 
 
 class EmbedResponse(BaseModel):
@@ -783,6 +789,32 @@ class SpanData(BaseModel):
     truncated: bool | None = None
 
 
+class SpanEndEvent(BaseModel):
+    """Model for spanendevent data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: str = Field(..., alias='traceId')
+    span: SpanData
+    type: Literal['span_end']
+
+
+class SpanStartEvent(BaseModel):
+    """Model for spanstartevent data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
+    span: SpanData
+    type: Literal['span_start']
+
+
+class SpantEventBase(BaseModel):
+    """Model for spanteventbase data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
+    span: SpanData
+
+
 class TraceData(BaseModel):
     """Model for tracedata data."""
 
@@ -794,6 +826,12 @@ class TraceData(BaseModel):
     )
     end_time: float | None = Field(None, alias='endTime', description='end time in milliseconds since the epoch')
     spans: dict[str, SpanData]
+
+
+class TraceEvent(RootModel[SpanStartEvent | SpanEndEvent]):
+    """Root model for traceevent."""
+
+    root: SpanStartEvent | SpanEndEvent
 
 
 class DocumentPart(RootModel[TextPart | MediaPart]):
