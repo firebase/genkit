@@ -396,8 +396,22 @@ class GenkitRegistry:
                                 raise e
                     except (AttributeError, UnboundLocalError):
                         # Fallback: run without span
-                        test_case_output = await fn(datapoint, req.options)
-                        eval_responses.append(test_case_output)
+                        try:
+                            test_case_output = await fn(datapoint, req.options)
+                            eval_responses.append(test_case_output)
+                        except Exception as e:
+                            logger.debug(f'eval_stepper_fn error: {str(e)}')
+                            logger.debug(traceback.format_exc())
+                            evaluation = Score(
+                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                status=EvalStatusEnum.FAIL,
+                            )
+                            eval_responses.append(
+                                EvalFnResponse(
+                                    test_case_id=datapoint.test_case_id,
+                                    evaluation=evaluation,
+                                )
+                            )
                 except Exception:
                     # Continue to process other points
                     continue

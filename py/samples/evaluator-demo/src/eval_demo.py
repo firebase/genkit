@@ -80,18 +80,5 @@ async def run_eval_demo(input: Any = None):
 
     return results
 
-
-# @pytest.mark.asyncio
-# async def test_eval_demo():
-#     results = await run_eval_demo()
-#     assert len(results.root) == 3
-#     for res in results.root:
-#         # Based on our dataset, all current cases should pass
-#         evaluation = res.evaluation[0] if isinstance(res.evaluation, list) else res.evaluation
-#         assert evaluation.score is True
-#
-# async def main():
-#     await run_eval_demo()
-
 if __name__ == '__main__':
     ai.run_main()

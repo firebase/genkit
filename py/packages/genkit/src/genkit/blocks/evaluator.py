@@ -62,4 +62,4 @@ def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
     Returns:
         An EvaluatorRef instance.
     """
-    return EvaluatorRef(name=name, configSchema=config_schema)
+    return EvaluatorRef(name=name, config_schema=config_schema)
