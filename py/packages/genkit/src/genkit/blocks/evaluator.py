@@ -27,7 +27,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from genkit.core.typing import (
-    BaseEvalDataPoint,
+    BaseDataPoint,
     EvalFnResponse,
     EvalRequest,
 )
@@ -35,8 +35,8 @@ from genkit.core.typing import (
 T = TypeVar('T')
 
 # User-provided evaluator function that evaluates a single datapoint.
-# type EvaluatorFn[T] = Callable[[BaseEvalDataPoint, T], EvalFnResponse]
-EvaluatorFn = Callable[[BaseEvalDataPoint, T], EvalFnResponse]
+# type EvaluatorFn[T] = Callable[[BaseDataPoint, T], EvalFnResponse]
+EvaluatorFn = Callable[[BaseDataPoint, T], EvalFnResponse]
 
 # User-provided batch evaluator function that evaluates an EvaluationRequest
 # type BatchEvaluatorFn[T] = Callable[[EvalRequest, T], list[EvalFnResponse]]
