@@ -1,0 +1,9 @@
+---
+model: googleai/gemini-1.5-flash
+input:
+  schema:
+    name: string
+---
+
+This is a nested prompt, hello {{name}}!
+{{> shared_partial}}
