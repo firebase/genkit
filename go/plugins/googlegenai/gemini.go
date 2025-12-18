@@ -964,16 +964,21 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 				"content": toolResp.Output,
 			}
 		}
+
+		var isMultipart bool
 		if multiPart, ok := p.Metadata["multipart"].(bool); ok {
-			if multiPart {
-				toolRespParts, err := toGeminiFunctionResponsePart(toolResp.Content)
-				if err != nil {
-					return nil, err
-				}
-				return genai.NewPartFromFunctionResponseWithParts(toolResp.Name, output, toolRespParts), nil
-			}
+			isMultipart = multiPart
 		}
-		fmt.Printf("tool response: %#v\n", toolResp.Content)
+		if len(toolResp.Content) > 0 {
+			isMultipart = true
+		}
+		if isMultipart {
+			toolRespParts, err := toGeminiFunctionResponsePart(toolResp.Content)
+			if err != nil {
+				return nil, err
+			}
+			return genai.NewPartFromFunctionResponseWithParts(toolResp.Name, output, toolRespParts), nil
+		}
 		return genai.NewPartFromFunctionResponse(toolResp.Name, output), nil
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
