@@ -33,10 +33,7 @@ import {
   ImagenPredictResponse,
   ImagenPrediction,
 } from '../../src/googleai/types.js';
-import {
-  API_KEY_FALSE_ERROR,
-  MISSING_API_KEY_ERROR,
-} from '../../src/googleai/utils.js';
+import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils.js';
 
 const { toImagenParameters, fromImagenPrediction } = TEST_ONLY;
 
@@ -394,20 +391,22 @@ describe('Google AI Imagen', () => {
       assert.strictEqual(fetchArgs[1].headers['x-goog-api-key'], requestApiKey);
     });
 
-    it('apiKey false at init, missing in request - throws error', async () => {
+    it('works with apiKey false at init, missing in request', async () => {
+      mockFetchResponse({
+        predictions: [{ bytesBase64Encoded: 'jkl', mimeType: 'image/png' }],
+      });
       const modelRunner = captureModelRunner({ apiKey: false });
 
-      await assert.rejects(
-        modelRunner(
+      assert.ok(
+        await modelRunner(
           {
             messages: [{ role: 'user', content: [{ text: 'A car' }] }],
             config: {},
           },
           {}
-        ),
-        API_KEY_FALSE_ERROR
+        )
       );
-      sinon.assert.notCalled(fetchStub);
+      sinon.assert.calledOnce(fetchStub);
     });
 
     it('defineImagenModel throws if key not found in env or args', async () => {

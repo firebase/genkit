@@ -111,15 +111,15 @@ func TestVertexAILive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		out := resp.Message.Content[0].Text
-		if !strings.Contains(out, "12.25") {
-			t.Errorf("got %s, expecting it to contain \"12.25\"", out)
+		if !strings.Contains(out, "11.31") {
+			t.Errorf("got %s, expecting it to contain \"11.31\"", out)
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {

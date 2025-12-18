@@ -47,12 +47,12 @@ from typing import Any, Type
 import structlog
 from pydantic import BaseModel
 
-from genkit.blocks.embedding import EmbedderFn
+from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
-from genkit.blocks.retriever import RetrieverFn
+from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
 from genkit.core.action import Action
@@ -278,6 +278,41 @@ class GenkitRegistry:
             description=retriever_description,
         )
 
+    def define_indexer(
+        self,
+        name: str,
+        fn: IndexerFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        description: str | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Define an indexer action.
+
+        Args:
+            name: Name of the indexer.
+            fn: Function implementing the indexer behavior.
+            config_schema: Optional schema for indexer configuration.
+            metadata: Optional metadata for the indexer.
+            description: Optional description for the indexer.
+        """
+        indexer_meta = metadata if metadata else {}
+
+        if 'indexer' not in indexer_meta:
+            indexer_meta['indexer'] = {}
+        if 'label' not in indexer_meta['indexer'] or not indexer_meta['indexer']['label']:
+            indexer_meta['indexer']['label'] = name
+        if config_schema:
+            indexer_meta['indexer']['customOptions'] = to_json_schema(config_schema)
+
+        indexer_description = get_func_description(fn, description)
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.INDEXER,
+            fn=fn,
+            metadata=indexer_meta,
+            description=indexer_description,
+        )
+
     def define_evaluator(
         self,
         name: str,
@@ -288,8 +323,8 @@ class GenkitRegistry:
         config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
-        """Define a evaluator action.
+    ) -> Action:
+        """Define an evaluator action.
 
         This action runs the callback function on the every sample of
         the input dataset.
@@ -329,15 +364,40 @@ class GenkitRegistry:
                     metadata={'evaluator:evalRunId': req.eval_run_id},
                 )
                 try:
-                    with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
-                        span_id = span.span_id
-                        trace_id = span.trace_id
+                    # Try to run with tracing, but fallback if tracing infrastructure fails
+                    # (e.g., in environments with NonRecordingSpans like pre-commit)
+                    try:
+                        with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
+                            span_id = span.span_id
+                            trace_id = span.trace_id
+                            try:
+                                span.set_input(datapoint)
+                                test_case_output = await fn(datapoint, req.options)
+                                test_case_output.span_id = span_id
+                                test_case_output.trace_id = trace_id
+                                span.set_output(test_case_output)
+                                eval_responses.append(test_case_output)
+                            except Exception as e:
+                                logger.debug(f'eval_stepper_fn error: {str(e)}')
+                                logger.debug(traceback.format_exc())
+                                evaluation = Score(
+                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                    status=EvalStatusEnum.FAIL,
+                                )
+                                eval_responses.append(
+                                    EvalFnResponse(
+                                        span_id=span_id,
+                                        trace_id=trace_id,
+                                        test_case_id=datapoint.test_case_id,
+                                        evaluation=evaluation,
+                                    )
+                                )
+                                # Raise to mark span as failed
+                                raise e
+                    except (AttributeError, UnboundLocalError):
+                        # Fallback: run without span
                         try:
-                            span.set_input(datapoint)
                             test_case_output = await fn(datapoint, req.options)
-                            test_case_output.span_id = span_id
-                            test_case_output.trace_id = trace_id
-                            span.set_output(test_case_output)
                             eval_responses.append(test_case_output)
                         except Exception as e:
                             logger.debug(f'eval_stepper_fn error: {str(e)}')
@@ -348,14 +408,10 @@ class GenkitRegistry:
                             )
                             eval_responses.append(
                                 EvalFnResponse(
-                                    span_id=span_id,
-                                    trace_id=trace_id,
                                     test_case_id=datapoint.test_case_id,
                                     evaluation=evaluation,
                                 )
                             )
-                            # Raise to mark span as failed
-                            raise e
                 except Exception:
                     # Continue to process other points
                     continue
@@ -458,7 +514,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        options: EmbedderOptions | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
@@ -471,12 +527,19 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata if metadata else {}
+        embedder_meta: dict[str, Any] = metadata or {}
         if 'embedder' not in embedder_meta:
             embedder_meta['embedder'] = {}
 
-        if config_schema:
-            embedder_meta['embedder']['customOptions'] = to_json_schema(config_schema)
+        if options:
+            if options.label:
+                embedder_meta['embedder']['label'] = options.label
+            if options.dimensions:
+                embedder_meta['embedder']['dimensions'] = options.dimensions
+            if options.supports:
+                embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+            if options.config_schema:
+                embedder_meta['embedder']['customOptions'] = to_json_schema(options.config_schema)
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -565,6 +628,38 @@ class GenkitRegistry:
             tools=tools,
             tool_choice=tool_choice,
             use=use,
+        )
+
+    async def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+    ):
+        """Look up a prompt by name and optional variant.
+
+        This matches the JavaScript prompt() function behavior.
+
+        Can look up prompts that were:
+        1. Defined programmatically using define_prompt()
+        2. Loaded from .prompt files using load_prompt_folder()
+
+        Args:
+            registry: The registry to look up the prompt from.
+            name: The name of the prompt.
+            variant: Optional variant name.
+            dir: Optional directory parameter (accepted for compatibility but not used).
+
+        Returns:
+            An ExecutablePrompt instance.
+
+        Raises:
+            GenkitError: If the prompt is not found.
+        """
+
+        return await lookup_prompt(
+            registry=self.registry,
+            name=name,
+            variant=variant,
         )
 
 

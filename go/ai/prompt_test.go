@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -154,7 +155,8 @@ func definePromptModel(reg api.Registry) Model {
 			Multiturn:  true,
 			ToolChoice: true,
 			SystemRole: true,
-		}}, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+		}},
+		func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 			toolCalled := false
 			for _, msg := range gr.Messages {
 				if msg.Content[0].IsToolResponse() {
@@ -495,6 +497,9 @@ func TestValidPrompt(t *testing.T) {
 							"type":                 string("object"),
 						},
 						OutputSchema: map[string]any{"type": string("string")},
+						Metadata: map[string]any{
+							"multipart": false,
+						},
 					},
 				},
 			},
@@ -587,6 +592,9 @@ func TestValidPrompt(t *testing.T) {
 							"type":                 string("object"),
 						},
 						OutputSchema: map[string]any{"type": string("string")},
+						Metadata: map[string]any{
+							"multipart": false,
+						},
 					},
 				},
 			},
@@ -1176,7 +1184,11 @@ func TestDefinePartialAndHelper(t *testing.T) {
 		return strings.ToUpper(s)
 	})
 
-	p := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+	p := DefinePrompt(
+		reg,
+		"test",
+		WithPrompt(`{{> header}} {{uppercase greeting}}`),
+		WithModel(model))
 
 	result, err := p.Execute(context.Background(), WithInput(map[string]any{
 		"name":     "User",
@@ -1241,7 +1253,7 @@ You are a pirate!
 Hello!
 `
 
-	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
@@ -1284,5 +1296,225 @@ Hello!
 	}
 	if strings.TrimSpace(userMsg.Content[0].Text) != "Hello!" {
 		t.Errorf("Expected user message text to be 'Hello!', got '%s'", userMsg.Content[0].Text)
+	}
+}
+
+func TestDeferredSchemaResolution(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// prompt file that references a schema "Recipe"
+	mockPromptFile := filepath.Join(tempDir, "deferred.prompt")
+	mockPromptContent := `---
+model: test-model
+output:
+  schema: Recipe
+---
+Generate a recipe for {{food}}.
+`
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		// Mock response that matches the expected schema structure
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"title": "Tacos", "ingredients": [{"name": "Tortilla", "quantity": "3"}]}`),
+			Request: req,
+		}, nil
+	})
+
+	// this should succeed and create a placeholder schema in the registry
+	prompt := LoadPrompt(reg, tempDir, "deferred.prompt", "test")
+	if prompt == nil {
+		t.Fatal("Failed to load prompt with undefined schema")
+	}
+
+	// verify the prompt is loaded with a schema reference
+	// the internal representation stores the schema with $ref for lazy resolution
+	actionDef := prompt.(api.Action).Desc()
+	outputSchema := actionDef.Metadata["prompt"].(map[string]any)["output"].(map[string]any)["schema"]
+	if outputSchema == nil {
+		t.Fatal("Output schema should not be nil")
+	}
+	schemaMap, ok := outputSchema.(map[string]any)
+	if !ok {
+		t.Fatalf("Expected output schema to be a map, got: %T", outputSchema)
+	}
+	ref, ok := schemaMap["$ref"].(string)
+	if !ok {
+		t.Fatalf("Expected output schema to have $ref, got: %v", schemaMap)
+	}
+	if ref != "genkit:Recipe" {
+		t.Fatalf("Expected output schema $ref to be 'genkit:Recipe', got: %v", ref)
+	}
+
+	// define the "Recipe" schema (deferred resolution)
+	core.DefineSchema(reg, "Recipe", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"title": map[string]any{"type": "string"},
+			"ingredients": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name":     map[string]any{"type": "string"},
+						"quantity": map[string]any{"type": "string"},
+					},
+					"required": []string{"name", "quantity"},
+				},
+			},
+		},
+		"required": []string{"title", "ingredients"},
+	})
+
+	// we should now resolve "Recipe" correctly
+	resp, err := prompt.Execute(context.Background(), WithInput(map[string]any{"food": "tacos"}))
+	if err != nil {
+		t.Fatalf("Failed to execute prompt with deferred schema: %v", err)
+	}
+
+	if resp.Request.Output.Schema == nil {
+		t.Fatal("Expected request to have a resolved output schema")
+	}
+
+	schema := resp.Request.Output.Schema
+	if ref, ok := schema["$ref"].(string); ok {
+		// Schema is a reference, resolve it from $defs
+		defs, ok := schema["$defs"].(map[string]any)
+		if !ok {
+			t.Fatalf("Schema has $ref %q but no $defs", ref)
+		}
+		// Assuming ref is like "#/$defs/Recipe"
+		parts := strings.Split(ref, "/")
+		defName := parts[len(parts)-1]
+		if def, ok := defs[defName].(map[string]any); ok {
+			schema = def
+		} else {
+			t.Fatalf("Could not resolve definition for %q", defName)
+		}
+	}
+
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("Resolved schema should have properties, got: %v", schema)
+	}
+	if _, ok := props["ingredients"]; !ok {
+		t.Error("Resolved schema should have 'ingredients' property")
+	}
+}
+
+func TestDeferredSchemaResolution_Missing(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// prompt file that references a schema "MissingRecipe"
+	mockPromptFile := filepath.Join(tempDir, "deferred_missing.prompt")
+	mockPromptContent := `---
+model: test-model
+output:
+  schema: MissingRecipe
+---
+Generate a recipe.
+`
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{}`),
+			Request: req,
+		}, nil
+	})
+
+	prompt := LoadPrompt(reg, tempDir, "deferred_missing.prompt", "test")
+	if prompt == nil {
+		t.Fatal("Failed to load prompt")
+	}
+
+	_, err := prompt.Execute(context.Background())
+	if err == nil {
+		t.Fatal("Expected error when executing prompt with missing schema")
+	}
+	// "schema \"MissingRecipe\" not found"
+	if !strings.Contains(err.Error(), "schema \"MissingRecipe\" not found") {
+		t.Errorf("Expected error 'schema \"MissingRecipe\" not found', got: %v", err)
+	}
+}
+
+func TestWithOutputSchemaName_DefinePrompt(t *testing.T) {
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"foo": "bar"}`),
+			Request: req,
+		}, nil
+	})
+
+	// Define schema
+	core.DefineSchema(reg, "FooSchema", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"foo": map[string]any{"type": "string"},
+		},
+	})
+
+	// Define prompt using WithOutputSchemaName
+	prompt := DefinePrompt(reg, "testPrompt",
+		WithModelName("test-model"),
+		WithPrompt("test"),
+		WithOutputSchemaName("FooSchema"),
+	)
+
+	resp, err := prompt.Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	if resp.Request.Output.Schema == nil {
+		t.Fatal("Expected output schema to be set")
+	}
+}
+
+func TestWithOutputSchemaName_DefinePrompt_Missing(t *testing.T) {
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{}`),
+			Request: req,
+		}, nil
+	})
+
+	// Define prompt using WithOutputSchemaName, but Schema is missing
+	prompt := DefinePrompt(reg, "testPromptMissing",
+		WithModelName("test-model"),
+		WithPrompt("test"),
+		WithOutputSchemaName("MissingSchema"),
+	)
+
+	_, err := prompt.Execute(context.Background())
+	if err == nil {
+		t.Fatal("Expected error when executing prompt with missing schema")
+	}
+	if !strings.Contains(err.Error(), "schema \"MissingSchema\" not found") {
+		t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
 	}
 }

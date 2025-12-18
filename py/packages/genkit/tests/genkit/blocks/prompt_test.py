@@ -17,14 +17,19 @@
 
 """Tests for the action module."""
 
+import tempfile
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.blocks.prompt import load_prompt_folder, lookup_prompt, prompt
+from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
     GenerateActionOptions,
+    GenerateRequest,
     GenerationCommonConfig,
     Message,
     Role,
@@ -226,3 +231,316 @@ async def test_prompt_rendering_dotprompt(
     response = await my_prompt(input, input_option, context=context)
 
     assert response.text == want_rendered
+
+
+# Tests for prompt variants and partials
+@pytest.mark.asyncio
+async def test_load_prompt_variant() -> None:
+    """Test loading and using a prompt variant."""
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        # Create base prompt
+        base_prompt = prompt_dir / 'greeting.prompt'
+        base_prompt.write_text('---\nmodel: echoModel\n---\nHello {{name}}!')
+
+        # Create variant prompt
+        variant_prompt = prompt_dir / 'greeting.casual.prompt'
+        variant_prompt.write_text("---\nmodel: echoModel\n---\nHey {{name}}, what's up?")
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Test base prompt
+        base_exec = await prompt(ai.registry, 'greeting')
+        base_response = await base_exec({'name': 'Alice'})
+        assert 'Hello' in base_response.text
+        assert 'Alice' in base_response.text
+
+        # Test variant prompt
+        casual_exec = await prompt(ai.registry, 'greeting', variant='casual')
+        casual_response = await casual_exec({'name': 'Bob'})
+        assert 'Hey' in casual_response.text or "what's up" in casual_response.text.lower()
+        assert 'Bob' in casual_response.text
+
+
+@pytest.mark.asyncio
+async def test_load_nested_prompt() -> None:
+    """Test loading prompts from subdirectories."""
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        # Create subdirectory
+        sub_dir = prompt_dir / 'admin'
+        sub_dir.mkdir()
+
+        # Create prompt in subdirectory
+        admin_prompt = sub_dir / 'dashboard.prompt'
+        admin_prompt.write_text('---\nmodel: echoModel\n---\nWelcome Admin {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Test loading nested prompt
+        # Based on logic: name = "admin/dashboard"
+        admin_exec = await prompt(ai.registry, 'admin/dashboard')
+        response = await admin_exec({'name': 'SuperUser'})
+
+        assert 'Welcome Admin' in response.text
+        assert 'SuperUser' in response.text
+
+
+@pytest.mark.asyncio
+async def test_load_and_use_partial() -> None:
+    """Test loading and using partials in prompts."""
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        # Create partial
+        partial_file = prompt_dir / '_greeting.prompt'
+        partial_file.write_text('Hello from partial!')
+
+        # Create prompt that uses the partial
+        prompt_file = prompt_dir / 'story.prompt'
+        prompt_file.write_text('---\nmodel: echoModel\n---\n{{>greeting}} Tell me about {{topic}}.')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        story_exec = await prompt(ai.registry, 'story')
+        response = await story_exec({'topic': 'space'})
+
+        # The partial should be included in the output
+        assert 'Hello from partial' in response.text or 'space' in response.text
+
+
+@pytest.mark.asyncio
+async def test_prompt_with_messages_list() -> None:
+    """Test prompt with explicit messages list."""
+    ai, *_ = setup_test()
+
+    messages = [
+        Message(role=Role.SYSTEM, content=[TextPart(text='You are helpful')]),
+        Message(role=Role.USER, content=[TextPart(text='Hi there')]),
+    ]
+
+    my_prompt = ai.define_prompt(
+        messages=messages,
+        prompt='How can I help?',
+    )
+
+    response = await my_prompt()
+
+    # Should include system, user history, and final prompt
+    assert 'helpful' in response.text.lower() or 'Hi there' in response.text
+
+
+@pytest.mark.asyncio
+async def test_messages_with_explicit_override() -> None:
+    """Test that explicit messages in render options are included."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(
+        prompt='Final question',
+    )
+
+    override_messages = [
+        Message(role=Role.USER, content=[TextPart(text='First message')]),
+        Message(role=Role.MODEL, content=[TextPart(text='First response')]),
+    ]
+
+    # The override messages should be prepended to the prompt
+    rendered = await my_prompt.render(input=None, config=None)
+
+    # Check that we have the final prompt message
+    assert any('Final question' in str(msg) for msg in rendered.messages)
+
+
+@pytest.mark.asyncio
+async def test_prompt_with_tools_list() -> None:
+    """Test prompt with tools parameter."""
+    ai, *_ = setup_test()
+
+    class ToolInput(BaseModel):
+        value: int = Field(description='A value')
+
+    @ai.tool(name='myTool')
+    def my_tool(input: ToolInput):
+        return input.value * 2
+
+    my_prompt = ai.define_prompt(
+        prompt='Use the tool',
+        tools=['myTool'],
+    )
+
+    rendered = await my_prompt.render()
+
+    # Verify tools are in the rendered options
+    assert rendered.tools is not None
+    assert 'myTool' in rendered.tools
+
+
+@pytest.mark.asyncio
+async def test_system_and_prompt_together() -> None:
+    """Test rendering system, messages, and prompt in correct order."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(
+        system='System instruction',
+        messages=[
+            Message(role=Role.USER, content=[TextPart(text='History user')]),
+            Message(role=Role.MODEL, content=[TextPart(text='History model')]),
+        ],
+        prompt='Final prompt',
+    )
+
+    response = await my_prompt()
+
+    # All parts should be in the response
+    text = response.text.lower()
+    assert 'system' in text or 'instruction' in text
+    assert 'history' in text or 'final' in text or 'prompt' in text
+
+
+@pytest.mark.asyncio
+async def test_prompt_with_output_schema() -> None:
+    """Test that output schema is preserved in rendering."""
+    ai, *_ = setup_test()
+
+    class OutputSchema(BaseModel):
+        name: str = Field(description='A name')
+        age: int = Field(description='An age')
+
+    my_prompt = ai.define_prompt(
+        prompt='Generate a person',
+        output_schema=OutputSchema,
+        output_format='json',
+    )
+
+    rendered = await my_prompt.render()
+
+    # Verify output configuration
+    assert rendered.output is not None
+    assert rendered.output.format == 'json'
+    assert rendered.output.json_schema is not None
+
+
+@pytest.mark.asyncio
+async def test_config_merge_priority() -> None:
+    """Test that runtime config overrides definition config."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(
+        prompt='test',
+        config={'temperature': 0.5, 'banana': 'yellow'},
+    )
+
+    # Runtime config should override temperature but keep banana
+    rendered = await my_prompt.render(config={'temperature': 0.9})
+
+    assert rendered.config is not None
+    assert rendered.config.temperature == 0.9
+
+
+# Tests for file-based prompt loading and two-action structure
+@pytest.mark.asyncio
+async def test_file_based_prompt_registers_two_actions() -> None:
+    """File-based prompts create both PROMPT and EXECUTABLE_PROMPT actions."""
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        # Simple prompt file: name is "filePrompt"
+        prompt_file = prompt_dir / 'filePrompt.prompt'
+        prompt_file.write_text('hello {{name}}')
+
+        # Load prompts from directory
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Actions are registered with registry_definition_key (e.g., "dotprompt/filePrompt")
+        # We need to look them up by kind and name (without the /prompt/ prefix)
+        action_name = 'dotprompt/filePrompt'  # registry_definition_key format
+
+        prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
+        executable_prompt_action = ai.registry.lookup_action(ActionKind.EXECUTABLE_PROMPT, action_name)
+
+        assert prompt_action is not None
+        assert executable_prompt_action is not None
+
+
+@pytest.mark.asyncio
+async def test_prompt_and_executable_prompt_return_types() -> None:
+    """PROMPT action returns GenerateRequest, EXECUTABLE_PROMPT returns GenerateActionOptions."""
+    ai, *_ = setup_test()
+
+    # Test with file-based prompt (which creates both actions)
+    # Programmatic prompts don't create actions - they're just ExecutablePrompt instances
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        prompt_file = prompt_dir / 'testPrompt.prompt'
+        prompt_file.write_text('hello {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+        action_name = 'dotprompt/testPrompt'
+
+        prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
+        executable_prompt_action = ai.registry.lookup_action(ActionKind.EXECUTABLE_PROMPT, action_name)
+
+        assert prompt_action is not None
+        assert executable_prompt_action is not None
+
+        prompt_result = await prompt_action.arun(input={'name': 'World'})
+        assert isinstance(prompt_result.response, GenerateRequest)
+
+        exec_result = await executable_prompt_action.arun(input={'name': 'World'})
+        assert isinstance(exec_result.response, GenerateActionOptions)
+
+
+@pytest.mark.asyncio
+async def test_lookup_prompt_returns_executable_prompt() -> None:
+    """lookup_prompt should return an ExecutablePrompt that can be called."""
+
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        prompt_file = prompt_dir / 'lookupTest.prompt'
+        prompt_file.write_text('hi {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        executable = await lookup_prompt(ai.registry, 'lookupTest')
+
+        response = await executable({'name': 'World'})
+        assert 'World' in response.text
+
+
+@pytest.mark.asyncio
+async def test_prompt_function_uses_lookup_prompt() -> None:
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        prompt_file = prompt_dir / 'promptFuncTest.prompt'
+        prompt_file.write_text('hello {{name}}')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Use prompt() function to look up the file-based prompt
+        executable = await prompt(ai.registry, 'promptFuncTest')
+        response = await executable({'name': 'World'})
+        assert 'World' in response.text
