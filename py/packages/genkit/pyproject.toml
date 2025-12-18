@@ -29,6 +29,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
@@ -46,6 +47,7 @@ dependencies = [
   "sse-starlette>=2.2.1",
   "pillow",
   "strenum>=0.4.15; python_version < '3.11'",
+  "dotpromptz>=0.1.4",
   "uvicorn>=0.34.0",
   "anyio>=4.9.0",
 ]

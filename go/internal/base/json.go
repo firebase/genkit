@@ -77,6 +77,8 @@ func ReadJSONFile(filename string, pvalue any) error {
 
 // InferJSONSchema infers a JSON schema from a Go value.
 func InferJSONSchema(x any) (s *jsonschema.Schema) {
+	seen := make(map[reflect.Type]bool)
+
 	r := jsonschema.Reflector{
 		DoNotReference: true,
 		Mapper: func(t reflect.Type) *jsonschema.Schema {
@@ -90,6 +92,23 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 					},
 				}
 			}
+
+			// Handle recursive types: track struct types we've seen.
+			// The first encounter is reflected normally; subsequent encounters
+			// (including self-references) return an "any" schema to break recursion.
+			baseType := t
+			if t.Kind() == reflect.Ptr {
+				baseType = t.Elem()
+			}
+			if baseType.Kind() == reflect.Struct {
+				if seen[baseType] {
+					return &jsonschema.Schema{
+						AdditionalProperties: jsonschema.TrueSchema,
+					}
+				}
+				seen[baseType] = true
+			}
+
 			return nil // Return nil to use default schema generation for other types
 		},
 	}

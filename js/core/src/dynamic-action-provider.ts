@@ -67,10 +67,11 @@ class SimpleCache {
 
           if (!params?.skipTrace) {
             // Also run the action
-            // This returns metadata and shows up in dev UI
+            // This action actually does nothing, with the important side
+            // effect of logging its input and output (which are the same).
             // It does not change what we return, it just makes
-            // the content of the DAP visible in the trace.
-            await this.dap.run(this.value);
+            // the content of the DAP visible in the DevUI and logging trace.
+            await this.dap.run(transformDapValue(this.value));
           }
           return this.value;
         } catch (error) {
@@ -170,12 +171,16 @@ export function defineDynamicActionProvider(
       metadata: { ...(cfg.metadata || {}), type: 'dynamic-action-provider' },
     },
     async (i, _options) => {
-      // The actions are retrieved and saved in a cache and then passed in here.
-      // We run this action to return the metadata for the actions only.
-      // We pass the actions in here to prevent duplicate calls to the mcp
-      // and also so we are guaranteed the same actions since there is only a
-      // single call to mcp client/host.
-      return transformDapValue(i);
+      // The actions are retrieved, saved in a cache, formatted nicely and
+      // then passed in here so they can be automatically logged by the action
+      // call. This action is for logging only. We cannot run the actual
+      // 'getting the data from the DAP' here because the DAP data is required
+      // to resolve tools/resources etc. And there can be a LOT of tools etc.
+      // for a single generate. Which would log one DAP action per resolve,
+      // and unnecessarily overwhelm the Dev UI with DAP actions that all have
+      // the same information. So we only run this action (for the logging) when
+      // we go get new data from the DAP (so we can see what it returned).
+      return i;
     }
   );
   implementDap(a as DynamicActionProviderAction, cfg, fn);

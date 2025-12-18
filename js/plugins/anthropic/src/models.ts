@@ -66,6 +66,16 @@ function commonRef(
   });
 }
 
+/**
+ * Maps short model names to their full API model IDs.
+ * Claude 3.x models require versioned names (e.g., claude-3-5-haiku-20241022).
+ * Claude 4.x models have API aliases that work directly.
+ */
+const MODEL_VERSION_MAP: Record<string, string> = {
+  'claude-3-haiku': 'claude-3-haiku-20240307',
+  'claude-3-5-haiku': 'claude-3-5-haiku-20241022',
+};
+
 export const KNOWN_CLAUDE_MODELS: Record<
   string,
   ModelReference<
@@ -87,6 +97,10 @@ export const KNOWN_CLAUDE_MODELS: Record<
     'claude-haiku-4-5',
     AnthropicThinkingConfigSchema
   ),
+  'claude-opus-4-5': commonRef(
+    'claude-opus-4-5',
+    AnthropicThinkingConfigSchema
+  ),
   'claude-opus-4-1': commonRef(
     'claude-opus-4-1',
     AnthropicThinkingConfigSchema
@@ -94,14 +108,16 @@ export const KNOWN_CLAUDE_MODELS: Record<
 };
 
 /**
- * Gets the un-prefixed model name from a modelReference.
+ * Gets the API model ID from a model name.
+ * Maps short names to full versioned names for Claude 3.x models.
+ * Claude 4.x models pass through unchanged as they have API aliases.
  */
 export function extractVersion(
   model: ModelReference<ConfigSchemaType> | undefined,
   modelName: string
 ): string {
-  // Extract from model name (remove 'anthropic/' prefix if present)
-  return modelName.replace(/^anthropic\//, '');
+  const cleanName = modelName.replace(/^anthropic\//, '');
+  return MODEL_VERSION_MAP[cleanName] ?? cleanName;
 }
 
 /**

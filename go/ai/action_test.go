@@ -146,6 +146,7 @@ func TestGenerateAction(t *testing.T) {
 					cmpopts.EquateEmpty(),
 					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs", "formatHandler"),
 					cmpopts.IgnoreFields(GenerationUsage{}, "InputCharacters", "OutputCharacters"),
+					cmpopts.IgnoreFields(ToolDefinition{}, "Metadata"),
 				}); diff != "" {
 					t.Errorf("response mismatch (-want +got):\n%s", diff)
 				}
@@ -159,6 +160,7 @@ func TestGenerateAction(t *testing.T) {
 					cmpopts.EquateEmpty(),
 					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs", "formatHandler"),
 					cmpopts.IgnoreFields(GenerationUsage{}, "InputCharacters", "OutputCharacters"),
+					cmpopts.IgnoreFields(ToolDefinition{}, "Metadata"),
 				}); diff != "" {
 					t.Errorf("response mismatch (-want +got):\n%s", diff)
 				}
