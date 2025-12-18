@@ -56,10 +56,10 @@ type prompt struct {
 }
 
 // DataPrompt is a prompt with strongly-typed input and output.
-// It wraps an underlying Prompt and provides type-safe Execute and Render methods.
+// It wraps an underlying [Prompt] and provides type-safe Execute and Render methods.
 // The Out type parameter can be string for text outputs or any struct type for JSON outputs.
 type DataPrompt[In, Out any] struct {
-	Prompt
+	prompt
 }
 
 // DefinePrompt creates a new [Prompt] and registers it.
@@ -866,16 +866,15 @@ func DefineDataPrompt[In, Out any](r api.Registry, name string, opts ...PromptOp
 		panic("ai.DefineDataPrompt: name is required")
 	}
 
-	allOpts := make([]PromptOption, 0, len(opts)+2)
-
 	var in In
-	allOpts = append(allOpts, WithInputType(in))
+	allOpts := []PromptOption{WithInputType(in)}
 
 	var out Out
 	switch any(out).(type) {
 	case string:
 		// String output - no schema needed
 	default:
+		// Prepend WithOutputType so the user can override the output format.
 		allOpts = append(allOpts, WithOutputType(out))
 	}
 
@@ -883,19 +882,14 @@ func DefineDataPrompt[In, Out any](r api.Registry, name string, opts ...PromptOp
 
 	p := DefinePrompt(r, name, allOpts...)
 
-	return &DataPrompt[In, Out]{Prompt: p}
+	return &DataPrompt[In, Out]{prompt: *p.(*prompt)}
 }
 
 // LookupDataPrompt looks up a prompt by name and wraps it with type information.
 // This is useful for wrapping prompts loaded from .prompt files with strong types.
 // It returns nil if the prompt was not found.
 func LookupDataPrompt[In, Out any](r api.Registry, name string) *DataPrompt[In, Out] {
-	p := LookupPrompt(r, name)
-	if p == nil {
-		return nil
-	}
-
-	return AsDataPrompt[In, Out](p)
+	return AsDataPrompt[In, Out](LookupPrompt(r, name))
 }
 
 // AsDataPrompt wraps an existing Prompt with type information, returning a DataPrompt.
@@ -905,7 +899,7 @@ func AsDataPrompt[In, Out any](p Prompt) *DataPrompt[In, Out] {
 		return nil
 	}
 
-	return &DataPrompt[In, Out]{Prompt: p}
+	return &DataPrompt[In, Out]{prompt: *p.(*prompt)}
 }
 
 // Execute executes the typed prompt and returns the strongly-typed output along with the full model response.
@@ -918,7 +912,7 @@ func (dp *DataPrompt[In, Out]) Execute(ctx context.Context, input In, opts ...Pr
 
 	allOpts := append(slices.Clone(opts), WithInput(input))
 
-	resp, err := dp.Prompt.Execute(ctx, allOpts...)
+	resp, err := dp.prompt.Execute(ctx, allOpts...)
 	if err != nil {
 		return base.Zero[Out](), nil, err
 	}
@@ -968,7 +962,7 @@ func (dp *DataPrompt[In, Out]) ExecuteStream(ctx context.Context, input In, opts
 
 		allOpts := append(slices.Clone(opts), WithInput(input), WithStreaming(cb))
 
-		resp, err := dp.Prompt.Execute(ctx, allOpts...)
+		resp, err := dp.prompt.Execute(ctx, allOpts...)
 		if err != nil {
 			yield(nil, err)
 			return
@@ -986,9 +980,9 @@ func (dp *DataPrompt[In, Out]) ExecuteStream(ctx context.Context, input In, opts
 
 // Render renders the typed prompt template with the given input.
 func (dp *DataPrompt[In, Out]) Render(ctx context.Context, input In) (*GenerateActionOptions, error) {
-	if dp == nil || dp.Prompt == nil {
-		return nil, errors.New("TypedPrompt.Render: called on a nil prompt; check that all prompts are defined")
+	if dp == nil {
+		return nil, errors.New("DataPrompt.Render: prompt is nil")
 	}
 
-	return dp.Prompt.Render(ctx, input)
+	return dp.prompt.Render(ctx, input)
 }

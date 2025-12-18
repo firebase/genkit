@@ -674,7 +674,7 @@ func DefineSchemaFor[T any](g *Genkit) {
 //		Capital string `json:"capital"`
 //	}
 //
-//	capitalPrompt := genkit.DefineDataPrompt[GeoInput, GeoOutput, *ai.ModelResponseChunk](g, "findCapital",
+//	capitalPrompt := genkit.DefineDataPrompt[GeoInput, GeoOutput](g, "findCapital",
 //		ai.WithModelName("googleai/gemini-2.5-flash"),
 //		ai.WithSystem("You are a helpful geography assistant."),
 //		ai.WithPrompt("What is the capital of {{country}}?"),
