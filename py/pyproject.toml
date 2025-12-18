@@ -100,6 +100,7 @@ omit = [
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+evaluator-demo                      = { workspace = true }
 genkit                              = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
@@ -113,6 +114,7 @@ genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
+prompt-demo                         = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]

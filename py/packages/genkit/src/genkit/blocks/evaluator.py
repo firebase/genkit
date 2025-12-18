@@ -24,6 +24,8 @@ model.
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from genkit.core.typing import (
     BaseEvalDataPoint,
     EvalFnResponse,
@@ -39,3 +41,25 @@ EvaluatorFn = Callable[[BaseEvalDataPoint, T], EvalFnResponse]
 # User-provided batch evaluator function that evaluates an EvaluationRequest
 # type BatchEvaluatorFn[T] = Callable[[EvalRequest, T], list[EvalFnResponse]]
 BatchEvaluatorFn = Callable[[EvalRequest, T], list[EvalFnResponse]]
+
+
+class EvaluatorRef(BaseModel):
+    """Reference to an evaluator."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    name: str
+    config_schema: Any | None = Field(None, alias='configSchema')
+
+
+def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
+    """Create a reference to an evaluator.
+
+    Args:
+        name: Name of the evaluator.
+        config_schema: Optional schema for evaluator configuration.
+
+    Returns:
+        An EvaluatorRef instance.
+    """
+    return EvaluatorRef(name=name, configSchema=config_schema)

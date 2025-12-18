@@ -364,33 +364,40 @@ class GenkitRegistry:
                     metadata={'evaluator:evalRunId': req.eval_run_id},
                 )
                 try:
-                    with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
-                        span_id = span.span_id
-                        trace_id = span.trace_id
-                        try:
-                            span.set_input(datapoint)
-                            test_case_output = await fn(datapoint, req.options)
-                            test_case_output.span_id = span_id
-                            test_case_output.trace_id = trace_id
-                            span.set_output(test_case_output)
-                            eval_responses.append(test_case_output)
-                        except Exception as e:
-                            logger.debug(f'eval_stepper_fn error: {str(e)}')
-                            logger.debug(traceback.format_exc())
-                            evaluation = Score(
-                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
-                                status=EvalStatusEnum.FAIL,
-                            )
-                            eval_responses.append(
-                                EvalFnResponse(
-                                    span_id=span_id,
-                                    trace_id=trace_id,
-                                    test_case_id=datapoint.test_case_id,
-                                    evaluation=evaluation,
+                    # Try to run with tracing, but fallback if tracing infrastructure fails
+                    # (e.g., in environments with NonRecordingSpans like pre-commit)
+                    try:
+                        with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
+                            span_id = span.span_id
+                            trace_id = span.trace_id
+                            try:
+                                span.set_input(datapoint)
+                                test_case_output = await fn(datapoint, req.options)
+                                test_case_output.span_id = span_id
+                                test_case_output.trace_id = trace_id
+                                span.set_output(test_case_output)
+                                eval_responses.append(test_case_output)
+                            except Exception as e:
+                                logger.debug(f'eval_stepper_fn error: {str(e)}')
+                                logger.debug(traceback.format_exc())
+                                evaluation = Score(
+                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                    status=EvalStatusEnum.FAIL,
                                 )
-                            )
-                            # Raise to mark span as failed
-                            raise e
+                                eval_responses.append(
+                                    EvalFnResponse(
+                                        span_id=span_id,
+                                        trace_id=trace_id,
+                                        test_case_id=datapoint.test_case_id,
+                                        evaluation=evaluation,
+                                    )
+                                )
+                                # Raise to mark span as failed
+                                raise e
+                    except (AttributeError, UnboundLocalError):
+                        # Fallback: run without span
+                        test_case_output = await fn(datapoint, req.options)
+                        eval_responses.append(test_case_output)
                 except Exception:
                     # Continue to process other points
                     continue
