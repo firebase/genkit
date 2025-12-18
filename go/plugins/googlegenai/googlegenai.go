@@ -283,14 +283,19 @@ func (v *VertexAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 	return genkit.LookupEmbedder(g, api.NewName(vertexAIProvider, name)) != nil
 }
 
-// GoogleAIModelRef creates a new ModelRef for a Google AI model with the given name and configuration.
-func GoogleAIModelRef(name string, config *genai.GenerateContentConfig) ai.ModelRef {
+// ModelRef creates a new ModelRef for a Google Gen AI model with the given name and configuration.
+func ModelRef(name string, config *genai.GenerateContentConfig) ai.ModelRef {
 	return ai.NewModelRef(googleAIProvider+"/"+name, config)
 }
 
-// VertexAIModelRef creates a new ModelRef for a Vertex AI model with the given name and configuration.
-func VertexAIModelRef(name string, config *genai.GenerateContentConfig) ai.ModelRef {
-	return ai.NewModelRef(vertexAIProvider+"/"+name, config)
+// GoogleAIModelRef creates a new ModelRef for a Google AI model with the given ID and configuration.
+func GoogleAIModelRef(id string, config *genai.GenerateContentConfig) ai.ModelRef {
+	return ai.NewModelRef(googleAIProvider+"/"+id, config)
+}
+
+// VertexAIModelRef creates a new ModelRef for a Vertex AI model with the given ID and configuration.
+func VertexAIModelRef(id string, config *genai.GenerateContentConfig) ai.ModelRef {
+	return ai.NewModelRef(vertexAIProvider+"/"+id, config)
 }
 
 // GoogleAIModel returns the [ai.Model] with the given name.

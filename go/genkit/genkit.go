@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -684,15 +685,15 @@ func DefineSchemaFor[T any](g *Genkit) {
 //		log.Fatalf("Execute failed: %v", err)
 //	}
 //	fmt.Printf("Capital: %s\n", output.Capital)
-func DefineDataPrompt[In, Out, Stream any](g *Genkit, name string, opts ...ai.PromptOption) *ai.DataPrompt[In, Out, Stream] {
-	return ai.DefineDataPrompt[In, Out, Stream](g.reg, name, opts...)
+func DefineDataPrompt[In, Out any](g *Genkit, name string, opts ...ai.PromptOption) *ai.DataPrompt[In, Out] {
+	return ai.DefineDataPrompt[In, Out](g.reg, name, opts...)
 }
 
 // LookupDataPrompt looks up a prompt by name and wraps it with type information.
 // This is useful for wrapping prompts loaded from .prompt files with strong types.
 // It returns nil if the prompt was not found.
-func LookupDataPrompt[In, Out, Stream any](g *Genkit, name string) *ai.DataPrompt[In, Out, Stream] {
-	return ai.LookupDataPrompt[In, Out, Stream](g.reg, name)
+func LookupDataPrompt[In, Out any](g *Genkit, name string) *ai.DataPrompt[In, Out] {
+	return ai.LookupDataPrompt[In, Out](g.reg, name)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
@@ -745,8 +746,7 @@ func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.Mo
 }
 
 // GenerateStream generates a model response and streams the output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
+// It returns an iterator that yields streaming results.
 //
 // If the yield function is passed a non-nil error, generation has failed with that
 // error; the yield function will not be called again.
@@ -770,7 +770,7 @@ func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.Mo
 //			fmt.Print(result.Chunk.Text())
 //		}
 //	}
-func GenerateStream(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) func(func(*ai.ModelStreamValue, error) bool) {
+func GenerateStream(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) iter.Seq2[*ai.ModelStreamValue, error] {
 	return ai.GenerateStream(ctx, g.reg, opts...)
 }
 
@@ -863,8 +863,7 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 }
 
 // GenerateDataStream generates a model response with streaming and returns strongly-typed output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
+// It returns an iterator that yields streaming results.
 //
 // If the yield function is passed a non-nil error, generation has failed with that
 // error; the yield function will not be called again.
@@ -894,8 +893,8 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 //			fmt.Print(result.Chunk.Text())
 //		}
 //	}
-func GenerateDataStream[Out, Stream any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) func(func(*ai.StreamValue[Out, Stream], error) bool) {
-	return ai.GenerateDataStream[Out, Stream](ctx, g.reg, opts...)
+func GenerateDataStream[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) iter.Seq2[*ai.StreamValue[Out, Out], error] {
+	return ai.GenerateDataStream[Out](ctx, g.reg, opts...)
 }
 
 // Retrieve performs a document retrieval request using a flexible set of options

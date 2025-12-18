@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strings"
 
@@ -577,24 +578,24 @@ type StreamValue[Out, Stream any] struct {
 }
 
 // ModelStreamValue is a stream value for a model response.
-type ModelStreamValue = StreamValue[*ModelResponse, *ModelResponseChunk]
+// Out is never set because the output is already available in the Response field.
+type ModelStreamValue = StreamValue[struct{}, *ModelResponseChunk]
 
 // errGenerateStop is a sentinel error used to signal early termination of streaming.
 var errGenerateStop = errors.New("stop")
 
 // GenerateStream generates a model response and streams the output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
+// It returns an iterator that yields streaming results.
 //
 // If the yield function is passed a non-nil error, generation has failed with that
 // error; the yield function will not be called again.
 //
-// If the yield function's [StreamValue] argument has Done == true, the value's
+// If the yield function's [ModelStreamValue] argument has Done == true, the value's
 // Response field contains the final response; the yield function will not be called
 // again.
 //
-// Otherwise the Chunk field of the passed [StreamValue] holds a streamed chunk.
-func GenerateStream(ctx context.Context, r api.Registry, opts ...GenerateOption) func(func(*ModelStreamValue, error) bool) {
+// Otherwise the Chunk field of the passed [ModelStreamValue] holds a streamed chunk.
+func GenerateStream(ctx context.Context, r api.Registry, opts ...GenerateOption) iter.Seq2[*ModelStreamValue, error] {
 	return func(yield func(*ModelStreamValue, error) bool) {
 		cb := func(ctx context.Context, chunk *ModelResponseChunk) error {
 			if ctx.Err() != nil {
@@ -618,8 +619,7 @@ func GenerateStream(ctx context.Context, r api.Registry, opts ...GenerateOption)
 }
 
 // GenerateDataStream generates a model response with streaming and returns strongly-typed output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
+// It returns an iterator that yields streaming results.
 //
 // If the yield function is passed a non-nil error, generation has failed with that
 // error; the yield function will not be called again.
@@ -629,21 +629,27 @@ func GenerateStream(ctx context.Context, r api.Registry, opts ...GenerateOption)
 // will not be called again.
 //
 // Otherwise the Chunk field of the passed [StreamValue] holds a streamed chunk.
-func GenerateDataStream[Out, Stream any](ctx context.Context, r api.Registry, opts ...GenerateOption) func(func(*StreamValue[Out, Stream], error) bool) {
-	return func(yield func(*StreamValue[Out, Stream], error) bool) {
+func GenerateDataStream[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) iter.Seq2[*StreamValue[Out, Out], error] {
+	return func(yield func(*StreamValue[Out, Out], error) bool) {
 		cb := func(ctx context.Context, chunk *ModelResponseChunk) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			// TODO: Convert ModelResponseChunk to Stream type.
-			if !yield(&StreamValue[Out, Stream]{}, nil) {
+			var streamValue Out
+			if err := chunk.Output(&streamValue); err != nil {
+				yield(nil, err)
+				return err
+			}
+			if !yield(&StreamValue[Out, Out]{Chunk: streamValue}, nil) {
 				return errGenerateStop
 			}
 			return nil
 		}
 
+		// Prepend WithOutputType so the user can override the output format.
 		var value Out
-		allOpts := append(slices.Clone(opts), WithOutputType(value), WithStreaming(cb))
+		allOpts := append([]GenerateOption{WithOutputType(value)}, opts...)
+		allOpts = append(allOpts, WithStreaming(cb))
 
 		resp, err := Generate(ctx, r, allOpts...)
 		if err != nil {
@@ -651,13 +657,13 @@ func GenerateDataStream[Out, Stream any](ctx context.Context, r api.Registry, op
 			return
 		}
 
-		err = resp.Output(&value)
+		output, err := extractTypedOutput[Out](resp)
 		if err != nil {
 			yield(nil, err)
 			return
 		}
 
-		yield(&StreamValue[Out, Stream]{Done: true, Output: value, Response: resp}, nil)
+		yield(&StreamValue[Out, Out]{Done: true, Output: output, Response: resp}, nil)
 	}
 }
 
@@ -844,7 +850,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 // [ModelResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
 func (mr *ModelResponse) Text() string {
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return ""
 	}
 	return mr.Message.Text()
@@ -853,7 +859,7 @@ func (mr *ModelResponse) Text() string {
 // History returns messages from the request combined with the response message
 // to represent the conversation history.
 func (mr *ModelResponse) History() []*Message {
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return mr.Request.Messages
 	}
 	return append(mr.Request.Messages, mr.Message)
@@ -862,7 +868,7 @@ func (mr *ModelResponse) History() []*Message {
 // Reasoning concatenates all reasoning parts present in the message
 func (mr *ModelResponse) Reasoning() string {
 	var sb strings.Builder
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return ""
 	}
 
@@ -879,7 +885,7 @@ func (mr *ModelResponse) Reasoning() string {
 // If a format handler is set, it uses the handler's ParseOutput method.
 // Otherwise, it falls back to parsing the response text as JSON.
 func (mr *ModelResponse) Output(v any) error {
-	if mr.Message == nil || len(mr.Message.Content) == 0 {
+	if mr == nil || mr.Message == nil || len(mr.Message.Content) == 0 {
 		return errors.New("no content in response")
 	}
 
@@ -903,7 +909,7 @@ func (mr *ModelResponse) Output(v any) error {
 // ToolRequests returns the tool requests from the response.
 func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 	toolReqs := []*ToolRequest{}
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return toolReqs
 	}
 	for _, part := range mr.Message.Content {
@@ -917,7 +923,7 @@ func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 // Interrupts returns the interrupted tool request parts from the response.
 func (mr *ModelResponse) Interrupts() []*Part {
 	parts := []*Part{}
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return parts
 	}
 	for _, part := range mr.Message.Content {
@@ -930,7 +936,7 @@ func (mr *ModelResponse) Interrupts() []*Part {
 
 // Media returns the media content of the [ModelResponse] as a string.
 func (mr *ModelResponse) Media() string {
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return ""
 	}
 	for _, part := range mr.Message.Content {
@@ -996,17 +1002,41 @@ func (c *ModelResponseChunk) Output(v any) error {
 
 // outputer is an interface for types that can unmarshal structured output.
 type outputer interface {
-	Output(v any) error
+	// Text returns the contents of the output as a string.
+	Text() string
+	// Output parses the structured output from the response and unmarshals it into value.
+	Output(value any) error
 }
 
 // OutputFrom is a convenience function that parses structured output from a
 // [ModelResponse] or [ModelResponseChunk] and returns it as a typed value.
 // This is equivalent to calling Output() but returns the value directly instead
 // of requiring a pointer argument. If you need to handle the error, use Output() instead.
-func OutputFrom[T any](src outputer) T {
-	var v T
-	src.Output(&v)
-	return v
+func OutputFrom[Out any](src outputer) Out {
+	output, err := extractTypedOutput[Out](src)
+	if err != nil {
+		return base.Zero[Out]()
+	}
+	return output
+}
+
+// extractTypedOutput extracts the typed output from a model response.
+// It supports string output by calling Text() and returning the result.
+func extractTypedOutput[Out any](o outputer) (Out, error) {
+	var output Out
+
+	switch any(output).(type) {
+	case string:
+		text := o.Text()
+		// Type assertion to convert string to Out (which we know is string).
+		result := any(text).(Out)
+		return result, nil
+	default:
+		if err := o.Output(&output); err != nil {
+			return base.Zero[Out](), fmt.Errorf("failed to parse output: %w", err)
+		}
+		return output, nil
+	}
 }
 
 // Text returns the contents of a [Message] as a string. It

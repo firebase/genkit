@@ -19,11 +19,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -41,7 +43,7 @@ type Prompt interface {
 	// Execute executes the prompt with the given options and returns a [ModelResponse].
 	Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error)
 	// ExecuteStream executes the prompt with streaming and returns an iterator.
-	ExecuteStream(ctx context.Context, opts ...PromptExecuteOption) func(func(*ModelStreamValue, error) bool)
+	ExecuteStream(ctx context.Context, opts ...PromptExecuteOption) iter.Seq2[*ModelStreamValue, error]
 	// Render renders the prompt with the given input and returns a [GenerateActionOptions] to be used with [GenerateWithRequest].
 	Render(ctx context.Context, input any) (*GenerateActionOptions, error)
 }
@@ -56,9 +58,8 @@ type prompt struct {
 // DataPrompt is a prompt with strongly-typed input and output.
 // It wraps an underlying Prompt and provides type-safe Execute and Render methods.
 // The Out type parameter can be string for text outputs or any struct type for JSON outputs.
-type DataPrompt[In, Out, Stream any] struct {
-	prompt   Prompt
-	registry api.Registry
+type DataPrompt[In, Out any] struct {
+	Prompt
 }
 
 // DefinePrompt creates a new [Prompt] and registers it.
@@ -146,7 +147,7 @@ func LookupPrompt(r api.Registry, name string) Prompt {
 // passes the rendered template to the AI model specified by the prompt.
 func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
 	if p == nil {
-		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Prompt.Execute: prompt is nil")
 	}
 
 	execOpts := &promptExecutionOptions{}
@@ -253,8 +254,6 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 }
 
 // ExecuteStream executes the prompt with streaming and returns an iterator.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
 //
 // If the yield function is passed a non-nil error, execution has failed with that
 // error; the yield function will not be called again.
@@ -263,10 +262,10 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 // Response field contains the final response; the yield function will not be called again.
 //
 // Otherwise the Chunk field of the passed [ModelStreamValue] holds a streamed chunk.
-func (p *prompt) ExecuteStream(ctx context.Context, opts ...PromptExecuteOption) func(func(*ModelStreamValue, error) bool) {
+func (p *prompt) ExecuteStream(ctx context.Context, opts ...PromptExecuteOption) iter.Seq2[*ModelStreamValue, error] {
 	return func(yield func(*ModelStreamValue, error) bool) {
 		if p == nil {
-			yield(nil, errors.New("Prompt.ExecuteStream: execute called on a nil Prompt; check that all prompts are defined"))
+			yield(nil, core.NewError(core.INVALID_ARGUMENT, "Prompt.ExecuteStream: prompt is nil"))
 			return
 		}
 
@@ -300,7 +299,7 @@ var errPromptStop = errors.New("stop")
 // Render renders the prompt template based on user input.
 func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	if p == nil {
-		return nil, errors.New("Prompt.Render: called on a nil prompt; check that all prompts are defined")
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Prompt.Render: prompt is nil")
 	}
 
 	if len(p.Middleware) > 0 {
@@ -862,7 +861,7 @@ func contentType(ct, uri string) (string, []byte, error) {
 // DefineDataPrompt creates a new data prompt and registers it.
 // It automatically infers input schema from the In type parameter and configures
 // output schema and JSON format from the Out type parameter (unless Out is string).
-func DefineDataPrompt[In, Out, Stream any](r api.Registry, name string, opts ...PromptOption) *DataPrompt[In, Out, Stream] {
+func DefineDataPrompt[In, Out any](r api.Registry, name string, opts ...PromptOption) *DataPrompt[In, Out] {
 	if name == "" {
 		panic("ai.DefineDataPrompt: name is required")
 	}
@@ -884,89 +883,71 @@ func DefineDataPrompt[In, Out, Stream any](r api.Registry, name string, opts ...
 
 	p := DefinePrompt(r, name, allOpts...)
 
-	return &DataPrompt[In, Out, Stream]{
-		prompt:   p,
-		registry: r,
-	}
+	return &DataPrompt[In, Out]{Prompt: p}
 }
 
 // LookupDataPrompt looks up a prompt by name and wraps it with type information.
 // This is useful for wrapping prompts loaded from .prompt files with strong types.
 // It returns nil if the prompt was not found.
-func LookupDataPrompt[In, Out, Stream any](r api.Registry, name string) *DataPrompt[In, Out, Stream] {
+func LookupDataPrompt[In, Out any](r api.Registry, name string) *DataPrompt[In, Out] {
 	p := LookupPrompt(r, name)
 	if p == nil {
 		return nil
 	}
 
-	return AsDataPrompt[In, Out, Stream](p)
+	return AsDataPrompt[In, Out](p)
 }
 
 // AsDataPrompt wraps an existing Prompt with type information, returning a DataPrompt.
 // This is useful for adding strong typing to a dynamically obtained prompt.
-func AsDataPrompt[In, Out, Stream any](p Prompt) *DataPrompt[In, Out, Stream] {
+func AsDataPrompt[In, Out any](p Prompt) *DataPrompt[In, Out] {
 	if p == nil {
 		return nil
 	}
 
-	return &DataPrompt[In, Out, Stream]{
-		prompt:   p,
-		registry: p.(*prompt).registry,
-	}
-}
-
-// Name returns the name of the prompt.
-func (tp *DataPrompt[In, Out, Stream]) Name() string {
-	if tp == nil || tp.prompt == nil {
-		return ""
-	}
-	return tp.prompt.Name()
+	return &DataPrompt[In, Out]{Prompt: p}
 }
 
 // Execute executes the typed prompt and returns the strongly-typed output along with the full model response.
 // For structured output types (non-string Out), the prompt must be configured with the appropriate
 // output schema, either through [DefineDataPrompt] or by using [WithOutputType] when defining the prompt.
-func (tp *DataPrompt[In, Out, Stream]) Execute(ctx context.Context, input In, opts ...PromptExecuteOption) (*Out, *ModelResponse, error) {
-	if tp == nil || tp.prompt == nil {
-		return nil, nil, errors.New("TypedPrompt.Execute: called on a nil prompt; check that all prompts are defined")
+func (dp *DataPrompt[In, Out]) Execute(ctx context.Context, input In, opts ...PromptExecuteOption) (Out, *ModelResponse, error) {
+	if dp == nil {
+		return base.Zero[Out](), nil, core.NewError(core.INVALID_ARGUMENT, "DataPrompt.Execute: prompt is nil")
 	}
 
-	allOpts := make([]PromptExecuteOption, 0, len(opts)+1)
-	allOpts = append(allOpts, WithInput(input))
-	allOpts = append(allOpts, opts...)
+	allOpts := append(slices.Clone(opts), WithInput(input))
 
-	resp, err := tp.prompt.Execute(ctx, allOpts...)
+	resp, err := dp.Prompt.Execute(ctx, allOpts...)
 	if err != nil {
-		return nil, nil, err
+		return base.Zero[Out](), nil, err
 	}
 
 	output, err := extractTypedOutput[Out](resp)
 	if err != nil {
-		return nil, resp, err
+		return base.Zero[Out](), resp, err
 	}
 
 	return output, resp, nil
 }
 
 // ExecuteStream executes the typed prompt with streaming and returns an iterator.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
 //
 // If the yield function is passed a non-nil error, execution has failed with that
 // error; the yield function will not be called again.
 //
-// If the yield function's DataPromptStreamValue argument has Done == true, the value's
+// If the yield function's StreamValue argument has Done == true, the value's
 // Output and Response fields contain the final typed output and response; the yield function
 // will not be called again.
 //
-// Otherwise the Chunk field of the passed DataPromptStreamValue holds a streamed chunk.
+// Otherwise the Chunk field of the passed StreamValue holds a streamed chunk.
 //
 // For structured output types (non-string Out), the prompt must be configured with the appropriate
 // output schema, either through [DefineDataPrompt] or by using [WithOutputType] when defining the prompt.
-func (tp *DataPrompt[In, Out, Stream]) ExecuteStream(ctx context.Context, input In, opts ...PromptExecuteOption) func(func(*StreamValue[Out, Stream], error) bool) {
-	return func(yield func(*StreamValue[Out, Stream], error) bool) {
-		if tp == nil || tp.prompt == nil {
-			yield(nil, errors.New("DataPrompt.ExecuteStream: called on a nil prompt; check that all prompts are defined"))
+func (dp *DataPrompt[In, Out]) ExecuteStream(ctx context.Context, input In, opts ...PromptExecuteOption) iter.Seq2[*StreamValue[Out, Out], error] {
+	return func(yield func(*StreamValue[Out, Out], error) bool) {
+		if dp == nil {
+			yield(nil, core.NewError(core.INVALID_ARGUMENT, "DataPrompt.ExecuteStream: prompt is nil"))
 			return
 		}
 
@@ -974,19 +955,20 @@ func (tp *DataPrompt[In, Out, Stream]) ExecuteStream(ctx context.Context, input 
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			// TODO: Convert ModelResponseChunk to StreamValue[Out, Stream].
-			if !yield(&StreamValue[Out, Stream]{}, nil) {
-				return errTypedPromptStop
+			streamValue, err := extractTypedOutput[Out](chunk)
+			if err != nil {
+				yield(nil, err)
+				return err
+			}
+			if !yield(&StreamValue[Out, Out]{Chunk: streamValue}, nil) {
+				return errGenerateStop
 			}
 			return nil
 		}
 
-		allOpts := make([]PromptExecuteOption, 0, len(opts)+2)
-		allOpts = append(allOpts, WithInput(input))
-		allOpts = append(allOpts, opts...)
-		allOpts = append(allOpts, WithStreaming(cb))
+		allOpts := append(slices.Clone(opts), WithInput(input), WithStreaming(cb))
 
-		resp, err := tp.prompt.Execute(ctx, allOpts...)
+		resp, err := dp.Prompt.Execute(ctx, allOpts...)
 		if err != nil {
 			yield(nil, err)
 			return
@@ -998,38 +980,15 @@ func (tp *DataPrompt[In, Out, Stream]) ExecuteStream(ctx context.Context, input 
 			return
 		}
 
-		yield(&StreamValue[Out, Stream]{Done: true, Output: *output, Response: resp}, nil)
+		yield(&StreamValue[Out, Out]{Done: true, Output: output, Response: resp}, nil)
 	}
 }
 
 // Render renders the typed prompt template with the given input.
-func (tp *DataPrompt[In, Out, Stream]) Render(ctx context.Context, input In) (*GenerateActionOptions, error) {
-	if tp == nil || tp.prompt == nil {
+func (dp *DataPrompt[In, Out]) Render(ctx context.Context, input In) (*GenerateActionOptions, error) {
+	if dp == nil || dp.Prompt == nil {
 		return nil, errors.New("TypedPrompt.Render: called on a nil prompt; check that all prompts are defined")
 	}
 
-	return tp.prompt.Render(ctx, input)
-}
-
-// errTypedPromptStop is a sentinel error used to signal early termination of streaming.
-var errTypedPromptStop = errors.New("stop")
-
-// extractTypedOutput extracts the typed output from a model response.
-func extractTypedOutput[Out any](resp *ModelResponse) (*Out, error) {
-	var output Out
-
-	switch any(output).(type) {
-	case string:
-		// String output - use Text()
-		text := resp.Text()
-		// Type assertion to convert string to Out (which we know is string)
-		result := any(text).(Out)
-		return &result, nil
-	default:
-		// Structured output - unmarshal from response
-		if err := resp.Output(&output); err != nil {
-			return nil, fmt.Errorf("TypedPrompt: failed to parse output: %w", err)
-		}
-		return &output, nil
-	}
+	return dp.Prompt.Render(ctx, input)
 }
