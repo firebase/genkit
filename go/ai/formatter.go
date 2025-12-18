@@ -70,21 +70,17 @@ func DefineFormat(r api.Registry, name string, formatter Formatter) {
 // resolveFormat returns a [Formatter], either a default one or one from the registry.
 func resolveFormat(reg api.Registry, schema map[string]any, format string) (Formatter, error) {
 	var formatter any
-
 	if format == "" {
 		if schema != nil {
-			formatter = reg.LookupValue("/format/" + OutputFormatJSON)
+			format = OutputFormatJSON
 		} else {
-			formatter = reg.LookupValue("/format/" + OutputFormatText)
+			format = OutputFormatText
 		}
-	} else {
-		formatter = reg.LookupValue("/format/" + format)
 	}
-
+	formatter = reg.LookupValue("/format/" + format)
 	if f, ok := formatter.(Formatter); ok {
 		return f, nil
 	}
-
 	return nil, core.NewError(core.INVALID_ARGUMENT, "output format %q is invalid", format)
 }
 

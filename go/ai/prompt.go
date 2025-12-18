@@ -612,19 +612,23 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		toolRefs[i] = ToolName(tool)
 	}
 
-	promptMetadata := map[string]any{
-		"template": parsedPrompt.Template,
+	promptOptMetadata := metadata.Metadata
+	if promptOptMetadata == nil {
+		promptOptMetadata = make(map[string]any)
 	}
+
+	var promptMetadata map[string]any
+	if m, ok := promptOptMetadata["prompt"].(map[string]any); ok {
+		promptMetadata = m
+	} else {
+		promptMetadata = make(map[string]any)
+	}
+	promptMetadata["template"] = parsedPrompt.Template
 	if variant != "" {
 		promptMetadata["variant"] = variant
 	}
-	maps.Copy(promptMetadata, metadata.Metadata)
-
-	promptOptMetadata := map[string]any{
-		"type":   api.ActionTypeExecutablePrompt,
-		"prompt": promptMetadata,
-	}
-	maps.Copy(promptOptMetadata, metadata.Metadata)
+	promptOptMetadata["prompt"] = promptMetadata
+	promptOptMetadata["type"] = api.ActionTypeExecutablePrompt
 
 	opts := &promptOptions{
 		commonGenOptions: commonGenOptions{
