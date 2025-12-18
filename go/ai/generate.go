@@ -793,7 +793,9 @@ func (mr *ModelResponse) Output(v any) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal output: %w", err)
 		}
-		return json.Unmarshal(b, v)
+		if err := json.Unmarshal(b, v); err != nil {
+			return fmt.Errorf("failed to unmarshal output: %w", err)
+		}
 	}
 
 	// For backward compatibility, extract JSON from the response text.
@@ -891,7 +893,10 @@ func (c *ModelResponseChunk) Output(v any) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal chunk output: %w", err)
 	}
-	return json.Unmarshal(b, v)
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
 }
 
 // outputer is an interface for types that can unmarshal structured output.
