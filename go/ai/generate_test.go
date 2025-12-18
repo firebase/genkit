@@ -1742,6 +1742,6 @@ func TestMultipartTools(t *testing.T) {
 
 		if resp.Content[0].Text != "additional content" {
 			t.Errorf("expected content 'additional content', got %q", resp.Content[0].Text)
-    }
-  })
+		}
+	})
 }
