@@ -22,6 +22,7 @@ import {
   ValidationError,
   disableSchemaCodeGeneration,
   parseSchema,
+  resetSchemaCodeGeneration,
   toJsonSchema,
   validateSchema,
   z,
@@ -67,7 +68,7 @@ describe('validate()', () => {
       schema: z.object({ foo: z.boolean() }),
       data: { foo: 123 },
       valid: false,
-      errors: [{ path: 'foo', message: 'Expected boolean, received number' }],
+      errors: [{ path: 'foo', message: 'must be boolean' }],
     },
     {
       it: 'should allow for date types',
@@ -80,9 +81,7 @@ describe('validate()', () => {
       schema: z.object({ foo: z.array(z.object({ bar: z.boolean() })) }),
       data: { foo: [{ bar: 123 }] },
       valid: false,
-      errors: [
-        { path: 'foo.0.bar', message: 'Expected boolean, received number' },
-      ],
+      errors: [{ path: 'foo.0.bar', message: 'must be boolean' }],
     },
     {
       it: 'should be understandable for top-level errors',
@@ -187,18 +186,6 @@ describe('disableSchemaCodeGeneration()', () => {
     assert.ok(errorAtFoo, 'Should have error at foo');
     assert.strictEqual(compileMock.mock.callCount(), 0);
     compileMock.mock.restore();
-  });
-
-  it('should validate zod schema using cfworker validator', () => {
-    disableSchemaCodeGeneration();
-    const schema = z.object({ foo: z.boolean() });
-    const parseSpy = mock.method(schema, 'safeParse');
-
-    const result = validateSchema({ foo: 123 }, { schema });
-
-    assert.strictEqual(result.valid, false);
-    const errorAtFoo = result.errors?.find((e) => e.path === 'foo');
-    assert.ok(errorAtFoo, 'Should have error at foo');
-    assert.strictEqual(parseSpy.mock.callCount(), 0);
+    resetSchemaCodeGeneration();
   });
 });

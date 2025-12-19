@@ -17,7 +17,7 @@
 import { Validator } from '@cfworker/json-schema';
 import Ajv, { type ErrorObject, type JSONSchemaType } from 'ajv';
 import addFormats from 'ajv-formats';
-import { z, type ZodIssue } from 'zod';
+import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
@@ -37,6 +37,11 @@ export function disableSchemaCodeGeneration() {
     "It looks like you're trying to disable schema code generation. Please ensure that the '@cfworker/json-schema' package is installed: `npm i --save @cfworker/json-schema`"
   );
   global[SCHEMA_VALIDATION_MODE] = 'interpret';
+}
+
+/** Visible for testing */
+export function resetSchemaCodeGeneration() {
+  global[SCHEMA_VALIDATION_MODE] = undefined;
 }
 
 export { z }; // provide a consistent zod to use throughout genkit
@@ -114,15 +119,6 @@ function toErrorDetail(error: ErrorObject): ValidationErrorDetail {
   };
 }
 
-function zodErrorToValidationErrorDetail(
-  error: ZodIssue
-): ValidationErrorDetail {
-  return {
-    path: error.path.join('.') || '(root)',
-    message: error.message,
-  };
-}
-
 function cfWorkerErrorToValidationErrorDetail(error: {
   instanceLocation: string;
   error: string;
@@ -157,18 +153,6 @@ export function validateSchema(
   const validationMode = (global[SCHEMA_VALIDATION_MODE] ?? 'compile') as
     | 'compile'
     | 'interpret';
-
-  if (validationMode === 'compile' && options.schema && !options.jsonSchema) {
-    const parseResult = options.schema.safeParse(data);
-    if (parseResult.success) {
-      return { valid: true, schema: toValidate };
-    }
-    return {
-      valid: false,
-      errors: parseResult.error.errors.map(zodErrorToValidationErrorDetail),
-      schema: toValidate,
-    };
-  }
 
   if (validationMode === 'interpret') {
     let validator = cfWorkerValidators.get(toValidate);

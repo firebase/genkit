@@ -105,8 +105,8 @@ describe('GoogleCloudTracing', () => {
 
   it('sub actions are contained within flows', async () => {
     const testFlow = createFlow(ai, 'testFlow', async () => {
-      await ai.run('subAction', async () => {
-        await ai.run('subAction2', async () => {
+      return await ai.run('subAction', async () => {
+        return await ai.run('subAction2', async () => {
           return 'done';
         });
       });
