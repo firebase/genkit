@@ -158,10 +158,10 @@ func TestConvertRequest(t *testing.T) {
 			t.Errorf("topK: got: nil, want %d", ogCfg.TopK)
 		}
 		if gcc.ResponseMIMEType != "" {
-			t.Errorf("ResponseMIMEType should been empty if tools are present")
+			t.Errorf("ResponseMIMEType should be empty if tools are present")
 		}
-		if gcc.ResponseSchema == nil {
-			t.Errorf("ResponseSchema should not be empty")
+		if gcc.ResponseSchema != nil {
+			t.Errorf("ResponseSchema should be nil when tools are present (JSON mode is not compatible with tools)")
 		}
 		if gcc.ThinkingConfig == nil {
 			t.Errorf("ThinkingConfig should not be empty")

@@ -78,43 +78,40 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 		pOpts.Config = modelRef.Config()
 	}
 
-	meta := p.Metadata
-	if meta == nil {
-		meta = map[string]any{}
-	}
-
 	var tools []string
 	for _, value := range pOpts.commonGenOptions.Tools {
 		tools = append(tools, value.Name())
 	}
 
-	inputMeta := map[string]any{}
-	if p.InputSchema != nil {
-		inputMeta["schema"] = p.InputSchema
+	metadata := p.Metadata
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	metadata["type"] = api.ActionTypeExecutablePrompt
+
+	baseName := name
+	if idx := strings.LastIndex(name, "."); idx != -1 {
+		baseName = name[:idx]
 	}
 
-	outputMeta := map[string]any{}
-	if p.OutputSchema != nil {
-		outputMeta["schema"] = p.OutputSchema
+	promptMetadata := map[string]any{
+		"name":         baseName,
+		"description":  p.Description,
+		"model":        modelName,
+		"config":       p.Config,
+		"input":        map[string]any{"schema": p.InputSchema},
+		"output":       map[string]any{"schema": p.OutputSchema},
+		"defaultInput": p.DefaultInput,
+		"tools":        tools,
+		"maxTurns":     p.MaxTurns,
+	}
+	if m, ok := metadata["prompt"].(map[string]any); ok {
+		maps.Copy(m, promptMetadata)
+	} else {
+		metadata["prompt"] = promptMetadata
 	}
 
-	promptMeta := map[string]any{
-		"type": api.ActionTypeExecutablePrompt,
-		"prompt": map[string]any{
-			"name":         name,
-			"description":  p.Description,
-			"model":        modelName,
-			"config":       p.Config,
-			"input":        inputMeta,
-			"output":       outputMeta,
-			"defaultInput": p.DefaultInput,
-			"tools":        tools,
-			"maxTurns":     p.MaxTurns,
-		},
-	}
-	maps.Copy(meta, promptMeta)
-
-	p.ActionDef = *core.DefineAction(r, name, api.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.ActionDef = *core.DefineAction(r, name, api.ActionTypeExecutablePrompt, metadata, p.InputSchema, p.buildRequest)
 
 	return p
 }
@@ -641,16 +638,23 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		toolRefs[i] = ToolName(tool)
 	}
 
-	promptMetadata := map[string]any{
-		"template": parsedPrompt.Template,
+	promptOptMetadata := metadata.Metadata
+	if promptOptMetadata == nil {
+		promptOptMetadata = make(map[string]any)
 	}
-	maps.Copy(promptMetadata, metadata.Metadata)
 
-	promptOptMetadata := map[string]any{
-		"type":   "prompt",
-		"prompt": promptMetadata,
+	var promptMetadata map[string]any
+	if m, ok := promptOptMetadata["prompt"].(map[string]any); ok {
+		promptMetadata = m
+	} else {
+		promptMetadata = make(map[string]any)
 	}
-	maps.Copy(promptOptMetadata, metadata.Metadata)
+	promptMetadata["template"] = parsedPrompt.Template
+	if variant != "" {
+		promptMetadata["variant"] = variant
+	}
+	promptOptMetadata["prompt"] = promptMetadata
+	promptOptMetadata["type"] = api.ActionTypeExecutablePrompt
 
 	opts := &promptOptions{
 		commonGenOptions: commonGenOptions{
