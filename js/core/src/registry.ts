@@ -386,7 +386,7 @@ export class Registry {
       if (isDynamicActionProvider(action)) {
         try {
           // Include the dynamic actions
-          const dapPrefix = `${action.__action.actionType}/${action.__action.name}`;
+          const dapPrefix = `/${action.__action.actionType}/${action.__action.name}`;
           const dapMetadataRecord =
             await action.getActionMetadataRecord(dapPrefix);
           resolvableActions = { ...resolvableActions, ...dapMetadataRecord };
