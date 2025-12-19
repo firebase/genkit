@@ -37,7 +37,6 @@
     "ajv": "^8.12.0",
     "ajv-formats": "^3.0.1",
     "async-mutex": "^0.5.0",
-    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotprompt": "^1.1.1",
     "express": "^4.21.0",

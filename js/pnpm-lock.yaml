@@ -129,9 +129,6 @@ importers:
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
-      body-parser:
-        specifier: ^1.20.3
-        version: 1.20.3
       cors:
         specifier: ^2.8.5
         version: 2.8.5
