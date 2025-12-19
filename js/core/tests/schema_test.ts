@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+import Ajv from 'ajv';
 import * as assert from 'assert';
-import { describe, it } from 'node:test';
+import { describe, it, mock } from 'node:test';
 
 import {
   ValidationError,
+  disableSchemaCodeGeneration,
   parseSchema,
   toJsonSchema,
   validateSchema,
@@ -65,7 +67,7 @@ describe('validate()', () => {
       schema: z.object({ foo: z.boolean() }),
       data: { foo: 123 },
       valid: false,
-      errors: [{ path: 'foo', message: 'must be boolean' }],
+      errors: [{ path: 'foo', message: 'Expected boolean, received number' }],
     },
     {
       it: 'should allow for date types',
@@ -78,7 +80,9 @@ describe('validate()', () => {
       schema: z.object({ foo: z.array(z.object({ bar: z.boolean() })) }),
       data: { foo: [{ bar: 123 }] },
       valid: false,
-      errors: [{ path: 'foo.0.bar', message: 'must be boolean' }],
+      errors: [
+        { path: 'foo.0.bar', message: 'Expected boolean, received number' },
+      ],
     },
     {
       it: 'should be understandable for top-level errors',
@@ -160,5 +164,28 @@ describe('toJsonSchema', () => {
         type: 'object',
       }
     );
+  });
+});
+
+describe('disableSchemaCodeGeneration()', () => {
+  it('should validate using cfworker validator', () => {
+    const compileMock = mock.method(Ajv.prototype, 'compile');
+
+    disableSchemaCodeGeneration();
+    const result = validateSchema(
+      { foo: 123 },
+      {
+        jsonSchema: {
+          type: 'object',
+          properties: { foo: { type: 'boolean' } },
+        },
+      }
+    );
+
+    assert.strictEqual(result.valid, false);
+    const errorAtFoo = result.errors?.find((e) => e.path === 'foo');
+    assert.ok(errorAtFoo, 'Should have error at foo');
+    assert.strictEqual(compileMock.mock.callCount(), 0);
+    compileMock.mock.restore();
   });
 });
