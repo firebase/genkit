@@ -14,7 +14,7 @@
     "next.js",
     "react"
   ],
-  "version": "1.27.0-rc.1",
+  "version": "1.27.0-rc.2",
   "type": "commonjs",
   "main": "lib/index.js",
   "scripts": {
