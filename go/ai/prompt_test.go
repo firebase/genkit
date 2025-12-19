@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1517,4 +1518,491 @@ func TestWithOutputSchemaName_DefinePrompt_Missing(t *testing.T) {
 	if !strings.Contains(err.Error(), "schema \"MissingSchema\" not found") {
 		t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
 	}
+}
+
+func TestDataPromptExecute(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	type GreetingInput struct {
+		Name string `json:"name"`
+	}
+
+	type GreetingOutput struct {
+		Message string `json:"message"`
+		Count   int    `json:"count"`
+	}
+
+	t.Run("typed input and output", func(t *testing.T) {
+		var capturedInput any
+
+		testModel := DefineModel(r, "test/dataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedInput = req.Messages[0].Text()
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"message":"Hello, Alice!","count":1}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, GreetingOutput](r, "greetingPrompt",
+			WithModel(testModel),
+			WithPrompt("Greet {{name}}"),
+		)
+
+		output, resp, err := dp.Execute(context.Background(), GreetingInput{Name: "Alice"})
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		if capturedInput != "Greet Alice" {
+			t.Errorf("expected input %q, got %q", "Greet Alice", capturedInput)
+		}
+
+		if output.Message != "Hello, Alice!" {
+			t.Errorf("expected message %q, got %q", "Hello, Alice!", output.Message)
+		}
+		if output.Count != 1 {
+			t.Errorf("expected count 1, got %d", output.Count)
+		}
+		if resp == nil {
+			t.Error("expected response to be returned")
+		}
+	})
+
+	t.Run("string output type", func(t *testing.T) {
+		testModel := DefineModel(r, "test/stringDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("Hello, World!"),
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, string](r, "stringOutputPrompt",
+			WithModel(testModel),
+			WithPrompt("Say hello to {{name}}"),
+		)
+
+		output, resp, err := dp.Execute(context.Background(), GreetingInput{Name: "World"})
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		if output != "Hello, World!" {
+			t.Errorf("expected output %q, got %q", "Hello, World!", output)
+		}
+		if resp == nil {
+			t.Error("expected response to be returned")
+		}
+	})
+
+	t.Run("nil prompt returns error", func(t *testing.T) {
+		var dp *DataPrompt[GreetingInput, GreetingOutput]
+
+		_, _, err := dp.Execute(context.Background(), GreetingInput{Name: "test"})
+		if err == nil {
+			t.Error("expected error for nil prompt")
+		}
+	})
+
+	t.Run("additional options passed through", func(t *testing.T) {
+		var capturedConfig any
+
+		testModel := DefineModel(r, "test/optionsDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedConfig = req.Config
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"message":"test","count":0}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, GreetingOutput](r, "optionsPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{name}}"),
+		)
+
+		_, _, err := dp.Execute(context.Background(), GreetingInput{Name: "test"},
+			WithConfig(&GenerationCommonConfig{Temperature: 0.5}),
+		)
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		config, ok := capturedConfig.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("expected *GenerationCommonConfig, got %T", capturedConfig)
+		}
+		if config.Temperature != 0.5 {
+			t.Errorf("expected temperature 0.5, got %v", config.Temperature)
+		}
+	})
+
+	t.Run("returns error for invalid output parsing", func(t *testing.T) {
+		testModel := DefineModel(r, "test/parseFailDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("not valid json"),
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, GreetingOutput](r, "parseFailPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{name}}"),
+		)
+
+		_, _, err := dp.Execute(context.Background(), GreetingInput{Name: "test"})
+		if err == nil {
+			t.Error("expected error for invalid JSON output")
+		}
+	})
+}
+
+func TestDataPromptExecuteStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	type StreamInput struct {
+		Topic string `json:"topic"`
+	}
+
+	type StreamOutput struct {
+		Text  string `json:"text"`
+		Index int    `json:"index"`
+	}
+
+	t.Run("typed streaming with struct output", func(t *testing.T) {
+		testModel := DefineModel(r, "test/streamDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"text":"chunk1","index":1}`)},
+				})
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"text":"final","index":99}`)},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"text":"final","index":99}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[StreamInput, StreamOutput](r, "streamPrompt",
+			WithModel(testModel),
+			WithPrompt("Stream about {{topic}}"),
+		)
+
+		var chunks []StreamOutput
+		var finalOutput StreamOutput
+		var finalResponse *ModelResponse
+
+		for val, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "testing"}) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+				finalResponse = val.Response
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) < 1 {
+			t.Errorf("expected at least 1 chunk, got %d", len(chunks))
+		}
+
+		if finalOutput.Text != "final" || finalOutput.Index != 99 {
+			t.Errorf("expected final {final, 99}, got %+v", finalOutput)
+		}
+		if finalResponse == nil {
+			t.Error("expected final response")
+		}
+	})
+
+	t.Run("string output streaming", func(t *testing.T) {
+		testModel := DefineModel(r, "test/stringStreamDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("First ")},
+				})
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("Second")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("First Second"),
+			}, nil
+		})
+
+		dp := DefineDataPrompt[StreamInput, string](r, "stringStreamPrompt",
+			WithModel(testModel),
+			WithPrompt("Generate text about {{topic}}"),
+		)
+
+		var chunks []string
+		var finalOutput string
+
+		for val, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "strings"}) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) != 2 {
+			t.Errorf("expected 2 chunks, got %d", len(chunks))
+		}
+		if chunks[0] != "First " {
+			t.Errorf("chunk 0: expected %q, got %q", "First ", chunks[0])
+		}
+		if chunks[1] != "Second" {
+			t.Errorf("chunk 1: expected %q, got %q", "Second", chunks[1])
+		}
+
+		if finalOutput != "First Second" {
+			t.Errorf("expected final %q, got %q", "First Second", finalOutput)
+		}
+	})
+
+	t.Run("nil prompt returns error", func(t *testing.T) {
+		var dp *DataPrompt[StreamInput, StreamOutput]
+
+		var receivedErr error
+		for _, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "test"}) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected error for nil prompt")
+		}
+	})
+
+	t.Run("handles options passed at execute time", func(t *testing.T) {
+		var capturedConfig any
+
+		testModel := DefineModel(r, "test/optionsStreamModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedConfig = req.Config
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"text":"chunk","index":1}`)},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"text":"done","index":2}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[StreamInput, StreamOutput](r, "optionsStreamPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{topic}}"),
+		)
+
+		for range dp.ExecuteStream(context.Background(), StreamInput{Topic: "options"},
+			WithConfig(&GenerationCommonConfig{Temperature: 0.7}),
+		) {
+		}
+
+		config, ok := capturedConfig.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("expected *GenerationCommonConfig, got %T", capturedConfig)
+		}
+		if config.Temperature != 0.7 {
+			t.Errorf("expected temperature 0.7, got %v", config.Temperature)
+		}
+	})
+
+	t.Run("propagates errors", func(t *testing.T) {
+		expectedErr := errors.New("stream failed")
+
+		testModel := DefineModel(r, "test/errorStreamDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return nil, expectedErr
+		})
+
+		dp := DefineDataPrompt[StreamInput, StreamOutput](r, "errorStreamPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{topic}}"),
+		)
+
+		var receivedErr error
+		for _, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "error"}) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected error to be propagated")
+		}
+		if !errors.Is(receivedErr, expectedErr) {
+			t.Errorf("expected error %v, got %v", expectedErr, receivedErr)
+		}
+	})
+}
+
+func TestPromptExecuteStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	t.Run("yields chunks then final response", func(t *testing.T) {
+		chunkTexts := []string{"A", "B", "C"}
+
+		testModel := DefineModel(r, "test/promptStreamModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				for _, text := range chunkTexts {
+					cb(ctx, &ModelResponseChunk{
+						Content: []*Part{NewTextPart(text)},
+					})
+				}
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("ABC"),
+			}, nil
+		})
+
+		p := DefinePrompt(r, "streamTestPrompt",
+			WithModel(testModel),
+			WithPrompt("Test"),
+		)
+
+		var chunks []*ModelResponseChunk
+		var finalResponse *ModelResponse
+
+		for val, err := range p.ExecuteStream(context.Background()) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalResponse = val.Response
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) != 3 {
+			t.Errorf("expected 3 chunks, got %d", len(chunks))
+		}
+		for i, chunk := range chunks {
+			if chunk.Text() != chunkTexts[i] {
+				t.Errorf("chunk %d: expected %q, got %q", i, chunkTexts[i], chunk.Text())
+			}
+		}
+
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.Text() != "ABC" {
+			t.Errorf("expected final text %q, got %q", "ABC", finalResponse.Text())
+		}
+	})
+
+	t.Run("nil prompt returns error", func(t *testing.T) {
+		var p *prompt
+
+		var receivedErr error
+		for _, err := range p.ExecuteStream(context.Background()) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected error for nil prompt")
+		}
+	})
+
+	t.Run("handles execution options", func(t *testing.T) {
+		var capturedConfig any
+
+		testModel := DefineModel(r, "test/optionsPromptExecModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedConfig = req.Config
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("chunk")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("done"),
+			}, nil
+		})
+
+		p := DefinePrompt(r, "execOptionsTestPrompt",
+			WithModel(testModel),
+			WithPrompt("Test"),
+		)
+
+		for range p.ExecuteStream(context.Background(),
+			WithConfig(&GenerationCommonConfig{Temperature: 0.9}),
+		) {
+		}
+
+		config, ok := capturedConfig.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("expected *GenerationCommonConfig, got %T", capturedConfig)
+		}
+		if config.Temperature != 0.9 {
+			t.Errorf("expected temperature 0.9, got %v", config.Temperature)
+		}
+	})
 }
