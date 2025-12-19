@@ -115,10 +115,16 @@ export function modelGardenOpenaiCompatibleModel(
     request: GenerateRequest<typeof ModelGardenModelConfigSchema>
   ): Promise<OpenAI> => {
     const requestLocation = request.config?.location || location;
+    const baseUrl = requestLocation === 'global'
+      ? baseUrlTemplate!
+          .replace(/{location}-aiplatform\.googleapis\.com/g, 'aiplatform.googleapis.com')
+          .replace(/{location}/g, requestLocation)
+          .replace(/{projectId}/g, projectId)
+      : baseUrlTemplate!
+          .replace(/{location}/g, requestLocation)
+          .replace(/{projectId}/g, projectId);
     return new OpenAI({
-      baseURL: baseUrlTemplate!
-        .replace(/{location}/g, requestLocation)
-        .replace(/{projectId}/g, projectId),
+      baseURL: baseUrl,
       apiKey: (await googleAuth.getAccessToken())!,
       defaultHeaders: {
         'X-Goog-Api-Client': getGenkitClientHeader(),
