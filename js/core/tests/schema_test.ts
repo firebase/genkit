@@ -188,4 +188,17 @@ describe('disableSchemaCodeGeneration()', () => {
     assert.strictEqual(compileMock.mock.callCount(), 0);
     compileMock.mock.restore();
   });
+
+  it('should validate zod schema using cfworker validator', () => {
+    disableSchemaCodeGeneration();
+    const schema = z.object({ foo: z.boolean() });
+    const parseSpy = mock.method(schema, 'safeParse');
+
+    const result = validateSchema({ foo: 123 }, { schema });
+
+    assert.strictEqual(result.valid, false);
+    const errorAtFoo = result.errors?.find((e) => e.path === 'foo');
+    assert.ok(errorAtFoo, 'Should have error at foo');
+    assert.strictEqual(parseSpy.mock.callCount(), 0);
+  });
 });

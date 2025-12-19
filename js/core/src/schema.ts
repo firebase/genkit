@@ -20,11 +20,12 @@ import addFormats from 'ajv-formats';
 import { z, type ZodIssue } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { GenkitError } from './error.js';
+import { logger } from './logging.js';
 import type { Registry } from './registry.js';
 const ajv = new Ajv();
 addFormats(ajv);
 
-let validationMode: 'compile' | 'interpret' = 'compile';
+const SCHEMA_VALIDATION_MODE = 'schemaValidationMode' as const;
 
 /**
  * Disable schema code generation in runtime. Use this if your runtime
@@ -32,7 +33,10 @@ let validationMode: 'compile' | 'interpret' = 'compile';
  * CloudFlare workers.
  */
 export function disableSchemaCodeGeneration() {
-  validationMode = 'interpret';
+  logger.warn(
+    "It looks like you're trying to disable schema code generation. Please ensure that the '@cfworker/json-schema' package is installed: `npm i --save @cfworker/json-schema`"
+  );
+  global[SCHEMA_VALIDATION_MODE] = 'interpret';
 }
 
 export { z }; // provide a consistent zod to use throughout genkit
@@ -150,8 +154,11 @@ export function validateSchema(
   if (!toValidate) {
     return { valid: true, schema: toValidate };
   }
+  const validationMode = (global[SCHEMA_VALIDATION_MODE] ?? 'compile') as
+    | 'compile'
+    | 'interpret';
 
-  if (options.schema && !options.jsonSchema) {
+  if (validationMode === 'compile' && options.schema && !options.jsonSchema) {
     const parseResult = options.schema.safeParse(data);
     if (parseResult.success) {
       return { valid: true, schema: toValidate };

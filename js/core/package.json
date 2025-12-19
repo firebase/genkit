@@ -26,7 +26,6 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@cfworker/json-schema": "^4.1.1",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "~1.25.0",
     "@opentelemetry/core": "~1.25.0",
@@ -58,6 +57,7 @@
     "typescript": "^4.9.0"
   },
   "optionalDependencies": {
+    "@cfworker/json-schema": "^4.1.1",
     "@genkit-ai/firebase": "^1.16.1"
   },
   "types": "lib/index.d.ts",
