@@ -14,14 +14,35 @@
  * limitations under the License.
  */
 
+import { Validator } from '@cfworker/json-schema';
 import Ajv, { type ErrorObject, type JSONSchemaType } from 'ajv';
 import addFormats from 'ajv-formats';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { GenkitError } from './error.js';
+import { logger } from './logging.js';
 import type { Registry } from './registry.js';
 const ajv = new Ajv();
 addFormats(ajv);
+
+const SCHEMA_VALIDATION_MODE = 'schemaValidationMode' as const;
+
+/**
+ * Disable schema code generation in runtime. Use this if your runtime
+ * environment restricts the use of `eval` or `new Function`, for e.g., in
+ * CloudFlare workers.
+ */
+export function disableSchemaCodeGeneration() {
+  logger.warn(
+    "It looks like you're trying to disable schema code generation. Please ensure that the '@cfworker/json-schema' package is installed: `npm i --save @cfworker/json-schema`"
+  );
+  global[SCHEMA_VALIDATION_MODE] = 'interpret';
+}
+
+/** Visible for testing */
+export function resetSchemaCodeGeneration() {
+  global[SCHEMA_VALIDATION_MODE] = undefined;
+}
 
 export { z }; // provide a consistent zod to use throughout genkit
 
@@ -32,6 +53,7 @@ export type JSONSchema = JSONSchemaType<any> | any;
 
 const jsonSchemas = new WeakMap<z.ZodTypeAny, JSONSchema>();
 const validators = new WeakMap<JSONSchema, ReturnType<typeof ajv.compile>>();
+const cfWorkerValidators = new WeakMap<JSONSchema, Validator>();
 
 /**
  * Wrapper object for various ways schema can be provided.
@@ -97,6 +119,19 @@ function toErrorDetail(error: ErrorObject): ValidationErrorDetail {
   };
 }
 
+function cfWorkerErrorToValidationErrorDetail(error: {
+  instanceLocation: string;
+  error: string;
+}): ValidationErrorDetail {
+  const path = error.instanceLocation.startsWith('#/')
+    ? error.instanceLocation.substring(2)
+    : '';
+  return {
+    path: path.replace(/\//g, '.') || '(root)',
+    message: error.error,
+  };
+}
+
 /**
  * Validation response.
  */
@@ -115,6 +150,24 @@ export function validateSchema(
   if (!toValidate) {
     return { valid: true, schema: toValidate };
   }
+  const validationMode = (global[SCHEMA_VALIDATION_MODE] ?? 'compile') as
+    | 'compile'
+    | 'interpret';
+
+  if (validationMode === 'interpret') {
+    let validator = cfWorkerValidators.get(toValidate);
+    if (!validator) {
+      validator = new Validator(toValidate);
+      cfWorkerValidators.set(toValidate, validator);
+    }
+    const result = validator.validate(data);
+    return {
+      valid: result.valid,
+      errors: result.errors?.map(cfWorkerErrorToValidationErrorDetail),
+      schema: toValidate,
+    };
+  }
+
   const validator = validators.get(toValidate) || ajv.compile(toValidate);
   const valid = validator(data) as boolean;
   const errors = validator.errors?.map((e) => e);
