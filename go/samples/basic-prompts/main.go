@@ -233,7 +233,7 @@ func RecipeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
 	)
 
 	genkit.DefineStreamingFlow(g, "recipePromptFlow",
-		func(ctx context.Context, input RecipeRequest, sendChunk core.StreamCallback[[]*Ingredient]) (*Recipe, error) {
+		func(ctx context.Context, input RecipeRequest, sendChunk core.StreamCallback[*Ingredient]) (*Recipe, error) {
 			if input.Dish == "" {
 				input.Dish = "pasta"
 			}
@@ -255,8 +255,8 @@ func RecipeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
 				if result.Done {
 					return result.Output, nil
 				} else if result.Chunk != nil {
-					if newIngs := filterNew(result.Chunk.Ingredients); len(newIngs) > 0 {
-						sendChunk(ctx, newIngs)
+					for _, i := range filterNew(result.Chunk.Ingredients) {
+						sendChunk(ctx, i)
 					}
 				}
 			}
@@ -270,7 +270,7 @@ func RecipeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
 // Streams partial ingredients as they arrive via ExecuteStream.
 func RecipeWithDotprompt(ctx context.Context, g *genkit.Genkit) {
 	genkit.DefineStreamingFlow(g, "recipeDotpromptFlow",
-		func(ctx context.Context, input RecipeRequest, sendChunk core.StreamCallback[[]*Ingredient]) (*Recipe, error) {
+		func(ctx context.Context, input RecipeRequest, sendChunk core.StreamCallback[*Ingredient]) (*Recipe, error) {
 			if input.Dish == "" {
 				input.Dish = "pasta"
 			}
@@ -293,8 +293,8 @@ func RecipeWithDotprompt(ctx context.Context, g *genkit.Genkit) {
 				if result.Done {
 					return result.Output, nil
 				} else if result.Chunk != nil {
-					if newIngs := filterNew(result.Chunk.Ingredients); len(newIngs) > 0 {
-						sendChunk(ctx, newIngs)
+					for _, i := range filterNew(result.Chunk.Ingredients) {
+						sendChunk(ctx, i)
 					}
 				}
 			}
