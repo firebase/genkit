@@ -32,7 +32,13 @@ from collections.abc import Callable
 from typing import Any
 
 import structlog
-from dotpromptz.dotprompt import Dotprompt
+
+# Import Dotprompt optionally to keep module import-safe without the dependency.
+try:
+    from dotpromptz.dotprompt import Dotprompt  # type: ignore
+except Exception:  # pragma: no cover
+    class Dotprompt:  # type: ignore
+        pass
 
 from genkit.core.action import (
     Action,
@@ -42,6 +48,16 @@ from genkit.core.action import (
     parse_plugin_name_from_action_name,
 )
 from genkit.core.action.types import ActionKind, ActionName, ActionResolver
+
+# Optional imports for dotprompt file loading
+try:
+    from genkit.dotprompt import load_prompt_dir as dp_load_prompt_dir  # type: ignore
+    from genkit.dotprompt.file_loader import registry_definition_key  # type: ignore
+    from genkit.dotprompt.types import LoadedPrompt  # type: ignore
+except Exception:  # pragma: no cover
+    dp_load_prompt_dir = None  # type: ignore
+    registry_definition_key = None  # type: ignore
+    LoadedPrompt = object  # type: ignore
 
 logger = structlog.get_logger(__name__)
 
@@ -86,6 +102,8 @@ class Registry:
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
         self.dotprompt = Dotprompt()
+        # Storage for prompts loaded from .prompt files (definition key -> LoadedPrompt)
+        self._loaded_prompts: dict[str, LoadedPrompt] = {}
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
@@ -270,6 +288,40 @@ class Registry:
                         'metadata': _action.metadata,
                     }
         return actions
+
+    # --- Dotprompt file-based prompt management (safe, opt-in) ---
+    def load_prompt_folder(self, dir: str, ns: str | None = None) -> dict[str, 'LoadedPrompt']:
+        """Load .prompt files into in-memory storage without registration.
+
+        This mirrors JS folder scanning behavior but intentionally avoids
+        registering actions. Use this to prepare for later integration.
+        """
+        if dp_load_prompt_dir is None:
+            raise RuntimeError('dotprompt loader not available')
+        loaded = dp_load_prompt_dir(self.dotprompt, dir, ns)
+        with self._lock:
+            self._loaded_prompts.update(loaded)
+        return loaded
+
+    def list_loaded_prompts(self) -> list[str]:
+        """Return keys of loaded .prompt definitions."""
+        with self._lock:
+            return list(self._loaded_prompts.keys())
+
+    def get_loaded_prompt(self, key: str) -> 'LoadedPrompt | None':
+        """Get a previously loaded .prompt by its definition key."""
+        with self._lock:
+            return self._loaded_prompts.get(key)
+
+    def lookup_loaded_prompt(self, name: str, variant: str | None = None, ns: str | None = None) -> 'LoadedPrompt | None':
+        """Lookup a loaded .prompt by name/variant/ns using JS definition key rules.
+
+        Mirrors JS `registryDefinitionKey(name, variant, ns)` composition.
+        """
+        if registry_definition_key is None:
+            return None
+        key = registry_definition_key(name, variant, ns)
+        return self.get_loaded_prompt(key)
 
     def register_value(self, kind: str, name: str, value: Any):
         """Registers a value with a given kind and name.
