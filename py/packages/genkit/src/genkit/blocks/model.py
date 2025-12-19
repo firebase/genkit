@@ -36,8 +36,8 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionKind
 from genkit.core.action import ActionMetadata, ActionRunContext
+from genkit.core.action.types import ActionKind
 from genkit.core.extract import extract_json
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (

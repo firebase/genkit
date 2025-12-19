@@ -659,10 +659,11 @@ async def render_dotprompt_to_parts(
     Raises:
         Exception: If the template produces more than one message.
     """
-    merged_input = input_
+    # Flatten input and context for template resolution
+    flattened_data = {**(context or {}), **(input_ or {})}
     rendered = await prompt_function(
         data=DataArgument[dict[str, Any]](
-            input=merged_input,
+            input=flattened_data,
             context=context,
         ),
         options=options,
@@ -718,9 +719,11 @@ async def render_message_prompt(
         if isinstance(options.messages, list):
             messages_ = [e.model_dump() for e in options.messages]
 
+        # Flatten input and context for template resolution
+        flattened_data = {**(context or {}), **(input or {})}
         rendered = await prompt_cache.messages(
             data=DataArgument[dict[str, Any]](
-                input=input,
+                input=flattened_data,
                 context=context,
                 messages=messages_,
             ),
@@ -841,7 +844,7 @@ def define_helper(registry: Registry, name: str, fn: Callable) -> None:
     logger.debug(f'Registered Dotprompt helper "{name}"')
 
 
-def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = 'dotprompt') -> None:
+def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = '') -> None:
     """Load a single prompt file and register it in the registry.
 
     This function loads a .prompt file, parses it, and registers it as a lazy-loaded
@@ -1091,6 +1094,13 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                     partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
                     with open(entry.path, 'r', encoding='utf-8') as f:
                         source = f.read()
+
+                    # Strip frontmatter if present
+                    if source.startswith('---'):
+                        end_frontmatter = source.find('---', 3)
+                        if end_frontmatter != -1:
+                            source = source[end_frontmatter + 3 :].strip()
+
                     define_partial(registry, partial_name, source)
                     logger.debug(f'Registered Dotprompt partial "{partial_name}" from "{entry.path}"')
                 else:
@@ -1107,7 +1117,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
         logger.error(f'Error loading prompts from {full_path}: {e}')
 
 
-def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = 'dotprompt') -> None:
+def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '') -> None:
     """Load all prompt files from a directory.
 
     This is the main entry point for loading prompts from a directory.

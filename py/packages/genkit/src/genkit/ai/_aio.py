@@ -23,6 +23,7 @@ class while customizing it with any plugins.
 import uuid
 from asyncio import Future
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 from genkit.aio import Channel
@@ -38,7 +39,7 @@ from genkit.blocks.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.blocks.prompt import PromptConfig, to_generate_action_options
+from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
@@ -72,6 +73,7 @@ class Genkit(GenkitBase):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
+        prompt_dir: str | Path | None = None,
         reflection_server_spec: ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
@@ -79,10 +81,17 @@ class Genkit(GenkitBase):
         Args:
             plugins: List of plugins to initialize.
             model: Model name to use.
+            prompt_dir: Directory to automatically load prompts from.
+                Defaults to './prompts'.
             reflection_server_spec: Server spec for the reflection
                 server.
         """
         super().__init__(plugins=plugins, model=model, reflection_server_spec=reflection_server_spec)
+
+        if prompt_dir:
+            load_prompt_folder(self.registry, dir_path=prompt_dir)
+        elif Path('./prompts').is_dir():
+            load_prompt_folder(self.registry, dir_path='./prompts')
 
     async def generate(
         self,

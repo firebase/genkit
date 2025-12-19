@@ -1,0 +1,2 @@
+This is a nested prompt, hello {{name}}!
+{{> shared_partial}}

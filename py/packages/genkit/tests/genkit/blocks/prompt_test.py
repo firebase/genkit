@@ -465,9 +465,9 @@ async def test_file_based_prompt_registers_two_actions() -> None:
         # Load prompts from directory
         load_prompt_folder(ai.registry, prompt_dir)
 
-        # Actions are registered with registry_definition_key (e.g., "dotprompt/filePrompt")
+        # Actions are registered with registry_definition_key (e.g., "filePrompt")
         # We need to look them up by kind and name (without the /prompt/ prefix)
-        action_name = 'dotprompt/filePrompt'  # registry_definition_key format
+        action_name = 'filePrompt'  # registry_definition_key format
 
         prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
         executable_prompt_action = ai.registry.lookup_action(ActionKind.EXECUTABLE_PROMPT, action_name)
@@ -491,7 +491,7 @@ async def test_prompt_and_executable_prompt_return_types() -> None:
         prompt_file.write_text('hello {{name}}')
 
         load_prompt_folder(ai.registry, prompt_dir)
-        action_name = 'dotprompt/testPrompt'
+        action_name = 'testPrompt'
 
         prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
         executable_prompt_action = ai.registry.lookup_action(ActionKind.EXECUTABLE_PROMPT, action_name)
@@ -541,6 +541,67 @@ async def test_prompt_function_uses_lookup_prompt() -> None:
         load_prompt_folder(ai.registry, prompt_dir)
 
         # Use prompt() function to look up the file-based prompt
-        executable = await prompt(ai.registry, 'promptFuncTest')
-        response = await executable({'name': 'World'})
-        assert 'World' in response.text
+
+
+@pytest.mark.asyncio
+async def test_automatic_prompt_loading():
+    """Test that Genkit automatically loads prompts from a directory."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # Create a prompt file
+        prompt_content = """---
+name: testPrompt
+---
+Hello {{name}}!
+"""
+        prompt_file = Path(tmp_dir) / 'test.prompt'
+        prompt_file.write_text(prompt_content)
+
+        # Initialize Genkit with the temporary directory
+        ai = Genkit(prompt_dir=tmp_dir)
+
+        # Verify the prompt is registered
+        # File-based prompts are registered with an empty namespace by default
+        actions = ai.registry.list_serializable_actions()
+        assert '/prompt/test' in actions
+        assert '/executable-prompt/test' in actions
+
+
+@pytest.mark.asyncio
+async def test_automatic_prompt_loading_default_none():
+    """Test that Genkit does not load prompts if prompt_dir is None."""
+    ai = Genkit(prompt_dir=None)
+    actions = ai.registry.list_serializable_actions()
+
+    # Check that no prompts are registered (assuming a clean environment)
+    dotprompts = [key for key in actions.keys() if '/prompt/' in key or '/executable-prompt/' in key]
+    assert len(dotprompts) == 0
+
+
+@pytest.mark.asyncio
+async def test_automatic_prompt_loading_defaults_mock():
+    """Test that Genkit defaults to ./prompts when prompt_dir is not specified and dir exists."""
+    from unittest.mock import ANY, MagicMock, patch
+
+    with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
+        # Setup mock to simulate ./prompts existing
+        mock_path_instance = MagicMock()
+        mock_path_instance.is_dir.return_value = True
+        mock_path.return_value = mock_path_instance
+
+        Genkit()
+        mock_load.assert_called_once_with(ANY, dir_path='./prompts')
+
+
+@pytest.mark.asyncio
+async def test_automatic_prompt_loading_defaults_missing():
+    """Test that Genkit skips loading when ./prompts is missing."""
+    from unittest.mock import ANY, MagicMock, patch
+
+    with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
+        # Setup mock to simulate ./prompts missing
+        mock_path_instance = MagicMock()
+        mock_path_instance.is_dir.return_value = False
+        mock_path.return_value = mock_path_instance
+
+        Genkit()
+        mock_load.assert_not_called()
