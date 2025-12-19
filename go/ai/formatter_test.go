@@ -661,17 +661,14 @@ func TestResolveFormat(t *testing.T) {
 		}
 	})
 
-	t.Run("defaults to text even when schema present but no format", func(t *testing.T) {
+	t.Run("defaults to json even when schema present but no format", func(t *testing.T) {
 		schema := map[string]any{"type": "object"}
 		formatter, err := resolveFormat(r, schema, "")
 		if err != nil {
 			t.Fatalf("resolveFormat() error = %v", err)
 		}
-		// Note: The current implementation defaults to text when format is empty,
-		// even if schema is present. The schema/format combination is typically
-		// handled at a higher level (e.g., in Generate options).
-		if formatter.Name() != OutputFormatText {
-			t.Errorf("resolveFormat() = %q, want %q", formatter.Name(), OutputFormatText)
+		if formatter.Name() != OutputFormatJSON {
+			t.Errorf("resolveFormat() = %q, want %q", formatter.Name(), OutputFormatJSON)
 		}
 	})
 
