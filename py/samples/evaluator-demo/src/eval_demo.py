@@ -16,7 +16,7 @@
 
 import json
 import os
-from typing import Any
+from typing import Any, List
 
 import pytest
 import structlog
@@ -27,7 +27,7 @@ from genkit.plugins.google_genai import GoogleAI
 
 logger = structlog.get_logger(__name__)
 
-ai = Genkit(plugins=[GoogleAI()])
+ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
 
 
 async def substring_match(datapoint: BaseDataPoint, options: Any | None):
@@ -54,15 +54,19 @@ ai.define_evaluator(
 )
 
 
+
 #  Define a flow that programmatically runs the evaluation
 @ai.flow()
-async def run_eval_demo(input: Any = None):
-    # Load dataset
-    data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'dataset.json')
-    with open(data_path, 'r') as f:
-        raw_data = json.load(f)
+async def run_eval_demo(dataset_input: List[BaseDataPoint] | None = None):
+    if dataset_input:
+        dataset = dataset_input
+    else:
+        # Load dataset
+        data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'dataset.json')
+        with open(data_path, 'r') as f:
+            raw_data = json.load(f)
 
-    dataset = [BaseDataPoint(**d) for d in raw_data]
+        dataset = [BaseDataPoint(**d) for d in raw_data]
 
     logger.info('Running evaluation...', count=len(dataset))
 
