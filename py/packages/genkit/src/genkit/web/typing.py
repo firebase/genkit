@@ -33,7 +33,7 @@ from collections.abc import Awaitable, Callable
 from asgiref import typing as atyping
 
 try:
-    import litestar  # type: ignore[misc]
+    import litestar  # type: ignore[misc, import-not-found]
 
     HAVE_LITESTAR = True
 except ImportError:

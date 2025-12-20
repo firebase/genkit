@@ -237,7 +237,7 @@ class GranianAdapter(ASGIServerAdapter):
             ImportError: If Granian is not available
             Exception: If the server fails to start or encounters an error
         """
-        import granian
+        import granian  # type: ignore[import-not-found]
 
         # Granian accepts the log level as a string
         # Valid values are: 'trace', 'debug', 'info', 'warn', 'error', or 'off'

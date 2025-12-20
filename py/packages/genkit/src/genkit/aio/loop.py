@@ -138,7 +138,7 @@ def run_loop(coro: Coroutine[Any, Any, Any], *args: Any, **kwargs: Any) -> Any:
         **kwargs: Additional keyword arguments to pass to asyncio.run.
     """
     try:
-        import uvloop
+        import uvloop  # type: ignore[import-not-found]
 
         logger.debug('✅ Using uvloop (recommended)')
         return uvloop.run(coro, *args, **kwargs)

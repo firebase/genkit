@@ -19,7 +19,7 @@
 from typing import Any
 
 import json5
-from partial_json_parser import loads
+from partial_json_parser import loads  # type: ignore[import-untyped]
 
 CHAR_NON_BREAKING_SPACE = '\u00a0'
 

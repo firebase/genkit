@@ -59,7 +59,7 @@ dev = [
   "nox-uv>=0.2.2",
 ]
 
-lint = ["mypy>=1.15", "ruff>=0.9"]
+lint = ["mypy>=1.15", "ruff>=0.9", "ty>=0.0.1"]
 
 [tool.hatch.build.targets.wheel]
 packages = []
@@ -204,15 +204,15 @@ exclude = ["samples/"]
 explicit_package_bases = true
 mypy_path = [
   "packages/genkit/src",
-  "plugins/chroma/src",
+  "plugins/anthropic/src",
   "plugins/compat-oai/src",
   "plugins/dev-local-vectorstore/src",
+  "plugins/evaluators/src",
   "plugins/firebase/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",
   "plugins/ollama/src",
-  "plugins/pinecone/src",
   "plugins/vertex-ai/src",
 ]
 namespace_packages = true
