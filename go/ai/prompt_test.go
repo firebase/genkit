@@ -1097,6 +1097,50 @@ Hello, {{name}}!
 	}
 }
 
+func TestDefinePrompt_WithVariant(t *testing.T) {
+	reg := registry.New()
+
+	DefinePrompt(reg, "example.code", WithPrompt("Hello, {{name}}!"))
+
+	prompt := LookupPrompt(reg, "example.code")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
+	}
+
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected Metadata['prompt'] to be a map")
+	}
+	if promptMetadata["name"] != "example" {
+		t.Errorf("Expected metadata name 'example', got '%s'", promptMetadata["name"])
+	}
+	if promptMetadata["variant"] != "code" {
+		t.Errorf("Expected variant 'code', got '%v'", promptMetadata["variant"])
+	}
+}
+
+func TestDefinePrompt_WithoutVariant(t *testing.T) {
+	reg := registry.New()
+
+	DefinePrompt(reg, "simple", WithPrompt("Hello, world!"))
+
+	prompt := LookupPrompt(reg, "simple")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
+	}
+
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected Metadata['prompt'] to be a map")
+	}
+	if promptMetadata["name"] != "simple" {
+		t.Errorf("Expected metadata name 'simple', got '%s'", promptMetadata["name"])
+	}
+	if _, exists := promptMetadata["variant"]; exists {
+		t.Errorf("Expected no variant for prompt without dot, got '%v'", promptMetadata["variant"])
+	}
+}
+
 func TestLoadPromptFolder(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()

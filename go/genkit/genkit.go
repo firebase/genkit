@@ -269,7 +269,7 @@ func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *cor
 // Example:
 //
 //	counterFlow := genkit.DefineStreamingFlow(g, "counter",
-//		func(ctx context.Context, limit int, stream func(context.Context, int) error) (string, error) {
+//		func(ctx context.Context, limit int, stream core.StreamCallback[int]) (string, error) {
 //			if stream == nil { // Non-streaming case
 //				return fmt.Sprintf("Counted up to %d", limit), nil
 //			}

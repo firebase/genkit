@@ -29,34 +29,36 @@ import (
 )
 
 type JokeRequest struct {
-	Topic string `json:"topic"`
+	Topic string `json:"topic" jsonschema:"default=airplane food"`
 }
 
+// Note how the fields are annotated with jsonschema tags to describe the output schema.
+// This is vital for the model to understand the intent of the fields.
 type Joke struct {
-	Joke     string `json:"joke"`
-	Category string `json:"category"`
+	Joke     string `json:"joke" jsonschema:"description=The joke text"`
+	Category string `json:"category" jsonschema:"description=The joke category"`
 }
 
 type RecipeRequest struct {
-	Dish                string   `json:"dish"`
-	Cuisine             string   `json:"cuisine"`
-	ServingSize         int      `json:"servingSize"`
-	MaxPrepMinutes      int      `json:"maxPrepMinutes"`
+	Dish                string   `json:"dish" jsonschema:"default=pasta"`
+	Cuisine             string   `json:"cuisine" jsonschema:"default=Italian"`
+	ServingSize         int      `json:"servingSize" jsonschema:"default=4"`
+	MaxPrepMinutes      int      `json:"maxPrepMinutes" jsonschema:"default=30"`
 	DietaryRestrictions []string `json:"dietaryRestrictions,omitempty"`
 }
 
 type Ingredient struct {
-	Name     string `json:"name"`
-	Amount   string `json:"amount"`
-	Optional bool   `json:"optional,omitempty"`
+	Name     string `json:"name" jsonschema:"description=The ingredient name"`
+	Amount   string `json:"amount" jsonschema:"description=The ingredient amount (e.g. 1 cup, 2 tablespoons, etc.)"`
+	Optional bool   `json:"optional,omitempty" jsonschema:"description=Whether the ingredient is optional in the recipe"`
 }
 
 type Recipe struct {
-	Title        string        `json:"title"`
-	Description  string        `json:"description,omitempty"`
-	Ingredients  []*Ingredient `json:"ingredients"`
-	Instructions []string      `json:"instructions"`
-	PrepTime     string        `json:"prepTime"`
+	Title        string        `json:"title" jsonschema:"description=The recipe title (e.g. 'Spicy Chicken Tacos')"`
+	Description  string        `json:"description,omitempty" jsonschema:"description=The recipe description (under 100 characters)"`
+	Ingredients  []*Ingredient `json:"ingredients" jsonschema:"description=The recipe ingredients (group by type and order by importance)"`
+	Instructions []string      `json:"instructions" jsonschema:"description=The recipe instructions (step by step)"`
+	PrepTime     string        `json:"prepTime" jsonschema:"description=The recipe preparation time (e.g. 10 minutes, 30 minutes, etc.)"`
 	Difficulty   string        `json:"difficulty" jsonschema:"enum=easy,enum=medium,enum=hard"`
 }
 
@@ -69,23 +71,25 @@ func main() {
 	// practice.
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
-	// Define schemas for the expected output types so that the .prompt files can reference them.
-	// Alternatively, you can specify the JSON schema directly in the .prompt file.
-	// Code-defined prompts do not need to have schemas defined in advance.
+	// Define schemas for the expected input and output types so that the Dotprompt files can reference them.
+	// Alternatively, you can specify the JSON schema by hand in the Dotprompt metadata.
+	// Code-defined prompts do not need to have schemas defined in advance but they too can reference them.
 	genkit.DefineSchemaFor[JokeRequest](g)
 	genkit.DefineSchemaFor[Joke](g)
 	genkit.DefineSchemaFor[RecipeRequest](g)
 	genkit.DefineSchemaFor[Recipe](g)
 
-	// Define the prompts and flows.
-	SimpleJokeWithDefinePrompt(ctx, g)
-	SimpleJokeWithDotprompt(ctx, g)
-	StructuredJokeWithDefineDataPrompt(ctx, g)
-	StructuredJokeWithDotprompt(ctx, g)
-	RecipeWithDefineDataPrompt(ctx, g)
-	RecipeWithDotprompt(ctx, g)
+	// TODO: Include partials and helpers.
 
-	// Optionally, start a web server to make the flow callable via HTTP.
+	// Define the prompts and flows.
+	DefineSimpleJokeWithInlinePrompt(g)
+	DefineSimpleJokeWithDotprompt(g)
+	DefineStructuredJokeWithInlinePrompt(g)
+	DefineStructuredJokeWithDotprompt(g)
+	DefineRecipeWithInlinePrompt(g)
+	DefineRecipeWithDotprompt(g)
+
+	// Optionally, start a web server to make the flows callable via HTTP.
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
 		mux.HandleFunc("POST /"+a.Name(), genkit.Handler(a))
@@ -93,10 +97,10 @@ func main() {
 	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
 }
 
-// SimpleJokeWithDefinePrompt demonstrates defining a prompt in code using DefinePrompt
-// with typed input via WithInputType. The prompt template uses Handlebars syntax to
-// interpolate the input fields. Returns unstructured text output via streaming.
-func SimpleJokeWithDefinePrompt(ctx context.Context, g *genkit.Genkit) {
+// DefineSimpleJokeWithInlinePrompt demonstrates defining a prompt in code using DefinePrompt.
+// The prompt has no output schema defined so it will always return a string.
+// When executing the prompt, we pass in a map[string]any with the input fields.
+func DefineSimpleJokeWithInlinePrompt(g *genkit.Genkit) {
 	jokePrompt := genkit.DefinePrompt(
 		g, "joke.code",
 		ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
@@ -104,15 +108,14 @@ func SimpleJokeWithDefinePrompt(ctx context.Context, g *genkit.Genkit) {
 				ThinkingBudget: genai.Ptr[int32](0),
 			},
 		})),
-		ai.WithInputType(JokeRequest{Topic: "airplane food"}),
+		// Despite JokeRequest having defaults set in jsonschema tags, we can override it with values set in WithInputType.
+		ai.WithInputType(JokeRequest{Topic: "rush hour traffic"}),
 		ai.WithPrompt("Share a long joke about {{topic}}."),
 	)
 
 	genkit.DefineStreamingFlow(g, "simpleJokePromptFlow",
 		func(ctx context.Context, topic string, sendChunk core.StreamCallback[string]) (string, error) {
-			if topic == "" {
-				topic = "airplane food"
-			}
+			// One way to pass input is using a map[string]any. This is useful when there is no structured input type.
 			stream := jokePrompt.ExecuteStream(ctx, ai.WithInput(map[string]any{"topic": topic}))
 			for result, err := range stream {
 				if err != nil {
@@ -124,21 +127,20 @@ func SimpleJokeWithDefinePrompt(ctx context.Context, g *genkit.Genkit) {
 					sendChunk(ctx, result.Chunk.Text())
 				}
 			}
+
 			return "", nil
 		},
 	)
 }
 
-// SimpleJokeWithDotprompt demonstrates loading a prompt from a .prompt file using
+// DefineSimpleJokeWithDotprompt demonstrates loading a prompt from a .prompt file using
 // LoadPrompt. The prompt configuration (model, input schema, defaults) is defined in the
 // file. Input is passed as a map since the .prompt file defines its own schema.
-func SimpleJokeWithDotprompt(ctx context.Context, g *genkit.Genkit) {
+func DefineSimpleJokeWithDotprompt(g *genkit.Genkit) {
 	genkit.DefineStreamingFlow(g, "simpleJokeDotpromptFlow",
 		func(ctx context.Context, topic string, sendChunk core.StreamCallback[string]) (string, error) {
-			if topic == "" {
-				topic = "airplane food"
-			}
 			jokePrompt := genkit.LookupPrompt(g, "joke")
+			// One way to pass input is using a map[string]any. This is useful when there is no structured input type.
 			stream := jokePrompt.ExecuteStream(ctx, ai.WithInput(map[string]any{"topic": topic}))
 			for result, err := range stream {
 				if err != nil {
@@ -150,15 +152,16 @@ func SimpleJokeWithDotprompt(ctx context.Context, g *genkit.Genkit) {
 					sendChunk(ctx, result.Chunk.Text())
 				}
 			}
+
 			return "", nil
 		},
 	)
 }
 
-// StructuredJokeWithDefineDataPrompt demonstrates DefineDataPrompt for strongly-typed
+// DefineStructuredJokeWithInlinePrompt demonstrates DefineDataPrompt for strongly-typed
 // input and output. The type parameters automatically configure input/output schemas
 // and JSON output format. ExecuteStream returns typed chunks and final output.
-func StructuredJokeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
+func DefineStructuredJokeWithInlinePrompt(g *genkit.Genkit) {
 	jokePrompt := genkit.DefineDataPrompt[JokeRequest, *Joke](
 		g, "structured-joke.code",
 		ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
@@ -171,11 +174,7 @@ func StructuredJokeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
 
 	genkit.DefineStreamingFlow(g, "structuredJokePromptFlow",
 		func(ctx context.Context, input JokeRequest, sendChunk core.StreamCallback[*Joke]) (*Joke, error) {
-			if input.Topic == "" {
-				input.Topic = "airplane food"
-			}
-			stream := jokePrompt.ExecuteStream(ctx, input)
-			for result, err := range stream {
+			for result, err := range jokePrompt.ExecuteStream(ctx, input) {
 				if err != nil {
 					return nil, fmt.Errorf("could not generate joke: %w", err)
 				}
@@ -185,20 +184,18 @@ func StructuredJokeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
 					sendChunk(ctx, result.Chunk)
 				}
 			}
+
 			return nil, nil
 		},
 	)
 }
 
-// StructuredJokeWithDotprompt demonstrates LookupDataPrompt to wrap a .prompt file
+// DefineStructuredJokeWithDotprompt demonstrates LookupDataPrompt to wrap a .prompt file
 // with Go type information. The .prompt file references registered schemas by name
 // (e.g., "schema: Joke"), which must be defined via DefineSchemaFor before loading.
-func StructuredJokeWithDotprompt(ctx context.Context, g *genkit.Genkit) {
+func DefineStructuredJokeWithDotprompt(g *genkit.Genkit) {
 	genkit.DefineStreamingFlow(g, "structuredJokeDotpromptFlow",
 		func(ctx context.Context, input JokeRequest, sendChunk core.StreamCallback[*Joke]) (*Joke, error) {
-			if input.Topic == "" {
-				input.Topic = "airplane food"
-			}
 			jokePrompt := genkit.LookupDataPrompt[JokeRequest, *Joke](g, "structured-joke")
 			stream := jokePrompt.ExecuteStream(ctx, input)
 			for result, err := range stream {
@@ -216,10 +213,10 @@ func StructuredJokeWithDotprompt(ctx context.Context, g *genkit.Genkit) {
 	)
 }
 
-// RecipeWithDefineDataPrompt demonstrates DefineDataPrompt with complex nested types
+// DefineRecipeWithInlinePrompt demonstrates DefineDataPrompt with complex nested types
 // and Handlebars conditionals/loops in the prompt template. The streaming flow applies
 // default values before execution and streams partial ingredients as they arrive.
-func RecipeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
+func DefineRecipeWithInlinePrompt(g *genkit.Genkit) {
 	recipePrompt := genkit.DefineDataPrompt[RecipeRequest, *Recipe](
 		g, "recipe.code",
 		ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
@@ -234,21 +231,9 @@ func RecipeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
 
 	genkit.DefineStreamingFlow(g, "recipePromptFlow",
 		func(ctx context.Context, input RecipeRequest, sendChunk core.StreamCallback[*Ingredient]) (*Recipe, error) {
-			if input.Dish == "" {
-				input.Dish = "pasta"
-			}
-			if input.Cuisine == "" {
-				input.Cuisine = "Italian"
-			}
-			if input.ServingSize == 0 {
-				input.ServingSize = 4
-			}
-			if input.MaxPrepMinutes == 0 {
-				input.MaxPrepMinutes = 30
-			}
+			// This is not necessary for this example but it shows how to easily have more control over what you stream.
 			filterNew := newIngredientFilter()
-			stream := recipePrompt.ExecuteStream(ctx, input)
-			for result, err := range stream {
+			for result, err := range recipePrompt.ExecuteStream(ctx, input) {
 				if err != nil {
 					return nil, fmt.Errorf("could not generate recipe: %w", err)
 				}
@@ -265,24 +250,13 @@ func RecipeWithDefineDataPrompt(ctx context.Context, g *genkit.Genkit) {
 	)
 }
 
-// RecipeWithDotprompt demonstrates LookupDataPrompt with a .prompt file that uses
+// DefineRecipeWithDotprompt demonstrates LookupDataPrompt with a .prompt file that uses
 // multi-message format (system/user roles) and references registered schemas.
 // Streams partial ingredients as they arrive via ExecuteStream.
-func RecipeWithDotprompt(ctx context.Context, g *genkit.Genkit) {
+func DefineRecipeWithDotprompt(g *genkit.Genkit) {
 	genkit.DefineStreamingFlow(g, "recipeDotpromptFlow",
 		func(ctx context.Context, input RecipeRequest, sendChunk core.StreamCallback[*Ingredient]) (*Recipe, error) {
-			if input.Dish == "" {
-				input.Dish = "pasta"
-			}
-			if input.Cuisine == "" {
-				input.Cuisine = "Italian"
-			}
-			if input.ServingSize == 0 {
-				input.ServingSize = 4
-			}
-			if input.MaxPrepMinutes == 0 {
-				input.MaxPrepMinutes = 30
-			}
+			// This is not necessary for this example but it shows how to easily have more control over what you stream.
 			filterNew := newIngredientFilter()
 			recipePrompt := genkit.LookupDataPrompt[RecipeRequest, *Recipe](g, "recipe")
 			stream := recipePrompt.ExecuteStream(ctx, input)

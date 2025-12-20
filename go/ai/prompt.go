@@ -100,10 +100,7 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 	}
 	metadata["type"] = api.ActionTypeExecutablePrompt
 
-	baseName := name
-	if idx := strings.LastIndex(name, "."); idx != -1 {
-		baseName = name[:idx]
-	}
+	baseName, variant, _ := strings.Cut(name, ".")
 
 	promptMetadata := map[string]any{
 		"name":         baseName,
@@ -115,6 +112,9 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 		"defaultInput": p.DefaultInput,
 		"tools":        tools,
 		"maxTurns":     p.MaxTurns,
+	}
+	if variant != "" {
+		promptMetadata["variant"] = variant
 	}
 	if m, ok := metadata["prompt"].(map[string]any); ok {
 		maps.Copy(m, promptMetadata)
