@@ -1,1 +1,8 @@
+---
+model: googleai/gemini-2.0-flash
+input:
+  schema:
+    name: string
+---
+
 Hello {{name}}!

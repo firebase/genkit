@@ -540,7 +540,12 @@ async def test_prompt_function_uses_lookup_prompt() -> None:
 
         load_prompt_folder(ai.registry, prompt_dir)
 
-        # Use prompt() function to look up the file-based prompt
+        # Use ai.prompt() to look up the file-based prompt
+        executable = await ai.prompt('promptFuncTest')
+
+        # Verify it can be executed
+        response = await executable({'name': 'Genkit'})
+        assert 'Genkit' in response.text
 
 
 @pytest.mark.asyncio
@@ -589,7 +594,7 @@ async def test_automatic_prompt_loading_defaults_mock():
         mock_path.return_value = mock_path_instance
 
         Genkit()
-        mock_load.assert_called_once_with(ANY, dir_path='./prompts')
+        mock_load.assert_called_once_with(ANY, dir_path=mock_path_instance)
 
 
 @pytest.mark.asyncio

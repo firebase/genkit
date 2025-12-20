@@ -31,7 +31,7 @@ prompts_path = current_dir.parent / 'prompts'
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.0-flash', prompt_dir=prompts_path)
 
 
-def my_helper(content, *args, **kwargs):
+def my_helper(content, *_, **__):
     if isinstance(content, list):
         content = content[0] if content else ''
     return f'*** {content} ***'

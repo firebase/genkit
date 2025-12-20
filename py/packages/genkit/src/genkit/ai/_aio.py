@@ -82,16 +82,20 @@ class Genkit(GenkitBase):
             plugins: List of plugins to initialize.
             model: Model name to use.
             prompt_dir: Directory to automatically load prompts from.
-                Defaults to './prompts'.
+                If not provided, defaults to loading from './prompts' if it exists.
             reflection_server_spec: Server spec for the reflection
                 server.
         """
         super().__init__(plugins=plugins, model=model, reflection_server_spec=reflection_server_spec)
 
-        if prompt_dir:
-            load_prompt_folder(self.registry, dir_path=prompt_dir)
-        elif Path('./prompts').is_dir():
-            load_prompt_folder(self.registry, dir_path='./prompts')
+        load_path = prompt_dir
+        if load_path is None:
+            default_prompts_path = Path('./prompts')
+            if default_prompts_path.is_dir():
+                load_path = default_prompts_path
+
+        if load_path:
+            load_prompt_folder(self.registry, dir_path=load_path)
 
     async def generate(
         self,
