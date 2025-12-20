@@ -20,22 +20,27 @@ from pathlib import Path
 import structlog
 
 from genkit.ai import Genkit
-from genkit.blocks.prompt import load_prompt_folder
 from genkit.plugins.google_genai import GoogleAI
 
 logger = structlog.get_logger(__name__)
 
 
-# Initialize with GoogleAI plugin
-ai = Genkit(plugins=[GoogleAI()])
+current_dir = Path(__file__).resolve().parent
+prompts_path = current_dir.parent / 'prompts'
+
+ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash', prompt_dir=prompts_path)
+
+
+def my_helper(content, *_, **__):
+    if isinstance(content, list):
+        content = content[0] if content else ''
+    return f'*** {content} ***'
+
+
+ai.define_helper('my_helper', my_helper)
 
 
 async def main():
-    # Load the prompts from the directory (data)
-    current_dir = Path(__file__).resolve().parent
-    prompts_path = current_dir.parent / 'data'
-    load_prompt_folder(ai.registry, prompts_path)
-
     # List actions to verify loading
     actions = ai.registry.list_serializable_actions()
 
@@ -47,6 +52,13 @@ async def main():
 
     if not prompts:
         await logger.awarning('No prompts found! Check directory structure.')
+        return
+
+    # Execute the 'hello' prompt
+    hello_prompt = await ai.prompt('hello')
+    response = await hello_prompt(input={'name': 'Genkit User'})
+
+    await logger.ainfo('Prompt Execution Result', text=response.text)
 
 
 if __name__ == '__main__':

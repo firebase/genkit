@@ -51,7 +51,11 @@ from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
-from genkit.blocks.prompt import define_prompt
+from genkit.blocks.prompt import (
+    define_helper,
+    define_prompt,
+    lookup_prompt,
+)
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -167,6 +171,15 @@ class GenkitRegistry:
             )
 
         return wrapper
+
+    def define_helper(self, name: str, fn: Callable) -> None:
+        """Define a Handlebars helper function in the registry.
+
+        Args:
+            name: The name of the helper function.
+            fn: The helper function to register.
+        """
+        define_helper(self.registry, name, fn)
 
     def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
