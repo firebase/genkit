@@ -42,11 +42,12 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any, Type
+from typing import Any
 
 import structlog
 from pydantic import BaseModel
 
+from genkit.ai.resource import ResourceFn, ResourceOptions, define_resource
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
@@ -488,7 +489,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
-        config_schema: Type[BaseModel] | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
@@ -668,12 +669,26 @@ class GenkitRegistry:
         Raises:
             GenkitError: If the prompt is not found.
         """
-
         return await lookup_prompt(
             registry=self.registry,
             name=name,
             variant=variant,
         )
+
+    def define_resource(self, opts: ResourceOptions, fn: ResourceFn) -> Action:
+        """Defines a resource and registers it with the registry.
+
+        This creates a resource action that can handle requests for a specific URI
+        or URI template.
+
+        Args:
+            opts: Options defining the resource (name, uri, template, etc.).
+            fn: The function that implements resource content retrieval.
+
+        Returns:
+            The registered `Action` for the resource.
+        """
+        return define_resource(self.registry, opts, fn)
 
 
 class FlowWrapper:

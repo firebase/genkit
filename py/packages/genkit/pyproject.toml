@@ -50,6 +50,7 @@ dependencies = [
   "dotpromptz>=0.1.4",
   "uvicorn>=0.34.0",
   "anyio>=4.9.0",
+
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }
