@@ -130,19 +130,39 @@ public class Embedder implements Action<EmbedRequest, EmbedResponse, Void> {
 
     Map<String, Object> properties = new HashMap<>();
 
-    // input: array of documents
+    // input: array of documents (matching Document structure with content array)
     Map<String, Object> inputProp = new HashMap<>();
     inputProp.put("type", "array");
-    Map<String, Object> itemSchema = new HashMap<>();
-    itemSchema.put("type", "object");
-    Map<String, Object> itemProps = new HashMap<>();
+    inputProp.put("description", "Array of documents to embed");
+
+    // Document schema
+    Map<String, Object> docItemSchema = new HashMap<>();
+    docItemSchema.put("type", "object");
+    Map<String, Object> docProps = new HashMap<>();
+
+    // content array in each document (array of Parts)
+    Map<String, Object> contentProp = new HashMap<>();
+    contentProp.put("type", "array");
+    Map<String, Object> partSchema = new HashMap<>();
+    partSchema.put("type", "object");
+    Map<String, Object> partProps = new HashMap<>();
     Map<String, Object> textProp = new HashMap<>();
     textProp.put("type", "string");
     textProp.put("description", "Text content to embed");
-    itemProps.put("text", textProp);
-    itemSchema.put("properties", itemProps);
-    inputProp.put("items", itemSchema);
-    inputProp.put("description", "Array of documents to embed");
+    partProps.put("text", textProp);
+    partSchema.put("properties", partProps);
+    contentProp.put("items", partSchema);
+    docProps.put("content", contentProp);
+
+    // metadata in document
+    Map<String, Object> metaProp = new HashMap<>();
+    metaProp.put("type", "object");
+    metaProp.put("additionalProperties", true);
+    docProps.put("metadata", metaProp);
+
+    docItemSchema.put("properties", docProps);
+    docItemSchema.put("required", java.util.List.of("content"));
+    inputProp.put("items", docItemSchema);
     properties.put("input", inputProp);
 
     // options: optional configuration
@@ -152,7 +172,7 @@ public class Embedder implements Action<EmbedRequest, EmbedResponse, Void> {
     properties.put("options", optionsProp);
 
     schema.put("properties", properties);
-    schema.put("required", new String[]{"input"});
+    schema.put("required", java.util.List.of("input"));
 
     return schema;
   }
@@ -176,7 +196,7 @@ public class Embedder implements Action<EmbedRequest, EmbedResponse, Void> {
     Map<String, Object> numberItem = new HashMap<>();
     numberItem.put("type", "number");
     embeddingArrayProp.put("items", numberItem);
-    embeddingProps.put("embedding", embeddingArrayProp);
+    embeddingProps.put("values", embeddingArrayProp);
     embeddingSchema.put("properties", embeddingProps);
     embeddingsProp.put("items", embeddingSchema);
     properties.put("embeddings", embeddingsProp);
