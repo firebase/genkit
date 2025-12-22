@@ -1,0 +1,53 @@
+---
+model: openai/gpt-4o-mini
+input:
+  schema:
+    code: string
+    language: string
+    analysisType?: string
+output:
+  format: json
+  schema:
+    language: string
+    summary: string
+    complexity:
+      level: string
+      score: integer, from 1 to 10
+      explanation: string
+    issues(array):
+      severity: string
+      line?: integer
+      description: string
+      suggestion: string
+    improvements(array):
+      category: string
+      description: string
+      example?: string
+    metrics:
+      linesOfCode: integer
+      functions: integer
+      classes: integer
+      comments: integer
+---
+
+You are a senior software engineer and code reviewer with expertise in {{language}}.
+
+Analyze the following {{language}} code:
+
+```{{language}}
+{{code}}
+```
+
+{{#if analysisType}}
+Focus on: {{analysisType}}
+{{else}}
+Provide a comprehensive analysis including:
+- Code quality and readability
+- Potential bugs or issues
+- Performance considerations
+- Best practices adherence
+{{/if}}
+
+IMPORTANT: You MUST respond with ONLY a valid JSON object matching the output schema. Do not include any explanatory text before or after the JSON.
+
+Return your analysis in the specified JSON format.

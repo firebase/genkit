@@ -54,6 +54,13 @@ js:
           - "**/package.json"
           - "js/**"
 
+java:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.java"
+          - "**/pom.xml"
+          - "java/**"
+
 tooling:
   - changed-files:
       - any-glob-to-any-file:

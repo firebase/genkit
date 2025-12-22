@@ -1,0 +1,22 @@
+---
+model: openai/gpt-4o-mini
+input:
+  schema:
+    subject: string
+    personality?: string
+    length?: string
+output:
+  format: text
+---
+
+{{#if personality}}
+Write in the style of someone who is {{personality}}.
+{{/if}}
+
+Tell me an engaging story about {{subject}}.
+
+{{#if length}}
+The story should be approximately {{length}} in length.
+{{else}}
+The story should be medium length (2-3 paragraphs).
+{{/if}}

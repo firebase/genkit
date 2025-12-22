@@ -68,3 +68,17 @@ next-env.d.ts
 # Code Coverage
 js/plugins/compat-oai/coverage/
 
+# Java
+java/**/target/
+java/**/*.class
+java/**/*.jar
+java/**/*.war
+java/**/*.ear
+java/**/.classpath
+java/**/.project
+java/**/.settings/
+java/**/*.iml
+java/**/.genkit
+*.log
+hs_err_pid*
+java/samples/google-genai/generated_media/

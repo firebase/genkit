@@ -1,0 +1,5 @@
+{{#if personality}}
+Adopt the personality of someone who is {{personality}}.
+{{else}}
+Be friendly and approachable.
+{{/if}}

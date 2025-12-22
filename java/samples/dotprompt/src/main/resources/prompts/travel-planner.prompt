@@ -1,0 +1,51 @@
+---
+model: openai/gpt-4o-mini
+input:
+  schema:
+    destination: string
+    duration: integer, number of days
+    budget: string
+    interests?(array): string
+    travelStyle?: string
+output:
+  format: json
+  schema:
+    tripName: string
+    destination: string
+    duration: integer
+    dailyItinerary(array):
+      day: integer
+      title: string
+      activities(array):
+        time: string
+        activity: string
+        location: string
+        estimatedCost?: string
+        tips?: string
+    estimatedBudget:
+      accommodation: string
+      food: string
+      activities: string
+      transportation: string
+      total: string
+    packingList(array): string
+    travelTips(array): string
+---
+
+You are an experienced travel planner with expertise in creating personalized itineraries.
+
+Create a detailed travel itinerary for a trip to {{destination}} for {{duration}} days with a budget of {{budget}}.
+
+{{#if travelStyle}}
+Travel style preference: {{travelStyle}}
+{{/if}}
+
+{{#if interests}}
+Traveler interests:
+{{#each interests}}
+- {{this}}
+{{/each}}
+{{/if}}
+
+IMPORTANT: You MUST respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON.
+Provide a comprehensive day-by-day itinerary with specific activities, timings, and cost estimates in the exact JSON format specified above.
