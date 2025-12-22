@@ -47,28 +47,42 @@ Demonstrates validation output with:
 | `simplifyOrder` | OrderRequest | Map<String, Object> | Transform order to simplified format |
 | `validateOrder` | OrderRequest | ValidationResult | Validate order structure |
 
+## Prerequisites
+
+- Java 17+
+- Maven 3.6+
+- OpenAI API key
+
 ## Running the Sample
 
-### Prerequisites
-
-- Java 17 or later
-- Maven 3.6 or later
-- OpenAI API key (set `OPENAI_API_KEY` environment variable)
-
-### Build and Run
+### Option 1: Direct Run
 
 ```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
 cd java/samples/complex-io
-mvn clean compile exec:java -Dexec.mainClass="com.google.genkit.samples.ComplexIOSample"
+
+# Run the sample
+./run.sh
+# Or: mvn compile exec:java
 ```
 
-Or run from the parent directory:
+### Option 2: With Genkit Dev UI (Recommended)
 
 ```bash
-cd java
-mvn clean install -pl samples/complex-io -am
-java -jar samples/complex-io/target/complex-io-0.0.1-SNAPSHOT.jar
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/complex-io
+
+# Run with Genkit CLI
+genkit start -- ./run.sh
 ```
+
+The Dev UI will be available at http://localhost:4000
 
 ## Example Requests
 

@@ -4,22 +4,40 @@ This sample demonstrates how to use middleware in Genkit Java to implement cross
 
 ## Prerequisites
 
-- Java 17 or later
-- Maven
-- OpenAI API key (set as `OPENAI_API_KEY` environment variable)
+- Java 17+
+- Maven 3.6+
+- OpenAI API key
 
 ## Running the Sample
 
+### Option 1: Direct Run
+
 ```bash
 # Set your OpenAI API key
-export OPENAI_API_KEY=your-api-key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/middleware
 
 # Run the sample
 ./run.sh
-
-# Or with Maven directly
-mvn compile exec:java
+# Or: mvn compile exec:java
 ```
+
+### Option 2: With Genkit Dev UI (Recommended)
+
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/middleware
+
+# Run with Genkit CLI
+genkit start -- ./run.sh
+```
+
+The Dev UI will be available at http://localhost:4000
 
 ## Features Demonstrated
 

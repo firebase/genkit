@@ -5,6 +5,8 @@ Genkit for Java is the Java implementation of the Genkit framework for building 
 See: https://firebase.google.com/docs/genkit
 
 > **Status**: Currently in active development (1.0.0-SNAPSHOT). Requires Java 17+.
+> 
+> **Note**: The Java SDK supports OpenAI and Google GenAI (Gemini) models. Additional plugins (Vertex AI, Anthropic, Ollama, Firebase, etc.) are planned for future releases. See [Plugin Availability](#plugin-availability) for details.
 
 ## Installation
 
@@ -25,6 +27,13 @@ Add the following dependencies to your Maven `pom.xml`:
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 
+<!-- Google GenAI plugin (Gemini models and Imagen) -->
+<dependency>
+    <groupId>com.google.genkit</groupId>
+    <artifactId>genkit-plugin-google-genai</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+
 <!-- HTTP server plugin with Jetty -->
 <dependency>
     <groupId>com.google.genkit</groupId>
@@ -36,6 +45,13 @@ Add the following dependencies to your Maven `pom.xml`:
 <dependency>
     <groupId>com.google.genkit</groupId>
     <artifactId>genkit-plugin-localvec</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+
+<!-- MCP plugin (Model Context Protocol) -->
+<dependency>
+    <groupId>com.google.genkit</groupId>
+    <artifactId>genkit-plugin-mcp</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -254,24 +270,11 @@ EmbedResponse response = genkit.embed("openai/text-embedding-3-small", documents
 | **genkit-ai** | AI abstractions: models, embedders, tools, prompts, retrievers, indexers, evaluators |
 | **genkit** | Main entry point combining core and AI with reflection server |
 | **plugins/openai** | OpenAI models (GPT-4o, GPT-4o-mini, etc.) and embeddings |
+| **plugins/google-genai** | Google Gemini models and Imagen image generation |
 | **plugins/jetty** | HTTP server plugin using Jetty 12 |
 | **plugins/localvec** | Local file-based vector store for development |
+| **plugins/mcp** | Model Context Protocol (MCP) client integration |
 
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **Unified Generation API** | Generate text, structured data, and handle tool calls from any model |
-| **Flows** | Observable, traceable AI workflows with HTTP endpoint exposure |
-| **Tools** | Define callable tools for AI models with automatic execution |
-| **DotPrompt** | Template-based prompt management with Handlebars support |
-| **Embeddings** | Vector embedding generation for semantic search |
-| **RAG Support** | Retrievers and indexers for retrieval-augmented generation |
-| **Evaluations** | Built-in evaluation framework with custom evaluator support |
-| **Streaming** | Real-time response streaming with chunk callbacks |
-| **Tracing** | Built-in OpenTelemetry integration |
-| **Metrics** | Token usage, latency, and request metrics via OpenTelemetry |
-| **Dev UI** | Full integration with Genkit CLI and developer tools |
 
 ## Observability
 
@@ -346,15 +349,36 @@ ActionContext ctx = ActionContext.builder()
 
 ## Samples
 
-The following samples are available in `java/samples/`:
+The following samples are available in `java/samples/`. See the [samples README](./samples/README.md) for detailed instructions on running each sample.
 
 | Sample | Description |
 |--------|-------------|
 | **openai** | Basic OpenAI integration with flows and tools |
+| **google-genai** | Google Gemini integration with image generation |
 | **dotprompt** | DotPrompt files with complex inputs/outputs, variants, and partials |
 | **rag** | RAG application with local vector store |
+| **chat-session** | Multi-turn chat with session persistence |
 | **evaluations** | Custom evaluators and evaluation workflows |
 | **complex-io** | Complex nested types, arrays, maps in flow inputs/outputs |
+| **middleware** | Middleware patterns for logging, caching, rate limiting |
+| **multi-agent** | Multi-agent orchestration patterns |
+| **interrupts** | Flow interrupts and human-in-the-loop patterns |
+| **mcp** | Model Context Protocol (MCP) integration |
+
+### Running Samples
+
+```bash
+# Set your API key
+export OPENAI_API_KEY=your-api-key
+# Or: export GOOGLE_GENAI_API_KEY=your-api-key
+
+# Navigate to a sample and run
+cd java/samples/openai
+./run.sh
+
+# Or with Genkit Dev UI
+genkit start -- ./run.sh
+```
 
 ## Development
 
@@ -362,7 +386,14 @@ The following samples are available in `java/samples/`:
 
 - Java 17+
 - Maven 3.6+
-- OpenAI API key (for samples)
+- OpenAI API key or Google GenAI API key (for samples)
+- Genkit CLI (optional, for Dev UI)
+
+### Installing Genkit CLI
+
+```bash
+npm install -g genkit
+```
 
 ### Building
 
@@ -379,11 +410,20 @@ mvn test
 
 ### Running Samples
 
+See the [samples README](./samples/README.md) for detailed instructions.
+
 ```bash
+# Set your API key
 export OPENAI_API_KEY=your-api-key
+# Or: export GOOGLE_GENAI_API_KEY=your-api-key
+
+# Run a sample
 cd java/samples/openai
 ./run.sh
 # Or: mvn compile exec:java
+
+# Run with Genkit Dev UI (recommended)
+genkit start -- ./run.sh
 ```
 
 ## CLI Integration

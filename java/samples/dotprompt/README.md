@@ -29,16 +29,34 @@ Located in `src/main/resources/prompts/`:
 
 ## Running the Sample
 
-1. Set your OpenAI API key:
-   ```bash
-   export OPENAI_API_KEY=your-api-key-here
-   ```
+### Option 1: Direct Run
 
-2. Build and run:
-   ```bash
-   cd java/samples/dotprompt
-   mvn compile exec:java
-   ```
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/dotprompt
+
+# Run the sample
+./run.sh
+# Or: mvn compile exec:java
+```
+
+### Option 2: With Genkit Dev UI (Recommended)
+
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/dotprompt
+
+# Run with Genkit CLI
+genkit start -- ./run.sh
+```
+
+The Dev UI will be available at http://localhost:4000
 
 ## Example API Calls
 

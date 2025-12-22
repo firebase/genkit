@@ -4,28 +4,46 @@ This sample demonstrates how to use the Genkit MCP (Model Context Protocol) plug
 
 ## Prerequisites
 
-1. **Java 17+** - Ensure you have Java 17 or later installed
-2. **Node.js and npm** - Required for running MCP servers via `npx`
-3. **OpenAI API Key** - Set the `OPENAI_API_KEY` environment variable
+- Java 17+
+- Maven 3.6+
+- Node.js and npm (required for running MCP servers via `npx`)
+- OpenAI API key
 
-## Quick Start
+## Running the Sample
 
-1. Set your OpenAI API key:
-   ```bash
-   export OPENAI_API_KEY=your-api-key-here
-   ```
+### Option 1: Direct Run
 
-2. Run the sample:
-   ```bash
-   ./run.sh
-   # Or directly with Maven:
-   mvn exec:java
-   ```
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
 
-3. The sample will start with:
-   - HTTP server on port 8080
-   - Reflection server on port 3100 (for Genkit Dev UI)
-   - MCP connections to filesystem and everything servers
+# Navigate to the sample directory
+cd java/samples/mcp
+
+# Run the sample
+./run.sh
+# Or: mvn compile exec:java
+```
+
+### Option 2: With Genkit Dev UI (Recommended)
+
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/mcp
+
+# Run with Genkit CLI
+genkit start -- ./run.sh
+```
+
+The Dev UI will be available at http://localhost:4000
+
+The sample will start with:
+- HTTP server on port 8080
+- Reflection server on port 3100 (for Genkit Dev UI)
+- MCP connections to filesystem and everything servers
 
 ## Available Flows
 

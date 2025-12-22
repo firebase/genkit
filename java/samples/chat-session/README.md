@@ -16,33 +16,51 @@ This sample demonstrates session-based multi-turn chat with persistence in Genki
 2. Maven
 3. OpenAI API key
 
-## Setup
+## Prerequisites
 
-Set your OpenAI API key:
+- Java 17+
+- Maven 3.6+
+- OpenAI API key
+
+## Running the Sample
+
+### Option 1: Direct Run (Interactive Mode)
 
 ```bash
+# Set your OpenAI API key
 export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/chat-session
+
+# Run the sample
+./run.sh
+# Or: mvn compile exec:java
 ```
 
-## Running
-
-### Interactive Mode
-
-Start an interactive chat session:
-
-```bash
-cd java
-mvn exec:java -pl samples/chat-session
-```
-
-### Demo Mode
+### Option 2: Demo Mode
 
 Run the automated demo to see all features:
 
 ```bash
-cd java
-mvn exec:java -pl samples/chat-session -Dexec.args="--demo"
+cd java/samples/chat-session
+mvn exec:java -Dexec.args="--demo"
 ```
+
+### Option 3: With Genkit Dev UI
+
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Navigate to the sample directory
+cd java/samples/chat-session
+
+# Run with Genkit CLI
+genkit start -- ./run.sh
+```
+
+The Dev UI will be available at http://localhost:4000
 
 ## Commands
 
