@@ -123,3 +123,21 @@ func TestDefineSchemaWithType_Error(t *testing.T) {
 
 	DefineSchemaFor[Invalid](g)
 }
+
+func TestLoadPromptFromSource(t *testing.T) {
+	g := Init(t.Context())
+
+	source := `---
+model: test/model
+---
+Hello`
+
+	p := LoadPromptFromSource(g, source, "testPrompt", "testNamespace")
+	if p == nil {
+		t.Fatal("LoadPromptFromSource returned nil")
+	}
+
+	if p.Name() != "testNamespace/testPrompt" {
+		t.Errorf("got name %q, want %q", p.Name(), "testNamespace/testPrompt")
+	}
+}
