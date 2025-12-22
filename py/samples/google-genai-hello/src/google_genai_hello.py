@@ -330,7 +330,7 @@ async def generate_images(name: str, ctx):
     result = await ai.generate(
         model='googleai/gemini-2.5-flash-image',
         prompt=f'tell me about {name} with photos',
-        config={'response_modalities': ['text', 'image']},
+        config=GeminiConfigSchema(response_modalities=['text', 'image']).model_dump(exclude_none=True),
     )
     return result
 
