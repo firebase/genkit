@@ -14,10 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import base64
-import urllib.request
 import sys
-import unittest
+import urllib.request
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 if sys.version_info < (3, 11):  # noqa
