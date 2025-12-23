@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
+import urllib.request
 import sys
 import unittest
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -186,11 +187,8 @@ async def test_generate_media_response(mocker, version):
 
     assert content.root.media.content_type == response_mimetype
 
-    url = content.root.media.url
-    if url.startswith('data:'):
-        url = url.split(',', 1)[1]
-    decoded_url = base64.b64decode(url)
-    assert decoded_url == response_byte_string
+    with urllib.request.urlopen(content.root.media.url) as response:
+        assert response.read() == response_byte_string
 
 
 def test_convert_schema_property(mocker):
