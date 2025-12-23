@@ -328,7 +328,7 @@ async def generate_images(name: str, ctx):
         The generated response with a function.
     """
     result = await ai.generate(
-        model='googleai/gemini-2.0-flash-exp',
+        model='googleai/gemini-2.5-flash-image',
         prompt=f'tell me about {name} with photos',
         config=GeminiConfigSchema(response_modalities=['text', 'image']).model_dump(exclude_none=True),
     )
