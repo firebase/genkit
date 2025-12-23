@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
@@ -885,70 +886,6 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 	}
 }
 
-func TestLoadPrompt(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
-
-	// Create a mock .prompt file
-	mockPromptFile := filepath.Join(tempDir, "example.prompt")
-	mockPromptContent := `---
-model: test-model
-maxTurns: 5
-description: A test prompt
-toolChoice: required
-returnToolRequests: true
-input:
-  schema:
-    type: object
-    properties:
-      name:
-        type: string
-  default:
-    name: world
-output:
-  format: text
-  schema:
-    type: string
----
-Hello, {{name}}!
-`
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
-	if err != nil {
-		t.Fatalf("Failed to create mock prompt file: %v", err)
-	}
-
-	// Initialize a mock registry
-	reg := registry.New()
-
-	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
-
-	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, "test-namespace/example")
-	if prompt == nil {
-		t.Fatalf("Prompt was not registered")
-	}
-
-	if prompt.(api.Action).Desc().InputSchema == nil {
-		t.Fatal("Input schema is nil")
-	}
-
-	if prompt.(api.Action).Desc().InputSchema["type"] != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.(api.Action).Desc().InputSchema["type"])
-	}
-
-	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
-	if !ok {
-		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.(api.Action).Desc().Metadata["prompt"])
-	}
-	if promptMetadata["model"] != "test-model" {
-		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(api.Action).Desc().Metadata["model"])
-	}
-	if promptMetadata["maxTurns"] != 5 {
-		t.Errorf("Expected maxTurns set to 5, got: %d", promptMetadata["maxTurns"])
-	}
-}
-
 func TestLoadPromptSnakeCase(t *testing.T) {
 	tempDir := t.TempDir()
 	mockPromptFile := filepath.Join(tempDir, "snake.prompt")
@@ -970,7 +907,7 @@ input:
 	}
 
 	reg := registry.New()
-	LoadPrompt(reg, tempDir, "snake.prompt", "snake-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "snake.prompt", "snake-namespace")
 
 	prompt := LookupPrompt(reg, "snake-namespace/snake")
 	if prompt == nil {
@@ -1018,8 +955,9 @@ func TestLoadPrompt_FileNotFound(t *testing.T) {
 	// Initialize a mock registry
 	reg := registry.New()
 
-	// Call loadPrompt with a non-existent file
-	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
+	// Call loadPrompt with a non-existent file in a valid temp directory
+	tempDir := t.TempDir()
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "missing.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "missing")
@@ -1044,7 +982,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	reg := registry.New()
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "invalid.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "invalid")
@@ -1075,7 +1013,7 @@ Hello, {{name}}!
 	reg := registry.New()
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "example.variant.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "test-namespace/example.variant")
@@ -1142,7 +1080,7 @@ Hello, {{name}}!
 	reg := registry.New()
 
 	// Call LoadPromptFolder
-	LoadPromptDir(reg, tempDir, "test-namespace")
+	LoadPromptDirFromFS(reg, os.DirFS(tempDir), ".", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "test-namespace/example")
@@ -1157,16 +1095,137 @@ Hello, {{name}}!
 	}
 }
 
-func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
+func TestLoadPromptFolder_EmptyDirectory(t *testing.T) {
 	// Initialize a mock registry
-	reg := &registry.Registry{}
+	reg := registry.New()
 
-	// Call LoadPromptFolder with a non-existent directory
-	LoadPromptDir(reg, "", "test-namespace")
+	// Create an empty temp directory
+	tempDir := t.TempDir()
+
+	// Call LoadPromptFolder with an empty directory
+	LoadPromptDirFromFS(reg, os.DirFS(tempDir), ".", "test-namespace")
 
 	// Verify that no prompts were registered
 	if prompt := LookupPrompt(reg, "example"); prompt != nil {
-		t.Fatalf("Prompt should not have been registered for a non-existent directory")
+		t.Fatalf("Prompt should not have been registered for an empty directory")
+	}
+}
+
+func TestLoadPromptFS(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+input:
+  schema:
+    type: object
+    properties:
+      name:
+        type: string
+output:
+  format: text
+  schema:
+    type: string
+---
+
+Hello, {{name}}!
+`
+	mockPartialContent := `Welcome {{name}}!`
+
+	fsys := fstest.MapFS{
+		"prompts/example.prompt":    &fstest.MapFile{Data: []byte(mockPromptContent)},
+		"prompts/sub/nested.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+		"prompts/_greeting.prompt":  &fstest.MapFile{Data: []byte(mockPartialContent)},
+	}
+
+	reg := registry.New()
+
+	LoadPromptDirFromFS(reg, fsys, "prompts", "test-namespace")
+
+	prompt := LookupPrompt(reg, "test-namespace/example")
+	if prompt == nil {
+		t.Fatalf("Prompt 'test-namespace/example' was not registered")
+	}
+
+	nestedPrompt := LookupPrompt(reg, "test-namespace/nested")
+	if nestedPrompt == nil {
+		t.Fatalf("Nested prompt 'test-namespace/nested' was not registered")
+	}
+}
+
+func TestLoadPromptFS_WithVariant(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt with variant
+---
+
+Hello from variant!
+`
+
+	fsys := fstest.MapFS{
+		"prompts/greeting.experimental.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+	}
+
+	reg := registry.New()
+
+	LoadPromptDirFromFS(reg, fsys, "prompts", "")
+
+	prompt := LookupPrompt(reg, "greeting.experimental")
+	if prompt == nil {
+		t.Fatalf("Prompt with variant 'greeting.experimental' was not registered")
+	}
+}
+
+func TestLoadPromptFS_NilFS(t *testing.T) {
+	reg := registry.New()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic for nil filesystem")
+		}
+	}()
+
+	LoadPromptDirFromFS(reg, nil, "prompts", "test-namespace")
+}
+
+func TestLoadPromptFS_InvalidRoot(t *testing.T) {
+	fsys := fstest.MapFS{
+		"other/example.prompt": &fstest.MapFile{Data: []byte("test")},
+	}
+
+	reg := registry.New()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic for invalid root directory")
+		}
+	}()
+
+	LoadPromptDirFromFS(reg, fsys, "nonexistent", "test-namespace")
+}
+
+func TestLoadPromptFromFS(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A single prompt test
+---
+
+Test content
+`
+
+	fsys := fstest.MapFS{
+		"prompts/single.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+	}
+
+	reg := registry.New()
+
+	prompt := LoadPromptFromFS(reg, fsys, "prompts", "single.prompt", "ns")
+	if prompt == nil {
+		t.Fatalf("LoadPromptFromFS failed to load prompt")
+	}
+
+	lookedUp := LookupPrompt(reg, "ns/single")
+	if lookedUp == nil {
+		t.Fatalf("Prompt 'ns/single' was not registered")
 	}
 }
 
@@ -1230,7 +1289,7 @@ Hello!
 	ConfigureFormats(reg)
 	definePromptModel(reg)
 
-	prompt := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
+	prompt := LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "example.prompt", "multi-namespace")
 
 	_, err = prompt.Execute(context.Background())
 	if err != nil {
@@ -1257,7 +1316,7 @@ Hello!
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
-	prompt := LoadPrompt(registry.New(), tempDir, "example.prompt", "multi-namespace-roles")
+	prompt := LoadPromptFromFS(registry.New(), os.DirFS(tempDir), ".", "example.prompt", "multi-namespace-roles")
 
 	actionOpts, err := prompt.Render(context.Background(), map[string]any{})
 	if err != nil {
