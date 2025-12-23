@@ -116,7 +116,6 @@ async def simple_generate_with_tools_flow(value: int, ctx: ActionRunContext) -> 
         The generated response with a function.
     """
     response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         prompt=f'what is a gablorken of {value}',
         tools=['gablorkenTool'],
         on_chunk=ctx.send_chunk,
@@ -149,7 +148,6 @@ async def simple_generate_with_interrupts(value: int) -> str:
         The generated response with a function.
     """
     response1 = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         messages=[
             Message(
                 role=Role.USER,
@@ -164,7 +162,6 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.interrupts[0], 178)
     response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
