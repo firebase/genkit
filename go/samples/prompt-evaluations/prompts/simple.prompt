@@ -1,0 +1,7 @@
+---
+model: googleai/gemini-2.5-flash
+input:
+  schema:
+    subject: string
+---
+Tell me a very short joke about {{subject}}.

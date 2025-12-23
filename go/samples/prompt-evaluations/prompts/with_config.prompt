@@ -1,0 +1,9 @@
+---
+model: googleai/gemini-2.5-flash
+config:
+  temperature: 1.0
+input:
+  schema:
+    subject: string
+---
+Write a creative tagline for a movie about {{subject}}.

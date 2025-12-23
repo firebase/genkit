@@ -1,0 +1,6 @@
+---
+input:
+  schema:
+    subject: string
+---
+Tell me a haiku about {{subject}}.

@@ -1,0 +1,14 @@
+[
+  {
+    "input": {
+      "subject": "banana"
+    },
+    "reference": "(?i)banana"
+  },
+  {
+    "input": {
+      "subject": "moon"
+    },
+    "reference": "(?i)moon"
+  }
+]
