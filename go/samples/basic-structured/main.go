@@ -132,9 +132,8 @@ func DefineStructuredJoke(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Output, nil
-				} else {
-					sendChunk(ctx, result.Chunk)
 				}
+				sendChunk(ctx, result.Chunk)
 			}
 
 			return nil, nil
@@ -173,9 +172,8 @@ func DefineRecipe(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Output, nil
-				} else if result.Chunk != nil {
-					sendChunk(ctx, result.Chunk.Ingredients)
 				}
+				sendChunk(ctx, result.Chunk.Ingredients)
 			}
 
 			return nil, nil
