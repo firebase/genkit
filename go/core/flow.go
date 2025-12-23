@@ -71,6 +71,9 @@ func DefineStreamingFlow[In, Out, Stream any](r api.Registry, name string, fn St
 			flowName: name,
 		}
 		ctx = flowContextKey.NewContext(ctx, fc)
+		if cb == nil {
+			cb = func(context.Context, Stream) error { return nil }
+		}
 		return fn(ctx, input, cb)
 	}))
 }

@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -268,7 +269,7 @@ func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *cor
 // Example:
 //
 //	counterFlow := genkit.DefineStreamingFlow(g, "counter",
-//		func(ctx context.Context, limit int, stream func(context.Context, int) error) (string, error) {
+//		func(ctx context.Context, limit int, stream core.StreamCallback[int]) (string, error) {
 //			if stream == nil { // Non-streaming case
 //				return fmt.Sprintf("Counted up to %d", limit), nil
 //			}
@@ -717,6 +718,42 @@ func DefineSchemaFor[T any](g *Genkit) {
 	core.DefineSchemaFor[T](g.reg)
 }
 
+// DefineDataPrompt creates a new [ai.DataPrompt] with strongly-typed input and output.
+// It automatically infers input schema from the In type parameter and configures
+// output schema and JSON format from the Out type parameter (unless Out is string).
+//
+// Example:
+//
+//	type GeoInput struct {
+//		Country string `json:"country"`
+//	}
+//
+//	type GeoOutput struct {
+//		Capital string `json:"capital"`
+//	}
+//
+//	capitalPrompt := genkit.DefineDataPrompt[GeoInput, GeoOutput](g, "findCapital",
+//		ai.WithModelName("googleai/gemini-2.5-flash"),
+//		ai.WithSystem("You are a helpful geography assistant."),
+//		ai.WithPrompt("What is the capital of {{country}}?"),
+//	)
+//
+//	output, resp, err := capitalPrompt.Execute(ctx, GeoInput{Country: "France"})
+//	if err != nil {
+//		log.Fatalf("Execute failed: %v", err)
+//	}
+//	fmt.Printf("Capital: %s\n", output.Capital)
+func DefineDataPrompt[In, Out any](g *Genkit, name string, opts ...ai.PromptOption) *ai.DataPrompt[In, Out] {
+	return ai.DefineDataPrompt[In, Out](g.reg, name, opts...)
+}
+
+// LookupDataPrompt looks up a prompt by name and wraps it with type information.
+// This is useful for wrapping prompts loaded from .prompt files with strong types.
+// It returns nil if the prompt was not found.
+func LookupDataPrompt[In, Out any](g *Genkit, name string) *ai.DataPrompt[In, Out] {
+	return ai.LookupDataPrompt[In, Out](g.reg, name)
+}
+
 // GenerateWithRequest performs a model generation request using explicitly provided
 // [ai.GenerateActionOptions]. This function is typically used in conjunction with
 // prompts defined via [DefinePrompt], where [ai.prompt.Render] produces the
@@ -764,6 +801,35 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //	fmt.Println(resp.Text())
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.Generate(ctx, g.reg, opts...)
+}
+
+// GenerateStream generates a model response and streams the output.
+// It returns an iterator that yields streaming results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [ai.ModelStreamValue] argument has Done == true, the value's
+// Response field contains the final response; the yield function will not be called again.
+//
+// Otherwise the Chunk field of the passed [ai.ModelStreamValue] holds a streamed chunk.
+//
+// Example:
+//
+//	for result, err := range genkit.GenerateStream(ctx, g,
+//		ai.WithPrompt("Tell me a story about a brave knight."),
+//	) {
+//		if err != nil {
+//			log.Fatalf("Stream error: %v", err)
+//		}
+//		if result.Done {
+//			fmt.Println("\nFinal response:", result.Response.Text())
+//		} else {
+//			fmt.Print(result.Chunk.Text())
+//		}
+//	}
+func GenerateStream(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) iter.Seq2[*ai.ModelStreamValue, error] {
+	return ai.GenerateStream(ctx, g.reg, opts...)
 }
 
 // GenerateOperation performs a model generation request using a flexible set of options
@@ -852,6 +918,41 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //	log.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
 func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*Out, *ai.ModelResponse, error) {
 	return ai.GenerateData[Out](ctx, g.reg, opts...)
+}
+
+// GenerateDataStream generates a model response with streaming and returns strongly-typed output.
+// It returns an iterator that yields streaming results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [ai.StreamValue] argument has Done == true, the value's
+// Output and Response fields contain the final typed output and response; the yield function
+// will not be called again.
+//
+// Otherwise the Chunk field of the passed [ai.StreamValue] holds a streamed chunk.
+//
+// Example:
+//
+//	type Story struct {
+//		Title   string `json:"title"`
+//		Content string `json:"content"`
+//	}
+//
+//	for result, err := range genkit.GenerateDataStream[Story, *ai.ModelResponseChunk](ctx, g,
+//		ai.WithPrompt("Write a short story about a brave knight."),
+//	) {
+//		if err != nil {
+//			log.Fatalf("Stream error: %v", err)
+//		}
+//		if result.Done {
+//			fmt.Printf("Story: %+v\n", result.Output)
+//		} else {
+//			fmt.Print(result.Chunk.Text())
+//		}
+//	}
+func GenerateDataStream[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) iter.Seq2[*ai.StreamValue[Out, Out], error] {
+	return ai.GenerateDataStream[Out](ctx, g.reg, opts...)
 }
 
 // Retrieve performs a document retrieval request using a flexible set of options
