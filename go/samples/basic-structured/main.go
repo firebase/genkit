@@ -103,9 +103,8 @@ func DefineSimpleJoke(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Response.Text(), nil
-				} else {
-					sendChunk(ctx, result.Chunk.Text())
 				}
+				sendChunk(ctx, result.Chunk.Text())
 			}
 
 			return "", nil

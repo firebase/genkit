@@ -123,9 +123,8 @@ func DefineSimpleJokeWithInlinePrompt(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Response.Text(), nil
-				} else {
-					sendChunk(ctx, result.Chunk.Text())
 				}
+				sendChunk(ctx, result.Chunk.Text())
 			}
 
 			return "", nil
@@ -148,9 +147,8 @@ func DefineSimpleJokeWithDotprompt(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Response.Text(), nil
-				} else {
-					sendChunk(ctx, result.Chunk.Text())
 				}
+				sendChunk(ctx, result.Chunk.Text())
 			}
 
 			return "", nil
@@ -180,9 +178,8 @@ func DefineStructuredJokeWithInlinePrompt(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Output, nil
-				} else {
-					sendChunk(ctx, result.Chunk)
 				}
+				sendChunk(ctx, result.Chunk)
 			}
 
 			return nil, nil
@@ -204,9 +201,8 @@ func DefineStructuredJokeWithDotprompt(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Output, nil
-				} else {
-					sendChunk(ctx, result.Chunk)
 				}
+				sendChunk(ctx, result.Chunk)
 			}
 			return nil, nil
 		},
@@ -239,10 +235,9 @@ func DefineRecipeWithInlinePrompt(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Output, nil
-				} else if result.Chunk != nil {
-					for _, i := range filterNew(result.Chunk.Ingredients) {
-						sendChunk(ctx, i)
-					}
+				}
+				for _, i := range filterNew(result.Chunk.Ingredients) {
+					sendChunk(ctx, i)
 				}
 			}
 			return nil, nil
@@ -266,10 +261,9 @@ func DefineRecipeWithDotprompt(g *genkit.Genkit) {
 				}
 				if result.Done {
 					return result.Output, nil
-				} else if result.Chunk != nil {
-					for _, i := range filterNew(result.Chunk.Ingredients) {
-						sendChunk(ctx, i)
-					}
+				}
+				for _, i := range filterNew(result.Chunk.Ingredients) {
+					sendChunk(ctx, i)
 				}
 			}
 			return nil, nil
