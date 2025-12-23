@@ -487,7 +487,7 @@ export class RuntimeManager {
         responseType: 'stream',
       })
       .catch((err) =>
-        this.httpErrorHandler(
+        this.handleStreamError(
           err,
           `Error streaming trace for traceId='${traceId}'`
         )
