@@ -134,10 +134,10 @@ export function createMockAnthropicClient(
       create: createStub,
       stream: streamStub,
     },
-    models: {
-      list: listStub,
-    },
     beta: {
+      models: {
+        list: listStub,
+      },
       messages: {
         create: betaCreateStub,
         stream: betaStreamStub,

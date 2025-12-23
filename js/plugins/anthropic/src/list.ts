@@ -33,7 +33,8 @@ import { claudeModelReference } from './models.js';
 export async function listActions(
   client: Anthropic
 ): Promise<ActionMetadata[]> {
-  const clientModels = (await client.models.list()).data;
+  // Use beta.models.list to get the list of ALL (stable and beta) models
+  const clientModels = (await client.beta.models.list()).data;
   const seenNames = new Set<string>();
 
   return clientModels
