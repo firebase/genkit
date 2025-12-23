@@ -89,9 +89,12 @@ class PartConverter:
                 )
             )
         if isinstance(part.root, MediaPart):
+            data = part.root.media.url
+            if data.startswith(cls.DATA):
+                data = data.split(',', 1)[1]
             return genai.types.Part(
                 inline_data=genai.types.Blob(
-                    data=part.root.media.url,
+                    data=data,
                     mime_type=part.root.media.content_type,
                 )
             )
@@ -160,9 +163,10 @@ class PartConverter:
                 )
             )
         if part.inline_data:
+            b64_data = base64.b64encode(part.inline_data.data).decode('utf-8')
             return Part(
                 media=Media(
-                    url=base64.b64encode(part.inline_data.data),
+                    url=f'data:{part.inline_data.mime_type};base64,{b64_data}',
                     contentType=part.inline_data.mime_type,
                 )
             )

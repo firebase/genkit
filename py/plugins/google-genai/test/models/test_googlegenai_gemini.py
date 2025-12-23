@@ -186,7 +186,10 @@ async def test_generate_media_response(mocker, version):
 
     assert content.root.media.content_type == response_mimetype
 
-    decoded_url = base64.b64decode(content.root.media.url)
+    url = content.root.media.url
+    if url.startswith('data:'):
+        url = url.split(',', 1)[1]
+    decoded_url = base64.b64decode(url)
     assert decoded_url == response_byte_string
 
 
