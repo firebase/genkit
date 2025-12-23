@@ -27,7 +27,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@langchain/community": "^0.0.53",
-    "@langchain/core": "^0.1.61",
+    "@langchain/core": "^0.3.80",
     "@opentelemetry/api": "^1.9.0"
   },
   "peerDependencies": {
