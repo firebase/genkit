@@ -121,7 +121,9 @@ async def say_hi_with_config(name: str) -> str:
 @ai.flow()
 async def weather_flow(location: str) -> str:
     weather_data = get_weather(WeatherInput(location=location))
-    return f'Weather in {location}: {weather_data.get("temp")}°{weather_data.get("unit")}, {weather_data.get("condition")}'
+    return (
+        f'Weather in {location}: {weather_data.get("temp")}°{weather_data.get("unit")}, {weather_data.get("condition")}'
+    )
 
 
 @ai.flow()

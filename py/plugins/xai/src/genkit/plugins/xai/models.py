@@ -25,6 +25,7 @@ from xai_sdk.proto.v6 import chat_pb2
 
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
+from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import get_model_info
 from genkit.types import (
     GenerateRequest,
@@ -150,7 +151,7 @@ class XAIModel:
                     function=chat_pb2.Function(
                         name=t.name,
                         description=t.description or '',
-                        parameters=json.dumps(t.input_schema) if isinstance(t.input_schema, dict) else t.input_schema,
+                        parameters=json.dumps(to_json_schema(t.input_schema)),
                     ),
                 )
                 for t in request.tools
@@ -237,8 +238,9 @@ class XAIModel:
                 if isinstance(actual_part, TextPart):
                     content.append(chat_pb2.Content(text=actual_part.text))
                 elif isinstance(actual_part, MediaPart):
-                    url = actual_part.media.url if hasattr(actual_part.media, 'url') else str(actual_part.media)
-                    content.append(chat_pb2.Content(image_url=chat_pb2.ImageURL(url=url)))
+                    if not actual_part.media.url:
+                        raise ValueError('xAI models require a URL for media parts.')
+                    content.append(chat_pb2.Content(image_url=chat_pb2.ImageURL(url=actual_part.media.url)))
                 elif isinstance(actual_part, ToolRequestPart):
                     tool_calls.append(
                         chat_pb2.ToolCall(

@@ -1572,7 +1572,7 @@ requires-dist = [
     { name = "partial-json-parser", specifier = ">=0.2.1.1.post5" },
     { name = "pillow" },
     { name = "psutil", specifier = ">=7.0.0" },
-    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pydantic", specifier = ">=2.10.5" },
     { name = "sse-starlette", specifier = ">=2.2.1" },
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
