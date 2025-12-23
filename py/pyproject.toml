@@ -277,6 +277,8 @@ unauthorized_licenses = [
 ]
 
 [tool.liccheck.authorized_packages]
-certifi      = "2025.4.26" # TODO: Verify.
-dependencies = true
-ollama       = "0.5.1"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
+aiohttp                = "3.13.2"  # Apache-2.0 AND MIT (transitive dep of xai-sdk)
+aiohappyeyeballs       = "2.6.1"   # Python Software Foundation (transitive dep of xai-sdk)
+certifi                = "2025.4.26" # TODO: Verify.
+dependencies           = true
+ollama                 = "0.5.1"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
