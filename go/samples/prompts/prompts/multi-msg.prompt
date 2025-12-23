@@ -6,11 +6,11 @@ input:
 output:
   summary: string
 ---
-{{ role "system" }}
+<<<dotprompt:role:system>>>
 
 You are a great AI assistant that summarizes videos talking as a pirate
 
-{{ role "user" }}
+<<<dotprompt:role:user>>>
 
 Give me a summary of this video
 {{media url=videoUrl}}
