@@ -66,6 +66,57 @@ const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
   'container_upload',
 ]);
 
+const BETA_APIS = [
+  // 'message-batches-2024-09-24',
+  // 'prompt-caching-2024-07-31',
+  // 'computer-use-2025-01-24',
+  // 'pdfs-2024-09-25',
+  // 'token-counting-2024-11-01',
+  // 'token-efficient-tools-2025-02-19',
+  // 'output-128k-2025-02-19',
+  // 'files-api-2025-04-14',
+  // 'mcp-client-2025-04-04',
+  // 'dev-full-thinking-2025-05-14',
+  // 'interleaved-thinking-2025-05-14',
+  // 'code-execution-2025-05-22',
+  // 'extended-cache-ttl-2025-04-11',
+  // 'context-1m-2025-08-07',
+  // 'context-management-2025-06-27',
+  // 'model-context-window-exceeded-2025-08-26',
+  // 'skills-2025-10-02',
+  // 'effort-param-2025-11-24',
+  // 'advanced-tool-use-2025-11-20',
+  'structured-outputs-2025-11-13',
+];
+
+/**
+ * Transforms a JSON schema to be compatible with Anthropic's structured output requirements.
+ * Anthropic requires `additionalProperties: false` on all object types.
+ * @see https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs#json-schema-limitations
+ */
+function toAnthropicSchema(
+  schema: Record<string, unknown>
+): Record<string, unknown> {
+  const out = structuredClone(schema);
+
+  // Remove $schema if present
+  delete out.$schema;
+
+  // Add additionalProperties: false to objects
+  if (out.type === 'object') {
+    out.additionalProperties = false;
+  }
+
+  // Recursively process nested objects
+  for (const key in out) {
+    if (typeof out[key] === 'object' && out[key] !== null) {
+      out[key] = toAnthropicSchema(out[key] as Record<string, unknown>);
+    }
+  }
+
+  return out;
+}
+
 const unsupportedServerToolError = (blockType: string): string =>
   `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
 
@@ -254,6 +305,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
+      betas: BETA_APIS,
     };
 
     if (betaSystem !== undefined) body.system = betaSystem;
@@ -281,10 +333,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
+    // Apply structured output when model supports it and constrained output is requested
+    if (this.isStructuredOutputEnabled(request)) {
+      body.output_format = {
+        type: 'json_schema',
+        schema: toAnthropicSchema(request.output!.schema!),
+      };
     }
 
     return body;
@@ -322,6 +376,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
+      betas: BETA_APIS,
     };
 
     if (betaSystem !== undefined) body.system = betaSystem;
@@ -349,12 +404,13 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
     }
 
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
+    // Apply structured output when model supports it and constrained output is requested
+    if (this.isStructuredOutputEnabled(request)) {
+      body.output_format = {
+        type: 'json_schema',
+        schema: toAnthropicSchema(request.output!.schema!),
+      };
     }
-
     return body;
   }
 
@@ -490,5 +546,15 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       default:
         return 'other';
     }
+  }
+
+  private isStructuredOutputEnabled(
+    request: GenerateRequest<typeof AnthropicConfigSchema>
+  ): boolean {
+    return !!(
+      request.output?.schema &&
+      request.output.constrained &&
+      request.output.format === 'json'
+    );
   }
 }
