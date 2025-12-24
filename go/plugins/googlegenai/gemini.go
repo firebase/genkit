@@ -837,12 +837,12 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 			continue
 		}
 
-		if !part.Thought && len(part.ThoughtSignature) > 0 {
-			if p.Metadata == nil {
-				p.Metadata = make(map[string]any)
-			}
-			p.Metadata["signature"] = part.ThoughtSignature
-		}
+                if len(part.ThoughtSignature) > 0 {
+                        if p.Metadata == nil {
+                                p.Metadata = make(map[string]any)
+                        }
+                        p.Metadata["signature"] = part.ThoughtSignature
+                }
 
 		msg.Content = append(msg.Content, p)
 	}
