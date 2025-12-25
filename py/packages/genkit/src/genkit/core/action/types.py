@@ -58,6 +58,7 @@ class ActionKind(StrEnum):
     PROMPT = 'prompt'
     RERANKER = 'reranker'
     RETRIEVER = 'retriever'
+    RESOURCE = 'resource'
     TOOL = 'tool'
     UTIL = 'util'
 
