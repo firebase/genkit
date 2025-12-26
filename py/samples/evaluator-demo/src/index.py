@@ -17,13 +17,9 @@
 import random
 
 from genkit_demo import ai
-from eval_in_code import dog_facts_eval_flow
-from pdf_rag import index_pdf, pdf_qa, simple_echo, simple_structured
-from setup import setup
 
 from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
 
-from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
 
 # Test evaluator that generates random scores and randomly fails
 async def random_eval(datapoint: BaseEvalDataPoint, options: dict | None = None):
