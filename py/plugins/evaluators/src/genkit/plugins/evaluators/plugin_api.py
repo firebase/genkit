@@ -67,8 +67,10 @@ class GenkitEvaluators(Plugin):
 
     name = 'genkitEval'
 
-    def __init__(self, params: PluginOptions):
+    def __init__(self, params: PluginOptions | list[MetricConfig]):
         """Initialize Genkit Evaluators plugin."""
+        if isinstance(params, list):
+            params = PluginOptions(root=params)
         self.params = params
 
     def initialize(self, ai: Genkit) -> None:
@@ -84,8 +86,6 @@ class GenkitEvaluators(Plugin):
 
                 async def _relevancy_eval(datapoint: BaseEvalDataPoint, options: Any | None):
                     assert datapoint.output is not None, 'output is required'
-                    assert datapoint.reference is not None, 'reference is required'
-                    assert isinstance(datapoint.reference, str), 'reference must be of string (regex)'
                     output_string = (
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
@@ -107,7 +107,7 @@ class GenkitEvaluators(Plugin):
                     return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
 
                 ai.define_evaluator(
-                    name=evaluators_name(str(GenkitMetricType.MALICIOUSNESS).lower()),
+                    name=evaluators_name(str(GenkitMetricType.ANSWER_RELEVANCY).lower()),
                     display_name='Answer Relevancy',
                     definition='Assesses how pertinent the generated answer is to the given prompt',
                     fn=_relevancy_eval,
@@ -116,45 +116,58 @@ class GenkitEvaluators(Plugin):
 
                 async def _faithfulness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
                     assert datapoint.output is not None, 'output is required'
-                    assert datapoint.reference is not None, 'reference is required'
-                    assert isinstance(datapoint.reference, str), 'reference must be of string (regex)'
                     output_string = (
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
                     input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    context_list = [(json.dumps(e) if not isinstance(e, str) else e) for e in datapoint.context]
+
+                    # Step 1: Extract statements
                     prompt_function = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
-                    context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
-                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
+                        prompt_function, {'question': input_string, 'answer': output_string}
                     )
-
                     longform_response = await ai.generate(
-                        model=param.judge_llm,
+                        model=param.judge,
                         prompt=prompt,
-                        config=param.config,
+                        config=param.judge_config,
                         output_schema=LongFormResponseSchema,
                     )
+                    statements = longform_response.output.statements if longform_response.output else []
+                    if not statements:
+                        raise ValueError('No statements returned')
 
+                    # Step 2: NLI Check
                     prompt_function = await load_prompt_file('../../prompts/faithfulness_nli.prompt')
-                    context = ' '.join(json.dumps(e) for e in datapoint.context)
+                    all_statements = '\n'.join([f"statement: {s}" for s in statements])
+                    all_context = '\n'.join(context_list)
                     prompt = await render_text(
-                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
+                        prompt_function, {'context': all_context, 'statements': all_statements}
                     )
 
-                    longform_response = await ai.generate(
-                        model=param.judge_llm,
+                    nli_response = await ai.generate(
+                        model=param.judge,
                         prompt=prompt,
-                        config=param.config,
-                        output_schema=LongFormResponseSchema,
+                        config=param.judge_config,
+                        output_schema=NliResponse,
                     )
 
-                    status = EvalStatusEnum.PASS_ if longform_response else EvalStatusEnum.FAIL
+                    nli_output = nli_response.output
+                    if not nli_output or not nli_output.responses:
+                        raise ValueError('Evaluator response empty')
+
+                    responses = nli_output.responses
+                    faithful_count = sum(1 for r in responses if r.verdict)
+                    score_val = faithful_count / len(responses)
+                    reasoning = '; '.join([r.reason for r in responses])
+                    status = EvalStatusEnum.PASS_ if score_val > 0.5 else EvalStatusEnum.FAIL
+                    
                     return fill_scores(
-                        datapoint, Score(score=longform_response, status=status), param.status_override_fn
+                        datapoint, Score(score=score_val, status=status, details={'reasoning': reasoning}), param.status_override_fn
                     )
 
                 ai.define_evaluator(
-                    name=evaluators_name(str(GenkitMetricType.MALICIOUSNESS).lower()),
+                    name=evaluators_name(str(GenkitMetricType.FAITHFULNESS).lower()),
                     display_name='Faithfulness',
                     definition='Measures the factual consistency of the generated answer against the given context',
                     fn=_faithfulness_eval,
@@ -164,8 +177,6 @@ class GenkitEvaluators(Plugin):
 
                 async def _maliciousness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
                     assert datapoint.output is not None, 'output is required'
-                    assert datapoint.reference is not None, 'reference is required'
-                    assert isinstance(datapoint.reference, str), 'reference must be of string (regex)'
                     output_string = (
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )

@@ -1,0 +1,39 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+from typing import List, Optional
+from genkit_demo import ai
+from pdf_rag import index_pdf
+
+# Default document to index
+CAT_FACTS = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs', 'cat-handbook.pdf'))]
+
+
+from pydantic import BaseModel
+
+class SetupInput(BaseModel):
+    documents: Optional[List[str]] = None
+
+@ai.flow(name='setup')
+async def setup(options: SetupInput | None = None):
+    if not options or not options.documents:
+        docs_to_index = CAT_FACTS
+    else:
+        # Mirroring JS implementation's effective behavior (input overrides defaults)
+        docs_to_index = options.documents
+
+    for doc in docs_to_index:
+        print(f'Indexed {doc}')
+        await index_pdf(doc)
