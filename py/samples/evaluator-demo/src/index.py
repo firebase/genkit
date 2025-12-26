@@ -15,11 +15,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import random
-from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
+
 from genkit_demo import ai
-from pdf_rag import pdf_qa, simple_structured, simple_echo, index_pdf
 from eval_in_code import dog_facts_eval_flow
+from pdf_rag import index_pdf, pdf_qa, simple_echo, simple_structured
 from setup import setup
+
+from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
 
 # Test evaluator that generates random scores and randomly fails
 # (Mirrors custom/test_evaluator from pdf-rag.ts)
@@ -34,10 +36,9 @@ async def random_eval(datapoint: BaseEvalDataPoint, options: dict | None = None)
     return Score(
         score=score,
         status=status,
-        details={
-            'reasoning': 'Randomly failed' if status == EvalStatusEnum.FAIL else 'Randomly passed'
-        },
+        details={'reasoning': 'Randomly failed' if status == EvalStatusEnum.FAIL else 'Randomly passed'},
     )
+
 
 ai.define_evaluator(
     name='custom/test_evaluator',

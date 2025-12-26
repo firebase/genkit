@@ -14,6 +14,7 @@
 
 import os
 from typing import List, Optional
+
 from genkit_demo import ai
 from pdf_rag import index_pdf
 
@@ -23,8 +24,10 @@ CAT_FACTS = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs
 
 from pydantic import BaseModel
 
+
 class SetupInput(BaseModel):
     documents: Optional[List[str]] = None
+
 
 @ai.flow(name='setup')
 async def setup(options: SetupInput | None = None):

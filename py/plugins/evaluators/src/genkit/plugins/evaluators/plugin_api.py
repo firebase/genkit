@@ -16,6 +16,7 @@
 
 
 import json
+import os
 import re
 from collections.abc import Callable
 from typing import Any
@@ -35,6 +36,12 @@ from genkit.plugins.evaluators.constant import (
 )
 from genkit.plugins.metrics.helper import load_prompt_file, render_text
 from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
+
+
+def _get_prompt_path(filename: str) -> str:
+    """Get absolute path to a prompt file in the prompts directory."""
+    plugin_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(plugin_dir, '..', '..', '..', '..', 'prompts', filename)
 
 
 def evaluators_name(name: str) -> str:
@@ -90,14 +97,14 @@ class GenkitEvaluators(Plugin):
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
                     input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
-                    prompt_function = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
+                    prompt_function = await load_prompt_file(_get_prompt_path('faithfulness_long_form.prompt'))
                     context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
                         prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                     )
 
                     response = await ai.generate(
-                        model=param.judge,
+                        model=param.judge.name,
                         prompt=prompt,
                         config=param.config,
                         output_schema=AnswerRelevancyResponseSchema,
@@ -113,6 +120,8 @@ class GenkitEvaluators(Plugin):
                     fn=_relevancy_eval,
                 )
             case GenkitMetricType.FAITHFULNESS:
+                # Cache for prompts (loaded on first use)
+                _faithfulness_prompts = {}
 
                 async def _faithfulness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
                     assert datapoint.output is not None, 'output is required'
@@ -120,50 +129,57 @@ class GenkitEvaluators(Plugin):
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
                     input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
-                    context_list = [(json.dumps(e) if not isinstance(e, str) else e) for e in datapoint.context]
+                    context_list = [(json.dumps(e) if not isinstance(e, str) else e) for e in (datapoint.context or [])]
+
+                    # Lazy load and cache prompts
+                    if 'longform' not in _faithfulness_prompts:
+                        _faithfulness_prompts['longform'] = await load_prompt_file(_get_prompt_path('faithfulness_long_form.prompt'))
+                    if 'nli' not in _faithfulness_prompts:
+                        _faithfulness_prompts['nli'] = await load_prompt_file(_get_prompt_path('faithfulness_nli.prompt'))
 
                     # Step 1: Extract statements
-                    prompt_function = await load_prompt_file('../../prompts/faithfulness_long_form.prompt')
-                    prompt = await render_text(
-                        prompt_function, {'question': input_string, 'answer': output_string}
-                    )
+                    prompt = await render_text(_faithfulness_prompts['longform'], {'question': input_string, 'answer': output_string})
                     longform_response = await ai.generate(
-                        model=param.judge,
+                        model=param.judge.name,
                         prompt=prompt,
                         config=param.judge_config,
                         output_schema=LongFormResponseSchema,
                     )
-                    statements = longform_response.output.statements if longform_response.output else []
+                    statements = longform_response.output.get('statements', []) if isinstance(longform_response.output, dict) else (longform_response.output.statements if longform_response.output else [])
                     if not statements:
                         raise ValueError('No statements returned')
 
                     # Step 2: NLI Check
-                    prompt_function = await load_prompt_file('../../prompts/faithfulness_nli.prompt')
-                    all_statements = '\n'.join([f"statement: {s}" for s in statements])
+                    all_statements = '\n'.join([f'statement: {s}' for s in statements])
                     all_context = '\n'.join(context_list)
-                    prompt = await render_text(
-                        prompt_function, {'context': all_context, 'statements': all_statements}
-                    )
+                    prompt = await render_text(_faithfulness_prompts['nli'], {'context': all_context, 'statements': all_statements})
 
                     nli_response = await ai.generate(
-                        model=param.judge,
+                        model=param.judge.name,
                         prompt=prompt,
                         config=param.judge_config,
                         output_schema=NliResponse,
                     )
 
                     nli_output = nli_response.output
-                    if not nli_output or not nli_output.responses:
-                        raise ValueError('Evaluator response empty')
-
-                    responses = nli_output.responses
-                    faithful_count = sum(1 for r in responses if r.verdict)
-                    score_val = faithful_count / len(responses)
-                    reasoning = '; '.join([r.reason for r in responses])
-                    status = EvalStatusEnum.PASS_ if score_val > 0.5 else EvalStatusEnum.FAIL
+                    if isinstance(nli_output, dict):
+                        responses = nli_output.get('responses', [])
+                    else:
+                        responses = nli_output.responses if nli_output else []
                     
+                    if not responses:
+                        raise ValueError('Evaluator response empty')
+                    
+                    # Handle both dict and object responses
+                    faithful_count = sum(1 for r in responses if (r.get('verdict') if isinstance(r, dict) else r.verdict))
+                    score_val = faithful_count / len(responses)
+                    reasoning = '; '.join([r.get('reason', '') if isinstance(r, dict) else r.reason for r in responses])
+                    status = EvalStatusEnum.PASS_ if score_val > 0.5 else EvalStatusEnum.FAIL
+
                     return fill_scores(
-                        datapoint, Score(score=score_val, status=status, details={'reasoning': reasoning}), param.status_override_fn
+                        datapoint,
+                        Score(score=score_val, status=status, details={'reasoning': reasoning}),
+                        param.status_override_fn,
                     )
 
                 ai.define_evaluator(
@@ -181,14 +197,14 @@ class GenkitEvaluators(Plugin):
                         datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                     )
                     input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
-                    prompt_function = await load_prompt_file('../../prompts/maliciousness.prompt')
+                    prompt_function = await load_prompt_file(_get_prompt_path('maliciousness.prompt'))
                     context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
                         prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                     )
 
                     score = await ai.generate(
-                        model=param.judge_llm,
+                        model=param.judge.name,
                         prompt=prompt,
                         config=param.config,
                         output_schema=MaliciousnessResponseSchema,

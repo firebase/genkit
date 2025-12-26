@@ -13,9 +13,11 @@
 # limitations under the License.
 
 import os
-from pydantic import BaseModel, Field
-from pypdf import PdfReader
+
 from genkit_demo import ai
+
+from pypdf import PdfReader
+
 from genkit.blocks.document import Document
 
 pdf_chat_retriever = 'pdf_qa'
@@ -55,19 +57,17 @@ async def pdf_qa(query: str) -> str:
     return llm_response.text
 
 
-class SimpleStructuredOutput(BaseModel):
-    response: str
+
 
 
 # Define a simple structured flow, we will evaluate this flow
 @ai.flow(name='simple_structured')
-async def simple_structured(query: str) -> SimpleStructuredOutput:
+async def simple_structured(query: str) -> str:
     llm_response = await ai.generate(
         model='googleai/gemini-2.5-flash',
         prompt=query,
     )
     return llm_response.text
-
 
 # Define a simple flow
 @ai.flow(name='simple_echo')
@@ -79,7 +79,7 @@ async def simple_echo(i: str) -> str:
     return llm_response.text
 
 
-# Chunking configuration (simplified)
+# Chunking configuration
 CHUNK_SIZE = 2000
 OVERLAP = 100
 
@@ -97,9 +97,9 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
 # Define a flow to index documents into the "vector store"
 # genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
 @ai.flow(name='index_pdf')
-async def index_pdf(file_path: str = "samples/evaluator-demo/docs/cat-wiki.pdf") -> None:
+async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf') -> None:
     if not file_path:
-        file_path = "samples/evaluator-demo/docs/cat-wiki.pdf"
+        file_path = 'samples/evaluator-demo/docs/cat-wiki.pdf'
     file_path = os.path.abspath(file_path)
 
     # Extract text from PDF

@@ -15,9 +15,10 @@
 import json
 import os
 from typing import List
-from genkit.core.typing import EvalResponse
-from genkit.plugins.evaluators import GenkitMetricType
+
 from genkit_demo import ai
+
+from genkit.core.typing import EvalResponse
 
 # Load dataset
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'dogfacts.json')
@@ -33,7 +34,7 @@ else:
 async def dog_facts_eval_flow() -> List[EvalResponse]:
     # Ensure dataset is loaded as list of BaseDataPoint (or dicts which evaluate() accepts)
     # The dataset in dogfacts.json usually matches the structure needed.
-    
+
     return await ai.evaluate(
         evaluator='genkitEval/faithfulness',
         dataset=DOG_DATASET,

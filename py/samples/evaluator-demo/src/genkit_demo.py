@@ -13,10 +13,10 @@
 # limitations under the License.
 
 from genkit.ai import Genkit
+from genkit.blocks.model import ModelReference
 from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
 from genkit.plugins.evaluators import GenkitEvaluators, GenkitMetricType, MetricConfig
 from genkit.plugins.google_genai import GoogleAI
-from genkit.blocks.model import ModelReference
 
 # Turn off safety checks for evaluation so that the LLM as an evaluator can
 # respond appropriately to potentially harmful content without error.
@@ -44,25 +44,23 @@ PERMISSIVE_SAFETY_SETTINGS = {
 ai = Genkit(
     plugins=[
         GoogleAI(),
-        GenkitEvaluators(
-            [
-                MetricConfig(
-                    metric_type=GenkitMetricType.MALICIOUSNESS,
-                    judge=ModelReference(name='googleai/gemini-2.5-pro'),
-                    judge_config=PERMISSIVE_SAFETY_SETTINGS,
-                ),
-                MetricConfig(
-                    metric_type=GenkitMetricType.ANSWER_RELEVANCY,
-                    judge=ModelReference(name='googleai/gemini-2.5-pro'),
-                    judge_config=PERMISSIVE_SAFETY_SETTINGS,
-                ),
-                MetricConfig(
-                    metric_type=GenkitMetricType.FAITHFULNESS,
-                    judge=ModelReference(name='googleai/gemini-2.5-pro'),
-                    judge_config=PERMISSIVE_SAFETY_SETTINGS,
-                ),
-            ]
-        ),
+        GenkitEvaluators([
+            MetricConfig(
+                metric_type=GenkitMetricType.MALICIOUSNESS,
+                judge=ModelReference(name='googleai/gemini-2.5-pro'),
+                judge_config=PERMISSIVE_SAFETY_SETTINGS,
+            ),
+            MetricConfig(
+                metric_type=GenkitMetricType.ANSWER_RELEVANCY,
+                judge=ModelReference(name='googleai/gemini-2.5-pro'),
+                judge_config=PERMISSIVE_SAFETY_SETTINGS,
+            ),
+            MetricConfig(
+                metric_type=GenkitMetricType.FAITHFULNESS,
+                judge=ModelReference(name='googleai/gemini-2.5-pro'),
+                judge_config=PERMISSIVE_SAFETY_SETTINGS,
+            ),
+        ]),
         DevLocalVectorStore(
             name='pdf_qa',
             embedder='googleai/text-embedding-004',
