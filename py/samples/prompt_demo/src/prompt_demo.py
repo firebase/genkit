@@ -44,16 +44,16 @@ ai.define_helper('my_helper', my_helper)
 class OutputSchema(BaseModel):
     short: str
     friendly: str
-    likeAPirate: str
+    like_a_pirate: str
 
 
 @ai.flow(name='simplePrompt')
-async def simple_prompt(input: str = '') -> str:
+async def simple_prompt(input: str = ''):
     return await ai.generate(prompt='You are a helpful AI assistant named Walt, say hello')
 
 
 @ai.flow(name='simpleTemplate')
-async def simple_template(input: str = '') -> str:
+async def simple_template(input: str = ''):
     name = 'Fred'
     return await ai.generate(prompt=f'You are a helpful AI assistant named Walt. Say hello to {name}.')
 
@@ -69,7 +69,7 @@ class NameInput(BaseModel):
 
 
 @ai.flow(name='simpleDotprompt')
-async def simple_dotprompt(input: NameInput) -> str:
+async def simple_dotprompt(input: NameInput):
     return await hello_dotprompt(input={'name': input.name})
 
 
@@ -81,7 +81,7 @@ three_greetings_prompt = ai.define_prompt(
 
 
 @ai.flow(name='threeGreetingsPrompt')
-async def three_greetings(input: str = 'Fred'):
+async def three_greetings(input: str = 'Fred') -> OutputSchema:
     response = await three_greetings_prompt(input={'name': input})
     return response.output
 
