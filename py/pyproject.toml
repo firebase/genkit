@@ -113,10 +113,10 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
+genkit-plugin-xai                   = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
 prompt-demo                         = { workspace = true }
-genkit-plugin-xai = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
@@ -277,8 +277,8 @@ unauthorized_licenses = [
 ]
 
 [tool.liccheck.authorized_packages]
-aiohttp                = "3.13.2"  # Apache-2.0 AND MIT (transitive dep of xai-sdk)
-aiohappyeyeballs       = "2.6.1"   # Python Software Foundation (transitive dep of xai-sdk)
-certifi                = "2025.4.26" # TODO: Verify.
-dependencies           = true
-ollama                 = "0.5.1"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
+aiohappyeyeballs = "2.6.1"     # Python Software Foundation (transitive dep of xai-sdk)
+aiohttp          = "3.13.2"    # Apache-2.0 AND MIT (transitive dep of xai-sdk)
+certifi          = "2025.4.26" # TODO: Verify.
+dependencies     = true
+ollama           = "0.5.1"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
