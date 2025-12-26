@@ -33,7 +33,7 @@ async def setup(options: SetupInput | None = None):
     if not options or not options.documents:
         docs_to_index = CAT_FACTS
     else:
-        # Mirroring JS implementation's effective behavior (input overrides defaults)
+        # input overrides defaults
         docs_to_index = options.documents
 
     for doc in docs_to_index:
