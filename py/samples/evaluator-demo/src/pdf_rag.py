@@ -15,14 +15,12 @@
 import os
 
 from genkit_demo import ai
-
 from pypdf import PdfReader
 
 from genkit.blocks.document import Document
 
 pdf_chat_retriever = 'pdf_qa'
 pdf_chat_indexer = 'pdf_qa'
-
 
 def rag_template(context: str, question: str) -> str:
     return f"""Use the following pieces of context to answer the question at the end.
@@ -57,9 +55,6 @@ async def pdf_qa(query: str) -> str:
     return llm_response.text
 
 
-
-
-
 # Define a simple structured flow, we will evaluate this flow
 @ai.flow(name='simple_structured')
 async def simple_structured(query: str) -> str:
@@ -68,6 +63,7 @@ async def simple_structured(query: str) -> str:
         prompt=query,
     )
     return llm_response.text
+
 
 # Define a simple flow
 @ai.flow(name='simple_echo')

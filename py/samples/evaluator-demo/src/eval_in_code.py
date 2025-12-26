@@ -14,7 +14,6 @@
 
 import json
 import os
-from typing import List
 
 from genkit_demo import ai
 
@@ -23,7 +22,7 @@ from genkit.core.typing import EvalResponse
 # Load dataset
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'dogfacts.json')
 if os.path.exists(DATA_PATH):
-    with open(DATA_PATH, 'r') as f:
+    with open(DATA_PATH) as f:
         DOG_DATASET = json.load(f)
 else:
     DOG_DATASET = []
@@ -31,7 +30,7 @@ else:
 
 # Run this flow to programatically execute the evaluator on the dog dataset.
 @ai.flow(name='dog_facts_eval')
-async def dog_facts_eval_flow() -> List[EvalResponse]:
+async def dog_facts_eval_flow() -> list[EvalResponse]:
     # Ensure dataset is loaded as list of BaseDataPoint (or dicts which evaluate() accepts)
     # The dataset in dogfacts.json usually matches the structure needed.
 

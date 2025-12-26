@@ -133,26 +133,38 @@ class GenkitEvaluators(Plugin):
 
                     # Lazy load and cache prompts
                     if 'longform' not in _faithfulness_prompts:
-                        _faithfulness_prompts['longform'] = await load_prompt_file(_get_prompt_path('faithfulness_long_form.prompt'))
+                        _faithfulness_prompts['longform'] = await load_prompt_file(
+                            _get_prompt_path('faithfulness_long_form.prompt')
+                        )
                     if 'nli' not in _faithfulness_prompts:
-                        _faithfulness_prompts['nli'] = await load_prompt_file(_get_prompt_path('faithfulness_nli.prompt'))
+                        _faithfulness_prompts['nli'] = await load_prompt_file(
+                            _get_prompt_path('faithfulness_nli.prompt')
+                        )
 
                     # Step 1: Extract statements
-                    prompt = await render_text(_faithfulness_prompts['longform'], {'question': input_string, 'answer': output_string})
+                    prompt = await render_text(
+                        _faithfulness_prompts['longform'], {'question': input_string, 'answer': output_string}
+                    )
                     longform_response = await ai.generate(
                         model=param.judge.name,
                         prompt=prompt,
                         config=param.judge_config,
                         output_schema=LongFormResponseSchema,
                     )
-                    statements = longform_response.output.get('statements', []) if isinstance(longform_response.output, dict) else (longform_response.output.statements if longform_response.output else [])
+                    statements = (
+                        longform_response.output.get('statements', [])
+                        if isinstance(longform_response.output, dict)
+                        else (longform_response.output.statements if longform_response.output else [])
+                    )
                     if not statements:
                         raise ValueError('No statements returned')
 
                     # Step 2: NLI Check
                     all_statements = '\n'.join([f'statement: {s}' for s in statements])
                     all_context = '\n'.join(context_list)
-                    prompt = await render_text(_faithfulness_prompts['nli'], {'context': all_context, 'statements': all_statements})
+                    prompt = await render_text(
+                        _faithfulness_prompts['nli'], {'context': all_context, 'statements': all_statements}
+                    )
 
                     nli_response = await ai.generate(
                         model=param.judge.name,
@@ -166,12 +178,14 @@ class GenkitEvaluators(Plugin):
                         responses = nli_output.get('responses', [])
                     else:
                         responses = nli_output.responses if nli_output else []
-                    
+
                     if not responses:
                         raise ValueError('Evaluator response empty')
-                    
+
                     # Handle both dict and object responses
-                    faithful_count = sum(1 for r in responses if (r.get('verdict') if isinstance(r, dict) else r.verdict))
+                    faithful_count = sum(
+                        1 for r in responses if (r.get('verdict') if isinstance(r, dict) else r.verdict)
+                    )
                     score_val = faithful_count / len(responses)
                     reasoning = '; '.join([r.get('reason', '') if isinstance(r, dict) else r.reason for r in responses])
                     status = EvalStatusEnum.PASS_ if score_val > 0.5 else EvalStatusEnum.FAIL

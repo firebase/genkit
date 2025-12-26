@@ -23,8 +23,9 @@ from setup import setup
 
 from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
 
+from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
+
 # Test evaluator that generates random scores and randomly fails
-# (Mirrors custom/test_evaluator from pdf-rag.ts)
 async def random_eval(datapoint: BaseEvalDataPoint, options: dict | None = None):
     score = random.random()
     # Throw if score is 0.5x (10% prob.)

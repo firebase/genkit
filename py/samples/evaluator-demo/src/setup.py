@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-from typing import List, Optional
 
 from genkit_demo import ai
 from pdf_rag import index_pdf
@@ -26,7 +25,7 @@ from pydantic import BaseModel
 
 
 class SetupInput(BaseModel):
-    documents: Optional[List[str]] = None
+    documents: list[str] | None = None
 
 
 @ai.flow(name='setup')
