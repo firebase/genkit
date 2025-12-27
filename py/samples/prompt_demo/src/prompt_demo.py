@@ -18,6 +18,7 @@ import asyncio
 from pathlib import Path
 
 import structlog
+from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
@@ -40,6 +41,51 @@ def my_helper(content, *_, **__):
 ai.define_helper('my_helper', my_helper)
 
 
+class OutputSchema(BaseModel):
+    short: str
+    friendly: str
+    like_a_pirate: str
+
+
+@ai.flow(name='simplePrompt')
+async def simple_prompt(input: str = ''):
+    return await ai.generate(prompt='You are a helpful AI assistant named Walt, say hello')
+
+
+@ai.flow(name='simpleTemplate')
+async def simple_template(input: str = ''):
+    name = 'Fred'
+    return await ai.generate(prompt=f'You are a helpful AI assistant named Walt. Say hello to {name}.')
+
+
+hello_dotprompt = ai.define_prompt(
+    input_schema={'name': str},
+    prompt='You are a helpful AI assistant named Walt. Say hello to {{name}}',
+)
+
+
+class NameInput(BaseModel):
+    name: str = 'Fred'
+
+
+@ai.flow(name='simpleDotprompt')
+async def simple_dotprompt(input: NameInput):
+    return await hello_dotprompt(input={'name': input.name})
+
+
+three_greetings_prompt = ai.define_prompt(
+    input_schema={'name': str},
+    output_schema=OutputSchema,
+    prompt='You are a helpful AI assistant named Walt. Say hello to {{name}}, write a response for each of the styles requested',
+)
+
+
+@ai.flow(name='threeGreetingsPrompt')
+async def three_greetings(input: str = 'Fred') -> OutputSchema:
+    response = await three_greetings_prompt(input={'name': input})
+    return response.output
+
+
 async def main():
     # List actions to verify loading
     actions = ai.registry.list_serializable_actions()
@@ -59,6 +105,22 @@ async def main():
     response = await hello_prompt(input={'name': 'Genkit User'})
 
     await logger.ainfo('Prompt Execution Result', text=response.text)
+
+    res = await simple_prompt()
+    await logger.ainfo('Flow: simplePrompt', text=res.text)
+
+    res = await simple_template()
+    await logger.ainfo('Flow: simpleTemplate', text=res.text)
+
+    res = await simple_dotprompt(NameInput(name='Fred'))
+    await logger.ainfo('Flow: simpleDotprompt', text=res.text)
+
+    res = await three_greetings()
+    await logger.ainfo('Flow: threeGreetingsPrompt', output=res)
+
+    # Call one of the prompts just to validate everything is hooked up properly
+    res = await hello_dotprompt(input={'name': 'Bob'})
+    await logger.ainfo('Prompt: hello_dotprompt', text=res.text)
 
 
 if __name__ == '__main__':
