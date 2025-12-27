@@ -20,6 +20,7 @@ import json
 from hashlib import md5
 
 from genkit.blocks.document import Document
+from genkit.blocks.retriever import IndexerRequest
 from genkit.codec import dump_json
 from genkit.types import DocumentData, Embedding
 
@@ -30,7 +31,8 @@ from .local_vector_store_api import (
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
-    async def index(self, docs: list[DocumentData]) -> None:
+    async def index(self, request: IndexerRequest) -> None:
+        docs = request.documents
         data = self._load_filestore()
         tasks = []
 
