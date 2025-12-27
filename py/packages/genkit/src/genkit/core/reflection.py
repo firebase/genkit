@@ -186,7 +186,7 @@ def make_reflection_server(
 
                         async def run_fn():
                             return await action.arun_raw(
-                                raw_input=action_input,
+                                raw_input=payload.get('input'),
                                 on_chunk=send_chunk,
                                 context=context,
                             )
@@ -216,8 +216,8 @@ def make_reflection_server(
                 else:
                     try:
 
-                        async def run_fn():
-                            return await action.arun_raw(raw_input=action_input, context=context)
+                        async def run_fn():              
+                            return await action.arun_raw(raw_input=payload.get('input'), context=context)
 
                         output = run_async(loop, run_fn)
 
@@ -416,7 +416,7 @@ def create_reflection_asgi_app(
                     yield f'{out}\n'
 
                 output = await action.arun_raw(
-                    raw_input=action_input,
+                    raw_input=payload.get('input'),
                     on_chunk=send_chunk,
                     context=context,
                 )
@@ -466,7 +466,7 @@ def create_reflection_asgi_app(
             A JSONResponse with the action result or error.
         """
         try:
-            output = await action.arun_raw(raw_input=action_input, context=context)
+            output = await action.arun_raw(raw_input=payload.get('input'), context=context)
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},

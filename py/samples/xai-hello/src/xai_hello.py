@@ -139,21 +139,22 @@ async def calculator_flow(expression: str) -> str:
     return f'{operation.title()}({a}, {b}) = {result.get("result")}'
 
 
+async def main():
+    result = await say_hi('Alice')
+    logger.info('say_hi', result=result)
+
+    result = await say_hi_stream('Bob')
+    logger.info('say_hi_stream', result=result[:150])
+
+    result = await say_hi_with_config('Charlie')
+    logger.info('say_hi_with_config', result=result)
+
+    result = await weather_flow('New York')
+    logger.info('weather_flow', result=result)
+
+    result = await calculator_flow('add_5_3')
+    logger.info('calculator_flow', result=result)
+
+
 if __name__ == '__main__':
-    import asyncio
-
-    async def main():
-        result = await say_hi('Alice')
-        logger.info('say_hi', result=result)
-
-        result = await say_hi_stream('Bob')
-        logger.info('say_hi_stream', result=result[:150])
-
-        result = await say_hi_with_config('Charlie')
-        logger.info('say_hi_with_config', result=result)
-
-        result = await weather_flow('New York')
-        logger.info('weather_flow', result=result)
-
-        result = await calculator_flow('add_5_3')
-        logger.info('calculator_flow', result=result)
+    ai.run_main(main())
