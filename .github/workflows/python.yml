@@ -89,6 +89,9 @@ jobs:
       - name: Generate schema typing
         run: ./py/bin/generate_schema_typing --ci
 
+      - name: Check lockfile is up to date
+        run: uv lock --check --directory py
+
       - name: Format check
         run: uv run --directory py ruff format --check .
 
