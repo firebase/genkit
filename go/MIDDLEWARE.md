@@ -13,11 +13,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/genkit"
 )
 
 func MyMiddleware[In, Out, Stream any](next core.StreamingFunc[In, Out, Stream]) core.StreamingFunc[In, Out, Stream] {
