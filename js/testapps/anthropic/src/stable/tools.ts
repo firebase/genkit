@@ -42,12 +42,15 @@ const getWeather = ai.defineTool(
   }
 );
 
-ai.defineFlow('anthropic-stable-tools', async () => {
-  const { text } = await ai.generate({
-    model: anthropic.model('claude-sonnet-4-5'),
-    tools: [getWeather],
-    prompt: 'What is the weather in Paris?',
-  });
+ai.defineFlow(
+  'anthropic-stable-tools',
+  async ({ place }: { place: string }) => {
+    const { text } = await ai.generate({
+      model: anthropic.model('claude-sonnet-4-5'),
+      tools: [getWeather],
+      prompt: `What is the weather in ${place}?`,
+    });
 
-  return text;
-});
+    return text;
+  }
+);
