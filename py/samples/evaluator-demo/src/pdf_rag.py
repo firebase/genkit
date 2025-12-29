@@ -22,6 +22,7 @@ from genkit.blocks.document import Document
 pdf_chat_retriever = 'pdf_qa'
 pdf_chat_indexer = 'pdf_qa'
 
+
 def rag_template(context: str, question: str) -> str:
     return f"""Use the following pieces of context to answer the question at the end.
 If you don't know the answer, just say that you don't know, don't try to make up an answer.
