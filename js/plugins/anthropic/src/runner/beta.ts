@@ -84,7 +84,7 @@ const BETA_APIS = [
   // 'context-management-2025-06-27',
   // 'model-context-window-exceeded-2025-08-26',
   // 'skills-2025-10-02',
-  // 'effort-param-2025-11-24',
+  'effort-2025-11-24',
   // 'advanced-tool-use-2025-11-20',
   'structured-outputs-2025-11-13',
 ];
@@ -308,6 +308,9 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     };
 
     if (betaSystem !== undefined) body.system = betaSystem;
+    if (request.config?.output_config !== undefined)
+      body.output_config = request.config
+        .output_config as BetaMessageCreateParamsNonStreaming['output_config'];
     if (request.config?.stopSequences !== undefined)
       body.stop_sequences = request.config.stopSequences;
     if (request.config?.temperature !== undefined)
@@ -379,6 +382,9 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     };
 
     if (betaSystem !== undefined) body.system = betaSystem;
+    if (request.config?.output_config !== undefined)
+      body.output_config = request.config
+        .output_config as BetaMessageCreateParamsStreaming['output_config'];
     if (request.config?.stopSequences !== undefined)
       body.stop_sequences = request.config.stopSequences;
     if (request.config?.temperature !== undefined)
