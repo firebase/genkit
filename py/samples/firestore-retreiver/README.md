@@ -20,5 +20,5 @@ gcloud firestore indexes composite create \
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/firestore-retreiver/src/main.py
+genkit start -- uv run src/main.py
 ```
