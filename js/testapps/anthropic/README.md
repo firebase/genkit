@@ -11,7 +11,9 @@ src/
     text-plain.ts     - Text/plain error handling demonstration
     webp.ts           - WEBP image handling demonstration
     pdf.ts            - PDF document processing examples
+    vision.ts         - Image/vision analysis examples
     attention-first-page.pdf - Sample PDF file for testing
+    sample-image.png  - Sample image file for vision demo
   beta/
     basic.ts          - Basic beta API examples
 ```
@@ -39,6 +41,7 @@ src/
 - `pnpm run dev:stable:text-plain` – Start Dev UI for text/plain error handling demo.
 - `pnpm run dev:stable:webp` – Start Dev UI for WEBP image handling demo.
 - `pnpm run dev:stable:pdf` – Start Dev UI for PDF document processing demo.
+- `pnpm run dev:stable:vision` – Start Dev UI for image/vision analysis demo.
 
 ## Flows
 
@@ -63,5 +66,10 @@ Each source file defines flows that can be invoked from the Dev UI or the Genkit
 - `stable-pdf-base64` – Process a PDF from a local file using base64 encoding
 - `stable-pdf-url` – Process a PDF from a publicly accessible URL
 - `stable-pdf-analysis` – Analyze a PDF document for key topics, concepts, and visual elements
+
+### Vision/Image Analysis
+- `stable-vision-url` – Analyze an image from a public URL
+- `stable-vision-base64` – Analyze an image from a local file (base64 encoded)
+- `stable-vision-conversation` – Multi-turn conversation about an image
 
 Example: `genkit flow:run anthropic-stable-hello`
