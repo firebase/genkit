@@ -190,11 +190,11 @@ describe('Anthropic Plugin', () => {
     assert.ok(experimentalMetadata, 'Experimental model metadata should exist');
 
     // Verify mock was called
-    const listStub = mockClient.models.list as any;
+    const listStub = mockClient.beta.models.list as any;
     assert.strictEqual(
       listStub.mock.calls.length,
       1,
-      'models.list should be called once'
+      'beta.models.list should be called once'
     );
   });
 
@@ -224,11 +224,11 @@ describe('Anthropic Plugin', () => {
     );
 
     // Verify models.list was only called once due to caching
-    const listStub = mockClient.models.list as any;
+    const listStub = mockClient.beta.models.list as any;
     assert.strictEqual(
       listStub.mock.calls.length,
       1,
-      'models.list should only be called once due to caching'
+      'beta.models.list should only be called once due to caching'
     );
   });
 });

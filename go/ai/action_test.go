@@ -136,13 +136,15 @@ func TestGenerateAction(t *testing.T) {
 					t.Fatalf("action failed: %v", err)
 				}
 
-				if diff := cmp.Diff(tc.ExpectChunks, chunks); diff != "" {
+				if diff := cmp.Diff(tc.ExpectChunks, chunks, cmp.Options{
+					cmpopts.IgnoreFields(ModelResponseChunk{}, "formatHandler"),
+				}); diff != "" {
 					t.Errorf("chunks mismatch (-want +got):\n%s", diff)
 				}
 
 				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs"),
+					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs", "formatHandler"),
 					cmpopts.IgnoreFields(GenerationUsage{}, "InputCharacters", "OutputCharacters"),
 					cmpopts.IgnoreFields(ToolDefinition{}, "Metadata"),
 				}); diff != "" {
@@ -156,7 +158,7 @@ func TestGenerateAction(t *testing.T) {
 
 				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{
 					cmpopts.EquateEmpty(),
-					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs"),
+					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs", "formatHandler"),
 					cmpopts.IgnoreFields(GenerationUsage{}, "InputCharacters", "OutputCharacters"),
 					cmpopts.IgnoreFields(ToolDefinition{}, "Metadata"),
 				}); diff != "" {
