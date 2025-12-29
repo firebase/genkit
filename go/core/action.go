@@ -64,7 +64,24 @@ func NewAction[In, Out any](
 	inputSchema map[string]any,
 	fn Func[In, Out],
 ) *ActionDef[In, Out, struct{}] {
-	return newAction(name, atype, metadata, inputSchema,
+	return newAction(name, atype, metadata, inputSchema, nil,
+		func(ctx context.Context, in In, cb noStream) (Out, error) {
+			return fn(ctx, in)
+		})
+}
+
+// NewStructuredAction creates a new non-streaming [Action] without registering it.
+// It can be used to create a tool with a custom input and output schema.
+// If either inputSchema or outputSchema are nil, they are inferred from the function's input or output api.
+func NewStructuredAction[In, Out any](
+	name string,
+	atype api.ActionType,
+	metadata map[string]any,
+	inputSchema map[string]any,
+	outputSchema map[string]any,
+	fn Func[In, Out],
+) *ActionDef[In, Out, struct{}] {
+	return newAction(name, atype, metadata, inputSchema, outputSchema,
 		func(ctx context.Context, in In, cb noStream) (Out, error) {
 			return fn(ctx, in)
 		})
@@ -79,7 +96,7 @@ func NewStreamingAction[In, Out, Stream any](
 	inputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
-	return newAction(name, atype, metadata, inputSchema, fn)
+	return newAction(name, atype, metadata, inputSchema, nil, fn)
 }
 
 // DefineAction creates a new non-streaming Action and registers it.
@@ -120,7 +137,7 @@ func defineAction[In, Out, Stream any](
 	inputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
-	a := newAction(name, atype, metadata, inputSchema, fn)
+	a := newAction(name, atype, metadata, inputSchema, nil, fn)
 	a.Register(r)
 	return a
 }
@@ -133,6 +150,7 @@ func newAction[In, Out, Stream any](
 	atype api.ActionType,
 	metadata map[string]any,
 	inputSchema map[string]any,
+	outputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
 	if inputSchema == nil {
@@ -142,10 +160,11 @@ func newAction[In, Out, Stream any](
 		}
 	}
 
-	var o Out
-	var outputSchema map[string]any
-	if reflect.ValueOf(o).Kind() != reflect.Invalid {
-		outputSchema = InferSchemaMap(o)
+	if outputSchema == nil {
+		var o Out
+		if reflect.ValueOf(o).Kind() != reflect.Invalid {
+			outputSchema = InferSchemaMap(o)
+		}
 	}
 
 	var description string
