@@ -33,7 +33,6 @@ import {
   Part,
   isObject,
 } from './types.js';
-
 /**
  * Safely extracts the error message from the error.
  * @param e The error
@@ -402,8 +401,6 @@ async function* generateResponseSequence(
       }
       yield value;
     }
-  } catch (error) {
-    throw error;
   } finally {
     reader.releaseLock();
   }
@@ -424,6 +421,7 @@ async function getResponsePromise(
     }
   } catch (error) {
     if (allResponses.length) {
+      console.error('Stream processing failed. Returning partial response. Error:', error);
       return aggregateResponses(allResponses);
     }
 
