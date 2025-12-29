@@ -71,7 +71,6 @@ func (e *UserFacingError) Error() string {
 
 // NewError creates a new GenkitError with a stack trace.
 func NewError(status StatusName, message string, args ...any) *GenkitError {
-	// Prevents a compile-time warning about non-constant message.
 	msg := message
 
 	ge := &GenkitError{
@@ -79,10 +78,11 @@ func NewError(status StatusName, message string, args ...any) *GenkitError {
 		Message: fmt.Sprintf(msg, args...),
 	}
 
-	// scan args for the last error to wrap it
-	for _, arg := range args {
-		if err, ok := arg.(error); ok {
+	// scan args for the last error to wrap it (Iterate backwards)
+	for i := len(args) - 1; i >= 0; i-- {
+		if err, ok := args[i].(error); ok {
 			ge.originalError = err
+			break
 		}
 	}
 

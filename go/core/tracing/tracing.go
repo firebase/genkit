@@ -134,8 +134,7 @@ func Tracer() trace.Tracer {
 // such as one that writes to a file.
 func WriteTelemetryImmediate(client TelemetryClient) {
 	e := newTelemetryServerExporter(client)
-	filtered := &filteringExporter{exporter: e}
-	TracerProvider().RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(filtered))
+	TracerProvider().RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
 }
 
 // WriteTelemetryBatch adds a telemetry server to the global tracer provider.
@@ -147,8 +146,7 @@ func WriteTelemetryImmediate(client TelemetryClient) {
 // and perform other cleanup.
 func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
 	e := newTelemetryServerExporter(client)
-	filtered := &filteringExporter{exporter: e}
-	TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(filtered))
+	TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 	return TracerProvider().Shutdown
 }
 
@@ -403,34 +401,4 @@ func SpanPath(ctx context.Context) string {
 // TraceInfo returns the trace info as recorded in the current span metadata.
 func SpanTraceInfo(ctx context.Context) TraceInfo {
 	return spanMetaKey.FromContext(ctx).TraceInfo
-}
-
-type filteringExporter struct {
-	exporter sdktrace.SpanExporter
-}
-
-func (e *filteringExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
-	var genkitSpans []sdktrace.ReadOnlySpan
-	for _, span := range spans {
-		if isGenkitSpan(span) {
-			genkitSpans = append(genkitSpans, span)
-		}
-	}
-	if len(genkitSpans) == 0 {
-		return nil
-	}
-	return e.exporter.ExportSpans(ctx, genkitSpans)
-}
-
-func (e *filteringExporter) Shutdown(ctx context.Context) error {
-	return e.exporter.Shutdown(ctx)
-}
-
-func isGenkitSpan(span sdktrace.ReadOnlySpan) bool {
-	for _, attr := range span.Attributes() {
-		if strings.HasPrefix(string(attr.Key), "genkit") {
-			return true
-		}
-	}
-	return false
 }
