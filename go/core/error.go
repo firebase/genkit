@@ -37,11 +37,12 @@ type ReflectionError struct {
 
 // GenkitError is the base error type for Genkit errors.
 type GenkitError struct {
-	Message  string         `json:"message"` // Exclude from default JSON if embedded elsewhere
-	Status   StatusName     `json:"status"`
-	HTTPCode int            `json:"-"`                // Exclude from default JSON
-	Details  map[string]any `json:"details"`          // Use map for arbitrary details
-	Source   *string        `json:"source,omitempty"` // Pointer for optional
+	Message       string         `json:"message"` // Exclude from default JSON if embedded elsewhere
+	Status        StatusName     `json:"status"`
+	HTTPCode      int            `json:"-"`                // Exclude from default JSON
+	Details       map[string]any `json:"details"`          // Use map for arbitrary details
+	Source        *string        `json:"source,omitempty"` // Pointer for optional
+	originalError error          // The wrapped error, if any
 }
 
 // UserFacingError is the base error type for user facing errors.
@@ -78,6 +79,13 @@ func NewError(status StatusName, message string, args ...any) *GenkitError {
 		Message: fmt.Sprintf(msg, args...),
 	}
 
+	// scan args for the last error to wrap it
+	for _, arg := range args {
+		if err, ok := arg.(error); ok {
+			ge.originalError = err
+		}
+	}
+
 	errStack := string(debug.Stack())
 	if errStack != "" {
 		ge.Details = make(map[string]any)
@@ -91,14 +99,22 @@ func (e *GenkitError) Error() string {
 	return e.Message
 }
 
+// Unwrap implements the standard error unwrapping interface.
+// This allows errors.Is and errors.As to work with GenkitError.
+func (e *GenkitError) Unwrap() error {
+	return e.originalError
+}
+
 // ToReflectionError returns a JSON-serializable representation for reflection API responses.
 func (e *GenkitError) ToReflectionError() ReflectionError {
 	errDetails := &ReflectionErrorDetails{}
-	if stackVal, ok := e.Details["stack"].(string); ok {
-		errDetails.Stack = &stackVal
-	}
-	if traceVal, ok := e.Details["traceId"].(string); ok {
-		errDetails.TraceID = &traceVal
+	if e.Details != nil {
+		if stackVal, ok := e.Details["stack"].(string); ok {
+			errDetails.Stack = &stackVal
+		}
+		if traceVal, ok := e.Details["traceId"].(string); ok {
+			errDetails.TraceID = &traceVal
+		}
 	}
 	return ReflectionError{
 		Details: errDetails,
