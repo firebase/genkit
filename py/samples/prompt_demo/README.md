@@ -14,7 +14,7 @@ export GEMINI_API_KEY='<Your api key>'
 ## Run the sample
 
 ```bash
-genkit start -- uv run src/prompt_demo.py
+genkit start -- uv run src/main.py
 ```
 
 ## Prompt Structure

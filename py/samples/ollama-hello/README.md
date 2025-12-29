@@ -28,5 +28,5 @@ ollama pull gemma3:latest
 ### Step 3: Execute Sample
 
 ```bash
-genkit start -- uv run src/ollama_hello.py
+genkit start -- uv run src/main.py
 ```

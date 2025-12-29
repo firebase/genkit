@@ -12,7 +12,7 @@ export XAI_API_KEY=your_api_key_here
 
 ```bash
 cd py/samples/xai-hello
-uv run python src/xai_hello.py
+uv run src/main.py
 ```
 
 ## Features

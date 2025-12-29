@@ -2,14 +2,14 @@
 
 This sample demonstrates the different evaluation features using Genkit Python SDK.
 
-Note: This sample focuses on evaluation features in Genkit, by utilizing the official Genkit Evaluators plugin. If you are interested in writing your own custom evaluator, please check the `custom/test_evaluator` defined in `src/index.py`.
+Note: This sample focuses on evaluation features in Genkit, by utilizing the official Genkit Evaluators plugin. If you are interested in writing your own custom evaluator, please check the `custom/test_evaluator` defined in `src/main.py`.
 
 ## Setup and start the sample
 
 ```bash
 
 # Start the Genkit Dev UI
-genkit start -- uv run samples/evaluator-demo/src/index.py
+genkit start -- uv run src/main.py
 # This command should output the link to the Genkit Dev UI.
 ```
 
