@@ -16,7 +16,10 @@
 
 import random
 
+from eval_in_code import dog_facts_eval_flow
 from genkit_demo import ai
+from pdf_rag import index_pdf, pdf_qa, simple_echo, simple_structured
+from setup import setup
 
 from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
 

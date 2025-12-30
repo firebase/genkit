@@ -12,35 +12,15 @@ Note: This sample focuses on evaluation features in Genkit, by utilizing the off
 genkit start -- uv run src/main.py
 # This command should output the link to the Genkit Dev UI.
 ```
+Choose any flow of interest and run in the Dev UI.
+## Available Flows
 
-The rest of the commands in this guide can be run in a separate terminal or directly in the Dev UI.
-
-### Initial Setup
-
-```bash
-# Index "docs/cat-handbook.pdf" to start
-# testing Genkit evaluation features. Please see
-# src/setup.py for more details.
-
-genkit flow:run setup
-```
-
-## Evaluations
-
-### Running Evaluations via CLI
-
-Use the `eval:flow` command to run a flow against a dataset and evaluate the outputs:
-
-```bash
-# Evaluate with a specific evaluator
-genkit eval:flow pdf_qa --input data/cat_adoption_questions.json --evaluator=custom/test_evaluator
-
-# Evaluate with multiple evaluators
-genkit eval:flow pdf_qa --input data/cat_adoption_questions.json --evaluator=genkitEval/faithfulness --evaluator=genkitEval/maliciousness
-
-# Evaluate with all available evaluators (omit --evaluator flag)
-genkit eval:flow pdf_qa --input data/cat_adoption_questions.json
-```
+- **setup**: Indexes the default PDF document (`docs/cat-handbook.pdf`) into the vector store
+- **pdf_qa**: RAG flow that answers questions based on indexed PDF documents. It requires `setup` flow run first.
+- **index_pdf**: Indexes a specified PDF file (defaults to `docs/cat-wiki.pdf`)
+- **simple_structured**: Simple flow with structured input/output
+- **simple_echo**: Simple echo flow
+- **dog_facts_eval**: Programmatic evaluation flow using the faithfulness metric on a dog facts dataset. **Note:** This flow can take several minutes to complete.
 
 ### Running Evaluations in Dev UI
 
@@ -56,26 +36,6 @@ genkit eval:flow pdf_qa --input data/cat_adoption_questions.json
      - `genkitEval/answer_relevancy` - Checks if answer is relevant to question
 4. Click **"Run"**
 5. View results in the Evaluations tab
-
-### Programmatic Evaluation
-
-The `dog_facts_eval` flow demonstrates running evaluations from code. See `src/eval_in_code.py` for implementation details.
-
-```bash
-# Run programmatic evaluation
-genkit flow:run dog_facts_eval
-```
-
-**Note:** The `dog_facts_eval` flow evaluates 20 test cases with the faithfulness metric, making 40 LLM API calls. This takes approximately 5 minutes to complete.
-
-## Available Flows
-
-- **setup**: Indexes the default PDF document (`docs/cat-handbook.pdf`) into the vector store
-- **index_pdf**: Indexes a specified PDF file (defaults to `docs/cat-wiki.pdf`)
-- **pdf_qa**: RAG flow that answers questions based on indexed PDF documents. It requires `setup` flow run first.
-- **simple_structured**: Simple flow with structured input/output
-- **simple_echo**: Simple echo flow
-- **dog_facts_eval**: Programmatic evaluation flow using the faithfulness metric on a dog facts dataset
 
 ## Reference
 
