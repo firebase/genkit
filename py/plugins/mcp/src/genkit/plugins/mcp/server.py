@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.resource import matches_uri_template
+from genkit.core.action._key import parse_action_key
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
 from genkit.core.schema import to_json_schema
@@ -96,6 +97,10 @@ class McpServer:
         self.tool_actions: list[Any] = []
         self.prompt_actions: list[Any] = []
         self.resource_actions: list[Any] = []
+        self.tool_actions_map: dict[str, Any] = {}
+        self.prompt_actions_map: dict[str, Any] = {}
+        self.resource_uri_map: dict[str, Any] = {}
+        self.resource_templates: list[tuple[str, Any]] = []
 
     async def setup(self) -> None:
         """Initialize the MCP server and register request handlers.
@@ -141,10 +146,18 @@ class McpServer:
                 for name, action in entries.items():
                     if kind == ActionKind.TOOL:
                         self.tool_actions.append(action)
+                        self.tool_actions_map[action.name] = action
                     elif kind == ActionKind.PROMPT:
                         self.prompt_actions.append(action)
+                        self.prompt_actions_map[action.name] = action
                     elif kind == ActionKind.RESOURCE:
                         self.resource_actions.append(action)
+                        metadata = action.metadata or {}
+                        resource_meta = metadata.get('resource', {})
+                        if resource_meta.get('uri'):
+                            self.resource_uri_map[resource_meta['uri']] = action
+                        if resource_meta.get('template'):
+                            self.resource_templates.append((resource_meta['template'], action))
 
         # Also get actions from plugins that might not be in _entries yet
         # (though most plugins register them in _entries during initialization)
@@ -155,10 +168,18 @@ class McpServer:
             if action:
                 if kind == ActionKind.TOOL and action not in self.tool_actions:
                     self.tool_actions.append(action)
+                    self.tool_actions_map[action.name] = action
                 elif kind == ActionKind.PROMPT and action not in self.prompt_actions:
                     self.prompt_actions.append(action)
+                    self.prompt_actions_map[action.name] = action
                 elif kind == ActionKind.RESOURCE and action not in self.resource_actions:
                     self.resource_actions.append(action)
+                    metadata = action.metadata or {}
+                    resource_meta = metadata.get('resource', {})
+                    if resource_meta.get('uri'):
+                        self.resource_uri_map[resource_meta['uri']] = action
+                    if resource_meta.get('template'):
+                        self.resource_templates.append((resource_meta['template'], action))
 
         self.actions_resolved = True
 
@@ -211,7 +232,7 @@ class McpServer:
         await self.setup()
 
         # Find the tool action
-        tool = next((t for t in self.tool_actions if t.name == request.params.name), None)
+        tool = self.tool_actions_map.get(request.params.name)
 
         if not tool:
             raise GenkitError(
@@ -268,7 +289,7 @@ class McpServer:
         await self.setup()
 
         # Find the prompt action
-        prompt = next((p for p in self.prompt_actions if p.name == request.params.name), None)
+        prompt = self.prompt_actions_map.get(request.params.name)
 
         if not prompt:
             raise GenkitError(
@@ -359,20 +380,13 @@ class McpServer:
 
         uri = request.params.uri
 
-        # Find matching resource (either exact URI match or template match)
-        resource = None
-        for action in self.resource_actions:
-            metadata = action.metadata or {}
-            resource_meta = metadata.get('resource', {})
+        # Check for exact URI match
+        resource = self.resource_uri_map.get(uri)
 
-            # Check for exact URI match
-            if resource_meta.get('uri') == uri:
-                resource = action
-                break
-
-            # Check for template match
-            if resource_meta.get('template'):
-                if matches_uri_template(resource_meta['template'], uri):
+        # Check for template match if not found by exact URI
+        if not resource:
+            for template, action in self.resource_templates:
+                if matches_uri_template(template, uri):
                     resource = action
                     break
 

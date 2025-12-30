@@ -102,16 +102,7 @@ class McpClient(Plugin):
             logger.error(f'Failed to connect to MCP server {self.server_name}: {e}')
             self.config.disabled = True
             # Clean up on error
-            if hasattr(self, '_session_context') and self._session_context:
-                try:
-                    await self._session_context.__aexit__(None, None, None)
-                except:
-                    pass
-            if self._exit_stack:
-                try:
-                    await self._exit_stack.__aexit__(None, None, None)
-                except:
-                    pass
+            await self.close()
             raise e
 
     async def close(self):

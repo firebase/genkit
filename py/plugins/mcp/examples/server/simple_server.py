@@ -56,7 +56,7 @@ def main():
     server = create_mcp_server(ai, McpServerOptions(name='example_server', version='0.0.1'))
 
     print('Starting MCP server on stdio...')
-    asyncio.run(server.start_stdio())
+    asyncio.run(server.start())
 
 
 if __name__ == '__main__':

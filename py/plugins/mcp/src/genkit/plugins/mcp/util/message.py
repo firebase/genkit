@@ -97,6 +97,34 @@ def from_mcp_part(part: Dict[str, Any]) -> Dict[str, Any]:
     return {}
 
 
+def _get_part_data(part: Any) -> Dict[str, Any]:
+    """Extract data from a Part, handling potential 'root' nesting."""
+    if isinstance(part, str):
+        return {'text': part}
+    part_dict = part if isinstance(part, dict) else part.model_dump()
+    if 'root' in part_dict and isinstance(part_dict['root'], dict):
+        return part_dict['root']
+    return part_dict
+
+
+def _parse_media_part(media: Dict[str, Any]) -> ImageContent:
+    """Extract MIME type and base64 data from a media part."""
+    url = media.get('url', '')
+    content_type = media.get('contentType', '')
+
+    if not url.startswith('data:'):
+        raise ValueError('MCP prompt messages only support base64 data images.')
+
+    # Extract MIME type and base64 data
+    try:
+        mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
+        data = url[url.index(',') + 1 :]
+    except ValueError as e:
+        raise ValueError(f'Invalid data URL format: {url}') from e
+
+    return ImageContent(type='image', data=data, mimeType=mime_type)
+
+
 def to_mcp_prompt_message(message: Message) -> PromptMessage:
     """Convert a Genkit Message to an MCP PromptMessage.
 
@@ -123,47 +151,19 @@ def to_mcp_prompt_message(message: Message) -> PromptMessage:
 
     mcp_role = role_map[message.role]
 
-    # Handle media content (images)
+    # First, look for any media content as MCP content is currently single-part
     if message.content:
         for part in message.content:
-            part_dict = part if isinstance(part, dict) else part.model_dump()
-            if part_dict.get('media'):
-                media = part_dict['media']
-                url = media.get('url', '')
-                content_type = media.get('contentType', '')
+            data = _get_part_data(part)
+            if data.get('media'):
+                return PromptMessage(role=mcp_role, content=_parse_media_part(data['media']))
 
-                if not url.startswith('data:'):
-                    raise ValueError('MCP prompt messages only support base64 data images.')
-
-                # Extract MIME type and base64 data
-                mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
-                data = url[url.index(',') + 1 :]
-
-                return PromptMessage(role=mcp_role, content=ImageContent(type='image', data=data, mimeType=mime_type))
-            elif part_dict.get('root') and isinstance(part_dict['root'], dict) and part_dict['root'].get('media'):
-                media = part_dict['root']['media']
-                url = media.get('url', '')
-                content_type = media.get('contentType', '')
-
-                if not url.startswith('data:'):
-                    raise ValueError('MCP prompt messages only support base64 data images.')
-
-                # Extract MIME type and base64 data
-                mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
-                data = url[url.index(',') + 1 :]
-
-                return PromptMessage(role=mcp_role, content=ImageContent(type='image', data=data, mimeType=mime_type))
-
-    # Handle text content
-    text = ''
+    # If no media, aggregate all text content
+    text_content = []
     if message.content:
         for part in message.content:
-            part_dict = part if isinstance(part, dict) else part.model_dump()
-            if 'text' in part_dict and part_dict['text']:
-                text += part_dict['text']
-            elif 'root' in part_dict and isinstance(part_dict['root'], dict) and 'text' in part_dict['root']:
-                text += part_dict['root']['text']
-            elif isinstance(part, str):
-                text += part
+            data = _get_part_data(part)
+            if data.get('text'):
+                text_content.append(data['text'])
 
-    return PromptMessage(role=mcp_role, content=TextContent(type='text', text=text))
+    return PromptMessage(role=mcp_role, content=TextContent(type='text', text=''.join(text_content)))
