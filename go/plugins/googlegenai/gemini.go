@@ -484,6 +484,34 @@ func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	return outTools, nil
 }
 
+// toGeminiFunctionResponsePart translates a slice of [ai.Part] to a slice of [genai.FunctionResponsePart]
+func toGeminiFunctionResponsePart(parts []*ai.Part) ([]*genai.FunctionResponsePart, error) {
+	frp := []*genai.FunctionResponsePart{}
+	for _, p := range parts {
+		switch {
+		case p.IsData():
+			contentType, data, err := uri.Data(p)
+			if err != nil {
+				return nil, err
+			}
+			frp = append(frp, genai.NewFunctionResponsePartFromBytes(data, contentType))
+		case p.IsMedia():
+			if strings.HasPrefix(p.Text, "data:") {
+				contentType, data, err := uri.Data(p)
+				if err != nil {
+					return nil, err
+				}
+				frp = append(frp, genai.NewFunctionResponsePartFromBytes(data, contentType))
+				continue
+			}
+			frp = append(frp, genai.NewFunctionResponsePartFromURI(p.Text, p.ContentType))
+		default:
+			return nil, fmt.Errorf("unsupported function response part type: %d", p.Kind)
+		}
+	}
+	return frp, nil
+}
+
 // mergeTools consolidates all FunctionDeclarations into a single Tool
 // while preserving non-function tools (Retrieval, GoogleSearch, CodeExecution, etc.)
 func mergeTools(ts []*genai.Tool) []*genai.Tool {
@@ -814,6 +842,14 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 				Name:  part.FunctionCall.Name,
 				Input: part.FunctionCall.Args,
 			})
+			// FunctionCall parts may contain a ThoughtSignature that must be preserved
+			// and returned in subsequent requests for the tool call to be valid.
+			if len(part.ThoughtSignature) > 0 {
+				if p.Metadata == nil {
+					p.Metadata = make(map[string]any)
+				}
+				p.Metadata["signature"] = part.ThoughtSignature
+			}
 		}
 		if part.CodeExecutionResult != nil {
 			partFound++
@@ -894,7 +930,7 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsReasoning():
-		// TODO: go-genai does not support genai.NewPartFromThought()
+		// NOTE: go-genai does not support genai.NewPartFromThought()
 		signature := []byte{}
 		if p.Metadata != nil {
 			if sig, ok := p.Metadata["signature"].([]byte); ok {
@@ -934,8 +970,22 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 				"content": toolResp.Output,
 			}
 		}
-		fr := genai.NewPartFromFunctionResponse(toolResp.Name, output)
-		return fr, nil
+
+		var isMultipart bool
+		if multiPart, ok := p.Metadata["multipart"].(bool); ok {
+			isMultipart = multiPart
+		}
+		if len(toolResp.Content) > 0 {
+			isMultipart = true
+		}
+		if isMultipart {
+			toolRespParts, err := toGeminiFunctionResponsePart(toolResp.Content)
+			if err != nil {
+				return nil, err
+			}
+			return genai.NewPartFromFunctionResponseWithParts(toolResp.Name, output, toolRespParts), nil
+		}
+		return genai.NewPartFromFunctionResponse(toolResp.Name, output), nil
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
 		var input map[string]any
@@ -947,6 +997,12 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 			}
 		}
 		fc := genai.NewPartFromFunctionCall(toolReq.Name, input)
+		// Restore ThoughtSignature if present in metadata
+		if p.Metadata != nil {
+			if sig, ok := p.Metadata["signature"].([]byte); ok {
+				fc.ThoughtSignature = sig
+			}
+		}
 		return fc, nil
 	default:
 		panic("unknown part type in a request")
