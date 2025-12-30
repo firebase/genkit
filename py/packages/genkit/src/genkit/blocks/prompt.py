@@ -347,7 +347,7 @@ class ExecutablePrompt:
         if self._name is None:
             raise GenkitError(
                 status='FAILED_PRECONDITION',
-                message='Prompt name not available. This prompt was not created via define_prompt_async() or load_prompt().',
+                message='Prompt name not available. This prompt was not created via Genkit.define_prompt() or load_prompt().',
             )
 
         lookup_key = registry_lookup_key(self._name, self._variant, self._ns)
@@ -366,6 +366,7 @@ class ExecutablePrompt:
 def define_prompt(
     registry: Registry,
     variant: str | None = None,
+    _name: str | None = None,
     model: str | None = None,
     config: GenerationCommonConfig | dict[str, Any] | None = None,
     description: str | None = None,
@@ -435,6 +436,7 @@ def define_prompt(
         tools=tools,
         tool_choice=tool_choice,
         use=use,
+        _name=_name,
     )
 
 
