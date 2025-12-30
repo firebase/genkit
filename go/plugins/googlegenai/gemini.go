@@ -793,7 +793,9 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		partFound := 0
 
 		if part.Thought {
-			p = ai.NewReasoningPart(part.Text, part.ThoughtSignature)
+			p = ai.NewReasoningPart(part.Text, map[string]any{
+				"signature": part.ThoughtSignature,
+			})
 			partFound++
 		}
 		if part.Text != "" && !part.Thought {

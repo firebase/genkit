@@ -15,7 +15,11 @@
 // Package internal contains code that is common to all models
 package internal
 
-import "github.com/firebase/genkit/go/ai"
+import (
+	"encoding/json"
+
+	"github.com/firebase/genkit/go/ai"
+)
 
 var (
 	// BasicText describes model capabilities for text-only models.
@@ -47,3 +51,12 @@ var (
 		Constrained: ai.ConstrainedSupportNone,
 	}
 )
+
+// MapToStruct unmarshals a map[String]any to the expected type
+func MapToStruct(m map[string]any, v any) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, v)
+}
