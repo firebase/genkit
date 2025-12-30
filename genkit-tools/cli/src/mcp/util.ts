@@ -34,7 +34,9 @@ export function getCommonSchema(shape: z.ZodRawShape = {}): z.ZodRawShape {
 }
 
 export function resolveProjectRoot(
-  opts: any,
+  opts: {
+    [x: string]: any;
+  },
   fallback: string
 ): string | { content: any[]; isError: boolean } {
   if (isAntigravity && !opts?.projectRoot) {

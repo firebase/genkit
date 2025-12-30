@@ -31,8 +31,6 @@ export async function startMcpServer(projectRoot: string) {
     version: '0.0.2',
   });
 
-  // new McpRuntimeManager(projectRoot);
-
   await defineDocsTool(server);
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
