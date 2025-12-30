@@ -42,8 +42,10 @@ import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import { RunnerTypes as BaseRunnerTypes } from './types.js';
+
 interface RunnerTypes extends BaseRunnerTypes {
   Message: Message;
   Stream: MessageStream;
@@ -179,6 +181,12 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsNonStreaming {
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
@@ -197,51 +205,40 @@ export class Runner extends BaseRunner<RunnerTypes> {
             ]
           : system;
 
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as MessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
     const body: MessageCreateParamsNonStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
+      system: systemValue,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      ...restConfig,
     };
 
-    if (systemValue !== undefined) {
-      body.system = systemValue;
-    }
-
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    if (request.config?.topK !== undefined) {
-      body.top_k = request.config.topK;
-    }
-    if (request.config?.topP !== undefined) {
-      body.top_p = request.config.topP;
-    }
-    if (request.config?.temperature !== undefined) {
-      body.temperature = request.config.temperature;
-    }
-    if (request.config?.stopSequences !== undefined) {
-      body.stop_sequences = request.config.stopSequences;
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config.metadata;
-    }
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config.tool_choice;
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as MessageCreateParams['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   protected toAnthropicStreamingRequestBody(
@@ -249,6 +246,12 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsStreaming {
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
@@ -267,53 +270,41 @@ export class Runner extends BaseRunner<RunnerTypes> {
             ]
           : system;
 
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as MessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
     const body: MessageCreateParamsStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
+      system: systemValue,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      ...restConfig,
     };
 
-    if (systemValue !== undefined) {
-      body.system = systemValue;
-    }
-
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    if (request.config?.topK !== undefined) {
-      body.top_k = request.config.topK;
-    }
-    if (request.config?.topP !== undefined) {
-      body.top_p = request.config.topP;
-    }
-    if (request.config?.temperature !== undefined) {
-      body.temperature = request.config.temperature;
-    }
-    if (request.config?.stopSequences !== undefined) {
-      body.stop_sequences = request.config.stopSequences;
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config.metadata;
-    }
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config.tool_choice;
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking =
-        thinkingConfig as MessageCreateParamsStreaming['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   protected async createMessage(

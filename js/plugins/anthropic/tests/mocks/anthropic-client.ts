@@ -379,7 +379,7 @@ function toBetaMessage(message: Message): BetaMessage {
       server_tool_use: message.usage.server_tool_use as any,
       service_tier: message.usage.service_tier,
     },
-  };
+  } as BetaMessage;
 }
 
 function toBetaStreamEvent(
