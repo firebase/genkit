@@ -75,7 +75,7 @@ const BETA_APIS = [
   // 'token-counting-2024-11-01',
   // 'token-efficient-tools-2025-02-19',
   // 'output-128k-2025-02-19',
-  // 'files-api-2025-04-14',
+  'files-api-2025-04-14',
   // 'mcp-client-2025-04-04',
   // 'dev-full-thinking-2025-05-14',
   // 'interleaved-thinking-2025-05-14',
@@ -192,6 +192,26 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
     // Media
     if (part.media) {
+      if (part.media.contentType === 'anthropic/file') {
+        return {
+          type: 'document',
+          source: {
+            type: 'file',
+            file_id: part.media.url,
+          },
+        };
+      }
+
+      if (part.media.contentType === 'anthropic/image') {
+        return {
+          type: 'image',
+          source: {
+            type: 'file',
+            file_id: part.media.url,
+          },
+        };
+      }
+
       if (part.media.contentType === 'application/pdf') {
         return {
           type: 'document',

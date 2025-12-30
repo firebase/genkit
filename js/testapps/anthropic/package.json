@@ -10,6 +10,7 @@
     "start:beta": "node lib/beta/basic.js",
     "dev:stable": "genkit start -- npx tsx --watch src/stable/basic.ts",
     "dev:beta": "genkit start -- npx tsx --watch src/beta/basic.ts",
+    "dev:beta:files-api": "genkit start -- npx tsx --watch src/beta/files_api.ts",
     "dev:beta:effort": "genkit start -- npx tsx --watch src/beta/effort.ts",
     "dev:beta:additional-params": "genkit start -- npx tsx --watch src/beta/additional_params.ts",
     "dev:stable:text-plain": "genkit start -- npx tsx --watch src/stable/text-plain.ts",
@@ -27,8 +28,8 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "genkit": "workspace:*",
-    "@genkit-ai/anthropic": "workspace:*"
+    "@genkit-ai/anthropic": "workspace:*",
+    "genkit": "workspace:*"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
