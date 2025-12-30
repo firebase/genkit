@@ -115,6 +115,40 @@ describe('local-file-store', () => {
     });
   });
 
+  it('prevents overwriting completed span with incomplete span (race condition)', async () => {
+    const spanA = span(TRACE_ID, SPAN_A, 100, 200);
+    const spanA_incomplete = span(TRACE_ID, SPAN_A, 100, 100);
+    delete (spanA_incomplete as any).endTime;
+
+    // Save complete span first
+    await fetch(`${url}/api/traces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        traceId: TRACE_ID,
+        spans: { [SPAN_A]: spanA },
+      } as TraceData),
+    });
+
+    // Save incomplete span second (stale start event)
+    await fetch(`${url}/api/traces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        traceId: TRACE_ID,
+        spans: { [SPAN_A]: spanA_incomplete },
+      } as TraceData),
+    });
+
+    // Verify trace is still complete
+    await assertTraceData(TRACE_ID, {
+      traceId: TRACE_ID,
+      spans: {
+        [SPAN_A]: spanA,
+      },
+    });
+  });
+
   it('updated final trace data', async () => {
     const spanA = span(TRACE_ID, SPAN_A, 100, 100);
     const spanB = span(TRACE_ID, SPAN_B, 200, 200);
@@ -535,6 +569,186 @@ describe('index', () => {
       ['trace_1', 'trace_0']
     );
     assert.strictEqual(result4.pageLastIndex, undefined);
+  });
+
+  it('should deduplicate when root span is posted twice (start then end)', () => {
+    // Root span posted at start (no endTime)
+    const spanStart = span(TRACE_ID_1, SPAN_A, 100, 100);
+    spanStart.displayName = 'rootSpan';
+    spanStart.startTime = 1000;
+    delete (spanStart as any).endTime;
+
+    // Same root span posted at end (has endTime)
+    const spanEnd = span(TRACE_ID_1, SPAN_A, 100, 100);
+    spanEnd.displayName = 'rootSpan';
+    spanEnd.startTime = 1000;
+    spanEnd.endTime = 2000;
+
+    index.add({
+      traceId: TRACE_ID_1,
+      spans: { [SPAN_A]: spanStart },
+    } as TraceData);
+
+    index.add({
+      traceId: TRACE_ID_1,
+      spans: { [SPAN_A]: spanEnd },
+    } as TraceData);
+
+    const result = index.search({ limit: 10 });
+
+    assert.strictEqual(result.data.length, 1);
+    assert.strictEqual(result.data[0].id, TRACE_ID_1);
+    assert.strictEqual(result.data[0].start, 1000);
+    assert.strictEqual(result.data[0].end, 2000);
+  });
+
+  it('should return empty array for empty index', () => {
+    const result = index.search({ limit: 10 });
+    assert.deepStrictEqual(result.data, []);
+    assert.strictEqual(result.pageLastIndex, undefined);
+  });
+
+  it('should apply pagination correctly after deduplication', () => {
+    // 5 unique traces, each posted twice (start then end)
+    const traces = [
+      { traceId: TRACE_ID_1, start: 5000, end: undefined },
+      { traceId: TRACE_ID_2, start: 2000, end: undefined },
+      { traceId: TRACE_ID_3, start: 3000, end: undefined },
+      { traceId: 'trace_4', start: 4000, end: undefined },
+      { traceId: 'trace_5', start: 1000, end: undefined },
+      { traceId: TRACE_ID_1, start: 5000, end: 5500 },
+      { traceId: TRACE_ID_2, start: 2000, end: 2500 },
+      { traceId: TRACE_ID_3, start: 3000, end: 3500 },
+      { traceId: 'trace_4', start: 4000, end: 4500 },
+      { traceId: 'trace_5', start: 1000, end: 1500 },
+    ];
+
+    for (const t of traces) {
+      const s = span(t.traceId, 'span', 100, 100);
+      s.startTime = t.start;
+      if (t.end) s.endTime = t.end;
+      else delete (s as any).endTime;
+      index.add({ traceId: t.traceId, spans: { span: s } } as TraceData);
+    }
+
+    // After dedup: TRACE_ID_1 (5000), trace_4 (4000), TRACE_ID_3 (3000), TRACE_ID_2 (2000), trace_5 (1000)
+    const result = index.search({ limit: 2 });
+    assert.strictEqual(result.data.length, 2);
+    assert.strictEqual(result.data[0].id, TRACE_ID_1);
+    assert.strictEqual(result.data[0].start, 5000);
+    assert.strictEqual(result.data[0].end, 5500); // has endTime from second post
+    assert.strictEqual(result.data[1].id, 'trace_4');
+    assert.strictEqual(result.pageLastIndex, 2);
+
+    // Page 2 - get remaining 3
+    const result2 = index.search({ limit: 3, startFromIndex: 2 });
+    assert.strictEqual(result2.data.length, 3);
+    assert.strictEqual(result2.data[0].id, TRACE_ID_3);
+    assert.strictEqual(result2.data[1].id, TRACE_ID_2);
+    assert.strictEqual(result2.data[2].id, 'trace_5');
+  });
+
+  it('should sort entries by start time descending', () => {
+    const traces = [
+      { traceId: TRACE_ID_1, start: 100 },
+      { traceId: TRACE_ID_2, start: 300 },
+      { traceId: TRACE_ID_3, start: 200 },
+    ];
+
+    for (const t of traces) {
+      const s = span(t.traceId, 'span', 100, 100);
+      s.startTime = t.start;
+      index.add({ traceId: t.traceId, spans: { span: s } } as TraceData);
+    }
+
+    const result = index.search({ limit: 10 });
+
+    // Should be sorted by start time descending: 300, 200, 100
+    assert.strictEqual(result.data.length, 3);
+    assert.strictEqual(result.data[0].id, TRACE_ID_2); // start: 300
+    assert.strictEqual(result.data[1].id, TRACE_ID_3); // start: 200
+    assert.strictEqual(result.data[2].id, TRACE_ID_1); // start: 100
+  });
+
+  it('should handle spans with only startTime (in-progress spans)', () => {
+    // Span with only startTime, no endTime (simulates span_start event)
+    const inProgressSpan = span(TRACE_ID_1, SPAN_A, 100, 100);
+    inProgressSpan.startTime = 1000;
+    inProgressSpan.endTime = 0; // In-progress span has no endTime
+
+    index.add({
+      traceId: TRACE_ID_1,
+      spans: { [SPAN_A]: inProgressSpan },
+    } as TraceData);
+
+    const result = index.search({ limit: 10 });
+
+    assert.strictEqual(result.data.length, 1);
+    assert.strictEqual(result.data[0].id, TRACE_ID_1);
+    assert.strictEqual(result.data[0].start, 1000);
+    // end should not be set for in-progress spans
+    assert.strictEqual(result.data[0].end, undefined);
+  });
+
+  it('should deduplicate when span updates from start to end', () => {
+    // First: span_start event (no endTime)
+    const spanStart = span(TRACE_ID_1, SPAN_A, 100, 100);
+    spanStart.startTime = 1000;
+    spanStart.endTime = 0;
+
+    index.add({
+      traceId: TRACE_ID_1,
+      spans: { [SPAN_A]: spanStart },
+    } as TraceData);
+
+    // Second: span_end event (with endTime) - same trace, updated
+    const spanEnd = span(TRACE_ID_1, SPAN_A, 100, 100);
+    spanEnd.startTime = 1000;
+    spanEnd.endTime = 2000;
+
+    index.add({
+      traceId: TRACE_ID_1,
+      spans: { [SPAN_A]: spanEnd },
+    } as TraceData);
+
+    const result = index.search({ limit: 10 });
+
+    // Should only have one entry
+    assert.strictEqual(result.data.length, 1);
+    assert.strictEqual(result.data[0].id, TRACE_ID_1);
+    assert.strictEqual(result.data[0].start, 1000);
+    // Should have the end time from the completed span
+    assert.strictEqual(result.data[0].end, 2000);
+  });
+
+  it('should handle mix of in-progress and completed spans', () => {
+    // Completed span
+    const completedSpan = span(TRACE_ID_1, SPAN_A, 100, 100);
+    completedSpan.startTime = 1000;
+    completedSpan.endTime = 2000;
+
+    // In-progress span (started later)
+    const inProgressSpan = span(TRACE_ID_2, SPAN_B, 100, 100);
+    inProgressSpan.startTime = 3000;
+    inProgressSpan.endTime = 0;
+
+    index.add({
+      traceId: TRACE_ID_1,
+      spans: { [SPAN_A]: completedSpan },
+    } as TraceData);
+    index.add({
+      traceId: TRACE_ID_2,
+      spans: { [SPAN_B]: inProgressSpan },
+    } as TraceData);
+
+    const result = index.search({ limit: 10 });
+
+    // Both should be returned, sorted by start time descending
+    assert.strictEqual(result.data.length, 2);
+    assert.strictEqual(result.data[0].id, TRACE_ID_2); // start: 3000 (in-progress)
+    assert.strictEqual(result.data[0].end, undefined);
+    assert.strictEqual(result.data[1].id, TRACE_ID_1); // start: 1000 (completed)
+    assert.strictEqual(result.data[1].end, 2000);
   });
 });
 

@@ -20,6 +20,8 @@
 import type { EmbedderAction, EmbedderReference } from 'genkit';
 import { embedder } from 'genkit/plugin';
 import OpenAI from 'openai';
+import { PluginOptions } from './index.js';
+import { maybeCreateRequestScopedOpenAIClient } from './utils.js';
 
 /**
  * Method to define a new Genkit Embedder that is compatibale with the Open AI
@@ -37,11 +39,11 @@ import OpenAI from 'openai';
 export function defineCompatOpenAIEmbedder(params: {
   name: string;
   client: OpenAI;
+  pluginOptions?: PluginOptions;
   embedderRef?: EmbedderReference;
 }): EmbedderAction {
-  const { name, client, embedderRef } = params;
+  const { name, client: defaultClient, pluginOptions, embedderRef } = params;
   const modelName = name.substring(name.indexOf('/') + 1);
-
   return embedder(
     {
       name,
@@ -50,6 +52,11 @@ export function defineCompatOpenAIEmbedder(params: {
     },
     async (req) => {
       const { encodingFormat: encoding_format, ...restOfConfig } = req.options;
+      const client = maybeCreateRequestScopedOpenAIClient(
+        pluginOptions,
+        req,
+        defaultClient
+      );
       const embeddings = await client.embeddings.create({
         model: modelName!,
         input: req.input.map((d) => d.text),

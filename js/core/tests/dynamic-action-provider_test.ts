@@ -230,15 +230,23 @@ describe('dynamic action provider', () => {
     assert.strictEqual(callCount, 2);
   });
 
-  it('returns metadata when run', async () => {
+  it('runs the action with transformed metadata when fetching', async () => {
     const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
       return {
         tool: [tool1, tool2],
       };
     });
 
-    const result = await dap.run({ tool: [tool1, tool2] });
-    assert.deepStrictEqual(result.result, {
+    let runInput: any;
+    const originalRun = dap.run.bind(dap);
+    dap.run = async (input, options) => {
+      runInput = input;
+      return originalRun(input, options);
+    };
+
+    await dap.__cache.getOrFetch();
+
+    assert.deepStrictEqual(runInput, {
       tool: [tool1.__action, tool2.__action],
     });
   });

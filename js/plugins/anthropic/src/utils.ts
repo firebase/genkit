@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-export {
-  EmbedderInfoSchema,
-  embedderRef,
-  type EmbedRequest,
-  type EmbedderAction,
-  type EmbedderArgument,
-  type EmbedderInfo,
-  type EmbedderParams,
-  type EmbedderReference,
-  type Embedding,
-  type EmbeddingBatch,
-} from '@genkit-ai/ai/embedder';
+export function removeUndefinedProperties<T>(obj: T): T {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  ) as T;
+}

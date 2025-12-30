@@ -66,6 +66,7 @@
     "test": "tsx --test tests/*_test.ts",
     "test:live": "tsx --test tests/live_test.ts",
     "test:file": "tsx --test",
+    "test:live": "tsx --test tests/live_test.ts",
     "test:coverage": "check-node-version --node '>=22' && tsx --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' ./tests/**/*_test.ts"
   }
 }
