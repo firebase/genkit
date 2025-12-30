@@ -117,8 +117,8 @@ export const KNOWN_CLAUDE_MODELS: Record<
       },
     }
   ),
-  'claude-opus-4-5': commonRef(
-    'claude-opus-4-5',
+  'claude-opus-4-1': commonRef(
+    'claude-opus-4-1',
     AnthropicThinkingConfigSchema,
     {
       supports: {
@@ -131,9 +131,16 @@ export const KNOWN_CLAUDE_MODELS: Record<
       },
     }
   ),
-  'claude-opus-4-1': commonRef(
-    'claude-opus-4-1',
-    AnthropicThinkingConfigSchema,
+  'claude-opus-4-5': commonRef(
+    'claude-opus-4-5',
+    AnthropicThinkingConfigSchema.extend({
+      output_config: z
+        .object({
+          effort: z.enum(['low', 'medium', 'high']).optional(),
+        })
+        .passthrough()
+        .optional(),
+    }),
     {
       supports: {
         multiturn: true,

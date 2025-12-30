@@ -85,7 +85,7 @@ const BETA_APIS = [
   // 'context-management-2025-06-27',
   // 'model-context-window-exceeded-2025-08-26',
   // 'skills-2025-10-02',
-  // 'effort-param-2025-11-24',
+  'effort-2025-11-24',
   // 'advanced-tool-use-2025-11-20',
   'structured-outputs-2025-11-13',
 ];
@@ -317,7 +317,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       ...restConfig
     } = request.config ?? {};
 
-    const body: BetaMessageCreateParamsNonStreaming = {
+    const body = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
@@ -341,7 +341,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         ? [...(request.config?.betas ?? [])]
         : [...BETA_APIS],
       ...restConfig,
-    };
+    } as BetaMessageCreateParamsNonStreaming;
 
     return removeUndefinedProperties(body);
   }
@@ -388,7 +388,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       ...restConfig
     } = request.config ?? {};
 
-    const body: BetaMessageCreateParamsStreaming = {
+    const body = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
@@ -413,7 +413,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         ? [...(request.config?.betas ?? [])]
         : [...BETA_APIS],
       ...restConfig,
-    };
+    } as BetaMessageCreateParamsStreaming;
 
     return removeUndefinedProperties(body);
   }
