@@ -158,16 +158,17 @@ class McpClient(Plugin):
             raise RuntimeError('MCP client is not connected')
         return await self.session.read_resource(uri)
 
-    async def register_tools(self, ai: Optional[Genkit] = None):
+    async def register_tools(self, ai: Optional[Genkit] = None) -> List[str]:
         """Registers all tools from connected client to Genkit."""
         registry = ai.registry if ai else (self.ai.registry if self.ai else None)
         if not registry:
             logger.warning('No Genkit registry available to register tools.')
-            return
+            return []
 
         if not self.session:
-            return
+            return []
 
+        registered_tools = []
         try:
             tools = await self.list_tools()
             for tool in tools:
@@ -184,18 +185,22 @@ class McpClient(Plugin):
                 # Use metadata to store MCP specific info
                 metadata = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
 
+                tool_name = f'{self.server_name}/{tool.name}'
                 # Define the tool in Genkit registry
                 registry.register_action(
                     kind=ActionKind.TOOL,
-                    name=f'{self.server_name}/{tool.name}',
+                    name=tool_name,
                     fn=tool_wrapper,
                     description=tool.description,
                     metadata=metadata,
                     # TODO: json_schema conversion from tool.inputSchema
                 )
-                logger.debug(f'Registered MCP tool: {self.server_name}/{tool.name}')
+                registered_tools.append(tool_name)
+                logger.debug(f'Registered MCP tool: {tool_name}')
+            return registered_tools
         except Exception as e:
             logger.error(f'Error registering tools for {self.server_name}: {e}')
+            return []
 
     async def get_active_tools(self) -> List[Any]:
         """Returns all active tools."""

@@ -1,0 +1,24 @@
+[project]
+name = "mcp-sample"
+version = "0.1.0"
+description = "MCP sample application for Genkit Python SDK"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "genkit",
+    "genkit-plugin-google-genai",
+    "genkit-plugins-mcp",
+    "mcp",
+]
+
+[tool.uv.sources]
+genkit = { workspace = true }
+genkit-plugin-google-genai = { workspace = true }
+genkit-plugins-mcp = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

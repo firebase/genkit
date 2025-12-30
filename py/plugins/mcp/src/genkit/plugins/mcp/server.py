@@ -23,7 +23,8 @@ import asyncio
 from typing import Any, Optional
 
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, AnyUrl
+import mcp.types as types
 
 from genkit.ai import Genkit
 from genkit.blocks.resource import matches_uri_template
@@ -113,25 +114,41 @@ class McpServer:
             return
 
         # Create MCP Server instance
-        self.server = Server(
-            {'name': self.options.name, 'version': self.options.version},
-            {
-                'capabilities': {
-                    'prompts': {},
-                    'tools': {},
-                    'resources': {},
-                }
-            },
-        )
+        self.server = Server(self.options.name)
 
-        # Register request handlers
-        self.server.setRequestHandler(ListToolsRequestSchema, self.list_tools)
-        self.server.setRequestHandler(CallToolRequestSchema, self.call_tool)
-        self.server.setRequestHandler(ListPromptsRequestSchema, self.list_prompts)
-        self.server.setRequestHandler(GetPromptRequestSchema, self.get_prompt)
-        self.server.setRequestHandler(ListResourcesRequestSchema, self.list_resources)
-        self.server.setRequestHandler(ListResourceTemplatesRequestSchema, self.list_resource_templates)
-        self.server.setRequestHandler(ReadResourceRequestSchema, self.read_resource)
+        # Register request handlers using decorators
+        
+        @self.server.list_tools()
+        async def list_tools() -> list[types.Tool]:
+            return await self._list_tools()
+
+        @self.server.call_tool()
+        async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+            return await self._call_tool(name, arguments)
+
+        @self.server.list_prompts()
+        async def list_prompts() -> list[types.Prompt]:
+            return await self._list_prompts()
+
+        @self.server.get_prompt()
+        async def get_prompt(name: str, arguments: dict[str, str] | None) -> types.GetPromptResult:
+            return await self._get_prompt(name, arguments)
+            
+        @self.server.list_resources()
+        async def list_resources() -> list[types.Resource]:
+            return await self._list_resources()
+
+        @self.server.list_resource_templates()
+        async def list_resource_templates() -> list[types.ResourceTemplate]:
+            return await self._list_resource_templates()
+        
+        @self.server.read_resource()
+        async def read_resource(uri: AnyUrl) -> str | bytes:
+            # Note: The MCP SDK signature for read_resource expects returning content
+            # directly or a list of contents depending on version.
+            # Based on lowlevel/server.py it returns ReadResourceContents which is content list
+            return await self._read_resource(str(uri))
+
 
         # Resolve all actions from Genkit registry
         # We need the actual Action objects, not just serializable dicts
@@ -190,15 +207,8 @@ class McpServer:
             resources=len(self.resource_actions),
         )
 
-    async def list_tools(self, request: ListToolsRequest) -> ListToolsResult:
-        """Handle MCP requests to list available tools.
-
-        Args:
-            request: The MCP ListToolsRequest.
-
-        Returns:
-            ListToolsResult containing all registered Genkit tools.
-        """
+    async def _list_tools(self) -> list[types.Tool]:
+        """Handle MCP requests to list available tools."""
         await self.setup()
 
         tools: list[Tool] = []
@@ -215,46 +225,29 @@ class McpServer:
                 )
             )
 
-        return ListToolsResult(tools=tools)
+        return tools
 
-    async def call_tool(self, request: CallToolRequest) -> CallToolResult:
-        """Handle MCP requests to call a specific tool.
-
-        Args:
-            request: The MCP CallToolRequest containing tool name and arguments.
-
-        Returns:
-            CallToolResult with the tool execution result.
-
-        Raises:
-            GenkitError: If the requested tool is not found.
-        """
+    async def _call_tool(self, name: str, arguments: dict | None) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        """Handle MCP requests to call a specific tool."""
         await self.setup()
 
         # Find the tool action
-        tool = self.tool_actions_map.get(request.params.name)
+        tool = self.tool_actions_map.get(name)
 
         if not tool:
             raise GenkitError(
-                status='NOT_FOUND', message=f"Tried to call tool '{request.params.name}' but it could not be found."
+                status='NOT_FOUND', message=f"Tried to call tool '{name}' but it could not be found."
             )
 
         # Execute the tool
-        result = await tool.arun(request.params.arguments)
+        result = await tool.arun(arguments)
         result = result.response
 
-        # Convert result to MCP format
-        return CallToolResult(content=to_mcp_tool_result(result))
+        # Convert result to MCP format (list of contents)
+        return to_mcp_tool_result(result)
 
-    async def list_prompts(self, request: ListPromptsRequest) -> ListPromptsResult:
-        """Handle MCP requests to list available prompts.
-
-        Args:
-            request: The MCP ListPromptsRequest.
-
-        Returns:
-            ListPromptsResult containing all registered Genkit prompts.
-        """
+    async def _list_prompts(self) -> list[types.Prompt]:
+        """Handle MCP requests to list available prompts."""
         await self.setup()
 
         prompts: list[Prompt] = []
@@ -272,33 +265,23 @@ class McpServer:
                 )
             )
 
-        return ListPromptsResult(prompts=prompts)
+        return prompts
 
-    async def get_prompt(self, request: GetPromptRequest) -> GetPromptResult:
-        """Handle MCP requests to get (render) a specific prompt.
-
-        Args:
-            request: The MCP GetPromptRequest containing prompt name and arguments.
-
-        Returns:
-            GetPromptResult with the rendered prompt messages.
-
-        Raises:
-            GenkitError: If the requested prompt is not found.
-        """
+    async def _get_prompt(self, name: str, arguments: dict[str, str] | None) -> types.GetPromptResult:
+        """Handle MCP requests to get (render) a specific prompt."""
         await self.setup()
 
         # Find the prompt action
-        prompt = self.prompt_actions_map.get(request.params.name)
+        prompt = self.prompt_actions_map.get(name)
 
         if not prompt:
             raise GenkitError(
                 status='NOT_FOUND',
-                message=f"[MCP Server] Tried to call prompt '{request.params.name}' but it could not be found.",
+                message=f"[MCP Server] Tried to call prompt '{name}' but it could not be found.",
             )
 
         # Execute the prompt
-        result = await prompt.arun(request.params.arguments)
+        result = await prompt.arun(arguments)
         result = result.response
 
         # Convert messages to MCP format
@@ -306,15 +289,8 @@ class McpServer:
 
         return GetPromptResult(description=prompt.description, messages=messages)
 
-    async def list_resources(self, request: ListResourcesRequest) -> ListResourcesResult:
-        """Handle MCP requests to list available resources with fixed URIs.
-
-        Args:
-            request: The MCP ListResourcesRequest.
-
-        Returns:
-            ListResourcesResult containing resources with fixed URIs.
-        """
+    async def _list_resources(self) -> list[types.Resource]:
+        """Handle MCP requests to list available resources with fixed URIs."""
         await self.setup()
 
         resources: list[Resource] = []
@@ -333,17 +309,10 @@ class McpServer:
                     )
                 )
 
-        return ListResourcesResult(resources=resources)
+        return resources
 
-    async def list_resource_templates(self, request: ListResourceTemplatesRequest) -> ListResourceTemplatesResult:
-        """Handle MCP requests to list available resource templates.
-
-        Args:
-            request: The MCP ListResourceTemplatesRequest.
-
-        Returns:
-            ListResourceTemplatesResult containing resources with URI templates.
-        """
+    async def _list_resource_templates(self) -> list[types.ResourceTemplate]:
+        """Handle MCP requests to list available resource templates."""
         await self.setup()
 
         templates: list[ResourceTemplate] = []
@@ -362,23 +331,11 @@ class McpServer:
                     )
                 )
 
-        return ListResourceTemplatesResult(resourceTemplates=templates)
+        return templates
 
-    async def read_resource(self, request: ReadResourceRequest) -> ReadResourceResult:
-        """Handle MCP requests to read a specific resource.
-
-        Args:
-            request: The MCP ReadResourceRequest containing the resource URI.
-
-        Returns:
-            ReadResourceResult with the resource content.
-
-        Raises:
-            GenkitError: If no matching resource is found.
-        """
+    async def _read_resource(self, uri: str) -> str | bytes | list[types.TextResourceContents | types.BlobResourceContents]:
+        """Handle MCP requests to read a specific resource."""
         await self.setup()
-
-        uri = request.params.uri
 
         # Check for exact URI match
         resource = self.resource_uri_map.get(uri)
@@ -398,10 +355,9 @@ class McpServer:
         result = result.response
 
         # Convert content to MCP format
+        # For SDK server usage, we return the contents list directly
         content = result.get('content', []) if isinstance(result, dict) else result.content
-        contents = to_mcp_resource_contents(uri, content)
-
-        return ReadResourceResult(contents=contents)
+        return to_mcp_resource_contents(uri, content)
 
     async def start(self, transport: Any = None) -> None:
         """Start the MCP server with the specified transport.
@@ -411,7 +367,7 @@ class McpServer:
                       a StdioServerTransport will be created and used.
         """
         if not transport:
-            transport = await stdio_server()
+            transport = stdio_server()
 
         await self.setup()
 

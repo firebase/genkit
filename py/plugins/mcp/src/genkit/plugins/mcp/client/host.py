@@ -39,11 +39,14 @@ class McpHost:
         for client in self.clients.values():
             await client.close()
 
-    async def register_tools(self, ai: Genkit):
+    async def register_tools(self, ai: Genkit) -> List[str]:
         """Registers all tools from connected clients to Genkit."""
+        all_tools = []
         for client in self.clients.values():
             if client.session:
-                await client.register_tools(ai)
+                tools = await client.register_tools(ai)
+                all_tools.extend(tools)
+        return all_tools
 
     async def enable(self, name: str):
         """Enables and connects an MCP client."""
