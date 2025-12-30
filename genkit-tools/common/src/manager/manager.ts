@@ -189,7 +189,7 @@ export class RuntimeManager {
       throw new Error(
         input?.runtimeId
           ? `No runtime found with ID ${input.runtimeId}.`
-          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+          : 'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
     }
     const response = await axios
@@ -213,7 +213,7 @@ export class RuntimeManager {
       throw new Error(
         input.runtimeId
           ? `No runtime found with ID ${input.runtimeId}.`
-          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+          : 'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
     }
     if (streamingCallback) {

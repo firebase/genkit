@@ -18,19 +18,27 @@ import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
-import { McpRuntimeManager } from './util.js';
+import {
+  McpRuntimeManager,
+  getCommonSchema,
+  resolveProjectRoot,
+} from './util.js';
 
-export function defineFlowTools(server: McpServer, manager: McpRuntimeManager) {
+export function defineFlowTools(server: McpServer, projectRoot: string) {
   server.registerTool(
     'list_flows',
     {
       title: 'List Genkit Flows',
       description:
         'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
+      inputSchema: getCommonSchema(),
     },
-    async () => {
+    async (opts) => {
       await record(new McpRunToolEvent('list_flows'));
-      const runtimeManager = await manager.getManager();
+      const rootOrError = resolveProjectRoot(opts, projectRoot);
+      if (typeof rootOrError !== 'string') return rootOrError;
+
+      const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
       const actions = await runtimeManager.listActions();
 
       let flows = '';
@@ -56,7 +64,7 @@ export function defineFlowTools(server: McpServer, manager: McpRuntimeManager) {
     {
       title: 'Run Flow',
       description: 'Runs the flow with the provided input',
-      inputSchema: {
+      inputSchema: getCommonSchema({
         flowName: z.string().describe('name of the flow'),
         input: z
           .string()
@@ -64,13 +72,16 @@ export function defineFlowTools(server: McpServer, manager: McpRuntimeManager) {
             'Flow input as JSON object encoded as string (it will be passed through `JSON.parse`). Must conform to the schema.'
           )
           .optional(),
-      },
+      }),
     },
-    async ({ flowName, input }) => {
+    async (opts) => {
       await record(new McpRunToolEvent('run_flow'));
+      const rootOrError = resolveProjectRoot(opts, projectRoot);
+      if (typeof rootOrError !== 'string') return rootOrError;
+      const { flowName, input } = opts;
 
       try {
-        const runtimeManager = await manager.getManager();
+        const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
         const response = await runtimeManager.runAction({
           key: `/flow/${flowName}`,
           input: input !== undefined ? JSON.parse(input) : undefined,

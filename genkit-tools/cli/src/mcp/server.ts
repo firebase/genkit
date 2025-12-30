@@ -23,7 +23,7 @@ import { defineInitPrompt } from './prompts/init';
 import { defineRuntimeTools } from './runtime';
 import { defineTraceTools } from './trace';
 import { defineUsageGuideTool } from './usage';
-import { McpRuntimeManager } from './util';
+import { isAntigravity, McpRuntimeManager } from './util';
 
 export async function startMcpServer(projectRoot: string) {
   const server = new McpServer({
@@ -31,21 +31,23 @@ export async function startMcpServer(projectRoot: string) {
     version: '0.0.2',
   });
 
-  const manager = new McpRuntimeManager(projectRoot);
-
   await defineDocsTool(server);
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
-  defineRuntimeTools(server, manager);
 
-  defineFlowTools(server, manager);
-  defineTraceTools(server, manager);
+  defineFlowTools(server, projectRoot);
+  defineTraceTools(server, projectRoot);
+  // Disable runtime tools in AGY. Something about AGY env is messing with
+  // runtime discoverability.
+  if (!isAntigravity) {
+    defineRuntimeTools(server, projectRoot);
+  }
 
   return new Promise(async (resolve) => {
     const transport = new StdioServerTransport();
     const cleanup = async () => {
       try {
-        await manager.kill();
+        await McpRuntimeManager.kill();
       } catch (e) {
         // ignore
       }
@@ -54,7 +56,7 @@ export async function startMcpServer(projectRoot: string) {
     };
     transport.onclose = async () => {
       try {
-        await manager.kill();
+        await McpRuntimeManager.kill();
       } catch (e) {
         // ignore
       }

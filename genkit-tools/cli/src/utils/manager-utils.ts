@@ -93,7 +93,9 @@ export async function startDevProcessManager(
     processManager,
     disableRealtimeTelemetry,
   });
-  const processPromise = processManager.start();
+  const processPromise = processManager.start({
+    cwd: projectRoot,
+  });
   return { manager, processPromise };
 }
 
