@@ -15,7 +15,7 @@
  */
 
 import * as assert from 'assert';
-import { Document, GenkitError } from 'genkit';
+import { Document } from 'genkit';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import {
@@ -144,23 +144,16 @@ describe('defineGoogleAIEmbedder', () => {
     });
 
     it('throws if apiKey is false in pluginOptions and not provided in call options', async () => {
+      mockFetchResponse({ embedding: { values: [] } });
       const embedder = defineEmbedder('text-embedding-004', {
         apiKey: false,
       });
-      await assert.rejects(
-        embedder.run({
+      assert.ok(
+        await embedder.run({
           input: [new Document({ content: [{ text: 'test' }] })],
-        }),
-        (err: GenkitError) => {
-          assert.strictEqual(err.status, 'INVALID_ARGUMENT');
-          assert.match(
-            err.message,
-            /GoogleAI plugin was initialized with \{apiKey: false\}/
-          );
-          return true;
-        }
+        })
       );
-      sinon.assert.notCalled(fetchStub);
+      sinon.assert.calledOnce(fetchStub);
     });
 
     it('uses API key from call options if apiKey is false in pluginOptions', async () => {

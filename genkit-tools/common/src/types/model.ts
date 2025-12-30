@@ -19,6 +19,7 @@ import {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
+  MultipartToolResponseSchema,
   PartSchema,
   ReasoningPartSchema,
   ResourcePartSchema,
@@ -28,6 +29,7 @@ import {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type MultipartToolResponse,
   type Part,
   type ReasoningPart,
   type ResourcePart,
@@ -39,6 +41,7 @@ export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
+  MultipartToolResponseSchema,
   PartSchema,
   ReasoningPartSchema,
   ResourcePartSchema,
@@ -48,6 +51,7 @@ export {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type MultipartToolResponse,
   type Part,
   type ReasoningPart,
   type ResourcePart,
@@ -368,7 +372,7 @@ export const GenerateActionOutputConfig = z.object({
 
 export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
-  model: z.string(),
+  model: z.string().optional(),
   /** Retrieved documents to be used as context for this generation. */
   docs: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */

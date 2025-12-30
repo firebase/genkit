@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
@@ -98,7 +99,8 @@ func TestStreamingChunksHaveRoleAndIndex(t *testing.T) {
 			From        string
 			To          string
 			Temperature float64
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			if input.From == "celsius" && input.To == "fahrenheit" {
 				return input.Temperature*9/5 + 32, nil
 			}
@@ -423,6 +425,9 @@ func TestGenerate(t *testing.T) {
 					},
 					Name:         "gablorken",
 					OutputSchema: map[string]any{"type": string("number")},
+					Metadata: map[string]any{
+						"multipart": false,
+					},
 				},
 			},
 			ToolChoice: ToolChoiceAuto,
@@ -859,6 +864,67 @@ func TestGenerate(t *testing.T) {
 	})
 }
 
+func TestGenerateWithOutputSchemaName(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+
+	// Define a model that supports constrained output
+	model := DefineModel(r, "test/constrained", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		// Mock response
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"foo": "bar"}`),
+			Request: req,
+		}, nil
+	})
+
+	core.DefineSchema(r, "FooSchema", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"foo": map[string]any{"type": "string"},
+		},
+	})
+
+	t.Run("Valid Schema", func(t *testing.T) {
+		resp, err := Generate(context.Background(), r,
+			WithModel(model),
+			WithPrompt("test"),
+			WithOutputSchemaName("FooSchema"),
+		)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+
+		if resp.Request.Output.Schema == nil {
+			t.Fatal("Expected output schema to be set")
+		}
+
+		// Verify schema is resolved
+		if props, ok := resp.Request.Output.Schema["properties"].(map[string]any); ok {
+			if _, ok := props["foo"]; !ok {
+				t.Error("Expected schema to have 'foo' property")
+			}
+		} else {
+			t.Fatalf("Expected properties map in schema, got: %+v", resp.Request.Output.Schema)
+		}
+	})
+
+	t.Run("Missing Schema", func(t *testing.T) {
+		_, err := Generate(context.Background(), r,
+			WithModel(model),
+			WithPrompt("test"),
+			WithOutputSchemaName("MissingSchema"),
+		)
+		if err == nil {
+			t.Fatal("Expected error when executing generate with missing schema")
+		}
+		if !strings.Contains(err.Error(), "schema \"MissingSchema\" not found") {
+			t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
+		}
+	})
+}
+
 func TestModelVersion(t *testing.T) {
 	t.Run("valid version", func(t *testing.T) {
 		_, err := Generate(context.Background(), r,
@@ -1268,4 +1334,182 @@ func TestResourceProcessingError(t *testing.T) {
 	if !strings.Contains(err.Error(), "no resource found for URI") {
 		t.Fatalf("wrong error: %v", err)
 	}
+}
+
+func TestMultipartTools(t *testing.T) {
+	t.Run("define multipart tool registers as tool.v2 only", func(t *testing.T) {
+		r := registry.New()
+
+		DefineMultipartTool(r, "multipartTest", "a multipart tool",
+			func(ctx *ToolContext, input struct{ Query string }) (*MultipartToolResponse, error) {
+				return &MultipartToolResponse{
+					Output:  "main output",
+					Content: []*Part{NewTextPart("content part 1")},
+				}, nil
+			},
+		)
+
+		// Should be found via LookupTool
+		tool := LookupTool(r, "multipartTest")
+		if tool == nil {
+			t.Fatal("expected multipart tool to be found via LookupTool")
+		}
+
+		// Should be able to produce response with content
+		resp, err := tool.RunRawMultipart(context.Background(), struct{ Query string }{Query: "Q"})
+		if err != nil {
+			t.Fatalf("failed running multipart tool: %v", err)
+		}
+		if len(resp.Content) == 0 {
+			t.Error("expected tool response to have content")
+		}
+	})
+
+	t.Run("regular tool registers as both tool and tool.v2", func(t *testing.T) {
+		r := registry.New()
+
+		DefineTool(r, "regularTestTool", "a regular tool",
+			func(ctx *ToolContext, input struct{ Value int }) (int, error) {
+				return input.Value * 2, nil
+			},
+		)
+
+		// Should be found via LookupTool
+		tool := LookupTool(r, "regularTestTool")
+		if tool == nil {
+			t.Fatal("expected regular tool to be found via LookupTool")
+		}
+
+		// Should produce response without content by default
+		resp, err := tool.RunRawMultipart(context.Background(), struct{ Value int }{Value: 21})
+		if err != nil {
+			t.Fatalf("failed running regular tool: %v", err)
+		}
+		if len(resp.Content) > 0 {
+			t.Error("expected regular tool response to have no content")
+		}
+	})
+
+	t.Run("multipart tool returns content in response", func(t *testing.T) {
+		r := registry.New()
+		ConfigureFormats(r)
+		DefineGenerateAction(context.Background(), r)
+
+		multipartTool := DefineMultipartTool(r, "imageGenerator", "generates images",
+			func(ctx *ToolContext, input struct{ Prompt string }) (*MultipartToolResponse, error) {
+				return &MultipartToolResponse{
+					Output: map[string]any{"description": "generated image"},
+					Content: []*Part{
+						NewMediaPart("image/png", "data:image/png;base64,iVBORw0..."),
+					},
+				}, nil
+			},
+		)
+
+		// Create a model that requests the tool
+		multipartToolModel := DefineModel(r, "test/multipartToolModel", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+			// Check if we already have a tool response
+			for _, msg := range gr.Messages {
+				if msg.Role == RoleTool {
+					for _, part := range msg.Content {
+						if part.IsToolResponse() {
+							// Verify the content is present
+							if len(part.ToolResponse.Content) == 0 {
+								return nil, fmt.Errorf("expected tool response to have content")
+							}
+							return &ModelResponse{
+								Request: gr,
+								Message: NewModelTextMessage("Image generated successfully"),
+							}, nil
+						}
+					}
+				}
+			}
+
+			// First call: request the tool
+			return &ModelResponse{
+				Request: gr,
+				Message: &Message{
+					Role: RoleModel,
+					Content: []*Part{NewToolRequestPart(&ToolRequest{
+						Name:  "imageGenerator",
+						Input: map[string]any{"Prompt": "a cat"},
+						Ref:   "img1",
+					})},
+				},
+			}, nil
+		})
+
+		resp, err := Generate(context.Background(), r,
+			WithModel(multipartToolModel),
+			WithPrompt("Generate an image of a cat"),
+			WithTools(multipartTool),
+		)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+
+		if resp.Text() != "Image generated successfully" {
+			t.Errorf("expected 'Image generated successfully', got %q", resp.Text())
+		}
+	})
+
+	t.Run("RunRawMultipart returns MultipartToolResponse for regular tool", func(t *testing.T) {
+		r := registry.New()
+
+		tool := DefineTool(r, "multipartWrapperTest", "test multipart wrapper",
+			func(ctx *ToolContext, input struct{ Value int }) (int, error) {
+				return input.Value * 3, nil
+			},
+		)
+
+		resp, err := tool.RunRawMultipart(context.Background(), map[string]any{"Value": 5})
+		if err != nil {
+			t.Fatalf("RunRawMultipart failed: %v", err)
+		}
+
+		// Output should be wrapped in MultipartToolResponse
+		output, ok := resp.Output.(float64) // JSON unmarshals numbers as float64
+		if !ok {
+			t.Fatalf("expected output to be float64, got %T", resp.Output)
+		}
+		if output != 15 {
+			t.Errorf("expected output 15, got %v", output)
+		}
+
+		// Content should be nil for regular tools
+		if resp.Content != nil {
+			t.Errorf("expected nil content for regular tool, got %v", resp.Content)
+		}
+	})
+
+	t.Run("RunRawMultipart returns full response for multipart tool", func(t *testing.T) {
+		r := registry.New()
+
+		tool := DefineMultipartTool(r, "multipartFullTest", "test multipart",
+			func(ctx *ToolContext, input struct{ Query string }) (*MultipartToolResponse, error) {
+				return &MultipartToolResponse{
+					Output:  "result",
+					Content: []*Part{NewTextPart("additional content")},
+				}, nil
+			},
+		)
+
+		resp, err := tool.RunRawMultipart(context.Background(), map[string]any{"Query": "test"})
+		if err != nil {
+			t.Fatalf("RunRawMultipart failed: %v", err)
+		}
+
+		if resp.Output != "result" {
+			t.Errorf("expected output 'result', got %v", resp.Output)
+		}
+
+		if len(resp.Content) != 1 {
+			t.Fatalf("expected 1 content part, got %d", len(resp.Content))
+		}
+
+		if resp.Content[0].Text != "additional content" {
+			t.Errorf("expected content 'additional content', got %q", resp.Content[0].Text)
+		}
+	})
 }

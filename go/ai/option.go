@@ -23,7 +23,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/base"
 )
 
 // PromptFn is a function that generates a prompt.
@@ -255,15 +254,102 @@ func WithToolChoice(toolChoice ToolChoice) CommonGenOption {
 	return &commonGenOptions{ToolChoice: toolChoice}
 }
 
+// WithResources specifies resources to be temporarily available during generation.
+// Resources are unregistered resources that get attached to a temporary registry
+// during the generation request and cleaned up afterward.
+func WithResources(resources ...Resource) CommonGenOption {
+	return &commonGenOptions{Resources: resources}
+}
+
+// inputOptions are options for the input of a prompt.
+type inputOptions struct {
+	InputSchema  map[string]any // JSON schema of the input.
+	DefaultInput map[string]any // Default input that will be used if no input is provided.
+}
+
+// InputOption is an option for the input of a prompt.
+// It applies only to DefinePrompt().
+type InputOption interface {
+	applyInput(*inputOptions) error
+	applyPrompt(*promptOptions) error
+	applyTool(*toolOptions) error
+}
+
+// applyInput applies the option to the input options.
+func (o *inputOptions) applyInput(opts *inputOptions) error {
+	if o.InputSchema != nil {
+		if opts.InputSchema != nil {
+			return errors.New("cannot set input schema more than once (WithInputType, WithInputSchema, or WithInputSchemaName)")
+		}
+		opts.InputSchema = o.InputSchema
+	}
+
+	if o.DefaultInput != nil {
+		if opts.DefaultInput != nil {
+			return errors.New("cannot set default input more than once (WithInputType)")
+		}
+		opts.DefaultInput = o.DefaultInput
+	}
+
+	return nil
+}
+
+// applyPrompt applies the option to the prompt options.
+func (o *inputOptions) applyPrompt(pOpts *promptOptions) error {
+	return o.applyInput(&pOpts.inputOptions)
+}
+
+// applyTool applies the option to the tool options.
+func (o *inputOptions) applyTool(tOpts *toolOptions) error {
+	return o.applyInput(&tOpts.inputOptions)
+}
+
+// WithInputType uses the type provided to derive the input schema.
+// The inputted value may serve as the default input if no input is given at generation time depending on the action.
+// Only supports structs and map[string]any.
+func WithInputType(input any) InputOption {
+	var defaultInput map[string]any
+
+	switch v := input.(type) {
+	case map[string]any:
+		defaultInput = v
+	default:
+		data, err := json.Marshal(input)
+		if err != nil {
+			panic(fmt.Errorf("failed to marshal default input (WithInputType): %w", err))
+		}
+
+		err = json.Unmarshal(data, &defaultInput)
+		if err != nil {
+			panic(fmt.Errorf("type %T is not supported, only structs and map[string]any are supported (WithInputType)", input))
+		}
+	}
+
+	return &inputOptions{
+		InputSchema:  core.InferSchemaMap(input),
+		DefaultInput: defaultInput,
+	}
+}
+
+// WithInputSchema manually provides a schema map for the prompt's input.
+func WithInputSchema(schema map[string]any) InputOption {
+	return &inputOptions{InputSchema: schema}
+}
+
+// WithInputSchemaName sets a pre-registered schema by name for the input.
+// The schema will be resolved lazily at execution time using [DefineSchema].
+func WithInputSchemaName(name string) InputOption {
+	return &inputOptions{InputSchema: core.SchemaRef(name)}
+}
+
 // promptOptions are options for defining a prompt.
 type promptOptions struct {
 	commonGenOptions
 	promptingOptions
+	inputOptions
 	outputOptions
-	Description  string         // Description of the prompt.
-	InputSchema  map[string]any // Schema of the input.
-	DefaultInput map[string]any // Default input that will be used if no input is provided.
-	Metadata     map[string]any // Arbitrary metadata.
+	Description string         // Description of the prompt.
+	Metadata    map[string]any // Arbitrary metadata.
 }
 
 // PromptOption is an option for defining a prompt.
@@ -282,6 +368,10 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 		return err
 	}
 
+	if err := o.inputOptions.applyPrompt(opts); err != nil {
+		return err
+	}
+
 	if err := o.outputOptions.applyPrompt(opts); err != nil {
 		return err
 	}
@@ -291,20 +381,6 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 			return errors.New("cannot set description more than once (WithDescription)")
 		}
 		opts.Description = o.Description
-	}
-
-	if o.InputSchema != nil {
-		if opts.InputSchema != nil {
-			return errors.New("cannot set input schema more than once (WithInputType)")
-		}
-		opts.InputSchema = o.InputSchema
-	}
-
-	if o.DefaultInput != nil {
-		if opts.DefaultInput != nil {
-			return errors.New("cannot set default input more than once (WithInputType)")
-		}
-		opts.DefaultInput = o.DefaultInput
 	}
 
 	if o.Metadata != nil {
@@ -325,33 +401,6 @@ func WithDescription(description string) PromptOption {
 // WithMetadata sets arbitrary metadata for the prompt.
 func WithMetadata(metadata map[string]any) PromptOption {
 	return &promptOptions{Metadata: metadata}
-}
-
-// WithInputType uses the type provided to derive the input schema.
-// The inputted value will serve as the default input if no input is given at generation time.
-// Only supports structs and map[string]any api.
-func WithInputType(input any) PromptOption {
-	var defaultInput map[string]any
-
-	switch v := input.(type) {
-	case map[string]any:
-		defaultInput = v
-	default:
-		data, err := json.Marshal(input)
-		if err != nil {
-			panic(fmt.Errorf("failed to marshal default input (WithInputType): %w", err))
-		}
-
-		err = json.Unmarshal(data, &defaultInput)
-		if err != nil {
-			panic(fmt.Errorf("type %T is not supported, only structs and map[string]any are supported (WithInputType)", input))
-		}
-	}
-
-	return &promptOptions{
-		InputSchema:  core.InferSchemaMap(input),
-		DefaultInput: defaultInput,
-	}
 }
 
 // promptingOptions are options for the system and user prompts of a prompt or generate request.
@@ -453,7 +502,7 @@ type OutputOption interface {
 func (o *outputOptions) applyOutput(opts *outputOptions) error {
 	if o.OutputSchema != nil {
 		if opts.OutputSchema != nil {
-			return errors.New("cannot set output schema more than once (WithOutputType)")
+			return errors.New("cannot set output schema more than once (WithOutputType, WithOutputSchema, or WithOutputSchemaName)")
 		}
 		opts.OutputSchema = o.OutputSchema
 	}
@@ -489,7 +538,24 @@ func (o *outputOptions) applyGenerate(genOpts *generateOptions) error {
 // WithOutputType sets the schema and format of the output based on the value provided.
 func WithOutputType(output any) OutputOption {
 	return &outputOptions{
-		OutputSchema: base.SchemaAsMap(base.InferJSONSchema(output)),
+		OutputSchema: core.InferSchemaMap(output),
+		OutputFormat: OutputFormatJSON,
+	}
+}
+
+// WithOutputSchema manually provides a schema map for the prompt's output.
+// The outputted value will serve as the default output if no output is given at generation time.
+func WithOutputSchema(schema map[string]any) OutputOption {
+	return &outputOptions{
+		OutputSchema: schema,
+		OutputFormat: OutputFormatJSON,
+	}
+}
+
+// WithOutputSchemaName sets the schema name that will be resolved at execution time.
+func WithOutputSchemaName(name string) OutputOption {
+	return &outputOptions{
+		OutputSchema: core.SchemaRef(name),
 		OutputFormat: OutputFormatJSON,
 	}
 }
@@ -843,32 +909,19 @@ func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
 }
 
-// WithResources specifies resources to be temporarily available during generation.
-// Resources are unregistered resources that get attached to a temporary registry
-// during the generation request and cleaned up afterward.
-func WithResources(resources ...Resource) CommonGenOption {
-	return &withResources{resources: resources}
+// toolOptions holds configuration options for defining tools.
+type toolOptions struct {
+	inputOptions
 }
 
-type withResources struct {
-	resources []Resource
+// ToolOption is an option for defining a tool.
+type ToolOption interface {
+	applyTool(*toolOptions) error
 }
 
-func (w *withResources) applyCommonGen(o *commonGenOptions) error {
-	o.Resources = w.resources
-	return nil
-}
-
-func (w *withResources) applyPrompt(o *promptOptions) error {
-	return w.applyCommonGen(&o.commonGenOptions)
-}
-
-func (w *withResources) applyGenerate(o *generateOptions) error {
-	return w.applyCommonGen(&o.commonGenOptions)
-}
-
-func (w *withResources) applyPromptExecute(o *promptExecutionOptions) error {
-	return w.applyCommonGen(&o.commonGenOptions)
+// applyTool applies the option to the tool options.
+func (o *toolOptions) applyTool(opts *toolOptions) error {
+	return o.inputOptions.applyTool(opts)
 }
 
 // promptExecutionOptions are options for generating a model response by executing a prompt.

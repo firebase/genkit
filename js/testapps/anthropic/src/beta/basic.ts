@@ -15,7 +15,7 @@
  */
 
 import { anthropic } from '@genkit-ai/anthropic';
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [
@@ -32,16 +32,21 @@ const betaHaiku = anthropic.model('claude-3-5-haiku', { apiVersion: 'beta' });
 const betaSonnet = anthropic.model('claude-sonnet-4-5', { apiVersion: 'beta' });
 const betaOpus41 = anthropic.model('claude-opus-4-1', { apiVersion: 'beta' });
 
+const GreetingSchema = z.object({
+  greeting: z.string(),
+  apiVersion: z.string(),
+});
+
 ai.defineFlow('anthropic-beta-hello', async () => {
-  const { text } = await ai.generate({
+  const { output } = await ai.generate({
     model: betaHaiku,
     prompt:
       'You are Claude on the beta API. Provide a concise greeting that mentions that you are using the beta API.',
     config: { temperature: 0.6 },
-    output: {},
+    output: { schema: GreetingSchema, format: 'json', constrained: true },
   });
 
-  return text;
+  return output;
 });
 
 ai.defineFlow('anthropic-beta-stream', async (_, { sendChunk }) => {

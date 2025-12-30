@@ -80,6 +80,10 @@ async function resolver(
 async function listActions(
   options?: GoogleAIPluginOptions
 ): Promise<ActionMetadata[]> {
+  // Don't attempt to list models if apiKey is set to false.
+  if (options?.apiKey === false) {
+    return [];
+  }
   try {
     const apiKey = calculateApiKey(options?.apiKey, undefined);
     const allModels = await listModels(apiKey, {

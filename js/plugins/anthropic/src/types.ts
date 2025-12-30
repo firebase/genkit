@@ -67,26 +67,42 @@ export interface ClaudeRunnerParams extends ClaudeHelperParamsBase {}
 export const AnthropicBaseConfigSchema = GenerationCommonConfigSchema.extend({
   tool_choice: z
     .union([
-      z.object({
-        type: z.literal('auto'),
-      }),
-      z.object({
-        type: z.literal('any'),
-      }),
-      z.object({
-        type: z.literal('tool'),
-        name: z.string(),
-      }),
+      z
+        .object({
+          type: z.literal('auto'),
+        })
+        .passthrough(),
+      z
+        .object({
+          type: z.literal('any'),
+        })
+        .passthrough(),
+      z
+        .object({
+          type: z.literal('tool'),
+          name: z.string(),
+        })
+        .passthrough(),
     ])
+    .describe(
+      'The tool choice to use for the request. This can be used to specify the tool to use for the request. If not specified, the model will choose the tool to use.'
+    )
     .optional(),
   metadata: z
     .object({
       user_id: z.string().optional(),
     })
+    .describe('The metadata to include in the request.')
+    .passthrough()
     .optional(),
   /** Optional shorthand to pick API surface for this request. */
-  apiVersion: z.enum(['stable', 'beta']).optional(),
-});
+  apiVersion: z
+    .enum(['stable', 'beta'])
+    .optional()
+    .describe(
+      'The API version to use for the request. Both stable and beta features are available on the beta API surface.'
+    ),
+}).passthrough();
 
 export type AnthropicBaseConfigSchemaType = typeof AnthropicBaseConfigSchema;
 
@@ -95,6 +111,8 @@ export const ThinkingConfigSchema = z
     enabled: z.boolean().optional(),
     budgetTokens: z.number().int().min(1_024).optional(),
   })
+  .passthrough()
+  .passthrough()
   .superRefine((value, ctx) => {
     if (value.enabled && value.budgetTokens === undefined) {
       ctx.addIssue({
@@ -106,8 +124,10 @@ export const ThinkingConfigSchema = z
   });
 
 export const AnthropicThinkingConfigSchema = AnthropicBaseConfigSchema.extend({
-  thinking: ThinkingConfigSchema.optional(),
-});
+  thinking: ThinkingConfigSchema.optional().describe(
+    'The thinking configuration to use for the request. Thinking is a feature that allows the model to think about the request and provide a better response.'
+  ),
+}).passthrough();
 
 export const AnthropicConfigSchema = AnthropicThinkingConfigSchema;
 

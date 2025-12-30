@@ -201,6 +201,12 @@ export const GenerationCommonConfigSchema = z
         'Set of character sequences (up to 5) that will stop output generation.'
       )
       .optional(),
+    apiKey: z
+      .string()
+      .describe(
+        'API Key to use for the model call, overrides API key provided in plugin config.'
+      )
+      .optional(),
   })
   .passthrough();
 
@@ -381,7 +387,7 @@ export const GenerateActionOutputConfig = z.object({
 
 export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
-  model: z.string(),
+  model: z.string().optional(),
   /** Retrieved documents to be used as context for this generation. */
   docs: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
