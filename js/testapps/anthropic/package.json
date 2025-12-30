@@ -10,6 +10,7 @@
     "start:beta": "node lib/beta/basic.js",
     "dev:stable": "genkit start -- npx tsx --watch src/stable/basic.ts",
     "dev:beta": "genkit start -- npx tsx --watch src/beta/basic.ts",
+    "dev:beta:structured-output": "genkit start -- npx tsx --watch src/beta/structured_output.ts",
     "dev:beta:files-api": "genkit start -- npx tsx --watch src/beta/files_api.ts",
     "dev:beta:effort": "genkit start -- npx tsx --watch src/beta/effort.ts",
     "dev:beta:additional-params": "genkit start -- npx tsx --watch src/beta/additional_params.ts",
