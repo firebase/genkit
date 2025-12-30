@@ -23,7 +23,7 @@ import { defineInitPrompt } from './prompts/init';
 import { defineRuntimeTools } from './runtime';
 import { defineTraceTools } from './trace';
 import { defineUsageGuideTool } from './usage';
-import { McpRuntimeManager } from './util';
+import { isAntigravity, McpRuntimeManager } from './util';
 
 export async function startMcpServer(projectRoot: string) {
   const server = new McpServer({
@@ -37,9 +37,13 @@ export async function startMcpServer(projectRoot: string) {
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
 
-  defineRuntimeTools(server, projectRoot);
   defineFlowTools(server, projectRoot);
   defineTraceTools(server, projectRoot);
+  // Disable runtime tools in AGY. Something about AGY env is messing with
+  // runtime discoverability.
+  if (!isAntigravity) {
+    defineRuntimeTools(server, projectRoot);
+  }
 
   return new Promise(async (resolve) => {
     const transport = new StdioServerTransport();
