@@ -12,7 +12,18 @@ configuration.
 ### Run the MCP Client/Host
 ```bash
 cd py/samples/mcp
-genkit start -- uv run src/index.py
+genkit start -- uv run src/main.py
+```
+
+This will:
+1. Connect to the configured MCP servers
+2. Execute sample flows demonstrating tool usage
+3. Clean up connections on exit
+
+### Run the MCP Client/Host
+```bash
+cd py/samples/mcp
+genkit start -- uv run src/http_server.py
 ```
 
 This will:

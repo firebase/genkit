@@ -22,11 +22,12 @@ and resources through the Model Context Protocol.
 """
 
 import asyncio
+
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.plugins.mcp import create_mcp_server, McpServerOptions
 from genkit.plugins.google_genai import GoogleAI
+from genkit.plugins.mcp import McpServerOptions, create_mcp_server
 
 # Initialize Genkit
 ai = Genkit(plugins=[])
@@ -34,8 +35,8 @@ ai = Genkit(plugins=[])
 
 # Define a tool
 class AddInput(BaseModel):
-    a: int = Field(..., description="First number")
-    b: int = Field(..., description="Second number")
+    a: int = Field(..., description='First number')
+    b: int = Field(..., description='Second number')
 
 
 @ai.tool(name='add', description='add two numbers together')
@@ -52,25 +53,21 @@ happy_prompt = ai.define_prompt(
 
 from genkit.core.action.types import ActionKind
 
+
 # Define resources (manually registering since define_resource is not yet in Genkit API)
 def define_resource(name: str, uri: str, fn):
-    ai.registry.register_action(
-        kind=ActionKind.RESOURCE,
-        name=name,
-        fn=fn,
-        metadata={'resource': {'uri': uri}}
-    )
+    ai.registry.register_action(kind=ActionKind.RESOURCE, name=name, fn=fn, metadata={'resource': {'uri': uri}})
+
 
 def define_resource_template(name: str, template: str, fn):
     ai.registry.register_action(
-        kind=ActionKind.RESOURCE,
-        name=name,
-        fn=fn,
-        metadata={'resource': {'template': template}}
+        kind=ActionKind.RESOURCE, name=name, fn=fn, metadata={'resource': {'template': template}}
     )
+
 
 def my_resource_handler(inp):
     return {'content': [{'text': 'my resource'}]}
+
 
 define_resource('my resources', 'test://static/resource/1', my_resource_handler)
 
@@ -79,18 +76,16 @@ def file_resource_handler(inp):
     uri = inp.get('uri')
     return {'content': [{'text': f'file contents for {uri}'}]}
 
+
 define_resource_template('file', 'file://{path}', file_resource_handler)
 
 
 async def main():
     """Start the MCP server."""
     # Create MCP server
-    server = create_mcp_server(
-        ai,
-        McpServerOptions(name='example_server', version='0.0.1')
-    )
+    server = create_mcp_server(ai, McpServerOptions(name='example_server', version='0.0.1'))
 
-    print("Starting MCP server on stdio...")
+    print('Starting MCP server on stdio...')
     await server.start()
 
 

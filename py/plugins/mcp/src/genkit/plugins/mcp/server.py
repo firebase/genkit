@@ -23,9 +23,9 @@ import asyncio
 from typing import Any, Optional
 
 import structlog
-from pydantic import BaseModel, AnyUrl
-import mcp.types as types
+from pydantic import AnyUrl, BaseModel
 
+import mcp.types as types
 from genkit.ai import Genkit
 from genkit.blocks.resource import matches_uri_template
 from genkit.core.action._key import parse_action_key
@@ -117,13 +117,15 @@ class McpServer:
         self.server = Server(self.options.name)
 
         # Register request handlers using decorators
-        
+
         @self.server.list_tools()
         async def list_tools() -> list[types.Tool]:
             return await self._list_tools()
 
         @self.server.call_tool()
-        async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        async def call_tool(
+            name: str, arguments: dict | None
+        ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
             return await self._call_tool(name, arguments)
 
         @self.server.list_prompts()
@@ -133,7 +135,7 @@ class McpServer:
         @self.server.get_prompt()
         async def get_prompt(name: str, arguments: dict[str, str] | None) -> types.GetPromptResult:
             return await self._get_prompt(name, arguments)
-            
+
         @self.server.list_resources()
         async def list_resources() -> list[types.Resource]:
             return await self._list_resources()
@@ -141,14 +143,13 @@ class McpServer:
         @self.server.list_resource_templates()
         async def list_resource_templates() -> list[types.ResourceTemplate]:
             return await self._list_resource_templates()
-        
+
         @self.server.read_resource()
         async def read_resource(uri: AnyUrl) -> str | bytes:
             # Note: The MCP SDK signature for read_resource expects returning content
             # directly or a list of contents depending on version.
             # Based on lowlevel/server.py it returns ReadResourceContents which is content list
             return await self._read_resource(str(uri))
-
 
         # Resolve all actions from Genkit registry
         # We need the actual Action objects, not just serializable dicts
@@ -227,7 +228,9 @@ class McpServer:
 
         return tools
 
-    async def _call_tool(self, name: str, arguments: dict | None) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+    async def _call_tool(
+        self, name: str, arguments: dict | None
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
         """Handle MCP requests to call a specific tool."""
         await self.setup()
 
@@ -235,9 +238,7 @@ class McpServer:
         tool = self.tool_actions_map.get(name)
 
         if not tool:
-            raise GenkitError(
-                status='NOT_FOUND', message=f"Tried to call tool '{name}' but it could not be found."
-            )
+            raise GenkitError(status='NOT_FOUND', message=f"Tried to call tool '{name}' but it could not be found.")
 
         # Execute the tool
         result = await tool.arun(arguments)
@@ -333,7 +334,9 @@ class McpServer:
 
         return templates
 
-    async def _read_resource(self, uri: str) -> str | bytes | list[types.TextResourceContents | types.BlobResourceContents]:
+    async def _read_resource(
+        self, uri: str
+    ) -> str | bytes | list[types.TextResourceContents | types.BlobResourceContents]:
         """Handle MCP requests to read a specific resource."""
         await self.setup()
 
