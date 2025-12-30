@@ -201,6 +201,12 @@ export const GenerationCommonConfigSchema = z
         'Set of character sequences (up to 5) that will stop output generation.'
       )
       .optional(),
+    apiKey: z
+      .string()
+      .describe(
+        'API Key to use for the model call, overrides API key provided in plugin config.'
+      )
+      .optional(),
   })
   .passthrough();
 

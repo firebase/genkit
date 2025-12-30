@@ -17,6 +17,8 @@
 
 from collections.abc import Callable
 
+from genkit.blocks.model import ModelReference
+
 try:
     from enum import StrEnum
 except ImportError:
@@ -25,7 +27,6 @@ from typing import Any
 
 from pydantic import BaseModel, RootModel
 
-from genkit.core.typing import ModelReference
 from genkit.types import EvalStatusEnum, Score
 
 
