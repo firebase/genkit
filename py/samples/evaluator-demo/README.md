@@ -20,7 +20,7 @@ Choose any flow of interest and run in the Dev UI.
 - **index_pdf**: Indexes a specified PDF file (defaults to `docs/cat-wiki.pdf`)
 - **simple_structured**: Simple flow with structured input/output
 - **simple_echo**: Simple echo flow
-- **dog_facts_eval**: Programmatic evaluation flow using the faithfulness metric on a dog facts dataset
+- **dog_facts_eval**: Programmatic evaluation flow using the faithfulness metric on a dog facts dataset. **Note:** This flow can take several minutes to complete.
 
 ### Running Evaluations in Dev UI
 
