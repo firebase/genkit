@@ -724,7 +724,7 @@ describe('augmentWithContext', () => {
     const messages: MessageData[] = [
       {
         role: 'user',
-        content: [{ metadata: { purpose: 'context', pending: true } }],
+        content: [{ text: '', metadata: { purpose: 'context', pending: true } }],
       },
     ];
     assert.deepEqual(
@@ -924,7 +924,7 @@ describe.only('simulateConstrainedGeneration', () => {
                 'Output should be in JSON format and conform to the following schema:\n' +
                 '\n' +
                 '```\n' +
-                '{"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}\n' +
+                '{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":false}\n' +
                 '```\n',
             },
           ],
@@ -976,7 +976,7 @@ describe.only('simulateConstrainedGeneration', () => {
               metadata: {
                 purpose: 'output',
               },
-              text: 'must be json: {"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}',
+              text: 'must be json: {"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":false}',
             },
           ],
         },
@@ -1025,14 +1025,14 @@ describe.only('simulateConstrainedGeneration', () => {
         format: 'json',
         schema: {
           $schema: 'http://json-schema.org/draft-07/schema#',
-          additionalProperties: true,
+          type: 'object',
           properties: {
             foo: {
               type: 'string',
             },
           },
           required: ['foo'],
-          type: 'object',
+          additionalProperties: false,
         },
       },
       tools: [],
@@ -1079,7 +1079,7 @@ describe.only('simulateConstrainedGeneration', () => {
                 'Output should be in JSON format and conform to the following schema:\n' +
                 '\n' +
                 '```\n' +
-                '{"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}\n' +
+                '{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":false}\n' +
                 '```\n',
             },
           ],
@@ -1091,14 +1091,14 @@ describe.only('simulateConstrainedGeneration', () => {
         format: 'json',
         schema: {
           $schema: 'http://json-schema.org/draft-07/schema#',
-          additionalProperties: true,
+          type: 'object',
           properties: {
             foo: {
               type: 'string',
             },
           },
           required: ['foo'],
-          type: 'object',
+          additionalProperties: false,
         },
       },
       tools: [],

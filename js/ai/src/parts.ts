@@ -22,8 +22,8 @@ const EmptyPartSchema = z.object({
   toolRequest: z.never().optional(),
   toolResponse: z.never().optional(),
   data: z.unknown().optional(),
-  metadata: z.record(z.unknown()).optional(),
-  custom: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  custom: z.record(z.string(), z.unknown()).optional(),
   reasoning: z.never().optional(),
   resource: z.never().optional(),
 });
@@ -154,7 +154,7 @@ export type DataPart = z.infer<typeof DataPartSchema>;
  * Zod schema of a custom part.
  */
 export const CustomPartSchema = EmptyPartSchema.extend({
-  custom: z.record(z.any()),
+  custom: z.record(z.string(), z.any()),
 });
 
 /**

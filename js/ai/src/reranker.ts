@@ -139,8 +139,8 @@ export function reranker<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
       name: options.name,
       inputSchema: options.configSchema
         ? RerankerRequestSchema.extend({
-            options: options.configSchema.optional(),
-          })
+          options: options.configSchema.optional(),
+        })
         : RerankerRequestSchema,
       outputSchema: RerankerResponseSchema,
       metadata: {
@@ -192,9 +192,13 @@ export async function rerank<CustomOptions extends z.ZodTypeAny>(
 ): Promise<Array<RankedDocument>> {
   let reranker: RerankerAction<CustomOptions>;
   if (typeof params.reranker === 'string') {
-    reranker = await registry.lookupAction(`/reranker/${params.reranker}`);
+    reranker = (await registry.lookupAction(
+      `/reranker/${params.reranker}`
+    )) as unknown as RerankerAction<CustomOptions>;
   } else if (Object.hasOwnProperty.call(params.reranker, 'info')) {
-    reranker = await registry.lookupAction(`/reranker/${params.reranker.name}`);
+    reranker = (await registry.lookupAction(
+      `/reranker/${params.reranker.name}`
+    )) as unknown as RerankerAction<CustomOptions>;
   } else {
     reranker = params.reranker as RerankerAction<CustomOptions>;
   }

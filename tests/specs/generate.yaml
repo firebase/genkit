@@ -29,6 +29,7 @@ tests:
             config: { temperature: 11 },
           },
         usage: {},
+        raw: {},
       }
   - name: stream responses
     stream: true
@@ -68,6 +69,7 @@ tests:
             config: { temperature: 11 },
           },
         usage: {},
+        raw: {},
       }
   - name: calls tools
     input:
@@ -140,4 +142,5 @@ tests:
             config: { temperature: 11 },
           },
         usage: {},
+        raw: {},
       }

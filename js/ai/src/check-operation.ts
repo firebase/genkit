@@ -36,5 +36,5 @@ export async function checkOperation<T = unknown>(
       message: `Failed to resolve background action from original request: ${operation.action}`,
     });
   }
-  return await backgroundAction.check(operation);
+  return (await backgroundAction.check(operation)) as unknown as Operation<T>;
 }

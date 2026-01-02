@@ -91,7 +91,7 @@ export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
 
 export type EvaluatorFn<
   EvalDataPoint extends
-    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
+  typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
   input: z.infer<EvalDataPoint>,
@@ -154,7 +154,7 @@ export interface EvaluatorOptions<
 export function defineEvaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   EvalDataPoint extends
-    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
+  typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
   EvaluatorOpts extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
@@ -174,7 +174,7 @@ export function defineEvaluator<
 export function evaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   EvalDataPoint extends
-    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
+  typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
   EvaluatorOpts extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: EvaluatorOptions<DataPoint, EvaluatorOpts>,
@@ -241,7 +241,10 @@ export function evaluator<
                   output: datapoint.output,
                   context: datapoint.context,
                 };
-                const evalOutputPromise = runner(datapoint, i.options)
+                const evalOutputPromise = runner(
+                  datapoint as z.infer<EvalDataPoint>,
+                  (i as any).options
+                )
                   .then((result) => ({
                     ...result,
                     traceId,
@@ -311,11 +314,13 @@ export async function evaluate<
 ): Promise<EvalResponses> {
   let evaluator: EvaluatorAction<DataPoint, CustomOptions>;
   if (typeof params.evaluator === 'string') {
-    evaluator = await registry.lookupAction(`/evaluator/${params.evaluator}`);
+    evaluator = (await registry.lookupAction(
+      `/evaluator/${params.evaluator}`
+    )) as unknown as EvaluatorAction<DataPoint, CustomOptions>;
   } else if (Object.hasOwnProperty.call(params.evaluator, 'info')) {
-    evaluator = await registry.lookupAction(
+    evaluator = (await registry.lookupAction(
       `/evaluator/${params.evaluator.name}`
-    );
+    )) as unknown as EvaluatorAction<DataPoint, CustomOptions>;
   } else {
     evaluator = params.evaluator as EvaluatorAction<DataPoint, CustomOptions>;
   }

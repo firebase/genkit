@@ -155,14 +155,18 @@ export function model<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
   Object.assign(act, {
     __configSchema: options.configSchema || z.unknown(),
   });
-  return act as ModelAction<CustomOptionsSchema>;
+  return act as unknown as ModelAction<CustomOptionsSchema>;
 }
 
 function modelActionOptions<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: DefineModelOptions<CustomOptionsSchema>
-): ActionParams<typeof GenerateRequestSchema, typeof GenerateResponseSchema> {
+): ActionParams<
+  typeof GenerateRequestSchema,
+  typeof GenerateResponseSchema,
+  typeof GenerateResponseChunkSchema
+> {
   const label = options.label || options.name;
   const middleware = getModelMiddleware(options);
   return {
@@ -181,7 +185,7 @@ function modelActionOptions<
         supports: options.supports,
       },
     },
-    use: middleware,
+    use: middleware as any,
   };
 }
 
@@ -248,7 +252,7 @@ export function defineModel<
   Object.assign(act, {
     __configSchema: options.configSchema || z.unknown(),
   });
-  return act as ModelAction<CustomOptionsSchema>;
+  return act as unknown as ModelAction<CustomOptionsSchema>;
 }
 
 export type DefineBackgroundModelOptions<
@@ -304,7 +308,7 @@ export function backgroundModel<
         supports: options.supports,
       },
     },
-    use: middleware,
+    use: middleware as any,
     async start(request) {
       const startTimeMs = performance.now();
       const response = await options.start(request);
@@ -318,14 +322,14 @@ export function backgroundModel<
     },
     cancel: options.cancel
       ? async (op) => {
-          if (!options.cancel) {
-            throw new GenkitError({
-              status: 'UNIMPLEMENTED',
-              message: 'cancel not implemented',
-            });
-          }
-          return options.cancel(op);
+        if (!options.cancel) {
+          throw new GenkitError({
+            status: 'UNIMPLEMENTED',
+            message: 'cancel not implemented',
+          });
         }
+        return options.cancel(op);
+      }
       : undefined,
   }) as BackgroundModelAction<CustomOptionsSchema>;
   Object.assign(act, {
@@ -568,5 +572,5 @@ async function lookupModel(
   return (
     (await registry.lookupAction(`/model/${model}`)) ||
     (await registry.lookupAction(`/background-model/${model}`))
-  );
+  ) as unknown as ModelAction;
 }

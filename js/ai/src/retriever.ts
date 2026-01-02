@@ -147,8 +147,8 @@ export function retriever<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
       name: options.name,
       inputSchema: options.configSchema
         ? RetrieverRequestSchema.extend({
-            options: options.configSchema.optional(),
-          })
+          options: options.configSchema.optional(),
+        })
         : RetrieverRequestSchema,
       outputSchema: RetrieverResponseSchema,
       metadata: {
@@ -207,8 +207,8 @@ export function indexer<IndexerOptions extends z.ZodTypeAny>(
       name: options.name,
       inputSchema: options.configSchema
         ? IndexerRequestSchema.extend({
-            options: options.configSchema.optional(),
-          })
+          options: options.configSchema.optional(),
+        })
         : IndexerRequestSchema,
       outputSchema: z.void(),
       metadata: {
@@ -258,11 +258,13 @@ export async function retrieve<CustomOptions extends z.ZodTypeAny>(
 ): Promise<Array<Document>> {
   let retriever: RetrieverAction<CustomOptions>;
   if (typeof params.retriever === 'string') {
-    retriever = await registry.lookupAction(`/retriever/${params.retriever}`);
+    retriever = (await registry.lookupAction(
+      `/retriever/${params.retriever}`
+    )) as unknown as RetrieverAction<CustomOptions>;
   } else if (Object.hasOwnProperty.call(params.retriever, 'info')) {
-    retriever = await registry.lookupAction(
+    retriever = (await registry.lookupAction(
       `/retriever/${params.retriever.name}`
-    );
+    )) as unknown as RetrieverAction<CustomOptions>;
   } else {
     retriever = params.retriever as RetrieverAction<CustomOptions>;
   }
@@ -306,9 +308,13 @@ export async function index<CustomOptions extends z.ZodTypeAny>(
 ): Promise<void> {
   let indexer: IndexerAction<CustomOptions>;
   if (typeof params.indexer === 'string') {
-    indexer = await registry.lookupAction(`/indexer/${params.indexer}`);
+    indexer = (await registry.lookupAction(
+      `/indexer/${params.indexer}`
+    )) as unknown as IndexerAction<CustomOptions>;
   } else if (Object.hasOwnProperty.call(params.indexer, 'info')) {
-    indexer = await registry.lookupAction(`/indexer/${params.indexer.name}`);
+    indexer = (await registry.lookupAction(
+      `/indexer/${params.indexer.name}`
+    )) as unknown as IndexerAction<CustomOptions>;
   } else {
     indexer = params.indexer as IndexerAction<CustomOptions>;
   }
