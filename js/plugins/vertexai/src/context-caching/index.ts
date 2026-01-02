@@ -69,8 +69,7 @@ export async function handleContextCache(
     try {
       const createParams: CachedContent = {
         ...cachedContent,
-        // TODO: make this neater - idk why they chose to stringify the ttl...
-        ttl: JSON.stringify(calculateTTL(cacheConfigDetails)) + 's',
+        ttl: `${calculateTTL(cacheConfigDetails)}s`,
       };
       cache = await cachedContentsClient.create(createParams);
       logger.debug(`Created new cache entry with key: ${cacheKey}`);
