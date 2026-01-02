@@ -447,6 +447,21 @@ func applyGenerateConfigToOllama(
 		if len(opts) > 0 {
 			req.Options = opts
 		}
+	case *ai.GenerationCommonConfig:
+		opts := map[string]any{}
+		b, err := json.Marshal(cfg)
+		if err != nil {
+			return
+		}
+
+		res := map[string]any{}
+		err = json.Unmarshal(b, &res)
+		if err != nil {
+			return
+		}
+		if len(opts) > 0 {
+			req.Options = opts
+		}
 	}
 }
 
@@ -499,7 +514,7 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 			}
 			contentBuilder.WriteString(string(outputJSON))
 		} else if part.IsReasoning() {
-
+			contentBuilder.WriteString(part.Text)
 		} else {
 			return nil, errors.New("unsupported content type")
 		}
