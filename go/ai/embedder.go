@@ -105,16 +105,13 @@ func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 
 	metadata := map[string]any{
 		"type": api.ActionTypeEmbedder,
-		// TODO: This should be under "embedder" but JS has it as "info".
-		"info": map[string]any{
+		"embedder": map[string]any{
 			"label":      opts.Label,
 			"dimensions": opts.Dimensions,
 			"supports": map[string]any{
 				"input":        opts.Supports.Input,
 				"multilingual": opts.Supports.Multilingual,
 			},
-		},
-		"embedder": map[string]any{
 			"customOptions": opts.ConfigSchema,
 		},
 	}
