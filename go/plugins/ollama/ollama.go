@@ -119,6 +119,27 @@ type ollamaMessage struct {
 	Content   string           `json:"content,omitempty"`
 	Images    []string         `json:"images,omitempty"`
 	ToolCalls []ollamaToolCall `json:"tool_calls,omitempty"`
+	Thinking  string           `json:"thinking,omitempty"`
+}
+
+type GenerateContentConfig struct {
+	// Thinking mode:
+	// ollama: true | false
+	// gpt-oss: "low" | "medium" | "high"
+	Think any
+
+	// Runtime options
+	Seed        *int
+	Temperature *float64
+	TopK        *int
+	TopP        *float64
+	MinP        *float64
+	Stop        []string
+	NumCtx      *int
+	NumPredict  *int
+
+	// Ollama-specific
+	KeepAlive string
 }
 
 // Ollama has two API endpoints, one with a chat interface and another with a generate response interface.
@@ -142,6 +163,8 @@ type ollamaChatRequest struct {
 	Stream   bool             `json:"stream"`
 	Format   string           `json:"format,omitempty"`
 	Tools    []ollamaTool     `json:"tools,omitempty"`
+	Think    any              `json:"think,omitempty"`
+	Options  map[string]any   `json:"options,omitempty"`
 }
 
 type ollamaModelRequest struct {
@@ -184,6 +207,7 @@ type ollamaChatResponse struct {
 	Message   struct {
 		Role      string           `json:"role"`
 		Content   string           `json:"content"`
+		Thinking  string           `json:"thinking"`
 		ToolCalls []ollamaToolCall `json:"tool_calls,omitempty"`
 	} `json:"message"`
 }
@@ -253,6 +277,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 			Images: images,
 			Stream: stream,
 		}
+
 	} else {
 		var messages []*ollamaMessage
 		// Translate all messages to ollama message format.
@@ -263,12 +288,15 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 			}
 			messages = append(messages, message)
 		}
+
 		chatReq := ollamaChatRequest{
 			Messages: messages,
 			Model:    g.model.Name,
 			Stream:   stream,
 			Images:   images,
 		}
+
+		applyGenerateConfigToOllama(&chatReq, input.Config)
 		if len(input.Tools) > 0 {
 			tools, err := convertTools(input.Tools)
 			if err != nil {
@@ -369,6 +397,55 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	}
 }
 
+func applyGenerateConfigToOllama(
+	req *ollamaChatRequest,
+	cfg any,
+) {
+	if cfg == nil {
+		return
+	}
+
+	switch cfg := cfg.(type) {
+	case GenerateContentConfig:
+		// Thinking
+		if cfg.Think != "" {
+			req.Think = cfg.Think
+		}
+
+		// Runtime options
+		opts := map[string]any{}
+
+		if cfg.Seed != nil {
+			opts["seed"] = *cfg.Seed
+		}
+		if cfg.Temperature != nil {
+			opts["temperature"] = *cfg.Temperature
+		}
+		if cfg.TopK != nil {
+			opts["top_k"] = *cfg.TopK
+		}
+		if cfg.TopP != nil {
+			opts["top_p"] = *cfg.TopP
+		}
+		if cfg.MinP != nil {
+			opts["min_p"] = *cfg.MinP
+		}
+		if len(cfg.Stop) > 0 {
+			opts["stop"] = cfg.Stop
+		}
+		if cfg.NumCtx != nil {
+			opts["num_ctx"] = *cfg.NumCtx
+		}
+		if cfg.NumPredict != nil {
+			opts["num_predict"] = *cfg.NumPredict
+		}
+
+		if len(opts) > 0 {
+			req.Options = opts
+		}
+	}
+}
+
 // convertTools converts Genkit tool definitions to Ollama tool format
 func convertTools(tools []*ai.ToolDefinition) ([]ollamaTool, error) {
 	ollamaTools := make([]ollamaTool, 0, len(tools))
@@ -417,6 +494,8 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 				return nil, fmt.Errorf("failed to marshal tool response: %v", err)
 			}
 			contentBuilder.WriteString(string(outputJSON))
+		} else if part.IsReasoning() {
+
 		} else {
 			return nil, errors.New("unsupported content type")
 		}
@@ -439,6 +518,7 @@ func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 	if err := json.Unmarshal(responseData, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
+
 	modelResponse := &ai.ModelResponse{
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
@@ -456,6 +536,10 @@ func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 		}
 	} else if response.Message.Content != "" {
 		aiPart := ai.NewTextPart(response.Message.Content)
+		modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
+	}
+	if response.Message.Thinking != "" {
+		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
 		modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
 	}
 
@@ -501,6 +585,11 @@ func translateChatChunk(input string) (*ai.ModelResponseChunk, error) {
 		}
 	} else if response.Message.Content != "" {
 		aiPart := ai.NewTextPart(response.Message.Content)
+		chunk.Content = append(chunk.Content, aiPart)
+	}
+
+	if response.Message.Thinking != "" {
+		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
 		chunk.Content = append(chunk.Content, aiPart)
 	}
 
