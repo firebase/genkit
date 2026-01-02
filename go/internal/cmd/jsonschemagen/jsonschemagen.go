@@ -218,10 +218,6 @@ func adjustAdditionalProperties(x any) {
 					}
 				}
 			}
-			// TODO: Fix this - causing schemagen issues
-			if k == "uniqueItems" {
-				delete(m, k)
-			}
 			adjustAdditionalProperties(v)
 		}
 	} else if a, ok := x.([]any); ok {

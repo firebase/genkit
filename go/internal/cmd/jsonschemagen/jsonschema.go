@@ -36,6 +36,7 @@ type Schema struct {
 	Const                any                      `json:"const,omitempty"`
 	Required             []string                 `json:"required,omitempty"`
 	Items                *Schema                  `json:"items,omitempty"`
+	UniqueItems          bool                     `json:"uniqueItems,omitempty"`
 	Enum                 []string                 `json:"enum,omitempty"`
 	Not                  any                      `json:"not,omitempty"`
 	AnyOf                []*Schema                `json:"anyOf,omitempty"`
