@@ -163,11 +163,11 @@ export const extractCacheConfig = (
   return endOfCachedContents === -1
     ? null
     : {
-        endOfCachedContents,
-        cacheConfig: cacheConfigSchema.parse(
-          request.messages[endOfCachedContents].metadata?.cache
-        ),
-      };
+      endOfCachedContents,
+      cacheConfig: cacheConfigSchema.parse(
+        request.messages[endOfCachedContents].metadata?.cache
+      ),
+    };
 };
 
 /**
@@ -188,7 +188,7 @@ export function validateContextCacheRequest(
       status: 'INVALID_ARGUMENT',
       message: INVALID_ARGUMENT_MESSAGES.tools,
     });
-  if (request.config?.codeExecution)
+  if ((request.config as any)?.codeExecution)
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
       message: INVALID_ARGUMENT_MESSAGES.codeExecution,

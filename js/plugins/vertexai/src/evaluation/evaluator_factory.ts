@@ -26,7 +26,7 @@ export class EvaluatorFactory {
     private readonly auth: GoogleAuth,
     private readonly location: string,
     private readonly projectId: string
-  ) {}
+  ) { }
 
   create<ResponseType extends z.ZodTypeAny>(
     ai: Genkit,
@@ -58,7 +58,7 @@ export class EvaluatorFactory {
           testCaseId: datapoint.testCaseId,
         };
       }
-    );
+    ) as any;
   }
 
   async evaluateInstances<ResponseType extends z.ZodTypeAny>(

@@ -45,8 +45,23 @@ export function toGeminiTool(tool: ToolDefinition): FunctionDeclaration {
   return declaration;
 }
 
-function toGeminiSchemaProperty(property?: ToolDefinition['inputSchema']) {
-  if (!property || !property.type) {
+function toGeminiSchemaProperty(property?: any) {
+  if (!property) {
+    return undefined;
+  }
+  if (property.anyOf) {
+    // handle common nullable pattern from Zod 4: anyOf: [{type: 'string'}, {type: 'null'}]
+    const isNullable = property.anyOf.some((p) => p.type === 'null');
+    const actualProperty = property.anyOf.find((p) => p.type !== 'null');
+    if (actualProperty) {
+      const converted = toGeminiSchemaProperty(actualProperty);
+      if (converted && isNullable) {
+        converted.nullable = true;
+      }
+      return converted;
+    }
+  }
+  if (!property.type) {
     return undefined;
   }
   const baseSchema: Schema = {};
@@ -73,9 +88,11 @@ function toGeminiSchemaProperty(property?: ToolDefinition['inputSchema']) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
-      nestedProperties[key] = toGeminiSchemaProperty(property.properties[key]);
-    });
+    if (property.properties) {
+      Object.keys(property.properties).forEach((key) => {
+        nestedProperties[key] = toGeminiSchemaProperty(property.properties[key]);
+      });
+    }
     return {
       ...baseSchema,
       type: SchemaType.OBJECT,

@@ -1164,7 +1164,7 @@ describe('prompt', () => {
         name: 'toolA',
         description: 'toolA it is',
       },
-      async () => {}
+      async () => { }
     );
 
     ai.defineTool(
@@ -1172,7 +1172,7 @@ describe('prompt', () => {
         name: 'toolB',
         description: 'toolB it is',
       },
-      async () => {}
+      async () => { }
     );
 
     const generateActionOptions = await (
@@ -1234,7 +1234,7 @@ describe('prompt', () => {
     const rendered = await prompt.render({ foo: 'bar' });
     assert.deepStrictEqual(rendered.output?.jsonSchema, {
       $schema: 'http://json-schema.org/draft-07/schema#',
-      additionalProperties: true,
+      additionalProperties: false,
       properties: {
         output: {
           type: 'string',
@@ -1245,7 +1245,7 @@ describe('prompt', () => {
     });
 
     assert.deepStrictEqual(
-      (await (await prompt.asTool())({ foo: 'bar' })).messages,
+      (await (await prompt.asTool() as any)({ foo: 'bar' })).messages,
       [
         {
           role: 'user',
@@ -1361,7 +1361,7 @@ describe('prompt', () => {
               },
             },
             required: ['name'],
-            additionalProperties: true,
+            additionalProperties: false,
             $schema: 'http://json-schema.org/draft-07/schema#',
           },
         },
@@ -1491,12 +1491,12 @@ describe('asTool', () => {
           content: [
             reqCounter++ === 0
               ? {
-                  toolRequest: {
-                    name: 'toolPrompt',
-                    input: {},
-                    ref: 'ref123',
-                  },
-                }
+                toolRequest: {
+                  name: 'toolPrompt',
+                  input: {},
+                  ref: 'ref123',
+                },
+              }
               : { text: 'hi from agent b' },
           ],
         },
@@ -1580,12 +1580,12 @@ describe('asTool', () => {
           content: [
             reqCounter++ === 0
               ? {
-                  toolRequest: {
-                    name: 'agentA',
-                    input: {},
-                    ref: 'ref123',
-                  },
-                }
+                toolRequest: {
+                  name: 'agentA',
+                  input: {},
+                  ref: 'ref123',
+                },
+              }
               : { text: 'hi Genkit from agent a' },
           ],
         },

@@ -59,19 +59,19 @@ async function resolver(
       if (veo.isVeoModelName(actionName)) {
         return undefined;
       } else if (imagen.isImagenModelName(actionName)) {
-        return await imagen.defineModel(actionName, options);
+        return (await imagen.defineModel(actionName, options)) as any;
       } else {
         // gemini, tts, image, gemma, unknown models
-        return await gemini.defineModel(actionName, options);
+        return (await gemini.defineModel(actionName, options)) as any;
       }
       break;
     case 'background-model':
       if (veo.isVeoModelName(actionName)) {
-        return await veo.defineModel(actionName, options);
+        return (await veo.defineModel(actionName, options)) as any;
       }
       break;
     case 'embedder':
-      return await embedder.defineEmbedder(actionName, options);
+      return (await embedder.defineEmbedder(actionName, options)) as any;
       break;
   }
   return undefined;
@@ -112,7 +112,7 @@ export function googleAIPlugin(
   let listActionsCache;
   return genkitPluginV2({
     name: 'googleai',
-    init: async () => await initializer(options),
+    init: async () => (await initializer(options)) as any,
     resolve: async (actionType: ActionType, actionName: string) =>
       await resolver(actionType, actionName, options || {}),
     list: async () => {

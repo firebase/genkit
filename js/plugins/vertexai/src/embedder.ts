@@ -324,7 +324,7 @@ export function defineVertexAIEmbedder(
       info: embedder.info!,
     },
     async (input, options) => {
-      const predictClient = predictClientFactory(options);
+      const predictClient = predictClientFactory(options as any);
       const response = await predictClient(
         input.map((doc: Document) => {
           let instance: EmbeddingInstance;
@@ -389,13 +389,13 @@ export function defineVertexAIEmbedder(
             // Text only embedder
             instance = {
               content: doc.text,
-              task_type: options?.taskType,
-              title: options?.title,
+              task_type: (options as any)?.taskType,
+              title: (options as any)?.title,
             };
           }
           return instance;
         }),
-        { outputDimensionality: options?.outputDimensionality }
+        { outputDimensionality: (options as any)?.outputDimensionality }
       );
       return {
         embeddings: response.predictions

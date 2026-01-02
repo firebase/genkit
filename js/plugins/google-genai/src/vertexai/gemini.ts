@@ -98,9 +98,9 @@ const VertexRetrievalSchema = z
           .string()
           .describe(
             'The data store id, when project id and location are provided as ' +
-              'separate options. Alternatively, the full path to the data ' +
-              'store should be provided in the form: "projects/{project}/' +
-              'locations/{location}/collections/default_collection/dataStores/{data_store}".'
+            'separate options. Alternatively, the full path to the data ' +
+            'store should be provided in the form: "projects/{project}/' +
+            'locations/{location}/collections/default_collection/dataStores/{data_store}".'
           ),
       })
       .describe('Vertex AI Search data store details')
@@ -109,7 +109,7 @@ const VertexRetrievalSchema = z
       .boolean()
       .describe(
         'Disable using the search data in detecting grounding attribution. This ' +
-          'does not affect how the result is given to the model for generation.'
+        'does not affect how the result is given to the model for generation.'
       )
       .optional(),
   })
@@ -121,7 +121,7 @@ const GoogleSearchRetrievalSchema = z
       .boolean()
       .describe(
         'Disable using the search data in detecting grounding attribution. This ' +
-          'does not affect how the result is given to the model for generation.'
+        'does not affect how the result is given to the model for generation.'
       )
       .optional(),
   })
@@ -137,7 +137,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .describe('Overrides the plugin-configured API key, if specified.')
     .optional(),
   labels: z
-    .record(z.string())
+    .record(z.string(), z.string())
     .optional()
     .describe('Key-value labels to attach to the request for cost tracking.'),
   temperature: z
@@ -146,7 +146,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .max(2.0)
     .describe(
       GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 1.0.'
+      ' The default value is 1.0.'
     )
     .optional(),
   topP: z
@@ -194,7 +194,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .array(SafetySettingsSchema)
     .describe(
       'Adjust how likely you are to see responses that could be harmful. ' +
-        'Content is blocked based on the probability that it is harmful.'
+      'Content is blocked based on the probability that it is harmful.'
     )
     .optional(),
 
@@ -218,7 +218,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    */
   vertexRetrieval: VertexRetrievalSchema.describe(
     'Retrieve from Vertex AI Search data store for grounding ' +
-      'generative responses.'
+    'generative responses.'
   ).optional(),
 
   /**
@@ -262,11 +262,11 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .describe(
       'Controls how the model uses the provided tools (function declarations). ' +
-        'With AUTO (Default) mode, the model decides whether to generate a ' +
-        'natural language response or suggest a function call based on the ' +
-        'prompt and context. With ANY, the model is constrained to always ' +
-        'predict a function call and guarantee function schema adherence. ' +
-        'With NONE, the model is prohibited from making function calls.'
+      'With AUTO (Default) mode, the model decides whether to generate a ' +
+      'natural language response or suggest a function call based on the ' +
+      'prompt and context. With ANY, the model is constrained to always ' +
+      'predict a function call and guarantee function schema adherence. ' +
+      'With NONE, the model is prohibited from making function calls.'
     )
     .passthrough()
     .optional(),
@@ -299,8 +299,8 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .boolean()
         .describe(
           'Indicates whether to include thoughts in the response.' +
-            'If true, thoughts are returned only if the model supports ' +
-            'thought and thoughts are available.'
+          'If true, thoughts are returned only if the model supports ' +
+          'thought and thoughts are available.'
         )
         .optional(),
       thinkingBudget: z
@@ -309,20 +309,20 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .max(24576)
         .describe(
           'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. ' +
-            '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
-            'dependent. The thinking budget parameter gives the model guidance ' +
-            'on the number of thinking tokens it can use when generating a ' +
-            'response. A greater number of tokens is typically associated with ' +
-            'more detailed thinking, which is needed for solving more complex ' +
-            'tasks. '
+          '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
+          'dependent. The thinking budget parameter gives the model guidance ' +
+          'on the number of thinking tokens it can use when generating a ' +
+          'response. A greater number of tokens is typically associated with ' +
+          'more detailed thinking, which is needed for solving more complex ' +
+          'tasks. '
         )
         .optional(),
       thinkingLevel: z
         .enum(['LOW', 'MEDIUM', 'HIGH'])
         .describe(
           'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
-            'is associated with more detailed thinking, which is needed for solving ' +
-            'more complex tasks.'
+          'is associated with more detailed thinking, which is needed for solving ' +
+          'more complex tasks.'
         )
         .optional(),
     })
@@ -549,7 +549,7 @@ export function defineModel(
               )
             )
               return false;
-          } catch {}
+          } catch { }
           return true;
         },
       })
@@ -578,7 +578,7 @@ export function defineModel(
         systemInstruction = toGeminiSystemInstruction(systemMessage);
       }
 
-      const requestConfig: ConfigSchema = { ...request.config };
+      const requestConfig: ConfigSchema = { ...(request.config as any) };
 
       const {
         apiKey: apiKeyFromConfig,
@@ -594,12 +594,12 @@ export function defineModel(
         ...restOfConfig
       } = requestConfig;
 
-      clientOpt = calculateRequestOptions(clientOpt, {
+      clientOpt = calculateRequestOptions(clientOpt as any, {
         location,
         apiKey: apiKeyFromConfig,
-      });
+      }) as any;
 
-      const labels = toGeminiLabels(labelsFromConfig);
+      const labels = toGeminiLabels(labelsFromConfig as any);
 
       const tools: Tool[] = [];
       if (request.tools?.length) {
@@ -776,29 +776,29 @@ export function defineModel(
       const msg = toGeminiMessage(messages[messages.length - 1], ref);
       return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
-            {
-              metadata: {
-                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
-              },
+          {
+            metadata: {
+              name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
             },
-            async (metadata) => {
-              metadata.input = {
-                apiEndpoint: getVertexAIUrl({
-                  includeProjectAndLocation: false,
-                  resourcePath: '',
-                  clientOptions: clientOpt,
-                }),
-                cache: {},
-                model: modelVersion,
-                generateContentOptions: generateContentRequest,
-                parts: msg.parts,
-                options: clientOpt,
-              };
-              const response = await callGemini();
-              metadata.output = response.custom;
-              return response;
-            }
-          )
+          },
+          async (metadata) => {
+            metadata.input = {
+              apiEndpoint: getVertexAIUrl({
+                includeProjectAndLocation: false,
+                resourcePath: '',
+                clientOptions: clientOpt,
+              }),
+              cache: {},
+              model: modelVersion,
+              generateContentOptions: generateContentRequest,
+              parts: msg.parts,
+              options: clientOpt,
+            };
+            const response = await callGemini();
+            metadata.output = response.custom;
+            return response;
+          }
+        )
         : await callGemini();
     }
   );

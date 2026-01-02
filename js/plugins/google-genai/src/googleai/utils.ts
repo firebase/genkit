@@ -169,7 +169,7 @@ export function extractImagenImage(
  * For each field in ClientOptions, if the request config object has
  * a matching non-empty/non-null field, it overrides the original.
  */
-export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
+export function calculateRequestOptions<T extends z.ZodObject<any, any>>(
   clientOptions: ClientOptions,
   reqConfig?: z.infer<T>
 ): ClientOptions {
@@ -200,7 +200,7 @@ export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
   }
 
   if (reqConfig.customHeaders && typeof reqConfig.customHeaders === 'object') {
-    newOptions.customHeaders = reqConfig.customHeaders;
+    newOptions.customHeaders = reqConfig.customHeaders as Record<string, string>;
   }
 
   return newOptions;
@@ -211,9 +211,9 @@ export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
  * be sent with the request like normal config.
  * @param requestConfig
  */
-export function removeClientOptionOverrides<
-  T extends z.ZodObject<any, any, any>,
->(requestConfig?: z.infer<T>): z.infer<T> {
+export function removeClientOptionOverrides<T extends z.ZodObject<any, any>>(
+  requestConfig?: z.infer<T>
+): z.infer<T> {
   let newConfig = { ...requestConfig };
 
   delete newConfig?.timeout;
@@ -223,5 +223,5 @@ export function removeClientOptionOverrides<
   delete newConfig?.baseUrl;
   delete newConfig?.customHeaders;
 
-  return newConfig;
+  return newConfig as any;
 }

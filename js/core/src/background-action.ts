@@ -32,7 +32,7 @@ export const OperationSchema = z.object({
   output: z.any().optional(),
   error: z.object({ message: z.string() }).passthrough().optional(),
   metadata: z.record(z.string(), z.any()).optional(),
-});
+}).passthrough();
 
 /**
  * Background operation.
@@ -42,8 +42,9 @@ export interface Operation<O = any> {
   id: string;
   done?: boolean;
   output?: O;
-  error?: { message: string; [key: string]: unknown };
+  error?: { message: string;[key: string]: unknown };
   metadata?: Record<string, any>;
+  [key: string]: any;
 }
 
 /**

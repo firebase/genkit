@@ -309,7 +309,7 @@ export const CandidateSchema = z.object({
   usage: GenerationUsageSchema.optional(),
   finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),
-  custom: z.unknown(),
+  custom: z.unknown().optional(),
 });
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export type CandidateData = z.infer<typeof CandidateSchema>;
