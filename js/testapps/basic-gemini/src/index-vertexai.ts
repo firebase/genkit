@@ -41,7 +41,7 @@ ai.defineFlow('basic-hi', async () => {
 ai.defineFlow(
   {
     name: 'thinking-level',
-    inputSchema: z.enum(['LOW', 'MINIMAL', 'MEDIUM', 'HIGH']),
+    inputSchema: z.enum(['MINIMAL', 'LOW', 'MEDIUM', 'HIGH']),
     outputSchema: z.any(),
   },
   async (level) => {
