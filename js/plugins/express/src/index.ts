@@ -108,6 +108,13 @@ export function expressHandler<
     request.on('timeout', () => {
       abortController.abort();
     });
+    request.on('aborted', () => {
+      abortController.abort();
+    });
+    // If the client disconnects, the response will be closed.
+    response.on('close', () => {
+      abortController.abort();
+    });
 
     if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
       const streamManager = opts?.streamManager;
