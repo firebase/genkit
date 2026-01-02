@@ -269,7 +269,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         )
         .optional(),
       thinkingLevel: z
-        .enum(['LOW', 'MEDIUM', 'HIGH'])
+        .enum(['LOW', 'MINIMAL', 'MEDIUM', 'HIGH'])
         .describe(
           'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
             'is associated with more detailed thinking, which is needed for solving ' +

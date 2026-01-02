@@ -41,12 +41,12 @@ ai.defineFlow('basic-hi', async () => {
 ai.defineFlow(
   {
     name: 'thinking-level',
-    inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+    inputSchema: z.enum(['LOW', 'MINIMAL', 'MEDIUM', 'HIGH']),
     outputSchema: z.any(),
   },
   async (level) => {
     const { text } = await ai.generate({
-      model: vertexAI.model('gemini-3-pro-preview'),
+      model: vertexAI.model('gemini-3-flash-preview'),
       prompt:
         'Alice, Bob, and Carol each live in a different house on the ' +
         'same street: red, green, and blue. The person who lives in the red house ' +

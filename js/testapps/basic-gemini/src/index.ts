@@ -84,7 +84,7 @@ ai.defineFlow('basic-hi-with-fallback', async () => {
 ai.defineFlow(
   {
     name: 'thinking-level',
-    inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+    inputSchema: z.enum(['LOW', 'MINIMAL', 'MEDIUM', 'HIGH']),
   },
   async (level) => {
     const { text } = await ai.generate({
