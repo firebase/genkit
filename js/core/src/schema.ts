@@ -16,8 +16,7 @@
 
 import Ajv, { type ErrorObject, type JSONSchemaType } from 'ajv';
 import addFormats from 'ajv-formats';
-import { z } from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
+import { z, toJSONSchema } from 'zod';
 import { GenkitError } from './error.js';
 import type { Registry } from './registry.js';
 const ajv = new Ajv();
@@ -75,9 +74,7 @@ export function toJsonSchema({
   if (!jsonSchema && !schema) return null;
   if (jsonSchema) return jsonSchema;
   if (jsonSchemas.has(schema!)) return jsonSchemas.get(schema!)!;
-  const outSchema = zodToJsonSchema(schema!, {
-    removeAdditionalStrategy: 'strict',
-  });
+  const outSchema = toJSONSchema(schema!, { target: 'draft-07' });
   jsonSchemas.set(schema!, outSchema as JSONSchema);
   return outSchema as JSONSchema;
 }

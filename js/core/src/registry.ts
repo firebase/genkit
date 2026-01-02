@@ -225,7 +225,7 @@ export class Registry {
     if (
       parsedKey?.dynamicActionHost &&
       this.actionsById[
-        `/dynamic-action-provider/${parsedKey.dynamicActionHost}`
+      `/dynamic-action-provider/${parsedKey.dynamicActionHost}`
       ]
     ) {
       // If it's a dynamic action provider, get the dynamic action.
@@ -296,7 +296,7 @@ export class Registry {
         `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
     }
-    this.actionsById[key] = action;
+    this.actionsById[key] = action as any;
     if (action.__registry) {
       logger.error(`ERROR: ${key} already registered.`);
     }
@@ -322,7 +322,7 @@ export class Registry {
         `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
     }
-    this.actionsById[key] = action;
+    this.actionsById[key] = action as any;
   }
 
   /**

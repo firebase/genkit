@@ -150,7 +150,7 @@ describe('toJsonSchema', () => {
       }),
       {
         $schema: 'http://json-schema.org/draft-07/schema#',
-        additionalProperties: true,
+        additionalProperties: false,
         properties: {
           output: {
             type: 'string',

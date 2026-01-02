@@ -108,8 +108,7 @@ class BackgroundActionImpl<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   RunOptions extends BackgroundActionRunOptions = BackgroundActionRunOptions,
-> implements BackgroundAction<I, O, RunOptions>
-{
+> implements BackgroundAction<I, O, RunOptions> {
   __action: ActionMetadata<I, O>;
 
   readonly startAction: Action<I, typeof OperationSchema>;
@@ -222,7 +221,7 @@ export type BackgroundActionParams<
   outputSchema?: O;
   outputJsonSchema?: JSONSchema7;
   metadata?: Record<string, any>;
-  use?: Middleware<z.infer<I>, z.infer<O>>[];
+  use?: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[];
   streamSchema?: S;
 };
 
@@ -291,7 +290,7 @@ export function backgroundAction<
           jsonSchema: config.outputJsonSchema,
         }),
       },
-      use: config.use,
+      use: config.use as any,
     },
     async (input, options) => {
       const operation = await config.start(input, options);

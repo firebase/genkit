@@ -161,7 +161,7 @@ export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
-  RunOptions extends ActionRunOptions<S> = ActionRunOptions<S>,
+  RunOptions extends ActionRunOptions<z.infer<S>> = ActionRunOptions<z.infer<S>>,
 > = ((input?: z.infer<I>, options?: RunOptions) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, S>;
   __registry?: Registry;
@@ -185,11 +185,11 @@ export type ActionParams<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
   name:
-    | string
-    | {
-        pluginId: string;
-        actionId: string;
-      };
+  | string
+  | {
+    pluginId: string;
+    actionId: string;
+  };
   description?: string;
   inputSchema?: I;
   inputJsonSchema?: JSONSchema7;
@@ -267,14 +267,18 @@ export function actionWithMiddleware<
 
       const currentMiddleware = middleware[index];
       if (currentMiddleware.length === 3) {
-        return (currentMiddleware as MiddlewareWithOptions<I, O, z.infer<S>>)(
+        return (currentMiddleware as MiddlewareWithOptions<
+          z.infer<I>,
+          z.infer<O>,
+          z.infer<S>
+        >)(
           req,
           opts,
           async (modifiedReq, modifiedOptions) =>
             dispatch(index + 1, modifiedReq || req, modifiedOptions || opts)
         );
       } else if (currentMiddleware.length === 2) {
-        return (currentMiddleware as SimpleMiddleware<I, O>)(
+        return (currentMiddleware as SimpleMiddleware<z.infer<I>, z.infer<O>>)(
           req,
           async (modifiedReq) => dispatch(index + 1, modifiedReq || req, opts)
         );
@@ -302,7 +306,7 @@ export function action<
     input: z.infer<I>,
     options: ActionFnArg<z.infer<S>>
   ) => Promise<z.infer<O>>
-): Action<I, O, z.infer<S>> {
+): Action<I, O, S> {
   const actionName =
     typeof config.name === 'string'
       ? config.name
@@ -320,11 +324,11 @@ export function action<
   } as ActionMetadata<I, O, S>;
 
   const actionFn = (async (
-    input?: I,
+    input?: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
   ) => {
     return (await actionFn.run(input, options)).result;
-  }) as Action<I, O, z.infer<S>>;
+  }) as Action<I, O, S>;
   actionFn.__action = { ...actionMetadata };
 
   actionFn.run = async (
@@ -422,14 +426,14 @@ export function action<
       start(controller) {
         chunkStreamController = controller;
       },
-      pull() {},
-      cancel() {},
+      pull() { },
+      cancel() { },
     });
 
     const invocationPromise = actionFn
       .run(config.inputSchema ? config.inputSchema.parse(input) : input, {
         onChunk: ((chunk: z.infer<S>) => {
-          chunkStreamController.enqueue(chunk);
+          chunkStreamController.enqueue(chunk as any);
         }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
         context: {
           ...actionFn.__registry?.context,
@@ -489,10 +493,10 @@ export function defineAction<
   if (isInRuntimeContext()) {
     throw new Error(
       'Cannot define new actions at runtime.\n' +
-        'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
+      'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
-  const act = action(config, async (i: I, options): Promise<z.infer<O>> => {
+  const act = action(config, async (i: z.infer<I>, options): Promise<z.infer<O>> => {
     await registry.initializeAllPlugins();
     return await runInActionRuntimeContext(() => fn(i, options));
   });
@@ -514,9 +518,9 @@ export function defineActionAsync<
   name:
     | string
     | {
-        pluginId: string;
-        actionId: string;
-      },
+      pluginId: string;
+      actionId: string;
+    },
   config: PromiseLike<ActionAsyncParams<I, O, S>>,
   onInit?: (action: Action<I, O, S>) => void
 ): PromiseLike<Action<I, O, S>> {
@@ -526,7 +530,7 @@ export function defineActionAsync<
     config.then((resolvedConfig) => {
       const act = action(
         resolvedConfig,
-        async (i: I, options): Promise<z.infer<O>> => {
+        async (i: z.infer<I>, options): Promise<z.infer<O>> => {
           await registry.initializeAllPlugins();
           return await runInActionRuntimeContext(() =>
             resolvedConfig.fn(i, options)
