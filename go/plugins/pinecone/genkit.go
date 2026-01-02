@@ -46,9 +46,10 @@ const defaultTextKey = "_content"
 type Pinecone struct {
 	APIKey string // API key to use for Pinecone requests.
 
-	client  *client    // Client for the Pinecone service.
-	mu      sync.Mutex // Mutex to control access.
-	initted bool       // Whether the plugin has been initialized.
+	client         *client              // Client for the Pinecone service.
+	indexDataCache map[string]*indexData // Cache of index data.
+	mu             sync.Mutex           // Mutex to control access.
+	initted        bool                 // Whether the plugin has been initialized.
 }
 
 // Name returns the name of the plugin.
@@ -72,6 +73,7 @@ func (p *Pinecone) Init(ctx context.Context) []api.Action {
 		panic(fmt.Errorf("pinecone.Init: %w", err))
 	}
 	p.client = client
+	p.indexDataCache = make(map[string]*indexData)
 	p.initted = true
 	return []api.Action{}
 }
@@ -127,11 +129,18 @@ func (p *Pinecone) newDocstore(ctx context.Context, cfg Config) (*Docstore, erro
 	if cfg.Embedder == nil {
 		return nil, errors.New("Embedder required")
 	}
-	// TODO: cache these calls so we don't make them twice for the retriever.
-	indexData, err := p.client.indexData(ctx, cfg.IndexID)
-	if err != nil {
-		return nil, err
+
+	// Access to cache is protected by p.mu (locked at start of function).
+	indexData, ok := p.indexDataCache[cfg.IndexID]
+	if !ok {
+		var err error
+		indexData, err = p.client.indexData(ctx, cfg.IndexID)
+		if err != nil {
+			return nil, err
+		}
+		p.indexDataCache[cfg.IndexID] = indexData
 	}
+
 	index, err := p.client.index(ctx, indexData.Host)
 	if err != nil {
 		return nil, err
