@@ -157,14 +157,15 @@ raw: if true no formatting will be applied to the prompt. You may choose to use 
 keep_alive: controls how long the model will stay loaded into memory following the request (default: 5m)
 */
 type ollamaChatRequest struct {
-	Messages []*ollamaMessage `json:"messages"`
-	Images   []string         `json:"images,omitempty"`
-	Model    string           `json:"model"`
-	Stream   bool             `json:"stream"`
-	Format   string           `json:"format,omitempty"`
-	Tools    []ollamaTool     `json:"tools,omitempty"`
-	Think    any              `json:"think,omitempty"`
-	Options  map[string]any   `json:"options,omitempty"`
+	Messages  []*ollamaMessage `json:"messages"`
+	Images    []string         `json:"images,omitempty"`
+	Model     string           `json:"model"`
+	Stream    bool             `json:"stream"`
+	Format    string           `json:"format,omitempty"`
+	Tools     []ollamaTool     `json:"tools,omitempty"`
+	Think     any              `json:"think,omitempty"`
+	Options   map[string]any   `json:"options,omitempty"`
+	KeepAlive string           `json:"keep_alive,omitempty"`
 }
 
 type ollamaModelRequest struct {
@@ -408,10 +409,13 @@ func applyGenerateConfigToOllama(
 	switch cfg := cfg.(type) {
 	case GenerateContentConfig:
 		// Thinking
-		if cfg.Think != "" {
+		if cfg.Think != nil {
 			req.Think = cfg.Think
 		}
 
+		if cfg.KeepAlive != "" {
+			req.KeepAlive = cfg.KeepAlive
+		}
 		// Runtime options
 		opts := map[string]any{}
 
