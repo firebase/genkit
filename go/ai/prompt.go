@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"maps"
 	"os"
@@ -575,12 +576,17 @@ func LoadPromptDir(r api.Registry, dir string, namespace string) {
 		return
 	}
 
-	loadPromptDir(r, path, namespace)
+	loadPromptDir(r, os.DirFS(dir), ".", namespace)
+}
+
+// LoadPromptFS loads prompts and partials from the given filesystem for the given namespace.
+func LoadPromptFS(r api.Registry, fsys fs.FS, dir string, namespace string) {
+	loadPromptDir(r, fsys, dir, namespace)
 }
 
 // loadPromptDir recursively loads prompts and partials from the directory.
-func loadPromptDir(r api.Registry, dir string, namespace string) {
-	entries, err := os.ReadDir(dir)
+func loadPromptDir(r api.Registry, fsys fs.FS, dir, namespace string) {
+	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
 	}
@@ -589,7 +595,7 @@ func loadPromptDir(r api.Registry, dir string, namespace string) {
 		filename := entry.Name()
 		path := filepath.Join(dir, filename)
 		if entry.IsDir() {
-			loadPromptDir(r, path, namespace)
+			loadPromptDir(r, fsys, path, namespace)
 		} else if strings.HasSuffix(filename, ".prompt") {
 			if strings.HasPrefix(filename, "_") {
 				partialName := strings.TrimSuffix(filename[1:], ".prompt")
@@ -601,7 +607,7 @@ func loadPromptDir(r api.Registry, dir string, namespace string) {
 				r.RegisterPartial(partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
-				LoadPrompt(r, dir, filename, namespace)
+				loadPrompt(r, fsys, dir, filename, namespace)
 			}
 		}
 	}
@@ -609,11 +615,17 @@ func loadPromptDir(r api.Registry, dir string, namespace string) {
 
 // LoadPrompt loads a single prompt into the registry.
 func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
+	dir, rest := filepath.Split(dir)
+	return loadPrompt(r, os.DirFS(dir), rest, filename, namespace)
+}
+
+// loadPrompt uses provided fsys to load a single prompt into the registry.
+func loadPrompt(r api.Registry, fsys fs.FS, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 
 	sourceFile := filepath.Join(dir, filename)
-	source, err := os.ReadFile(sourceFile)
+	source, err := fs.ReadFile(fsys, sourceFile)
 	if err != nil {
 		slog.Error("Failed to read prompt file", "file", sourceFile, "error", err)
 		return nil
