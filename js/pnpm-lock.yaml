@@ -866,7 +866,7 @@ importers:
         version: link:../../genkit
       jest:
         specifier: ^29.7.0
-        version: 29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5))
+        version: 29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@5.8.3))
       next:
         specifier: ^15.4.10
         version: 15.4.10(@babel/core@7.25.7)(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -878,19 +878,19 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@5.8.3)))(typescript@5.8.3)
       tsup:
         specifier: ^8.0.2
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.2)
+        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.2)
       tsx:
         specifier: ^4.7.0
         version: 4.20.3
       typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
+        specifier: ^5.5.0
+        version: 5.8.3
       zod:
-        specifier: ^3.24.1
-        version: 3.25.67
+        specifier: ^4.3.4
+        version: 4.3.4
 
   plugins/ollama:
     dependencies:

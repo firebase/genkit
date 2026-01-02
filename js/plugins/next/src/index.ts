@@ -215,7 +215,9 @@ function appRoute<
     (async (): Promise<void> => {
       const writer = writable.getWriter();
       const taskQueue = new AsyncTaskQueue();
-      let durableStream: ActionStreamInput<S, O> | undefined = undefined;
+      let durableStream:
+        | ActionStreamInput<z.infer<S>, z.infer<O>>
+        | undefined = undefined;
       if (streamManager) {
         durableStream = await streamManager.open(streamIdToUse);
       }
