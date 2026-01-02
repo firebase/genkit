@@ -298,6 +298,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		}
 
 		applyGenerateConfigToOllama(&chatReq, input.Config)
+		fmt.Printf("TEST: %+v\n", chatReq)
 		if len(input.Tools) > 0 {
 			tools, err := convertTools(input.Tools)
 			if err != nil {
@@ -454,11 +455,11 @@ func applyGenerateConfigToOllama(
 			return
 		}
 
-		res := map[string]any{}
-		err = json.Unmarshal(b, &res)
+		err = json.Unmarshal(b, &opts)
 		if err != nil {
 			return
 		}
+
 		if len(opts) > 0 {
 			req.Options = opts
 		}
