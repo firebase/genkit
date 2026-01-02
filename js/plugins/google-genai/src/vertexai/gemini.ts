@@ -318,7 +318,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         )
         .optional(),
       thinkingLevel: z
-        .enum(['LOW', 'MEDIUM', 'HIGH'])
+        .enum(['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'])
         .describe(
           'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
             'is associated with more detailed thinking, which is needed for solving ' +
@@ -422,6 +422,7 @@ const GENERIC_IMAGE_MODEL = commonRef(
 );
 
 export const KNOWN_GEMINI_MODELS = {
+  'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
   'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
