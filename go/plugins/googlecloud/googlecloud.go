@@ -49,6 +49,13 @@ import (
 // Global sync.Once for showing logging setup instructions only once across all recovery attempts
 var showLoggingInstructionsOnce sync.Once
 
+var (
+	// lastLoggerSetup tracks the last time the logger was initialized to prevent rapid re-initialization
+	lastLoggerSetup time.Time
+	// setupMu protects lastLoggerSetup
+	setupMu sync.Mutex
+)
+
 // stderrLogger is a stable logger that always writes to stderr and is never
 // replaced by calls to slog.SetDefault. Use this for error paths to ensure
 // messages are visible even if the default logger is misconfigured.
@@ -237,6 +244,17 @@ func setLogHandler(projectID string, level slog.Leveler, credentials *google.Cre
 }
 
 func setupGCPLogger(projectID string, level slog.Leveler, credentials *google.Credentials) error {
+	setupMu.Lock()
+	now := time.Now()
+	// Allow the first initialization (lastLoggerSetup is zero) or if enough time has passed.
+	// We use a 10 second cool-down to prevent rapid re-initialization loops.
+	if !lastLoggerSetup.IsZero() && now.Sub(lastLoggerSetup) < 10*time.Second {
+		setupMu.Unlock()
+		return fmt.Errorf("too soon to reinitialize logger, waiting for cool-down")
+	}
+	lastLoggerSetup = now
+	setupMu.Unlock()
+
 	var clientOpts []option.ClientOption
 	if credentials != nil {
 		clientOpts = append(clientOpts, option.WithCredentials(credentials))
@@ -255,18 +273,25 @@ func setupGCPLogger(projectID string, level slog.Leveler, credentials *google.Cr
 				fmt.Fprint(os.Stderr, loggingDeniedHelpText(projectID))
 			})
 		}
-		// TODO: Reinitialize logger if possible
-		// For now, we left the code below commented out because re-initialization was causing the
-		// logger to swallow errors for some reason.
-		/*
-			stderrLogger.Error("Unable to send logs to Google Cloud. Re-initializing logger.")
-			// Assume the logger is compromised, and we need a new one
-			// Reinitialize the logger with a new instance with the same config
+
+		// Close the failed client to release resources
+		if closeErr := c.Close(); closeErr != nil {
+			stderrLogger.Debug("Failed to close failing GCP logger client", "error", closeErr)
+		}
+
+		stderrLogger.Error("Unable to send logs to Google Cloud. Scheduling re-initialization.")
+
+		// Attempt re-initialization after a delay to respect rate limits and avoid hot loops
+		go func() {
+			// Wait longer than the rate limit to ensure the check passes
+			time.Sleep(15 * time.Second)
 
 			if setupErr := setupGCPLogger(projectID, level, credentials); setupErr != nil {
 				stderrLogger.Error("Failed to reinitialize GCP logger", "error", setupErr)
+			} else {
+				stderrLogger.Info("Successfully reinitialized GCP logger")
 			}
-		*/
+		}()
 	}
 	logger := c.Logger("genkit_log")
 	slog.SetDefault(slog.New(newHandler(level, logger.Log, projectID)))
