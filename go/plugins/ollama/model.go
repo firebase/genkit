@@ -1,23 +1,14 @@
 package ollama
 
 import (
-	"encoding/json"
 	"errors"
 
 	"github.com/firebase/genkit/go/ai"
 )
 
-var allowedOllamaOptions = map[string]string{
-	"seed":        "opts",
-	"temperature": "opts",
-	"top_k":       "opts",
-	"top_p":       "opts",
-	"min_p":       "opts",
-	"stop":        "opts",
-	"num_ctx":     "opts",
-	"num_predict": "opts",
-	"think":       "main",
-	"keep_alive":  "main",
+var topLevelOpts = map[string]struct{}{
+	"think":      {},
+	"keep_alive": {},
 }
 
 // Ollama has two API endpoints, one with a chat interface and another with a generate response interface.
@@ -32,7 +23,6 @@ template: the prompt template to use (overrides what is defined in the Modelfile
 context: the context parameter returned from a previous request to /generate, this can be used to keep a short conversational memory
 stream: if false the response will be returned as a single response object, rather than a stream of objects
 raw: if true no formatting will be applied to the prompt. You may choose to use the raw parameter if you are specifying a full templated prompt in your request to the API
-keep_alive: controls how long the model will stay loaded into memory following the request (default: 5m)
 */
 type ollamaChatRequest struct {
 	Messages  []*ollamaMessage `json:"messages"`
@@ -111,36 +101,42 @@ func (o *ollamaChatRequest) applyGenerateContentConfig(cfg *GenerateContentConfi
 	}
 }
 func (o *ollamaChatRequest) applyGenerationCommonConfig(cfg *ai.GenerationCommonConfig) error {
-	opts := map[string]any{}
-	b, err := json.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(b, &opts)
-	if err != nil {
-		return err
-	}
-
-	if len(opts) > 0 {
-		o.Options = opts
-	}
-	return nil
-}
-func (o *ollamaChatRequest) applyMapAny(m map[string]any) error {
-	if len(m) == 0 {
+	if cfg == nil {
 		return nil
 	}
 
 	opts := map[string]any{}
 
+	if cfg.MaxOutputTokens > 0 {
+		opts["num_predict"] = cfg.MaxOutputTokens
+	}
+	if len(cfg.StopSequences) > 0 {
+		opts["stop"] = cfg.StopSequences
+	}
+	if cfg.Temperature != 0 {
+		opts["temperature"] = cfg.Temperature
+	}
+	if cfg.TopK > 0 {
+		opts["top_k"] = cfg.TopK
+	}
+	if cfg.TopP > 0 {
+		opts["top_p"] = cfg.TopP
+	}
+
+	if len(opts) > 0 {
+		o.Options = opts
+	}
+
+	return nil
+}
+
+func (o *ollamaChatRequest) applyMapAny(m map[string]any) error {
+	if len(m) == 0 {
+		return nil
+	}
+	opts := map[string]any{}
 	for k, v := range m {
-		typeVal, ok := allowedOllamaOptions[k]
-		if !ok {
-			return errors.New("unknown option: " + k)
-		}
-		switch typeVal {
-		case "main":
+		if _, isTopLevel := topLevelOpts[k]; isTopLevel {
 			switch k {
 			case "think":
 				o.Think = v
@@ -151,15 +147,14 @@ func (o *ollamaChatRequest) applyMapAny(m map[string]any) error {
 					return errors.New("keep_alive must be string")
 				}
 			}
-
-		case "opts":
-			opts[k] = v
+			continue
 		}
-
+		opts[k] = v
 	}
 
 	if len(opts) > 0 {
 		o.Options = opts
 	}
+
 	return nil
 }

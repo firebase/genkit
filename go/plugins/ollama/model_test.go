@@ -59,7 +59,7 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "map[string]any with main fields",
+			name: "map[string]any with top level fields",
 			cfg: map[string]any{
 				"think":      true,
 				"keep_alive": "10m",
@@ -81,13 +81,6 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 					"temperature": 0.9,
 				},
 			},
-		},
-		{
-			name: "map[string]any unknown option",
-			cfg: map[string]any{
-				"unknown": 123,
-			},
-			wantErr: true,
 		},
 		{
 			name: "GenerationCommonConfig pointer",
