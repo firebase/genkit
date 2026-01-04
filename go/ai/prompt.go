@@ -414,13 +414,16 @@ func renderSystemPrompt(ctx context.Context, opts promptOptions, messages []*Mes
 		return nil, err
 	}
 
-	parts, err := renderPrompt(ctx, opts, templateText, input, dp)
+	renderedMessages, err := renderPrompt(ctx, opts, templateText, input, dp)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(parts) != 0 {
-		messages = append(messages, NewSystemMessage(parts...))
+	for i, m := range renderedMessages {
+		if m.Role == "" || (len(renderedMessages) == 1 && m.Role == RoleUser) {
+			renderedMessages[i].Role = RoleSystem
+		}
+		messages = append(messages, renderedMessages[i])
 	}
 
 	return messages, nil
@@ -437,13 +440,16 @@ func renderUserPrompt(ctx context.Context, opts promptOptions, messages []*Messa
 		return nil, err
 	}
 
-	parts, err := renderPrompt(ctx, opts, templateText, input, dp)
+	renderedMessages, err := renderPrompt(ctx, opts, templateText, input, dp)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(parts) != 0 {
-		messages = append(messages, NewUserMessage(parts...))
+	for i, m := range renderedMessages {
+		if m.Role == "" || (len(renderedMessages) == 1 && m.Role != RoleUser) {
+			renderedMessages[i].Role = RoleUser
+		}
+		messages = append(messages, renderedMessages[i])
 	}
 
 	return messages, nil
@@ -463,33 +469,64 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 	// Create new message copies to avoid mutating shared messages during concurrent execution
 	renderedMsgs := make([]*Message, 0, len(msgs))
 	for _, msg := range msgs {
-		msgParts := []*Part{}
+		hasTextPart := false
 		for _, part := range msg.Content {
 			if part.IsText() {
-				parts, err := renderPrompt(ctx, opts, part.Text, input, dp)
+				hasTextPart = true
+				break
+			}
+		}
+
+		if !hasTextPart {
+			// Create a new message with non-text content instead of mutating the original
+			renderedMsg := &Message{
+				Role:     msg.Role,
+				Content:  msg.Content,
+				Metadata: msg.Metadata,
+			}
+			renderedMsgs = append(renderedMsgs, renderedMsg)
+			continue
+		}
+
+		for _, part := range msg.Content {
+			if part.IsText() {
+				messagesFromText, err := renderPrompt(ctx, opts, part.Text, input, dp)
 				if err != nil {
 					return nil, err
 				}
-				msgParts = append(msgParts, parts...)
+				for _, m := range messagesFromText {
+					// If the rendered message has no role, or it is a single message with default role,
+					// use the original message's role.
+					role := m.Role
+					if role == "" || (len(messagesFromText) == 1 && role == RoleUser) {
+						role = msg.Role
+					}
+					renderedMsgs = append(renderedMsgs, &Message{
+						Role:     role,
+						Content:  m.Content,
+						Metadata: msg.Metadata,
+					})
+				}
 			} else {
-				// Preserve non-text parts as-is
-				msgParts = append(msgParts, part)
+				// Preserve non-text parts as-is in the current last message if possible, or create a new one
+				if len(renderedMsgs) > 0 && renderedMsgs[len(renderedMsgs)-1].Role == msg.Role {
+					renderedMsgs[len(renderedMsgs)-1].Content = append(renderedMsgs[len(renderedMsgs)-1].Content, part)
+				} else {
+					renderedMsgs = append(renderedMsgs, &Message{
+						Role:     msg.Role,
+						Content:  []*Part{part},
+						Metadata: msg.Metadata,
+					})
+				}
 			}
 		}
-		// Create a new message with rendered content instead of mutating the original
-		renderedMsg := &Message{
-			Role:     msg.Role,
-			Content:  msgParts,
-			Metadata: msg.Metadata,
-		}
-		renderedMsgs = append(renderedMsgs, renderedMsg)
 	}
 
 	return append(messages, renderedMsgs...), nil
 }
 
 // renderPrompt renders a prompt template using dotprompt functionalities
-func renderPrompt(ctx context.Context, opts promptOptions, templateText string, input map[string]any, dp *dotprompt.Dotprompt) ([]*Part, error) {
+func renderPrompt(ctx context.Context, opts promptOptions, templateText string, input map[string]any, dp *dotprompt.Dotprompt) ([]*Message, error) {
 	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
 	if err != nil {
 		return nil, err
@@ -502,8 +539,8 @@ func renderPrompt(ctx context.Context, opts promptOptions, templateText string, 
 	})
 }
 
-// renderDotpromptToParts executes a dotprompt prompt function and converts the result to a slice of parts
-func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Part, error) {
+// renderDotpromptToParts executes a dotprompt prompt function and converts the result to a slice of messages
+func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Message, error) {
 	// Prepare the context for rendering
 	context := map[string]any{}
 	actionCtx := core.FromContext(ctx)
@@ -518,16 +555,20 @@ func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFuncti
 		return nil, fmt.Errorf("failed to render prompt: %w", err)
 	}
 
-	convertedParts := []*Part{}
+	convertedMessages := []*Message{}
 	for _, message := range rendered.Messages {
 		parts, err := convertToPartPointers(message.Content)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert parts: %w", err)
 		}
-		convertedParts = append(convertedParts, parts...)
+		role := Role(message.Role)
+		convertedMessages = append(convertedMessages, &Message{
+			Role:    role,
+			Content: parts,
+		})
 	}
 
-	return convertedParts, nil
+	return convertedMessages, nil
 }
 
 // convertToPartPointers converts []dotprompt.Part to []*Part
