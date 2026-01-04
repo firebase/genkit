@@ -1518,3 +1518,55 @@ func TestWithOutputSchemaName_DefinePrompt_Missing(t *testing.T) {
 		t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
 	}
 }
+
+func TestPromptRenderDefaultInput(t *testing.T) {
+	r := registry.New()
+
+	// Define a prompt with default input
+	defaultInput := map[string]any{"key": "value"}
+	p := DefinePrompt(r, "test-prompt-default-input",
+		WithPrompt("{{key}}"),
+		WithInputType(defaultInput),
+	)
+
+	// Render with nil input, expecting default input to be used
+	rendered, err := p.Render(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("Render failed: %v", err)
+	}
+
+	if len(rendered.Messages) == 0 {
+		t.Fatal("Render returned no messages")
+	}
+
+	found := false
+	for _, msg := range rendered.Messages {
+		for _, part := range msg.Content {
+			if part.IsText() && part.Text == "value" {
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("Rendered output did not contain default input value. Messages: %+v", rendered.Messages)
+	}
+}
+
+func TestPromptMetadataHelper(t *testing.T) {
+	r := registry.New()
+	p := DefinePrompt(r, "test-prompt-metadata",
+		WithMetadata(map[string]any{"foo": "bar"}),
+	).(*prompt)
+
+	meta := p.metadata()
+	if meta == nil {
+		t.Fatal("metadata() returned nil")
+	}
+
+	// DefinePrompt adds prompt metadata
+	if meta["name"] != "test-prompt-metadata" {
+		t.Errorf("metadata() does not contain expected name. Got: %v", meta["name"])
+	}
+}

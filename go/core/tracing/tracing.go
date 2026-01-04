@@ -169,6 +169,8 @@ type SpanMetadata struct {
 	TelemetryLabels map[string]string
 	// Metadata are genkit-specific metadata with automatic "genkit:metadata:" prefix
 	Metadata map[string]string
+	// Links are relationships to other spans
+	Links []trace.Link
 }
 
 // RunInNewSpan runs f on input in a new span with the provided metadata.
@@ -234,6 +236,10 @@ func RunInNewSpan[I, O any](
 
 	if metadata.Type != "" {
 		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, metadata.Type)))
+	}
+
+	if len(metadata.Links) > 0 {
+		opts = append(opts, trace.WithLinks(metadata.Links...))
 	}
 
 	ctx, span := Tracer().Start(ctx, metadata.Name, opts...)

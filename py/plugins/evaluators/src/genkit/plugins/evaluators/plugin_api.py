@@ -25,6 +25,7 @@ import jsonata
 from dotpromptz.typing import DataArgument
 
 from genkit.ai import Genkit, Plugin
+from genkit.blocks.document import Document
 from genkit.plugins.evaluators.constant import (
     AnswerRelevancyResponseSchema,
     GenkitMetricType,
@@ -34,6 +35,7 @@ from genkit.plugins.evaluators.constant import (
     NliResponse,
     PluginOptions,
 )
+from genkit.plugins.evaluators.utils import cosine_similarity
 from genkit.plugins.metrics.helper import load_prompt_file, render_text
 from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
 
@@ -94,9 +96,15 @@ class GenkitEvaluators(Plugin):
                 async def _relevancy_eval(datapoint: BaseEvalDataPoint, options: Any | None):
                     assert datapoint.output is not None, 'output is required'
                     output_string = (
-                        datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
+                        datapoint.output
+                        if isinstance(datapoint.output, str)
+                        else json.dumps(datapoint.output, default=lambda o: o.root if hasattr(o, 'root') else o)
                     )
-                    input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    input_string = (
+                        datapoint.input
+                        if isinstance(datapoint.input, str)
+                        else json.dumps(datapoint.input, default=lambda o: o.root if hasattr(o, 'root') else o)
+                    )
                     prompt_function = await load_prompt_file(_get_prompt_path('faithfulness_long_form.prompt'))
                     context = ' '.join(json.dumps(e) for e in datapoint.context)
                     prompt = await render_text(
@@ -106,11 +114,20 @@ class GenkitEvaluators(Plugin):
                     response = await ai.generate(
                         model=param.judge.name,
                         prompt=prompt,
-                        config=param.config,
+                        config=param.judge_config,
                         output_schema=AnswerRelevancyResponseSchema,
                     )
-                    # TODO: embedding comparison between the input and the result of the llm
-                    status = EvalStatusEnum.PASS_ if response.output else EvalStatusEnum.FAIL
+                    embedder = param.metric_config.get('embedder') if param.metric_config else None
+                    if embedder:
+                        input_embedding = await ai.embed(embedder, [Document.from_text(input_string)])
+                        output_embedding = await ai.embed(embedder, [Document.from_text(output_string)])
+                        score = cosine_similarity(
+                            input_embedding.embeddings[0].embedding, output_embedding.embeddings[0].embedding
+                        )
+                    else:
+                        score = 1.0 if response.output else 0.0
+
+                    status = EvalStatusEnum.PASS_ if score > 0.5 else EvalStatusEnum.FAIL
                     return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
 
                 ai.define_evaluator(
@@ -220,7 +237,7 @@ class GenkitEvaluators(Plugin):
                     score = await ai.generate(
                         model=param.judge.name,
                         prompt=prompt,
-                        config=param.config,
+                        config=param.judge_config,
                         output_schema=MaliciousnessResponseSchema,
                     )
                     status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL

@@ -251,10 +251,25 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	// TODO: This is hacky; we should have a helper that fetches the metadata.
 	if input == nil {
-		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
+		if m := p.metadata(); m != nil {
+			input = m["defaultInput"]
+		}
 	}
 
 	return p.Run(ctx, input, nil)
+}
+
+// metadata returns the prompt-specific metadata map.
+func (p *prompt) metadata() map[string]any {
+	desc := p.Desc()
+	if desc.Metadata == nil {
+		return nil
+	}
+	m, ok := desc.Metadata["prompt"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return m
 }
 
 // Desc returns a descriptor of the prompt with resolved schema references.
