@@ -217,7 +217,6 @@ export class RuntimeManager {
     const response = await axios
       .get(`${runtime.reflectionServerUrl}/api/values`, {
         params: {
-          runtime,
           type: input.type,
         },
       })

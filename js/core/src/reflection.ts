@@ -156,7 +156,7 @@ export class ReflectionServer {
       try {
         const type = req.query.type;
         if (!type) {
-          response.status(404).send(`value type ${type} not found`);
+          response.status(400).send('Query parameter "type" is required.');
           return;
         }
         const values = await this.registry.listValues(type as string);
