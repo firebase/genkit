@@ -151,6 +151,22 @@ export class ReflectionServer {
       await this.stop();
     });
 
+    server.get('/api/values', async (req, response, next) => {
+      logger.debug('Fetching values.');
+      try {
+        const type = req.query.type;
+        if (!type) {
+          response.status(404).send(`value type ${type} not found`);
+          return;
+        }
+        const values = await this.registry.listValues(type as string);
+        response.send(values);
+      } catch (err) {
+        const { message, stack } = err as Error;
+        next({ message, stack });
+      }
+    });
+
     server.get('/api/actions', async (_, response, next) => {
       logger.debug('Fetching actions.');
       try {

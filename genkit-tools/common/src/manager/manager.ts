@@ -199,6 +199,33 @@ export class RuntimeManager {
   }
 
   /**
+   * Retrieves all valuess.
+   */
+  async listValues(
+    input: apis.ListValuesRequest
+  ): Promise<Record<string, unknown>> {
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
+    if (!runtime) {
+      throw new Error(
+        input?.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+      );
+    }
+    const response = await axios
+      .get(`${runtime.reflectionServerUrl}/api/values`, {
+        params: {
+          runtime,
+          type: input.type,
+        },
+      })
+      .catch((err) => this.httpErrorHandler(err, 'Error listing values.'));
+    return response.data as Record<string, unknown>;
+  }
+
+  /**
    * Runs an action.
    */
   async runAction(
