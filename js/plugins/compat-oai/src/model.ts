@@ -467,7 +467,7 @@ export function toOpenAIRequestBody(
 ) {
   const messages = toOpenAIMessages(
     request.messages,
-    request.config?.visualDetailLevel
+    (request.config as any)?.visualDetailLevel
   );
   const {
     temperature,
@@ -483,7 +483,7 @@ export function toOpenAIRequestBody(
     tools: toolsFromConfig,
     apiKey,
     ...restOfConfig
-  } = request.config ?? {};
+  } = (request.config as any) ?? {};
 
   const tools: ChatCompletionTool[] = request.tools?.map(toOpenAITool) ?? [];
   if (toolsFromConfig) {
