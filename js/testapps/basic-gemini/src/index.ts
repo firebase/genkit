@@ -286,7 +286,7 @@ ai.defineFlow(
     streamSchema: z.any(),
   },
   async (location, { sendChunk }) => {
-    const { response, stream } = ai.generateStream({
+    const { response, stream } = (ai as any).generateStream({
       model: googleAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
@@ -311,7 +311,7 @@ ai.defineFlow(
     streamSchema: z.any(),
   },
   async (_, { sendChunk }) => {
-    const { response, stream } = ai.generateStream({
+    const { response, stream } = (ai as any).generateStream({
       model: googleAI.model('gemini-3-pro-preview'),
       config: {
         temperature: 1,
@@ -342,7 +342,7 @@ ai.defineFlow(
     streamSchema: z.any(),
   },
   async (location, { sendChunk }) => {
-    const { response, stream } = ai.generateStream({
+    const { response, stream } = (ai as any).generateStream({
       model: googleAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
@@ -373,7 +373,7 @@ ai.defineFlow(
     outputSchema: RpgCharacterSchema,
   },
   async (name, { sendChunk }) => {
-    const { response, stream } = ai.generateStream({
+    const { response, stream } = (ai as any).generateStream({
       model: googleAI.model('gemini-2.5-flash'),
       config: {
         temperature: 2, // we want creativity
