@@ -152,7 +152,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .max(2)
     .describe(
       GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 1.0.'
+      ' The default value is 1.0.'
     )
     .optional(),
   topP: z
@@ -171,7 +171,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .array(SafetySettingsSchema)
     .describe(
       'Adjust how likely you are to see responses that could be harmful. ' +
-        'Content is blocked based on the probability that it is harmful.'
+      'Content is blocked based on the probability that it is harmful.'
     )
     .optional(),
   codeExecution: z
@@ -182,7 +182,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .boolean()
     .describe(
       'Context caching allows you to save and reuse precomputed input ' +
-        'tokens that you wish to use repeatedly.'
+      'tokens that you wish to use repeatedly.'
     )
     .optional(),
   functionCallingConfig: z
@@ -192,18 +192,18 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .describe(
       'Controls how the model uses the provided tools (function declarations). ' +
-        'With AUTO (Default) mode, the model decides whether to generate a ' +
-        'natural language response or suggest a function call based on the ' +
-        'prompt and context. With ANY, the model is constrained to always ' +
-        'predict a function call and guarantee function schema adherence. ' +
-        'With NONE, the model is prohibited from making function calls.'
+      'With AUTO (Default) mode, the model decides whether to generate a ' +
+      'natural language response or suggest a function call based on the ' +
+      'prompt and context. With ANY, the model is constrained to always ' +
+      'predict a function call and guarantee function schema adherence. ' +
+      'With NONE, the model is prohibited from making function calls.'
     )
     .optional(),
   responseModalities: z
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
     .describe(
       'The modalities to be used in response. Only supported for ' +
-        "'gemini-2.0-flash-exp' model at present."
+      "'gemini-2.0-flash-exp' model at present."
     )
     .optional(),
   googleSearchRetrieval: z
@@ -218,7 +218,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .boolean()
         .describe(
           'Indicates whether to include thoughts in the response.' +
-            'If true, thoughts are returned only when available.'
+          'If true, thoughts are returned only when available.'
         )
         .optional(),
       thinkingBudget: z
@@ -227,10 +227,10 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .max(24576)
         .describe(
           'The thinking budget parameter gives the model guidance on the ' +
-            'number of thinking tokens it can use when generating a response. ' +
-            'A greater number of tokens is typically associated with more detailed ' +
-            'thinking, which is needed for solving more complex tasks. ' +
-            'Setting the thinking budget to 0 disables thinking.'
+          'number of thinking tokens it can use when generating a response. ' +
+          'A greater number of tokens is typically associated with more detailed ' +
+          'thinking, which is needed for solving more complex tasks. ' +
+          'Setting the thinking budget to 0 disables thinking.'
         )
         .optional(),
     })
@@ -248,7 +248,7 @@ export const GeminiGemmaConfigSchema = GeminiConfigSchema.extend({
     .max(1.0)
     .describe(
       GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 1.0.'
+      ' The default value is 1.0.'
     )
     .optional(),
 }).passthrough();
@@ -853,7 +853,22 @@ function toGeminiRole(
 }
 
 function convertSchemaProperty(property) {
-  if (!property || !property.type) {
+  if (!property) {
+    return undefined;
+  }
+  if (property.anyOf) {
+    // handle common nullable pattern from Zod 4: anyOf: [{type: 'string'}, {type: 'null'}]
+    const isNullable = property.anyOf.some((p) => p.type === 'null');
+    const actualProperty = property.anyOf.find((p) => p.type !== 'null');
+    if (actualProperty) {
+      const converted = convertSchemaProperty(actualProperty);
+      if (converted && isNullable) {
+        converted.nullable = true;
+      }
+      return converted;
+    }
+  }
+  if (!property.type) {
     return undefined;
   }
   const baseSchema = {} as Schema;
@@ -1292,7 +1307,7 @@ export function defineGoogleAIModel({
               ].includes(url.hostname)
             )
               return false;
-          } catch {}
+          } catch { }
           return true;
         },
       })
@@ -1317,7 +1332,7 @@ export function defineGoogleAIModel({
       }
       const requestConfig: z.infer<typeof GeminiConfigSchema> = {
         ...defaultConfig,
-        ...request.config,
+        ...(request.config as any),
       };
 
       // Make a copy so that modifying the request will not produce side-effects
@@ -1357,9 +1372,9 @@ export function defineGoogleAIModel({
       if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
-            request.config.codeExecution === true
+            (request.config as any)?.codeExecution === true
               ? {}
-              : request.config.codeExecution,
+              : (request.config as any)?.codeExecution,
         });
       }
 
@@ -1530,26 +1545,26 @@ export function defineGoogleAIModel({
       // API params as for input.
       return debugTraces
         ? await runInNewSpan(
-            ai.registry,
-            {
-              metadata: {
-                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
-              },
+          ai.registry,
+          {
+            metadata: {
+              name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
             },
-            async (metadata) => {
-              metadata.input = {
-                sdk: '@google/generative-ai',
-                cache: cache,
-                model: genModel.model,
-                chatOptions: updatedChatRequest,
-                parts: msg.parts,
-                options,
-              };
-              const response = await callGemini();
-              metadata.output = response.custom;
-              return response;
-            }
-          )
+          },
+          async (metadata) => {
+            metadata.input = {
+              sdk: '@google/generative-ai',
+              cache: cache,
+              model: genModel.model,
+              chatOptions: updatedChatRequest,
+              parts: msg.parts,
+              options,
+            };
+            const response = await callGemini();
+            metadata.output = response.custom;
+            return response;
+          }
+        )
         : await callGemini();
     }
   );

@@ -108,7 +108,7 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
         });
         actions.push(action);
       }
-      return actions;
+      return actions as any;
     },
     resolve: (actionType: ActionType, name: string) => {
       if (actionType === 'model') {
@@ -119,7 +119,7 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
           client,
           cacheSystemPrompt: options?.cacheSystemPrompt,
           defaultApiVersion,
-        });
+        }) as any;
       }
       return undefined;
     },

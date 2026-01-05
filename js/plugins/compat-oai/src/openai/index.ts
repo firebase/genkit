@@ -190,7 +190,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
             pluginOptions,
             modelRef,
           })
-        )
+        ) as ResolvableAction[]
       );
       models.push(
         ...Object.values(SUPPORTED_EMBEDDING_MODELS).map((embedderRef) =>
@@ -200,7 +200,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
             pluginOptions,
             embedderRef,
           })
-        )
+        ) as ResolvableAction[]
       );
       models.push(
         ...Object.values(SUPPORTED_TTS_MODELS).map((modelRef) =>
@@ -210,7 +210,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
             pluginOptions,
             modelRef,
           })
-        )
+        ) as ResolvableAction[]
       );
       models.push(
         ...Object.values(SUPPORTED_STT_MODELS).map((modelRef) =>
@@ -220,7 +220,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
             pluginOptions,
             modelRef,
           })
-        )
+        ) as ResolvableAction[]
       );
       models.push(
         ...Object.values(SUPPORTED_IMAGE_MODELS).map((modelRef) =>
@@ -233,11 +233,11 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
               ? gptImage1RequestBuilder
               : undefined,
           })
-        )
+        ) as ResolvableAction[]
       );
       return models;
     },
-    resolver: createResolver(pluginOptions),
+    resolver: createResolver(pluginOptions) as any,
     listActions,
   });
 }

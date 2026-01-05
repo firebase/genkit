@@ -52,7 +52,7 @@ export const gptImage1RequestBuilder: ImageRequestBuilder = (req, params) => {
     quality,
     style,
     user,
-  } = req.config ?? {};
+  } = (req.config as any) ?? {};
   // GPT Image 1 does not support response format
   params.response_format = undefined;
   params.background = background;

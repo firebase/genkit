@@ -39,12 +39,13 @@ describe('evaluate', () => {
           },
         ],
         evalRunId: 'my-dog-eval',
+        options: {},
       });
 
       assert.strictEqual(response.length, 1);
-      assert.strictEqual(response[0].evaluation.score, 'Much bonk');
+      assert.strictEqual((response[0].evaluation as any).score, 'Much bonk');
       assert.strictEqual(
-        response[0].evaluation.details?.reasoning,
+        (response[0].evaluation as any).details?.reasoning,
         'Because I said so!'
       );
     });

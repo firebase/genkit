@@ -76,7 +76,7 @@ export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
       type: 'prompt';
     };
   };
-  __executablePrompt: ExecutablePrompt<I>;
+  __executablePrompt: ExecutablePrompt<z.infer<I>>;
 };
 
 export function isPromptAction(action: Action): action is PromptAction {
@@ -97,7 +97,7 @@ export type ExecutablePromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> =
         type: 'executablePrompt';
       };
     };
-    __executablePrompt: ExecutablePrompt<I>;
+    __executablePrompt: ExecutablePrompt<z.infer<I>>;
   };
 
 /**
@@ -171,7 +171,7 @@ export interface ExecutablePrompt<
   stream(
     input?: I,
     opts?: PromptGenerateOptions<O, CustomOptions>
-  ): GenerateStreamResponse<z.infer<O>>;
+  ): GenerateStreamResponse<O>;
 
   /**
    * Renders the prompt template based on user input.
@@ -326,13 +326,13 @@ function definePromptAsync<
           use: resolvedOptions.use,
           ...stripUndefinedProps(renderOptions),
           config: {
-            ...resolvedOptions?.config,
-            ...renderOptions?.config,
+            ...(resolvedOptions?.config || {}),
+            ...(renderOptions?.config || {}),
           },
           metadata: resolvedOptions.metadata?.metadata
             ? {
-                prompt: resolvedOptions.metadata?.metadata,
-              }
+              prompt: resolvedOptions.metadata?.metadata,
+            }
             : undefined,
         });
 
@@ -342,7 +342,10 @@ function definePromptAsync<
           opts.abortSignal = renderOptions.abortSignal;
         }
         // if config is empty and it was not explicitly passed in, we delete it, don't want {}
-        if (Object.keys(opts.config).length === 0 && !renderOptions?.config) {
+        if (
+          Object.keys(opts.config || {}).length === 0 &&
+          !renderOptions?.config
+        ) {
           delete opts.config;
         }
         metadata.output = opts;
@@ -464,7 +467,7 @@ function wrapInExecutablePrompt<
   metadata?: Record<string, any>;
 }) {
   const executablePrompt = (async (
-    input?: I,
+    input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> => {
     return await runInNewSpan(
@@ -480,10 +483,11 @@ function wrapInExecutablePrompt<
       },
       async (metadata) => {
         const output = await generate(wrapOpts.registry, {
-          ...(await wrapOpts.renderOptionsFn(input, opts)),
+          ...(await wrapOpts.renderOptionsFn(input as z.infer<I>, opts)),
         });
         metadata.output = output;
-        return output;
+        // Cast to 'unknown' first to avoid type mismatch with GenerateResponse<O>
+        return output as unknown as GenerateResponse<z.infer<O>>;
       }
     );
   }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
@@ -491,26 +495,26 @@ function wrapInExecutablePrompt<
   executablePrompt.ref = { name: wrapOpts.name, metadata: wrapOpts.metadata };
 
   executablePrompt.render = async (
-    input?: I,
+    input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateOptions<O, CustomOptions>> => {
     return {
-      ...(await wrapOpts.renderOptionsFn(input, opts)),
+      ...(await wrapOpts.renderOptionsFn(input as z.infer<I>, opts)),
     } as GenerateOptions<O, CustomOptions>;
   };
 
   executablePrompt.stream = (
-    input?: I,
+    input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
-  ): GenerateStreamResponse<z.infer<O>> => {
+  ): GenerateStreamResponse<O> => {
     return generateStream(
       wrapOpts.registry,
-      wrapOpts.renderOptionsFn(input, opts)
+      wrapOpts.renderOptionsFn(input as z.infer<I>, opts)
     );
   };
 
-  executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
-    return (await wrapOpts.rendererAction) as unknown as ToolAction<I, O>;
+  executablePrompt.asTool = async (): Promise<ToolAction> => {
+    return (await wrapOpts.rendererAction) as unknown as ToolAction;
   };
   return executablePrompt;
 }
@@ -712,7 +716,7 @@ async function renderDotpromptToParts<
   if (renderred.messages.length !== 1) {
     throw new Error('parts tempate must produce only one message');
   }
-  return renderred.messages[0].content;
+  return renderred.messages[0].content as unknown as Part[];
 }
 
 /**

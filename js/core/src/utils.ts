@@ -37,8 +37,21 @@ export function stripUndefinedProps<T>(input: T): T {
   if (
     input === undefined ||
     input === null ||
-    Array.isArray(input) ||
     typeof input !== 'object'
+  ) {
+    return input;
+  }
+  if (Array.isArray(input)) {
+    return input.map(stripUndefinedProps) as T;
+  }
+  // If the object is not a plain object, return it as is.
+  // This is to prevent destroying objects like Zod schemas, Dates, etc.
+  // We check for _def which is a common indicator of a Zod schema.
+  if (
+    (input as any)._def ||
+    (input.constructor &&
+      input.constructor !== Object &&
+      input.constructor.name !== 'Object')
   ) {
     return input;
   }

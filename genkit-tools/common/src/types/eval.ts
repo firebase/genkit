@@ -16,7 +16,6 @@
 
 import type { JSONSchema7 } from 'json-schema';
 import { z } from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
 import type {
   CreateDatasetRequest,
   ListEvalKeysRequest,
@@ -37,34 +36,22 @@ export const ModelInferenceInputSchema = z.union([
   GenerateRequestSchema,
 ]);
 export type ModelInferenceInput = z.infer<typeof ModelInferenceInputSchema>;
-export const ModelInferenceInputJSONSchema = zodToJsonSchema(
-  ModelInferenceInputSchema,
-  {
-    $refStrategy: 'none',
-    removeAdditionalStrategy: 'strict',
-  }
+export const ModelInferenceInputJSONSchema = z.toJSONSchema(
+  ModelInferenceInputSchema
 ) as JSONSchema7;
 
 /**
  * GenerateRequest JSON schema to support eval-inference using models
  */
-export const GenerateRequestJSONSchema = zodToJsonSchema(
-  GenerateRequestSchema,
-  {
-    $refStrategy: 'none',
-    removeAdditionalStrategy: 'strict',
-  }
+export const GenerateRequestJSONSchema = z.toJSONSchema(
+  GenerateRequestSchema
 ) as JSONSchema7;
 
 /**
  * Combined GenerateInput JSON schema to support eval-inference using models
  */
-export const GenerateInputJSONSchema = zodToJsonSchema(
-  z.union([GenerateRequestSchema, GenerateActionOptionsSchema]),
-  {
-    $refStrategy: 'none',
-    removeAdditionalStrategy: 'strict',
-  }
+export const GenerateInputJSONSchema = z.toJSONSchema(
+  z.union([GenerateRequestSchema, GenerateActionOptionsSchema])
 ) as JSONSchema7;
 
 /**
@@ -252,11 +239,11 @@ export interface EvalStore {
 
 export const DatasetSchemaSchema = z.object({
   inputSchema: z
-    .record(z.any())
+    .record(z.string(), z.any())
     .describe('Valid JSON Schema for the `input` field of dataset entry.')
     .optional(),
   referenceSchema: z
-    .record(z.any())
+    .record(z.string(), z.any())
     .describe('Valid JSON Schema for the `reference` field of dataset entry.')
     .optional(),
 });

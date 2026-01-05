@@ -68,7 +68,7 @@ function toImageGenerateParams(
     topP,
     response_format,
     ...restOfConfig
-  } = request.config ?? {};
+  } = (request.config as any) ?? {};
 
   let options: ImageGenerateParams = {
     model: modelVersion ?? modelName,
@@ -179,7 +179,7 @@ export function compatOaiImageModelRef<
   return modelRef({
     name,
     configSchema:
-      configSchema || (ImageGenerationCommonConfigSchema as z.AnyZodObject),
+      configSchema || (ImageGenerationCommonConfigSchema as z.ZodObject<any>),
     info,
     config,
     namespace,

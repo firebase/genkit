@@ -46,6 +46,7 @@ describe('GenerateResponse', () => {
           finishReason: 'stop',
           usage: {},
           custom: {},
+          raw: {},
         },
       },
     ];

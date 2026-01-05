@@ -45,7 +45,7 @@ export async function faithfulnessScore<
   ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
-  judgeConfig?: CustomModelOptions
+  judgeConfig?: z.infer<CustomModelOptions>
 ): Promise<Score> {
   try {
     if (!dataPoint.input) {

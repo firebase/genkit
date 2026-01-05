@@ -67,6 +67,6 @@ export function fromMcpPart(part: PromptMessage['content']): Part {
         },
       };
     default:
-      return {};
+      return { text: '' };
   }
 }

@@ -56,7 +56,7 @@ describe('toGenerateRequest', () => {
 
   const namespacedPlugin: PluginProvider = {
     name: 'namespaced',
-    initializer: async () => {},
+    initializer: async () => { },
   };
   registry.registerPluginProvider('namespaced', namespacedPlugin);
 
@@ -117,7 +117,7 @@ describe('toGenerateRequest', () => {
               type: 'object',
               properties: { topic: { type: 'string' } },
               required: ['topic'],
-              additionalProperties: true,
+              additionalProperties: false,
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
           },
@@ -142,7 +142,7 @@ describe('toGenerateRequest', () => {
             description: 'add two numbers together',
             inputSchema: {
               $schema: 'http://json-schema.org/draft-07/schema#',
-              additionalProperties: true,
+              additionalProperties: false,
               properties: { a: { type: 'number' }, b: { type: 'number' } },
               required: ['a', 'b'],
               type: 'object',
@@ -186,7 +186,7 @@ describe('toGenerateRequest', () => {
               type: 'object',
               properties: { topic: { type: 'string' } },
               required: ['topic'],
-              additionalProperties: true,
+              additionalProperties: false,
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
           },
@@ -648,11 +648,11 @@ describe('generate', () => {
             content: [
               requestCount == 1
                 ? {
-                    toolRequest: {
-                      name: 'multiTool',
-                      input: {},
-                    },
-                  }
+                  toolRequest: {
+                    name: 'multiTool',
+                    input: {},
+                  },
+                }
                 : { text: 'done' },
             ],
           },
@@ -741,11 +741,11 @@ describe('generate', () => {
             content: [
               requestCount == 1
                 ? {
-                    toolRequest: {
-                      name: 'fallbackTool',
-                      input: {},
-                    },
-                  }
+                  toolRequest: {
+                    name: 'fallbackTool',
+                    input: {},
+                  },
+                }
                 : { text: 'done' },
             ],
           },

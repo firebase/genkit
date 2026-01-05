@@ -29,7 +29,7 @@ export const DeepSeekChatCompletionConfigSchema =
   });
 
 export const deepSeekRequestBuilder: ModelRequestBuilder = (req, params) => {
-  const { maxTokens } = req.config;
+  const { maxTokens } = req.config as any;
   // DeepSeek still uses max_tokens
   params.max_tokens = maxTokens;
 };

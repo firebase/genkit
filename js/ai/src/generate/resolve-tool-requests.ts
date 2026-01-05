@@ -104,7 +104,7 @@ export async function resolveToolRequest(
   if (isPromptAction(tool)) {
     const metadata = tool.__action.metadata as Record<string, any>;
     const preamble = {
-      ...(await tool(part.toolRequest.input)),
+      ...((await tool(part.toolRequest.input)) as any),
       model: metadata.prompt?.model,
     };
     const response = {
@@ -409,6 +409,8 @@ export async function resolveResumeOption(
         finishMessage:
           'One or more tools triggered interrupts while resuming generation. The model was not called.',
         message: lastMessage,
+        custom: {},
+        raw: {},
       },
     };
   }

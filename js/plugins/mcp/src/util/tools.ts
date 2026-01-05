@@ -77,7 +77,7 @@ function registerTool(
       );
       const result = await client.callTool({
         name: tool.name,
-        arguments: args,
+        arguments: args as any,
       });
       if (params.rawToolResponses) return result;
       return processResult(result as CallToolResult);
@@ -116,7 +116,7 @@ function createDynamicTool(
       );
       const result = await client.callTool({
         name: tool.name,
-        arguments: args,
+        arguments: args as any,
         _meta: context?.mcp?._meta,
       });
       if (params.rawToolResponses) return result;

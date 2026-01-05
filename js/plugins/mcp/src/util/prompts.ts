@@ -74,7 +74,7 @@ function registerPrompt(
       );
       const result = await client.getPrompt({
         name: prompt.name,
-        arguments: args,
+        arguments: args as any,
         _meta: context?.mcp?._meta,
       });
       return result.messages.map(fromMcpPromptMessage);
@@ -117,13 +117,13 @@ function createExecutablePrompt<
   callPrompt.stream = (
     input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
-  ): GenerateStreamResponse<z.infer<O>> => {
+  ): GenerateStreamResponse<O> => {
     logger.debug(`[MCP] Streaming MCP prompt ${params.name}/${prompt.name}`);
     return params.ai.generateStream(callPrompt.render(input, opts));
   };
 
   callPrompt.render = async (
-    input?: I,
+    input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateOptions<O, CustomOptions>> => {
     logger.debug(`[MCP] Rendering MCP prompt ${params.name}/${prompt.name}`);

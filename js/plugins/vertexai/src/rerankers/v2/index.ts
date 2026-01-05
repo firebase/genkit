@@ -45,7 +45,7 @@ async function resolver(
     pluginOptions
   );
   if (actionType == 'reranker' && reranker.isRerankerModelName(actionName)) {
-    return reranker.defineReranker(actionName, clientOptions);
+    return (await reranker.defineReranker(actionName, clientOptions)) as any;
   }
   return undefined;
 }
@@ -58,9 +58,9 @@ export function vertexRerankersPlugin(
 ): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'vertex-rerankers',
-    init: async () => await initializer(options),
+    init: async () => (await initializer(options)) as any,
     resolve: async (actionType: ActionType, actionName: string) =>
-      await resolver(actionType, actionName, options),
+      (await resolver(actionType, actionName, options)) as any,
   });
 }
 

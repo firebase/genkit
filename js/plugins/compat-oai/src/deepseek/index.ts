@@ -22,7 +22,7 @@ import {
   z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { type GenkitPluginV2 } from 'genkit/plugin';
+import { type GenkitPluginV2, type ResolvableAction } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import { openAICompatible, PluginOptions } from '../index.js';
@@ -48,7 +48,7 @@ function createResolver(pluginOptions: PluginOptions) {
         pluginOptions,
         modelRef,
         requestBuilder: deepSeekRequestBuilder,
-      });
+      }) as ResolvableAction;
     } else {
       logger.warn('Only model actions are supported by the DeepSeek plugin');
       return undefined;
@@ -101,7 +101,7 @@ export function deepSeekPlugin(
           modelRef,
           requestBuilder: deepSeekRequestBuilder,
         })
-      );
+      ) as ResolvableAction[];
     },
     resolver: createResolver(pluginOptions),
     listActions,

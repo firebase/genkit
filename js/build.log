@@ -1,0 +1,2210 @@
+
+> @ build /Users/lukeschlangen/Documents/genkit/js
+> pnpm install && pnpm build:libs && pnpm build:docsnippets && pnpm build:testapps
+
+Scope: all 54 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+Done in 634ms using pnpm v10.26.0
+
+> @ build:libs /Users/lukeschlangen/Documents/genkit/js
+> pnpm build:core && pnpm build:genkit && pnpm build:noncore 
+
+
+> @ build:core /Users/lukeschlangen/Documents/genkit/js
+> pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build
+
+No projects matched the filters "flow" in "/Users/lukeschlangen/Documents/genkit/js"
+Scope: 2 of 54 workspace projects
+
+> @genkit-ai/core@1.27.0 build /Users/lukeschlangen/Documents/genkit/js/core
+> npm-run-all genversion build:clean check compile
+
+
+> @genkit-ai/core@1.27.0 genversion /Users/lukeschlangen/Documents/genkit/js/core
+> genversion -esf src/__codegen/version.ts
+
+
+> @genkit-ai/core@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/core
+> rimraf ./lib
+
+
+> @genkit-ai/core@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/core
+> tsc
+
+
+> @genkit-ai/core@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/core
+> tsup-node
+
+CLI Building entry: src/action.ts, src/async-context.ts, src/async.ts, src/background-action.ts, src/context.ts, src/dynamic-action-provider.ts, src/error.ts, src/flow.ts, src/index.ts, src/logging.ts, src/node-async-context.ts, src/node.ts, src/plugin.ts, src/reflection.ts, src/registry.ts, src/schema.ts, src/statusTypes.ts, src/streaming.ts, src/telemetryTypes.ts, src/tracing.ts, src/utils.ts, src/__codegen/version.ts, src/tracing/exporter.ts, src/tracing/instrumentation.ts, src/tracing/node-telemetry-provider.ts, src/tracing/realtime-span-processor.ts, src/tracing/types.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.0
+CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/core/tsup.config.ts
+CLI Target: es2022
+CLI Cleaning output folder
+CJS Build start
+ESM Build start
+CJS lib/async.js                               3.15 KB
+CJS lib/async-context.js                       1.58 KB
+CJS lib/background-action.js                   6.86 KB
+CJS lib/action.js                              10.09 KB
+CJS lib/error.js                               3.54 KB
+CJS lib/context.js                             2.49 KB
+CJS lib/flow.js                                2.76 KB
+CJS lib/plugin.js                              777.00 B
+CJS lib/node.js                                1.36 KB
+CJS lib/index.js                               4.51 KB
+CJS lib/registry.js                            13.99 KB
+CJS lib/reflection.js                          16.05 KB
+CJS lib/node-async-context.js                  1.68 KB
+CJS lib/statusTypes.js                         4.10 KB
+CJS lib/streaming.js                           4.23 KB
+CJS lib/schema.js                              4.24 KB
+CJS lib/utils.js                               2.23 KB
+CJS lib/tracing.js                             3.91 KB
+CJS lib/telemetryTypes.js                      801.00 B
+CJS lib/__codegen/version.js                   1.07 KB
+CJS lib/tracing/exporter.js                    4.92 KB
+CJS lib/logging.js                             2.31 KB
+CJS lib/dynamic-action-provider.js             4.92 KB
+CJS lib/tracing/node-telemetry-provider.js     3.65 KB
+CJS lib/tracing/instrumentation.js             8.23 KB
+CJS lib/tracing/types.js                       4.72 KB
+CJS lib/tracing/realtime-span-processor.js     1.84 KB
+CJS lib/async.js.map                           6.64 KB
+CJS lib/action.js.map                          21.79 KB
+CJS lib/background-action.js.map               13.74 KB
+CJS lib/context.js.map                         5.09 KB
+CJS lib/flow.js.map                            6.72 KB
+CJS lib/error.js.map                           5.90 KB
+CJS lib/plugin.js.map                          1.74 KB
+CJS lib/index.js.map                           3.39 KB
+CJS lib/node.js.map                            1.05 KB
+CJS lib/statusTypes.js.map                     9.47 KB
+CJS lib/utils.js.map                           3.24 KB
+CJS lib/telemetryTypes.js.map                  1.05 KB
+CJS lib/schema.js.map                          7.04 KB
+CJS lib/streaming.js.map                       8.69 KB
+CJS lib/tracing/exporter.js.map                7.89 KB
+CJS lib/logging.js.map                         3.67 KB
+CJS lib/async-context.js.map                   1.87 KB
+CJS lib/__codegen/version.js.map               226.00 B
+CJS lib/node-async-context.js.map              1.79 KB
+CJS lib/registry.js.map                        24.96 KB
+CJS lib/tracing/node-telemetry-provider.js.map 5.20 KB
+CJS lib/tracing.js.map                         5.22 KB
+CJS lib/dynamic-action-provider.js.map         10.77 KB
+CJS lib/tracing/instrumentation.js.map         14.86 KB
+CJS lib/reflection.js.map                      25.46 KB
+CJS lib/tracing/types.js.map                   6.08 KB
+CJS lib/tracing/realtime-span-processor.js.map 2.52 KB
+CJS ⚡️ Build success in 28ms
+ESM lib/tracing/exporter.mjs                    3.74 KB
+ESM lib/statusTypes.mjs                         2.39 KB
+ESM lib/streaming.mjs                           3.15 KB
+ESM lib/__codegen/version.mjs                   84.00 B
+ESM lib/telemetryTypes.mjs                      43.00 B
+ESM lib/tracing/instrumentation.mjs             6.68 KB
+ESM lib/logging.mjs                             1.32 KB
+ESM lib/node-async-context.mjs                  553.00 B
+ESM lib/utils.mjs                               1.06 KB
+ESM lib/node.mjs                                299.00 B
+ESM lib/tracing.mjs                             2.26 KB
+ESM lib/registry.mjs                            12.56 KB
+ESM lib/plugin.mjs                              35.00 B
+ESM lib/reflection.mjs                          13.64 KB
+ESM lib/action.mjs                              8.12 KB
+ESM lib/schema.mjs                              2.35 KB
+ESM lib/index.mjs                               1.83 KB
+ESM lib/context.mjs                             1.36 KB
+ESM lib/async.mjs                               2.05 KB
+ESM lib/dynamic-action-provider.mjs             3.76 KB
+ESM lib/flow.mjs                                1.70 KB
+ESM lib/background-action.mjs                   4.85 KB
+ESM lib/error.mjs                               2.25 KB
+ESM lib/async-context.mjs                       523.00 B
+ESM lib/tracing/realtime-span-processor.mjs     797.00 B
+ESM lib/tracing/node-telemetry-provider.mjs     2.42 KB
+ESM lib/tracing/types.mjs                       2.58 KB
+ESM lib/streaming.mjs.map                       8.65 KB
+ESM lib/statusTypes.mjs.map                     9.41 KB
+ESM lib/telemetryTypes.mjs.map                  71.00 B
+ESM lib/node-async-context.mjs.map              1.76 KB
+ESM lib/tracing/instrumentation.mjs.map         14.82 KB
+ESM lib/tracing/exporter.mjs.map                7.88 KB
+ESM lib/tracing.mjs.map                         5.14 KB
+ESM lib/node.mjs.map                            1.02 KB
+ESM lib/logging.mjs.map                         3.63 KB
+ESM lib/utils.mjs.map                           3.18 KB
+ESM lib/registry.mjs.map                        24.94 KB
+ESM lib/reflection.mjs.map                      25.33 KB
+ESM lib/action.mjs.map                          21.73 KB
+ESM lib/context.mjs.map                         5.06 KB
+ESM lib/index.mjs.map                           3.39 KB
+ESM lib/schema.mjs.map                          6.94 KB
+ESM lib/plugin.mjs.map                          71.00 B
+ESM lib/flow.mjs.map                            6.68 KB
+ESM lib/async.mjs.map                           6.58 KB
+ESM lib/error.mjs.map                           5.83 KB
+ESM lib/dynamic-action-provider.mjs.map         10.73 KB
+ESM lib/async-context.mjs.map                   1.83 KB
+ESM lib/__codegen/version.mjs.map               183.00 B
+ESM lib/background-action.mjs.map               13.67 KB
+ESM lib/tracing/node-telemetry-provider.mjs.map 5.21 KB
+ESM lib/tracing/realtime-span-processor.mjs.map 2.48 KB
+ESM lib/tracing/types.mjs.map                   6.00 KB
+ESM ⚡️ Build success in 29ms
+DTS Build start
+DTS ⚡️ Build success in 2002ms
+DTS lib/async.d.ts                            2.80 KB
+DTS lib/index.d.ts                            3.27 KB
+DTS lib/dynamic-action-provider.d.ts          2.68 KB
+DTS lib/flow.d.ts                             3.06 KB
+DTS lib/logging.d.ts                          1.33 KB
+DTS lib/node-async-context.d.ts               995.00 B
+DTS lib/async-context.d.ts                    1.13 KB
+DTS lib/node.d.ts                             668.00 B
+DTS lib/reflection.d.ts                       3.30 KB
+DTS lib/tracing.d.ts                          2.71 KB
+DTS lib/telemetryTypes.d.ts                   948.00 B
+DTS lib/utils.d.ts                            1.36 KB
+DTS lib/__codegen/version.d.ts                55.00 B
+DTS lib/tracing/exporter.d.ts                 1.53 KB
+DTS lib/tracing/instrumentation.d.ts          2.93 KB
+DTS lib/context.d.ts                          2.77 KB
+DTS lib/statusTypes.d.ts                      2.08 KB
+DTS lib/tracing/node-telemetry-provider.d.ts  686.00 B
+DTS lib/tracing/realtime-span-processor.d.ts  1.50 KB
+DTS lib/tracing/types.d.ts                    6.80 KB
+DTS lib/plugin.d.ts                           232.00 B
+DTS lib/background-action.d.ts                448.00 B
+DTS lib/error.d.ts                            376.00 B
+DTS lib/schema.d.ts                           390.00 B
+DTS lib/registry.d.ts                         337.00 B
+DTS lib/streaming.d.ts                        286.00 B
+DTS lib/action.d.ts                           889.00 B
+DTS lib/action-BnEilQ1F.d.ts                  29.09 KB
+DTS lib/async.d.mts                           2.80 KB
+DTS lib/index.d.mts                           3.28 KB
+DTS lib/dynamic-action-provider.d.mts         2.69 KB
+DTS lib/flow.d.mts                            3.06 KB
+DTS lib/logging.d.mts                         1.33 KB
+DTS lib/node-async-context.d.mts              996.00 B
+DTS lib/async-context.d.mts                   1.13 KB
+DTS lib/node.d.mts                            668.00 B
+DTS lib/reflection.d.mts                      3.30 KB
+DTS lib/tracing.d.mts                         2.72 KB
+DTS lib/telemetryTypes.d.mts                  948.00 B
+DTS lib/utils.d.mts                           1.36 KB
+DTS lib/__codegen/version.d.mts               55.00 B
+DTS lib/tracing/exporter.d.mts                1.53 KB
+DTS lib/tracing/instrumentation.d.mts         2.93 KB
+DTS lib/context.d.mts                         2.77 KB
+DTS lib/statusTypes.d.mts                     2.08 KB
+DTS lib/tracing/node-telemetry-provider.d.mts 686.00 B
+DTS lib/tracing/realtime-span-processor.d.mts 1.50 KB
+DTS lib/tracing/types.d.mts                   6.80 KB
+DTS lib/plugin.d.mts                          235.00 B
+DTS lib/background-action.d.mts               451.00 B
+DTS lib/error.d.mts                           379.00 B
+DTS lib/schema.d.mts                          393.00 B
+DTS lib/registry.d.mts                        340.00 B
+DTS lib/streaming.d.mts                       289.00 B
+DTS lib/action.d.mts                          892.00 B
+DTS lib/action-C3oo0oT4.d.mts                 29.09 KB
+
+> @genkit-ai/ai@1.27.0 build /Users/lukeschlangen/Documents/genkit/js/ai
+> npm-run-all build:clean check compile
+
+
+> @genkit-ai/ai@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/ai
+> rimraf ./lib
+
+
+> @genkit-ai/ai@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/ai
+> tsc
+
+
+> @genkit-ai/ai@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/ai
+> tsup-node
+
+CLI Building entry: src/chat.ts, src/check-operation.ts, src/document.ts, src/embedder.ts, src/evaluator.ts, src/extract.ts, src/generate.ts, src/index.ts, src/message.ts, src/model-types.ts, src/model.ts, src/parts.ts, src/prompt.ts, src/reranker.ts, src/resource.ts, src/retriever.ts, src/session.ts, src/tool.ts, src/types.ts, src/formats/array.ts, src/formats/enum.ts, src/formats/index.ts, src/formats/json.ts, src/formats/jsonl.ts, src/formats/text.ts, src/formats/types.ts, src/generate/action.ts, src/generate/chunk.ts, src/generate/resolve-tool-requests.ts, src/generate/response.ts, src/model/middleware.ts, src/testing/index.ts, src/testing/model-tester.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.0
+CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/ai/tsup.config.ts
+CLI Target: es2022
+CLI Cleaning output folder
+CJS Build start
+ESM Build start
+CJS lib/generate/action.js                    12.92 KB
+CJS lib/formats/array.js                      2.14 KB
+CJS lib/check-operation.js                    1.72 KB
+CJS lib/embedder.js                           6.73 KB
+CJS lib/chat.js                               5.90 KB
+CJS lib/extract.js                            4.56 KB
+CJS lib/generate.js                           12.96 KB
+CJS lib/document.js                           4.49 KB
+CJS lib/index.js                              5.50 KB
+CJS lib/evaluator.js                          9.54 KB
+CJS lib/parts.js                              4.91 KB
+CJS lib/message.js                            4.20 KB
+CJS lib/model.js                              10.39 KB
+CJS lib/reranker.js                           5.09 KB
+CJS lib/retriever.js                          8.51 KB
+CJS lib/prompt.js                             16.90 KB
+CJS lib/resource.js                           6.30 KB
+CJS lib/model/middleware.js                   9.96 KB
+CJS lib/tool.js                               8.69 KB
+CJS lib/session.js                            5.42 KB
+CJS lib/formats/text.js                       1.31 KB
+CJS lib/formats/types.js                      774.00 B
+CJS lib/formats/enum.js                       1.86 KB
+CJS lib/types.js                              2.54 KB
+CJS lib/testing/model-tester.js               7.41 KB
+CJS lib/model-types.js                        13.49 KB
+CJS lib/formats/jsonl.js                      3.60 KB
+CJS lib/generate/response.js                  6.69 KB
+CJS lib/generate/resolve-tool-requests.js     11.45 KB
+CJS lib/formats/index.js                      3.66 KB
+CJS lib/formats/json.js                       1.71 KB
+CJS lib/generate/chunk.js                     4.27 KB
+CJS lib/testing/index.js                      1.12 KB
+CJS lib/generate/action.js.map                23.74 KB
+CJS lib/formats/array.js.map                  2.69 KB
+CJS lib/check-operation.js.map                1.88 KB
+CJS lib/extract.js.map                        6.90 KB
+CJS lib/chat.js.map                           11.08 KB
+CJS lib/embedder.js.map                       14.93 KB
+CJS lib/document.js.map                       7.42 KB
+CJS lib/generate.js.map                       29.28 KB
+CJS lib/retriever.js.map                      19.29 KB
+CJS lib/evaluator.js.map                      17.31 KB
+CJS lib/index.js.map                          4.08 KB
+CJS lib/reranker.js.map                       9.45 KB
+CJS lib/tool.js.map                           22.51 KB
+CJS lib/prompt.js.map                         36.69 KB
+CJS lib/model/middleware.js.map               19.48 KB
+CJS lib/resource.js.map                       11.42 KB
+CJS lib/session.js.map                        12.24 KB
+CJS lib/testing/model-tester.js.map           10.20 KB
+CJS lib/parts.js.map                          6.72 KB
+CJS lib/message.js.map                        6.81 KB
+CJS lib/model.js.map                          21.57 KB
+CJS lib/formats/enum.js.map                   2.17 KB
+CJS lib/model-types.js.map                    19.67 KB
+CJS lib/formats/text.js.map                   1.33 KB
+CJS lib/formats/jsonl.js.map                  4.13 KB
+CJS lib/formats/types.js.map                  1.32 KB
+CJS lib/generate/response.js.map              10.17 KB
+CJS lib/types.js.map                          3.13 KB
+CJS lib/formats/index.js.map                  5.94 KB
+CJS lib/generate/resolve-tool-requests.js.map 20.43 KB
+CJS lib/generate/chunk.js.map                 6.27 KB
+CJS lib/formats/json.js.map                   1.93 KB
+CJS lib/testing/index.js.map                  822.00 B
+CJS ⚡️ Build success in 34ms
+ESM lib/types.mjs                              1.18 KB
+ESM lib/message.mjs                            3.20 KB
+ESM lib/session.mjs                            4.17 KB
+ESM lib/tool.mjs                               7.07 KB
+ESM lib/parts.mjs                              2.89 KB
+ESM lib/model.mjs                              8.13 KB
+ESM lib/model-types.mjs                        10.01 KB
+ESM lib/reranker.mjs                           3.42 KB
+ESM lib/prompt.mjs                             15.13 KB
+ESM lib/document.mjs                           3.32 KB
+ESM lib/retriever.mjs                          6.64 KB
+ESM lib/check-operation.mjs                    691.00 B
+ESM lib/chat.mjs                               4.73 KB
+ESM lib/embedder.mjs                           5.11 KB
+ESM lib/evaluator.mjs                          7.22 KB
+ESM lib/resource.mjs                           4.17 KB
+ESM lib/extract.mjs                            2.79 KB
+ESM lib/generate.mjs                           11.16 KB
+ESM lib/index.mjs                              2.26 KB
+ESM lib/generate/chunk.mjs                     3.24 KB
+ESM lib/formats/text.mjs                       333.00 B
+ESM lib/formats/types.mjs                      34.00 B
+ESM lib/testing/model-tester.mjs               5.53 KB
+ESM lib/generate/resolve-tool-requests.mjs     9.90 KB
+ESM lib/generate/response.mjs                  5.65 KB
+ESM lib/testing/index.mjs                      107.00 B
+ESM lib/generate/action.mjs                    11.58 KB
+ESM lib/formats/array.mjs                      1.08 KB
+ESM lib/model/middleware.mjs                   7.95 KB
+ESM lib/formats/enum.mjs                       882.00 B
+ESM lib/formats/index.mjs                      2.40 KB
+ESM lib/formats/json.mjs                       700.00 B
+ESM lib/formats/jsonl.mjs                      1.96 KB
+ESM lib/types.mjs.map                          3.08 KB
+ESM lib/message.mjs.map                        6.77 KB
+ESM lib/parts.mjs.map                          6.63 KB
+ESM lib/session.mjs.map                        12.23 KB
+ESM lib/tool.mjs.map                           22.48 KB
+ESM lib/prompt.mjs.map                         36.74 KB
+ESM lib/document.mjs.map                       7.37 KB
+ESM lib/retriever.mjs.map                      19.23 KB
+ESM lib/model-types.mjs.map                    19.63 KB
+ESM lib/reranker.mjs.map                       9.41 KB
+ESM lib/check-operation.mjs.map                1.84 KB
+ESM lib/model.mjs.map                          21.63 KB
+ESM lib/embedder.mjs.map                       14.89 KB
+ESM lib/evaluator.mjs.map                      17.22 KB
+ESM lib/chat.mjs.map                           11.08 KB
+ESM lib/index.mjs.map                          4.30 KB
+ESM lib/resource.mjs.map                       11.35 KB
+ESM lib/generate.mjs.map                       29.38 KB
+ESM lib/extract.mjs.map                        6.82 KB
+ESM lib/generate/chunk.mjs.map                 6.23 KB
+ESM lib/formats/types.mjs.map                  71.00 B
+ESM lib/formats/text.mjs.map                   1.29 KB
+ESM lib/testing/model-tester.mjs.map           10.17 KB
+ESM lib/testing/index.mjs.map                  784.00 B
+ESM lib/generate/response.mjs.map              10.16 KB
+ESM lib/generate/action.mjs.map                23.90 KB
+ESM lib/formats/enum.mjs.map                   2.14 KB
+ESM lib/generate/resolve-tool-requests.mjs.map 20.40 KB
+ESM lib/formats/array.mjs.map                  2.66 KB
+ESM lib/model/middleware.mjs.map               19.41 KB
+ESM lib/formats/index.mjs.map                  5.90 KB
+ESM lib/formats/json.mjs.map                   1.89 KB
+ESM lib/formats/jsonl.mjs.map                  4.08 KB
+ESM ⚡️ Build success in 35ms
+DTS Build start
+Export "GenerateOptions" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/session.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "GenerateOptions" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/chat.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "GenerateStreamOptions" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/chat.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "GenerateStreamResponse" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/chat.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "GenerateOptions" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/session.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "GenerateOptions" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/chat.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "GenerateStreamOptions" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/chat.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "GenerateStreamResponse" of module "src/generate.ts" was reexported through module "src/index.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/chat.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+DTS ⚡️ Build success in 3355ms
+DTS lib/index.d.ts                           2.76 KB
+DTS lib/extract.d.ts                         1.37 KB
+DTS lib/check-operation.d.ts                 837.00 B
+DTS lib/evaluator.d.ts                       9.16 KB
+DTS lib/reranker.d.ts                        9.48 KB
+DTS lib/retriever.d.ts                       12.21 KB
+DTS lib/types.d.ts                           2.02 KB
+DTS lib/formats/array.d.ts                   859.00 B
+DTS lib/formats/enum.d.ts                    851.00 B
+DTS lib/formats/index.d.ts                   2.06 KB
+DTS lib/formats/json.d.ts                    853.00 B
+DTS lib/formats/jsonl.d.ts                   859.00 B
+DTS lib/formats/text.d.ts                    851.00 B
+DTS lib/generate/resolve-tool-requests.d.ts  2.72 KB
+DTS lib/resource.d.ts                        7.86 KB
+DTS lib/generate/response.d.ts               4.30 KB
+DTS lib/formats/types.d.ts                   1.23 KB
+DTS lib/generate/chunk.d.ts                  3.27 KB
+DTS lib/message.d.ts                         3.40 KB
+DTS lib/model-types.d.ts                     88.54 KB
+DTS lib/parts.d.ts                           9.20 KB
+DTS lib/session.d.ts                         8.33 KB
+DTS lib/testing/model-tester.d.ts            995.00 B
+DTS lib/chat.d.ts                            519.00 B
+DTS lib/embedder.d.ts                        484.00 B
+DTS lib/document.d.ts                        209.00 B
+DTS lib/prompt.d.ts                          706.00 B
+DTS lib/tool.d.ts                            817.00 B
+DTS lib/generate.d.ts                        738.00 B
+DTS lib/model/middleware.d.ts                588.00 B
+DTS lib/generate/action.d.ts                 390.00 B
+DTS lib/model.d.ts                           1.66 KB
+DTS lib/testing/index.d.ts                   83.00 B
+DTS lib/document-ETxc6WdO.d.ts               10.96 KB
+DTS lib/generate-BiicGnIL.d.ts               24.47 KB
+DTS lib/model-DuzJJbU-.d.ts                  13.75 KB
+DTS lib/index.d.mts                          2.77 KB
+DTS lib/extract.d.mts                        1.37 KB
+DTS lib/check-operation.d.mts                837.00 B
+DTS lib/evaluator.d.mts                      9.16 KB
+DTS lib/reranker.d.mts                       9.49 KB
+DTS lib/retriever.d.mts                      12.21 KB
+DTS lib/types.d.mts                          2.02 KB
+DTS lib/formats/array.d.mts                  864.00 B
+DTS lib/formats/enum.d.mts                   856.00 B
+DTS lib/formats/index.d.mts                  2.07 KB
+DTS lib/formats/json.d.mts                   858.00 B
+DTS lib/formats/jsonl.d.mts                  864.00 B
+DTS lib/formats/text.d.mts                   856.00 B
+DTS lib/generate/resolve-tool-requests.d.mts 2.73 KB
+DTS lib/resource.d.mts                       7.86 KB
+DTS lib/generate/response.d.mts              4.30 KB
+DTS lib/formats/types.d.mts                  1.23 KB
+DTS lib/generate/chunk.d.mts                 3.27 KB
+DTS lib/message.d.mts                        3.40 KB
+DTS lib/model-types.d.mts                    88.54 KB
+DTS lib/parts.d.mts                          9.20 KB
+DTS lib/session.d.mts                        8.34 KB
+DTS lib/testing/model-tester.d.mts           995.00 B
+DTS lib/chat.d.mts                           530.00 B
+DTS lib/embedder.d.mts                       486.00 B
+DTS lib/document.d.mts                       211.00 B
+DTS lib/prompt.d.mts                         716.00 B
+DTS lib/tool.d.mts                           827.00 B
+DTS lib/generate.d.mts                       748.00 B
+DTS lib/model/middleware.d.mts               595.00 B
+DTS lib/generate/action.d.mts                397.00 B
+DTS lib/model.d.mts                          1.67 KB
+DTS lib/testing/index.d.mts                  84.00 B
+DTS lib/document-CU92otfD.d.mts              10.96 KB
+DTS lib/generate-CofV8IOo.d.mts              24.47 KB
+DTS lib/model-BYYkxmAE.d.mts                 13.75 KB
+
+> @ build:genkit /Users/lukeschlangen/Documents/genkit/js
+> pnpm -F genkit build
+
+
+> genkit@1.27.0 build /Users/lukeschlangen/Documents/genkit/js/genkit
+> npm-run-all build:clean check compile
+
+
+> genkit@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/genkit
+> rimraf ./lib
+
+
+> genkit@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/genkit
+> tsc
+
+
+> genkit@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/genkit
+> tsup-node
+
+CLI Building entry: src/beta.ts, src/common.ts, src/context.ts, src/embedder.ts, src/evaluator.ts, src/extract.ts, src/formats.ts, src/genkit-beta.ts, src/genkit.ts, src/index.ts, src/logging.ts, src/middleware.ts, src/model.ts, src/plugin.ts, src/registry.ts, src/reranker.ts, src/retriever.ts, src/schema.ts, src/testing.ts, src/tool.ts, src/tracing.ts, src/client/client.ts, src/client/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.0
+CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/genkit/tsup.config.ts
+CLI Target: es2022
+CLI Cleaning output folder
+CJS Build start
+ESM Build start
+CJS lib/context.js           1.23 KB
+CJS lib/embedder.js          1.21 KB
+CJS lib/evaluator.js         1.72 KB
+CJS lib/beta.js              1.77 KB
+CJS lib/genkit.js            16.65 KB
+CJS lib/extract.js           1.20 KB
+CJS lib/logging.js           1.11 KB
+CJS lib/index.js             1.97 KB
+CJS lib/common.js            4.61 KB
+CJS lib/formats.js           780.00 B
+CJS lib/plugin.js            3.47 KB
+CJS lib/middleware.js        1.53 KB
+CJS lib/registry.js          1.12 KB
+CJS lib/tracing.js           2.64 KB
+CJS lib/testing.js           1.12 KB
+CJS lib/model.js             3.04 KB
+CJS lib/genkit-beta.js       5.87 KB
+CJS lib/reranker.js          1.50 KB
+CJS lib/schema.js            1.32 KB
+CJS lib/retriever.js         1.62 KB
+CJS lib/client/index.js      1.75 KB
+CJS lib/tool.js              1.31 KB
+CJS lib/client/client.js     4.30 KB
+CJS lib/genkit.js.map        40.36 KB
+CJS lib/logging.js.map       815.00 B
+CJS lib/context.js.map       928.00 B
+CJS lib/extract.js.map       841.00 B
+CJS lib/evaluator.js.map     1.25 KB
+CJS lib/beta.js.map          1.14 KB
+CJS lib/common.js.map        4.20 KB
+CJS lib/index.js.map         1.07 KB
+CJS lib/formats.js.map       805.00 B
+CJS lib/middleware.js.map    994.00 B
+CJS lib/model.js.map         2.24 KB
+CJS lib/tracing.js.map       1.41 KB
+CJS lib/plugin.js.map        5.71 KB
+CJS lib/testing.js.map       817.00 B
+CJS lib/registry.js.map      882.00 B
+CJS lib/schema.js.map        996.00 B
+CJS lib/genkit-beta.js.map   10.09 KB
+CJS lib/reranker.js.map      1.07 KB
+CJS lib/client/index.js.map  1.46 KB
+CJS lib/tool.js.map          953.00 B
+CJS lib/client/client.js.map 8.57 KB
+CJS lib/retriever.js.map     1.35 KB
+CJS lib/embedder.js.map      1.02 KB
+CJS ⚡️ Build success in 25ms
+ESM lib/schema.mjs            223.00 B
+ESM lib/tool.mjs              213.00 B
+ESM lib/tracing.mjs           925.00 B
+ESM lib/retriever.mjs         371.00 B
+ESM lib/logging.mjs           107.00 B
+ESM lib/client/client.mjs     3.27 KB
+ESM lib/testing.mjs           113.00 B
+ESM lib/client/index.mjs      731.00 B
+ESM lib/middleware.mjs        319.00 B
+ESM lib/beta.mjs              370.00 B
+ESM lib/plugin.mjs            1.95 KB
+ESM lib/index.mjs             750.00 B
+ESM lib/reranker.mjs          317.00 B
+ESM lib/model.mjs             1.15 KB
+ESM lib/genkit.mjs            15.18 KB
+ESM lib/common.mjs            2.00 KB
+ESM lib/embedder.mjs          163.00 B
+ESM lib/registry.mjs          115.00 B
+ESM lib/context.mjs           173.00 B
+ESM lib/evaluator.mjs         425.00 B
+ESM lib/formats.mjs           36.00 B
+ESM lib/extract.mjs           153.00 B
+ESM lib/genkit-beta.mjs       4.77 KB
+ESM lib/schema.mjs.map        982.00 B
+ESM lib/tool.mjs.map          944.00 B
+ESM lib/tracing.mjs.map       1.46 KB
+ESM lib/client/client.mjs.map 8.53 KB
+ESM lib/retriever.mjs.map     1.35 KB
+ESM lib/logging.mjs.map       775.00 B
+ESM lib/plugin.mjs.map        5.67 KB
+ESM lib/client/index.mjs.map  1.42 KB
+ESM lib/beta.mjs.map          1.11 KB
+ESM lib/index.mjs.map         1.02 KB
+ESM lib/testing.mjs.map       779.00 B
+ESM lib/genkit.mjs.map        40.71 KB
+ESM lib/middleware.mjs.map    990.00 B
+ESM lib/reranker.mjs.map      1.06 KB
+ESM lib/model.mjs.map         2.32 KB
+ESM lib/embedder.mjs.map      1016.00 B
+ESM lib/evaluator.mjs.map     1.25 KB
+ESM lib/registry.mjs.map      853.00 B
+ESM lib/extract.mjs.map       803.00 B
+ESM lib/formats.mjs.map       71.00 B
+ESM lib/genkit-beta.mjs.map   10.12 KB
+ESM lib/context.mjs.map       909.00 B
+ESM lib/common.mjs.map        4.39 KB
+ESM ⚡️ Build success in 25ms
+DTS Build start
+DTS ⚡️ Build success in 1693ms
+DTS lib/common.d.ts          2.67 KB
+DTS lib/genkit-beta.d.ts     5.98 KB
+DTS lib/client/client.d.ts   2.14 KB
+DTS lib/formats.d.ts         67.00 B
+DTS lib/evaluator.d.ts       360.00 B
+DTS lib/registry.d.ts        88.00 B
+DTS lib/context.d.ts         119.00 B
+DTS lib/embedder.d.ts        198.00 B
+DTS lib/extract.d.ts         71.00 B
+DTS lib/logging.d.ts         50.00 B
+DTS lib/middleware.d.ts      174.00 B
+DTS lib/model.d.ts           1.06 KB
+DTS lib/reranker.d.ts        248.00 B
+DTS lib/retriever.d.ts       423.00 B
+DTS lib/schema.d.ts          172.00 B
+DTS lib/testing.d.ts         52.00 B
+DTS lib/tool.d.ts            131.00 B
+DTS lib/tracing.d.ts         486.00 B
+DTS lib/beta.d.ts            2.74 KB
+DTS lib/plugin.d.ts          751.00 B
+DTS lib/genkit.d.ts          467.00 B
+DTS lib/index.d.ts           2.52 KB
+DTS lib/client/index.d.ts    51.00 B
+DTS lib/index-Bf2bts4V.d.ts  22.00 KB
+DTS lib/common.d.mts         2.67 KB
+DTS lib/genkit-beta.d.mts    5.98 KB
+DTS lib/client/client.d.mts  2.14 KB
+DTS lib/formats.d.mts        67.00 B
+DTS lib/evaluator.d.mts      360.00 B
+DTS lib/registry.d.mts       88.00 B
+DTS lib/context.d.mts        119.00 B
+DTS lib/embedder.d.mts       198.00 B
+DTS lib/extract.d.mts        71.00 B
+DTS lib/logging.d.mts        50.00 B
+DTS lib/middleware.d.mts     174.00 B
+DTS lib/model.d.mts          1.06 KB
+DTS lib/reranker.d.mts       248.00 B
+DTS lib/retriever.d.mts      423.00 B
+DTS lib/schema.d.mts         172.00 B
+DTS lib/testing.d.mts        52.00 B
+DTS lib/tool.d.mts           131.00 B
+DTS lib/tracing.d.mts        486.00 B
+DTS lib/beta.d.mts           2.74 KB
+DTS lib/plugin.d.mts         752.00 B
+DTS lib/genkit.d.mts         468.00 B
+DTS lib/index.d.mts          2.52 KB
+DTS lib/client/index.d.mts   52.00 B
+DTS lib/index-Bf2bts4V.d.mts 22.00 KB
+
+> @ build:noncore /Users/lukeschlangen/Documents/genkit/js
+> pnpm -r --workspace-concurrency -1 -F "./plugins/**" build
+
+Scope: 18 of 54 workspace projects
+plugins/anthropic build$ npm-run-all build:clean check compile
+plugins/checks build$ npm-run-all build:clean check compile
+plugins/chroma build$ npm-run-all build:clean check compile
+plugins/dev-local-vectorstore build$ npm-run-all build:clean check compile
+plugins/cloud-sql-pg build$ npm-run-all build:clean check compile
+plugins/evaluators build$ npm-run-all build:clean check compile
+plugins/compat-oai build$ npm-run-all build:clean check compile
+plugins/express build$ npm-run-all build:clean check compile
+plugins/google-genai build$ npm-run-all build:clean check compile
+plugins/langchain build$ npm-run-all build:clean check compile
+plugins/mcp build$ npm-run-all build:clean check compile
+plugins/googleai build$ npm-run-all build:clean check compile
+plugins/google-cloud build$ npm-run-all build:clean check compile
+plugins/anthropic build: > @genkit-ai/anthropic@1.23.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/anthropic
+plugins/anthropic build: > rimraf ./lib
+plugins/checks build: > @genkit-ai/checks@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/checks
+plugins/checks build: > rimraf ./lib
+plugins/chroma build: > genkitx-chromadb@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/chroma
+plugins/chroma build: > rimraf ./lib
+plugins/cloud-sql-pg build: > genkitx-cloud-sql-pg@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/cloud-sql-pg
+plugins/cloud-sql-pg build: > rimraf ./lib
+plugins/compat-oai build: > @genkit-ai/compat-oai@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/compat-oai
+plugins/compat-oai build: > rm -rf ./lib
+plugins/evaluators build: > @genkit-ai/evaluator@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/evaluators
+plugins/evaluators build: > rimraf ./lib
+plugins/dev-local-vectorstore build: > @genkit-ai/dev-local-vectorstore@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/dev-local-vectorstore
+plugins/dev-local-vectorstore build: > rimraf ./lib
+plugins/compat-oai build: > @genkit-ai/compat-oai@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/compat-oai
+plugins/compat-oai build: > tsc
+plugins/express build: > @genkit-ai/express@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/express
+plugins/express build: > rimraf ./lib
+plugins/google-genai build: > @genkit-ai/google-genai@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/google-genai
+plugins/google-genai build: > rimraf ./lib
+plugins/mcp build: > @genkit-ai/mcp@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/mcp
+plugins/mcp build: > rimraf ./lib
+plugins/googleai build: > @genkit-ai/googleai@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/googleai
+plugins/googleai build: > rimraf ./lib
+plugins/langchain build: > genkitx-langchain@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/langchain
+plugins/langchain build: > rimraf ./lib
+plugins/google-cloud build: > @genkit-ai/google-cloud@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/google-cloud
+plugins/google-cloud build: > rimraf ./lib
+plugins/anthropic build: > @genkit-ai/anthropic@1.23.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/anthropic
+plugins/anthropic build: > tsc
+plugins/checks build: > @genkit-ai/checks@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/checks
+plugins/checks build: > tsc
+plugins/chroma build: > genkitx-chromadb@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/chroma
+plugins/chroma build: > tsc
+plugins/cloud-sql-pg build: > genkitx-cloud-sql-pg@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/cloud-sql-pg
+plugins/cloud-sql-pg build: > tsc
+plugins/evaluators build: > @genkit-ai/evaluator@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/evaluators
+plugins/evaluators build: > tsc
+plugins/dev-local-vectorstore build: > @genkit-ai/dev-local-vectorstore@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/dev-local-vectorstore
+plugins/dev-local-vectorstore build: > tsc
+plugins/express build: > @genkit-ai/express@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/express
+plugins/express build: > tsc
+plugins/google-genai build: > @genkit-ai/google-genai@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/google-genai
+plugins/google-genai build: > tsc
+plugins/mcp build: > @genkit-ai/mcp@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/mcp
+plugins/mcp build: > tsc
+plugins/googleai build: > @genkit-ai/googleai@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/googleai
+plugins/googleai build: > tsc
+plugins/langchain build: > genkitx-langchain@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/langchain
+plugins/langchain build: > tsc
+plugins/google-cloud build: > @genkit-ai/google-cloud@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/google-cloud
+plugins/google-cloud build: > tsc
+plugins/chroma build: > genkitx-chromadb@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/chroma
+plugins/chroma build: > tsup-node
+plugins/cloud-sql-pg build: > genkitx-cloud-sql-pg@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/cloud-sql-pg
+plugins/cloud-sql-pg build: > tsup-node
+plugins/cloud-sql-pg build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/cloud-sql-pg build:     package.json:63:6:
+plugins/cloud-sql-pg build:       63 │       "types": "./lib/index.d.ts",
+plugins/cloud-sql-pg build:          ╵       ~~~~~~~
+plugins/cloud-sql-pg build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/cloud-sql-pg build:     package.json:62:6:
+plugins/cloud-sql-pg build:       62 │       "import": "./lib/index.mjs",
+plugins/cloud-sql-pg build:          ╵       ~~~~~~~~
+plugins/cloud-sql-pg build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/cloud-sql-pg build:     package.json:61:6:
+plugins/cloud-sql-pg build:       61 │       "require": "./lib/index.js",
+plugins/cloud-sql-pg build:          ╵       ~~~~~~~~~
+plugins/chroma build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/chroma build:     package.json:52:6:
+plugins/chroma build:       52 │       "types": "./lib/index.d.ts",
+plugins/chroma build:          ╵       ~~~~~~~
+plugins/chroma build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/chroma build:     package.json:51:6:
+plugins/chroma build:       51 │       "import": "./lib/index.mjs",
+plugins/chroma build:          ╵       ~~~~~~~~
+plugins/chroma build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/chroma build:     package.json:50:6:
+plugins/chroma build:       50 │       "require": "./lib/index.js",
+plugins/chroma build:          ╵       ~~~~~~~~~
+plugins/chroma build: CLI Building entry: src/index.ts
+plugins/chroma build: CLI Using tsconfig: tsconfig.json
+plugins/chroma build: CLI tsup v8.5.0
+plugins/chroma build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/chroma/tsup.config.ts
+plugins/chroma build: CLI Target: es2022
+plugins/chroma build: CLI Cleaning output folder
+plugins/chroma build: CJS Build start
+plugins/chroma build: ESM Build start
+plugins/cloud-sql-pg build: CLI Building entry: src/engine.ts, src/index.ts, src/indexes.ts, src/utils/index.ts
+plugins/cloud-sql-pg build: CLI Using tsconfig: tsconfig.json
+plugins/cloud-sql-pg build: CLI tsup v8.5.0
+plugins/cloud-sql-pg build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/cloud-sql-pg/tsup.config.ts
+plugins/cloud-sql-pg build: CLI Target: es2022
+plugins/cloud-sql-pg build: CLI Cleaning output folder
+plugins/cloud-sql-pg build: CJS Build start
+plugins/cloud-sql-pg build: ESM Build start
+plugins/chroma build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/chroma build:     package.json:52:6:
+plugins/chroma build: [37m      52 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/chroma build:          ╵       [32m~~~~~~~[0m
+plugins/chroma build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/chroma build:     package.json:51:6:
+plugins/chroma build: [37m      51 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/chroma build:          ╵       [32m~~~~~~~~[0m
+plugins/chroma build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/chroma build:     package.json:50:6:
+plugins/chroma build: [37m      50 │       [32m"require"[37m: "./lib/index.js",
+plugins/chroma build:          ╵       [32m~~~~~~~~~[0m
+plugins/chroma build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/chroma build:     package.json:52:6:
+plugins/chroma build: [37m      52 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/chroma build:          ╵       [32m~~~~~~~[0m
+plugins/chroma build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/chroma build:     package.json:51:6:
+plugins/chroma build: [37m      51 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/chroma build:          ╵       [32m~~~~~~~~[0m
+plugins/chroma build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/chroma build:     package.json:50:6:
+plugins/chroma build: [37m      50 │       [32m"require"[37m: "./lib/index.js",
+plugins/chroma build:          ╵       [32m~~~~~~~~~[0m
+plugins/cloud-sql-pg build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/cloud-sql-pg build:     package.json:63:6:
+plugins/cloud-sql-pg build: [37m      63 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/cloud-sql-pg build:          ╵       [32m~~~~~~~[0m
+plugins/cloud-sql-pg build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/cloud-sql-pg build:     package.json:62:6:
+plugins/cloud-sql-pg build: [37m      62 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/cloud-sql-pg build:          ╵       [32m~~~~~~~~[0m
+plugins/cloud-sql-pg build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/cloud-sql-pg build:     package.json:61:6:
+plugins/cloud-sql-pg build: [37m      61 │       [32m"require"[37m: "./lib/index.js",
+plugins/cloud-sql-pg build:          ╵       [32m~~~~~~~~~[0m
+plugins/cloud-sql-pg build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/cloud-sql-pg build:     package.json:63:6:
+plugins/cloud-sql-pg build: [37m      63 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/cloud-sql-pg build:          ╵       [32m~~~~~~~[0m
+plugins/cloud-sql-pg build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/cloud-sql-pg build:     package.json:62:6:
+plugins/cloud-sql-pg build: [37m      62 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/cloud-sql-pg build:          ╵       [32m~~~~~~~~[0m
+plugins/cloud-sql-pg build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/cloud-sql-pg build:     package.json:61:6:
+plugins/cloud-sql-pg build: [37m      61 │       [32m"require"[37m: "./lib/index.js",
+plugins/cloud-sql-pg build:          ╵       [32m~~~~~~~~~[0m
+plugins/cloud-sql-pg build: ESM lib/index.mjs           10.67 KB
+plugins/cloud-sql-pg build: ESM lib/engine.mjs          9.58 KB
+plugins/cloud-sql-pg build: ESM lib/indexes.mjs         3.60 KB
+plugins/cloud-sql-pg build: ESM lib/utils/index.mjs     865.00 B
+plugins/cloud-sql-pg build: ESM lib/index.mjs.map       22.52 KB
+plugins/cloud-sql-pg build: ESM lib/engine.mjs.map      18.17 KB
+plugins/cloud-sql-pg build: ESM lib/indexes.mjs.map     7.56 KB
+plugins/cloud-sql-pg build: ESM lib/utils/index.mjs.map 2.45 KB
+plugins/cloud-sql-pg build: ESM ⚡️ Build success in 40ms
+plugins/cloud-sql-pg build: CJS lib/engine.js          11.46 KB
+plugins/cloud-sql-pg build: CJS lib/indexes.js         5.00 KB
+plugins/cloud-sql-pg build: CJS lib/index.js           12.25 KB
+plugins/cloud-sql-pg build: CJS lib/utils/index.js     1.85 KB
+plugins/cloud-sql-pg build: CJS lib/engine.js.map      18.19 KB
+plugins/cloud-sql-pg build: CJS lib/index.js.map       22.51 KB
+plugins/cloud-sql-pg build: CJS lib/indexes.js.map     7.65 KB
+plugins/cloud-sql-pg build: CJS lib/utils/index.js.map 2.49 KB
+plugins/cloud-sql-pg build: CJS ⚡️ Build success in 40ms
+plugins/chroma build: ESM lib/index.mjs     6.99 KB
+plugins/chroma build: ESM lib/index.mjs.map 15.78 KB
+plugins/chroma build: ESM ⚡️ Build success in 67ms
+plugins/chroma build: CJS lib/index.js     8.55 KB
+plugins/chroma build: CJS lib/index.js.map 15.79 KB
+plugins/chroma build: CJS ⚡️ Build success in 67ms
+plugins/compat-oai build: > @genkit-ai/compat-oai@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/compat-oai
+plugins/compat-oai build: > tsup-node
+plugins/chroma build: DTS Build start
+plugins/cloud-sql-pg build: DTS Build start
+plugins/langchain build: > genkitx-langchain@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/langchain
+plugins/langchain build: > tsup-node
+plugins/compat-oai build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/compat-oai build:     package.json:43:6:
+plugins/compat-oai build:       43 │       "types": "./lib/index.d.ts",
+plugins/compat-oai build:          ╵       ~~~~~~~
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:42:6:
+plugins/compat-oai build:       42 │       "import": "./lib/index.mjs",
+plugins/compat-oai build:          ╵       ~~~~~~~~
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:41:6:
+plugins/compat-oai build:       41 │       "require": "./lib/index.js",
+plugins/compat-oai build:          ╵       ~~~~~~~~~
+plugins/compat-oai build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/compat-oai build:     package.json:49:6:
+plugins/compat-oai build:       49 │       "types": "./lib/openai/index.d.ts",
+plugins/compat-oai build:          ╵       ~~~~~~~
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:48:6:
+plugins/compat-oai build:       48 │       "import": "./lib/openai/index.mjs",
+plugins/compat-oai build:          ╵       ~~~~~~~~
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:47:6:
+plugins/compat-oai build:       47 │       "require": "./lib/openai/index.js",
+plugins/compat-oai build:          ╵       ~~~~~~~~~
+plugins/compat-oai build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/compat-oai build:     package.json:55:6:
+plugins/compat-oai build:       55 │       "types": "./lib/deepseek/index.d.ts",
+plugins/compat-oai build:          ╵       ~~~~~~~
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:54:6:
+plugins/compat-oai build:       54 │       "import": "./lib/deepseek/index.mjs",
+plugins/compat-oai build:          ╵       ~~~~~~~~
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:53:6:
+plugins/compat-oai build:       53 │       "require": "./lib/deepseek/index.js",
+plugins/compat-oai build:          ╵       ~~~~~~~~~
+plugins/compat-oai build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/compat-oai build:     package.json:61:6:
+plugins/compat-oai build:       61 │       "types": "./lib/xai/index.d.ts",
+plugins/compat-oai build:          ╵       ~~~~~~~
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:60:6:
+plugins/compat-oai build:       60 │       "import": "./lib/xai/index.mjs",
+plugins/compat-oai build:          ╵       ~~~~~~~~
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:59:6:
+plugins/compat-oai build:       59 │       "require": "./lib/xai/index.js",
+plugins/compat-oai build:          ╵       ~~~~~~~~~
+plugins/compat-oai build: CLI Building entry: src/audio.ts, src/embedder.ts, src/image.ts, src/index.ts, src/model.ts, src/utils.ts, src/deepseek/deepseek.ts, src/deepseek/index.ts, src/xai/grok-image.ts, src/xai/grok.ts, src/xai/index.ts, src/openai/dalle.ts, src/openai/embedder.ts, src/openai/gpt.ts, src/openai/index.ts, src/openai/tts.ts, src/openai/whisper.ts
+plugins/compat-oai build: CLI Using tsconfig: tsconfig.json
+plugins/compat-oai build: CLI tsup v8.5.0
+plugins/compat-oai build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/compat-oai/tsup.config.ts
+plugins/compat-oai build: CLI Target: es2022
+plugins/compat-oai build: CLI Cleaning output folder
+plugins/compat-oai build: CJS Build start
+plugins/compat-oai build: ESM Build start
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:43:6:
+plugins/compat-oai build: [37m      43 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:42:6:
+plugins/compat-oai build: [37m      42 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:41:6:
+plugins/compat-oai build: [37m      41 │       [32m"require"[37m: "./lib/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:49:6:
+plugins/compat-oai build: [37m      49 │       [32m"types"[37m: "./lib/openai/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:48:6:
+plugins/compat-oai build: [37m      48 │       [32m"import"[37m: "./lib/openai/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:47:6:
+plugins/compat-oai build: [37m      47 │       [32m"require"[37m: "./lib/openai/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:55:6:
+plugins/compat-oai build: [37m      55 │       [32m"types"[37m: "./lib/deepseek/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:54:6:
+plugins/compat-oai build: [37m      54 │       [32m"import"[37m: "./lib/deepseek/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:53:6:
+plugins/compat-oai build: [37m      53 │       [32m"require"[37m: "./lib/deepseek/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:61:6:
+plugins/compat-oai build: [37m      61 │       [32m"types"[37m: "./lib/xai/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:60:6:
+plugins/compat-oai build: [37m      60 │       [32m"import"[37m: "./lib/xai/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:59:6:
+plugins/compat-oai build: [37m      59 │       [32m"require"[37m: "./lib/xai/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:43:6:
+plugins/compat-oai build: [37m      43 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:42:6:
+plugins/compat-oai build: [37m      42 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:41:6:
+plugins/compat-oai build: [37m      41 │       [32m"require"[37m: "./lib/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:49:6:
+plugins/compat-oai build: [37m      49 │       [32m"types"[37m: "./lib/openai/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:48:6:
+plugins/compat-oai build: [37m      48 │       [32m"import"[37m: "./lib/openai/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:47:6:
+plugins/compat-oai build: [37m      47 │       [32m"require"[37m: "./lib/openai/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:55:6:
+plugins/compat-oai build: [37m      55 │       [32m"types"[37m: "./lib/deepseek/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:54:6:
+plugins/compat-oai build: [37m      54 │       [32m"import"[37m: "./lib/deepseek/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:53:6:
+plugins/compat-oai build: [37m      53 │       [32m"require"[37m: "./lib/deepseek/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/compat-oai build:     package.json:61:6:
+plugins/compat-oai build: [37m      61 │       [32m"types"[37m: "./lib/xai/index.d.ts",
+plugins/compat-oai build:          ╵       [32m~~~~~~~[0m
+plugins/compat-oai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/compat-oai build:     package.json:60:6:
+plugins/compat-oai build: [37m      60 │       [32m"import"[37m: "./lib/xai/index.mjs",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~[0m
+plugins/compat-oai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/compat-oai build:     package.json:59:6:
+plugins/compat-oai build: [37m      59 │       [32m"require"[37m: "./lib/xai/index.js",
+plugins/compat-oai build:          ╵       [32m~~~~~~~~~[0m
+plugins/compat-oai build: CJS lib/embedder.js              2.03 KB
+plugins/compat-oai build: CJS lib/deepseek/deepseek.js     2.28 KB
+plugins/compat-oai build: CJS lib/openai/gpt.js            6.84 KB
+plugins/compat-oai build: CJS lib/audio.js                 8.90 KB
+plugins/compat-oai build: CJS lib/model.js                 13.93 KB
+plugins/compat-oai build: CJS lib/utils.js                 2.17 KB
+plugins/compat-oai build: CJS lib/index.js                 4.86 KB
+plugins/compat-oai build: CJS lib/image.js                 4.24 KB
+plugins/compat-oai build: CJS lib/xai/grok.js              2.83 KB
+plugins/compat-oai build: CJS lib/xai/index.js             4.33 KB
+plugins/compat-oai build: CJS lib/xai/grok-image.js        1.35 KB
+plugins/compat-oai build: CJS lib/openai/dalle.js          2.61 KB
+plugins/compat-oai build: CJS lib/openai/tts.js            1.56 KB
+plugins/compat-oai build: CJS lib/openai/index.js          7.88 KB
+plugins/compat-oai build: CJS lib/openai/whisper.js        1.47 KB
+plugins/compat-oai build: CJS lib/deepseek/index.js        3.52 KB
+plugins/compat-oai build: CJS lib/openai/embedder.js       2.05 KB
+plugins/compat-oai build: CJS lib/embedder.js.map          3.16 KB
+plugins/compat-oai build: CJS lib/index.js.map             6.92 KB
+plugins/compat-oai build: CJS lib/openai/gpt.js.map        10.89 KB
+plugins/compat-oai build: CJS lib/audio.js.map             16.26 KB
+plugins/compat-oai build: CJS lib/image.js.map             7.38 KB
+plugins/compat-oai build: CJS lib/xai/grok.js.map          3.91 KB
+plugins/compat-oai build: CJS lib/utils.js.map             1.84 KB
+plugins/compat-oai build: CJS lib/xai/index.js.map         8.05 KB
+plugins/compat-oai build: CJS lib/deepseek/deepseek.js.map 2.72 KB
+plugins/compat-oai build: CJS lib/model.js.map             28.94 KB
+plugins/compat-oai build: CJS lib/openai/dalle.js.map      3.33 KB
+plugins/compat-oai build: CJS lib/xai/grok-image.js.map    1.21 KB
+plugins/compat-oai build: CJS lib/openai/whisper.js.map    1.42 KB
+plugins/compat-oai build: CJS lib/openai/index.js.map      14.91 KB
+plugins/compat-oai build: CJS lib/openai/tts.js.map        1.59 KB
+plugins/compat-oai build: CJS lib/deepseek/index.js.map    6.47 KB
+plugins/compat-oai build: CJS lib/openai/embedder.js.map   2.39 KB
+plugins/compat-oai build: CJS ⚡️ Build success in 167ms
+plugins/compat-oai build: ESM lib/openai/whisper.mjs        395.00 B
+plugins/compat-oai build: ESM lib/xai/index.mjs             3.15 KB
+plugins/compat-oai build: ESM lib/xai/grok.mjs              1.62 KB
+plugins/compat-oai build: ESM lib/openai/embedder.mjs       902.00 B
+plugins/compat-oai build: ESM lib/xai/grok-image.mjs        284.00 B
+plugins/compat-oai build: ESM lib/openai/dalle.mjs          1.40 KB
+plugins/compat-oai build: ESM lib/openai/gpt.mjs            5.71 KB
+plugins/compat-oai build: ESM lib/embedder.mjs              1017.00 B
+plugins/compat-oai build: ESM lib/audio.mjs                 7.06 KB
+plugins/compat-oai build: ESM lib/openai/index.mjs          6.54 KB
+plugins/compat-oai build: ESM lib/image.mjs                 2.89 KB
+plugins/compat-oai build: ESM lib/openai/tts.mjs            493.00 B
+plugins/compat-oai build: ESM lib/index.mjs                 2.62 KB
+plugins/compat-oai build: ESM lib/utils.mjs                 532.00 B
+plugins/compat-oai build: ESM lib/model.mjs                 12.28 KB
+plugins/compat-oai build: ESM lib/deepseek/deepseek.mjs     1.06 KB
+plugins/compat-oai build: ESM lib/deepseek/index.mjs        2.37 KB
+plugins/compat-oai build: ESM lib/openai/whisper.mjs.map    1.31 KB
+plugins/compat-oai build: ESM lib/xai/index.mjs.map         8.09 KB
+plugins/compat-oai build: ESM lib/xai/grok.mjs.map          3.85 KB
+plugins/compat-oai build: ESM lib/openai/dalle.mjs.map      3.24 KB
+plugins/compat-oai build: ESM lib/openai/gpt.mjs.map        10.83 KB
+plugins/compat-oai build: ESM lib/audio.mjs.map             16.19 KB
+plugins/compat-oai build: ESM lib/openai/index.mjs.map      15.01 KB
+plugins/compat-oai build: ESM lib/embedder.mjs.map          3.12 KB
+plugins/compat-oai build: ESM lib/image.mjs.map             7.33 KB
+plugins/compat-oai build: ESM lib/openai/tts.mjs.map        1.51 KB
+plugins/compat-oai build: ESM lib/xai/grok-image.mjs.map    1.13 KB
+plugins/compat-oai build: ESM lib/openai/embedder.mjs.map   2.35 KB
+plugins/compat-oai build: ESM lib/index.mjs.map             6.98 KB
+plugins/compat-oai build: ESM lib/utils.mjs.map             1.78 KB
+plugins/compat-oai build: ESM lib/model.mjs.map             28.90 KB
+plugins/compat-oai build: ESM lib/deepseek/deepseek.mjs.map 2.67 KB
+plugins/compat-oai build: ESM lib/deepseek/index.mjs.map    6.49 KB
+plugins/compat-oai build: ESM ⚡️ Build success in 169ms
+plugins/compat-oai build: DTS Build start
+plugins/langchain build: ▲ [WARNING] The conditions "import" and "types" here will never be used as they come after "default" [package.json]
+plugins/langchain build:     package.json:50:6:
+plugins/langchain build:       50 │       "import": "./lib/index.mjs",
+plugins/langchain build:          ╵       ~~~~~~~~
+plugins/langchain build:   The "default" condition comes earlier and will always be chosen:
+plugins/langchain build:     package.json:49:6:
+plugins/langchain build:       49 │       "default": "./lib/index.js",
+plugins/langchain build:          ╵       ~~~~~~~~~
+plugins/langchain build: CLI Building entry: src/evaluators.ts, src/index.ts, src/model.ts, src/tracing.ts
+plugins/langchain build: CLI Using tsconfig: tsconfig.json
+plugins/langchain build: CLI tsup v8.5.0
+plugins/langchain build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/langchain/tsup.config.ts
+plugins/langchain build: CLI Target: es2022
+plugins/langchain build: CLI Cleaning output folder
+plugins/langchain build: CJS Build start
+plugins/langchain build: ESM Build start
+plugins/langchain build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "import" and "types" here will never be used as they come after "default"[0m [package.json]
+plugins/langchain build:     package.json:50:6:
+plugins/langchain build: [37m      50 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/langchain build:          ╵       [32m~~~~~~~~[0m
+plugins/langchain build:   The "default" condition comes earlier and will always be chosen:
+plugins/langchain build:     package.json:49:6:
+plugins/langchain build: [37m      49 │       [32m"default"[37m: "./lib/index.js",
+plugins/langchain build:          ╵       [32m~~~~~~~~~[0m
+plugins/langchain build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "import" and "types" here will never be used as they come after "default"[0m [package.json]
+plugins/langchain build:     package.json:50:6:
+plugins/langchain build: [37m      50 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/langchain build:          ╵       [32m~~~~~~~~[0m
+plugins/langchain build:   The "default" condition comes earlier and will always be chosen:
+plugins/langchain build:     package.json:49:6:
+plugins/langchain build: [37m      49 │       [32m"default"[37m: "./lib/index.js",
+plugins/langchain build:          ╵       [32m~~~~~~~~~[0m
+plugins/langchain build: ESM lib/evaluators.mjs     1.81 KB
+plugins/langchain build: ESM lib/index.mjs          967.00 B
+plugins/langchain build: ESM lib/model.mjs          883.00 B
+plugins/langchain build: ESM lib/tracing.mjs        2.90 KB
+plugins/langchain build: ESM lib/evaluators.mjs.map 3.79 KB
+plugins/langchain build: ESM lib/index.mjs.map      2.68 KB
+plugins/langchain build: ESM lib/model.mjs.map      2.58 KB
+plugins/langchain build: ESM lib/tracing.mjs.map    6.34 KB
+plugins/langchain build: ESM ⚡️ Build success in 82ms
+plugins/langchain build: CJS lib/evaluators.js     2.88 KB
+plugins/langchain build: CJS lib/index.js          2.04 KB
+plugins/langchain build: CJS lib/model.js          1.88 KB
+plugins/langchain build: CJS lib/tracing.js        3.92 KB
+plugins/langchain build: CJS lib/evaluators.js.map 3.82 KB
+plugins/langchain build: CJS lib/index.js.map      2.71 KB
+plugins/langchain build: CJS lib/tracing.js.map    6.35 KB
+plugins/langchain build: CJS lib/model.js.map      2.62 KB
+plugins/langchain build: CJS ⚡️ Build success in 82ms
+plugins/google-cloud build: > @genkit-ai/google-cloud@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/google-cloud
+plugins/google-cloud build: > tsup-node
+plugins/langchain build: DTS Build start
+plugins/anthropic build: > @genkit-ai/anthropic@1.23.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/anthropic
+plugins/anthropic build: > tsup-node
+plugins/checks build: > @genkit-ai/checks@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/checks
+plugins/checks build: > tsup-node
+plugins/google-cloud build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/google-cloud build:     package.json:72:6:
+plugins/google-cloud build:       72 │       "types": "./lib/index.d.ts",
+plugins/google-cloud build:          ╵       ~~~~~~~
+plugins/google-cloud build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/google-cloud build:     package.json:71:6:
+plugins/google-cloud build:       71 │       "import": "./lib/index.mjs",
+plugins/google-cloud build:          ╵       ~~~~~~~~
+plugins/google-cloud build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/google-cloud build:     package.json:70:6:
+plugins/google-cloud build:       70 │       "require": "./lib/index.js",
+plugins/google-cloud build:          ╵       ~~~~~~~~~
+plugins/google-cloud build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/google-cloud build:     package.json:78:6:
+plugins/google-cloud build:       78 │       "types": "./lib/model-armor.d.ts",
+plugins/google-cloud build:          ╵       ~~~~~~~
+plugins/google-cloud build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/google-cloud build:     package.json:77:6:
+plugins/google-cloud build:       77 │       "import": "./lib/model-armor.mjs",
+plugins/google-cloud build:          ╵       ~~~~~~~~
+plugins/google-cloud build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/google-cloud build:     package.json:76:6:
+plugins/google-cloud build:       76 │       "require": "./lib/model-armor.js",
+plugins/google-cloud build:          ╵       ~~~~~~~~~
+plugins/google-cloud build: CLI Building entry: src/auth.ts, src/gcpLogger.ts, src/gcpOpenTelemetry.ts, src/index.ts, src/metrics.ts, src/model-armor.ts, src/types.ts, src/utils.ts, src/telemetry/action.ts, src/telemetry/defaults.ts, src/telemetry/engagement.ts, src/telemetry/feature.ts, src/telemetry/generate.ts, src/telemetry/path.ts
+plugins/google-cloud build: CLI Using tsconfig: tsconfig.json
+plugins/google-cloud build: CLI tsup v8.5.0
+plugins/google-cloud build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/google-cloud/tsup.config.ts
+plugins/google-cloud build: CLI Target: es2022
+plugins/google-cloud build: CLI Cleaning output folder
+plugins/google-cloud build: CJS Build start
+plugins/google-cloud build: ESM Build start
+plugins/google-cloud build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/google-cloud build:     package.json:72:6:
+plugins/google-cloud build: [37m      72 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/google-cloud build:          ╵       [32m~~~~~~~[0m
+plugins/google-cloud build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/google-cloud build:     package.json:71:6:
+plugins/google-cloud build: [37m      71 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~[0m
+plugins/google-cloud build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/google-cloud build:     package.json:70:6:
+plugins/google-cloud build: [37m      70 │       [32m"require"[37m: "./lib/index.js",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~~[0m
+plugins/google-cloud build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/google-cloud build:     package.json:78:6:
+plugins/google-cloud build: [37m      78 │       [32m"types"[37m: "./lib/model-armor.d.ts",
+plugins/google-cloud build:          ╵       [32m~~~~~~~[0m
+plugins/google-cloud build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/google-cloud build:     package.json:77:6:
+plugins/google-cloud build: [37m      77 │       [32m"import"[37m: "./lib/model-armor.mjs",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~[0m
+plugins/google-cloud build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/google-cloud build:     package.json:76:6:
+plugins/google-cloud build: [37m      76 │       [32m"require"[37m: "./lib/model-armor.js",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~~[0m
+plugins/google-cloud build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/google-cloud build:     package.json:72:6:
+plugins/google-cloud build: [37m      72 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/google-cloud build:          ╵       [32m~~~~~~~[0m
+plugins/google-cloud build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/google-cloud build:     package.json:71:6:
+plugins/google-cloud build: [37m      71 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~[0m
+plugins/google-cloud build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/google-cloud build:     package.json:70:6:
+plugins/google-cloud build: [37m      70 │       [32m"require"[37m: "./lib/index.js",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~~[0m
+plugins/google-cloud build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/google-cloud build:     package.json:78:6:
+plugins/google-cloud build: [37m      78 │       [32m"types"[37m: "./lib/model-armor.d.ts",
+plugins/google-cloud build:          ╵       [32m~~~~~~~[0m
+plugins/google-cloud build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/google-cloud build:     package.json:77:6:
+plugins/google-cloud build: [37m      77 │       [32m"import"[37m: "./lib/model-armor.mjs",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~[0m
+plugins/google-cloud build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/google-cloud build:     package.json:76:6:
+plugins/google-cloud build: [37m      76 │       [32m"require"[37m: "./lib/model-armor.js",
+plugins/google-cloud build:          ╵       [32m~~~~~~~~~[0m
+plugins/google-cloud build: ESM lib/telemetry/action.mjs         1.96 KB
+plugins/google-cloud build: ESM lib/telemetry/defaults.mjs       1.46 KB
+plugins/google-cloud build: ESM lib/telemetry/generate.mjs       9.82 KB
+plugins/google-cloud build: ESM lib/gcpLogger.mjs                2.36 KB
+plugins/google-cloud build: ESM lib/gcpOpenTelemetry.mjs         11.67 KB
+plugins/google-cloud build: ESM lib/index.mjs                    1.05 KB
+plugins/google-cloud build: ESM lib/auth.mjs                     1.37 KB
+plugins/google-cloud build: ESM lib/types.mjs                    34.00 B
+plugins/google-cloud build: ESM lib/metrics.mjs                  1.43 KB
+plugins/google-cloud build: ESM lib/telemetry/engagement.mjs     2.77 KB
+plugins/google-cloud build: ESM lib/model-armor.mjs              6.04 KB
+plugins/google-cloud build: ESM lib/telemetry/feature.mjs        3.62 KB
+plugins/google-cloud build: ESM lib/utils.mjs                    3.47 KB
+plugins/google-cloud build: ESM lib/telemetry/path.mjs           2.52 KB
+plugins/google-cloud build: ESM lib/telemetry/action.mjs.map     4.21 KB
+plugins/google-cloud build: ESM lib/telemetry/defaults.mjs.map   3.37 KB
+plugins/google-cloud build: ESM lib/gcpLogger.mjs.map            5.65 KB
+plugins/google-cloud build: ESM lib/telemetry/generate.mjs.map   18.97 KB
+plugins/google-cloud build: ESM lib/gcpOpenTelemetry.mjs.map     22.41 KB
+plugins/google-cloud build: ESM lib/types.mjs.map                71.00 B
+plugins/google-cloud build: ESM lib/auth.mjs.map                 4.26 KB
+plugins/google-cloud build: ESM lib/telemetry/engagement.mjs.map 5.48 KB
+plugins/google-cloud build: ESM lib/metrics.mjs.map              4.67 KB
+plugins/google-cloud build: ESM lib/model-armor.mjs.map          13.46 KB
+plugins/google-cloud build: ESM lib/index.mjs.map                2.69 KB
+plugins/google-cloud build: ESM lib/telemetry/feature.mjs.map    7.01 KB
+plugins/google-cloud build: ESM lib/telemetry/path.mjs.map       4.96 KB
+plugins/google-cloud build: ESM lib/utils.mjs.map                7.14 KB
+plugins/google-cloud build: ESM ⚡️ Build success in 48ms
+plugins/google-cloud build: CJS lib/auth.js                     2.58 KB
+plugins/google-cloud build: CJS lib/telemetry/action.js         3.01 KB
+plugins/google-cloud build: CJS lib/utils.js                    5.20 KB
+plugins/google-cloud build: CJS lib/types.js                    774.00 B
+plugins/google-cloud build: CJS lib/model-armor.js              7.13 KB
+plugins/google-cloud build: CJS lib/gcpOpenTelemetry.js         13.33 KB
+plugins/google-cloud build: CJS lib/gcpLogger.js                4.16 KB
+plugins/google-cloud build: CJS lib/telemetry/feature.js        4.75 KB
+plugins/google-cloud build: CJS lib/telemetry/path.js           3.58 KB
+plugins/google-cloud build: CJS lib/telemetry/generate.js       11.38 KB
+plugins/google-cloud build: CJS lib/metrics.js                  2.62 KB
+plugins/google-cloud build: CJS lib/index.js                    2.47 KB
+plugins/google-cloud build: CJS lib/telemetry/defaults.js       2.54 KB
+plugins/google-cloud build: CJS lib/telemetry/engagement.js     3.93 KB
+plugins/google-cloud build: CJS lib/utils.js.map                7.25 KB
+plugins/google-cloud build: CJS lib/telemetry/action.js.map     4.21 KB
+plugins/google-cloud build: CJS lib/auth.js.map                 4.30 KB
+plugins/google-cloud build: CJS lib/model-armor.js.map          13.49 KB
+plugins/google-cloud build: CJS lib/types.js.map                4.98 KB
+plugins/google-cloud build: CJS lib/gcpLogger.js.map            5.69 KB
+plugins/google-cloud build: CJS lib/gcpOpenTelemetry.js.map     22.26 KB
+plugins/google-cloud build: CJS lib/telemetry/feature.js.map    6.95 KB
+plugins/google-cloud build: CJS lib/telemetry/path.js.map       4.89 KB
+plugins/google-cloud build: CJS lib/metrics.js.map              4.71 KB
+plugins/google-cloud build: CJS lib/index.js.map                2.73 KB
+plugins/google-cloud build: CJS lib/telemetry/generate.js.map   18.93 KB
+plugins/google-cloud build: CJS lib/telemetry/defaults.js.map   3.40 KB
+plugins/google-cloud build: CJS lib/telemetry/engagement.js.map 5.48 KB
+plugins/google-cloud build: CJS ⚡️ Build success in 48ms
+plugins/dev-local-vectorstore build: > @genkit-ai/dev-local-vectorstore@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/dev-local-vectorstore
+plugins/dev-local-vectorstore build: > tsup-node
+plugins/anthropic build: CLI Building entry: src/index.ts, src/list.ts, src/models.ts, src/types.ts, src/runner/base.ts, src/runner/beta.ts, src/runner/index.ts, src/runner/stable.ts, src/runner/types.ts
+plugins/anthropic build: CLI Using tsconfig: tsconfig.json
+plugins/anthropic build: CLI tsup v8.5.0
+plugins/anthropic build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/anthropic/tsup.config.ts
+plugins/anthropic build: CLI Target: es2022
+plugins/anthropic build: CLI Cleaning output folder
+plugins/anthropic build: CJS Build start
+plugins/anthropic build: ESM Build start
+plugins/evaluators build: > @genkit-ai/evaluator@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/evaluators
+plugins/evaluators build: > tsup-node
+plugins/checks build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/checks build:     package.json:53:6:
+plugins/checks build:       53 │       "types": "./lib/index.d.ts",
+plugins/checks build:          ╵       ~~~~~~~
+plugins/checks build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/checks build:     package.json:52:6:
+plugins/checks build:       52 │       "import": "./lib/index.mjs",
+plugins/checks build:          ╵       ~~~~~~~~
+plugins/checks build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/checks build:     package.json:51:6:
+plugins/checks build:       51 │       "require": "./lib/index.js",
+plugins/checks build:          ╵       ~~~~~~~~~
+plugins/checks build: CLI Building entry: src/evaluation.ts, src/guardrails.ts, src/index.ts, src/metrics.ts, src/middleware.ts
+plugins/checks build: CLI Using tsconfig: tsconfig.json
+plugins/checks build: CLI tsup v8.5.0
+plugins/checks build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/checks/tsup.config.ts
+plugins/checks build: CLI Target: es2022
+plugins/checks build: CLI Cleaning output folder
+plugins/checks build: CJS Build start
+plugins/checks build: ESM Build start
+plugins/anthropic build: CJS lib/index.js             3.84 KB
+plugins/anthropic build: CJS lib/types.js             3.78 KB
+plugins/anthropic build: CJS lib/models.js            4.97 KB
+plugins/anthropic build: CJS lib/runner/index.js      1.28 KB
+plugins/anthropic build: CJS lib/list.js              1.85 KB
+plugins/anthropic build: CJS lib/runner/beta.js       11.55 KB
+plugins/anthropic build: CJS lib/runner/base.js       11.41 KB
+plugins/anthropic build: CJS lib/runner/stable.js     11.79 KB
+plugins/anthropic build: CJS lib/runner/types.js      774.00 B
+plugins/anthropic build: CJS lib/index.js.map         6.72 KB
+plugins/anthropic build: CJS lib/runner/index.js.map  929.00 B
+plugins/anthropic build: CJS lib/runner/beta.js.map   21.52 KB
+plugins/anthropic build: CJS lib/runner/base.js.map   23.35 KB
+plugins/anthropic build: CJS lib/list.js.map          2.78 KB
+plugins/anthropic build: CJS lib/models.js.map        9.77 KB
+plugins/anthropic build: CJS lib/runner/stable.js.map 21.37 KB
+plugins/anthropic build: CJS lib/types.js.map         6.48 KB
+plugins/anthropic build: CJS lib/runner/types.js.map  2.99 KB
+plugins/anthropic build: CJS ⚡️ Build success in 65ms
+plugins/anthropic build: ESM lib/list.mjs              847.00 B
+plugins/anthropic build: ESM lib/models.mjs            3.60 KB
+plugins/anthropic build: ESM lib/runner/base.mjs       10.43 KB
+plugins/anthropic build: ESM lib/types.mjs             2.13 KB
+plugins/anthropic build: ESM lib/index.mjs             2.17 KB
+plugins/anthropic build: ESM lib/runner/index.mjs      201.00 B
+plugins/anthropic build: ESM lib/runner/beta.mjs       10.49 KB
+plugins/anthropic build: ESM lib/runner/stable.mjs     10.72 KB
+plugins/anthropic build: ESM lib/runner/types.mjs      34.00 B
+plugins/anthropic build: ESM lib/list.mjs.map          2.74 KB
+plugins/anthropic build: ESM lib/index.mjs.map         6.69 KB
+plugins/anthropic build: ESM lib/types.mjs.map         6.39 KB
+plugins/anthropic build: ESM lib/runner/base.mjs.map   23.32 KB
+plugins/anthropic build: ESM lib/models.mjs.map        9.76 KB
+plugins/anthropic build: ESM lib/runner/index.mjs.map  889.00 B
+plugins/anthropic build: ESM lib/runner/beta.mjs.map   21.49 KB
+plugins/anthropic build: ESM lib/runner/stable.mjs.map 21.35 KB
+plugins/anthropic build: ESM lib/runner/types.mjs.map  71.00 B
+plugins/anthropic build: ESM ⚡️ Build success in 66ms
+plugins/express build: > @genkit-ai/express@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/express
+plugins/express build: > tsup-node
+plugins/google-cloud build: DTS Build start
+plugins/checks build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/checks build:     package.json:53:6:
+plugins/checks build: [37m      53 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/checks build:          ╵       [32m~~~~~~~[0m
+plugins/checks build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/checks build:     package.json:52:6:
+plugins/checks build: [37m      52 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/checks build:          ╵       [32m~~~~~~~~[0m
+plugins/checks build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/checks build:     package.json:51:6:
+plugins/checks build: [37m      51 │       [32m"require"[37m: "./lib/index.js",
+plugins/checks build:          ╵       [32m~~~~~~~~~[0m
+plugins/checks build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/checks build:     package.json:53:6:
+plugins/checks build: [37m      53 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/checks build:          ╵       [32m~~~~~~~[0m
+plugins/checks build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/checks build:     package.json:52:6:
+plugins/checks build: [37m      52 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/checks build:          ╵       [32m~~~~~~~~[0m
+plugins/checks build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/checks build:     package.json:51:6:
+plugins/checks build: [37m      51 │       [32m"require"[37m: "./lib/index.js",
+plugins/checks build:          ╵       [32m~~~~~~~~~[0m
+plugins/anthropic build: DTS Build start
+plugins/checks build: CJS lib/evaluation.js     3.97 KB
+plugins/checks build: CJS lib/middleware.js     2.66 KB
+plugins/checks build: CJS lib/guardrails.js     2.53 KB
+plugins/checks build: CJS lib/index.js          3.56 KB
+plugins/checks build: CJS lib/metrics.js        1.92 KB
+plugins/checks build: CJS lib/middleware.js.map 3.89 KB
+plugins/checks build: CJS lib/guardrails.js.map 3.82 KB
+plugins/checks build: CJS lib/evaluation.js.map 5.99 KB
+plugins/checks build: CJS lib/index.js.map      5.36 KB
+plugins/checks build: CJS lib/metrics.js.map    2.82 KB
+plugins/checks build: CJS ⚡️ Build success in 139ms
+plugins/checks build: ESM lib/index.mjs          2.35 KB
+plugins/checks build: ESM lib/metrics.mjs        893.00 B
+plugins/checks build: ESM lib/middleware.mjs     1.63 KB
+plugins/checks build: ESM lib/evaluation.mjs     2.80 KB
+plugins/checks build: ESM lib/guardrails.mjs     1.39 KB
+plugins/checks build: ESM lib/middleware.mjs.map 3.85 KB
+plugins/checks build: ESM lib/index.mjs.map      5.32 KB
+plugins/checks build: ESM lib/evaluation.mjs.map 5.96 KB
+plugins/checks build: ESM lib/metrics.mjs.map    2.77 KB
+plugins/checks build: ESM lib/guardrails.mjs.map 3.78 KB
+plugins/checks build: ESM ⚡️ Build success in 141ms
+plugins/checks build: DTS Build start
+plugins/dev-local-vectorstore build: CLI Building entry: src/index.ts
+plugins/dev-local-vectorstore build: CLI Using tsconfig: tsconfig.json
+plugins/dev-local-vectorstore build: CLI tsup v8.5.0
+plugins/dev-local-vectorstore build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/dev-local-vectorstore/tsup.config.ts
+plugins/dev-local-vectorstore build: CLI Target: es2022
+plugins/dev-local-vectorstore build: CLI Cleaning output folder
+plugins/dev-local-vectorstore build: CJS Build start
+plugins/dev-local-vectorstore build: ESM Build start
+plugins/dev-local-vectorstore build: ESM lib/index.mjs     3.84 KB
+plugins/dev-local-vectorstore build: ESM lib/index.mjs.map 9.02 KB
+plugins/dev-local-vectorstore build: ESM ⚡️ Build success in 29ms
+plugins/dev-local-vectorstore build: CJS lib/index.js     5.71 KB
+plugins/dev-local-vectorstore build: CJS lib/index.js.map 9.04 KB
+plugins/dev-local-vectorstore build: CJS ⚡️ Build success in 29ms
+plugins/evaluators build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/evaluators build:     package.json:55:6:
+plugins/evaluators build:       55 │       "types": "./lib/index.d.ts",
+plugins/evaluators build:          ╵       ~~~~~~~
+plugins/evaluators build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/evaluators build:     package.json:54:6:
+plugins/evaluators build:       54 │       "import": "./lib/index.mjs",
+plugins/evaluators build:          ╵       ~~~~~~~~
+plugins/evaluators build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/evaluators build:     package.json:53:6:
+plugins/evaluators build:       53 │       "require": "./lib/index.js",
+plugins/evaluators build:          ╵       ~~~~~~~~~
+plugins/evaluators build: CLI Building entry: src/index.ts, src/types.ts, src/metrics/answer_accuracy.ts, src/metrics/answer_relevancy.ts, src/metrics/deep-equal.ts, src/metrics/faithfulness.ts, src/metrics/helper.ts, src/metrics/index.ts, src/metrics/jsonata.ts, src/metrics/maliciousness.ts, src/metrics/regexp.ts
+plugins/evaluators build: CLI Using tsconfig: tsconfig.json
+plugins/evaluators build: CLI tsup v8.5.0
+plugins/evaluators build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/evaluators/tsup.config.ts
+plugins/evaluators build: CLI Target: es2022
+plugins/evaluators build: CLI Cleaning output folder
+plugins/evaluators build: CJS Build start
+plugins/evaluators build: ESM Build start
+plugins/express build: ▲ [WARNING] The conditions "import" and "types" here will never be used as they come after "default" [package.json]
+plugins/express build:     package.json:55:6:
+plugins/express build:       55 │       "import": "./lib/index.mjs",
+plugins/express build:          ╵       ~~~~~~~~
+plugins/express build:   The "default" condition comes earlier and will always be chosen:
+plugins/express build:     package.json:54:6:
+plugins/express build:       54 │       "default": "./lib/index.js",
+plugins/express build:          ╵       ~~~~~~~~~
+plugins/express build: CLI Building entry: src/index.ts, src/utils.ts
+plugins/express build: CLI Using tsconfig: tsconfig.json
+plugins/express build: CLI tsup v8.5.0
+plugins/express build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/express/tsup.config.ts
+plugins/evaluators build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/evaluators build:     package.json:55:6:
+plugins/evaluators build: [37m      55 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/evaluators build:          ╵       [32m~~~~~~~[0m
+plugins/evaluators build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/evaluators build:     package.json:54:6:
+plugins/evaluators build: [37m      54 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/evaluators build:          ╵       [32m~~~~~~~~[0m
+plugins/evaluators build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/evaluators build:     package.json:53:6:
+plugins/evaluators build: [37m      53 │       [32m"require"[37m: "./lib/index.js",
+plugins/evaluators build:          ╵       [32m~~~~~~~~~[0m
+plugins/evaluators build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/evaluators build:     package.json:55:6:
+plugins/evaluators build: [37m      55 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/evaluators build:          ╵       [32m~~~~~~~[0m
+plugins/evaluators build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/evaluators build:     package.json:54:6:
+plugins/evaluators build: [37m      54 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/evaluators build:          ╵       [32m~~~~~~~~[0m
+plugins/evaluators build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/evaluators build:     package.json:53:6:
+plugins/evaluators build: [37m      53 │       [32m"require"[37m: "./lib/index.js",
+plugins/evaluators build:          ╵       [32m~~~~~~~~~[0m
+plugins/express build: CLI Target: es2022
+plugins/express build: CLI Cleaning output folder
+plugins/express build: CJS Build start
+plugins/express build: ESM Build start
+plugins/evaluators build: CJS lib/types.js                        1.63 KB
+plugins/evaluators build: CJS lib/index.js                        7.76 KB
+plugins/evaluators build: CJS lib/metrics/answer_accuracy.js      3.47 KB
+plugins/evaluators build: CJS lib/metrics/deep-equal.js           2.27 KB
+plugins/evaluators build: CJS lib/metrics/answer_relevancy.js     4.81 KB
+plugins/evaluators build: CJS lib/metrics/faithfulness.js         4.84 KB
+plugins/evaluators build: CJS lib/metrics/helper.js               1.59 KB
+plugins/evaluators build: CJS lib/metrics/jsonata.js              2.32 KB
+plugins/evaluators build: CJS lib/metrics/index.js                1.75 KB
+plugins/evaluators build: CJS lib/metrics/regexp.js               1.70 KB
+plugins/evaluators build: CJS lib/metrics/maliciousness.js        3.45 KB
+plugins/evaluators build: CJS lib/types.js.map                    3.80 KB
+plugins/evaluators build: CJS lib/index.js.map                    12.01 KB
+plugins/evaluators build: CJS lib/metrics/deep-equal.js.map       1.97 KB
+plugins/evaluators build: CJS lib/metrics/faithfulness.js.map     6.15 KB
+plugins/evaluators build: CJS lib/metrics/answer_accuracy.js.map  3.92 KB
+plugins/evaluators build: CJS lib/metrics/answer_relevancy.js.map 6.22 KB
+plugins/evaluators build: CJS lib/metrics/helper.js.map           1.75 KB
+plugins/evaluators build: CJS lib/metrics/index.js.map            1.16 KB
+plugins/evaluators build: CJS lib/metrics/regexp.js.map           2.03 KB
+plugins/evaluators build: CJS lib/metrics/jsonata.js.map          2.00 KB
+plugins/evaluators build: CJS lib/metrics/maliciousness.js.map    3.90 KB
+plugins/evaluators build: CJS ⚡️ Build success in 121ms
+plugins/evaluators build: ESM lib/metrics/answer_accuracy.mjs      1.74 KB
+plugins/evaluators build: ESM lib/metrics/index.mjs                466.00 B
+plugins/evaluators build: ESM lib/index.mjs                        6.41 KB
+plugins/evaluators build: ESM lib/metrics/helper.mjs               513.00 B
+plugins/evaluators build: ESM lib/types.mjs                        608.00 B
+plugins/evaluators build: ESM lib/metrics/deep-equal.mjs           667.00 B
+plugins/evaluators build: ESM lib/metrics/answer_relevancy.mjs     2.97 KB
+plugins/evaluators build: ESM lib/metrics/faithfulness.mjs         2.94 KB
+plugins/evaluators build: ESM lib/metrics/jsonata.mjs              685.00 B
+plugins/evaluators build: ESM lib/metrics/maliciousness.mjs        1.69 KB
+plugins/evaluators build: ESM lib/metrics/regexp.mjs               705.00 B
+plugins/evaluators build: ESM lib/index.mjs.map                    12.05 KB
+plugins/evaluators build: ESM lib/metrics/answer_accuracy.mjs.map  3.88 KB
+plugins/evaluators build: ESM lib/metrics/helper.mjs.map           1.70 KB
+plugins/evaluators build: ESM lib/types.mjs.map                    3.76 KB
+plugins/evaluators build: ESM lib/metrics/index.mjs.map            1.12 KB
+plugins/evaluators build: ESM lib/metrics/deep-equal.mjs.map       1.93 KB
+plugins/evaluators build: ESM lib/metrics/faithfulness.mjs.map     6.11 KB
+plugins/evaluators build: ESM lib/metrics/answer_relevancy.mjs.map 6.17 KB
+plugins/evaluators build: ESM lib/metrics/jsonata.mjs.map          1.94 KB
+plugins/evaluators build: ESM lib/metrics/maliciousness.mjs.map    3.86 KB
+plugins/evaluators build: ESM lib/metrics/regexp.mjs.map           2.00 KB
+plugins/evaluators build: ESM ⚡️ Build success in 122ms
+plugins/googleai build: > @genkit-ai/googleai@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/googleai
+plugins/googleai build: > tsup-node
+plugins/express build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "import" and "types" here will never be used as they come after "default"[0m [package.json]
+plugins/express build:     package.json:55:6:
+plugins/express build: [37m      55 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/express build:          ╵       [32m~~~~~~~~[0m
+plugins/express build:   The "default" condition comes earlier and will always be chosen:
+plugins/express build:     package.json:54:6:
+plugins/express build: [37m      54 │       [32m"default"[37m: "./lib/index.js",
+plugins/express build:          ╵       [32m~~~~~~~~~[0m
+plugins/express build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "import" and "types" here will never be used as they come after "default"[0m [package.json]
+plugins/express build:     package.json:55:6:
+plugins/express build: [37m      55 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/express build:          ╵       [32m~~~~~~~~[0m
+plugins/express build:   The "default" condition comes earlier and will always be chosen:
+plugins/express build:     package.json:54:6:
+plugins/express build: [37m      54 │       [32m"default"[37m: "./lib/index.js",
+plugins/express build:          ╵       [32m~~~~~~~~~[0m
+plugins/express build: CJS lib/utils.js     1.31 KB
+plugins/express build: CJS lib/index.js     10.63 KB
+plugins/express build: CJS lib/utils.js.map 1.42 KB
+plugins/express build: CJS lib/index.js.map 19.09 KB
+plugins/express build: CJS ⚡️ Build success in 59ms
+plugins/express build: ESM lib/index.mjs     8.49 KB
+plugins/express build: ESM lib/utils.mjs     283.00 B
+plugins/express build: ESM lib/utils.mjs.map 1.37 KB
+plugins/express build: ESM lib/index.mjs.map 19.02 KB
+plugins/express build: ESM ⚡️ Build success in 60ms
+plugins/dev-local-vectorstore build: DTS Build start
+plugins/evaluators build: DTS Build start
+plugins/express build: DTS Build start
+plugins/google-genai build: > @genkit-ai/google-genai@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/google-genai
+plugins/google-genai build: > tsup-node
+plugins/googleai build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/googleai build:     package.json:54:6:
+plugins/googleai build:       54 │       "types": "./lib/index.d.ts",
+plugins/googleai build:          ╵       ~~~~~~~
+plugins/googleai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/googleai build:     package.json:53:6:
+plugins/googleai build:       53 │       "import": "./lib/index.mjs",
+plugins/googleai build:          ╵       ~~~~~~~~
+plugins/googleai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/googleai build:     package.json:52:6:
+plugins/googleai build:       52 │       "require": "./lib/index.js",
+plugins/googleai build:          ╵       ~~~~~~~~~
+plugins/googleai build: CLI Building entry: src/common.ts, src/embedder.ts, src/gemini.ts, src/imagen.ts, src/index.ts, src/list-models.ts, src/predict.ts, src/veo.ts, src/context-caching/constants.ts, src/context-caching/index.ts, src/context-caching/types.ts, src/context-caching/utils.ts
+plugins/googleai build: CLI Using tsconfig: tsconfig.json
+plugins/googleai build: CLI tsup v8.5.0
+plugins/googleai build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/googleai/tsup.config.ts
+plugins/googleai build: CLI Target: es2022
+plugins/googleai build: CLI Cleaning output folder
+plugins/googleai build: CJS Build start
+plugins/googleai build: ESM Build start
+plugins/googleai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/googleai build:     package.json:54:6:
+plugins/googleai build: [37m      54 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/googleai build:          ╵       [32m~~~~~~~[0m
+plugins/googleai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/googleai build:     package.json:53:6:
+plugins/googleai build: [37m      53 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/googleai build:          ╵       [32m~~~~~~~~[0m
+plugins/googleai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/googleai build:     package.json:52:6:
+plugins/googleai build: [37m      52 │       [32m"require"[37m: "./lib/index.js",
+plugins/googleai build:          ╵       [32m~~~~~~~~~[0m
+plugins/googleai build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/googleai build:     package.json:54:6:
+plugins/googleai build: [37m      54 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/googleai build:          ╵       [32m~~~~~~~[0m
+plugins/googleai build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/googleai build:     package.json:53:6:
+plugins/googleai build: [37m      53 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/googleai build:          ╵       [32m~~~~~~~~[0m
+plugins/googleai build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/googleai build:     package.json:52:6:
+plugins/googleai build: [37m      52 │       [32m"require"[37m: "./lib/index.js",
+plugins/googleai build:          ╵       [32m~~~~~~~~~[0m
+plugins/googleai build: CJS lib/imagen.js                        4.46 KB
+plugins/googleai build: CJS lib/list-models.js                   1.38 KB
+plugins/googleai build: CJS lib/context-caching/types.js         1.50 KB
+plugins/googleai build: CJS lib/common.js                        2.21 KB
+plugins/googleai build: CJS lib/predict.js                       3.35 KB
+plugins/googleai build: CJS lib/index.js                         9.28 KB
+plugins/googleai build: CJS lib/gemini.js                        40.35 KB
+plugins/googleai build: CJS lib/context-caching/index.js         3.24 KB
+plugins/googleai build: CJS lib/embedder.js                      5.87 KB
+plugins/googleai build: CJS lib/veo.js                           4.89 KB
+plugins/googleai build: CJS lib/context-caching/constants.js     1.69 KB
+plugins/googleai build: CJS lib/context-caching/utils.js         5.51 KB
+plugins/googleai build: CJS lib/list-models.js.map               2.04 KB
+plugins/googleai build: CJS lib/common.js.map                    1.55 KB
+plugins/googleai build: CJS lib/context-caching/types.js.map     1.40 KB
+plugins/googleai build: CJS lib/index.js.map                     16.19 KB
+plugins/googleai build: CJS lib/predict.js.map                   4.54 KB
+plugins/googleai build: CJS lib/context-caching/index.js.map     5.21 KB
+plugins/googleai build: CJS lib/gemini.js.map                    69.10 KB
+plugins/googleai build: CJS lib/imagen.js.map                    7.33 KB
+plugins/googleai build: CJS lib/context-caching/constants.js.map 1.40 KB
+plugins/googleai build: CJS lib/veo.js.map                       8.23 KB
+plugins/googleai build: CJS lib/embedder.js.map                  8.12 KB
+plugins/googleai build: CJS lib/context-caching/utils.js.map     8.81 KB
+plugins/googleai build: CJS ⚡️ Build success in 45ms
+plugins/googleai build: ESM lib/context-caching/constants.mjs     576.00 B
+plugins/googleai build: ESM lib/context-caching/index.mjs         2.08 KB
+plugins/googleai build: ESM lib/common.mjs                        513.00 B
+plugins/googleai build: ESM lib/context-caching/utils.mjs         3.50 KB
+plugins/googleai build: ESM lib/embedder.mjs                      4.36 KB
+plugins/googleai build: ESM lib/context-caching/types.mjs         357.00 B
+plugins/googleai build: ESM lib/gemini.mjs                        36.71 KB
+plugins/googleai build: ESM lib/index.mjs                         7.33 KB
+plugins/googleai build: ESM lib/list-models.mjs                   390.00 B
+plugins/googleai build: ESM lib/predict.mjs                       1.72 KB
+plugins/googleai build: ESM lib/veo.mjs                           3.67 KB
+plugins/googleai build: ESM lib/imagen.mjs                        3.25 KB
+plugins/googleai build: ESM lib/common.mjs.map                    1.44 KB
+plugins/googleai build: ESM lib/context-caching/index.mjs.map     5.23 KB
+plugins/googleai build: ESM lib/context-caching/constants.mjs.map 1.34 KB
+plugins/googleai build: ESM lib/embedder.mjs.map                  8.08 KB
+plugins/googleai build: ESM lib/context-caching/types.mjs.map     1.35 KB
+plugins/googleai build: ESM lib/context-caching/utils.mjs.map     8.77 KB
+plugins/googleai build: ESM lib/gemini.mjs.map                    68.94 KB
+plugins/googleai build: ESM lib/index.mjs.map                     16.37 KB
+plugins/googleai build: ESM lib/predict.mjs.map                   4.49 KB
+plugins/googleai build: ESM lib/list-models.mjs.map               2.00 KB
+plugins/googleai build: ESM lib/imagen.mjs.map                    7.31 KB
+plugins/googleai build: ESM lib/veo.mjs.map                       8.22 KB
+plugins/googleai build: ESM ⚡️ Build success in 46ms
+plugins/chroma build: DTS ⚡️ Build success in 2584ms
+plugins/chroma build: DTS lib/index.d.ts  3.80 KB
+plugins/chroma build: DTS lib/index.d.mts 3.80 KB
+plugins/chroma build: Done
+plugins/next build$ npm-run-all build:clean check compile
+plugins/googleai build: DTS Build start
+plugins/google-genai build: CLI Building entry: src/index.ts, src/common/converters.ts, src/common/types.ts, src/common/utils.ts, src/googleai/client.ts, src/googleai/embedder.ts, src/googleai/gemini.ts, src/googleai/imagen.ts, src/googleai/index.ts, src/googleai/types.ts, src/googleai/utils.ts, src/googleai/veo.ts, src/vertexai/client.ts, src/vertexai/converters.ts, src/vertexai/embedder.ts, src/vertexai/gemini.ts, src/vertexai/imagen.ts, src/vertexai/index.ts, src/vertexai/lyria.ts, src/vertexai/types.ts, src/vertexai/utils.ts, src/vertexai/veo.ts
+plugins/google-genai build: CLI Using tsconfig: tsconfig.json
+plugins/google-genai build: CLI tsup v8.5.0
+plugins/google-genai build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/google-genai/tsup.config.ts
+plugins/google-genai build: CLI Target: es2022
+plugins/google-genai build: CLI Cleaning output folder
+plugins/google-genai build: CJS Build start
+plugins/google-genai build: ESM Build start
+plugins/google-genai build: CJS lib/index.js                   1.21 KB
+plugins/google-genai build: CJS lib/googleai/client.js         7.77 KB
+plugins/google-genai build: CJS lib/common/types.js            8.34 KB
+plugins/google-genai build: CJS lib/vertexai/converters.js     8.96 KB
+plugins/google-genai build: CJS lib/googleai/embedder.js       5.20 KB
+plugins/google-genai build: CJS lib/common/utils.js            13.99 KB
+plugins/google-genai build: CJS lib/googleai/index.js          4.39 KB
+plugins/google-genai build: CJS lib/googleai/imagen.js         6.07 KB
+plugins/google-genai build: CJS lib/common/converters.js       15.71 KB
+plugins/google-genai build: CJS lib/googleai/utils.js          5.88 KB
+plugins/google-genai build: CJS lib/googleai/veo.js            6.32 KB
+plugins/google-genai build: CJS lib/vertexai/client.js         10.42 KB
+plugins/google-genai build: CJS lib/googleai/types.js          1.32 KB
+plugins/google-genai build: CJS lib/vertexai/embedder.js       8.35 KB
+plugins/google-genai build: CJS lib/googleai/gemini.js         21.34 KB
+plugins/google-genai build: CJS lib/vertexai/index.js          5.27 KB
+plugins/google-genai build: CJS lib/vertexai/types.js          2.69 KB
+plugins/google-genai build: CJS lib/vertexai/utils.js          9.40 KB
+plugins/google-genai build: CJS lib/vertexai/gemini.js         20.59 KB
+plugins/google-genai build: CJS lib/vertexai/imagen.js         8.38 KB
+plugins/google-genai build: CJS lib/vertexai/lyria.js          4.61 KB
+plugins/google-genai build: CJS lib/vertexai/veo.js            6.62 KB
+plugins/google-genai build: CJS lib/index.js.map               1006.00 B
+plugins/google-genai build: CJS lib/googleai/client.js.map     16.17 KB
+plugins/google-genai build: CJS lib/vertexai/converters.js.map 15.53 KB
+plugins/google-genai build: CJS lib/common/types.js.map        41.03 KB
+plugins/google-genai build: CJS lib/common/converters.js.map   28.55 KB
+plugins/google-genai build: CJS lib/googleai/index.js.map      7.73 KB
+plugins/google-genai build: CJS lib/googleai/imagen.js.map     10.21 KB
+plugins/google-genai build: CJS lib/googleai/embedder.js.map   7.71 KB
+plugins/google-genai build: CJS lib/common/utils.js.map        27.38 KB
+plugins/google-genai build: CJS lib/googleai/utils.js.map      9.42 KB
+plugins/google-genai build: CJS lib/googleai/veo.js.map        11.00 KB
+plugins/google-genai build: CJS lib/googleai/gemini.js.map     35.86 KB
+plugins/google-genai build: CJS lib/vertexai/client.js.map     17.27 KB
+plugins/google-genai build: CJS lib/googleai/types.js.map      5.41 KB
+plugins/google-genai build: CJS lib/vertexai/types.js.map      10.98 KB
+plugins/google-genai build: CJS lib/vertexai/utils.js.map      16.57 KB
+plugins/google-genai build: CJS lib/vertexai/gemini.js.map     33.39 KB
+plugins/google-genai build: CJS lib/vertexai/imagen.js.map     13.02 KB
+plugins/google-genai build: CJS lib/vertexai/lyria.js.map      6.84 KB
+plugins/google-genai build: CJS lib/vertexai/index.js.map      8.07 KB
+plugins/google-genai build: CJS lib/vertexai/embedder.js.map   14.13 KB
+plugins/google-genai build: CJS lib/vertexai/veo.js.map        10.25 KB
+plugins/google-genai build: CJS ⚡️ Build success in 95ms
+plugins/google-genai build: ESM lib/index.mjs                   167.00 B
+plugins/google-genai build: ESM lib/vertexai/imagen.mjs         6.77 KB
+plugins/google-genai build: ESM lib/vertexai/utils.mjs          7.58 KB
+plugins/google-genai build: ESM lib/vertexai/index.mjs          3.58 KB
+plugins/google-genai build: ESM lib/vertexai/types.mjs          1.25 KB
+plugins/google-genai build: ESM lib/googleai/index.mjs          2.66 KB
+plugins/google-genai build: ESM lib/vertexai/veo.mjs            5.12 KB
+plugins/google-genai build: ESM lib/googleai/veo.mjs            4.97 KB
+plugins/google-genai build: ESM lib/vertexai/lyria.mjs          3.26 KB
+plugins/google-genai build: ESM lib/googleai/types.mjs          226.00 B
+plugins/google-genai build: ESM lib/googleai/utils.mjs          3.58 KB
+plugins/google-genai build: ESM lib/vertexai/client.mjs         8.97 KB
+plugins/google-genai build: ESM lib/common/converters.mjs       14.33 KB
+plugins/google-genai build: ESM lib/vertexai/converters.mjs     7.22 KB
+plugins/google-genai build: ESM lib/googleai/gemini.mjs         18.99 KB
+plugins/google-genai build: ESM lib/googleai/embedder.mjs       3.87 KB
+plugins/google-genai build: ESM lib/vertexai/embedder.mjs       6.96 KB
+plugins/google-genai build: ESM lib/common/types.mjs            6.40 KB
+plugins/google-genai build: ESM lib/common/utils.mjs            12.38 KB
+plugins/google-genai build: ESM lib/googleai/imagen.mjs         4.72 KB
+plugins/google-genai build: ESM lib/vertexai/gemini.mjs         18.40 KB
+plugins/google-genai build: ESM lib/googleai/client.mjs         6.41 KB
+plugins/google-genai build: ESM lib/index.mjs.map               977.00 B
+plugins/google-genai build: ESM lib/vertexai/utils.mjs.map      16.53 KB
+plugins/google-genai build: ESM lib/vertexai/index.mjs.map      8.05 KB
+plugins/google-genai build: ESM lib/vertexai/types.mjs.map      10.99 KB
+plugins/google-genai build: ESM lib/googleai/veo.mjs.map        11.02 KB
+plugins/google-genai build: ESM lib/vertexai/veo.mjs.map        10.27 KB
+plugins/google-genai build: ESM lib/googleai/utils.mjs.map      9.32 KB
+plugins/google-genai build: ESM lib/googleai/types.mjs.map      5.40 KB
+plugins/google-genai build: ESM lib/vertexai/client.mjs.map     17.21 KB
+plugins/google-genai build: ESM lib/vertexai/converters.mjs.map 15.46 KB
+plugins/google-genai build: ESM lib/common/converters.mjs.map   28.52 KB
+plugins/google-genai build: ESM lib/vertexai/lyria.mjs.map      6.84 KB
+plugins/google-genai build: ESM lib/vertexai/embedder.mjs.map   14.10 KB
+plugins/google-genai build: ESM lib/googleai/index.mjs.map      7.69 KB
+plugins/google-genai build: ESM lib/googleai/gemini.mjs.map     35.92 KB
+plugins/google-genai build: ESM lib/googleai/imagen.mjs.map     10.24 KB
+plugins/google-genai build: ESM lib/common/types.mjs.map        40.88 KB
+plugins/google-genai build: ESM lib/googleai/client.mjs.map     16.12 KB
+plugins/google-genai build: ESM lib/vertexai/gemini.mjs.map     33.42 KB
+plugins/google-genai build: ESM lib/vertexai/imagen.mjs.map     13.00 KB
+plugins/google-genai build: ESM lib/googleai/embedder.mjs.map   7.71 KB
+plugins/google-genai build: ESM lib/common/utils.mjs.map        27.28 KB
+plugins/google-genai build: ESM ⚡️ Build success in 99ms
+plugins/google-genai build: DTS Build start
+plugins/next build: > @genkit-ai/next@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/next
+plugins/next build: > rimraf ./lib
+plugins/dev-local-vectorstore build: DTS ⚡️ Build success in 1609ms
+plugins/dev-local-vectorstore build: DTS lib/index.d.ts  1.08 KB
+plugins/dev-local-vectorstore build: DTS lib/index.d.mts 1.08 KB
+plugins/next build: > @genkit-ai/next@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/next
+plugins/next build: > tsc
+plugins/dev-local-vectorstore build: Done
+plugins/ollama build$ npm-run-all build:clean check compile
+plugins/cloud-sql-pg build: DTS ⚡️ Build success in 3799ms
+plugins/cloud-sql-pg build: DTS lib/index.d.ts        5.02 KB
+plugins/cloud-sql-pg build: DTS lib/engine.d.ts       7.57 KB
+plugins/cloud-sql-pg build: DTS lib/indexes.d.ts      4.43 KB
+plugins/cloud-sql-pg build: DTS lib/utils/index.d.ts  1.09 KB
+plugins/cloud-sql-pg build: DTS lib/index.d.mts       5.02 KB
+plugins/cloud-sql-pg build: DTS lib/engine.d.mts      7.57 KB
+plugins/cloud-sql-pg build: DTS lib/indexes.d.mts     4.43 KB
+plugins/cloud-sql-pg build: DTS lib/utils/index.d.mts 1.09 KB
+plugins/cloud-sql-pg build: Done
+plugins/pinecone build$ npm-run-all build:clean check compile
+plugins/express build: DTS ⚡️ Build success in 2265ms
+plugins/express build: DTS lib/index.d.ts  4.52 KB
+plugins/express build: DTS lib/utils.d.ts  993.00 B
+plugins/express build: DTS lib/index.d.mts 4.52 KB
+plugins/express build: DTS lib/utils.d.mts 993.00 B
+plugins/express build: Done
+plugins/vertexai build$ npm-run-all build:clean check compile
+plugins/ollama build: > genkitx-ollama@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/ollama
+plugins/ollama build: > rimraf ./lib
+plugins/pinecone build: > genkitx-pinecone@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/pinecone
+plugins/pinecone build: > rimraf ./lib
+plugins/checks build: DTS ⚡️ Build success in 2993ms
+plugins/checks build: DTS lib/evaluation.d.ts  918.00 B
+plugins/checks build: DTS lib/guardrails.d.ts  1.38 KB
+plugins/checks build: DTS lib/index.d.ts       1.52 KB
+plugins/checks build: DTS lib/middleware.d.ts  931.00 B
+plugins/checks build: DTS lib/metrics.d.ts     1.61 KB
+plugins/checks build: DTS lib/evaluation.d.mts 919.00 B
+plugins/checks build: DTS lib/guardrails.d.mts 1.38 KB
+plugins/checks build: DTS lib/index.d.mts      1.52 KB
+plugins/checks build: DTS lib/middleware.d.mts 932.00 B
+plugins/checks build: DTS lib/metrics.d.mts    1.61 KB
+plugins/checks build: Done
+plugins/langchain build: DTS ⚡️ Build success in 4181ms
+plugins/langchain build: DTS lib/evaluators.d.ts  340.00 B
+plugins/langchain build: DTS lib/index.d.ts       1.29 KB
+plugins/langchain build: DTS lib/model.d.ts       804.00 B
+plugins/langchain build: DTS lib/tracing.d.ts     1019.00 B
+plugins/langchain build: DTS lib/evaluators.d.mts 340.00 B
+plugins/langchain build: DTS lib/index.d.mts      1.29 KB
+plugins/langchain build: DTS lib/model.d.mts      804.00 B
+plugins/langchain build: DTS lib/tracing.d.mts    1019.00 B
+plugins/ollama build: > genkitx-ollama@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/ollama
+plugins/ollama build: > tsc
+plugins/vertexai build: > @genkit-ai/vertexai@1.27.0 build:clean /Users/lukeschlangen/Documents/genkit/js/plugins/vertexai
+plugins/vertexai build: > rimraf ./lib
+plugins/pinecone build: > genkitx-pinecone@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/pinecone
+plugins/pinecone build: > tsc
+plugins/langchain build: Done
+plugins/evaluators build: DTS ⚡️ Build success in 3233ms
+plugins/evaluators build: DTS lib/metrics/index.d.ts             384.00 B
+plugins/evaluators build: DTS lib/index.d.ts                     1.03 KB
+plugins/evaluators build: DTS lib/types.d.ts                     3.46 KB
+plugins/evaluators build: DTS lib/metrics/answer_accuracy.d.ts   967.00 B
+plugins/evaluators build: DTS lib/metrics/helper.d.ts            980.00 B
+plugins/evaluators build: DTS lib/metrics/answer_relevancy.d.ts  1.14 KB
+plugins/evaluators build: DTS lib/metrics/deep-equal.d.ts        838.00 B
+plugins/evaluators build: DTS lib/metrics/faithfulness.d.ts      974.00 B
+plugins/evaluators build: DTS lib/metrics/jsonata.d.ts           861.00 B
+plugins/evaluators build: DTS lib/metrics/maliciousness.d.ts     965.00 B
+plugins/evaluators build: DTS lib/metrics/regexp.d.ts            843.00 B
+plugins/evaluators build: DTS lib/metrics/index.d.mts            390.00 B
+plugins/evaluators build: DTS lib/index.d.mts                    1.03 KB
+plugins/evaluators build: DTS lib/types.d.mts                    3.46 KB
+plugins/evaluators build: DTS lib/metrics/answer_accuracy.d.mts  967.00 B
+plugins/evaluators build: DTS lib/metrics/helper.d.mts           980.00 B
+plugins/evaluators build: DTS lib/metrics/answer_relevancy.d.mts 1.14 KB
+plugins/evaluators build: DTS lib/metrics/deep-equal.d.mts       838.00 B
+plugins/evaluators build: DTS lib/metrics/faithfulness.d.mts     974.00 B
+plugins/evaluators build: DTS lib/metrics/jsonata.d.mts          861.00 B
+plugins/evaluators build: DTS lib/metrics/maliciousness.d.mts    965.00 B
+plugins/evaluators build: DTS lib/metrics/regexp.d.mts           843.00 B
+plugins/evaluators build: Done
+plugins/next build: > @genkit-ai/next@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/next
+plugins/next build: > tsup-node
+plugins/anthropic build: DTS ⚡️ Build success in 3973ms
+plugins/anthropic build: DTS lib/runner/index.d.ts   430.00 B
+plugins/anthropic build: DTS lib/index.d.ts          1.37 KB
+plugins/anthropic build: DTS lib/list.d.ts           1.18 KB
+plugins/anthropic build: DTS lib/models.d.ts         3.57 KB
+plugins/anthropic build: DTS lib/runner/beta.d.ts    3.42 KB
+plugins/anthropic build: DTS lib/runner/stable.d.ts  3.14 KB
+plugins/anthropic build: DTS lib/runner/base.d.ts    6.68 KB
+plugins/anthropic build: DTS lib/types.d.ts          6.59 KB
+plugins/anthropic build: DTS lib/runner/types.d.ts   2.79 KB
+plugins/anthropic build: DTS lib/runner/index.d.mts  435.00 B
+plugins/anthropic build: DTS lib/index.d.mts         1.37 KB
+plugins/anthropic build: DTS lib/list.d.mts          1.18 KB
+plugins/anthropic build: DTS lib/models.d.mts        3.57 KB
+plugins/anthropic build: DTS lib/runner/beta.d.mts   3.42 KB
+plugins/anthropic build: DTS lib/runner/stable.d.mts 3.14 KB
+plugins/anthropic build: DTS lib/runner/base.d.mts   6.68 KB
+plugins/anthropic build: DTS lib/types.d.mts         6.59 KB
+plugins/anthropic build: DTS lib/runner/types.d.mts  2.79 KB
+plugins/anthropic build: Done
+plugins/vertexai build: > @genkit-ai/vertexai@1.27.0 check /Users/lukeschlangen/Documents/genkit/js/plugins/vertexai
+plugins/vertexai build: > tsc
+plugins/next build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/next build:     package.json:60:6:
+plugins/next build:       60 │       "types": "./lib/index.d.ts",
+plugins/next build:          ╵       ~~~~~~~
+plugins/next build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/next build:     package.json:59:6:
+plugins/next build:       59 │       "import": "./lib/index.mjs",
+plugins/next build:          ╵       ~~~~~~~~
+plugins/next build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/next build:     package.json:58:6:
+plugins/next build:       58 │       "require": "./lib/index.js",
+plugins/next build:          ╵       ~~~~~~~~~
+plugins/next build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/next build:     package.json:66:6:
+plugins/next build:       66 │       "types": "./lib/client.d.ts",
+plugins/next build:          ╵       ~~~~~~~
+plugins/next build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/next build:     package.json:65:6:
+plugins/next build:       65 │       "import": "./lib/client.mjs",
+plugins/next build:          ╵       ~~~~~~~~
+plugins/next build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/next build:     package.json:64:6:
+plugins/next build:       64 │       "require": "./lib/client.js",
+plugins/next build:          ╵       ~~~~~~~~~
+plugins/next build: CLI Building entry: src/client.ts, src/index.ts
+plugins/next build: CLI Using tsconfig: tsconfig.json
+plugins/next build: CLI tsup v8.5.0
+plugins/next build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/next/tsup.config.ts
+plugins/next build: CLI Target: es2022
+plugins/next build: CLI Cleaning output folder
+plugins/next build: CJS Build start
+plugins/next build: ESM Build start
+plugins/next build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/next build:     package.json:60:6:
+plugins/next build: [37m      60 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/next build:          ╵       [32m~~~~~~~[0m
+plugins/next build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/next build:     package.json:59:6:
+plugins/next build: [37m      59 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/next build:          ╵       [32m~~~~~~~~[0m
+plugins/next build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/next build:     package.json:58:6:
+plugins/next build: [37m      58 │       [32m"require"[37m: "./lib/index.js",
+plugins/next build:          ╵       [32m~~~~~~~~~[0m
+plugins/next build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/next build:     package.json:66:6:
+plugins/next build: [37m      66 │       [32m"types"[37m: "./lib/client.d.ts",
+plugins/next build:          ╵       [32m~~~~~~~[0m
+plugins/next build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/next build:     package.json:65:6:
+plugins/next build: [37m      65 │       [32m"import"[37m: "./lib/client.mjs",
+plugins/next build:          ╵       [32m~~~~~~~~[0m
+plugins/next build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/next build:     package.json:64:6:
+plugins/next build: [37m      64 │       [32m"require"[37m: "./lib/client.js",
+plugins/next build:          ╵       [32m~~~~~~~~~[0m
+plugins/next build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/next build:     package.json:60:6:
+plugins/next build: [37m      60 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/next build:          ╵       [32m~~~~~~~[0m
+plugins/next build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/next build:     package.json:59:6:
+plugins/next build: [37m      59 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/next build:          ╵       [32m~~~~~~~~[0m
+plugins/next build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/next build:     package.json:58:6:
+plugins/next build: [37m      58 │       [32m"require"[37m: "./lib/index.js",
+plugins/next build:          ╵       [32m~~~~~~~~~[0m
+plugins/next build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/next build:     package.json:66:6:
+plugins/next build: [37m      66 │       [32m"types"[37m: "./lib/client.d.ts",
+plugins/next build:          ╵       [32m~~~~~~~[0m
+plugins/next build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/next build:     package.json:65:6:
+plugins/next build: [37m      65 │       [32m"import"[37m: "./lib/client.mjs",
+plugins/next build:          ╵       [32m~~~~~~~~[0m
+plugins/next build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/next build:     package.json:64:6:
+plugins/next build: [37m      64 │       [32m"require"[37m: "./lib/client.js",
+plugins/next build:          ╵       [32m~~~~~~~~~[0m
+plugins/next build: ESM lib/client.mjs     374.00 B
+plugins/next build: ESM lib/index.mjs      6.60 KB
+plugins/next build: ESM lib/index.mjs.map  13.42 KB
+plugins/next build: ESM lib/client.mjs.map 2.03 KB
+plugins/next build: ESM ⚡️ Build success in 47ms
+plugins/next build: CJS lib/client.js     1.36 KB
+plugins/next build: CJS lib/index.js      7.95 KB
+plugins/next build: CJS lib/client.js.map 2.09 KB
+plugins/next build: CJS lib/index.js.map  13.42 KB
+plugins/next build: CJS ⚡️ Build success in 47ms
+plugins/next build: DTS Build start
+plugins/googleai build: DTS ⚡️ Build success in 3926ms
+plugins/googleai build: DTS lib/common.d.ts                     807.00 B
+plugins/googleai build: DTS lib/index.d.ts                      8.34 KB
+plugins/googleai build: DTS lib/gemini.d.ts                     118.26 KB
+plugins/googleai build: DTS lib/imagen.d.ts                     1.56 KB
+plugins/googleai build: DTS lib/list-models.d.ts                1.17 KB
+plugins/googleai build: DTS lib/predict.d.ts                    1.46 KB
+plugins/googleai build: DTS lib/veo.d.ts                        1.58 KB
+plugins/googleai build: DTS lib/context-caching/constants.d.ts  886.00 B
+plugins/googleai build: DTS lib/context-caching/index.d.ts      1.94 KB
+plugins/googleai build: DTS lib/context-caching/utils.d.ts      2.84 KB
+plugins/googleai build: DTS lib/context-caching/types.d.ts      1.21 KB
+plugins/googleai build: DTS lib/embedder.d.ts                   399.00 B
+plugins/googleai build: DTS lib/common.d.mts                    807.00 B
+plugins/googleai build: DTS lib/index.d.mts                     8.35 KB
+plugins/googleai build: DTS lib/gemini.d.mts                    118.26 KB
+plugins/googleai build: DTS lib/imagen.d.mts                    1.56 KB
+plugins/googleai build: DTS lib/list-models.d.mts               1.17 KB
+plugins/googleai build: DTS lib/predict.d.mts                   1.46 KB
+plugins/googleai build: DTS lib/veo.d.mts                       1.58 KB
+plugins/googleai build: DTS lib/context-caching/constants.d.mts 886.00 B
+plugins/googleai build: DTS lib/context-caching/index.d.mts     1.94 KB
+plugins/googleai build: DTS lib/context-caching/utils.d.mts     2.84 KB
+plugins/googleai build: DTS lib/context-caching/types.d.mts     1.21 KB
+plugins/googleai build: DTS lib/embedder.d.mts                  403.00 B
+plugins/googleai build: Done
+plugins/google-cloud build: DTS ⚡️ Build success in 5355ms
+plugins/google-cloud build: DTS lib/auth.d.ts                  1.57 KB
+plugins/google-cloud build: DTS lib/index.d.ts                 1.42 KB
+plugins/google-cloud build: DTS lib/gcpLogger.d.ts             814.00 B
+plugins/google-cloud build: DTS lib/gcpOpenTelemetry.d.ts      2.26 KB
+plugins/google-cloud build: DTS lib/model-armor.d.ts           2.26 KB
+plugins/google-cloud build: DTS lib/utils.d.ts                 2.58 KB
+plugins/google-cloud build: DTS lib/telemetry/action.d.ts      969.00 B
+plugins/google-cloud build: DTS lib/telemetry/defaults.d.ts    1.19 KB
+plugins/google-cloud build: DTS lib/types.d.ts                 4.93 KB
+plugins/google-cloud build: DTS lib/telemetry/engagement.d.ts  1.20 KB
+plugins/google-cloud build: DTS lib/telemetry/feature.d.ts     1.18 KB
+plugins/google-cloud build: DTS lib/telemetry/generate.d.ts    1.73 KB
+plugins/google-cloud build: DTS lib/telemetry/path.d.ts        1.08 KB
+plugins/google-cloud build: DTS lib/metrics.d.ts               2.34 KB
+plugins/google-cloud build: DTS lib/auth.d.mts                 1.57 KB
+plugins/google-cloud build: DTS lib/index.d.mts                1.42 KB
+plugins/google-cloud build: DTS lib/gcpLogger.d.mts            815.00 B
+plugins/google-cloud build: DTS lib/gcpOpenTelemetry.d.mts     2.26 KB
+plugins/google-cloud build: DTS lib/model-armor.d.mts          2.26 KB
+plugins/google-cloud build: DTS lib/utils.d.mts                2.58 KB
+plugins/google-cloud build: DTS lib/telemetry/action.d.mts     970.00 B
+plugins/google-cloud build: DTS lib/telemetry/defaults.d.mts   1.19 KB
+plugins/google-cloud build: DTS lib/types.d.mts                4.93 KB
+plugins/google-cloud build: DTS lib/telemetry/engagement.d.mts 1.20 KB
+plugins/google-cloud build: DTS lib/telemetry/feature.d.mts    1.18 KB
+plugins/google-cloud build: DTS lib/telemetry/generate.d.mts   1.74 KB
+plugins/google-cloud build: DTS lib/telemetry/path.d.mts       1.08 KB
+plugins/google-cloud build: DTS lib/metrics.d.mts              2.34 KB
+plugins/google-cloud build: Done
+plugins/pinecone build: > genkitx-pinecone@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/pinecone
+plugins/pinecone build: > tsup-node
+plugins/pinecone build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/pinecone build:     package.json:52:6:
+plugins/pinecone build:       52 │       "types": "./lib/index.d.ts",
+plugins/pinecone build:          ╵       ~~~~~~~
+plugins/pinecone build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/pinecone build:     package.json:51:6:
+plugins/pinecone build:       51 │       "import": "./lib/index.mjs",
+plugins/pinecone build:          ╵       ~~~~~~~~
+plugins/pinecone build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/pinecone build:     package.json:50:6:
+plugins/pinecone build:       50 │       "require": "./lib/index.js",
+plugins/pinecone build:          ╵       ~~~~~~~~~
+plugins/pinecone build: CLI Building entry: src/index.ts
+plugins/pinecone build: CLI Using tsconfig: tsconfig.json
+plugins/pinecone build: CLI tsup v8.5.0
+plugins/pinecone build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/pinecone/tsup.config.ts
+plugins/pinecone build: CLI Target: es2022
+plugins/pinecone build: CLI Cleaning output folder
+plugins/pinecone build: CJS Build start
+plugins/pinecone build: ESM Build start
+plugins/pinecone build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/pinecone build:     package.json:52:6:
+plugins/pinecone build: [37m      52 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/pinecone build:          ╵       [32m~~~~~~~[0m
+plugins/pinecone build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/pinecone build:     package.json:51:6:
+plugins/pinecone build: [37m      51 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/pinecone build:          ╵       [32m~~~~~~~~[0m
+plugins/pinecone build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/pinecone build:     package.json:50:6:
+plugins/pinecone build: [37m      50 │       [32m"require"[37m: "./lib/index.js",
+plugins/pinecone build:          ╵       [32m~~~~~~~~~[0m
+plugins/pinecone build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/pinecone build:     package.json:52:6:
+plugins/pinecone build: [37m      52 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/pinecone build:          ╵       [32m~~~~~~~[0m
+plugins/pinecone build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/pinecone build:     package.json:51:6:
+plugins/pinecone build: [37m      51 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/pinecone build:          ╵       [32m~~~~~~~~[0m
+plugins/pinecone build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/pinecone build:     package.json:50:6:
+plugins/pinecone build: [37m      50 │       [32m"require"[37m: "./lib/index.js",
+plugins/pinecone build:          ╵       [32m~~~~~~~~~[0m
+plugins/pinecone build: CJS lib/index.js     7.41 KB
+plugins/pinecone build: CJS lib/index.js.map 15.96 KB
+plugins/pinecone build: CJS ⚡️ Build success in 32ms
+plugins/pinecone build: ESM lib/index.mjs     5.77 KB
+plugins/pinecone build: ESM lib/index.mjs.map 15.92 KB
+plugins/pinecone build: ESM ⚡️ Build success in 34ms
+plugins/pinecone build: DTS Build start
+plugins/ollama build: > genkitx-ollama@1.27.0 compile /Users/lukeschlangen/Documents/genkit/js/plugins/ollama
+plugins/ollama build: > tsup-node
+plugins/google-genai build: DTS ⚡️ Build success in 4803ms
+plugins/google-genai build: DTS lib/index.d.ts                719.00 B
+plugins/google-genai build: DTS lib/common/converters.d.ts    1.81 KB
+plugins/google-genai build: DTS lib/googleai/client.d.ts      5.89 KB
+plugins/google-genai build: DTS lib/googleai/index.d.ts       2.72 KB
+plugins/google-genai build: DTS lib/googleai/embedder.d.ts    4.40 KB
+plugins/google-genai build: DTS lib/googleai/gemini.d.ts      19.35 KB
+plugins/google-genai build: DTS lib/googleai/imagen.d.ts      6.63 KB
+plugins/google-genai build: DTS lib/googleai/utils.d.ts       4.09 KB
+plugins/google-genai build: DTS lib/googleai/veo.d.ts         9.16 KB
+plugins/google-genai build: DTS lib/googleai/types.d.ts       4.91 KB
+plugins/google-genai build: DTS lib/vertexai/client.d.ts      3.04 KB
+plugins/google-genai build: DTS lib/vertexai/converters.d.ts  2.74 KB
+plugins/google-genai build: DTS lib/vertexai/index.d.ts       2.57 KB
+plugins/google-genai build: DTS lib/vertexai/embedder.d.ts    7.30 KB
+plugins/google-genai build: DTS lib/vertexai/gemini.d.ts      12.67 KB
+plugins/google-genai build: DTS lib/vertexai/imagen.d.ts      41.27 KB
+plugins/google-genai build: DTS lib/vertexai/lyria.d.ts       2.83 KB
+plugins/google-genai build: DTS lib/vertexai/utils.d.ts       4.46 KB
+plugins/google-genai build: DTS lib/common/utils.d.ts         4.66 KB
+plugins/google-genai build: DTS lib/vertexai/veo.d.ts         23.34 KB
+plugins/google-genai build: DTS lib/vertexai/types.d.ts       8.45 KB
+plugins/google-genai build: DTS lib/common/types.d.ts         37.88 KB
+plugins/google-genai build: DTS lib/index.d.mts               733.00 B
+plugins/google-genai build: DTS lib/common/converters.d.mts   1.81 KB
+plugins/google-genai build: DTS lib/googleai/client.d.mts     5.89 KB
+plugins/google-genai build: DTS lib/googleai/index.d.mts      2.72 KB
+plugins/google-genai build: DTS lib/googleai/embedder.d.mts   4.40 KB
+plugins/google-genai build: DTS lib/googleai/gemini.d.mts     19.35 KB
+plugins/google-genai build: DTS lib/googleai/imagen.d.mts     6.63 KB
+plugins/google-genai build: DTS lib/googleai/utils.d.mts      4.10 KB
+plugins/google-genai build: DTS lib/googleai/veo.d.mts        9.16 KB
+plugins/google-genai build: DTS lib/googleai/types.d.mts      4.91 KB
+plugins/google-genai build: DTS lib/vertexai/client.d.mts     3.04 KB
+plugins/google-genai build: DTS lib/vertexai/converters.d.mts 2.75 KB
+plugins/google-genai build: DTS lib/vertexai/index.d.mts      2.58 KB
+plugins/google-genai build: DTS lib/vertexai/embedder.d.mts   7.30 KB
+plugins/google-genai build: DTS lib/vertexai/gemini.d.mts     12.67 KB
+plugins/google-genai build: DTS lib/vertexai/imagen.d.mts     41.27 KB
+plugins/google-genai build: DTS lib/vertexai/lyria.d.mts      2.83 KB
+plugins/google-genai build: DTS lib/vertexai/utils.d.mts      4.47 KB
+plugins/google-genai build: DTS lib/common/utils.d.mts        4.66 KB
+plugins/google-genai build: DTS lib/vertexai/veo.d.mts        23.34 KB
+plugins/google-genai build: DTS lib/vertexai/types.d.mts      8.45 KB
+plugins/google-genai build: DTS lib/common/types.d.mts        37.88 KB
+plugins/google-genai build: Done
+plugins/ollama build: ▲ [WARNING] The conditions "types" and "default" here will never be used as they come after both "import" and "require" [package.json]
+plugins/ollama build:     package.json:50:6:
+plugins/ollama build:       50 │       "types": "./lib/index.d.ts",
+plugins/ollama build:          ╵       ~~~~~~~
+plugins/ollama build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/ollama build:     package.json:49:6:
+plugins/ollama build:       49 │       "import": "./lib/index.mjs",
+plugins/ollama build:          ╵       ~~~~~~~~
+plugins/ollama build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/ollama build:     package.json:48:6:
+plugins/ollama build:       48 │       "require": "./lib/index.js",
+plugins/ollama build:          ╵       ~~~~~~~~~
+plugins/ollama build: CLI Building entry: src/embeddings.ts, src/index.ts, src/types.ts
+plugins/ollama build: CLI Using tsconfig: tsconfig.json
+plugins/ollama build: CLI tsup v8.5.0
+plugins/ollama build: CLI Using tsup config: /Users/lukeschlangen/Documents/genkit/js/plugins/ollama/tsup.config.ts
+plugins/ollama build: CLI Target: es2022
+plugins/ollama build: CLI Cleaning output folder
+plugins/ollama build: CJS Build start
+plugins/ollama build: ESM Build start
+plugins/ollama build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/ollama build:     package.json:50:6:
+plugins/ollama build: [37m      50 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/ollama build:          ╵       [32m~~~~~~~[0m
+plugins/ollama build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/ollama build:     package.json:49:6:
+plugins/ollama build: [37m      49 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/ollama build:          ╵       [32m~~~~~~~~[0m
+plugins/ollama build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/ollama build:     package.json:48:6:
+plugins/ollama build: [37m      48 │       [32m"require"[37m: "./lib/index.js",
+plugins/ollama build:          ╵       [32m~~~~~~~~~[0m
+plugins/ollama build:  WARN  [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe conditions "types" and "default" here will never be used as they come after both "import" and "require"[0m [package.json]
+plugins/ollama build:     package.json:50:6:
+plugins/ollama build: [37m      50 │       [32m"types"[37m: "./lib/index.d.ts",
+plugins/ollama build:          ╵       [32m~~~~~~~[0m
+plugins/ollama build:   The "import" condition comes earlier and will be used for all "import" statements:
+plugins/ollama build:     package.json:49:6:
+plugins/ollama build: [37m      49 │       [32m"import"[37m: "./lib/index.mjs",
+plugins/ollama build:          ╵       [32m~~~~~~~~[0m
+plugins/ollama build:   The "require" condition comes earlier and will be used for all "require" calls:
+plugins/ollama build:     package.json:48:6:
+plugins/ollama build: [37m      48 │       [32m"require"[37m: "./lib/index.js",
+plugins/ollama build:          ╵       [32m~~~~~~~~~[0m
+plugins/ollama build: ESM lib/embeddings.mjs     1.91 KB
+plugins/ollama build: ESM lib/index.mjs          10.47 KB
+plugins/ollama build: ESM lib/types.mjs          196.00 B
+plugins/ollama build: ESM lib/embeddings.mjs.map 4.42 KB
+plugins/ollama build: ESM lib/index.mjs.map      22.04 KB
+plugins/ollama build: ESM lib/types.mjs.map      4.73 KB
+plugins/ollama build: ESM ⚡️ Build success in 22ms
+plugins/ollama build: CJS lib/embeddings.js     2.93 KB
+plugins/ollama build: CJS lib/index.js          11.61 KB
+plugins/ollama build: CJS lib/types.js          1.27 KB
+plugins/ollama build: CJS lib/embeddings.js.map 4.47 KB
+plugins/ollama build: CJS lib/index.js.map      22.00 KB
+plugins/ollama build: CJS lib/types.js.map      4.77 KB
+plugins/ollama build: CJS ⚡️ Build success in 23ms
+plugins/compat-oai build: DTS ⚡️ Build success in 7667ms
+plugins/compat-oai build: DTS lib/utils.d.ts              1.29 KB
+plugins/compat-oai build: DTS lib/deepseek/index.d.ts     2.56 KB
+plugins/compat-oai build: DTS lib/deepseek/deepseek.d.ts  3.30 KB
+plugins/compat-oai build: DTS lib/xai/index.d.ts          2.75 KB
+plugins/compat-oai build: DTS lib/xai/grok-image.d.ts     625.00 B
+plugins/compat-oai build: DTS lib/xai/grok.d.ts           6.43 KB
+plugins/compat-oai build: DTS lib/openai/index.d.ts       3.80 KB
+plugins/compat-oai build: DTS lib/openai/dalle.d.ts       1.76 KB
+plugins/compat-oai build: DTS lib/openai/embedder.d.ts    1.70 KB
+plugins/compat-oai build: DTS lib/openai/gpt.d.ts         21.24 KB
+plugins/compat-oai build: DTS lib/openai/tts.d.ts         520.00 B
+plugins/compat-oai build: DTS lib/openai/whisper.d.ts     489.00 B
+plugins/compat-oai build: DTS lib/embedder.d.ts           296.00 B
+plugins/compat-oai build: DTS lib/image.d.ts              427.00 B
+plugins/compat-oai build: DTS lib/model.d.ts              596.00 B
+plugins/compat-oai build: DTS lib/index.d.ts              890.00 B
+plugins/compat-oai build: DTS lib/audio.d.ts              616.00 B
+plugins/compat-oai build: DTS lib/audio-DzUGfTbA.d.ts     19.15 KB
+plugins/compat-oai build: DTS lib/utils.d.mts             1.29 KB
+plugins/compat-oai build: DTS lib/deepseek/index.d.mts    2.57 KB
+plugins/compat-oai build: DTS lib/deepseek/deepseek.d.mts 3.30 KB
+plugins/compat-oai build: DTS lib/xai/index.d.mts         2.75 KB
+plugins/compat-oai build: DTS lib/xai/grok-image.d.mts    626.00 B
+plugins/compat-oai build: DTS lib/xai/grok.d.mts          6.44 KB
+plugins/compat-oai build: DTS lib/openai/index.d.mts      3.80 KB
+plugins/compat-oai build: DTS lib/openai/dalle.d.mts      1.76 KB
+plugins/compat-oai build: DTS lib/openai/embedder.d.mts   1.70 KB
+plugins/compat-oai build: DTS lib/openai/gpt.d.mts        21.24 KB
+plugins/compat-oai build: DTS lib/openai/tts.d.mts        521.00 B
+plugins/compat-oai build: DTS lib/openai/whisper.d.mts    490.00 B
+plugins/compat-oai build: DTS lib/embedder.d.mts          297.00 B
+plugins/compat-oai build: DTS lib/image.d.mts             428.00 B
+plugins/compat-oai build: DTS lib/model.d.mts             597.00 B
+plugins/compat-oai build: DTS lib/index.d.mts             891.00 B
+plugins/compat-oai build: DTS lib/audio.d.mts             617.00 B
+plugins/compat-oai build: DTS lib/audio-DzUGfTbA.d.mts    19.15 KB
+plugins/compat-oai build: Done
+plugins/ollama build: DTS Build start
+plugins/mcp build: src/index.ts(109,17): error TS2322: Type 'Promise<{ tool: ToolAction[]; resource: DynamicResourceAction[]; }>' is not assignable to type 'Promise<DapValue>'.
+plugins/mcp build:   Type '{ tool: ToolAction[]; resource: DynamicResourceAction[]; }' is not assignable to type 'DapValue'.
+plugins/mcp build:     Types of property 'resource' are incompatible.
+plugins/mcp build:       Type 'DynamicResourceAction[]' is not assignable to type 'Action<ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>[]'.
+plugins/mcp build:         Type 'DynamicResourceAction' is not assignable to type 'Action<ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>'.
+plugins/mcp build:           Type 'DynamicResourceAction' is not assignable to type '(input?: unknown, options?: ActionRunOptions<unknown> | undefined) => Promise<unknown>'.
+plugins/mcp build:             Types of parameters 'input' and 'input' are incompatible.
+plugins/mcp build:               Type 'unknown' is not assignable to type '{ uri: string; } | undefined'.
+plugins/mcp build: src/index.ts(180,5): error TS2345: Argument of type '() => Promise<{ tool: ToolAction[]; resource: DynamicResourceAction[]; }>' is not assignable to parameter of type 'DapFn'.
+plugins/mcp build:   Type 'Promise<{ tool: ToolAction[]; resource: DynamicResourceAction[]; }>' is not assignable to type 'Promise<DapValue>'.
+plugins/mcp build:     Type '{ tool: ToolAction[]; resource: DynamicResourceAction[]; }' is not assignable to type 'DapValue'.
+plugins/mcp build:       Types of property 'resource' are incompatible.
+plugins/mcp build:         Type 'DynamicResourceAction[]' is not assignable to type 'Action<ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>[]'.
+plugins/mcp build:           Type 'DynamicResourceAction' is not assignable to type 'Action<ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>'.
+plugins/mcp build:             Type 'DynamicResourceAction' is not assignable to type '(input?: unknown, options?: ActionRunOptions<unknown> | undefined) => Promise<unknown>'.
+plugins/mcp build:               Types of parameters 'input' and 'input' are incompatible.
+plugins/mcp build:                 Type 'unknown' is not assignable to type '{ uri: string; } | undefined'.
+plugins/mcp build: src/util/message.ts(70,7): error TS2322: Type '{}' is not assignable to type '{ text: string; media?: undefined; toolRequest?: undefined; toolResponse?: undefined; data?: unknown; metadata?: Record<string, unknown> | undefined; custom?: Record<string, unknown> | undefined; reasoning?: undefined; resource?: undefined; } | ... 6 more ... | { ...; }'.
+plugins/mcp build: src/util/prompts.ts(77,9): error TS2322: Type 'unknown' is not assignable to type '{ [x: string]: string; } | undefined'.
+plugins/mcp build: src/util/tools.ts(80,9): error TS2322: Type 'unknown' is not assignable to type '{ [x: string]: unknown; } | undefined'.
+plugins/mcp build: src/util/tools.ts(119,9): error TS2322: Type 'unknown' is not assignable to type '{ [x: string]: unknown; } | undefined'.
+plugins/mcp build:  ELIFECYCLE  Command failed with exit code 2.
+plugins/next build: DTS ⚡️ Build success in 2409ms
+plugins/next build: DTS lib/client.d.ts  1.42 KB
+plugins/next build: DTS lib/index.d.ts   1.25 KB
+plugins/next build: DTS lib/client.d.mts 1.42 KB
+plugins/next build: DTS lib/index.d.mts  1.25 KB
+plugins/next build: Done
+plugins/pinecone build: DTS ⚡️ Build success in 963ms
+plugins/pinecone build: DTS lib/index.d.ts  6.64 KB
+plugins/pinecone build: DTS lib/index.d.mts 6.64 KB
+plugins/mcp build: ERROR: "check" exited with 2.
+plugins/mcp build: Failed
+/Users/lukeschlangen/Documents/genkit/js/plugins/mcp:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @genkit-ai/mcp@1.27.0 build: `npm-run-all build:clean check compile`
+Exit status 1
+plugins/pinecone build: Done
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.

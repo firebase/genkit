@@ -65,22 +65,22 @@ async function resolver(
   switch (actionType) {
     case 'model':
       if (lyria.isLyriaModelName(actionName)) {
-        return lyria.defineModel(actionName, clientOptions, pluginOptions);
+        return lyria.defineModel(actionName, clientOptions, pluginOptions) as any;
       } else if (imagen.isImagenModelName(actionName)) {
-        return imagen.defineModel(actionName, clientOptions, pluginOptions);
+        return imagen.defineModel(actionName, clientOptions, pluginOptions) as any;
       } else if (veo.isVeoModelName(actionName)) {
         return undefined;
       } else {
-        return gemini.defineModel(actionName, clientOptions, pluginOptions);
+        return gemini.defineModel(actionName, clientOptions, pluginOptions) as any;
       }
       break;
     case 'background-model':
       if (veo.isVeoModelName(actionName)) {
-        return veo.defineModel(actionName, clientOptions, pluginOptions);
+        return veo.defineModel(actionName, clientOptions, pluginOptions) as any;
       }
       break;
     case 'embedder':
-      return embedder.defineEmbedder(actionName, clientOptions, pluginOptions);
+      return embedder.defineEmbedder(actionName, clientOptions, pluginOptions) as any;
       break;
   }
   return undefined;
@@ -110,7 +110,7 @@ function vertexAIPlugin(options?: VertexPluginOptions): GenkitPluginV2 {
   let listActionsCache;
   return genkitPluginV2({
     name: 'vertexai',
-    init: async () => await initializer(options),
+    init: async () => (await initializer(options)) as any,
     resolve: async (actionType: ActionType, actionName: string) =>
       await resolver(actionType, actionName, options),
     list: async () => {

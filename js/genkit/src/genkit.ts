@@ -371,7 +371,7 @@ export class Genkit implements HasRegistry {
     promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>
   ) {
     const executablePrompt = (async (
-      input?: I,
+      input?: z.infer<I>,
       opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateResponse<z.infer<O>>> => {
       return (await promise)(input, opts);
@@ -380,16 +380,14 @@ export class Genkit implements HasRegistry {
     executablePrompt.ref = { name };
 
     executablePrompt.render = async (
-      input?: I,
+      input?: z.infer<I>,
       opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateOptions<O, CustomOptions>> => {
-      return (await promise).render(input, opts) as Promise<
-        GenerateOptions<O, CustomOptions>
-      >;
+      return (await promise).render(input, opts);
     };
 
     executablePrompt.stream = (
-      input?: I,
+      input?: z.infer<I>,
       opts?: PromptGenerateOptions<O, CustomOptions>
     ): GenerateStreamResponse<O> => {
       let channel = new Channel<GenerateResponseChunk>();
@@ -427,8 +425,8 @@ export class Genkit implements HasRegistry {
       };
     };
 
-    executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
-      return (await promise).asTool() as Promise<ToolAction<I, O>>;
+    (executablePrompt as any).asTool = async (): Promise<ToolAction<I, O>> => {
+      return (await promise).asTool() as any;
     };
 
     return executablePrompt;
@@ -497,7 +495,7 @@ export class Genkit implements HasRegistry {
           ...options,
           messages: async (input) => {
             const response = await (
-              templateOrFn as PromptFn<z.infer<I>, CustomOptions>
+              templateOrFn as PromptFn<I, CustomOptions>
             )(input);
             return response.messages;
           },
@@ -556,7 +554,7 @@ export class Genkit implements HasRegistry {
   defineEvaluator<
     DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
     EvalDataPoint extends
-      typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
+    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
     EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     options: {
@@ -782,7 +780,7 @@ export class Genkit implements HasRegistry {
    */
   generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
     strPrompt: string
-  ): GenerateStreamResponse<z.infer<O>>;
+  ): GenerateStreamResponse<O>;
 
   /**
    * Make a streaming generate call to the default model with a multipart request.
@@ -805,7 +803,7 @@ export class Genkit implements HasRegistry {
    */
   generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
     parts: Part[]
-  ): GenerateStreamResponse<z.infer<O>>;
+  ): GenerateStreamResponse<O>;
 
   /**
    * Streaming generate calls a generative model based on the provided prompt and configuration. If
@@ -840,10 +838,10 @@ export class Genkit implements HasRegistry {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
-    parts:
-      | GenerateOptions<O, CustomOptions>
-      | PromiseLike<GenerateOptions<O, CustomOptions>>
-  ): GenerateStreamResponse<z.infer<O>>;
+    opts:
+      | GenerateStreamOptions<O, CustomOptions>
+      | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
+  ): GenerateStreamResponse<O>;
 
   generateStream<
     O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -854,11 +852,11 @@ export class Genkit implements HasRegistry {
       | Part[]
       | GenerateStreamOptions<O, CustomOptions>
       | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
-  ): GenerateStreamResponse<z.infer<O>> {
+  ): GenerateStreamResponse<O> {
     if (typeof options === 'string' || Array.isArray(options)) {
       options = { prompt: options };
     }
-    return generateStream(this.registry, options);
+    return generateStream(this.registry, options as any);
   }
 
   /**

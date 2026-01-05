@@ -19,7 +19,7 @@
     "@mistralai/mistralai-gcp": "^1.3.4",
     "express": "^4.21.0",
     "genkit": "workspace:*",
-    "zod": "3.22.4"
+    "zod": "^4.3.4"
   },
   "devDependencies": {
     "typescript": "^5.5.3"

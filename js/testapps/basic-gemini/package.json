@@ -22,8 +22,7 @@
     "express": "^4.20.0",
     "genkit": "workspace:*",
     "node-fetch": "3.3.2",
-    "wav": "^1.0.2",
-    "zod-to-json-schema": "^3.24.5"
+    "wav": "^1.0.2"
   },
   "devDependencies": {
     "@types/wav": "^1.0.4",

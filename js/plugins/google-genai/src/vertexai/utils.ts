@@ -235,15 +235,7 @@ export type RequestClientOptions = ClientOptions & {
  * @param clientOptions The client options
  * @param reqConfig The request config
  */
-export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
-  clientOptions: RequestClientOptions,
-  reqConfig?: z.infer<T>
-): RequestClientOptions;
-export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
-  clientOptions: ClientOptions,
-  reqConfig?: z.infer<T>
-): ClientOptions;
-export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
+export function calculateRequestOptions<T extends z.ZodObject<any, any>>(
   clientOptions: RequestClientOptions | ClientOptions,
   reqConfig?: z.infer<T>
 ): RequestClientOptions | ClientOptions {

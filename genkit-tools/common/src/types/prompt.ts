@@ -44,7 +44,7 @@ export const PromptFrontmatterSchema = z.object({
       schema: z.unknown().optional(),
     })
     .optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type PromptFrontmatter = z.infer<typeof PromptFrontmatterSchema>;

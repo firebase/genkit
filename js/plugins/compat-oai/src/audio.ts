@@ -118,7 +118,7 @@ function toTTSRequest(
     topK,
     topP,
     ...restOfConfig
-  } = request.config ?? {};
+  } = (request.config as any) ?? {};
 
   let options: SpeechCreateParams = {
     model: modelVersion ?? modelName,
@@ -272,7 +272,7 @@ function toSttRequest(
     topK,
     topP,
     ...restOfConfig
-  } = request.config ?? {};
+  } = (request.config as any) ?? {};
 
   let options: TranscriptionCreateParams = {
     model: modelVersion ?? modelName,
@@ -289,7 +289,7 @@ function toSttRequest(
     };
   }
   const outputFormat = request.output?.format as 'json' | 'text' | 'media';
-  const customFormat = request.config?.response_format;
+  const customFormat = (request.config as any)?.response_format;
   if (outputFormat && customFormat) {
     if (
       outputFormat === 'json' &&

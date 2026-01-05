@@ -103,8 +103,8 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
         });
       return streamingRequested
         ? generateFn((c: GenerateResponseChunk) =>
-            sendChunk(c.toJSON ? c.toJSON() : c)
-          )
+          sendChunk(c.toJSON ? c.toJSON() : c)
+        )
         : generateFn();
     }
   );
@@ -365,7 +365,7 @@ async function generate(
 
   if (model.__action.actionType === 'background-model') {
     response = new GenerateResponse(
-      { operation: modelResponse },
+      { operation: modelResponse, custom: {}, raw: {} },
       {
         request,
         parser: format?.handler(request.output?.schema).parseMessage,
@@ -457,7 +457,7 @@ async function actionToGenerateRequest(
   ) {
     logger.warn(
       `The model '${model.__action.name}' does not support tools (you set: ${options.tools?.length} tools). ` +
-        'The model may not behave the way you expect.'
+      'The model may not behave the way you expect.'
     );
   }
   if (
@@ -467,7 +467,7 @@ async function actionToGenerateRequest(
   ) {
     logger.warn(
       `The model '${model.__action.name}' does not support the 'toolChoice' option (you set: ${options.toolChoice}). ` +
-        'The model may not behave the way you expect.'
+      'The model may not behave the way you expect.'
     );
   }
   const out: ModelRequest = {
