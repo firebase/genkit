@@ -1667,14 +1667,14 @@ importers:
         specifier: workspace:*
         version: link:../../genkit
       zod:
-        specifier: ^3.22.4
-        version: 3.25.76
+        specifier: ^4.3.4
+        version: 4.3.4
     devDependencies:
       tsx:
         specifier: ^4.7.1
         version: 4.20.3
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.5.0
         version: 5.8.3
 
   testapps/model-tester:
