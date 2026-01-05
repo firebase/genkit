@@ -17,7 +17,9 @@
 """Anthropic plugin for Genkit."""
 
 from anthropic import AsyncAnthropic
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai import PluginV2
+from genkit.blocks.model import model
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.anthropic.model_info import SUPPORTED_ANTHROPIC_MODELS, get_model_info
 from genkit.plugins.anthropic.models import AnthropicModel
@@ -38,85 +40,107 @@ def anthropic_name(name: str) -> str:
     return f'{ANTHROPIC_PLUGIN_NAME}/{name}'
 
 
-class Anthropic(Plugin):
-    """Anthropic plugin for Genkit.
+class Anthropic(PluginV2):
+    """Anthropic plugin for Genkit (v2).
 
     This plugin adds Anthropic models to Genkit for generative AI applications.
+    Can be used standalone (without framework) or with Genkit framework.
+
+    Example (standalone):
+        >>> plugin = Anthropic(api_key="...")
+        >>> claude = await plugin.model("claude-3-5-sonnet")
+        >>> response = await claude.arun({"messages": [...]})
+
+    Example (with framework):
+        >>> ai = Genkit(plugins=[Anthropic(api_key="...")])
+        >>> response = await ai.generate("anthropic/claude-3-5-sonnet", prompt="Hi")
     """
 
     name = ANTHROPIC_PLUGIN_NAME
 
     def __init__(
         self,
-        models: list[str] | None = None,
         **anthropic_params: str,
     ) -> None:
         """Initializes Anthropic plugin with given configuration.
 
         Args:
-            models: List of model names to register. Defaults to all supported models.
             **anthropic_params: Additional parameters passed to the AsyncAnthropic client.
                 This may include api_key, base_url, timeout, and other configuration
                 settings required by Anthropic's API.
         """
-        self.models = models or list(SUPPORTED_ANTHROPIC_MODELS.keys())
         self._anthropic_params = anthropic_params
         self._anthropic_client = AsyncAnthropic(**anthropic_params)
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize plugin by registering models.
+    def init(self) -> list[Action]:
+        """Return eagerly-initialized model actions.
+
+        Called once during Genkit initialization. Loads ALL supported
+        Anthropic models (same behavior as JavaScript).
+
+        Returns:
+            List of Action objects for all supported models.
+        """
+        return [
+            self._create_model_action(model_name)
+            for model_name in SUPPORTED_ANTHROPIC_MODELS.keys()
+        ]
+
+    def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        """Resolve a specific model action on-demand.
+
+        Called when framework needs an action not from init().
+        Enables lazy loading of Anthropic models.
 
         Args:
-            ai: The AI registry to initialize the plugin with.
-        """
-        for model_name in self.models:
-            self._define_model(ai, model_name)
+            action_type: Type of action requested.
+            name: Name of action (unprefixed - framework strips plugin prefix).
 
-    def resolve_action(
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        """Resolve an action.
+        Returns:
+            Action if this plugin can provide it, None otherwise.
+        """
+        if action_type == ActionKind.MODEL:
+            # Check if we support this model
+            if name in SUPPORTED_ANTHROPIC_MODELS:
+                return self._create_model_action(name)
+
+        return None
+
+    def list(self) -> list[ActionMetadata]:
+        """Return metadata for all supported Anthropic models.
+
+        Used for discovery and developer tools.
+
+        Returns:
+            List of ActionMetadata for all supported models.
+        """
+        return [
+            ActionMetadata(
+                name=model_name,
+                kind=ActionKind.MODEL,
+                info=get_model_info(model_name).model_dump(),
+            )
+            for model_name in SUPPORTED_ANTHROPIC_MODELS.keys()
+        ]
+
+
+    def _create_model_action(self, model_name: str) -> Action:
+        """Create an Action for an Anthropic model (doesn't register).
 
         Args:
-            ai: Genkit registry.
-            kind: Action kind.
-            name: Action name.
+            model_name: Name of the Anthropic model (without plugin prefix).
+
+        Returns:
+            Action instance.
         """
-        if kind == ActionKind.MODEL:
-            self._resolve_model(ai=ai, name=name)
-
-    def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
-        """Resolve and define an Anthropic model.
-
-        Args:
-            ai: Genkit registry.
-            name: Model name (may include plugin prefix).
-        """
-        clean_name = name.replace(f'{ANTHROPIC_PLUGIN_NAME}/', '') if name.startswith(ANTHROPIC_PLUGIN_NAME) else name
-        self._define_model(ai, clean_name)
-
-    def _define_model(self, ai: GenkitRegistry, model_name: str) -> None:
-        """Define and register a model.
-
-        Args:
-            ai: Genkit registry.
-            model_name: Model name.
-        """
-        model = AnthropicModel(model_name=model_name, client=self._anthropic_client)
         model_info = get_model_info(model_name)
+        anthropic_model = AnthropicModel(model_name=model_name, client=self._anthropic_client)
 
-        metadata = {
-            'model': {
-                'supports': model_info.supports.model_dump(),
-            }
-        }
+        metadata = {'model': {'supports': model_info.supports.model_dump()}}
 
-        ai.define_model(
-            name=anthropic_name(model_name),
-            fn=model.generate,
+        return model(
+            name=model_name,
+            fn=anthropic_model.generate,
             config_schema=GenerationCommonConfig,
             metadata=metadata,
         )

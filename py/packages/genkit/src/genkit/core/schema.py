@@ -16,9 +16,27 @@
 
 """Functions for working with schema."""
 
-from typing import Any
+from typing import Any, Callable
 
 from pydantic import TypeAdapter
+
+
+def get_func_description(func: Callable, description: str | None = None) -> str:
+    """Get the description of a function.
+
+    Args:
+        func: The function to get the description of.
+        description: The description to use if the function docstring is
+            empty.
+
+    Returns:
+        The description of the function.
+    """
+    if description is not None:
+        return description
+    if func.__doc__ is not None:
+        return func.__doc__
+    return ''
 
 
 def to_json_schema(schema: type | dict[str, Any]) -> dict[str, Any]:

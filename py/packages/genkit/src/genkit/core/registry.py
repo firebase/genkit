@@ -162,6 +162,26 @@ class Registry:
             self._entries[kind][name] = action
         return action
 
+    def register_action_instance(self, action: Action, *, namespace: str | None = None) -> None:
+        """Registers a pre-constructed Action instance.
+
+        Note: If a namespace is provided and the action name is not already
+        prefixed, this method updates the action's name in-place.
+
+        Args:
+            action: The Action instance to register.
+            namespace: Optional namespace prefix (e.g. plugin name).
+        """
+        name = action.name
+        if namespace and not name.startswith(f'{namespace}/'):
+            name = f'{namespace}/{name}'
+            action._name = name
+
+        with self._lock:
+            if action.kind not in self._entries:
+                self._entries[action.kind] = {}
+            self._entries[action.kind][name] = action
+
     def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
         """Look up an action by its kind and name.
 
@@ -179,7 +199,9 @@ class Registry:
             if kind not in self._entries or name not in self._entries[kind]:
                 plugin_name = parse_plugin_name_from_action_name(name)
                 if plugin_name and plugin_name in self._action_resolvers:
-                    self._action_resolvers[plugin_name](kind, name)
+                    # Strip plugin prefix before calling resolver
+                    action_name = name.removeprefix(f"{plugin_name}/")
+                    self._action_resolvers[plugin_name](kind, action_name)
 
             if kind in self._entries and name in self._entries[kind]:
                 return self._entries[kind][name]

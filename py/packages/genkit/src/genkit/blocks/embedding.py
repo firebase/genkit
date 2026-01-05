@@ -21,9 +21,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from genkit.core.action import ActionMetadata
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
-from genkit.core.schema import to_json_schema
+from genkit.core.schema import get_func_description, to_json_schema
 from genkit.core.typing import EmbedRequest, EmbedResponse
 
 
@@ -58,6 +58,64 @@ class EmbedderRef(BaseModel):
 
 
 EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
+
+
+def embedder(
+    name: str,
+    fn: EmbedderFn,
+    options: EmbedderOptions | None = None,
+    metadata: dict[str, Any] | None = None,
+    description: str | None = None,
+) -> 'Action':
+    """Create an embedder action WITHOUT registering it.
+
+    This is the v2 API for creating embedders. Returns an Action instance
+    that can be used standalone or registered by the framework.
+
+    Args:
+        name: Embedder name (without plugin prefix).
+        fn: Function that implements embedding (takes EmbedRequest, returns EmbedResponse).
+        options: Optional embedder options (dimensions, supports, etc.).
+        metadata: Optional metadata dictionary.
+        description: Optional human-readable description.
+
+    Returns:
+        Action instance (not registered).
+
+    Example:
+        >>> from genkit.blocks.embedding import embedder
+        >>>
+        >>> def my_embed(request: EmbedRequest) -> EmbedResponse:
+        ...     return EmbedResponse(...)
+        >>>
+        >>> action = embedder(name="my-embedder", fn=my_embed)
+        >>> response = await action.arun({"input": [...]})
+    """
+    embedder_meta = metadata if metadata else {}
+
+    if 'embedder' not in embedder_meta:
+        embedder_meta['embedder'] = {}
+
+    if 'label' not in embedder_meta['embedder'] or not embedder_meta['embedder']['label']:
+        embedder_meta['embedder']['label'] = name
+
+    if options:
+        if options.dimensions:
+            embedder_meta['embedder']['dimensions'] = options.dimensions
+        if options.config_schema:
+            embedder_meta['embedder']['customOptions'] = options.config_schema
+        if options.supports:
+            embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+
+    final_description = description if description else get_func_description(fn)
+
+    return Action(
+        name=name,
+        kind=ActionKind.EMBEDDER,
+        fn=fn,
+        metadata=embedder_meta,
+        description=final_description,
+    )
 
 
 def embedder_action_metadata(
