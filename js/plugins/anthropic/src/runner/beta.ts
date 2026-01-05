@@ -44,6 +44,7 @@ import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import { RunnerTypes } from './types.js';
 
@@ -65,6 +66,57 @@ const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
   'mcp_tool_use',
   'container_upload',
 ]);
+
+const BETA_APIS = [
+  // 'message-batches-2024-09-24',
+  // 'prompt-caching-2024-07-31',
+  // 'computer-use-2025-01-24',
+  // 'pdfs-2024-09-25',
+  // 'token-counting-2024-11-01',
+  // 'token-efficient-tools-2025-02-19',
+  // 'output-128k-2025-02-19',
+  'files-api-2025-04-14',
+  // 'mcp-client-2025-04-04',
+  // 'dev-full-thinking-2025-05-14',
+  // 'interleaved-thinking-2025-05-14',
+  // 'code-execution-2025-05-22',
+  // 'extended-cache-ttl-2025-04-11',
+  // 'context-1m-2025-08-07',
+  // 'context-management-2025-06-27',
+  // 'model-context-window-exceeded-2025-08-26',
+  // 'skills-2025-10-02',
+  'effort-2025-11-24',
+  // 'advanced-tool-use-2025-11-20',
+  'structured-outputs-2025-11-13',
+];
+
+/**
+ * Transforms a JSON schema to be compatible with Anthropic's structured output requirements.
+ * Anthropic requires `additionalProperties: false` on all object types.
+ * @see https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs#json-schema-limitations
+ */
+function toAnthropicSchema(
+  schema: Record<string, unknown>
+): Record<string, unknown> {
+  const out = structuredClone(schema);
+
+  // Remove $schema if present
+  delete out.$schema;
+
+  // Add additionalProperties: false to objects
+  if (out.type === 'object') {
+    out.additionalProperties = false;
+  }
+
+  // Recursively process nested objects
+  for (const key in out) {
+    if (typeof out[key] === 'object' && out[key] !== null) {
+      out[key] = toAnthropicSchema(out[key] as Record<string, unknown>);
+    }
+  }
+
+  return out;
+}
 
 const unsupportedServerToolError = (blockType: string): string =>
   `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
@@ -140,6 +192,26 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
     // Media
     if (part.media) {
+      if (part.media.contentType === 'anthropic/file') {
+        return {
+          type: 'document',
+          source: {
+            type: 'file',
+            file_id: part.media.url,
+          },
+        };
+      }
+
+      if (part.media.contentType === 'anthropic/image') {
+        return {
+          type: 'image',
+          source: {
+            type: 'file',
+            file_id: part.media.url,
+          },
+        };
+      }
+
       if (part.media.contentType === 'application/pdf') {
         return {
           type: 'document',
@@ -249,45 +321,49 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         : system;
     }
 
-    const body: BetaMessageCreateParamsNonStreaming = {
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as BetaMessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
+    const body = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
-    };
+      system: betaSystem,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      output_format: this.isStructuredOutputEnabled(request)
+        ? {
+            type: 'json_schema',
+            schema: toAnthropicSchema(request.output!.schema!),
+          }
+        : undefined,
+      betas: Array.isArray(request.config?.betas)
+        ? [...(request.config?.betas ?? [])]
+        : [...BETA_APIS],
+      ...restConfig,
+    } as BetaMessageCreateParamsNonStreaming;
 
-    if (betaSystem !== undefined) body.system = betaSystem;
-    if (request.config?.stopSequences !== undefined)
-      body.stop_sequences = request.config.stopSequences;
-    if (request.config?.temperature !== undefined)
-      body.temperature = request.config.temperature;
-    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
-    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config
-        .tool_choice as BetaMessageCreateParams['tool_choice'];
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config
-        .metadata as BetaMessageCreateParams['metadata'];
-    }
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   /**
@@ -316,46 +392,50 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
             ]
           : system;
 
-    const body: BetaMessageCreateParamsStreaming = {
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as BetaMessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
+    const body = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
-    };
+      system: betaSystem,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      output_format: this.isStructuredOutputEnabled(request)
+        ? {
+            type: 'json_schema',
+            schema: toAnthropicSchema(request.output!.schema!),
+          }
+        : undefined,
+      betas: Array.isArray(request.config?.betas)
+        ? [...(request.config?.betas ?? [])]
+        : [...BETA_APIS],
+      ...restConfig,
+    } as BetaMessageCreateParamsStreaming;
 
-    if (betaSystem !== undefined) body.system = betaSystem;
-    if (request.config?.stopSequences !== undefined)
-      body.stop_sequences = request.config.stopSequences;
-    if (request.config?.temperature !== undefined)
-      body.temperature = request.config.temperature;
-    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
-    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config
-        .tool_choice as BetaMessageCreateParams['tool_choice'];
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config
-        .metadata as BetaMessageCreateParams['metadata'];
-    }
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   protected toGenkitResponse(message: BetaMessage): GenerateResponseData {
@@ -490,5 +570,15 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       default:
         return 'other';
     }
+  }
+
+  private isStructuredOutputEnabled(
+    request: GenerateRequest<typeof AnthropicConfigSchema>
+  ): boolean {
+    return !!(
+      request.output?.schema &&
+      request.output.constrained &&
+      request.output.format === 'json'
+    );
   }
 }
