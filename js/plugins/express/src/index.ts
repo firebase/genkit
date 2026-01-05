@@ -50,7 +50,7 @@ export function expressHandler<
 >(
   action: Action<I, O, S>,
   opts?: {
-    contextProvider?: ContextProvider<C, I>;
+    contextProvider?: ContextProvider<C, z.infer<I>>;
     streamManager?: StreamManager;
   }
 ): express.RequestHandler {
@@ -284,7 +284,7 @@ export type FlowWithContextProvider<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
   flow: Flow<I, O, S>;
-  context: ContextProvider<C, I>;
+  context: ContextProvider<C, z.infer<I>>;
 };
 
 /**
@@ -297,7 +297,7 @@ export type FlowWithOptions<
 > = {
   flow: Flow<I, O, S>;
   options: {
-    contextProvider?: ContextProvider<any, I>;
+    contextProvider?: ContextProvider<any, z.infer<I>>;
     streamManager?: StreamManager;
     path?: string;
   };
@@ -314,7 +314,7 @@ export function withContextProvider<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S>,
-  context: ContextProvider<C, I>
+  context: ContextProvider<C, z.infer<I>>
 ): FlowWithContextProvider<C, I, O, S> {
   return {
     flow,
@@ -332,7 +332,7 @@ export function withFlowOptions<
 >(
   flow: Flow<I, O, S>,
   options: {
-    contextProvider?: ContextProvider<any, I>;
+    contextProvider?: ContextProvider<any, z.infer<I>>;
     streamManager?: StreamManager;
     path?: string;
   }
