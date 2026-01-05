@@ -39,7 +39,7 @@ export async function answerRelevancyScore<
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
   embedder: EmbedderArgument<CustomEmbedderOptions>,
-  judgeConfig?: CustomModelOptions,
+  judgeConfig?: z.infer<CustomModelOptions>,
   embedderOptions?: z.infer<CustomEmbedderOptions>
 ): Promise<Score> {
   try {

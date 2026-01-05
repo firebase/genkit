@@ -29,7 +29,7 @@ export async function answerAccuracyScore<
   ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
-  judgeConfig?: CustomModelOptions
+  judgeConfig?: z.infer<CustomModelOptions>
 ): Promise<Score> {
   if (!dataPoint.output) {
     throw new Error('Output was not provided');
