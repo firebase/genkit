@@ -1821,8 +1821,8 @@ importers:
         specifier: ^15.4.10
         version: 15.4.10(@babel/core@7.25.7)(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zod:
-        specifier: ^3.24.1
-        version: 3.25.67
+        specifier: ^4.3.4
+        version: 4.3.4
     devDependencies:
       '@types/react':
         specifier: 19.2.7
@@ -1831,7 +1831,7 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.5.0
         version: 5.8.3
 
   testapps/ollama:
@@ -9168,9 +9168,6 @@ packages:
     resolution: {integrity: sha512-HvWtU2UG41LALjajJrML6uQejQhNJx+JBO9IflpSja4R03iNWfKXrj6W2h7ljuLyc1nKS+9yDyL/9tD1U/yBnQ==}
     peerDependencies:
       zod: ^3.25 || ^4
-
-  zod@3.25.67:
-    resolution: {integrity: sha512-idA2YXwpCdqUSKRCACDE6ItZD9TZzy3OZMtpfLoh6oPR47lipysRrJfjzMqFxQ3uJuUPyUeWe1r9vLH33xO/Qw==}
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
@@ -17899,8 +17896,6 @@ snapshots:
   zod-to-json-schema@3.25.0(zod@4.3.4):
     dependencies:
       zod: 4.3.4
-
-  zod@3.25.67: {}
 
   zod@3.25.76: {}
 

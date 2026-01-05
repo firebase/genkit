@@ -20,11 +20,11 @@ import {
   streamFlow as baseStreamFlow,
 } from 'genkit/beta/client';
 
-type Input<A extends Action> =
+type Input<A> =
   A extends Action<infer I extends z.ZodTypeAny, any, any> ? z.infer<I> : never;
-type Output<A extends Action> =
+type Output<A> =
   A extends Action<any, infer O extends z.ZodTypeAny, any> ? z.infer<O> : never;
-type Stream<A extends Action> =
+type Stream<A> =
   A extends Action<any, any, infer S extends z.ZodTypeAny> ? z.infer<S> : never;
 
 export interface RequestData<T> {
@@ -35,19 +35,19 @@ export interface RequestData<T> {
   abortSignal?: AbortSignal;
 }
 
-export function runFlow<A extends Action = Action>(
+export function runFlow<A = Action>(
   req: RequestData<Input<A>>
 ): Promise<Output<A>> {
   return baseRunFlow<Output<A>>(req);
 }
 
-export interface StreamResponse<A extends Action> {
+export interface StreamResponse<A> {
   output: Promise<Output<A>>;
   stream: AsyncIterable<Stream<A>>;
   streamId: Promise<string | null>;
 }
 
-export function streamFlow<A extends Action = Action>(
+export function streamFlow<A = Action>(
   req: RequestData<Input<A>>
 ): StreamResponse<A> {
   const res = baseStreamFlow<Output<A>, Stream<A>>(req);
