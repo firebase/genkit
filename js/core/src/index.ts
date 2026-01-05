@@ -72,7 +72,6 @@ export {
   defineFlow,
   flow,
   run,
-  type BidiFlowConfig,
   type Flow,
   type FlowConfig,
   type FlowFn,
