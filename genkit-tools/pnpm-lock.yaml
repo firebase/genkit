@@ -24,11 +24,8 @@ importers:
         specifier: ^4.20.3
         version: 4.20.3
       zod:
-        specifier: ^3.25.67
-        version: 3.25.67
-      zod-to-json-schema:
-        specifier: ^3.24.5
-        version: 3.24.5(zod@3.25.67)
+        specifier: ^4.0.0
+        version: 4.3.5
 
   cli:
     dependencies:
@@ -104,7 +101,7 @@ importers:
     dependencies:
       '@asteasolutions/zod-to-openapi':
         specifier: ^7.0.0
-        version: 7.3.4(zod@3.25.67)
+        version: 7.3.4(zod@4.3.5)
       '@inquirer/prompts':
         specifier: ^7.8.0
         version: 7.8.0(@types/node@20.19.1)
@@ -175,11 +172,8 @@ importers:
         specifier: ^2.4.1
         version: 2.8.0
       zod:
-        specifier: ^3.22.4
-        version: 3.25.67
-      zod-to-json-schema:
-        specifier: ^3.22.4
-        version: 3.24.5(zod@3.25.67)
+        specifier: ^4.0.0
+        version: 4.3.5
     devDependencies:
       '@jest/globals':
         specifier: ^29.7.0
@@ -249,7 +243,7 @@ importers:
     dependencies:
       '@asteasolutions/zod-to-openapi':
         specifier: ^7.0.0
-        version: 7.3.4(zod@3.25.67)
+        version: 7.3.4(zod@4.3.5)
       '@genkit-ai/tools-common':
         specifier: workspace:*
         version: link:../common
@@ -284,8 +278,8 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4
       zod:
-        specifier: ^3.22.4
-        version: 3.25.67
+        specifier: ^4.0.0
+        version: 4.3.5
     devDependencies:
       '@types/express':
         specifier: ~4.17.21
@@ -312,8 +306,8 @@ importers:
         specifier: ^4.19.2
         version: 4.20.3
       typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
+        specifier: ^5.5.0
+        version: 5.8.3
 
 packages:
 
@@ -3354,11 +3348,6 @@ packages:
   typedarray-to-buffer@3.1.5:
     resolution: {integrity: sha512-zdu8XMNEDepKKR+XYOXAVPtWui0ly0NtohUscw+UmaHiAWT8hrV1rr//H6V+0DvJ3OQ19S979M0laLfX8rm82Q==}
 
-  typescript@4.9.5:
-    resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
-    engines: {node: '>=4.2.0'}
-    hasBin: true
-
   typescript@5.8.3:
     resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
     engines: {node: '>=14.17'}
@@ -3517,6 +3506,9 @@ packages:
   zod@3.25.67:
     resolution: {integrity: sha512-idA2YXwpCdqUSKRCACDE6ItZD9TZzy3OZMtpfLoh6oPR47lipysRrJfjzMqFxQ3uJuUPyUeWe1r9vLH33xO/Qw==}
 
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
+
 snapshots:
 
   '@ampproject/remapping@2.3.0':
@@ -3524,10 +3516,10 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.5
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@asteasolutions/zod-to-openapi@7.3.4(zod@3.25.67)':
+  '@asteasolutions/zod-to-openapi@7.3.4(zod@4.3.5)':
     dependencies:
       openapi3-ts: 4.3.1
-      zod: 3.25.67
+      zod: 4.3.5
 
   '@babel/code-frame@7.24.2':
     dependencies:
@@ -7109,8 +7101,6 @@ snapshots:
     dependencies:
       is-typedarray: 1.0.0
 
-  typescript@4.9.5: {}
-
   typescript@5.8.3: {}
 
   unbox-primitive@1.0.2:
@@ -7284,3 +7274,5 @@ snapshots:
       zod: 3.25.67
 
   zod@3.25.67: {}
+
+  zod@4.3.5: {}

@@ -51,7 +51,7 @@ function createResolver(pluginOptions: PluginOptions) {
         pluginOptions,
         modelRef,
         requestBuilder: grokRequestBuilder,
-      });
+      }) as ResolvableAction;
     } else {
       logger.warn('Only model actions are supported by the XAI plugin');
     }
@@ -113,7 +113,7 @@ export function xAIPlugin(options?: XAIPluginOptions): GenkitPluginV2 {
             modelRef,
             requestBuilder: grokRequestBuilder,
           })
-        )
+        ) as ResolvableAction[]
       );
       models.push(
         ...Object.values(SUPPORTED_IMAGE_MODELS).map((modelRef) =>
@@ -123,7 +123,7 @@ export function xAIPlugin(options?: XAIPluginOptions): GenkitPluginV2 {
             pluginOptions,
             modelRef,
           })
-        )
+        ) as ResolvableAction[]
       );
       return models;
     },

@@ -51,7 +51,7 @@ export function defineCompatOpenAIEmbedder(params: {
       ...embedderRef?.info,
     },
     async (req) => {
-      const { encodingFormat: encoding_format, ...restOfConfig } = req.options;
+      const { encodingFormat: encoding_format, ...restOfConfig } = req.options as any;
       const client = maybeCreateRequestScopedOpenAIClient(
         pluginOptions,
         req,

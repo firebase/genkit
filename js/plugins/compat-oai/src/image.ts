@@ -68,7 +68,7 @@ function toImageGenerateParams(
     topP,
     response_format,
     ...restOfConfig
-  } = request.config ?? {};
+  } = (request.config as any) ?? {};
 
   let options: ImageGenerateParams = {
     model: modelVersion ?? modelName,
