@@ -39,6 +39,9 @@ import {
   type AnthropicDocumentOptions,
 } from './types.js';
 
+// Re-export citation and document types for consumers
+export type { AnthropicCitation, AnthropicDocumentOptions } from './types.js';
+
 const PROMPT_CACHING_BETA_HEADER_VALUE = 'prompt-caching-2024-07-31';
 
 /**

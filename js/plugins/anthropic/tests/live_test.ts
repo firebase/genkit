@@ -24,7 +24,11 @@
 import * as assert from 'assert';
 import { genkit, z } from 'genkit';
 import { describe, it } from 'node:test';
-import { anthropic } from '../src/index.js';
+import {
+  anthropic,
+  anthropicDocument,
+  type AnthropicCitation,
+} from '../src/index.js';
 
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -125,5 +129,116 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
         `Field ${key} should be a boolean but got: ${typeof parsed[key]}`
       );
     }
+  });
+
+  it('should return citations from a plain text document', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
+    });
+
+    const result = await ai.generate({
+      model: anthropic.model('claude-sonnet-4-5'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            anthropicDocument({
+              source: {
+                type: 'text',
+                data: 'The grass is green. The sky is blue. Water is wet.',
+              },
+              title: 'Basic Facts',
+              citations: { enabled: true },
+            }),
+            { text: 'What color is the grass? Cite your source.' },
+          ],
+        },
+      ],
+    });
+
+    assert.ok(result.text, 'Should have response text');
+    assert.ok(
+      result.text.toLowerCase().includes('green'),
+      'Response should mention green'
+    );
+
+    // Extract citations from response parts
+    const citations = result.message?.content
+      .filter((part) => part.metadata?.citations)
+      .flatMap(
+        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
+      )
+      .filter((c): c is AnthropicCitation => c !== undefined);
+
+    assert.ok(
+      citations && citations.length > 0,
+      'Should have at least one citation'
+    );
+
+    // Verify citation structure
+    const citation = citations[0];
+    assert.strictEqual(
+      citation.type,
+      'char_location',
+      'Should be a char_location citation'
+    );
+    assert.ok(citation.citedText, 'Citation should have cited text');
+    assert.strictEqual(
+      citation.documentIndex,
+      0,
+      'Should reference first document'
+    );
+  });
+
+  it('should return citations with streaming enabled', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
+    });
+
+    const streamedChunks: string[] = [];
+
+    const result = await ai.generate({
+      model: anthropic.model('claude-sonnet-4-5'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            anthropicDocument({
+              source: {
+                type: 'text',
+                data: 'Cats are mammals. Dogs are also mammals. Birds have feathers.',
+              },
+              title: 'Animal Facts',
+              citations: { enabled: true },
+            }),
+            { text: 'Are cats mammals? Cite your source.' },
+          ],
+        },
+      ],
+      streamingCallback: (chunk) => {
+        if (chunk.text) {
+          streamedChunks.push(chunk.text);
+        }
+      },
+    });
+
+    assert.ok(result.text, 'Should have response text');
+    assert.ok(
+      streamedChunks.length > 0,
+      'Should have received streaming chunks'
+    );
+
+    // Extract citations from final response
+    const citations = result.message?.content
+      .filter((part) => part.metadata?.citations)
+      .flatMap(
+        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
+      )
+      .filter((c): c is AnthropicCitation => c !== undefined);
+
+    assert.ok(
+      citations && citations.length > 0,
+      'Should have at least one citation'
+    );
   });
 });

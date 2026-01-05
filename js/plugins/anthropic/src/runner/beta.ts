@@ -501,7 +501,10 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
           citationsDelta.citation as BetaTextCitation
         );
         if (citation) {
-          // Emit citation as a text part with empty text and citation in metadata
+          // Citations are emitted as text parts with empty text and citation data in metadata.
+          // Empty text is intentional: genkit's `.text` getter concatenates all text parts,
+          // so empty strings contribute nothing to the final text while preserving the citation
+          // in the parts array for consumers who need to access citation metadata.
           return {
             text: '',
             metadata: { citations: [citation] },
@@ -702,7 +705,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
               type: 'image' as const,
               source: {
                 type: 'base64' as const,
-                media_type: item.source.media_type as
+                media_type: item.source.mediaType as
                   | 'image/jpeg'
                   | 'image/png'
                   | 'image/gif'
