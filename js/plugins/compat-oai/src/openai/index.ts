@@ -237,7 +237,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
       );
       return models;
     },
-    resolver: createResolver(pluginOptions),
+    resolver: createResolver(pluginOptions) as any,
     listActions,
   });
 }
