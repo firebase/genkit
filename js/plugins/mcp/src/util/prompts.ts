@@ -74,7 +74,7 @@ function registerPrompt(
       );
       const result = await client.getPrompt({
         name: prompt.name,
-        arguments: args,
+        arguments: args as any,
         _meta: context?.mcp?._meta,
       });
       return result.messages.map(fromMcpPromptMessage);

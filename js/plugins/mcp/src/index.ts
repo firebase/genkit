@@ -108,7 +108,7 @@ export function defineMcpHost(ai: Genkit, options: McpHostOptionsWithCache) {
     },
     async () => ({
       tool: await mcpHost.getActiveTools(ai),
-      resource: await mcpHost.getActiveResources(ai),
+      resource: (await mcpHost.getActiveResources(ai)) as any,
     })
   );
   mcpHost.dynamicActionProvider = dap;
@@ -180,7 +180,7 @@ export function defineMcpClient(
     async () => {
       return {
         tool: await mcpClient.getActiveTools(ai),
-        resource: await mcpClient.getActiveResources(ai),
+        resource: (await mcpClient.getActiveResources(ai)) as any,
       };
     }
   );
