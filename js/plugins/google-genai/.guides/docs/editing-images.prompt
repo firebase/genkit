@@ -1,9 +1,9 @@
 ---
-title: Edit images with `gemini-2.5-flash-image-preview` (aka "Nano Banana")
+title: Edit images with `gemini-2.5-flash-image` (aka "Nano Banana")
 description: read this if you need to perform sophisticated image edits such as background removal, post matching, character replacement, relighting, on an existing image
 ---
 
-The `gemini-2.5-flash-image-preview` model (also known as "Nano Banana") can perform sophisticated image edits.
+The `gemini-2.5-flash-image` model (also known as "Nano Banana") can perform sophisticated image edits.
 
 - You must ALWAYS add `{config: {responseModalities: ['TEXT', 'IMAGE']}}` to your `ai.generate` calls when using this model.
 
@@ -15,7 +15,7 @@ import { ai } from "@/ai/genkit"; // or wherever genkit is initialized
 import { googleAI } from "@genkit-ai/google-genai";
 
 const {media} = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-image-preview'),
+  model: googleAI.model('gemini-2.5-flash-image'),
   config: {responseModalities: ['TEXT', 'IMAGE']}},
   prompt: "generate a picture of a unicorn wearing a space suit on the moon",
 });
@@ -32,7 +32,7 @@ import { ai } from "@/ai/genkit"; // or wherever genkit is initialized
 import { googleAI } from "@genkit-ai/google-genai";
 
 const {media} = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-image-preview'),
+  model: googleAI.model('gemini-2.5-flash-image'),
   config: {responseModalities: ['TEXT', 'IMAGE']}},
   prompt: [
     {text: "change the person's outfit to a banana costume"},
@@ -54,7 +54,7 @@ import { googleAI } from "@genkit-ai/google-genai";
 const {personImageUri, animalImageUri, sceneryImageUri} = await loadImages(...);
 
 const {media} = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-image-preview'),
+  model: googleAI.model('gemini-2.5-flash-image'),
   config: {responseModalities: ['TEXT', 'IMAGE']}},
   prompt: [
     // the model tends to match aspect ratio of the *last* image provided
@@ -84,7 +84,7 @@ const originalImageUri = "data:..."; // the original image
 const annotatedImageUri = "data:..."; // the image with annotations on top of it
 
 const {media} = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-image-preview'),
+  model: googleAI.model('gemini-2.5-flash-image'),
   config: {responseModalities: ['TEXT', 'IMAGE']}},
   prompt: [
     

@@ -313,7 +313,7 @@ exhaustive list.
 ```
 | Plugin                             | Recommended Model                  | Input Modalities  |
 |------------------------------------|------------------------------------|-------------------|
-| @genkit-ai/google-genai            | gemini-2.5-flash-image-preview     | Text, Image       |
+| @genkit-ai/google-genai            | gemini-2.5-flash-image     | Text, Image       |
 | @genkit-ai/google-genai            | imagen-4.0-generate-preview-06-06  | Text              |
 | @genkit-ai/compat-oai/openai       | gpt-image-1                        | Text              |
 ```
