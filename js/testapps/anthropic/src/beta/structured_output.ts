@@ -75,8 +75,8 @@ ai.defineFlow(
     const collected: string[] = [];
     for await (const chunk of stream) {
       if (chunk.text) {
-        collected.push(chunk.text);
-        sendChunk(chunk.text);
+        collected.push(chunk.output);
+        sendChunk(chunk.output);
       }
     }
 
