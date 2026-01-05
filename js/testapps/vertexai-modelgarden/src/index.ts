@@ -52,7 +52,7 @@ export const anthropicModel = ai.defineFlow(
     streamSchema: z.any(),
   },
   async (location, { sendChunk }) => {
-    const { response, stream } = ai.generateStream({
+    const { response, stream } = (ai as any).generateStream({
       model: vertexModelGarden.model('claude-sonnet-4@20250514'),
       config: {
         temperature: 1,
@@ -77,7 +77,7 @@ export const llamaModel = ai.defineFlow(
     streamSchema: z.any(),
   },
   async (location, { sendChunk }) => {
-    const { response, stream } = ai.generateStream({
+    const { response, stream } = (ai as any).generateStream({
       model: vertexModelGarden.model(
         'meta/llama-4-maverick-17b-128e-instruct-maas'
       ),
@@ -206,7 +206,7 @@ export const geminiModel = ai.defineFlow(
     streamSchema: z.any(),
   },
   async (location, { sendChunk }) => {
-    const { response, stream } = ai.generateStream({
+    const { response, stream } = (ai as any).generateStream({
       model: vertexAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
