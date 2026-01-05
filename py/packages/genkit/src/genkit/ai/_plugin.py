@@ -22,8 +22,8 @@ It provides a way to initialize and register plugin functionality.
 
 import abc
 import inspect
-from typing import Any, Literal
 from collections.abc import Awaitable
+from typing import Any, Literal
 
 from genkit.core.registry import ActionKind
 

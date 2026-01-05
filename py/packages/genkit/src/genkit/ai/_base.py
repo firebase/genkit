@@ -187,18 +187,9 @@ class GenkitBase(GenkitRegistry):
             action: Action instance from the plugin.
             plugin: The v2 plugin that created this action.
         """
-        if action.name.startswith(f"{plugin.name}/"):
-            namespaced_name = action.name
-        else:
-            namespaced_name = f"{plugin.name}/{action.name}"
-            action._name = namespaced_name
-
-        # Register the action directly in the registry's entries
-        # (Don't use register_action() as that would create a new Action and double-wrap)
-        with self.registry._lock:
-            if action.kind not in self.registry._entries:
-                self.registry._entries[action.kind] = {}
-            self.registry._entries[action.kind][namespaced_name] = action
+        # Register the pre-constructed action instance and let the registry apply
+        # namespacing for v2 plugins.
+        self.registry.register_action_instance(action, namespace=plugin.name)
 
 
     def _initialize_server(self, reflection_server_spec: ServerSpec | None) -> None:

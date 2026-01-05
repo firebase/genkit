@@ -22,6 +22,7 @@ and that v1 plugins continue working (backward compatibility).
 """
 
 import pytest
+
 from genkit.ai import Genkit
 from genkit.ai._plugin import PluginV2, is_plugin_v2
 from genkit.core.action import Action, ActionMetadata
@@ -247,4 +248,5 @@ async def test_v2_plugin_model_convenience_method():
     # Should raise for non-existent model
     with pytest.raises(ValueError, match="not found"):
         await plugin.model("nonexistent-model")
+
 

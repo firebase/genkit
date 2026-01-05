@@ -36,10 +36,10 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
+from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionMetadata, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.extract import extract_json
-from genkit.codec import dump_dict
 from genkit.core.schema import get_func_description, to_json_schema
 from genkit.core.typing import (
     Candidate,
