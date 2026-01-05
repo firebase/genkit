@@ -29,7 +29,7 @@ export function maybeCreateRequestScopedOpenAIClient(
   defaultClient: OpenAI
 ): OpenAI {
   const requestApiKey =
-    (request as GenerateRequest)?.config?.apiKey ??
+    ((request as GenerateRequest)?.config as any)?.apiKey ??
     (request as EmbedRequest)?.options?.apiKey;
   if (!requestApiKey) {
     return defaultClient;

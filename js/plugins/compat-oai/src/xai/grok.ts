@@ -58,7 +58,8 @@ export function xaiModelRef(params: {
 }
 
 export const grokRequestBuilder: ModelRequestBuilder = (req, params) => {
-  const { deferred, webSearchOptions, reasoningEffort } = req.config ?? {};
+  const { deferred, webSearchOptions, reasoningEffort } =
+    (req.config as any) ?? {};
 
   params.web_search_options = webSearchOptions;
   params.reasoning_effort = reasoningEffort;
