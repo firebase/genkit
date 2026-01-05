@@ -17,6 +17,7 @@
 """Base/shared implementation for Genkit user-facing API."""
 
 import asyncio
+import inspect
 import os
 import threading
 from collections.abc import Coroutine
@@ -28,11 +29,13 @@ import structlog
 from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
 from genkit.blocks.generate import define_generate_action
+from genkit.core.action import Action
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
+from genkit.core.registry import ActionKind
 from genkit.web.manager import find_free_port_sync
 
-from ._plugin import Plugin
+from ._plugin import Plugin, PluginV2, is_plugin_v2
 from ._registry import GenkitRegistry
 from ._server import ServerSpec, init_default_runtime
 
@@ -120,7 +123,9 @@ class GenkitBase(GenkitRegistry):
             logger.warning('No plugins provided to Genkit')
         else:
             for plugin in plugins:
-                if isinstance(plugin, Plugin):
+                if is_plugin_v2(plugin):
+                    self._initialize_v2_plugin(plugin)
+                elif isinstance(plugin, Plugin):
                     plugin.initialize(ai=self)
 
                     def resolver(kind, name, plugin=plugin):
@@ -135,7 +140,66 @@ class GenkitBase(GenkitRegistry):
                     self.registry.register_action_resolver(plugin.plugin_name(), resolver)
                     self.registry.register_list_actions_resolver(plugin.plugin_name(), action_resolver)
                 else:
-                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin` or `genkit.ai.PluginV2`')
+
+    def _initialize_v2_plugin(self, plugin: PluginV2) -> None:
+        """Register a v2 plugin by calling its methods and registering returned actions.
+
+        Steps:
+        1. Call plugin.init() to get resolved actions
+        2. Register each action with automatic namespacing
+        3. Set up lazy resolver for on-demand actions
+
+        Args:
+            plugin: V2 plugin instance to register.
+        """
+        if inspect.iscoroutinefunction(plugin.init):
+            resolved_actions = asyncio.run(plugin.init())
+        else:
+            resolved_actions = plugin.init()
+
+        for action in resolved_actions:
+            self._register_action(action, plugin)
+
+        def resolver(kind: ActionKind, name: str) -> None:
+            """Lazy resolver for v2 plugin.
+
+            Called when framework needs an action not returned from init().
+            """
+            if inspect.iscoroutinefunction(plugin.resolve):
+                action = asyncio.run(plugin.resolve(kind, name))
+            else:
+                action = plugin.resolve(kind, name)
+
+            if action:
+                self._register_action(action, plugin)
+
+        self.registry.register_action_resolver(plugin.name, resolver)
+
+    def _register_action(self, action: Any, plugin: PluginV2) -> None:
+        """Register a single action from a v2 plugin.
+
+        Responsibilities:
+        1. Add plugin namespace to action name (if not already present)
+        2. Register action in the registry
+
+        Args:
+            action: Action instance from the plugin.
+            plugin: The v2 plugin that created this action.
+        """
+        if action.name.startswith(f"{plugin.name}/"):
+            namespaced_name = action.name
+        else:
+            namespaced_name = f"{plugin.name}/{action.name}"
+            action._name = namespaced_name
+
+        # Register the action directly in the registry's entries
+        # (Don't use register_action() as that would create a new Action and double-wrap)
+        with self.registry._lock:
+            if action.kind not in self.registry._entries:
+                self.registry._entries[action.kind] = {}
+            self.registry._entries[action.kind][namespaced_name] = action
+
 
     def _initialize_server(self, reflection_server_spec: ServerSpec | None) -> None:
         """Initialize the server for the Genkit instance.

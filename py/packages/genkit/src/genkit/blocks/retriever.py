@@ -28,14 +28,53 @@ from typing import Any, Generic, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from genkit.blocks.document import Document
-from genkit.core.action import ActionMetadata
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
-from genkit.core.schema import to_json_schema
+from genkit.core.schema import get_func_description, to_json_schema
 from genkit.core.typing import DocumentData, RetrieverResponse
 
 T = TypeVar('T')
 # type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
 RetrieverFn = Callable[[Document, T], RetrieverResponse]
+
+
+def retriever(
+    name: str,
+    fn: RetrieverFn,
+    config_schema: type[BaseModel] | None = None,
+    metadata: dict[str, Any] | None = None,
+    description: str | None = None,
+) -> 'Action':
+    """Create a retriever action WITHOUT registering it.
+
+    V2 API for creating retrievers. Returns an Action instance that can be
+    used standalone or registered by the framework.
+
+    Args:
+        name: Retriever name (without plugin prefix).
+        fn: Function implementing retriever behavior.
+        config_schema: Optional schema for retriever configuration.
+        metadata: Optional metadata dictionary.
+        description: Optional description.
+
+    Returns:
+        Action instance (not registered).
+    """
+    retriever_meta = metadata if metadata else {}
+    if 'retriever' not in retriever_meta:
+        retriever_meta['retriever'] = {}
+    if 'label' not in retriever_meta['retriever']:
+        retriever_meta['retriever']['label'] = name
+    if config_schema:
+        retriever_meta['retriever']['customOptions'] = to_json_schema(config_schema)
+
+    return Action(
+        name=name,
+        kind=ActionKind.RETRIEVER,
+        fn=fn,
+        metadata=retriever_meta,
+        description=get_func_description(fn, description),
+    )
 
 
 class Retriever(Generic[T]):

@@ -179,7 +179,9 @@ class Registry:
             if kind not in self._entries or name not in self._entries[kind]:
                 plugin_name = parse_plugin_name_from_action_name(name)
                 if plugin_name and plugin_name in self._action_resolvers:
-                    self._action_resolvers[plugin_name](kind, name)
+                    # Strip plugin prefix before calling resolver
+                    action_name = name.removeprefix(f"{plugin_name}/")
+                    self._action_resolvers[plugin_name](kind, action_name)
 
             if kind in self._entries and name in self._entries[kind]:
                 return self._entries[kind][name]

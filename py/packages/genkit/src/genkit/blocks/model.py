@@ -36,10 +36,11 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
-from genkit.core.action import ActionMetadata, ActionRunContext
+from genkit.core.action import Action, ActionMetadata, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.extract import extract_json
-from genkit.core.schema import to_json_schema
+from genkit.codec import dump_dict
+from genkit.core.schema import get_func_description, to_json_schema
 from genkit.core.typing import (
     Candidate,
     DocumentPart,
@@ -62,6 +63,81 @@ T = TypeVar('T')
 MessageParser = Callable[['MessageWrapper'], T]
 # type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
 ChunkParser = Callable[['GenerateResponseChunkWrapper'], T]
+
+
+def model(
+    name: str,
+    fn: ModelFn,
+    config_schema: type[BaseModel] | None = None,
+    metadata: dict[str, Any] | None = None,
+    info: ModelInfo | None = None,
+    description: str | None = None,
+) -> 'Action':
+    """Create a model action WITHOUT registering it.
+
+    This is the v2 API for creating models. Unlike ai.define_model(),
+    this function does NOT register the action in any registry - it just
+    creates and returns an Action object.
+
+    This enables:
+    1. V2 plugins to create actions without needing a registry
+    2. Standalone usage (call the action directly without framework)
+    3. Framework to register actions from v2 plugins when needed
+
+    Args:
+        name: Model name (without plugin prefix - framework adds it automatically).
+        fn: Function that implements the model. Takes GenerateRequest and
+            ActionRunContext, returns GenerateResponse.
+        config_schema: Optional Pydantic model for config validation.
+        metadata: Optional metadata dictionary.
+        info: Optional ModelInfo describing model capabilities (vision, tools, etc.).
+        description: Optional human-readable description.
+
+    Returns:
+        Action instance (not registered anywhere).
+
+    Example:
+        >>> from genkit.blocks.model import model
+        >>>
+        >>> def my_generate(request: GenerateRequest, ctx: ActionRunContext):
+        ...     return GenerateResponse(...)
+        >>>
+        >>> action = model(name="my-model", fn=my_generate)
+        >>> response = await action.arun({"messages": [...]})
+
+    Note:
+        This function extracts the "create action" logic from
+        GenkitRegistry.define_model() but skips the registration step.
+    """
+    model_meta: dict[str, Any] = metadata if metadata else {}
+
+    if info:
+        model_meta['model'] = dump_dict(info)
+
+    if 'model' not in model_meta:
+        model_meta['model'] = {}
+
+    if 'label' not in model_meta['model'] or not model_meta['model']['label']:
+        model_meta['model']['label'] = name
+
+    if config_schema:
+        model_meta['model']['customOptions'] = to_json_schema(config_schema)
+
+    final_description = description if description else get_func_description(fn)
+
+    action = Action(
+        name=name,
+        kind=ActionKind.MODEL,
+        fn=fn,
+        metadata=model_meta,
+        description=final_description,
+    )
+
+    # NOTE: We do NOT call registry.register_action() here!
+    # That's the key difference from define_model().
+    # The action is created but not registered anywhere.
+
+    return action
 
 
 # type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
