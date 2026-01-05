@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "genkit-cli": "^1.0.4",
+    "genkit-cli": "^1.27.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   },
