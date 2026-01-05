@@ -141,7 +141,7 @@ export const openAICompatible = (options: PluginOptions) => {
             modelRef: compatOaiModelRef({
               name: actionName,
             }),
-          });
+          }) as any;
         }
         return undefined;
       }
