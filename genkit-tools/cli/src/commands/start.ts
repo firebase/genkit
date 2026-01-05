@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -27,6 +27,8 @@ interface RunOptions {
   port?: string;
   open?: boolean;
   disableRealtimeTelemetry?: boolean;
+  experimentalReflectionV2?: boolean;
+  allowedTelemetryCorsHostnames?: string;
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -39,6 +41,14 @@ export const start = new Command('start')
     '--disable-realtime-telemetry',
     'Disable real-time telemetry streaming'
   )
+  .option(
+    '--experimental-reflection-v2',
+    'start the experimental reflection server (WebSocket)'
+  )
+  .option(
+    '--allowed-telemetry-cors-hostnames <hostnames>',
+    'comma separated list of allowed telemetry CORS hostnames'
+  )
   .action(async (options: RunOptions) => {
     const projectRoot = await findProjectRoot();
     if (projectRoot.includes('/.Trash/')) {
@@ -48,19 +58,32 @@ export const start = new Command('start')
       );
     }
     // Always start the manager.
-    let manager: RuntimeManager;
+    let manager: BaseRuntimeManager;
     let processPromise: Promise<void> | undefined;
+    const allowedTelemetryCorsHostnames = options.allowedTelemetryCorsHostnames
+      ? options.allowedTelemetryCorsHostnames.split(',')
+      : undefined;
+
     if (start.args.length > 0) {
       const result = await startDevProcessManager(
         projectRoot,
         start.args[0],
         start.args.slice(1),
-        { disableRealtimeTelemetry: options.disableRealtimeTelemetry }
+        {
+          disableRealtimeTelemetry: options.disableRealtimeTelemetry,
+          experimentalReflectionV2: options.experimentalReflectionV2,
+          allowedTelemetryCorsHostnames,
+        }
       );
       manager = result.manager;
       processPromise = result.processPromise;
     } else {
-      manager = await startManager(projectRoot, true);
+      manager = await startManager(
+        projectRoot,
+        true,
+        options.experimentalReflectionV2,
+        allowedTelemetryCorsHostnames
+      );
       processPromise = new Promise(() => {});
     }
     if (!options.noui) {

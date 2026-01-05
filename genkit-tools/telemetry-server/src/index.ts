@@ -20,6 +20,7 @@ import {
   type SpanData,
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
+import cors from 'cors';
 import express from 'express';
 import type * as http from 'http';
 import { BroadcastManager } from './broadcast-manager.js';
@@ -46,9 +47,30 @@ export async function startTelemetryServer(params: {
    * Defaults to '5mb'.
    */
   maxRequestBodySize?: string | number;
+  allowedCorsHostnames?: string[];
 }) {
   await params.traceStore.init();
   const api = express();
+
+  api.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        const hostname = new URL(origin).hostname;
+        if (
+          hostname === 'localhost' ||
+          hostname === '127.0.0.1' ||
+          params.allowedCorsHostnames?.includes(hostname)
+        ) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'), false);
+      },
+    })
+  );
 
   api.use(express.json({ limit: params.maxRequestBodySize ?? '100mb' }));
 

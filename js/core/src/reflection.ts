@@ -92,6 +92,7 @@ export class ReflectionServer {
       startTime: Date;
     }
   >();
+  private v2Server: any | null = null;
 
   constructor(registry: Registry, options?: ReflectionServerOptions) {
     this.registry = registry;
@@ -133,6 +134,17 @@ export class ReflectionServer {
       logger.debug(
         'Skipping ReflectionServer start: not supported in sandboxed runtime.'
       );
+      return;
+    }
+    if (process.env.GENKIT_REFLECTION_V2_SERVER) {
+      const { ReflectionServerV2 } = await import('./reflection-v2.js');
+      this.v2Server = new ReflectionServerV2(this.registry, {
+        configuredEnvs: this.options.configuredEnvs,
+        name: this.options.name,
+        url: process.env.GENKIT_REFLECTION_V2_SERVER,
+      });
+      await this.v2Server.start();
+      ReflectionServer.RUNNING_SERVERS.push(this);
       return;
     }
 
@@ -390,8 +402,8 @@ export class ReflectionServer {
         } else {
           logger.warn(
             'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
-              'Consider upgrading your runtime library version (debug info: expected ' +
-              `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
+            'Consider upgrading your runtime library version (debug info: expected ' +
+            `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
           );
         }
       }
@@ -439,6 +451,15 @@ export class ReflectionServer {
    * Stops the server and removes it from the list of running servers to clean up on exit.
    */
   async stop(): Promise<void> {
+    if (this.v2Server) {
+      await this.v2Server.stop();
+      const index = ReflectionServer.RUNNING_SERVERS.indexOf(this);
+      if (index > -1) {
+        ReflectionServer.RUNNING_SERVERS.splice(index, 1);
+      }
+      return;
+    }
+
     if (!this.server) {
       return;
     }
