@@ -20,13 +20,13 @@ import EventEmitter from 'events';
 import * as fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
+import { GenkitError } from '../types';
 import {
   RunActionResponseSchema,
   type Action,
   type RunActionResponse,
 } from '../types/action';
 import * as apis from '../types/apis';
-import type { GenkitError } from '../types/error';
 import type { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
@@ -60,13 +60,13 @@ interface RuntimeManagerOptions {
   projectRoot: string;
   /** An optional process manager for the main application process. */
   processManager?: ProcessManager;
-  /** Whether realtime telemetry streaming is enabled. */
-  enableRealtimeTelemetry?: boolean;
+  /** Whether to disable realtime telemetry streaming. Defaults to false. */
+  disableRealtimeTelemetry?: boolean;
 }
 
 export class RuntimeManager {
   readonly processManager?: ProcessManager;
-  readonly enableRealtimeTelemetry: boolean;
+  readonly disableRealtimeTelemetry: boolean;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
@@ -79,10 +79,10 @@ export class RuntimeManager {
     private manageHealth: boolean,
     readonly projectRoot: string,
     processManager?: ProcessManager,
-    enableRealtimeTelemetry?: boolean
+    disableRealtimeTelemetry?: boolean
   ) {
     this.processManager = processManager;
-    this.enableRealtimeTelemetry = enableRealtimeTelemetry ?? false;
+    this.disableRealtimeTelemetry = disableRealtimeTelemetry ?? false;
   }
 
   /**
@@ -94,7 +94,7 @@ export class RuntimeManager {
       options.manageHealth ?? true,
       options.projectRoot,
       options.processManager,
-      options.enableRealtimeTelemetry
+      options.disableRealtimeTelemetry
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
@@ -228,7 +228,12 @@ export class RuntimeManager {
             responseType: 'stream',
           }
         )
-        .catch(this.httpErrorHandler);
+        .catch((err) =>
+          this.handleStreamError(
+            err,
+            `Error running action key='${input.key}'.`
+          )
+        );
       let genkitVersion: string;
       if (response.headers['x-genkit-version']) {
         genkitVersion = response.headers['x-genkit-version'];
@@ -302,7 +307,10 @@ export class RuntimeManager {
           responseType: 'stream', // Use stream to get early headers
         })
         .catch((err) =>
-          this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
+          this.handleStreamError(
+            err,
+            `Error running action key='${input.key}'.`
+          )
         );
 
       const traceId = response.headers['x-genkit-trace-id'];
@@ -735,21 +743,80 @@ export class RuntimeManager {
   /**
    * Handles an HTTP error.
    */
-  private httpErrorHandler(error: AxiosError, message?: string): any {
+  private httpErrorHandler(error: AxiosError, message?: string): never {
     const newError = new GenkitToolsError(message || 'Internal Error');
 
     if (error.response) {
-      if ((error.response?.data as any).message) {
-        newError.message = (error.response?.data as any).message;
-      }
       // we got a non-200 response; copy the payload and rethrow
       newError.data = error.response.data as GenkitError;
+      newError.stack = (error.response?.data as any).message;
+      if ((error.response?.data as any).message) {
+        newError.data.data = {
+          ...newError.data.data,
+          genkitErrorMessage: message,
+          genkitErrorDetails: {
+            stack: (error.response?.data as any).message,
+            traceId: (error.response?.data as any).traceId,
+          },
+        };
+      }
       throw newError;
     }
 
     // We actually have an exception; wrap it and re-throw.
     throw new GenkitToolsError(message || 'Internal Error', {
       cause: error.cause,
+    });
+  }
+
+  /**
+   * Handles a stream error by reading the stream and then calling httpErrorHandler.
+   */
+  private async handleStreamError(
+    error: AxiosError,
+    message: string
+  ): Promise<never> {
+    if (
+      error.response &&
+      error.config?.responseType === 'stream' &&
+      (error.response.data as any).on
+    ) {
+      try {
+        const body = await this.streamToString(error.response.data);
+        try {
+          error.response.data = JSON.parse(body);
+        } catch (e) {
+          error.response.data = {
+            message: body || 'Unknown error',
+          };
+        }
+      } catch (e) {
+        // If stream reading fails, we must replace the stream object with a safe error object
+        // to prevent circular structure errors during JSON serialization.
+        error.response.data = {
+          message: 'Failed to read error response stream',
+          details: String(e),
+        };
+      }
+    }
+    this.httpErrorHandler(error, message);
+  }
+
+  /**
+   * Helper to convert a stream to string.
+   */
+  private streamToString(stream: any): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let buffer = '';
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+      });
+      stream.on('end', () => {
+        resolve(buffer);
+      });
+      stream.on('error', (err: Error) => {
+        reject(err);
+      });
     });
   }
 

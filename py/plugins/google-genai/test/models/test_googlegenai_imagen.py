@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
+import urllib.request
 
 import pytest
 from google import genai
@@ -76,5 +77,5 @@ async def test_generate_media_response(mocker, version):
 
     assert content.root.media.content_type == response_mimetype
 
-    decoded_url = base64.b64decode(content.root.media.url)
-    assert decoded_url == response_byte_string
+    with urllib.request.urlopen(content.root.media.url) as response:
+        assert response.read() == response_byte_string

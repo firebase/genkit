@@ -282,7 +282,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && m != nil && m.(*model).supportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && outputCfg.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -335,6 +335,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			currentRole := RoleModel
 			currentIndex := messageIndex
 
+			var streamingHandler StreamingFormatHandler
+			if sfh, ok := formatHandler.(StreamingFormatHandler); ok {
+				streamingHandler = sfh
+			}
+
 			if cb != nil {
 				wrappedCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
 					if chunk.Role != currentRole && chunk.Role != "" {
@@ -345,6 +350,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 					if chunk.Role == "" {
 						chunk.Role = RoleModel
 					}
+					chunk.formatHandler = streamingHandler
 					return cb(ctx, chunk)
 				}
 			}
@@ -360,6 +366,8 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			}
 
 			if formatHandler != nil {
+				resp.formatHandler = streamingHandler
+				// This is legacy behavior. New format handlers should implement ParseMessage as a passthrough.
 				resp.Message, err = formatHandler.ParseMessage(resp.Message)
 				if err != nil {
 					logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
@@ -543,7 +551,6 @@ func GenerateText(ctx context.Context, r api.Registry, opts ...GenerateOption) (
 }
 
 // Generate run generate request for this model. Returns ModelResponse struct.
-// TODO: Stream GenerateData with partial JSON
 func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
 	var value Out
 	opts = append(opts, WithOutputType(value))
@@ -768,14 +775,32 @@ func (mr *ModelResponse) Reasoning() string {
 	return sb.String()
 }
 
-// Output unmarshals structured JSON output into the provided
-// struct pointer.
+// Output parses the structured output from the response and unmarshals it into v.
+// If a format handler is set, it uses the handler's ParseOutput method.
+// Otherwise, it falls back to parsing the response text as JSON.
 func (mr *ModelResponse) Output(v any) error {
-	j := base.ExtractJSONFromMarkdown(mr.Text())
-	if j == "" {
-		return errors.New("unable to parse JSON from response text")
+	if mr.Message == nil || len(mr.Message.Content) == 0 {
+		return errors.New("no content in response")
 	}
-	return json.Unmarshal([]byte(j), v)
+
+	if mr.formatHandler == nil {
+		// For backward compatibility, extract JSON from the response text.
+		return json.Unmarshal([]byte(base.ExtractJSONFromMarkdown(mr.Message.Text())), v)
+	}
+
+	output, err := mr.formatHandler.ParseOutput(mr.Message)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal output: %w", err)
+	}
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
 }
 
 // ToolRequests returns the tool requests from the response.
@@ -819,9 +844,9 @@ func (mr *ModelResponse) Media() string {
 	return ""
 }
 
-// Text returns the text content of the [ModelResponseChunk]
-// as a string. It returns an error if there is no Content
-// in the response chunk.
+// Text returns the text content of the ModelResponseChunk as a string.
+// It returns an empty string if there is no Content in the response chunk.
+// For the parsed structured output, use [ModelResponseChunk.Output] instead.
 func (c *ModelResponseChunk) Text() string {
 	if len(c.Content) == 0 {
 		return ""
@@ -838,6 +863,8 @@ func (c *ModelResponseChunk) Text() string {
 	return sb.String()
 }
 
+// Reasoning returns the reasoning content of the ModelResponseChunk as a string.
+// It returns an empty string if there is no Content in the response chunk.
 func (c *ModelResponseChunk) Reasoning() string {
 	if len(c.Content) == 0 {
 		return ""
@@ -849,6 +876,43 @@ func (c *ModelResponseChunk) Reasoning() string {
 		}
 	}
 	return sb.String()
+}
+
+// Output parses the chunk using the format handler and unmarshals the result into v.
+// Returns an error if the format handler is not set or does not support parsing chunks.
+func (c *ModelResponseChunk) Output(v any) error {
+	if c.formatHandler == nil {
+		return errors.New("output format chosen does not support parsing chunks")
+	}
+
+	output, err := c.formatHandler.ParseChunk(c)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal chunk output: %w", err)
+	}
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
+}
+
+// outputer is an interface for types that can unmarshal structured output.
+type outputer interface {
+	Output(v any) error
+}
+
+// OutputFrom is a convenience function that parses structured output from a
+// [ModelResponse] or [ModelResponseChunk] and returns it as a typed value.
+// This is equivalent to calling Output() but returns the value directly instead
+// of requiring a pointer argument. If you need to handle the error, use Output() instead.
+func OutputFrom[T any](src outputer) T {
+	var v T
+	src.Output(&v)
+	return v
 }
 
 // Text returns the contents of a [Message] as a string. It

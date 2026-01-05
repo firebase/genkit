@@ -670,10 +670,11 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
-        try:
-            model_name = request.config.version
-        except AttributeError:
-            model_name = self._version
+        model_name = self._version
+        if request.config:
+            version = getattr(request.config, 'version', None)
+            if version:
+                model_name = version
 
         # TODO: do not move - this method mutates `request` by extracting system prompts into configuration object
         request_cfg = self._genkit_to_googleai_cfg(request=request)

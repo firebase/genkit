@@ -80,12 +80,12 @@ export function startServer(manager: RuntimeManager, port: number) {
 
       // When realtime telemetry is disabled, flush headers immediately.
       // The trace ID will be available in the response body.
-      if (!manager.enableRealtimeTelemetry) {
+      if (manager.disableRealtimeTelemetry) {
         res.flushHeaders();
       }
 
       try {
-        const onTraceIdCallback = manager.enableRealtimeTelemetry
+        const onTraceIdCallback = !manager.disableRealtimeTelemetry
           ? (traceId: string) => {
               // Set trace ID header and flush - this fires before response body
               res.setHeader('X-Genkit-Trace-Id', traceId);
@@ -127,12 +127,12 @@ export function startServer(manager: RuntimeManager, port: number) {
 
       // When realtime telemetry is disabled, flush headers immediately.
       // The trace ID will be available in the response body.
-      if (!manager.enableRealtimeTelemetry) {
+      if (manager.disableRealtimeTelemetry) {
         res.flushHeaders();
       }
 
       try {
-        const onTraceIdCallback = manager.enableRealtimeTelemetry
+        const onTraceIdCallback = !manager.disableRealtimeTelemetry
           ? (traceId: string) => {
               // Set trace ID header and flush - this fires before first chunk
               res.setHeader('X-Genkit-Trace-Id', traceId);

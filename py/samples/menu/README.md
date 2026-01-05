@@ -5,5 +5,5 @@
 TODO
 
 ```bash
-genkit start -- uv run src/menu_example.py
+genkit start -- uv run src/main.py
 ```

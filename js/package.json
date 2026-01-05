@@ -31,11 +31,15 @@
   },
   "pnpm": {
     "overrides": {
-      "cross-spawn": "^7.0.5",
-      "@genkit-ai/vertexai>@anthropic-ai/sdk": "^0.24.3",
-      "@anthropic-ai/vertex-sdk>@anthropic-ai/sdk": "^0.24.3",
-      "@genkit-ai/anthropic>@anthropic-ai/sdk": "^0.71.2"
-    }
+      "cross-spawn": "^7.0.5"
+    },
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "esbuild",
+      "protobufjs",
+      "re2",
+      "sharp"
+    ]
   },
   "packageManager": "pnpm@10.26.0+sha512.3b3f6c725ebe712506c0ab1ad4133cf86b1f4b687effce62a9b38b4d72e3954242e643190fc51fa1642949c735f403debd44f5cb0edd657abe63a8b6a7e1e402"
 }

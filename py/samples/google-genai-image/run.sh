@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,4 +15,4 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Short and long sample."""
+exec uv run src/main.py "$@"

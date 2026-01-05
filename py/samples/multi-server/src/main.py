@@ -31,6 +31,7 @@ from litestar.plugins.structlog import StructlogPlugin
 from litestar.types import Message
 from starlette.applications import Starlette
 
+from genkit.aio.loop import run_loop
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
@@ -42,7 +43,6 @@ from genkit.web.manager import (
     UvicornAdapter,
     get_health_info,
     get_server_info,
-    run_loop,
 )
 from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.typing import Application, Receive, Scope, Send

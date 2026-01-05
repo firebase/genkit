@@ -17,6 +17,7 @@ from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import MessageWrapper, text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
+    BaseDataPoint,
     BaseEvalDataPoint,
     Details,
     DocumentData,
@@ -1563,3 +1564,36 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
 
     assert chunks == [1, 2, 3]
     assert (await response) == 'banana2'
+
+
+@pytest.mark.asyncio
+async def test_evaluate(setup_test: SetupFixture) -> None:
+    """Test that the evaluate function works."""
+    ai, _, _, *_ = setup_test
+
+    async def my_eval_fn(datapoint: BaseDataPoint, options: Any | None):
+        return EvalFnResponse(
+            test_case_id=datapoint.test_case_id,
+            evaluation=Score(score=True, details=Details(reasoning='I think it is true')),
+        )
+
+    ai.define_evaluator(
+        name='my_eval',
+        display_name='Test evaluator',
+        definition='Test evaluator that always returns True',
+        fn=my_eval_fn,
+    )
+
+    dataset = [
+        BaseDataPoint(input='hi', output='hi', test_case_id='case1'),
+        BaseDataPoint(input='bye', output='bye', test_case_id='case2'),
+    ]
+
+    response = await ai.evaluate(evaluator='my_eval', dataset=dataset)
+
+    assert isinstance(response, EvalResponse)
+    assert len(response.root) == 2
+    assert response.root[0].test_case_id == 'case1'
+    assert response.root[0].evaluation.score is True
+    assert response.root[1].test_case_id == 'case2'
+    assert response.root[1].evaluation.score is True

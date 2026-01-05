@@ -50,7 +50,7 @@ func main() {
 				},
 			}),
 			ai.WithStreaming(cb),
-			ai.WithOutputSchemaName("joke"),
+			ai.WithOutputSchemaName("Joke"),
 			ai.WithPrompt(`Tell short jokes about %s`, input))
 		if err != nil {
 			return "", err

@@ -51,7 +51,11 @@ from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
-from genkit.blocks.prompt import define_prompt
+from genkit.blocks.prompt import (
+    define_helper,
+    define_prompt,
+    lookup_prompt,
+)
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -167,6 +171,15 @@ class GenkitRegistry:
             )
 
         return wrapper
+
+    def define_helper(self, name: str, fn: Callable) -> None:
+        """Define a Handlebars helper function in the registry.
+
+        Args:
+            name: The name of the helper function.
+            fn: The helper function to register.
+        """
+        define_helper(self.registry, name, fn)
 
     def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
@@ -296,6 +309,7 @@ class GenkitRegistry:
             description: Optional description for the indexer.
         """
         indexer_meta = metadata if metadata else {}
+
         if 'indexer' not in indexer_meta:
             indexer_meta['indexer'] = {}
         if 'label' not in indexer_meta['indexer'] or not indexer_meta['indexer']['label']:
@@ -323,7 +337,7 @@ class GenkitRegistry:
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
-        """Define a evaluator action.
+        """Define an evaluator action.
 
         This action runs the callback function on the every sample of
         the input dataset.
@@ -363,15 +377,40 @@ class GenkitRegistry:
                     metadata={'evaluator:evalRunId': req.eval_run_id},
                 )
                 try:
-                    with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
-                        span_id = span.span_id
-                        trace_id = span.trace_id
+                    # Try to run with tracing, but fallback if tracing infrastructure fails
+                    # (e.g., in environments with NonRecordingSpans like pre-commit)
+                    try:
+                        with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
+                            span_id = span.span_id
+                            trace_id = span.trace_id
+                            try:
+                                span.set_input(datapoint)
+                                test_case_output = await fn(datapoint, req.options)
+                                test_case_output.span_id = span_id
+                                test_case_output.trace_id = trace_id
+                                span.set_output(test_case_output)
+                                eval_responses.append(test_case_output)
+                            except Exception as e:
+                                logger.debug(f'eval_stepper_fn error: {str(e)}')
+                                logger.debug(traceback.format_exc())
+                                evaluation = Score(
+                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                    status=EvalStatusEnum.FAIL,
+                                )
+                                eval_responses.append(
+                                    EvalFnResponse(
+                                        span_id=span_id,
+                                        trace_id=trace_id,
+                                        test_case_id=datapoint.test_case_id,
+                                        evaluation=evaluation,
+                                    )
+                                )
+                                # Raise to mark span as failed
+                                raise e
+                    except (AttributeError, UnboundLocalError):
+                        # Fallback: run without span
                         try:
-                            span.set_input(datapoint)
                             test_case_output = await fn(datapoint, req.options)
-                            test_case_output.span_id = span_id
-                            test_case_output.trace_id = trace_id
-                            span.set_output(test_case_output)
                             eval_responses.append(test_case_output)
                         except Exception as e:
                             logger.debug(f'eval_stepper_fn error: {str(e)}')
@@ -382,14 +421,10 @@ class GenkitRegistry:
                             )
                             eval_responses.append(
                                 EvalFnResponse(
-                                    span_id=span_id,
-                                    trace_id=trace_id,
                                     test_case_id=datapoint.test_case_id,
                                     evaluation=evaluation,
                                 )
                             )
-                            # Raise to mark span as failed
-                            raise e
                 except Exception:
                     # Continue to process other points
                     continue
@@ -493,6 +528,7 @@ class GenkitRegistry:
         name: str,
         fn: EmbedderFn,
         options: EmbedderOptions | None = None,
+        metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
@@ -504,7 +540,10 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = {}
+        embedder_meta: dict[str, Any] = metadata or {}
+        if 'embedder' not in embedder_meta:
+            embedder_meta['embedder'] = {}
+
         if options:
             if options.label:
                 embedder_meta['embedder']['label'] = options.label
@@ -514,9 +553,6 @@ class GenkitRegistry:
                 embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
             if options.config_schema:
                 embedder_meta['embedder']['customOptions'] = to_json_schema(options.config_schema)
-
-        if 'embedder' not in embedder_meta:
-            embedder_meta['embedder'] = {}
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -605,6 +641,38 @@ class GenkitRegistry:
             tools=tools,
             tool_choice=tool_choice,
             use=use,
+        )
+
+    async def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+    ):
+        """Look up a prompt by name and optional variant.
+
+        This matches the JavaScript prompt() function behavior.
+
+        Can look up prompts that were:
+        1. Defined programmatically using define_prompt()
+        2. Loaded from .prompt files using load_prompt_folder()
+
+        Args:
+            registry: The registry to look up the prompt from.
+            name: The name of the prompt.
+            variant: Optional variant name.
+            dir: Optional directory parameter (accepted for compatibility but not used).
+
+        Returns:
+            An ExecutablePrompt instance.
+
+        Raises:
+            GenkitError: If the prompt is not found.
+        """
+
+        return await lookup_prompt(
+            registry=self.registry,
+            name=name,
+            variant=variant,
         )
 
 

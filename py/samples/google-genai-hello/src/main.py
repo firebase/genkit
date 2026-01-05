@@ -42,7 +42,7 @@ Key features demonstrated in this sample:
 
 """
 
-import os
+import argparse
 
 import structlog
 from pydantic import BaseModel, Field
@@ -69,7 +69,7 @@ from genkit.types import (
 )
 
 logger = structlog.get_logger(__name__)
-add_gcp_telemetry()
+
 
 ai = Genkit(
     plugins=[
@@ -116,7 +116,6 @@ async def simple_generate_with_tools_flow(value: int, ctx: ActionRunContext) -> 
         The generated response with a function.
     """
     response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         prompt=f'what is a gablorken of {value}',
         tools=['gablorkenTool'],
         on_chunk=ctx.send_chunk,
@@ -149,7 +148,6 @@ async def simple_generate_with_interrupts(value: int) -> str:
         The generated response with a function.
     """
     response1 = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         messages=[
             Message(
                 role=Role.USER,
@@ -164,7 +162,6 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.interrupts[0], 178)
     response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -328,8 +325,9 @@ async def generate_images(name: str, ctx):
         The generated response with a function.
     """
     result = await ai.generate(
-        prompt='tell me a about the Eifel Tower with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image']),
+        model='googleai/gemini-2.5-flash-image',
+        prompt=f'tell me about {name} with photos',
+        config=GeminiConfigSchema(response_modalities=['text', 'image']).model_dump(exclude_none=True),
     )
     return result
 
@@ -340,4 +338,13 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Google GenAI Hello Sample')
+    parser.add_argument(
+        '--enable-gcp-telemetry',
+        action='store_true',
+        help='Enable Google Cloud Platform telemetry',
+    )
+    args = parser.parse_args()
+    if args.enable_gcp_telemetry:
+        add_gcp_telemetry()
     ai.run_main(main())

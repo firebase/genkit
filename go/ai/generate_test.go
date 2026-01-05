@@ -1336,6 +1336,238 @@ func TestResourceProcessingError(t *testing.T) {
 	}
 }
 
+func TestModelResponseOutput(t *testing.T) {
+	t.Run("single JSON part (json format)", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart(`{"name":"Alice","age":30}`),
+				},
+			},
+		}
+
+		var result struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+		err := mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if result.Name != "Alice" || result.Age != 30 {
+			t.Errorf("Output() = %+v, want {Alice 30}", result)
+		}
+	})
+
+	t.Run("JSON array without format handler", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`[{"id":1},{"id":2},{"id":3}]`),
+				},
+			},
+		}
+
+		var result []struct {
+			ID int `json:"id"`
+		}
+		err := mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if len(result) != 3 {
+			t.Fatalf("Output() got %d items, want 3", len(result))
+		}
+		for i, item := range result {
+			if item.ID != i+1 {
+				t.Errorf("Output()[%d].ID = %d, want %d", i, item.ID, i+1)
+			}
+		}
+	})
+
+	t.Run("plain JSON text without format handler", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"value":42}`),
+				},
+			},
+		}
+
+		var result struct {
+			Value int `json:"value"`
+		}
+		err := mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if result.Value != 42 {
+			t.Errorf("Output().Value = %d, want 42", result.Value)
+		}
+	})
+
+	t.Run("no content error", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role:    RoleModel,
+				Content: []*Part{},
+			},
+		}
+
+		var result any
+		err := mr.Output(&result)
+		if err == nil {
+			t.Error("Output() expected error for empty content")
+		}
+	})
+
+	t.Run("nil message error", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: nil,
+		}
+
+		var result any
+		err := mr.Output(&result)
+		if err == nil {
+			t.Error("Output() expected error for nil message")
+		}
+	})
+
+	t.Run("no JSON found error", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Just plain text with no JSON"),
+				},
+			},
+		}
+
+		var result any
+		err := mr.Output(&result)
+		if err == nil {
+			t.Error("Output() expected error when no JSON found")
+		}
+	})
+
+	t.Run("format-aware: jsonl format with handler", func(t *testing.T) {
+		schema := map[string]any{
+			"type": "array",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"line": map[string]any{"type": "integer"},
+				},
+			},
+		}
+		formatter := jsonlFormatter{}
+		handler, err := formatter.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+		streamingHandler := handler.(StreamingFormatHandler)
+
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("{\"line\":1}\n{\"line\":2}"),
+				},
+			},
+			formatHandler: streamingHandler,
+		}
+
+		var result []struct {
+			Line int `json:"line"`
+		}
+		err = mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if len(result) != 2 || result[0].Line != 1 || result[1].Line != 2 {
+			t.Errorf("Output() = %+v, want [{1} {2}]", result)
+		}
+	})
+
+	t.Run("format-aware: array format with handler", func(t *testing.T) {
+		schema := map[string]any{
+			"type": "array",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"item": map[string]any{"type": "string"},
+				},
+			},
+		}
+		formatter := arrayFormatter{}
+		handler, err := formatter.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+		streamingHandler := handler.(StreamingFormatHandler)
+
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`[{"item":"a"},{"item":"b"}]`),
+				},
+			},
+			formatHandler: streamingHandler,
+		}
+
+		var result []struct {
+			Item string `json:"item"`
+		}
+		err = mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if len(result) != 2 || result[0].Item != "a" || result[1].Item != "b" {
+			t.Errorf("Output() = %+v, want [{a} {b}]", result)
+		}
+	})
+
+	t.Run("format-aware: json format with handler", func(t *testing.T) {
+		schema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"key": map[string]any{"type": "string"},
+			},
+		}
+		formatter := jsonFormatter{}
+		handler, err := formatter.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+		streamingHandler := handler.(StreamingFormatHandler)
+
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"key":"value"}`),
+				},
+			},
+			formatHandler: streamingHandler,
+		}
+
+		var result struct {
+			Key string `json:"key"`
+		}
+		err = mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if result.Key != "value" {
+			t.Errorf("Output().Key = %q, want %q", result.Key, "value")
+		}
+	})
+}
+
 func TestMultipartTools(t *testing.T) {
 	t.Run("define multipart tool registers as tool.v2 only", func(t *testing.T) {
 		r := registry.New()
