@@ -68,7 +68,6 @@ ai.defineFlow(
           city: z.string(),
         }),
         format: 'json',
-        constrained: true,
       },
     });
 
