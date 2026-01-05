@@ -179,7 +179,7 @@ export function compatOaiImageModelRef<
   return modelRef({
     name,
     configSchema:
-      configSchema || (ImageGenerationCommonConfigSchema as z.AnyZodObject),
+      configSchema || (ImageGenerationCommonConfigSchema as z.ZodObject<any>),
     info,
     config,
     namespace,
