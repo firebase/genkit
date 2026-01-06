@@ -148,7 +148,7 @@ When Claude uses an MCP tool, the response contains parts for both tool invocati
 const mcpToolResult = response.message?.content.find(
   (part) => part.custom?.anthropicMcpToolResult
 );
-if (mcpToolResult?.custom?.anthropicMcpToolResult) {
+if (mcpToolResult) {
   const result = mcpToolResult.custom.anthropicMcpToolResult;
   if (result.isError) {
     console.error('MCP tool failed:', result.content);

@@ -16,6 +16,7 @@
 
 import * as assert from 'assert';
 import type { Part } from 'genkit';
+import { logger } from 'genkit/logging';
 import { describe, it } from 'node:test';
 
 import { BetaRunner } from '../src/runner/beta.js';
@@ -805,7 +806,7 @@ describe('BetaRunner', () => {
     const exposed = runner as any;
 
     // Suppress warning for this test
-    const warnMock = mock.method(console, 'warn', () => {});
+    const warnMock = mock.method(logger, 'warn', () => {});
 
     const part = exposed.fromBetaContentBlock({
       type: 'mcp_tool_use',
@@ -830,7 +831,7 @@ describe('BetaRunner', () => {
     const exposed = runner as any;
 
     // Suppress warning for this test
-    const warnMock = mock.method(console, 'warn', () => {});
+    const warnMock = mock.method(logger, 'warn', () => {});
 
     const part = exposed.fromBetaContentBlock({
       type: 'mcp_tool_use',
@@ -1117,7 +1118,7 @@ describe('BetaRunner', () => {
       },
     });
 
-    const warnMock = mock.method(console, 'warn', () => {});
+    const warnMock = mock.method(logger, 'warn', () => {});
     const fallbackPart = (runner as any).fromBetaContentBlock({
       type: 'mystery',
     });

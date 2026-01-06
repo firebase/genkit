@@ -550,8 +550,9 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
       case 'mcp_tool_result': {
         const toolUseId =
-          'tool_use_id' in contentBlock
-            ? (contentBlock.tool_use_id as string)
+          'tool_use_id' in contentBlock &&
+          typeof contentBlock.tool_use_id === 'string'
+            ? contentBlock.tool_use_id
             : 'unknown';
         const isError =
           'is_error' in contentBlock &&
