@@ -14,11 +14,11 @@ export GEMINI_API_KEY='<Your api key>'
 ## Run the sample
 
 ```bash
-genkit start -- uv run src/prompt_demo.py
+genkit start -- uv run src/main.py
 ```
 
 ## Prompt Structure
 
-- `data/`: Contains `.prompt` files (using [Dotprompt](https://genkit.dev/docs/dotprompt)).
-- `data/_shared_partial.prompt`: A partial that can be included in other prompts.
-- `data/nested/nested_hello.prompt`: A prompt demonstrating nested structure and partial inclusion.
+- `prompts/`: Contains `.prompt` files (using [Dotprompt](https://genkit.dev/docs/dotprompt)).
+- `prompts/_shared_partial.prompt`: A partial that can be included in other prompts.
+- `prompts/nested/nested_hello.prompt`: A prompt demonstrating nested structure and partial inclusion.

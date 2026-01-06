@@ -158,6 +158,7 @@ def make_reflection_server(
                 post_body = self.rfile.read(content_len)
                 payload = json.loads(post_body.decode(encoding=encoding))
                 action = registry.lookup_action_by_key(payload['key'])
+                action_input = payload.get('input')
                 context = payload['context'] if 'context' in payload else {}
 
                 query = urllib.parse.urlparse(self.path).query
@@ -185,7 +186,7 @@ def make_reflection_server(
 
                         async def run_fn():
                             return await action.arun_raw(
-                                raw_input=payload['input'],
+                                raw_input=payload.get('input'),
                                 on_chunk=send_chunk,
                                 context=context,
                             )
@@ -216,7 +217,7 @@ def make_reflection_server(
                     try:
 
                         async def run_fn():
-                            return await action.arun_raw(raw_input=payload['input'], context=context)
+                            return await action.arun_raw(raw_input=payload.get('input'), context=context)
 
                         output = run_async(loop, run_fn)
 
@@ -376,13 +377,15 @@ def create_reflection_asgi_app(
 
         # Run the action.
         context = payload.get('context', {})
+        action_input = payload.get('input')
         stream = is_streaming_requested(request)
         handler = run_streaming_action if stream else run_standard_action
-        return await handler(action, payload, context, version)
+        return await handler(action, payload, action_input, context, version)
 
     async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
+        action_input: Any,
         context: dict[str, Any],
         version: str,
     ) -> StreamingResponse | JSONResponse:
@@ -413,7 +416,7 @@ def create_reflection_asgi_app(
                     yield f'{out}\n'
 
                 output = await action.arun_raw(
-                    raw_input=payload['input'],
+                    raw_input=payload.get('input'),
                     on_chunk=send_chunk,
                     context=context,
                 )
@@ -447,6 +450,7 @@ def create_reflection_asgi_app(
     async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
+        action_input: Any,
         context: dict[str, Any],
         version: str,
     ) -> JSONResponse:
@@ -462,7 +466,7 @@ def create_reflection_asgi_app(
             A JSONResponse with the action result or error.
         """
         try:
-            output = await action.arun_raw(raw_input=payload['input'], context=context)
+            output = await action.arun_raw(raw_input=payload.get('input'), context=context)
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},

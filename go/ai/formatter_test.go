@@ -661,7 +661,7 @@ func TestResolveFormat(t *testing.T) {
 		}
 	})
 
-	t.Run("defaults to json even when schema present but no format", func(t *testing.T) {
+	t.Run("defaults to json when schema present but no format", func(t *testing.T) {
 		schema := map[string]any{"type": "object"}
 		formatter, err := resolveFormat(r, schema, "")
 		if err != nil {

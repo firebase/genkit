@@ -89,10 +89,13 @@ class PartConverter:
                 )
             )
         if isinstance(part.root, MediaPart):
+            url = part.root.media.url
+            if not url.startswith(cls.DATA):
+                raise ValueError(f'Unsupported media URL for inline_data: {url}')
+            data = base64.b64decode(url.split(',', 1)[1])
             return genai.types.Part(
                 inline_data=genai.types.Blob(
-                    data=part.root.media.url,
-                    mime_type=part.root.media.content_type,
+                    data=data,
                 )
             )
         if isinstance(part.root, CustomPart):
@@ -160,9 +163,10 @@ class PartConverter:
                 )
             )
         if part.inline_data:
+            b64_data = base64.b64encode(part.inline_data.data).decode('utf-8')
             return Part(
                 media=Media(
-                    url=base64.b64encode(part.inline_data.data),
+                    url=f'data:{part.inline_data.mime_type};base64,{b64_data}',
                     contentType=part.inline_data.mime_type,
                 )
             )
