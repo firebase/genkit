@@ -7,7 +7,7 @@ Review the [documentation](https://genkit.dev/docs/get-started) for details and 
 To install the CLI:
 
 ```bash
-npm i -g genkit
+npm i -g genkit-cli
 ```
 
 Available commands:
