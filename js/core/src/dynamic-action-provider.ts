@@ -27,20 +27,24 @@ class SimpleCache {
   private value: DapValue | undefined;
   private expiresAt: number | undefined;
   private ttlMillis: number;
-  private dap: DynamicActionProviderAction;
+  private dap: DynamicActionProviderAction | undefined;
   private dapFn: DapFn;
   private fetchPromise: Promise<DapValue> | null = null;
 
-  constructor(
-    dap: DynamicActionProviderAction,
-    config: DapConfig,
-    dapFn: DapFn
-  ) {
-    this.dap = dap;
+  constructor(config: DapConfig, dapFn: DapFn) {
     this.dapFn = dapFn;
     this.ttlMillis = !config.cacheConfig?.ttlMillis
       ? 3 * 1000
       : config.cacheConfig?.ttlMillis;
+  }
+
+  setDap(dap: DynamicActionProviderAction) {
+    this.dap = dap;
+  }
+
+  setValue(value: DapValue) {
+    this.value = value;
+    this.expiresAt = Date.now() + this.ttlMillis;
   }
 
   /**
@@ -61,22 +65,13 @@ class SimpleCache {
     if (!this.fetchPromise) {
       this.fetchPromise = (async () => {
         try {
-          // Get a new value
-          this.value = await this.dapFn(); // this returns the actual actions
-          this.expiresAt = Date.now() + this.ttlMillis;
-
-          if (!params?.skipTrace) {
-            // The action goes and gets the same data again, but it
-            // doesn't cache it. (It doesn't have access to the Cache and
-            // we are not allowed pass it in).
-            // We are not allowed to pass in either the DapValue we just got or
-            // the cache because the action input MUST be void
-            // and the output MUST be an array of ActionMetadata.
-            // And we can't construct the DapValue (which contains full Actions)
-            // from just the ActionMetadata.
-            // So unfortunately we need to fetch from the DAP twice, and there's
-            // a small chance that what gets traced is not what gets cached/used.
-            await this.dap.run();
+          if (this.dap && !params?.skipTrace) {
+            await this.dap.run(); // calls setValue
+          } else {
+            this.setValue(await this.dapFn());
+          }
+          if (!this.value) {
+            throw new Error('value is undefined');
           }
           return this.value;
         } catch (error) {
@@ -164,29 +159,29 @@ export function defineDynamicActionProvider(
   } else {
     cfg = { ...config };
   }
+  const cache = new SimpleCache(cfg, fn);
   const a = defineAction(
     registry,
     {
       ...cfg,
-      inputSchema: z.any(),
+      inputSchema: z.void(),
       outputSchema: z.any(),
       actionType: 'dynamic-action-provider',
       metadata: { ...(cfg.metadata || {}), type: 'dynamic-action-provider' },
     },
     async (_options) => {
-      return transformDapValue(await fn());
+      const dapValue = await fn();
+      cache.setValue(dapValue);
+      return transformDapValue(dapValue);
     }
   );
-  implementDap(a as DynamicActionProviderAction, cfg, fn);
+  implementDap(a as DynamicActionProviderAction, cache);
   return a as DynamicActionProviderAction;
 }
 
-function implementDap(
-  dap: DynamicActionProviderAction,
-  config: DapConfig,
-  dapFn: DapFn
-) {
-  dap.__cache = new SimpleCache(dap, config, dapFn);
+function implementDap(dap: DynamicActionProviderAction, cache: SimpleCache) {
+  cache.setDap(dap);
+  dap.__cache = cache;
   dap.invalidateCache = () => {
     dap.__cache.invalidate();
   };

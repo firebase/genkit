@@ -58,7 +58,7 @@ describe('dynamic action provider', () => {
 
     const action = await dap.getAction('tool', 'tool1');
     assert.strictEqual(action, tool1);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
   });
 
   it('lists action metadata', async () => {
@@ -72,7 +72,7 @@ describe('dynamic action provider', () => {
 
     const metadata = await dap.listActionMetadata('tool', '*');
     assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
   });
 
   it('caches the actions', async () => {
@@ -86,16 +86,16 @@ describe('dynamic action provider', () => {
 
     let action = await dap.getAction('tool', 'tool1');
     assert.strictEqual(action, tool1);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
 
     // This should be cached
     action = await dap.getAction('tool', 'tool2');
     assert.strictEqual(action, tool2);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
 
     const metadata = await dap.listActionMetadata('tool', '*');
     assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
   });
 
   it('invalidates the cache', async () => {
@@ -108,12 +108,12 @@ describe('dynamic action provider', () => {
     });
 
     await dap.getAction('tool', 'tool1');
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
 
     dap.invalidateCache();
 
     await dap.getAction('tool', 'tool2');
-    assert.strictEqual(callCount, 4);
+    assert.strictEqual(callCount, 2);
   });
 
   it('respects cache ttl', async () => {
@@ -130,12 +130,12 @@ describe('dynamic action provider', () => {
     );
 
     await dap.getAction('tool', 'tool1');
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
 
     await setTimeout(20);
 
     await dap.getAction('tool', 'tool2');
-    assert.strictEqual(callCount, 4);
+    assert.strictEqual(callCount, 2);
   });
 
   it('lists actions with prefix', async () => {
@@ -154,7 +154,7 @@ describe('dynamic action provider', () => {
 
     const metadata = await dap.listActionMetadata('tool', 'tool*');
     assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
   });
 
   it('lists actions with exact match', async () => {
@@ -168,7 +168,7 @@ describe('dynamic action provider', () => {
 
     const metadata = await dap.listActionMetadata('tool', 'tool1');
     assert.deepStrictEqual(metadata, [tool1.__action]);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
   });
 
   it('gets action metadata record', async () => {
@@ -207,7 +207,7 @@ describe('dynamic action provider', () => {
 
     assert.deepStrictEqual(metadata1, [tool1.__action, tool2.__action]);
     assert.deepStrictEqual(metadata2, [tool1.__action, tool2.__action]);
-    assert.strictEqual(callCount, 2);
+    assert.strictEqual(callCount, 1);
   });
 
   it('handles fetch errors', async () => {
@@ -227,7 +227,7 @@ describe('dynamic action provider', () => {
 
     const metadata = await dap.listActionMetadata('tool', '*');
     assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
-    assert.strictEqual(callCount, 3);
+    assert.strictEqual(callCount, 2);
   });
 
   it('runs the action with transformed metadata when fetching', async () => {
@@ -273,7 +273,7 @@ describe('dynamic action provider', () => {
 
     await dap.__cache.getOrFetch();
     assert.strictEqual(runCalled, true);
-    assert.strictEqual(callCount, 3);
+    assert.strictEqual(callCount, 2);
   });
 
   it('identifies dynamic action providers', async () => {
