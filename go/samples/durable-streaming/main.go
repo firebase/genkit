@@ -46,7 +46,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/x/streaming"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -94,7 +94,7 @@ func main() {
 	// Completed streams are kept for 10 minutes before cleanup (while server is running).
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /countdown", genkit.Handler(countdown,
-		genkit.WithStreamManager(core.NewInMemoryStreamManager(core.WithTTL(10*time.Minute))),
+		genkit.WithStreamManager(streaming.NewInMemoryStreamManager(streaming.WithTTL(10*time.Minute))),
 	))
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", mux))
 }

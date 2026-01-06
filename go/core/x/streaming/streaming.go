@@ -14,17 +14,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package core
+// Package streaming provides experimental durable streaming APIs for Genkit.
+//
+// APIs in this package are under active development and may change in any
+// minor version release. Use with caution in production environments.
+//
+// When these APIs stabilize, they will be moved to their parent packages
+// (e.g., core and genkit) and these exports will be deprecated.
+package streaming
 
 import (
 	"context"
 	"encoding/json"
 	"sync"
 	"time"
-)
 
-// inMemoryStreamBufferSize is the buffer size for subscriber event channels.
-const inMemoryStreamBufferSize = 100
+	"github.com/firebase/genkit/go/core"
+)
 
 // StreamEventType indicates the type of stream event.
 type StreamEventType int
@@ -43,8 +49,8 @@ type StreamEvent struct {
 	Err    error           // set when Type == StreamEventError
 }
 
-// ActionStreamInput provides methods for writing to a durable stream.
-type ActionStreamInput interface {
+// StreamInput provides methods for writing to a durable stream.
+type StreamInput interface {
 	// Write sends a chunk to the stream and notifies all subscribers.
 	Write(chunk json.RawMessage) error
 	// Done marks the stream as successfully completed with the given output.
@@ -60,13 +66,16 @@ type ActionStreamInput interface {
 type StreamManager interface {
 	// Open creates a new stream for writing.
 	// Returns an error if a stream with the given ID already exists.
-	Open(ctx context.Context, streamID string) (ActionStreamInput, error)
+	Open(ctx context.Context, streamID string) (StreamInput, error)
 	// Subscribe subscribes to an existing stream.
 	// Returns a channel that receives stream events, an unsubscribe function, and an error.
 	// If the stream has already completed, all buffered events are sent before the done/error event.
 	// Returns NOT_FOUND error if the stream doesn't exist.
 	Subscribe(ctx context.Context, streamID string) (<-chan StreamEvent, func(), error)
 }
+
+// inMemoryStreamBufferSize is the buffer size for subscriber event channels.
+const inMemoryStreamBufferSize = 100
 
 // streamStatus represents the current state of a stream.
 type streamStatus int
@@ -182,12 +191,12 @@ func (m *InMemoryStreamManager) Close() {
 }
 
 // Open creates a new stream for writing.
-func (m *InMemoryStreamManager) Open(ctx context.Context, streamID string) (ActionStreamInput, error) {
+func (m *InMemoryStreamManager) Open(ctx context.Context, streamID string) (StreamInput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if _, exists := m.streams[streamID]; exists {
-		return nil, NewPublicError(ALREADY_EXISTS, "stream already exists", nil)
+		return nil, core.NewPublicError(core.ALREADY_EXISTS, "stream already exists", nil)
 	}
 
 	state := &streamState{
@@ -212,7 +221,7 @@ func (m *InMemoryStreamManager) Subscribe(ctx context.Context, streamID string) 
 	m.mu.RUnlock()
 
 	if !exists {
-		return nil, nil, NewPublicError(NOT_FOUND, "stream not found", nil)
+		return nil, nil, core.NewPublicError(core.NOT_FOUND, "stream not found", nil)
 	}
 
 	ch := make(chan StreamEvent, inMemoryStreamBufferSize)
@@ -273,7 +282,7 @@ func (s *inMemoryStreamInput) Write(chunk json.RawMessage) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return NewPublicError(FAILED_PRECONDITION, "stream writer is closed", nil)
+		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.mu.Unlock()
 
@@ -281,7 +290,7 @@ func (s *inMemoryStreamInput) Write(chunk json.RawMessage) error {
 	defer s.state.mu.Unlock()
 
 	if s.state.status != streamStatusOpen {
-		return NewPublicError(FAILED_PRECONDITION, "stream has already completed", nil)
+		return core.NewPublicError(core.FAILED_PRECONDITION, "stream has already completed", nil)
 	}
 
 	s.state.chunks = append(s.state.chunks, chunk)
@@ -303,7 +312,7 @@ func (s *inMemoryStreamInput) Done(output json.RawMessage) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return NewPublicError(FAILED_PRECONDITION, "stream writer is closed", nil)
+		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
 	s.mu.Unlock()
@@ -312,7 +321,7 @@ func (s *inMemoryStreamInput) Done(output json.RawMessage) error {
 	defer s.state.mu.Unlock()
 
 	if s.state.status != streamStatusOpen {
-		return NewPublicError(FAILED_PRECONDITION, "stream has already completed", nil)
+		return core.NewPublicError(core.FAILED_PRECONDITION, "stream has already completed", nil)
 	}
 
 	s.state.status = streamStatusDone
@@ -336,7 +345,7 @@ func (s *inMemoryStreamInput) Error(err error) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return NewPublicError(FAILED_PRECONDITION, "stream writer is closed", nil)
+		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
 	s.mu.Unlock()
@@ -345,7 +354,7 @@ func (s *inMemoryStreamInput) Error(err error) error {
 	defer s.state.mu.Unlock()
 
 	if s.state.status != streamStatusOpen {
-		return NewPublicError(FAILED_PRECONDITION, "stream has already completed", nil)
+		return core.NewPublicError(core.FAILED_PRECONDITION, "stream has already completed", nil)
 	}
 
 	s.state.status = streamStatusError
