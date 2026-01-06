@@ -159,7 +159,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       const signature = this.getThinkingSignature(part);
       if (!signature) {
         throw new Error(
-          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `custom.anthropicThinking.signature` value from the original response.'
+          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `metadata.thoughtSignature` value from the original response.'
         );
       }
       return {
