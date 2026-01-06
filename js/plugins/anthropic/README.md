@@ -166,6 +166,7 @@ The plugin validates MCP configuration at runtime:
 - MCP server URLs must use HTTPS protocol
 - MCP server names must be unique
 - MCP toolsets must reference servers defined in `mcp_servers`
+- Each MCP server must be referenced by exactly one toolset
 
 ### Beta API Limitations
 

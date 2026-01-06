@@ -211,6 +211,7 @@ export const AnthropicThinkingConfigSchema = AnthropicBaseConfigSchema.extend({
  * Validates MCP configuration:
  * - MCP server names must be unique
  * - MCP toolsets must reference servers defined in mcp_servers
+ * - Each MCP server must be referenced by exactly one toolset
  */
 function validateMcpConfig(
   config: z.infer<typeof AnthropicThinkingConfigSchema>,
@@ -245,6 +246,35 @@ function validateMcpConfig(
             code: z.ZodIssueCode.custom,
             path: ['mcp_toolsets', i, 'mcp_server_name'],
             message: `MCP toolset references unknown server '${toolset.mcp_server_name}'. Available servers: ${[...serverNames].join(', ') || '(none)'}`,
+          });
+        }
+      }
+    );
+  }
+
+  // Validate each MCP server is referenced by exactly one toolset
+  if (config.mcp_servers && config.mcp_servers.length > 0) {
+    const toolsetReferences = new Map<string, number>();
+    (config.mcp_toolsets ?? []).forEach(
+      (t: z.infer<typeof McpToolsetSchema>) => {
+        const count = toolsetReferences.get(t.mcp_server_name) ?? 0;
+        toolsetReferences.set(t.mcp_server_name, count + 1);
+      }
+    );
+    config.mcp_servers.forEach(
+      (server: z.infer<typeof McpServerConfigSchema>, i: number) => {
+        const refCount = toolsetReferences.get(server.name) ?? 0;
+        if (refCount === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mcp_servers', i, 'name'],
+            message: `MCP server '${server.name}' is not referenced by any toolset. Each server must be referenced by exactly one mcp_toolset.`,
+          });
+        } else if (refCount > 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mcp_servers', i, 'name'],
+            message: `MCP server '${server.name}' is referenced by ${refCount} toolsets. Each server must be referenced by exactly one mcp_toolset.`,
           });
         }
       }
