@@ -1274,6 +1274,102 @@ Test content
 	}
 }
 
+func TestLoadPromptFromRaw(t *testing.T) {
+	t.Run("basic prompt", func(t *testing.T) {
+		reg := registry.New()
+
+		source := `---
+model: test/chat
+description: A raw prompt test
+input:
+  schema:
+    name: string
+---
+Hello, {{name}}!
+`
+		prompt, err := LoadPromptFromSource(reg, source, "rawPrompt", "test-ns")
+		if err != nil {
+			t.Fatalf("LoadPromptFromRaw failed: %v", err)
+		}
+		if prompt == nil {
+			t.Fatal("LoadPromptFromRaw returned nil prompt")
+		}
+
+		lookedUp := LookupPrompt(reg, "test-ns/rawPrompt")
+		if lookedUp == nil {
+			t.Fatal("Prompt 'test-ns/rawPrompt' was not registered")
+		}
+
+		actionOpts, err := prompt.Render(context.Background(), map[string]any{"name": "World"})
+		if err != nil {
+			t.Fatalf("Render failed: %v", err)
+		}
+		if len(actionOpts.Messages) == 0 {
+			t.Fatal("Expected messages to be rendered")
+		}
+		renderedText := actionOpts.Messages[0].Text()
+		if renderedText != "Hello, World!" {
+			t.Errorf("Expected 'Hello, World!', got %q", renderedText)
+		}
+	})
+
+	t.Run("prompt with variant", func(t *testing.T) {
+		reg := registry.New()
+
+		source := `---
+model: test/chat
+description: A variant prompt
+---
+Formal greeting
+`
+		prompt, err := LoadPromptFromSource(reg, source, "greeting.formal", "")
+		if err != nil {
+			t.Fatalf("LoadPromptFromRaw failed: %v", err)
+		}
+		if prompt == nil {
+			t.Fatal("LoadPromptFromRaw returned nil prompt")
+		}
+
+		lookedUp := LookupPrompt(reg, "greeting.formal")
+		if lookedUp == nil {
+			t.Fatal("Prompt 'greeting.formal' was not registered")
+		}
+
+		promptMetadata, ok := lookedUp.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+		if !ok {
+			t.Fatal("Expected Metadata['prompt'] to be a map")
+		}
+		if promptMetadata["name"] != "greeting" {
+			t.Errorf("Expected metadata name 'greeting', got '%s'", promptMetadata["name"])
+		}
+		if promptMetadata["variant"] != "formal" {
+			t.Errorf("Expected variant 'formal', got '%v'", promptMetadata["variant"])
+		}
+	})
+
+	t.Run("prompt without namespace", func(t *testing.T) {
+		reg := registry.New()
+
+		source := `---
+model: test/chat
+---
+Simple prompt
+`
+		prompt, err := LoadPromptFromSource(reg, source, "simple", "")
+		if err != nil {
+			t.Fatalf("LoadPromptFromRaw failed: %v", err)
+		}
+		if prompt == nil {
+			t.Fatal("LoadPromptFromRaw returned nil prompt")
+		}
+
+		lookedUp := LookupPrompt(reg, "simple")
+		if lookedUp == nil {
+			t.Fatal("Prompt 'simple' was not registered")
+		}
+	})
+}
+
 // TestDefinePartialAndHelperJourney demonstrates a complete user journey for defining
 // and using both partials and helpers.
 func TestDefinePartialAndHelper(t *testing.T) {

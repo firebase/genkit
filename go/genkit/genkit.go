@@ -1278,6 +1278,40 @@ func LoadPrompt(g *Genkit, path, namespace string) ai.Prompt {
 	return ai.LoadPromptFromFS(g.reg, os.DirFS(dir), ".", filename, namespace)
 }
 
+// LoadPromptFromSource loads a prompt from raw `.prompt` file content (frontmatter + template)
+// into the registry and returns the resulting [ai.Prompt].
+//
+// The `source` parameter should contain the complete `.prompt` file text, including
+// the YAML frontmatter (delimited by `---`) and the template body.
+// The `name` parameter is the prompt name, which may include a variant suffix
+// (e.g., "greeting" or "greeting.formal").
+// The `namespace` acts as a prefix to the prompt name. Use an empty string for no namespace.
+//
+// This is useful for loading prompts from sources other than the filesystem,
+// such as databases, environment variables, or embedded strings.
+//
+// Example:
+//
+//	promptSource := `---
+//	model: googleai/gemini-2.5-flash
+//	input:
+//	  schema:
+//	    name: string
+//	---
+//	Hello, {{name}}!
+//	`
+//
+//	prompt, err := genkit.LoadPromptFromSource(g, promptSource, "greeting", "myApp")
+//	if err != nil {
+//		log.Fatalf("Failed to load prompt: %v", err)
+//	}
+//
+//	resp, err := prompt.Execute(ctx, ai.WithInput(map[string]any{"name": "World"}))
+//	// ...
+func LoadPromptFromSource(g *Genkit, source, name, namespace string) (ai.Prompt, error) {
+	return ai.LoadPromptFromSource(g.reg, source, name, namespace)
+}
+
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
 // Partials can be referenced in templates with the syntax {{>partialName}}.
 func DefinePartial(g *Genkit, name string, source string) {
