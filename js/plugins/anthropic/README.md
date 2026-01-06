@@ -81,6 +81,62 @@ console.log(response.reasoning);  // Summarized thinking steps
 
 When thinking is enabled, request bodies sent through the plugin include the `thinking` payload (`{ type: 'enabled', budget_tokens: … }`) that Anthropic's API expects, and streamed responses deliver `reasoning` parts as they arrive so you can render the chain-of-thought incrementally.
 
+### MCP (Model Context Protocol) Tools
+
+The beta API supports connecting to MCP servers, allowing Claude to use external tools hosted on MCP-compatible servers. This feature requires the beta API.
+
+```typescript
+const response = await ai.generate({
+  model: anthropic.model('claude-sonnet-4-5'),
+  prompt: 'Search for TypeScript files in my project',
+  config: {
+    apiVersion: 'beta',
+    mcp_servers: [
+      {
+        type: 'url',
+        url: 'https://your-mcp-server.com/v1',
+        name: 'filesystem',
+        authorization_token: process.env.MCP_TOKEN, // Optional
+      },
+    ],
+    mcp_toolsets: [
+      {
+        type: 'mcp_toolset',
+        mcp_server_name: 'filesystem',
+        default_config: { enabled: true },
+        // Optionally configure specific tools:
+        configs: {
+          search_files: { enabled: true },
+          delete_files: { enabled: false }, // Disable dangerous tools
+        },
+      },
+    ],
+  },
+});
+
+// Access MCP tool usage from the response
+const mcpToolUse = response.message?.content.find(
+  (part) => part.custom?.anthropicMcpToolUse
+);
+if (mcpToolUse) {
+  console.log('MCP tool used:', mcpToolUse.custom.anthropicMcpToolUse);
+}
+```
+
+**Response Structure:**
+
+When Claude uses an MCP tool, the response contains:
+
+- `text`: Human-readable description of the tool invocation
+- `custom.anthropicMcpToolUse`: Structured tool use data
+  - `id`: Unique tool use identifier
+  - `name`: Full tool name (server/tool)
+  - `serverName`: MCP server name
+  - `toolName`: Tool name on the server
+  - `input`: Tool input parameters
+
+**Note:** MCP tools are server-managed - they execute on Anthropic's infrastructure, not locally. The response will include both the tool invocation (`mcp_tool_use`) and results (`mcp_tool_result`) as they occur.
+
 ### Beta API Limitations
 
 The beta API surface provides access to experimental features, but some server-managed tool blocks are not yet supported by this plugin. The following beta API features will cause an error if encountered:
@@ -89,11 +145,9 @@ The beta API surface provides access to experimental features, but some server-m
 - `code_execution_tool_result`
 - `bash_code_execution_tool_result`
 - `text_editor_code_execution_tool_result`
-- `mcp_tool_result`
-- `mcp_tool_use`
 - `container_upload`
 
-Note that `server_tool_use` and `web_search_tool_result` ARE supported and work with both stable and beta APIs.
+Note that `server_tool_use`, `web_search_tool_result`, `mcp_tool_use`, and `mcp_tool_result` ARE supported and work with the beta API.
 
 ### Within a flow
 

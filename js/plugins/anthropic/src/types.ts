@@ -64,6 +64,54 @@ export interface ClaudeModelParams extends ClaudeHelperParamsBase {}
  */
 export interface ClaudeRunnerParams extends ClaudeHelperParamsBase {}
 
+/**
+ * MCP tool configuration for individual tools.
+ */
+export const McpToolConfigSchema = z
+  .object({
+    /** Whether this tool is enabled */
+    enabled: z.boolean().optional(),
+    /** Whether to defer loading this tool */
+    defer_loading: z.boolean().optional(),
+  })
+  .passthrough();
+
+/**
+ * MCP server configuration for connecting to remote MCP servers.
+ */
+export const McpServerConfigSchema = z
+  .object({
+    /** Type must be 'url' for remote MCP servers */
+    type: z.literal('url'),
+    /** The URL of the MCP server (must be https) */
+    url: z.string(),
+    /** A unique name for this MCP server */
+    name: z.string(),
+    /** Optional authorization token for the MCP server */
+    authorization_token: z.string().optional(),
+  })
+  .passthrough();
+
+/**
+ * MCP toolset configuration for exposing tools from an MCP server.
+ */
+export const McpToolsetSchema = z
+  .object({
+    /** Type must be 'mcp_toolset' */
+    type: z.literal('mcp_toolset'),
+    /** The name of the MCP server this toolset references */
+    mcp_server_name: z.string(),
+    /** Default configuration applied to all tools in this toolset */
+    default_config: McpToolConfigSchema.optional(),
+    /** Per-tool configuration overrides */
+    configs: z.record(z.string(), McpToolConfigSchema).optional(),
+  })
+  .passthrough();
+
+export type McpToolConfig = z.infer<typeof McpToolConfigSchema>;
+export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
+export type McpToolset = z.infer<typeof McpToolsetSchema>;
+
 export const AnthropicBaseConfigSchema = GenerationCommonConfigSchema.extend({
   tool_choice: z
     .union([
@@ -101,6 +149,20 @@ export const AnthropicBaseConfigSchema = GenerationCommonConfigSchema.extend({
     .optional()
     .describe(
       'The API version to use for the request. Both stable and beta features are available on the beta API surface.'
+    ),
+  /** MCP servers to connect to for server-managed tools (beta API only) */
+  mcp_servers: z
+    .array(McpServerConfigSchema)
+    .optional()
+    .describe(
+      'List of MCP servers to connect to. Requires beta API (apiVersion: "beta").'
+    ),
+  /** MCP toolsets to expose from connected MCP servers (beta API only) */
+  mcp_toolsets: z
+    .array(McpToolsetSchema)
+    .optional()
+    .describe(
+      'List of MCP toolsets to expose. Each toolset references an MCP server by name.'
     ),
 }).passthrough();
 
