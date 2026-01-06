@@ -19,12 +19,13 @@ This test file verifies that `ai.define_resource` works correctly, mirroring the
 JS SDK's `ai.defineResource`.
 """
 
+import asyncio
+
+import pytest
+
 from genkit.ai import Genkit
 from genkit.core.typing import Part, TextPart
 
-
-import pytest
-import asyncio
 
 @pytest.mark.asyncio
 async def test_define_resource_veneer():

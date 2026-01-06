@@ -198,6 +198,19 @@ class Registry:
 
             return None
 
+    def get_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
+        """Returns a dictionary of all registered actions for a specific kind.
+
+        Args:
+            kind: The type of actions to retrieve (e.g., TOOL, MODEL, RESOURCE).
+
+        Returns:
+            A dictionary mapping action names to Action instances.
+            Returns an empty dictionary if no actions of that kind are registered.
+        """
+        with self._lock:
+            return self._entries.get(kind, {}).copy()
+
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.
 

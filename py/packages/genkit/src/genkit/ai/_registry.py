@@ -43,7 +43,7 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any, Callable, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Type
 
 if TYPE_CHECKING:
     from genkit.blocks.resource import ResourceFn, ResourceOptions
@@ -60,7 +60,6 @@ from genkit.blocks.prompt import (
     define_prompt,
     lookup_prompt,
 )
-
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -682,8 +681,8 @@ class GenkitRegistry:
 
     def define_resource(
         self,
-        opts: "ResourceOptions",
-        fn: "ResourceFn",
+        opts: 'ResourceOptions',
+        fn: 'ResourceFn',
     ) -> Action:
         """Define a resource action.
 

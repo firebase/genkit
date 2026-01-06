@@ -20,8 +20,9 @@ in the Genkit framework. It covers static resources, template-based resources,
 dynamic resource matching, and metadata handling.
 """
 
-import pytest
 import asyncio
+
+import pytest
 
 from genkit.blocks.resource import define_resource, resolve_resources, resource
 from genkit.core.registry import Registry

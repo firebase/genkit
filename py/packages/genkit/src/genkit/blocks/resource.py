@@ -353,11 +353,15 @@ async def find_matching_resource(
 
     # Iterate all resources to check for matches (e.g. templates)
     # This is less efficient but necessary for template matching if not optimized
-    # Accessing internal _entries as Registry doesn't expose a method to list Action objects for a kind
-    if hasattr(registry, '_entries'):
+    # Iterate all resources to check for matches (e.g. templates)
+    # This is less efficient but necessary for template matching if not optimized
+    resources = registry.get_actions_by_kind(ActionKind.RESOURCE) if hasattr(registry, 'get_actions_by_kind') else {}
+    if not resources and hasattr(registry, '_entries'):
+        # Fallback for compatibility if registry instance is old (unlikely in this context)
         resources = registry._entries.get(ActionKind.RESOURCE, {})
-        for action in resources.values():
-            if hasattr(action, 'matches') and action.matches(input_data):
-                return action
+
+    for action in resources.values():
+        if hasattr(action, 'matches') and action.matches(input_data):
+            return action
 
     return None
