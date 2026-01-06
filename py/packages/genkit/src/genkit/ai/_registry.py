@@ -30,6 +30,7 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 | `'indexer'`   | Indexer     |
 | `'model'`     | Model       |
 | `'prompt'`    | Prompt      |
+| `'resource'`  | Resource    |
 | `'retriever'` | Retriever   |
 | `'text-llm'`  | Text LLM    |
 | `'tool'`      | Tool        |
@@ -55,6 +56,12 @@ from genkit.blocks.prompt import (
     define_helper,
     define_prompt,
     lookup_prompt,
+    registry_definition_key,
+    to_generate_request,
+)
+from genkit.blocks.resource import (
+    ResourceContent,
+    matches_uri_template,
 )
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
@@ -69,6 +76,8 @@ from genkit.core.typing import (
     EvalRequest,
     EvalResponse,
     EvalStatusEnum,
+    GenerateActionOptions,
+    GenerateRequest,
     GenerationCommonConfig,
     Message,
     ModelInfo,
@@ -573,6 +582,7 @@ class GenkitRegistry:
 
     def define_prompt(
         self,
+        name: str | None = None,
         variant: str | None = None,
         model: str | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
@@ -598,31 +608,34 @@ class GenkitRegistry:
         """Define a prompt.
 
         Args:
-            variant: Optional variant name for the prompt.
-            model: Optional model name to use for the prompt.
-            config: Optional configuration for the model.
-            description: Optional description for the prompt.
-            input_schema: Optional schema for the input to the prompt.
-            system: Optional system message for the prompt.
-            prompt: Optional prompt for the model.
-            messages: Optional messages for the model.
-            output_format: Optional output format for the prompt.
-            output_content_type: Optional output content type for the prompt.
-            output_instructions: Optional output instructions for the prompt.
-            output_schema: Optional schema for the output from the prompt.
-            output_constrained: Optional flag indicating whether the output
-                should be constrained.
-            max_turns: Optional maximum number of turns for the prompt.
-            return_tool_requests: Optional flag indicating whether tool requests
-                should be returned.
-            metadata: Optional metadata for the prompt.
-            tools: Optional list of tools to use for the prompt.
-            tool_choice: Optional tool choice for the prompt.
-            use: Optional list of model middlewares to use for the prompt.
+            name: The name of the prompt.
+            variant: The variant of the prompt.
+            model: The model to use for generation.
+            config: The generation configuration.
+            description: A description of the prompt.
+            input_schema: The input schema for the prompt.
+            system: The system message for the prompt.
+            prompt: The user prompt.
+            messages: A list of messages to include in the prompt.
+            output_format: The output format.
+            output_content_type: The output content type.
+            output_instructions: Instructions for formatting the output.
+            output_schema: The output schema.
+            output_constrained: Whether the output should be constrained to the output schema.
+            max_turns: The maximum number of turns in a conversation.
+            return_tool_requests: Whether to return tool requests.
+            metadata: Metadata to associate with the prompt.
+            tools: A list of tool names to use with the prompt.
+            tool_choice: The tool choice strategy.
+            use: A list of model middlewares to apply.
+
+        Returns:
+            An ExecutablePrompt instance.
         """
-        return define_prompt(
+        executable_prompt = define_prompt(
             self.registry,
             variant=variant,
+            _name=name,
             model=model,
             config=config,
             description=description,
@@ -642,6 +655,50 @@ class GenkitRegistry:
             tool_choice=tool_choice,
             use=use,
         )
+
+        if name:
+            # Register actions for kind PROMPT and EXECUTABLE_PROMPT
+            # This allows discovery by MCP and Dev UI
+
+            async def prompt_action_fn(input: Any = None) -> GenerateRequest:
+                """PROMPT action function - renders prompt and returns GenerateRequest."""
+                options = await executable_prompt.render(input=input)
+                return await to_generate_request(self.registry, options)
+
+            async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:
+                """EXECUTABLE_PROMPT action function - renders prompt and returns GenerateActionOptions."""
+                return await executable_prompt.render(input=input)
+
+            action_name = registry_definition_key(name, variant)
+            action_metadata = {
+                'type': 'prompt',
+                'lazy': False,
+                'source': 'programmatic',
+                'prompt': {
+                    'name': name,
+                    'variant': variant or '',
+                },
+            }
+
+            # Register the PROMPT action
+            prompt_action = self.registry.register_action(
+                kind=ActionKind.PROMPT,
+                name=action_name,
+                fn=prompt_action_fn,
+                metadata=action_metadata,
+            )
+            executable_prompt._prompt_action = prompt_action
+            prompt_action._executable_prompt = executable_prompt
+
+            # Register the EXECUTABLE_PROMPT action
+            self.registry.register_action(
+                kind=ActionKind.EXECUTABLE_PROMPT,
+                name=action_name,
+                fn=executable_prompt_action_fn,
+                metadata=action_metadata,
+            )
+
+        return executable_prompt
 
     async def prompt(
         self,
@@ -673,6 +730,90 @@ class GenkitRegistry:
             registry=self.registry,
             name=name,
             variant=variant,
+        )
+
+    def define_resource(
+        self,
+        name: str,
+        fn: Callable,
+        uri: str | None = None,
+        template: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Action:
+        """Define a resource action.
+
+        Resources provide content that can be accessed via URI. They can have:
+        - A fixed URI (e.g., "my://resource")
+        - A URI template with placeholders (e.g., "file://{path}")
+
+        Args:
+            name: Name of the resource.
+            fn: Function implementing the resource behavior. Should accept a dict
+                with 'uri' key and return ResourceContent or dict with 'content' key.
+            uri: Optional fixed URI for the resource.
+            template: Optional URI template with {param} placeholders.
+            description: Optional description for the resource.
+            metadata: Optional metadata for the resource.
+
+        Returns:
+            The registered Action for the resource.
+
+        Raises:
+            ValueError: If neither uri nor template is provided.
+
+        Examples:
+            # Fixed URI resource
+            ai.define_resource(
+                name="my_resource",
+                uri="my://resource",
+                fn=lambda req: {"content": [{"text": "resource content"}]}
+            )
+
+            # Template URI resource
+            ai.define_resource(
+                name="file",
+                template="file://{path}",
+                fn=lambda req: {"content": [{"text": f"contents of {req['uri']}"}]}
+            )
+        """
+        if not uri and not template:
+            raise ValueError("Either 'uri' or 'template' must be provided for a resource")
+
+        resource_meta = metadata if metadata else {}
+        if 'resource' not in resource_meta:
+            resource_meta['resource'] = {}
+
+        # Store URI or template in metadata
+        if uri:
+            resource_meta['resource']['uri'] = uri
+        if template:
+            resource_meta['resource']['template'] = template
+
+        resource_description = get_func_description(fn, description)
+
+        # Wrap the resource function to handle template matching and extraction
+        async def resource_wrapper(input_data: dict[str, Any]) -> ResourceContent:
+            req_uri = input_data.get('uri')
+            if template and req_uri:
+                # Extract parameters from URI based on template
+                params = matches_uri_template(template, req_uri)
+                if params:
+                    # Merge extracted parameters into the request data
+                    # This allows the resource function to access them as req['param_name']
+                    input_data = {**params, **input_data}
+
+            result = fn(input_data)
+            if inspect.isawaitable(result):
+                return await result
+            return result
+
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.RESOURCE,
+            fn=resource_wrapper,
+            metadata=resource_meta,
+            description=resource_description,
         )
 
 
