@@ -19,29 +19,29 @@ export GEMINI_API_KEY='<Your api key>'
 To start the short-lived application normally.
 
 ```bash
-uv run src/short_n_long/main.py
+uv run src/main.py
 ```
 
 To start the short-lived application in dev mode:
 
 ```bash
-genkit start -- uv run src/short_n_long/main.py
+genkit start -- uv run src/main.py
 ```
 
 To start as a server normally:
 
 ```bash
-uv run src/short_n_long/main.py --server
+uv run src/main.py --server
 ```
 
 To start as a server in dev mode:
 
 ```bash
-genkit start -- uv run src/short_n_long/main.py --server
+genkit start -- uv run src/main.py --server
 ```
 
 ## Running with a specific version of Python
 
 ```bash
-genkit start -- uv run --python python3.10 src/short_n_long/main.py
+genkit start -- uv run --python python3.10 src/main.py
 ```

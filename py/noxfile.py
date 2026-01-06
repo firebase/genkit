@@ -22,13 +22,13 @@ import nox
 nox.options.default_venv_backend = 'uv|virtualenv'
 
 PYTHON_VERSIONS = [
-    #'pypy-3.10', # TODO: Fix build failures.
-    #'pypy-3.11', # TODO: Fix build failures.
+    # 'pypy-3.10', # TODO: Fix build failures.
+    # 'pypy-3.11', # TODO: Fix build failures.
     '3.10',
     '3.11',
     '3.12',
     '3.13',
-    #'3.14', # This still fails.
+    '3.14',
 ]
 
 
@@ -51,8 +51,8 @@ def tests(session: nox.Session) -> None:
         '--isolated',
         'pytest',
         '-v',
-        #'-vv',
-        #'--log-level=DEBUG',
+        # '-vv',
+        # '--log-level=DEBUG',
         '.',
         *session.posargs,
         external=True,

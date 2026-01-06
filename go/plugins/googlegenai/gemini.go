@@ -384,20 +384,26 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		return nil, errors.New("response schema must be set using Genkit feature: ai.WithTools() or ai.WithOuputType()")
 	}
 	if gcc.ResponseMIMEType != "" {
-		return nil, errors.New("response MIME type must be set using Genkit feature: ai.WithOuputType()")
+		return nil, errors.New("response MIME type must be set using Genkit feature: ai.WithOuputType(), ai.WithOutputSchema(), ai.WithOutputSchemaByName()")
+	}
+	if gcc.ResponseJsonSchema != nil {
+		return nil, errors.New("response JSON schema must be set using Genkit feature: ai.WithOutputSchema()")
 	}
 
-	// Set response MIME type based on output format if specified
+	// Set response MIME type and schema based on output format.
+	// Gemini supports constrained output with application/json and text/x.enum.
 	hasOutput := input.Output != nil
-	isJsonFormat := hasOutput && input.Output.Format == "json"
-	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
-	jsonMode := isJsonFormat || isJsonContentType
-	// this setting is not compatible with tools forcing controlled output generation
-	if jsonMode && len(input.Tools) == 0 {
-		gcc.ResponseMIMEType = "application/json"
+	// JSON mode is not compatible with tools
+	if hasOutput && len(input.Tools) == 0 {
+		switch {
+		case input.Output.ContentType == "application/json" || input.Output.Format == "json":
+			gcc.ResponseMIMEType = "application/json"
+		case input.Output.ContentType == "text/enum" || input.Output.Format == "enum":
+			gcc.ResponseMIMEType = "text/x.enum"
+		}
 	}
 
-	if input.Output != nil && input.Output.Constrained {
+	if input.Output != nil && input.Output.Constrained && gcc.ResponseMIMEType != "" {
 		schema, err := toGeminiSchema(input.Output.Schema, input.Output.Schema)
 		if err != nil {
 			return nil, err
@@ -526,7 +532,11 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		if !ok {
 			return nil, fmt.Errorf("invalid $ref value: not a string")
 		}
-		return toGeminiSchema(originalSchema, resolveRef(originalSchema, ref))
+		s, err := resolveRef(originalSchema, ref)
+		if err != nil {
+			return nil, err
+		}
+		return toGeminiSchema(originalSchema, s)
 	}
 
 	// Handle "anyOf" subschemas by finding the first valid schema definition
@@ -637,12 +647,22 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 	return schema, nil
 }
 
-func resolveRef(originalSchema map[string]any, ref string) map[string]any {
+func resolveRef(originalSchema map[string]any, ref string) (map[string]any, error) {
 	tkns := strings.Split(ref, "/")
 	// refs look like: $/ref/foo -- we need the foo part
 	name := tkns[len(tkns)-1]
-	defs := originalSchema["$defs"].(map[string]any)
-	return defs[name].(map[string]any)
+	if defs, ok := originalSchema["$defs"].(map[string]any); ok {
+		if def, ok := defs[name].(map[string]any); ok {
+			return def, nil
+		}
+	}
+	// definitions (legacy)
+	if defs, ok := originalSchema["definitions"].(map[string]any); ok {
+		if def, ok := defs[name].(map[string]any); ok {
+			return def, nil
+		}
+	}
+	return nil, fmt.Errorf("unable to resolve schema reference")
 }
 
 // castToStringArray converts either []any or []string to []string, filtering non-strings.

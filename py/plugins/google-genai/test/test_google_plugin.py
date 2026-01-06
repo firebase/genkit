@@ -28,9 +28,10 @@ from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, H
 
 import pytest
 from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
-from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.embedding import embedder_action_metadata, EmbedderOptions, EmbedderSupports
 from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai import (
     GoogleAI,
     VertexAI,
@@ -146,15 +147,13 @@ def test_googleai_initialize():
             name=googleai_name(version),
             fn=ANY,
             metadata=ANY,
-            config_schema=GeminiConfigSchema,
         )
 
     for version in GeminiEmbeddingModels:
         ai_mock.define_embedder.assert_any_call(
             name=googleai_name(version),
             fn=ANY,
-            metadata=ANY,
-            config_schema=EmbedContentConfig,
+            options=ANY,
         )
 
 
@@ -219,7 +218,6 @@ def test_googleai__resolve_model(
         name=expected_model_name,
         fn=ANY,
         metadata=ANY,
-        config_schema=GeminiConfigSchema,
     )
     assert key in SUPPORTED_MODELS
 
@@ -246,9 +244,14 @@ def test_googleai__resolve_embedder(
         name=model_name,
     )
 
-    ai_mock.define_embedder.assert_called_once_with(
-        name=expected_model_name, fn=ANY, config_schema=EmbedContentConfig, metadata=default_embedder_info(clean_name)
+    info = default_embedder_info(clean_name)
+    options = EmbedderOptions(
+        label=info.get('label'),
+        supports=EmbedderSupports(**info.get('supports', {})),
+        dimensions=info.get('dimensions'),
     )
+
+    ai_mock.define_embedder.assert_called_once_with(name=expected_model_name, fn=ANY, options=options)
 
 
 def test_googleai_list_actions(googleai_plugin_instance):
@@ -275,22 +278,26 @@ def test_googleai_list_actions(googleai_plugin_instance):
         model_action_metadata(
             name=googleai_name('model1'),
             info=google_model_info('model1').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=googleai_name('model2'),
-            info=default_embedder_info('model2'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model2').get('label'),
+                supports=EmbedderSupports(input=default_embedder_info('model2').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model2').get('dimensions'),
+            ),
         ),
         model_action_metadata(
             name=googleai_name('model3'),
             info=google_model_info('model3').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=googleai_name('model3'),
-            info=default_embedder_info('model3'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model3').get('label'),
+                supports=EmbedderSupports(input=default_embedder_info('model3').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model3').get('dimensions'),
+            ),
         ),
     ]
 
@@ -489,6 +496,7 @@ def test_vertexai_initialize(vertexai_plugin_instance):
     plugin.initialize(ai_mock)
 
     assert ai_mock.define_model.call_count == len(VertexAIGeminiVersion) + len(ImagenVersion)
+    # The actual call passes EmbedderOptions, so verify we are calling passing options
     assert ai_mock.define_embedder.call_count == len(VertexEmbeddingModels)
 
     for version in VertexAIGeminiVersion:
@@ -496,20 +504,16 @@ def test_vertexai_initialize(vertexai_plugin_instance):
             name=vertexai_name(version),
             fn=ANY,
             metadata=ANY,
-            config_schema=GeminiConfigSchema,
         )
 
     for version in ImagenVersion:
-        ai_mock.define_model.assert_any_call(
-            name=vertexai_name(version), fn=ANY, metadata=ANY, config_schema=GenerateImagesConfigOrDict
-        )
+        ai_mock.define_model.assert_any_call(name=vertexai_name(version), fn=ANY, metadata=ANY)
 
     for version in VertexEmbeddingModels:
         ai_mock.define_embedder.assert_any_call(
             name=vertexai_name(version),
             fn=ANY,
-            metadata=ANY,
-            config_schema=EmbedContentConfig,
+            options=ANY,
         )
 
 
@@ -609,7 +613,6 @@ def test_vertexai__resolve_model(
             name=expected_model_name,
             fn=ANY,
             metadata=ANY,
-            config_schema=GenerateImagesConfigOrDict,
         )
         assert key in IMAGE_SUPPORTED_MODELS
     else:
@@ -617,7 +620,6 @@ def test_vertexai__resolve_model(
             name=expected_model_name,
             fn=ANY,
             metadata=ANY,
-            config_schema=GeminiConfigSchema,
         )
         assert key in SUPPORTED_MODELS
 
@@ -652,9 +654,14 @@ def test_vertexai__resolve_embedder(
         name=model_name,
     )
 
-    ai_mock.define_embedder.assert_called_once_with(
-        name=expected_model_name, fn=ANY, config_schema=EmbedContentConfig, metadata=default_embedder_info(clean_name)
+    info = default_embedder_info(clean_name)
+    options = EmbedderOptions(
+        label=info.get('label'),
+        supports=EmbedderSupports(**info.get('supports', {})),
+        dimensions=info.get('dimensions'),
     )
+
+    ai_mock.define_embedder.assert_called_once_with(name=expected_model_name, fn=ANY, options=options)
 
 
 def test_vertexai_list_actions(vertexai_plugin_instance):
@@ -680,26 +687,33 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
         model_action_metadata(
             name=vertexai_name('model1'),
             info=google_model_info('model1').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=vertexai_name('model2_embeddings'),
-            info=default_embedder_info('model2_embeddings'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model2_embeddings').get('label'),
+                supports=EmbedderSupports(
+                    input=default_embedder_info('model2_embeddings').get('supports', {}).get('input')
+                ),
+                dimensions=default_embedder_info('model2_embeddings').get('dimensions'),
+            ),
         ),
         model_action_metadata(
             name=vertexai_name('model2_embeddings'),
             info=google_model_info('model2_embeddings').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=vertexai_name('model3_embedder'),
-            info=default_embedder_info('model3_embedder'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model3_embedder').get('label'),
+                supports=EmbedderSupports(
+                    input=default_embedder_info('model3_embedder').get('supports', {}).get('input')
+                ),
+                dimensions=default_embedder_info('model3_embedder').get('dimensions'),
+            ),
         ),
         model_action_metadata(
             name=vertexai_name('model3_embedder'),
             info=google_model_info('model3_embedder').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
     ]

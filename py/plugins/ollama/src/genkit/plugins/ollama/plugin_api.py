@@ -23,9 +23,10 @@ import structlog
 
 import ollama as ollama_api
 from genkit.ai import GenkitRegistry, Plugin
-from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
@@ -197,14 +198,12 @@ class Ollama(Plugin):
         ai.define_embedder(
             name=ollama_name(embedder_ref.name),
             fn=embedder.embed,
-            config_schema=ollama_api.Options,
-            metadata={
-                'label': f'Ollama Embedding - {_clean_name}',
-                'dimensions': embedder_ref.dimensions,
-                'supports': {
-                    'input': ['text'],
-                },
-            },
+            options=EmbedderOptions(
+                config_schema=to_json_schema(ollama_api.Options),
+                label=f'Ollama Embedding - {_clean_name}',
+                dimensions=embedder_ref.dimensions,
+                supports=EmbedderSupports(input=['text']),
+            ),
         )
 
     @cached_property
@@ -234,14 +233,11 @@ class Ollama(Plugin):
                 actions.append(
                     embedder_action_metadata(
                         name=ollama_name(_name),
-                        config_schema=ollama_api.Options,
-                        info={
-                            'label': f'Ollama Embedding - {_name}',
-                            'dimensions': None,
-                            'supports': {
-                                'input': ['text'],
-                            },
-                        },
+                        options=EmbedderOptions(
+                            config_schema=to_json_schema(ollama_api.Options),
+                            label=f'Ollama Embedding - {_name}',
+                            supports=EmbedderSupports(input=['text']),
+                        ),
                     )
                 )
             else:

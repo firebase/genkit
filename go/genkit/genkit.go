@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -323,7 +324,7 @@ func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *cor
 // Example:
 //
 //	counterFlow := genkit.DefineStreamingFlow(g, "counter",
-//		func(ctx context.Context, limit int, stream func(context.Context, int) error) (string, error) {
+//		func(ctx context.Context, limit int, stream core.StreamCallback[int]) (string, error) {
 //			if stream == nil { // Non-streaming case
 //				return fmt.Sprintf("Counted up to %d", limit), nil
 //			}
@@ -519,6 +520,8 @@ func LookupBackgroundModel(g *Genkit, name string) ai.BackgroundModel {
 // `inputSchema` and `outputSchema` in the tool's definition, which guide the model
 // on how to provide input and interpret output.
 //
+// Use [ai.WithInputSchema] to provide a custom JSON schema instead of inferring from the type parameter.
+//
 // Example:
 //
 //	weatherTool := genkit.DefineTool(g, "getWeather", "Fetches the weather for a given city",
@@ -543,8 +546,8 @@ func LookupBackgroundModel(g *Genkit, name string) ai.BackgroundModel {
 //	}
 //
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
-func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc[In, Out]) ai.Tool {
-	return ai.DefineTool(g.reg, name, description, fn)
+func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc[In, Out], opts ...ai.ToolOption) ai.Tool {
+	return ai.DefineTool(g.reg, name, description, fn, opts...)
 }
 
 // DefineToolWithInputSchema defines a tool with a custom input schema that can be used by models during generation,
@@ -558,6 +561,8 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 // understand when to use the tool. The `inputSchema` defines the expected structure and constraints
 // of the input. The function `fn` implements the tool's logic, taking an [ai.ToolContext] and an
 // input of type `any`, and returning an output of type `Out`.
+//
+// Deprecated: Use [DefineTool] with [ai.WithInputSchema] instead.
 //
 // Example:
 //
@@ -575,9 +580,8 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 //	}
 //
 //	// Define the tool with the schema
-//	weatherTool := genkit.DefineToolWithInputSchema(g, "getWeather",
+//	weatherTool := genkit.DefineTool(g, "getWeather",
 //		"Fetches the weather for a given city with unit preference",
-//		inputSchema,
 //		func(ctx *ai.ToolContext, input any) (string, error) {
 //			// Parse and validate input
 //			data := input.(map[string]any)
@@ -589,9 +593,64 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 //			// Implementation...
 //			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
 //		},
+//		ai.WithToolInputSchema(inputSchema),
 //	)
 func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema map[string]any, fn ai.ToolFunc[any, Out]) ai.Tool {
-	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
+	return ai.DefineTool(g.reg, name, description, fn, ai.WithInputSchema(inputSchema))
+}
+
+// DefineMultipartTool defines a multipart tool that can be used by models during generation,
+// registers it as a [core.Action] of type Tool, and returns an [ai.Tool].
+// Unlike regular tools that return just an output value, multipart tools can return
+// both an output value and additional content parts (like images or other media).
+//
+// The `name` is the identifier the model uses to request the tool. The `description`
+// helps the model understand when to use the tool. The function `fn` implements
+// the tool's logic, taking an [ai.ToolContext] and an input of type `In`, and
+// returning an [ai.MultipartToolResponse] which contains both the output and optional
+// content parts.
+//
+// Use [ai.WithInputSchema] to provide a custom JSON schema instead of inferring from the type parameter.
+//
+// Example:
+//
+//	type ImageGenInput struct {
+//		Prompt string `json:"prompt"`
+//		Style  string `json:"style,omitempty"`
+//	}
+//
+//	imageGenTool := genkit.DefineMultipartTool(g, "generateImage", "Generates an image from a text prompt",
+//		func(ctx *ai.ToolContext, input ImageGenInput) (*ai.MultipartToolResponse, error) {
+//			// In a real scenario, call an image generation API
+//			log.Printf("Tool: Generating image for prompt: %s", input.Prompt)
+//
+//			// Generate image bytes (placeholder)
+//			imageBytes := []byte{...}
+//
+//			return &ai.MultipartToolResponse{
+//				Output: map[string]any{
+//					"status": "success",
+//					"prompt": input.Prompt,
+//				},
+//				Content: []*ai.Part{
+//					ai.NewMediaPart("image/png", string(imageBytes)),
+//				},
+//			}, nil
+//		},
+//	)
+//
+//	// Use the tool in a generation request:
+//	resp, err := genkit.Generate(ctx, g,
+//		ai.WithPrompt("Create an image of a sunset over mountains"),
+//		ai.WithTools(imageGenTool),
+//	)
+//	if err != nil {
+//		log.Fatalf("Generate failed: %v", err)
+//	}
+//
+//	fmt.Println(resp.Text())
+func DefineMultipartTool[In any](g *Genkit, name, description string, fn ai.MultipartToolFunc[In], opts ...ai.ToolOption) ai.Tool {
+	return ai.DefineMultipartTool(g.reg, name, description, fn, opts...)
 }
 
 // LookupTool retrieves a registered [ai.Tool] by its name.
@@ -665,12 +724,89 @@ func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) ai.Prompt {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.prompt] by its name.
+// LookupPrompt retrieves a registered [ai.Prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
 func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
+}
+
+// DefineSchema defines a named JSON schema and registers it in the registry.
+//
+// Registered schemas can be referenced by name in prompts (both `.prompt` files
+// and programmatic definitions) to define input or output structures.
+// The `schema` argument must be a JSON schema definition represented as a map.
+//
+// Example:
+//
+//	genkit.DefineSchema(g, "User", map[string]any{
+//	    "type": "object",
+//	    "properties": map[string]any{
+//	        "name": map[string]any{"type": "string"},
+//	        "age":  map[string]any{"type": "integer"},
+//	    },
+//	    "required": []string{"name"}
+//	})
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
+func DefineSchema(g *Genkit, name string, schema map[string]any) {
+	core.DefineSchema(g.reg, name, schema)
+}
+
+// DefineSchemaFor defines a named JSON schema derived from a Go type
+// and registers it in the registry.
+//
+// This is an alternative to [DefineSchema].
+//
+// Example:
+//
+//	type User struct {
+//	    Name string `json:"name"`
+//	    Age int `json:"age"`
+//	}
+//
+//	genkit.DefineSchemaFor[User](g)
+//
+//	genkit.Generate(ctx, g, ai.WithOutputSchemaName("User"), ai.WithPrompt("What is your name?"))
+func DefineSchemaFor[T any](g *Genkit) {
+	core.DefineSchemaFor[T](g.reg)
+}
+
+// DefineDataPrompt creates a new [ai.DataPrompt] with strongly-typed input and output.
+// It automatically infers input schema from the In type parameter and configures
+// output schema and JSON format from the Out type parameter (unless Out is string).
+//
+// Example:
+//
+//	type GeoInput struct {
+//		Country string `json:"country"`
+//	}
+//
+//	type GeoOutput struct {
+//		Capital string `json:"capital"`
+//	}
+//
+//	capitalPrompt := genkit.DefineDataPrompt[GeoInput, GeoOutput](g, "findCapital",
+//		ai.WithModelName("googleai/gemini-2.5-flash"),
+//		ai.WithSystem("You are a helpful geography assistant."),
+//		ai.WithPrompt("What is the capital of {{country}}?"),
+//	)
+//
+//	output, resp, err := capitalPrompt.Execute(ctx, GeoInput{Country: "France"})
+//	if err != nil {
+//		log.Fatalf("Execute failed: %v", err)
+//	}
+//	fmt.Printf("Capital: %s\n", output.Capital)
+func DefineDataPrompt[In, Out any](g *Genkit, name string, opts ...ai.PromptOption) *ai.DataPrompt[In, Out] {
+	return ai.DefineDataPrompt[In, Out](g.reg, name, opts...)
+}
+
+// LookupDataPrompt looks up a prompt by name and wraps it with type information.
+// This is useful for wrapping prompts loaded from .prompt files with strong types.
+// It returns nil if the prompt was not found.
+func LookupDataPrompt[In, Out any](g *Genkit, name string) *ai.DataPrompt[In, Out] {
+	return ai.LookupDataPrompt[In, Out](g.reg, name)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
@@ -720,6 +856,35 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //	fmt.Println(resp.Text())
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.Generate(ctx, g.reg, opts...)
+}
+
+// GenerateStream generates a model response and streams the output.
+// It returns an iterator that yields streaming results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [ai.ModelStreamValue] argument has Done == true, the value's
+// Response field contains the final response; the yield function will not be called again.
+//
+// Otherwise the Chunk field of the passed [ai.ModelStreamValue] holds a streamed chunk.
+//
+// Example:
+//
+//	for result, err := range genkit.GenerateStream(ctx, g,
+//		ai.WithPrompt("Tell me a story about a brave knight."),
+//	) {
+//		if err != nil {
+//			log.Fatalf("Stream error: %v", err)
+//		}
+//		if result.Done {
+//			fmt.Println("\nFinal response:", result.Response.Text())
+//		} else {
+//			fmt.Print(result.Chunk.Text())
+//		}
+//	}
+func GenerateStream(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) iter.Seq2[*ai.ModelStreamValue, error] {
+	return ai.GenerateStream(ctx, g.reg, opts...)
 }
 
 // GenerateOperation performs a model generation request using a flexible set of options
@@ -808,6 +973,41 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //	log.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
 func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*Out, *ai.ModelResponse, error) {
 	return ai.GenerateData[Out](ctx, g.reg, opts...)
+}
+
+// GenerateDataStream generates a model response with streaming and returns strongly-typed output.
+// It returns an iterator that yields streaming results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [ai.StreamValue] argument has Done == true, the value's
+// Output and Response fields contain the final typed output and response; the yield function
+// will not be called again.
+//
+// Otherwise the Chunk field of the passed [ai.StreamValue] holds a streamed chunk.
+//
+// Example:
+//
+//	type Story struct {
+//		Title   string `json:"title"`
+//		Content string `json:"content"`
+//	}
+//
+//	for result, err := range genkit.GenerateDataStream[Story, *ai.ModelResponseChunk](ctx, g,
+//		ai.WithPrompt("Write a short story about a brave knight."),
+//	) {
+//		if err != nil {
+//			log.Fatalf("Stream error: %v", err)
+//		}
+//		if result.Done {
+//			fmt.Printf("Story: %+v\n", result.Output)
+//		} else {
+//			fmt.Print(result.Chunk.Text())
+//		}
+//	}
+func GenerateDataStream[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) iter.Seq2[*ai.StreamValue[Out, Out], error] {
+	return ai.GenerateDataStream[Out](ctx, g.reg, opts...)
 }
 
 // Retrieve performs a document retrieval request using a flexible set of options

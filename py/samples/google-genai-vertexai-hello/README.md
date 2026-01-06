@@ -19,5 +19,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- uv run src/google_genai_vertexai_hello.py
+genkit start -- uv run src/main.py
 ```

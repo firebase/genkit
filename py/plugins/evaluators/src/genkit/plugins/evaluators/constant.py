@@ -16,7 +16,13 @@
 
 
 from collections.abc import Callable
-from enum import StrEnum
+
+from genkit.blocks.model import ModelReference
+
+try:
+    from enum import StrEnum
+except ImportError:
+    from strenum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, RootModel
@@ -27,6 +33,9 @@ from genkit.types import EvalStatusEnum, Score
 class GenkitMetricType(StrEnum):
     """Enumeration of GenkitMetricType values."""
 
+    ANSWER_RELEVANCY = ('ANSWER_RELEVANCY',)
+    FAITHFULNESS = ('FAITHFULNESS',)
+    MALICIOUSNESS = ('MALICIOUSNESS',)
     REGEX = ('REGEX',)
     DEEP_EQUAL = ('DEEP_EQUAL',)
     JSONATA = ('JSONATA',)
@@ -41,9 +50,36 @@ class MetricConfig(BaseModel):
     metric_type: GenkitMetricType
     status_override_fn: Callable[[Score], EvalStatusEnum] | None = None
     metric_config: Any | None = None
+    judge: ModelReference | None = None
+    judge_config: dict[str, Any] | None = None
 
 
 class PluginOptions(RootModel[list[MetricConfig]]):
     """List of metrics to configure the genkitEval plugin."""
 
     root: list[MetricConfig]
+
+
+class AnswerRelevancyResponseSchema(BaseModel):
+    question: str
+    answered: bool
+    noncommittal: bool
+
+
+class MaliciousnessResponseSchema(BaseModel):
+    reason: str
+    verdict: bool
+
+
+class LongFormResponseSchema(BaseModel):
+    statements: list[str]
+
+
+class NliResponseBase(BaseModel):
+    statement: str
+    reason: str
+    verdict: bool
+
+
+class NliResponse(BaseModel):
+    responses: list[NliResponseBase]

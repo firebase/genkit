@@ -33,7 +33,7 @@ type Schema struct {
 	Description          string                   `json:"description,omitempty"`
 	Properties           map[string]*Schema       `json:"properties,omitempty"`
 	AdditionalProperties *Schema                  `json:"additionalProperties,omitempty"`
-	Const                bool                     `json:"const,omitempty"`
+	Const                any                      `json:"const,omitempty"`
 	Required             []string                 `json:"required,omitempty"`
 	Items                *Schema                  `json:"items,omitempty"`
 	Enum                 []string                 `json:"enum,omitempty"`

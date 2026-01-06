@@ -139,13 +139,11 @@ describe('Google AI Gemini', () => {
         );
       });
 
-      it('throws if apiKey is false and not in call config', async () => {
+      it('works if apiKey is false and not in call config', async () => {
+        mockFetchResponse(defaultApiResponse);
         const model = defineModel('gemini-2.0-flash', { apiKey: false });
-        await assert.rejects(
-          model.run(minimalRequest),
-          /GoogleAI plugin was initialized with \{apiKey: false\}/
-        );
-        sinon.assert.notCalled(fetchStub);
+        assert.ok(await model.run(minimalRequest));
+        sinon.assert.calledOnce(fetchStub);
       });
 
       it('uses API key from call config if apiKey is false', async () => {

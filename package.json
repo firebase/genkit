@@ -48,9 +48,14 @@
     "overrides": {
       "cross-spawn": "^7.0.5",
       "genkit": "link:js/genkit"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "pre-commit",
+      "spawn-sync"
+    ]
   },
-  "packageManager": "pnpm@10.23.0+sha512.21c4e5698002ade97e4efe8b8b4a89a8de3c85a37919f957e7a0f30f38fbc5bbdd05980ffe29179b2fb6e6e691242e098d945d1601772cad0fef5fb6411e2a4b",
+  "packageManager": "pnpm@10.27.0+sha512.72d699da16b1179c14ba9e64dc71c9a40988cbdc65c264cb0e489db7de917f20dcf4d64d8723625f2969ba52d4b7e2a1170682d9ac2a5dcaeaab732b7e16f04a",
   "dependencies": {
     "genkit": "link:js/genkit"
   }

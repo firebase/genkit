@@ -18,6 +18,7 @@ import {
   ActionFnArg,
   BackgroundAction,
   GenkitError,
+  MiddlewareWithOptions,
   Operation,
   OperationSchema,
   action,
@@ -108,6 +109,16 @@ export type ModelMiddleware = SimpleMiddleware<
   z.infer<typeof GenerateResponseSchema>
 >;
 
+export type ModelMiddlewareWithOptions = MiddlewareWithOptions<
+  z.infer<typeof GenerateRequestSchema>,
+  z.infer<typeof GenerateResponseSchema>,
+  z.infer<typeof GenerateResponseChunkSchema>
+>;
+
+export type ModelMiddlewareArgument =
+  | ModelMiddleware
+  | ModelMiddlewareWithOptions;
+
 export type DefineModelOptions<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
@@ -121,7 +132,7 @@ export type DefineModelOptions<
   /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
   label?: string;
   /** Middleware to be used with this model. */
-  use?: ModelMiddleware[];
+  use?: ModelMiddlewareArgument[];
 };
 
 export function model<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
@@ -324,11 +335,11 @@ export function backgroundModel<
 }
 
 function getModelMiddleware(options: {
-  use?: ModelMiddleware[];
+  use?: ModelMiddlewareArgument[];
   name: string;
   supports?: ModelInfo['supports'];
 }) {
-  const middleware: ModelMiddleware[] = options.use || [];
+  const middleware: ModelMiddlewareArgument[] = options.use || [];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
   const constratedSimulator = simulateConstrainedGeneration();
   middleware.push((req, next) => {

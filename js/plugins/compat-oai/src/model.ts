@@ -49,6 +49,8 @@ import type {
   ChatCompletionTool,
   CompletionChoice,
 } from 'openai/resources/index.mjs';
+import { PluginOptions } from './index.js';
+import { maybeCreateRequestScopedOpenAIClient } from './utils.js';
 
 const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
@@ -99,6 +101,56 @@ export function toOpenAITool(tool: ToolDefinition): ChatCompletionTool {
 }
 
 /**
+ * Checks if a content type is an image type.
+ * @param contentType The content type to check.
+ * @returns True if the content type is an image type.
+ */
+function isImageContentType(contentType?: string): boolean {
+  if (!contentType) return false;
+  return contentType.startsWith('image/');
+}
+
+/**
+ * Extracts the base64 data and content type from a data URL.
+ * @param url The data URL to parse.
+ * @returns The base64 data and content type, or null if invalid.
+ */
+function extractDataFromBase64Url(url: string): {
+  data: string;
+  contentType: string;
+} | null {
+  const match = url.match(/^data:([^;]+);base64,(.+)$/);
+  return (
+    match && {
+      contentType: match[1],
+      data: match[2],
+    }
+  );
+}
+
+/**
+ * Map of content types to file extensions.
+ */
+const FILE_EXTENSIONS: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    'docx',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+};
+
+/**
+ * Generates a filename from a content type.
+ * @param contentType The content type.
+ * @returns A filename with appropriate extension.
+ */
+function generateFilenameFromContentType(contentType: string): string {
+  const ext = FILE_EXTENSIONS[contentType] || '';
+  return ext ? `file.${ext}` : 'file';
+}
+
+/**
  * Converts a Genkit Part to the corresponding OpenAI ChatCompletionContentPart.
  * @param part The Genkit Part to convert.
  * @param visualDetailLevel The visual detail level to use for media parts.
@@ -115,13 +167,49 @@ export function toOpenAITextAndMedia(
       text: part.text,
     };
   } else if (part.media) {
-    return {
-      type: 'image_url',
-      image_url: {
-        url: part.media.url,
-        detail: visualDetailLevel,
-      },
-    };
+    // Determine the content type from the media part or data URL
+    let contentType = part.media.contentType;
+    if (!contentType && part.media.url.startsWith('data:')) {
+      const extracted = extractDataFromBase64Url(part.media.url);
+      if (extracted) {
+        contentType = extracted.contentType;
+      }
+    }
+
+    // Check if this is an image type
+    if (isImageContentType(contentType)) {
+      return {
+        type: 'image_url',
+        image_url: {
+          url: part.media.url,
+          detail: visualDetailLevel,
+        },
+      };
+    }
+
+    // For non-image types (like PDF), use the file type
+    // OpenAI expects the full data URL (with data: prefix) in file_data
+    if (part.media.url.startsWith('data:')) {
+      const extracted = extractDataFromBase64Url(part.media.url);
+      if (!extracted) {
+        throw Error(
+          `Invalid data URL format for media: ${part.media.url.substring(0, 50)}...`
+        );
+      }
+      return {
+        type: 'file',
+        file: {
+          filename: generateFilenameFromContentType(extracted.contentType),
+          file_data: part.media.url, // Full data URL with prefix
+        },
+      } as ChatCompletionContentPart;
+    }
+
+    // If it's a remote URL with non-image content type, this is not supported
+    // for chat completions according to OpenAI docs
+    throw Error(
+      `File URLs are not supported for chat completions. Only base64-encoded files and image URLs are supported. Content type: ${contentType}`
+    );
   }
   throw Error(
     `Unsupported genkit part fields encountered for current message role: ${JSON.stringify(part)}.`
@@ -393,6 +481,7 @@ export function toOpenAIRequestBody(
     stopSequences: stop,
     version: modelVersion,
     tools: toolsFromConfig,
+    apiKey,
     ...restOfConfig
   } = request.config ?? {};
 
@@ -455,8 +544,9 @@ export function toOpenAIRequestBody(
  */
 export function openAIModelRunner(
   name: string,
-  client: OpenAI,
-  requestBuilder?: ModelRequestBuilder
+  defaultClient: OpenAI,
+  requestBuilder?: ModelRequestBuilder,
+  pluginOptions?: Omit<PluginOptions, 'apiKey'>
 ) {
   return async (
     request: GenerateRequest,
@@ -466,6 +556,11 @@ export function openAIModelRunner(
       abortSignal?: AbortSignal;
     }
   ): Promise<GenerateResponseData> => {
+    const client = maybeCreateRequestScopedOpenAIClient(
+      pluginOptions,
+      request,
+      defaultClient
+    );
     try {
       let response: ChatCompletion;
       const body = toOpenAIRequestBody(name, request, requestBuilder);
@@ -519,6 +614,12 @@ export function openAIModelRunner(
           case 429:
             status = 'RESOURCE_EXHAUSTED';
             break;
+          case 401:
+            status = 'PERMISSION_DENIED';
+            break;
+          case 403:
+            status = 'UNAUTHENTICATED';
+            break;
           case 400:
             status = 'INVALID_ARGUMENT';
             break;
@@ -562,8 +663,9 @@ export function defineCompatOpenAIModel<
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: ModelRequestBuilder;
+  pluginOptions?: PluginOptions;
 }): ModelAction {
-  const { name, client, modelRef, requestBuilder } = params;
+  const { name, client, pluginOptions, modelRef, requestBuilder } = params;
   const modelName = name.substring(name.indexOf('/') + 1);
 
   return model(
@@ -572,7 +674,7 @@ export function defineCompatOpenAIModel<
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(modelName!, client, requestBuilder)
+    openAIModelRunner(modelName!, client, requestBuilder, pluginOptions)
   );
 }
 

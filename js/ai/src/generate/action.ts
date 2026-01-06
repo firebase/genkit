@@ -15,6 +15,7 @@
  */
 
 import {
+  ActionRunOptions,
   GenkitError,
   StreamingCallback,
   defineAction,
@@ -42,6 +43,8 @@ import {
   GenerateResponseChunkSchema,
   GenerateResponseSchema,
   MessageData,
+  ModelMiddlewareArgument,
+  ModelMiddlewareWithOptions,
   resolveModel,
   type GenerateActionOptions,
   type GenerateActionOutputConfig,
@@ -85,7 +88,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
       outputSchema: GenerateResponseSchema,
       streamSchema: GenerateResponseChunkSchema,
     },
-    async (request, { streamingRequested, sendChunk }) => {
+    async (request, { streamingRequested, sendChunk, context }) => {
       const generateFn = (
         sendChunk?: StreamingCallback<GenerateResponseChunk>
       ) =>
@@ -96,6 +99,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
           streamingCallback: sendChunk,
+          context,
         });
       return streamingRequested
         ? generateFn((c: GenerateResponseChunk) =>
@@ -113,18 +117,18 @@ export async function generateHelper(
   registry: Registry,
   options: {
     rawRequest: GenerateActionOptions;
-    middleware?: ModelMiddleware[];
+    middleware?: ModelMiddlewareArgument[];
     currentTurn?: number;
     messageIndex?: number;
     abortSignal?: AbortSignal;
     streamingCallback?: StreamingCallback<GenerateResponseChunk>;
+    context?: Record<string, any>;
   }
 ): Promise<GenerateResponseData> {
   const currentTurn = options.currentTurn ?? 0;
   const messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
-    registry,
     {
       metadata: {
         name: options.rawRequest.stepName || 'generate',
@@ -143,6 +147,7 @@ export async function generateHelper(
         messageIndex,
         abortSignal: options.abortSignal,
         streamingCallback: options.streamingCallback,
+        context: options.context,
       });
       metadata.output = JSON.stringify(output);
       return output;
@@ -247,13 +252,15 @@ async function generate(
     messageIndex,
     abortSignal,
     streamingCallback,
+    context,
   }: {
     rawRequest: GenerateActionOptions;
-    middleware: ModelMiddleware[] | undefined;
+    middleware: ModelMiddlewareArgument[] | undefined;
     currentTurn: number;
     messageIndex: number;
     abortSignal?: AbortSignal;
     streamingCallback?: StreamingCallback<GenerateResponseChunk>;
+    context?: Record<string, any>;
   }
 ): Promise<GenerateResponseData> {
   const { model, tools, resources, format } = await resolveParameters(
@@ -320,29 +327,41 @@ async function generate(
   }
 
   var response: GenerateResponse;
+  const sendChunk =
+    streamingCallback &&
+    (((chunk: GenerateResponseChunkData) =>
+      streamingCallback &&
+      streamingCallback(makeChunk('model', chunk))) as any);
   const dispatch = async (
     index: number,
-    req: z.infer<typeof GenerateRequestSchema>
+    req: z.infer<typeof GenerateRequestSchema>,
+    actionOpts: ActionRunOptions<any>
   ) => {
     if (!middleware || index === middleware.length) {
       // end of the chain, call the original model action
-      return await model(req, {
-        abortSignal,
-        onChunk:
-          streamingCallback &&
-          (((chunk: GenerateResponseChunkData) =>
-            streamingCallback &&
-            streamingCallback(makeChunk('model', chunk))) as any),
-      });
+      return await model(req, actionOpts);
     }
 
     const currentMiddleware = middleware[index];
-    return currentMiddleware(req, async (modifiedReq) =>
-      dispatch(index + 1, modifiedReq || req)
-    );
+    if (currentMiddleware.length === 3) {
+      return (currentMiddleware as ModelMiddlewareWithOptions)(
+        req,
+        actionOpts,
+        async (modifiedReq, opts) =>
+          dispatch(index + 1, modifiedReq || req, opts || actionOpts)
+      );
+    } else {
+      return (currentMiddleware as ModelMiddleware)(req, async (modifiedReq) =>
+        dispatch(index + 1, modifiedReq || req, actionOpts)
+      );
+    }
   };
 
-  const modelResponse = await dispatch(0, request);
+  const modelResponse = await dispatch(0, request, {
+    abortSignal,
+    context,
+    onChunk: sendChunk,
+  });
 
   if (model.__action.actionType === 'background-model') {
     response = new GenerateResponse(

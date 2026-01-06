@@ -71,6 +71,9 @@ func DefineStreamingFlow[In, Out, Stream any](r api.Registry, name string, fn St
 			flowName: name,
 		}
 		ctx = flowContextKey.NewContext(ctx, fc)
+		if cb == nil {
+			cb = func(context.Context, Stream) error { return nil }
+		}
 		return fn(ctx, input, cb)
 	}))
 }
@@ -112,7 +115,7 @@ func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessa
 	return (*ActionDef[In, Out, Stream])(f).RunJSON(ctx, input, cb)
 }
 
-// RunJSON runs the flow with JSON input and streaming callback and returns the output as JSON.
+// RunJSONWithTelemetry runs the flow with JSON input and streaming callback and returns the output as JSON along with telemetry info.
 func (f *Flow[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
 	return (*ActionDef[In, Out, Stream])(f).RunJSONWithTelemetry(ctx, input, cb)
 }

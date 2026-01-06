@@ -66,21 +66,32 @@ export async function startManager(
   return manager;
 }
 
+export interface DevProcessManagerOptions {
+  disableRealtimeTelemetry?: boolean;
+}
+
 export async function startDevProcessManager(
   projectRoot: string,
   command: string,
-  args: string[]
+  args: string[],
+  options?: DevProcessManagerOptions
 ): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
   const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
-  const processManager = new ProcessManager(command, args, {
+  const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
+  const envVars: Record<string, string> = {
     GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
     GENKIT_ENV: 'dev',
-  });
+  };
+  if (!disableRealtimeTelemetry) {
+    envVars.GENKIT_ENABLE_REALTIME_TELEMETRY = 'true';
+  }
+  const processManager = new ProcessManager(command, args, envVars);
   const manager = await RuntimeManager.create({
     telemetryServerUrl,
     manageHealth: true,
     projectRoot,
     processManager,
+    disableRealtimeTelemetry,
   });
   const processPromise = processManager.start();
   return { manager, processPromise };

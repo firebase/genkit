@@ -16,15 +16,32 @@
 
 
 import json
+import os
 import re
 from collections.abc import Callable
 from typing import Any
 
 import jsonata
+from dotpromptz.typing import DataArgument
 
-from genkit.ai import GenkitRegistry, Plugin
-from genkit.plugins.evaluators.constant import GenkitMetricType, MetricConfig, PluginOptions
+from genkit.ai import Genkit, Plugin
+from genkit.plugins.evaluators.constant import (
+    AnswerRelevancyResponseSchema,
+    GenkitMetricType,
+    LongFormResponseSchema,
+    MaliciousnessResponseSchema,
+    MetricConfig,
+    NliResponse,
+    PluginOptions,
+)
+from genkit.plugins.metrics.helper import load_prompt_file, render_text
 from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
+
+
+def _get_prompt_path(filename: str) -> str:
+    """Get absolute path to a prompt file in the prompts directory."""
+    plugin_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(plugin_dir, '..', '..', '..', '..', 'prompts', filename)
 
 
 def evaluators_name(name: str) -> str:
@@ -57,19 +74,165 @@ class GenkitEvaluators(Plugin):
 
     name = 'genkitEval'
 
-    def __init__(self, params: PluginOptions):
+    def __init__(self, params: PluginOptions | list[MetricConfig]):
         """Initialize Genkit Evaluators plugin."""
+        if isinstance(params, list):
+            params = PluginOptions(root=params)
         self.params = params
 
-    def initialize(self, ai: GenkitRegistry) -> None:
+    def initialize(self, ai: Genkit) -> None:
         """Initialize the plugin by registering actions with the registry."""
         for param in self.params.root:
             self._configure_evaluator(ai=ai, param=param)
 
-    def _configure_evaluator(self, ai: GenkitRegistry, param: MetricConfig):
+    def _configure_evaluator(self, ai: Genkit, param: MetricConfig):
         """Validates and configures supported evaluators."""
         metric_type = param.metric_type
         match metric_type:
+            case GenkitMetricType.ANSWER_RELEVANCY:
+
+                async def _relevancy_eval(datapoint: BaseEvalDataPoint, options: Any | None):
+                    assert datapoint.output is not None, 'output is required'
+                    output_string = (
+                        datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
+                    )
+                    input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    prompt_function = await load_prompt_file(_get_prompt_path('faithfulness_long_form.prompt'))
+                    context = ' '.join(json.dumps(e) for e in datapoint.context)
+                    prompt = await render_text(
+                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
+                    )
+
+                    response = await ai.generate(
+                        model=param.judge.name,
+                        prompt=prompt,
+                        config=param.config,
+                        output_schema=AnswerRelevancyResponseSchema,
+                    )
+                    # TODO: embedding comparison between the input and the result of the llm
+                    status = EvalStatusEnum.PASS_ if response.output else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
+
+                ai.define_evaluator(
+                    name=evaluators_name(str(GenkitMetricType.ANSWER_RELEVANCY).lower()),
+                    display_name='Answer Relevancy',
+                    definition='Assesses how pertinent the generated answer is to the given prompt',
+                    fn=_relevancy_eval,
+                )
+            case GenkitMetricType.FAITHFULNESS:
+                # Cache for prompts (loaded on first use)
+                _faithfulness_prompts = {}
+
+                async def _faithfulness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
+                    assert datapoint.output is not None, 'output is required'
+                    output_string = (
+                        datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
+                    )
+                    input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    context_list = [(json.dumps(e) if not isinstance(e, str) else e) for e in (datapoint.context or [])]
+
+                    # Lazy load and cache prompts
+                    if 'longform' not in _faithfulness_prompts:
+                        _faithfulness_prompts['longform'] = await load_prompt_file(
+                            _get_prompt_path('faithfulness_long_form.prompt')
+                        )
+                    if 'nli' not in _faithfulness_prompts:
+                        _faithfulness_prompts['nli'] = await load_prompt_file(
+                            _get_prompt_path('faithfulness_nli.prompt')
+                        )
+
+                    # Step 1: Extract statements
+                    prompt = await render_text(
+                        _faithfulness_prompts['longform'], {'question': input_string, 'answer': output_string}
+                    )
+                    longform_response = await ai.generate(
+                        model=param.judge.name,
+                        prompt=prompt,
+                        config=param.judge_config,
+                        output_schema=LongFormResponseSchema,
+                    )
+                    statements = (
+                        longform_response.output.get('statements', [])
+                        if isinstance(longform_response.output, dict)
+                        else (longform_response.output.statements if longform_response.output else [])
+                    )
+                    if not statements:
+                        raise ValueError('No statements returned')
+
+                    # Step 2: NLI Check
+                    all_statements = '\n'.join([f'statement: {s}' for s in statements])
+                    all_context = '\n'.join(context_list)
+                    prompt = await render_text(
+                        _faithfulness_prompts['nli'], {'context': all_context, 'statements': all_statements}
+                    )
+
+                    nli_response = await ai.generate(
+                        model=param.judge.name,
+                        prompt=prompt,
+                        config=param.judge_config,
+                        output_schema=NliResponse,
+                    )
+
+                    nli_output = nli_response.output
+                    if isinstance(nli_output, dict):
+                        responses = nli_output.get('responses', [])
+                    else:
+                        responses = nli_output.responses if nli_output else []
+
+                    if not responses:
+                        raise ValueError('Evaluator response empty')
+
+                    # Handle both dict and object responses
+                    faithful_count = sum(
+                        1 for r in responses if (r.get('verdict') if isinstance(r, dict) else r.verdict)
+                    )
+                    score_val = faithful_count / len(responses)
+                    reasoning = '; '.join([r.get('reason', '') if isinstance(r, dict) else r.reason for r in responses])
+                    status = EvalStatusEnum.PASS_ if score_val > 0.5 else EvalStatusEnum.FAIL
+
+                    return fill_scores(
+                        datapoint,
+                        Score(score=score_val, status=status, details={'reasoning': reasoning}),
+                        param.status_override_fn,
+                    )
+
+                ai.define_evaluator(
+                    name=evaluators_name(str(GenkitMetricType.FAITHFULNESS).lower()),
+                    display_name='Faithfulness',
+                    definition='Measures the factual consistency of the generated answer against the given context',
+                    fn=_faithfulness_eval,
+                )
+
+            case GenkitMetricType.MALICIOUSNESS:
+
+                async def _maliciousness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
+                    assert datapoint.output is not None, 'output is required'
+                    output_string = (
+                        datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
+                    )
+                    input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
+                    prompt_function = await load_prompt_file(_get_prompt_path('maliciousness.prompt'))
+                    context = ' '.join(json.dumps(e) for e in datapoint.context)
+                    prompt = await render_text(
+                        prompt_function, {'input': input_string, 'output': output_string, 'context': context}
+                    )
+
+                    score = await ai.generate(
+                        model=param.judge.name,
+                        prompt=prompt,
+                        config=param.config,
+                        output_schema=MaliciousnessResponseSchema,
+                    )
+                    status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
+
+                ai.define_evaluator(
+                    name=evaluators_name(str(GenkitMetricType.MALICIOUSNESS).lower()),
+                    display_name='Maliciousness',
+                    definition='Measures whether the generated output intends to deceive, harm, or exploit',
+                    fn=_maliciousness_eval,
+                )
+            #
             case GenkitMetricType.REGEX:
 
                 async def _regex_eval(datapoint: BaseEvalDataPoint, options: Any | None):

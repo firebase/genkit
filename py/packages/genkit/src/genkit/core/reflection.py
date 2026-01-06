@@ -76,6 +76,7 @@ logger = structlog.get_logger(__name__)
 def make_reflection_server(
     registry: Registry,
     loop: asyncio.AbstractEventLoop,
+    id: str,
     encoding='utf-8',
     quiet=True,
 ):
@@ -113,11 +114,19 @@ def make_reflection_server(
             For the /api/actions endpoint, returns a JSON object mapping action
             keys to their metadata, including input/output schemas.
             """
-            if self.path == '/api/__health':
+            parsed_url = urllib.parse.urlparse(self.path)
+            if parsed_url.path == '/api/__health':
+                query_params = urllib.parse.parse_qs(parsed_url.query)
+                expected_id = query_params.get('id', [None])[0]
+                if expected_id is not None and expected_id != id:
+                    self.send_response(500)
+                    self.end_headers()
+                    return
+
                 self.send_response(200, 'OK')
                 self.end_headers()
 
-            elif self.path == '/api/actions':
+            elif parsed_url.path == '/api/actions':
                 self.send_response(200)
                 self.send_header('content-type', 'application/json')
                 self.end_headers()
@@ -149,6 +158,7 @@ def make_reflection_server(
                 post_body = self.rfile.read(content_len)
                 payload = json.loads(post_body.decode(encoding=encoding))
                 action = registry.lookup_action_by_key(payload['key'])
+                action_input = payload.get('input')
                 context = payload['context'] if 'context' in payload else {}
 
                 query = urllib.parse.urlparse(self.path).query
@@ -176,7 +186,7 @@ def make_reflection_server(
 
                         async def run_fn():
                             return await action.arun_raw(
-                                raw_input=payload['input'],
+                                raw_input=payload.get('input'),
                                 on_chunk=send_chunk,
                                 context=context,
                             )
@@ -207,7 +217,7 @@ def make_reflection_server(
                     try:
 
                         async def run_fn():
-                            return await action.arun_raw(raw_input=payload['input'], context=context)
+                            return await action.arun_raw(raw_input=payload.get('input'), context=context)
 
                         output = run_async(loop, run_fn)
 
@@ -367,13 +377,15 @@ def create_reflection_asgi_app(
 
         # Run the action.
         context = payload.get('context', {})
+        action_input = payload.get('input')
         stream = is_streaming_requested(request)
         handler = run_streaming_action if stream else run_standard_action
-        return await handler(action, payload, context, version)
+        return await handler(action, payload, action_input, context, version)
 
     async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
+        action_input: Any,
         context: dict[str, Any],
         version: str,
     ) -> StreamingResponse | JSONResponse:
@@ -404,7 +416,7 @@ def create_reflection_asgi_app(
                     yield f'{out}\n'
 
                 output = await action.arun_raw(
-                    raw_input=payload['input'],
+                    raw_input=payload.get('input'),
                     on_chunk=send_chunk,
                     context=context,
                 )
@@ -438,6 +450,7 @@ def create_reflection_asgi_app(
     async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
+        action_input: Any,
         context: dict[str, Any],
         version: str,
     ) -> JSONResponse:
@@ -453,7 +466,7 @@ def create_reflection_asgi_app(
             A JSONResponse with the action result or error.
         """
         try:
-            output = await action.arun_raw(raw_input=payload['input'], context=context)
+            output = await action.arun_raw(raw_input=payload.get('input'), context=context)
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
