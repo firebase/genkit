@@ -180,9 +180,10 @@ def test_to_anthropic_messages():
 class MockStreamManager:
     """Mock stream manager for testing streaming."""
 
-    def __init__(self, chunks):
+    def __init__(self, chunks, final_content=None):
         self.chunks = chunks
         self.final_message = MagicMock()
+        self.final_message.content = final_content if final_content else []
         self.final_message.usage = MagicMock(input_tokens=10, output_tokens=20)
         self.final_message.stop_reason = 'end_turn'
 
@@ -217,7 +218,8 @@ async def test_streaming_generation():
         MagicMock(type='content_block_delta', delta=MagicMock(text='!')),
     ]
 
-    mock_stream = MockStreamManager(chunks)
+    final_content = [MagicMock(type='text', text='Hello world!')]
+    mock_stream = MockStreamManager(chunks, final_content=final_content)
     mock_client.messages.stream.return_value = mock_stream
 
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
@@ -248,3 +250,10 @@ async def test_streaming_generation():
 
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 20
+
+    # Verify final response content is populated
+    assert len(response.message.content) == 1
+    final_part = response.message.content[0]
+    assert isinstance(final_part, Part)
+    assert isinstance(final_part.root, TextPart)
+    assert final_part.root.text == 'Hello world!'

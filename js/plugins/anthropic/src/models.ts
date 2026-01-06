@@ -91,19 +91,66 @@ export const KNOWN_CLAUDE_MODELS: Record<
   'claude-opus-4': commonRef('claude-opus-4', AnthropicThinkingConfigSchema),
   'claude-sonnet-4-5': commonRef(
     'claude-sonnet-4-5',
-    AnthropicThinkingConfigSchema
+    AnthropicThinkingConfigSchema,
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
   ),
   'claude-haiku-4-5': commonRef(
     'claude-haiku-4-5',
-    AnthropicThinkingConfigSchema
-  ),
-  'claude-opus-4-5': commonRef(
-    'claude-opus-4-5',
-    AnthropicThinkingConfigSchema
+    AnthropicThinkingConfigSchema,
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
   ),
   'claude-opus-4-1': commonRef(
     'claude-opus-4-1',
-    AnthropicThinkingConfigSchema
+    AnthropicThinkingConfigSchema,
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
+  ),
+  'claude-opus-4-5': commonRef(
+    'claude-opus-4-5',
+    AnthropicThinkingConfigSchema.extend({
+      output_config: z
+        .object({
+          effort: z.enum(['low', 'medium', 'high']).optional(),
+        })
+        .passthrough()
+        .optional(),
+    }),
+    {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+        constrained: 'all',
+      },
+    }
   ),
 };
 
@@ -232,9 +279,11 @@ export function claudeModel(
     defaultApiVersion: apiVersion,
   } = params;
   // Use supported model ref if available, otherwise create generic model ref
-  const modelRef = KNOWN_CLAUDE_MODELS[name];
-  const modelInfo = modelRef ? modelRef.info : GENERIC_CLAUDE_MODEL_INFO;
-  const configSchema = modelRef?.configSchema ?? AnthropicConfigSchema;
+  const knownModelRef = KNOWN_CLAUDE_MODELS[name];
+  let modelInfo = knownModelRef
+    ? knownModelRef.info
+    : GENERIC_CLAUDE_MODEL_INFO;
+  const configSchema = knownModelRef?.configSchema ?? AnthropicConfigSchema;
 
   return model<
     AnthropicBaseConfigSchemaType | AnthropicThinkingConfigSchemaType

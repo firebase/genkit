@@ -384,20 +384,26 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		return nil, errors.New("response schema must be set using Genkit feature: ai.WithTools() or ai.WithOuputType()")
 	}
 	if gcc.ResponseMIMEType != "" {
-		return nil, errors.New("response MIME type must be set using Genkit feature: ai.WithOuputType()")
+		return nil, errors.New("response MIME type must be set using Genkit feature: ai.WithOuputType(), ai.WithOutputSchema(), ai.WithOutputSchemaByName()")
+	}
+	if gcc.ResponseJsonSchema != nil {
+		return nil, errors.New("response JSON schema must be set using Genkit feature: ai.WithOutputSchema()")
 	}
 
-	// Set response MIME type based on output format if specified
+	// Set response MIME type and schema based on output format.
+	// Gemini supports constrained output with application/json and text/x.enum.
 	hasOutput := input.Output != nil
-	isJsonFormat := hasOutput && input.Output.Format == "json"
-	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
-	jsonMode := isJsonFormat || isJsonContentType
-	// this setting is not compatible with tools forcing controlled output generation
-	if jsonMode && len(input.Tools) == 0 {
-		gcc.ResponseMIMEType = "application/json"
+	// JSON mode is not compatible with tools
+	if hasOutput && len(input.Tools) == 0 {
+		switch {
+		case input.Output.ContentType == "application/json" || input.Output.Format == "json":
+			gcc.ResponseMIMEType = "application/json"
+		case input.Output.ContentType == "text/enum" || input.Output.Format == "enum":
+			gcc.ResponseMIMEType = "text/x.enum"
+		}
 	}
 
-	if input.Output != nil && input.Output.Constrained {
+	if input.Output != nil && input.Output.Constrained && gcc.ResponseMIMEType != "" {
 		schema, err := toGeminiSchema(input.Output.Schema, input.Output.Schema)
 		if err != nil {
 			return nil, err

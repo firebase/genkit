@@ -31,6 +31,7 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/x/streaming"
 	"github.com/google/uuid"
 )
 
@@ -41,8 +42,8 @@ type HandlerOption interface {
 
 // handlerOptions are options for an action HTTP handler.
 type handlerOptions struct {
-	ContextProviders []core.ContextProvider // Providers for action context that may be used during runtime.
-	StreamManager    core.StreamManager     // Optional manager for durable stream storage.
+	ContextProviders []core.ContextProvider  // Providers for action context that may be used during runtime.
+	StreamManager    streaming.StreamManager // Optional manager for durable stream storage.
 }
 
 func (o *handlerOptions) applyHandler(opts *handlerOptions) error {
@@ -75,7 +76,9 @@ func WithContextProviders(ctxProviders ...core.ContextProvider) HandlerOption {
 // WithStreamManager enables durable streaming with the provided StreamManager.
 // When enabled, streaming responses include an x-genkit-stream-id header that clients
 // can use to reconnect to in-progress or completed streams.
-func WithStreamManager(manager core.StreamManager) HandlerOption {
+//
+// EXPERIMENTAL: This API is subject to change.
+func WithStreamManager(manager streaming.StreamManager) HandlerOption {
 	return &handlerOptions{StreamManager: manager}
 }
 
@@ -225,7 +228,7 @@ func runWithStreaming(ctx context.Context, w http.ResponseWriter, a api.Action, 
 
 // runWithDurableStreaming executes the action with durable streaming support.
 // Chunks are written to both the HTTP response and the stream manager for later replay.
-func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.Action, sm core.StreamManager, input json.RawMessage) error {
+func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.Action, sm streaming.StreamManager, input json.RawMessage) error {
 	streamID := uuid.New().String()
 
 	durableStream, err := sm.Open(ctx, streamID)
@@ -261,7 +264,7 @@ func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.A
 }
 
 // subscribeToStream subscribes to an existing durable stream and writes events to the HTTP response.
-func subscribeToStream(ctx context.Context, w http.ResponseWriter, sm core.StreamManager, streamID string) error {
+func subscribeToStream(ctx context.Context, w http.ResponseWriter, sm streaming.StreamManager, streamID string) error {
 	events, unsubscribe, err := sm.Subscribe(ctx, streamID)
 	if err != nil {
 		var ufErr *core.UserFacingError
@@ -280,19 +283,19 @@ func subscribeToStream(ctx context.Context, w http.ResponseWriter, sm core.Strea
 
 	for event := range events {
 		switch event.Type {
-		case core.StreamEventChunk:
+		case streaming.StreamEventChunk:
 			if err := writeSSEMessage(w, event.Chunk); err != nil {
 				return err
 			}
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
-		case core.StreamEventDone:
+		case streaming.StreamEventDone:
 			if err := writeSSEResult(w, event.Output); err != nil {
 				return err
 			}
 			return nil
-		case core.StreamEventError:
+		case streaming.StreamEventError:
 			streamErr := event.Err
 			if streamErr == nil {
 				streamErr = errors.New("unknown error")

@@ -370,10 +370,10 @@ describe('registry class', () => {
       const resolvableActions = await registry.listResolvableActions();
       assert.deepStrictEqual(resolvableActions, {
         '/dynamic-action-provider/my-dap': dap.__action,
-        'dynamic-action-provider/my-dap:tool/fs/tool1': tool1.__action,
-        'dynamic-action-provider/my-dap:tool/fs/tool2': tool2.__action,
-        'dynamic-action-provider/my-dap:resource/abc/res1': resource1.__action,
-        'dynamic-action-provider/my-dap:resource/abc/res2': resource2.__action,
+        '/dynamic-action-provider/my-dap:tool/fs/tool1': tool1.__action,
+        '/dynamic-action-provider/my-dap:tool/fs/tool2': tool2.__action,
+        '/dynamic-action-provider/my-dap:resource/abc/res1': resource1.__action,
+        '/dynamic-action-provider/my-dap:resource/abc/res2': resource2.__action,
       });
     });
   });

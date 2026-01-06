@@ -180,12 +180,12 @@ func TestServeMux(t *testing.T) {
 			{
 				name:       "invalid action key",
 				body:       `{"key": "/custom/test/invalid", "input": 3}`,
-				wantStatus: http.StatusNotFound,
+				wantStatus: http.StatusOK,
 			},
 			{
 				name:       "invalid input type",
 				body:       `{"key": "/custom/test/inc", "input": "not a number"}`,
-				wantStatus: http.StatusBadRequest,
+				wantStatus: http.StatusOK,
 			},
 		}
 

@@ -35,7 +35,7 @@ export VECTOR_SEARCH_API_ENDPOINT=''
 ## Run the sample
 
 ```bash
-genkit start -- uv run src/sample.py
+genkit start -- uv run src/main.py
 ```
 
 ## Set up env for sample

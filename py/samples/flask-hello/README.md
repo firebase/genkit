@@ -9,7 +9,7 @@ Use `gcloud auth application-default login` to connect to the VertexAI.
 TODO
 
 ```bash
-genkit start -- uv run flask --app src/flask_hello.py run
+genkit start -- uv run flask --app src/main.py run
 ```
 
 ```bash

@@ -467,7 +467,15 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 					refErr.Details.TraceID = &resp.Telemetry.TraceID
 				}
 
-				json.NewEncoder(w).Encode(errorResponse{Error: refErr})
+				reflectErr, err := json.Marshal(refErr)
+				if err != nil {
+					logger.FromContext(ctx).Error("writing output", "err", err)
+					return nil
+				}
+				_, err = fmt.Fprintf(w, "{\"error\": %s }", reflectErr)
+				if err != nil {
+					return err
+				}
 				return nil
 			}
 
@@ -477,10 +485,17 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 				errorResponse.Details.TraceID = &resp.Telemetry.TraceID
 			}
 
-			if !headersSent {
-				w.WriteHeader(errorResponse.Code)
+			reflectErr, err := json.Marshal(errorResponse)
+			if err != nil {
+				logger.FromContext(ctx).Error("writing output", "err", err)
+				return nil
 			}
-			return writeJSON(ctx, w, errorResponse)
+
+			_, err = fmt.Fprintf(w, "{\"error\": %s }", reflectErr)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 
 		// Success case
@@ -491,7 +506,13 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 				Result:    resp.Result,
 				Telemetry: telemetry{TraceID: resp.Telemetry.TraceID},
 			}
-			json.NewEncoder(w).Encode(finalResponse)
+			data, err := json.Marshal(finalResponse)
+			if err != nil {
+				logger.FromContext(ctx).Error("writing output", "err", err)
+				return nil
+			}
+
+			w.Write(data)
 		} else {
 			// For non-streaming, headers were already sent via telemetry callback
 			// Response already includes telemetry.traceId in body

@@ -379,11 +379,7 @@ export class ReflectionServer {
       };
 
       // Headers may have been sent already (via onTraceStart), so check before setting status
-      if (!res.headersSent) {
-        res.status(500).json(errorResponse);
-      } else {
-        res.end(JSON.stringify(errorResponse));
-      }
+      res.status(200).end(JSON.stringify({ error: errorResponse }));
     });
 
     this.port = await this.findPort();

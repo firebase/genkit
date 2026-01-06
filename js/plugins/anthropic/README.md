@@ -8,7 +8,7 @@
 
 ## Supported models
 
-The plugin supports the most recent Anthropic models: **Claude Sonnet 4.5**, **Claude Opus 4.1**, **Claude Haiku 4.5**, **Claude Sonnet 4**, **Claude Opus 4**, **Claude 3.5 Haiku**, and **Claude 3 Haiku**.
+The plugin supports the most recent Anthropic models: **Claude Haiku 4.5**, **Claude Sonnet 4.5**, and **Claude Opus 4.5**. Additionally, the plugin supports all of the [non-retired older models](https://platform.claude.com/docs/en/about-claude/model-deprecations#model-status).
 
 ## Installation
 
@@ -39,7 +39,7 @@ The simplest way to generate text is by using the `generate` method:
 
 ```typescript
 const response = await ai.generate({
-  model: anthropic.model('claude-3-haiku'),
+  model: anthropic.model('claude-haiku-4-5'),
   prompt: 'Tell me a joke.',
 });
 
@@ -56,18 +56,13 @@ const response = await ai.generate({
     { text: 'What animal is in the photo?' },
     { media: { url: imageUrl } },
   ],
-  config: {
-    // control of the level of visual detail when processing image embeddings
-    // Low detail level also decreases the token usage
-    visualDetailLevel: 'low',
-  },
 });
 console.log(response.text);
 ```
 
 ### Extended thinking
 
-Claude 4 models can expose their internal reasoning. Enable it per-request with the Anthropic thinking config and read the reasoning from the response:
+Claude 4.5 models can expose their internal reasoning. Enable it per-request with the Anthropic thinking config and read the reasoning from the response:
 
 ```typescript
 const response = await ai.generate({
@@ -151,9 +146,9 @@ You can also create model references using the plugin's `model()` method:
 import { anthropic } from '@genkit-ai/anthropic';
 
 // Create model references
+const claudeHaiku45 = anthropic.model('claude-haiku-4-5');
 const claudeSonnet45 = anthropic.model('claude-sonnet-4-5');
-const claudeOpus41 = anthropic.model('claude-opus-4-1');
-const claude35Haiku = anthropic.model('claude-3-5-haiku');
+const claudeOpus45 = anthropic.model('claude-opus-4-5');
 
 // Use the model reference directly
 const response = await claudeSonnet45({

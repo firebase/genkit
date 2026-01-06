@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/x/streaming"
 )
 
 func FakeContextProvider(ctx context.Context, req core.RequestData) (core.ActionContext, error) {
@@ -279,7 +280,7 @@ func TestDurableStreamingHandler(t *testing.T) {
 		})
 
 	t.Run("returns stream ID header", func(t *testing.T) {
-		sm := core.NewInMemoryStreamManager()
+		sm := streaming.NewInMemoryStreamManager()
 		defer sm.Close()
 		handler := Handler(streamingFlow, WithStreamManager(sm))
 
@@ -315,7 +316,7 @@ data: {"result":"hi-done"}
 	})
 
 	t.Run("subscribe to completed stream", func(t *testing.T) {
-		sm := core.NewInMemoryStreamManager()
+		sm := streaming.NewInMemoryStreamManager()
 		defer sm.Close()
 		handler := Handler(streamingFlow, WithStreamManager(sm))
 
@@ -363,7 +364,7 @@ data: {"result":"ab-done"}
 	})
 
 	t.Run("subscribe to non-existent stream returns 204", func(t *testing.T) {
-		sm := core.NewInMemoryStreamManager()
+		sm := streaming.NewInMemoryStreamManager()
 		defer sm.Close()
 		handler := Handler(streamingFlow, WithStreamManager(sm))
 

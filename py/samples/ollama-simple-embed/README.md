@@ -31,5 +31,5 @@ ollama pull phi3.5:latest
 ### Step 3: Execute Sample
 
 ```bash
-genkit start -- uv run src/pokemon_glossary.py
+genkit start -- uv run src/main.py
 ```
