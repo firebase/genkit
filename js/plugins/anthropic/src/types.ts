@@ -69,10 +69,16 @@ export interface ClaudeRunnerParams extends ClaudeHelperParamsBase {}
  */
 export const McpToolConfigSchema = z
   .object({
-    /** Whether this tool is enabled */
-    enabled: z.boolean().optional(),
-    /** Whether to defer loading this tool */
-    defer_loading: z.boolean().optional(),
+    enabled: z
+      .boolean()
+      .optional()
+      .describe('Whether this tool is enabled. Defaults to true.'),
+    defer_loading: z
+      .boolean()
+      .optional()
+      .describe(
+        'If true, tool description is not sent to the model initially. Used with Tool Search Tool.'
+      ),
   })
   .passthrough();
 
@@ -81,19 +87,26 @@ export const McpToolConfigSchema = z
  */
 export const McpServerConfigSchema = z
   .object({
-    /** Type must be 'url' for remote MCP servers */
-    type: z.literal('url'),
-    /** The URL of the MCP server (must be https) */
+    type: z
+      .literal('url')
+      .describe('Type of MCP server connection. Currently only "url" is supported.'),
     url: z
       .string()
       .url('MCP server URL must be a valid URL')
       .refine((url) => url.startsWith('https://'), {
         message: 'MCP server URL must use HTTPS protocol',
-      }),
-    /** A unique name for this MCP server */
-    name: z.string().min(1, 'MCP server name cannot be empty'),
-    /** Optional authorization token for the MCP server */
-    authorization_token: z.string().optional(),
+      })
+      .describe('The URL of the MCP server. Must start with https://.'),
+    name: z
+      .string()
+      .min(1, 'MCP server name cannot be empty')
+      .describe(
+        'A unique identifier for this MCP server. Must be referenced by exactly one MCPToolset.'
+      ),
+    authorization_token: z
+      .string()
+      .optional()
+      .describe('OAuth authorization token if required by the MCP server.'),
   })
   .passthrough();
 
@@ -102,14 +115,19 @@ export const McpServerConfigSchema = z
  */
 export const McpToolsetSchema = z
   .object({
-    /** Type must be 'mcp_toolset' */
-    type: z.literal('mcp_toolset'),
-    /** The name of the MCP server this toolset references */
-    mcp_server_name: z.string(),
-    /** Default configuration applied to all tools in this toolset */
-    default_config: McpToolConfigSchema.optional(),
-    /** Per-tool configuration overrides */
-    configs: z.record(z.string(), McpToolConfigSchema).optional(),
+    type: z.literal('mcp_toolset').describe('Type must be "mcp_toolset".'),
+    mcp_server_name: z
+      .string()
+      .describe('Must match a server name defined in the mcp_servers array.'),
+    default_config: McpToolConfigSchema.optional().describe(
+      'Default configuration applied to all tools. Individual tool configs will override these defaults.'
+    ),
+    configs: z
+      .record(z.string(), McpToolConfigSchema)
+      .optional()
+      .describe(
+        'Per-tool configuration overrides. Keys are tool names, values are configuration objects.'
+      ),
   })
   .passthrough();
 
