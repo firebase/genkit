@@ -22,11 +22,6 @@
 import type { Part } from 'genkit';
 
 /**
- * Key used to store Anthropic-specific thinking metadata in Genkit Part custom field.
- */
-export const ANTHROPIC_THINKING_CUSTOM_KEY = 'anthropicThinking';
-
-/**
  * Converts a text block to a Genkit Part.
  */
 export function textBlockToPart(block: { text: string }): Part {
@@ -60,9 +55,7 @@ export function thinkingBlockToPart(block: {
   if (block.signature !== undefined) {
     return {
       reasoning: block.thinking,
-      custom: {
-        [ANTHROPIC_THINKING_CUSTOM_KEY]: { signature: block.signature },
-      },
+      metadata: { thoughtSignature: block.signature },
     };
   }
   return { reasoning: block.thinking };
@@ -84,7 +77,7 @@ export function webSearchToolResultBlockToPart(block: {
 }): Part {
   return {
     text: `[Anthropic server tool result ${block.tool_use_id}] ${JSON.stringify(block.content)}`,
-    custom: {
+    metadata: {
       anthropicServerToolResult: {
         type: 'web_search_tool_result',
         toolUseId: block.tool_use_id,

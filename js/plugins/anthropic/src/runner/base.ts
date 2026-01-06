@@ -37,7 +37,6 @@ import {
   type ThinkingConfig,
 } from '../types.js';
 
-import { ANTHROPIC_THINKING_CUSTOM_KEY } from './converters/shared.js';
 import {
   RunnerContentBlockParam,
   RunnerMessage,
@@ -298,17 +297,10 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
   }
 
   protected getThinkingSignature(part: Part): string | undefined {
-    const custom = part.custom as Record<string, unknown> | undefined;
-    const thinkingValue = custom?.[ANTHROPIC_THINKING_CUSTOM_KEY];
-    if (
-      typeof thinkingValue === 'object' &&
-      thinkingValue !== null &&
-      'signature' in thinkingValue &&
-      typeof (thinkingValue as { signature: unknown }).signature === 'string'
-    ) {
-      return (thinkingValue as { signature: string }).signature;
-    }
-    return undefined;
+    const metadata = part.metadata as Record<string, unknown> | undefined;
+    return typeof metadata?.thoughtSignature === 'string'
+      ? metadata.thoughtSignature
+      : undefined;
   }
 
   protected getRedactedThinkingData(part: Part): string | undefined {

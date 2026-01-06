@@ -31,7 +31,7 @@ export function serverToolUseBlockToPart(block: {
 }): Part {
   return {
     text: `[Anthropic server tool ${block.name}] input: ${JSON.stringify(block.input)}`,
-    custom: {
+    metadata: {
       anthropicServerToolUse: {
         id: block.id,
         name: block.name,
