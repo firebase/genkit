@@ -124,7 +124,7 @@ func TestInMemoryStreamManager_WriteAndReceiveChunks(t *testing.T) {
 	// Write chunks
 	chunks := []string{"chunk1", "chunk2", "chunk3"}
 	for _, chunk := range chunks {
-		if err := writer.Write(ctx, json.RawMessage(`"` + chunk + `"`)); err != nil {
+		if err := writer.Write(ctx, json.RawMessage(`"`+chunk+`"`)); err != nil {
 			t.Fatalf("Write failed: %v", err)
 		}
 	}
@@ -385,7 +385,7 @@ func TestInMemoryStreamManager_LateSubscriberGetsBufferedChunks(t *testing.T) {
 	// Write chunks before any subscriber
 	chunks := []string{"early1", "early2"}
 	for _, chunk := range chunks {
-		if err := writer.Write(ctx, json.RawMessage(`"` + chunk + `"`)); err != nil {
+		if err := writer.Write(ctx, json.RawMessage(`"`+chunk+`"`)); err != nil {
 			t.Fatalf("Write failed: %v", err)
 		}
 	}
