@@ -24,6 +24,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/x/streaming"
 	"google.golang.org/api/iterator"
 )
 
@@ -118,10 +119,10 @@ func TestFirestoreStreamManager_OpenAndWrite(t *testing.T) {
 	chunk1, _ := json.Marshal(map[string]string{"foo": "bar"})
 	chunk2, _ := json.Marshal(map[string]string{"bar": "baz"})
 
-	if err := stream.Write(chunk1); err != nil {
+	if err := stream.Write(ctx, chunk1); err != nil {
 		t.Fatalf("Failed to write chunk 1: %v", err)
 	}
-	if err := stream.Write(chunk2); err != nil {
+	if err := stream.Write(ctx, chunk2); err != nil {
 		t.Fatalf("Failed to write chunk 2: %v", err)
 	}
 
@@ -167,10 +168,10 @@ func TestFirestoreStreamManager_PreserveDuplicateChunks(t *testing.T) {
 
 	chunk, _ := json.Marshal(map[string]string{"foo": "bar"})
 
-	if err := stream.Write(chunk); err != nil {
+	if err := stream.Write(ctx, chunk); err != nil {
 		t.Fatalf("Failed to write chunk 1: %v", err)
 	}
-	if err := stream.Write(chunk); err != nil {
+	if err := stream.Write(ctx, chunk); err != nil {
 		t.Fatalf("Failed to write chunk 2: %v", err)
 	}
 
@@ -206,7 +207,7 @@ func TestFirestoreStreamManager_Done(t *testing.T) {
 	}
 
 	output, _ := json.Marshal(map[string]string{"result": "success"})
-	if err := stream.Done(output); err != nil {
+	if err := stream.Done(ctx, output); err != nil {
 		t.Fatalf("Failed to mark stream done: %v", err)
 	}
 
@@ -245,7 +246,7 @@ func TestFirestoreStreamManager_Error(t *testing.T) {
 	}
 
 	testError := errors.New("test error message")
-	if err := stream.Error(testError); err != nil {
+	if err := stream.Error(ctx, testError); err != nil {
 		t.Fatalf("Failed to mark stream error: %v", err)
 	}
 
@@ -317,12 +318,12 @@ func TestFirestoreStreamManager_Subscribe(t *testing.T) {
 				goto verify
 			}
 			switch event.Type {
-			case core.StreamEventChunk:
+			case streaming.StreamEventChunk:
 				chunks = append(chunks, event.Chunk)
-			case core.StreamEventDone:
+			case streaming.StreamEventDone:
 				finalOutput = event.Output
 				goto verify
-			case core.StreamEventError:
+			case streaming.StreamEventError:
 				t.Fatalf("Unexpected error: %v", event.Err)
 			}
 		case <-timeout:
@@ -397,7 +398,7 @@ func TestFirestoreStreamManager_Timeout(t *testing.T) {
 				t.Fatal("Channel closed without timeout error")
 				return
 			}
-			if event.Type == core.StreamEventError {
+			if event.Type == streaming.StreamEventError {
 				publicErr, ok := event.Err.(*core.UserFacingError)
 				if !ok {
 					t.Fatalf("Expected UserFacingError, got %T", event.Err)
@@ -430,7 +431,7 @@ func TestFirestoreStreamManager_WriteAfterClose(t *testing.T) {
 	}
 
 	chunk, _ := json.Marshal(map[string]string{"foo": "bar"})
-	err = stream.Write(chunk)
+	err = stream.Write(ctx, chunk)
 	if err == nil {
 		t.Fatal("Expected error when writing after close")
 	}

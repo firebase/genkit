@@ -240,7 +240,7 @@ func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.A
 	w.Header().Set("X-Genkit-Stream-Id", streamID)
 
 	callback := func(ctx context.Context, msg json.RawMessage) error {
-		durableStream.Write(msg)
+		durableStream.Write(ctx, msg)
 		if err := writeSSEMessage(w, msg); err != nil {
 			return err
 		}
@@ -252,14 +252,14 @@ func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.A
 
 	out, err := a.RunJSON(ctx, input, callback)
 	if err != nil {
-		durableStream.Error(err)
+		durableStream.Error(ctx, err)
 		if werr := writeSSEError(w, err); werr != nil {
 			return werr
 		}
 		return nil
 	}
 
-	durableStream.Done(out)
+	durableStream.Done(ctx, out)
 	return writeSSEResult(w, out)
 }
 
@@ -371,9 +371,18 @@ func writeSSEMessage(w http.ResponseWriter, msg json.RawMessage) error {
 
 // writeSSEError writes an error as a server-sent event for streaming requests.
 func writeSSEError(w http.ResponseWriter, flowErr error) error {
+	status := core.INTERNAL
+	var ufErr *core.UserFacingError
+	var gErr *core.GenkitError
+	if errors.As(flowErr, &ufErr) {
+		status = ufErr.Status
+	} else if errors.As(flowErr, &gErr) {
+		status = gErr.Status
+	}
+
 	resp := flowErrorResponse{
 		Error: &flowError{
-			Status:  core.INTERNAL,
+			Status:  status,
 			Message: "stream flow error",
 			Details: flowErr.Error(),
 		},

@@ -27,6 +27,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/x/streaming"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -159,7 +160,7 @@ func NewFirestoreStreamManager(client *firestore.Client, opts ...FirestoreStream
 }
 
 // Open creates a new stream for writing.
-func (m *FirestoreStreamManager) Open(ctx context.Context, streamID string) (core.ActionStreamInput, error) {
+func (m *FirestoreStreamManager) Open(ctx context.Context, streamID string) (streaming.StreamInput, error) {
 	docRef := m.client.Collection(m.collection).Doc(streamID)
 	now := time.Now()
 	expiresAt := now.Add(m.timeout + m.ttl)
@@ -180,7 +181,7 @@ func (m *FirestoreStreamManager) Open(ctx context.Context, streamID string) (cor
 }
 
 // Subscribe subscribes to an existing stream.
-func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string) (<-chan core.StreamEvent, func(), error) {
+func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string) (<-chan streaming.StreamEvent, func(), error) {
 	docRef := m.client.Collection(m.collection).Doc(streamID)
 
 	snapshot, err := docRef.Get(ctx)
@@ -194,7 +195,7 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 		return nil, nil, core.NewPublicError(core.NOT_FOUND, "stream not found", nil)
 	}
 
-	ch := make(chan core.StreamEvent, streamBufferSize)
+	ch := make(chan streaming.StreamEvent, streamBufferSize)
 	var mu sync.Mutex
 	var lastIndex int = -1
 	var unsubscribed bool
@@ -214,8 +215,8 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 			defer mu.Unlock()
 			if !unsubscribed {
 				unsubscribed = true
-				ch <- core.StreamEvent{
-					Type: core.StreamEventError,
+				ch <- streaming.StreamEvent{
+					Type: streaming.StreamEventError,
 					Err:  core.NewPublicError(core.DEADLINE_EXCEEDED, "stream timed out", nil),
 				}
 				close(ch)
@@ -249,8 +250,8 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 				mu.Lock()
 				if !unsubscribed {
 					if snapshotCtx.Err() == nil {
-						ch <- core.StreamEvent{
-							Type: core.StreamEventError,
+						ch <- streaming.StreamEvent{
+							Type: streaming.StreamEventError,
 							Err:  err,
 						}
 					}
@@ -274,8 +275,8 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 			if err := snap.DataTo(&doc); err != nil {
 				mu.Lock()
 				if !unsubscribed {
-					ch <- core.StreamEvent{
-						Type: core.StreamEventError,
+					ch <- streaming.StreamEvent{
+						Type: streaming.StreamEventError,
 						Err:  err,
 					}
 					unsubscribed = true
@@ -295,13 +296,13 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 				case streamEventChunk:
 					if !unsubscribed {
 						select {
-						case ch <- core.StreamEvent{Type: core.StreamEventChunk, Chunk: entry.Chunk}:
+						case ch <- streaming.StreamEvent{Type: streaming.StreamEventChunk, Chunk: entry.Chunk}:
 						default:
 						}
 					}
 				case streamEventDone:
 					if !unsubscribed {
-						ch <- core.StreamEvent{Type: core.StreamEventDone, Output: entry.Output}
+						ch <- streaming.StreamEvent{Type: streaming.StreamEventDone, Output: entry.Output}
 						unsubscribed = true
 						if timeoutTimer != nil {
 							timeoutTimer.Stop()
@@ -316,8 +317,8 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 						if entry.Err != nil {
 							errMsg = entry.Err.Message
 						}
-						ch <- core.StreamEvent{
-							Type: core.StreamEventError,
+						ch <- streaming.StreamEvent{
+							Type: streaming.StreamEventError,
 							Err:  core.NewPublicError(core.UNKNOWN, errMsg, nil),
 						}
 						unsubscribed = true
@@ -349,7 +350,7 @@ func isNotFound(err error) bool {
 	return false
 }
 
-// firestoreStreamInput implements core.ActionStreamInput for Firestore.
+// firestoreStreamInput implements streaming.StreamInput for Firestore.
 type firestoreStreamInput struct {
 	manager  *FirestoreStreamManager
 	streamID string
@@ -358,15 +359,14 @@ type firestoreStreamInput struct {
 	mu       sync.Mutex
 }
 
-func (s *firestoreStreamInput) Write(chunk json.RawMessage) error {
+func (s *firestoreStreamInput) Write(ctx context.Context, chunk json.RawMessage) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.closed {
-		s.mu.Unlock()
 		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
-	s.mu.Unlock()
 
-	ctx := context.Background()
 	_, err := s.docRef.Update(ctx, []firestore.Update{
 		{
 			Path: "stream",
@@ -384,17 +384,16 @@ func (s *firestoreStreamInput) Write(chunk json.RawMessage) error {
 	return err
 }
 
-func (s *firestoreStreamInput) Done(output json.RawMessage) error {
+func (s *firestoreStreamInput) Done(ctx context.Context, output json.RawMessage) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.closed {
-		s.mu.Unlock()
 		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
-	s.mu.Unlock()
 
 	expiresAt := time.Now().Add(s.manager.ttl)
-	ctx := context.Background()
 	_, err := s.docRef.Update(ctx, []firestore.Update{
 		{
 			Path: "stream",
@@ -415,17 +414,16 @@ func (s *firestoreStreamInput) Done(output json.RawMessage) error {
 	return err
 }
 
-func (s *firestoreStreamInput) Error(err error) error {
+func (s *firestoreStreamInput) Error(ctx context.Context, err error) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.closed {
-		s.mu.Unlock()
 		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
-	s.mu.Unlock()
 
 	expiresAt := time.Now().Add(s.manager.ttl)
-	ctx := context.Background()
 	_, updateErr := s.docRef.Update(ctx, []firestore.Update{
 		{
 			Path: "stream",
