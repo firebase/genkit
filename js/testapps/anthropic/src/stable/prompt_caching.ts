@@ -47,9 +47,7 @@ ai.defineFlow('caching system prompt', async () => {
     messages: [
       {
         role: 'user',
-        content: [
-          { text: 'What is the main idea of the text?' },
-        ],
+        content: [{ text: 'What is the main idea of the text?' }],
       },
     ],
   });
