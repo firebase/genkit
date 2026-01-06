@@ -139,11 +139,48 @@ interface BetaRunnerTypes extends RunnerTypes {
 }
 
 /**
+ * Return type for _prepareConfigAndTools helper.
+ */
+interface PreparedConfigAndTools {
+  topP: number | undefined;
+  topK: number | undefined;
+  mcp_servers: unknown[] | undefined;
+  tools: unknown[] | undefined;
+  restConfig: Record<string, unknown>;
+}
+
+/**
  * Runner for the Anthropic Beta API.
  */
 export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
   constructor(params: ClaudeRunnerParams) {
     super(params);
+  }
+
+  /**
+   * Extract and prepare config fields and tools array from request.
+   * Handles MCP toolset merging with regular tools.
+   */
+  private _prepareConfigAndTools(
+    request: GenerateRequest<typeof AnthropicConfigSchema>
+  ): PreparedConfigAndTools {
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      mcp_servers,
+      mcp_toolsets,
+      ...restConfig
+    } = request.config ?? {};
+
+    const genkitTools = request.tools?.map((tool) => this.toAnthropicTool(tool));
+    const tools =
+      genkitTools || mcp_toolsets
+        ? [...(genkitTools ?? []), ...(mcp_toolsets ?? [])]
+        : undefined;
+
+    return { topP, topK, mcp_servers, tools, restConfig };
   }
 
   /**
@@ -323,27 +360,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
-    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
-    // Thinking is extracted separately to avoid type issues.
-    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
-    // MCP config (mcp_servers, mcp_toolsets) is extracted separately to handle toolset merging.
-    const {
-      topP,
-      topK,
-      apiVersion: _1,
-      thinking: _2,
-      mcp_servers,
-      mcp_toolsets,
-      ...restConfig
-    } = request.config ?? {};
-
-    // Build tools array, merging regular tools with MCP toolsets
-    const genkitTools = request.tools?.map((tool) => this.toAnthropicTool(tool));
-    const tools =
-      genkitTools || mcp_toolsets
-        ? [...(genkitTools ?? []), ...(mcp_toolsets ?? [])]
-        : undefined;
+    const { topP, topK, mcp_servers, tools, restConfig } =
+      this._prepareConfigAndTools(request);
 
     const body = {
       model: mappedModelName,
@@ -405,27 +423,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
-    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
-    // Thinking is extracted separately to avoid type issues.
-    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
-    // MCP config (mcp_servers, mcp_toolsets) is extracted separately to handle toolset merging.
-    const {
-      topP,
-      topK,
-      apiVersion: _1,
-      thinking: _2,
-      mcp_servers,
-      mcp_toolsets,
-      ...restConfig
-    } = request.config ?? {};
-
-    // Build tools array, merging regular tools with MCP toolsets
-    const genkitTools = request.tools?.map((tool) => this.toAnthropicTool(tool));
-    const tools =
-      genkitTools || mcp_toolsets
-        ? [...(genkitTools ?? []), ...(mcp_toolsets ?? [])]
-        : undefined;
+    const { topP, topK, mcp_servers, tools, restConfig } =
+      this._prepareConfigAndTools(request);
 
     const body = {
       model: mappedModelName,
