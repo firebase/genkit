@@ -517,11 +517,24 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       }
 
       case 'mcp_tool_use': {
-        const serverName =
-          'server_name' in contentBlock
-            ? (contentBlock.server_name as string)
-            : 'unknown_server';
+        let serverName: string;
+        if (
+          'server_name' in contentBlock &&
+          typeof contentBlock.server_name === 'string'
+        ) {
+          serverName = contentBlock.server_name;
+        } else {
+          serverName = 'unknown_server';
+          logger.warn(
+            `MCP tool use block missing 'server_name' field. Block id: ${contentBlock.id}`
+          );
+        }
         const toolName = contentBlock.name ?? 'unknown_tool';
+        if (!contentBlock.name) {
+          logger.warn(
+            `MCP tool use block missing 'name' field. Block id: ${contentBlock.id}`
+          );
+        }
         return {
           text: `[Anthropic MCP tool ${serverName}/${toolName}] input: ${JSON.stringify(contentBlock.input)}`,
           custom: {
@@ -542,11 +555,23 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
             ? (contentBlock.tool_use_id as string)
             : 'unknown';
         const isError =
-          'is_error' in contentBlock ? (contentBlock.is_error as boolean) : false;
+          'is_error' in contentBlock &&
+          typeof contentBlock.is_error === 'boolean'
+            ? contentBlock.is_error
+            : false;
         const content =
           'content' in contentBlock ? contentBlock.content : undefined;
+
+        // Log MCP tool errors so they don't go unnoticed
+        if (isError) {
+          logger.warn(
+            `MCP tool execution failed for tool_use_id '${toolUseId}'. Content: ${JSON.stringify(content)}`
+          );
+        }
+
+        const statusPrefix = isError ? '[ERROR] ' : '';
         return {
-          text: `[Anthropic MCP tool result ${toolUseId}] ${JSON.stringify(content)}`,
+          text: `${statusPrefix}[Anthropic MCP tool result ${toolUseId}] ${JSON.stringify(content)}`,
           custom: {
             anthropicMcpToolResult: {
               toolUseId,

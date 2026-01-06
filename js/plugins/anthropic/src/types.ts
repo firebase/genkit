@@ -84,9 +84,14 @@ export const McpServerConfigSchema = z
     /** Type must be 'url' for remote MCP servers */
     type: z.literal('url'),
     /** The URL of the MCP server (must be https) */
-    url: z.string(),
+    url: z
+      .string()
+      .url('MCP server URL must be a valid URL')
+      .refine((url) => url.startsWith('https://'), {
+        message: 'MCP server URL must use HTTPS protocol',
+      }),
     /** A unique name for this MCP server */
-    name: z.string(),
+    name: z.string().min(1, 'MCP server name cannot be empty'),
     /** Optional authorization token for the MCP server */
     authorization_token: z.string().optional(),
   })
@@ -202,7 +207,53 @@ export const AnthropicThinkingConfigSchema = AnthropicBaseConfigSchema.extend({
   ),
 }).passthrough();
 
-export const AnthropicConfigSchema = AnthropicThinkingConfigSchema;
+/**
+ * Validates MCP configuration:
+ * - MCP server names must be unique
+ * - MCP toolsets must reference servers defined in mcp_servers
+ */
+function validateMcpConfig(
+  config: z.infer<typeof AnthropicThinkingConfigSchema>,
+  ctx: z.RefinementCtx
+): void {
+  // Validate MCP server name uniqueness
+  if (config.mcp_servers && config.mcp_servers.length > 1) {
+    const names = config.mcp_servers.map(
+      (s: z.infer<typeof McpServerConfigSchema>) => s.name
+    );
+    const uniqueNames = new Set(names);
+    if (uniqueNames.size !== names.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['mcp_servers'],
+        message: 'MCP server names must be unique',
+      });
+    }
+  }
+
+  // Validate mcp_server_name references exist in mcp_servers
+  if (config.mcp_toolsets && config.mcp_toolsets.length > 0) {
+    const serverNames = new Set(
+      config.mcp_servers?.map(
+        (s: z.infer<typeof McpServerConfigSchema>) => s.name
+      ) ?? []
+    );
+    config.mcp_toolsets.forEach(
+      (toolset: z.infer<typeof McpToolsetSchema>, i: number) => {
+        if (!serverNames.has(toolset.mcp_server_name)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mcp_toolsets', i, 'mcp_server_name'],
+            message: `MCP toolset references unknown server '${toolset.mcp_server_name}'. Available servers: ${[...serverNames].join(', ') || '(none)'}`,
+          });
+        }
+      }
+    );
+  }
+}
+
+export const AnthropicConfigSchema =
+  AnthropicThinkingConfigSchema.superRefine(validateMcpConfig);
 
 export type ThinkingConfig = z.infer<typeof ThinkingConfigSchema>;
 export type AnthropicBaseConfig = z.infer<typeof AnthropicBaseConfigSchema>;

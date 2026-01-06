@@ -125,8 +125,9 @@ if (mcpToolUse) {
 
 **Response Structure:**
 
-When Claude uses an MCP tool, the response contains:
+When Claude uses an MCP tool, the response contains parts for both tool invocation and results:
 
+**Tool Invocation (`mcp_tool_use`):**
 - `text`: Human-readable description of the tool invocation
 - `custom.anthropicMcpToolUse`: Structured tool use data
   - `id`: Unique tool use identifier
@@ -135,7 +136,36 @@ When Claude uses an MCP tool, the response contains:
   - `toolName`: Tool name on the server
   - `input`: Tool input parameters
 
+**Tool Result (`mcp_tool_result`):**
+- `text`: Human-readable result (prefixed with `[ERROR]` if execution failed)
+- `custom.anthropicMcpToolResult`: Structured result data
+  - `toolUseId`: Reference to the original tool use
+  - `isError`: Boolean indicating if the tool execution failed
+  - `content`: The tool execution result
+
+```typescript
+// Access MCP tool results from the response
+const mcpToolResult = response.message?.content.find(
+  (part) => part.custom?.anthropicMcpToolResult
+);
+if (mcpToolResult?.custom?.anthropicMcpToolResult) {
+  const result = mcpToolResult.custom.anthropicMcpToolResult;
+  if (result.isError) {
+    console.error('MCP tool failed:', result.content);
+  } else {
+    console.log('MCP tool result:', result.content);
+  }
+}
+```
+
 **Note:** MCP tools are server-managed - they execute on Anthropic's infrastructure, not locally. The response will include both the tool invocation (`mcp_tool_use`) and results (`mcp_tool_result`) as they occur.
+
+**Configuration Validation:**
+
+The plugin validates MCP configuration at runtime:
+- MCP server URLs must use HTTPS protocol
+- MCP server names must be unique
+- MCP toolsets must reference servers defined in `mcp_servers`
 
 ### Beta API Limitations
 
