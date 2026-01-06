@@ -387,11 +387,6 @@ export class Runner extends BaseRunner<RunnerTypes> {
           return webSearchToolResultBlockToPart(block);
 
         default: {
-          // Exhaustive check (uncomment when all types are handled):
-          // const _exhaustive: never = block;
-          // throw new Error(
-          //   `Unhandled block type: ${(_exhaustive as { type: string }).type}`
-          // );
           const unknownType = (block as { type: string }).type;
           logger.warn(
             `Unexpected Anthropic content block type in stream: ${unknownType}. Returning undefined. Content block: ${JSON.stringify(block)}`

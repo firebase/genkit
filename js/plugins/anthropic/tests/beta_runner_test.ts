@@ -775,15 +775,6 @@ describe('BetaRunner', () => {
       },
     });
 
-    // Unknown block types log a warning and return empty text
-    // (Exhaustive check is commented out for forward compatibility)
-    // assert.throws(
-    //   () =>
-    //     (runner as any).fromBetaContentBlock({
-    //       type: 'mystery',
-    //     }),
-    //   /Unhandled block type: mystery/
-    // );
     const warnMock = mock.method(console, 'warn', () => {});
     const fallbackPart = (runner as any).fromBetaContentBlock({
       type: 'mystery',

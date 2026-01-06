@@ -509,11 +509,6 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         throw new Error(unsupportedServerToolError(contentBlock.type));
 
       default: {
-        // Exhaustive check (uncomment when all types are handled):
-        // const _exhaustive: never = contentBlock;
-        // throw new Error(
-        //   `Unhandled block type: ${(_exhaustive as { type: string }).type}`
-        // );
         const unknownType = (contentBlock as { type: string }).type;
         logger.warn(
           `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
