@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"iter"
 	"log/slog"
 	"os"
@@ -47,6 +48,7 @@ type Genkit struct {
 type genkitOptions struct {
 	DefaultModel string       // Default model to use if no other model is specified.
 	PromptDir    string       // Directory where dotprompts are stored. Will be loaded automatically on initialization.
+	PromptFS     fs.FS        // Embedded filesystem containing prompts (alternative to PromptDir).
 	Plugins      []api.Plugin // Plugin to initialize automatically.
 }
 
@@ -67,6 +69,20 @@ func (o *genkitOptions) apply(gOpts *genkitOptions) error {
 		if gOpts.PromptDir != "" {
 			return errors.New("cannot set prompt directory more than once (WithPromptDir)")
 		}
+		if gOpts.PromptFS != nil {
+			return errors.New("cannot use WithPromptDir together with WithPromptFS")
+		}
+		gOpts.PromptDir = o.PromptDir
+	}
+
+	if o.PromptFS != nil {
+		if gOpts.PromptFS != nil {
+			return errors.New("cannot set prompt filesystem more than once (WithPromptFS)")
+		}
+		if gOpts.PromptDir != "" {
+			return errors.New("cannot use WithPromptFS together with WithPromptDir")
+		}
+		gOpts.PromptFS = o.PromptFS
 		gOpts.PromptDir = o.PromptDir
 	}
 
@@ -100,11 +116,42 @@ func WithDefaultModel(model string) GenkitOption {
 // The default directory is "prompts" relative to the project root where
 // [Init] is called.
 //
+// When used with [WithPromptFS], this directory serves as the root path within
+// the embedded filesystem instead of a local disk path. For example, if using
+// `//go:embed prompts/*`, set the directory to "prompts" to match.
+//
 // Invalid prompt files will result in logged errors during initialization,
 // while valid files that define invalid prompts will cause [Init] to panic.
-// This option can only be applied once.
 func WithPromptDir(dir string) GenkitOption {
 	return &genkitOptions{PromptDir: dir}
+}
+
+// WithPromptFS specifies an embedded filesystem ([fs.FS]) containing `.prompt` files.
+// This is useful for embedding prompts directly into the binary using Go's [embed] package,
+// eliminating the need to distribute prompt files separately.
+//
+// The `fsys` parameter should be an [fs.FS] implementation (e.g., [embed.FS]).
+// Use [WithPromptDir] to specify the root directory within the filesystem where
+// prompts are located (defaults to "prompts").
+//
+// Example:
+//
+//	import "embed"
+//
+//	//go:embed prompts/*
+//	var promptsFS embed.FS
+//
+//	func main() {
+//		g := genkit.Init(ctx,
+//			genkit.WithPromptFS(promptsFS),
+//			genkit.WithPromptDir("prompts"),
+//		)
+//	}
+//
+// Invalid prompt files will result in logged errors during initialization,
+// while valid files that define invalid prompts will cause [Init] to panic.
+func WithPromptFS(fsys fs.FS) GenkitOption {
+	return &genkitOptions{PromptFS: fsys}
 }
 
 // Init creates and initializes a new [Genkit] instance with the provided options.
@@ -185,7 +232,15 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 
 	ai.ConfigureFormats(r)
 	ai.DefineGenerateAction(ctx, r)
-	ai.LoadPromptDir(r, gOpts.PromptDir, "")
+	if gOpts.PromptFS != nil {
+		dir := gOpts.PromptDir
+		if dir == "" {
+			dir = "prompts"
+		}
+		ai.LoadPromptDirFromFS(r, gOpts.PromptFS, dir, "")
+	} else {
+		loadPromptDirOS(r, gOpts.PromptDir, "")
+	}
 
 	r.RegisterValue(api.DefaultModelKey, gOpts.DefaultModel)
 	r.RegisterValue(api.PromptDirKey, gOpts.PromptDir)
@@ -1127,8 +1182,67 @@ func Evaluate(ctx context.Context, g *Genkit, opts ...ai.EvaluatorOption) (*ai.E
 // This function is often called implicitly by [Init] using the directory specified
 // by [WithPromptDir], but can be called explicitly to load prompts from other
 // locations or with different namespaces.
-func LoadPromptDir(g *Genkit, dir string, namespace string) {
-	ai.LoadPromptDir(g.reg, dir, namespace)
+func LoadPromptDir(g *Genkit, dir, namespace string) {
+	loadPromptDirOS(g.reg, dir, namespace)
+}
+
+// loadPromptDirOS loads prompts from an OS directory by converting to os.DirFS.
+func loadPromptDirOS(r api.Registry, dir, namespace string) {
+	useDefaultDir := false
+	if dir == "" {
+		dir = "./prompts"
+		useDefaultDir = true
+	}
+
+	absPath, err := filepath.Abs(dir)
+	if err != nil {
+		if !useDefaultDir {
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
+		}
+		slog.Debug("default prompt directory not found, skipping loading .prompt files", "dir", dir)
+		return
+	}
+
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		if !useDefaultDir {
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
+		}
+		slog.Debug("Default prompt directory not found, skipping loading .prompt files", "dir", dir)
+		return
+	}
+
+	ai.LoadPromptDirFromFS(r, os.DirFS(absPath), ".", namespace)
+}
+
+// LoadPromptDirFromFS loads all `.prompt` files from the specified embedded filesystem `fsys`
+// into the registry, associating them with the given `namespace`.
+// Files starting with `_` are treated as partials and are not registered as
+// executable prompts but can be included in other prompts.
+//
+// The `fsys` parameter should be an [fs.FS] implementation (e.g., [embed.FS]).
+// The `dir` parameter specifies the directory within the filesystem where
+// prompts are located (e.g., "prompts" if using `//go:embed prompts/*`).
+// The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
+// file "greeting.prompt" results in prompt name "myApp/greeting"). Use an empty
+// string for no namespace.
+//
+// This function provides an alternative to [LoadPromptDir] for loading prompts
+// from embedded filesystems, enabling self-contained binaries without external
+// prompt files.
+//
+// Example:
+//
+//	import "embed"
+//
+//	//go:embed prompts/*
+//	var promptsFS embed.FS
+//
+//	func main() {
+//		g := genkit.Init(ctx)
+//		genkit.LoadPromptDirFromFS(g, promptsFS, "prompts", "myNamespace")
+//	}
+func LoadPromptDirFromFS(g *Genkit, fsys fs.FS, dir, namespace string) {
+	ai.LoadPromptDirFromFS(g.reg, fsys, dir, namespace)
 }
 
 // LoadPrompt loads a single `.prompt` file specified by `path` into the registry,
@@ -1153,13 +1267,49 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 //	// Execute the loaded prompt
 //	resp, err := customPrompt.Execute(ctx, ai.WithInput(map[string]any{"text": "some data"}))
 //	// ... handle response and error ...
-func LoadPrompt(g *Genkit, path string, namespace string) ai.Prompt {
+func LoadPrompt(g *Genkit, path, namespace string) ai.Prompt {
 	dir, filename := filepath.Split(path)
-	if dir != "" {
+	if dir == "" {
+		dir = "."
+	} else {
 		dir = filepath.Clean(dir)
 	}
 
-	return ai.LoadPrompt(g.reg, dir, filename, namespace)
+	return ai.LoadPromptFromFS(g.reg, os.DirFS(dir), ".", filename, namespace)
+}
+
+// LoadPromptFromSource loads a prompt from raw `.prompt` file content (frontmatter + template)
+// into the registry and returns the resulting [ai.Prompt].
+//
+// The `source` parameter should contain the complete `.prompt` file text, including
+// the YAML frontmatter (delimited by `---`) and the template body.
+// The `name` parameter is the prompt name, which may include a variant suffix
+// (e.g., "greeting" or "greeting.formal").
+// The `namespace` acts as a prefix to the prompt name. Use an empty string for no namespace.
+//
+// This is useful for loading prompts from sources other than the filesystem,
+// such as databases, environment variables, or embedded strings.
+//
+// Example:
+//
+//	promptSource := `---
+//	model: googleai/gemini-2.5-flash
+//	input:
+//	  schema:
+//	    name: string
+//	---
+//	Hello, {{name}}!
+//	`
+//
+//	prompt, err := genkit.LoadPromptFromSource(g, promptSource, "greeting", "myApp")
+//	if err != nil {
+//		log.Fatalf("Failed to load prompt: %v", err)
+//	}
+//
+//	resp, err := prompt.Execute(ctx, ai.WithInput(map[string]any{"name": "World"}))
+//	// ...
+func LoadPromptFromSource(g *Genkit, source, name, namespace string) (ai.Prompt, error) {
+	return ai.LoadPromptFromSource(g.reg, source, name, namespace)
 }
 
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
