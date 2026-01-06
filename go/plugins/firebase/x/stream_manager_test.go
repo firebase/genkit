@@ -108,6 +108,32 @@ func deleteStreamCollection(ctx context.Context, client *firestore.Client, colle
 	}
 }
 
+func TestFirestoreStreamManager_OpenDuplicateFails(t *testing.T) {
+	manager, _, cleanup := setupTestStreamManager(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	streamID := "test-stream-dup"
+
+	_, err := manager.Open(ctx, streamID)
+	if err != nil {
+		t.Fatalf("First Open failed: %v", err)
+	}
+
+	_, err = manager.Open(ctx, streamID)
+	if err == nil {
+		t.Fatal("Expected error when opening duplicate stream")
+	}
+
+	publicErr, ok := err.(*core.UserFacingError)
+	if !ok {
+		t.Fatalf("Expected UserFacingError, got %T", err)
+	}
+	if publicErr.Status != core.ALREADY_EXISTS {
+		t.Errorf("Expected ALREADY_EXISTS error, got %v", publicErr.Status)
+	}
+}
+
 func TestFirestoreStreamManager_OpenAndWrite(t *testing.T) {
 	manager, client, cleanup := setupTestStreamManager(t)
 	defer cleanup()
@@ -275,9 +301,47 @@ func TestFirestoreStreamManager_Error(t *testing.T) {
 	if errData["message"] != "test error message" {
 		t.Errorf("Expected error message 'test error message', got %v", errData["message"])
 	}
+	if errData["status"] != string(core.UNKNOWN) {
+		t.Errorf("Expected status UNKNOWN for plain error, got %v", errData["status"])
+	}
 
 	if data["expiresAt"] == nil {
 		t.Error("Expected expiresAt to be set after error")
+	}
+}
+
+func TestFirestoreStreamManager_ErrorStatusPreserved(t *testing.T) {
+	manager, client, cleanup := setupTestStreamManager(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	streamID := "test-stream-error-status"
+
+	stream, err := manager.Open(ctx, streamID)
+	if err != nil {
+		t.Fatalf("Failed to open stream: %v", err)
+	}
+
+	testError := core.NewPublicError(core.INVALID_ARGUMENT, "invalid input", nil)
+	if err := stream.Error(ctx, testError); err != nil {
+		t.Fatalf("Failed to mark stream error: %v", err)
+	}
+
+	snapshot, err := client.Collection(*testStreamCollection).Doc(streamID).Get(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get document: %v", err)
+	}
+
+	data := snapshot.Data()
+	streamArr, _ := data["stream"].([]interface{})
+	entry, _ := streamArr[0].(map[string]interface{})
+	errData, _ := entry["err"].(map[string]interface{})
+
+	if errData["status"] != string(core.INVALID_ARGUMENT) {
+		t.Errorf("Expected status INVALID_ARGUMENT, got %v", errData["status"])
+	}
+	if errData["message"] != "invalid input" {
+		t.Errorf("Expected message 'invalid input', got %v", errData["message"])
 	}
 }
 
@@ -341,6 +405,54 @@ verify:
 	}
 	if finalOutput == nil {
 		t.Error("Expected final output")
+	}
+}
+
+func TestFirestoreStreamManager_SubscribeErrorStatusPreserved(t *testing.T) {
+	manager, client, cleanup := setupTestStreamManager(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	streamID := "test-stream-sub-error-status"
+
+	_, err := client.Collection(*testStreamCollection).Doc(streamID).Set(ctx, map[string]interface{}{
+		"stream": []map[string]interface{}{
+			{"type": "error", "err": map[string]interface{}{
+				"status":  string(core.INVALID_ARGUMENT),
+				"message": "bad input",
+			}},
+		},
+		"createdAt": time.Now(),
+		"updatedAt": time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test document: %v", err)
+	}
+
+	ch, unsubscribe, err := manager.Subscribe(ctx, streamID)
+	if err != nil {
+		t.Fatalf("Failed to subscribe: %v", err)
+	}
+	defer unsubscribe()
+
+	timeout := time.After(5 * time.Second)
+	select {
+	case event, ok := <-ch:
+		if !ok {
+			t.Fatal("Channel closed unexpectedly")
+		}
+		if event.Type != streaming.StreamEventError {
+			t.Fatalf("Expected error event, got %v", event.Type)
+		}
+		publicErr, ok := event.Err.(*core.UserFacingError)
+		if !ok {
+			t.Fatalf("Expected UserFacingError, got %T", event.Err)
+		}
+		if publicErr.Status != core.INVALID_ARGUMENT {
+			t.Errorf("Expected INVALID_ARGUMENT status, got %v", publicErr.Status)
+		}
+	case <-timeout:
+		t.Fatal("Timeout waiting for error event")
 	}
 }
 

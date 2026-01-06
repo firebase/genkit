@@ -130,6 +130,7 @@ type streamEntry struct {
 
 // streamError represents a serializable error for Firestore storage.
 type streamError struct {
+	Status  string `firestore:"status"`
 	Message string `firestore:"message"`
 }
 
@@ -179,17 +180,21 @@ func NewFirestoreStreamManager(ctx context.Context, g *genkit.Genkit, opts ...Fi
 }
 
 // Open creates a new stream for writing.
+// Returns ALREADY_EXISTS error if a stream with the given ID already exists.
 func (m *FirestoreStreamManager) Open(ctx context.Context, streamID string) (streaming.StreamInput, error) {
 	docRef := m.client.Collection(m.collection).Doc(streamID)
 	now := time.Now()
 	expiresAt := now.Add(m.timeout + m.ttl)
-	_, err := docRef.Set(ctx, streamDocument{
+	_, err := docRef.Create(ctx, streamDocument{
 		Stream:    []streamEntry{},
 		CreatedAt: now,
 		UpdatedAt: now,
 		ExpiresAt: &expiresAt,
 	})
 	if err != nil {
+		if status.Code(err) == codes.AlreadyExists {
+			return nil, core.NewPublicError(core.ALREADY_EXISTS, "stream already exists", nil)
+		}
 		return nil, err
 	}
 	return &firestoreStreamInput{
@@ -321,7 +326,10 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 					}
 				case streamEventDone:
 					if !unsubscribed {
-						ch <- streaming.StreamEvent{Type: streaming.StreamEventDone, Output: entry.Output}
+						select {
+						case ch <- streaming.StreamEvent{Type: streaming.StreamEventDone, Output: entry.Output}:
+						default:
+						}
 						unsubscribed = true
 						if timeoutTimer != nil {
 							timeoutTimer.Stop()
@@ -332,13 +340,20 @@ func (m *FirestoreStreamManager) Subscribe(ctx context.Context, streamID string)
 					return
 				case streamEventError:
 					if !unsubscribed {
+						var errStatus core.StatusName = core.UNKNOWN
 						var errMsg string
 						if entry.Err != nil {
 							errMsg = entry.Err.Message
+							if entry.Err.Status != "" {
+								errStatus = core.StatusName(entry.Err.Status)
+							}
 						}
-						ch <- streaming.StreamEvent{
+						select {
+						case ch <- streaming.StreamEvent{
 							Type: streaming.StreamEventError,
-							Err:  core.NewPublicError(core.UNKNOWN, errMsg, nil),
+							Err:  core.NewPublicError(errStatus, errMsg, nil),
+						}:
+						default:
 						}
 						unsubscribed = true
 						if timeoutTimer != nil {
@@ -442,13 +457,22 @@ func (s *firestoreStreamInput) Error(ctx context.Context, err error) error {
 	}
 	s.closed = true
 
+	streamErr := &streamError{
+		Status:  string(core.UNKNOWN),
+		Message: err.Error(),
+	}
+	var ufErr *core.UserFacingError
+	if errors.As(err, &ufErr) {
+		streamErr.Status = string(ufErr.Status)
+	}
+
 	expiresAt := time.Now().Add(s.manager.ttl)
 	_, updateErr := s.docRef.Update(ctx, []firestore.Update{
 		{
 			Path: "stream",
 			Value: firestore.ArrayUnion(streamEntry{
 				Type: streamEventError,
-				Err:  &streamError{Message: err.Error()},
+				Err:  streamErr,
 			}),
 		},
 		{
