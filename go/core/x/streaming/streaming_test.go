@@ -787,4 +787,3 @@ func TestInMemoryStreamManager_DoneAfterClose(t *testing.T) {
 		t.Errorf("Expected FAILED_PRECONDITION status, got %v", ufErr.Status)
 	}
 }
-
