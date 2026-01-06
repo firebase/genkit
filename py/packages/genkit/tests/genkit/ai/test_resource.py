@@ -20,6 +20,7 @@ in the Genkit framework. It covers static resources, template-based resources,
 dynamic resource matching, and metadata handling.
 """
 
+import pytest
 import asyncio
 
 from genkit.blocks.resource import define_resource, resolve_resources, resource
@@ -51,7 +52,8 @@ def test_define_resource():
     assert looked_up == act
 
 
-def test_resolve_resources():
+@pytest.mark.asyncio
+async def test_resolve_resources():
     """Verifies resolving resource references into Action objects.
     Checks:
     - Resolving by string name works.
@@ -64,26 +66,17 @@ def test_resolve_resources():
 
     act = define_resource(registry, {'name': 'my-resource', 'uri': 'http://example.com/foo'}, my_resource_fn)
 
-    import asyncio
+    resolved = await resolve_resources(registry, ['my-resource'])
+    assert len(resolved) == 1
+    assert resolved[0] == act
 
-    # Python 3.10+ compatible run
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        resolved = loop.run_until_complete(resolve_resources(registry, ['my-resource']))
-        assert len(resolved) == 1
-        assert resolved[0] == act
-
-        resolved_obj = loop.run_until_complete(resolve_resources(registry, [act]))
-        assert len(resolved_obj) == 1
-        assert resolved_obj[0] == act
-
-    finally:
-        loop.close()
+    resolved_obj = await resolve_resources(registry, [act])
+    assert len(resolved_obj) == 1
+    assert resolved_obj[0] == act
 
 
-def test_find_matching_resource():
+@pytest.mark.asyncio
+async def test_find_matching_resource():
     """Verifies the logic for finding a matching resource given an input URI.
     Checks:
     - Exact match against registered static resources.
@@ -113,28 +106,21 @@ def test_find_matching_resource():
 
     from genkit.blocks.resource import ResourceInput, find_matching_resource
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # Match static from registry
+    res = await find_matching_resource(registry, [], ResourceInput(uri='bar://baz'))
+    assert res == static_res
 
-    try:
-        # Match static from registry
-        res = loop.run_until_complete(find_matching_resource(registry, [], ResourceInput(uri='bar://baz')))
-        assert res == static_res
+    # Match template from registry
+    res = await find_matching_resource(registry, [], ResourceInput(uri='foo://bar/something'))
+    assert res == template_res
 
-        # Match template from registry
-        res = loop.run_until_complete(find_matching_resource(registry, [], ResourceInput(uri='foo://bar/something')))
-        assert res == template_res
+    # Match dynamic from list
+    res = await find_matching_resource(registry, [dynamic_res], ResourceInput(uri='baz://qux'))
+    assert res == dynamic_res
 
-        # Match dynamic from list
-        res = loop.run_until_complete(find_matching_resource(registry, [dynamic_res], ResourceInput(uri='baz://qux')))
-        assert res == dynamic_res
-
-        # No match
-        res = loop.run_until_complete(find_matching_resource(registry, [], ResourceInput(uri='unknown://uri')))
-        assert res is None
-
-    finally:
-        loop.close()
+    # No match
+    res = await find_matching_resource(registry, [], ResourceInput(uri='unknown://uri'))
+    assert res is None
 
 
 def test_is_dynamic_resource_action():
@@ -159,7 +145,8 @@ def test_is_dynamic_resource_action():
     assert not is_dynamic_resource_action(static)
 
 
-def test_parent_metadata():
+@pytest.mark.asyncio
+async def test_parent_metadata():
     """Verifies that parent metadata is correctly attached to output items.
     When a resource is resolved via a template (e.g. `file://{id}`), the output parts
     should contain metadata referencing the parent resource URI and template.
@@ -173,28 +160,15 @@ def test_parent_metadata():
 
     res = define_resource(registry, {'template': 'file://{id}'}, fn)
 
-    # Emulate execution? Action.run/arun logic wrapper handles calling fn.
-    # Resource wrapper was wrapped_fn.
-    # We should call res.arun or similar.
+    output = await res.arun({'uri': 'file://dir'})
+    # output is ActionResponse
+    # content is in output.response['content'] because wrapped_fn ensures serialization
 
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        output = loop.run_until_complete(res.arun({'uri': 'file://dir'}))
-        # output is ActionResponse
-        # content is in output.response['content'] because wrapped_fn ensures serialization
-
-        part = output.response['content'][0]
-        # Check metadata
-        assert part['metadata']['resource']['parent']['uri'] == 'file://dir'
-        assert part['metadata']['resource']['parent']['template'] == 'file://{id}'
-        assert part['metadata']['resource']['uri'] == 'file://dir/sub1.txt'
-
-    finally:
-        loop.close()
+    part = output.response['content'][0]
+    # Check metadata
+    assert part['metadata']['resource']['parent']['uri'] == 'file://dir'
+    assert part['metadata']['resource']['parent']['template'] == 'file://{id}'
+    assert part['metadata']['resource']['uri'] == 'file://dir/sub1.txt'
 
 
 def test_dynamic_resource_matching():

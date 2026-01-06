@@ -43,7 +43,10 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any, Type
+from typing import Any, Callable, Type, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from genkit.blocks.resource import ResourceFn, ResourceOptions
 
 import structlog
 from pydantic import BaseModel
@@ -58,10 +61,6 @@ from genkit.blocks.prompt import (
     lookup_prompt,
 )
 
-# from genkit.blocks.resource import (
-#     ResourceContent,
-#     matches_uri_template,
-# )
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -683,8 +682,8 @@ class GenkitRegistry:
 
     def define_resource(
         self,
-        opts: dict[str, Any],
-        fn: Callable,
+        opts: "ResourceOptions",
+        fn: "ResourceFn",
     ) -> Action:
         """Define a resource action.
 

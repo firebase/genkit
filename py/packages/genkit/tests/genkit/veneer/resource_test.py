@@ -23,7 +23,11 @@ from genkit.ai import Genkit
 from genkit.core.typing import Part, TextPart
 
 
-def test_define_resource_veneer():
+import pytest
+import asyncio
+
+@pytest.mark.asyncio
+async def test_define_resource_veneer():
     """Verifies ai.define_resource registers a resource correctly."""
     ai = Genkit(plugins=[])
 
@@ -39,13 +43,6 @@ def test_define_resource_veneer():
     looked_up = ai.registry.lookup_action('resource', 'http://example.com/foo')
     assert looked_up == act
 
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        # Verify execution
-        output = loop.run_until_complete(act.arun({'uri': 'http://example.com/foo'}))
-        assert 'Content for http://example.com/foo' in output.response['content'][0]['text']
-    finally:
-        loop.close()
+    # Verify execution
+    output = await act.arun({'uri': 'http://example.com/foo'})
+    assert 'Content for http://example.com/foo' in output.response['content'][0]['text']

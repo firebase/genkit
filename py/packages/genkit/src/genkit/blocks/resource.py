@@ -149,8 +149,6 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
 
     registry.register_action_from_instance(action)
 
-    # We need to return the registered action from the registry if we want it to be the exact same instance
-    # but the one created by dynamic_resource is fine too if it has the same properties.
     return action
 
 
@@ -240,7 +238,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                 return parts
             return parts
         except Exception as e:
-            raise e
+            raise
 
     name = opts.get('name') or uri
 
