@@ -31,7 +31,6 @@ export const __testClient = Symbol('testClient');
  */
 export interface PluginOptions {
   apiKey?: string;
-  cacheSystemPrompt?: boolean;
   /** Default API surface for all requests unless overridden per-request. */
   apiVersion?: 'stable' | 'beta';
 }
@@ -50,7 +49,6 @@ export interface InternalPluginOptions extends PluginOptions {
 interface ClaudeHelperParamsBase {
   name: string;
   client: Anthropic;
-  cacheSystemPrompt?: boolean;
   defaultApiVersion?: 'stable' | 'beta';
 }
 

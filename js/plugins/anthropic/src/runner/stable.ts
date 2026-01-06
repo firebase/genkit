@@ -222,8 +222,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
   protected toAnthropicRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): MessageCreateParamsNonStreaming {
     if (request.output?.format && request.output.format !== 'text') {
       throw new Error(
@@ -274,8 +273,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
   protected toAnthropicStreamingRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): MessageCreateParamsStreaming {
     if (request.output?.format && request.output.format !== 'text') {
       throw new Error(

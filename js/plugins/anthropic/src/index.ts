@@ -42,8 +42,6 @@ import {
 // Re-export citation type for consumers (AnthropicDocumentOptions is inferred via anthropicDocument())
 export type { AnthropicCitation } from './types.js';
 
-const PROMPT_CACHING_BETA_HEADER_VALUE = 'prompt-caching-2024-07-31';
-
 /**
  * Gets or creates an Anthropic client instance.
  * Supports test client injection for internal testing.
@@ -62,11 +60,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
       'Please pass in the API key or set the ANTHROPIC_API_KEY environment variable'
     );
   }
-  const defaultHeaders: Record<string, string> = {};
-  if (options?.cacheSystemPrompt) {
-    defaultHeaders['anthropic-beta'] = PROMPT_CACHING_BETA_HEADER_VALUE;
-  }
-  return new Anthropic({ apiKey, defaultHeaders });
+  return new Anthropic({ apiKey });
 }
 
 /**
@@ -80,7 +74,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  * - anthropic: The main plugin function to interact with the Anthropic AI.
  *
  * Usage:
- * To use the Claude models, initialize the anthropic plugin inside `genkit()` and pass the configuration options. If no API key is provided in the options, the environment variable `ANTHROPIC_API_KEY` must be set. If you want to cache the system prompt, set `cacheSystemPrompt` to `true`. **Note:** Prompt caching is in beta and may change. To learn more, see https://docs.anthropic.com/en/docs/prompt-caching.
+ * To use the Claude models, initialize the anthropic plugin inside `genkit()` and pass the configuration options. If no API key is provided in the options, the environment variable `ANTHROPIC_API_KEY` must be set.
  *
  * Example:
  * ```
@@ -89,7 +83,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  *
  * const ai = genkit({
  *  plugins: [
- *    anthropic({ apiKey: 'your-api-key', cacheSystemPrompt: false })
+ *    anthropic({ apiKey: 'your-api-key' })
  *    ... // other plugins
  *  ]
  * });
@@ -112,7 +106,6 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
         const action = claudeModel({
           name,
           client,
-          cacheSystemPrompt: options?.cacheSystemPrompt,
           defaultApiVersion,
         });
         actions.push(action);
@@ -126,7 +119,6 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
         return claudeModel({
           name: modelName,
           client,
-          cacheSystemPrompt: options?.cacheSystemPrompt,
           defaultApiVersion,
         });
       }

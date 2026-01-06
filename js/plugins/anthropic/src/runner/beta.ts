@@ -304,8 +304,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
    */
   protected toAnthropicRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): BetaMessageCreateParamsNonStreaming {
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
@@ -362,26 +361,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
    */
   protected toAnthropicStreamingRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): BetaMessageCreateParamsStreaming {
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? extractVersion(model, modelName);
-
-    const betaSystem =
-      system === undefined
-        ? undefined
-        : cacheSystemPrompt
-          ? [
-              {
-                type: 'text' as const,
-                text: system,
-                cache_control: { type: 'ephemeral' as const },
-              },
-            ]
-          : system;
 
     const thinkingConfig = this.toAnthropicThinkingConfig(
       request.config?.thinking
@@ -405,7 +390,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
-      system: betaSystem,
+      system: system as BetaTextBlockParam[],
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
       top_k: topK,
