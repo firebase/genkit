@@ -76,7 +76,7 @@ class SimpleCache {
             // from just the ActionMetadata.
             // So unfortunately we need to fetch from the DAP twice, and there's
             // a small chance that what gets traced is not what gets cached/used.
-            await this.dap.run(null);
+            await this.dap.run();
           }
           return this.value;
         } catch (error) {
@@ -148,11 +148,9 @@ export type DapMetadata = {
 };
 
 function transformDapValue(value: DapValue): ActionMetadata[] {
-  const metadata: ActionMetadata[] = [];
-  for (const typeKey of Object.keys(value)) {
-    metadata.push(...value[typeKey].map((a) => a.__action));
-  }
-  return metadata;
+  return Object.values(value).flatMap(
+    (actions) => actions?.map((a) => a.__action) || []
+  );
 }
 
 export function defineDynamicActionProvider(
