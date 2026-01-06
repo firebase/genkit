@@ -25,6 +25,8 @@ import (
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/x/streaming"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/firebase"
 	"google.golang.org/api/iterator"
 )
 
@@ -66,12 +68,15 @@ func setupTestStreamManager(t *testing.T) (*FirestoreStreamManager, *firestore.C
 	skipIfNoFirestore(t)
 
 	ctx := context.Background()
-	client, err := firestore.NewClient(ctx, *testStreamProjectID)
+	g := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{ProjectId: *testStreamProjectID}))
+
+	f := genkit.LookupPlugin(g, "firebase").(*firebase.Firebase)
+	client, err := f.Firestore(ctx)
 	if err != nil {
-		t.Fatalf("Failed to create Firestore client: %v", err)
+		t.Fatalf("Failed to get Firestore client: %v", err)
 	}
 
-	manager, err := NewFirestoreStreamManager(client,
+	manager, err := NewFirestoreStreamManager(ctx, g,
 		WithCollection(*testStreamCollection),
 	)
 	if err != nil {
@@ -80,7 +85,6 @@ func setupTestStreamManager(t *testing.T) (*FirestoreStreamManager, *firestore.C
 
 	cleanup := func() {
 		deleteStreamCollection(ctx, client, *testStreamCollection, t)
-		client.Close()
 	}
 
 	return manager, client, cleanup
@@ -363,14 +367,16 @@ func TestFirestoreStreamManager_Timeout(t *testing.T) {
 	skipIfNoFirestore(t)
 
 	ctx := context.Background()
-	client, err := firestore.NewClient(ctx, *testStreamProjectID)
+	g := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{ProjectId: *testStreamProjectID}))
+
+	f := genkit.LookupPlugin(g, "firebase").(*firebase.Firebase)
+	client, err := f.Firestore(ctx)
 	if err != nil {
-		t.Fatalf("Failed to create Firestore client: %v", err)
+		t.Fatalf("Failed to get Firestore client: %v", err)
 	}
-	defer client.Close()
 	defer deleteStreamCollection(ctx, client, *testStreamCollection, t)
 
-	manager, err := NewFirestoreStreamManager(client,
+	manager, err := NewFirestoreStreamManager(ctx, g,
 		WithCollection(*testStreamCollection),
 		WithTimeout(100*time.Millisecond),
 	)

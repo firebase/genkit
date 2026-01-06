@@ -28,6 +28,8 @@ import (
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/x/streaming"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/firebase"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -133,29 +135,46 @@ type streamError struct {
 
 // NewFirestoreStreamManager creates a FirestoreStreamManager for durable streaming.
 // This is an experimental feature and the API may change.
-func NewFirestoreStreamManager(client *firestore.Client, opts ...FirestoreStreamManagerOption) (*FirestoreStreamManager, error) {
-	options := &firestoreStreamManagerOptions{}
+func NewFirestoreStreamManager(ctx context.Context, g *genkit.Genkit, opts ...FirestoreStreamManagerOption) (*FirestoreStreamManager, error) {
+	streamOpts := &firestoreStreamManagerOptions{}
 	for _, opt := range opts {
-		if err := opt.applyFirestoreStreamManager(options); err != nil {
+		if err := opt.applyFirestoreStreamManager(streamOpts); err != nil {
 			return nil, fmt.Errorf("firebase.NewFirestoreStreamManager: error applying options: %w", err)
 		}
 	}
-	if options.Collection == "" {
+	if streamOpts.Collection == "" {
 		return nil, errors.New("firebase.NewFirestoreStreamManager: Collection name is required.\n" +
 			"  Specify the Firestore collection where stream documents will be stored:\n" +
-			"    firebase.NewFirestoreStreamManager(client, firebase.WithCollection(\"genkit-streams\"))")
+			"    firebase.NewFirestoreStreamManager(ctx, g, firebase.WithCollection(\"genkit-streams\"))")
 	}
-	if options.Timeout == 0 {
-		options.Timeout = defaultTimeout
+	if streamOpts.Timeout == 0 {
+		streamOpts.Timeout = defaultTimeout
 	}
-	if options.TTL == 0 {
-		options.TTL = defaultTTL
+	if streamOpts.TTL == 0 {
+		streamOpts.TTL = defaultTTL
 	}
+
+	plugin := genkit.LookupPlugin(g, "firebase")
+	if plugin == nil {
+		return nil, errors.New("firebase.NewFirestoreStreamManager: Firebase plugin not found.\n" +
+			"  Pass the Firebase plugin to genkit.Init():\n" +
+			"    g := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{ProjectId: \"your-project\"}))")
+	}
+	f, ok := plugin.(*firebase.Firebase)
+	if !ok {
+		return nil, fmt.Errorf("firebase.NewFirestoreStreamManager: unexpected plugin type %T", plugin)
+	}
+
+	client, err := f.Firestore(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("firebase.NewFirestoreStreamManager: %w", err)
+	}
+
 	return &FirestoreStreamManager{
 		client:     client,
-		collection: options.Collection,
-		timeout:    options.Timeout,
-		ttl:        options.TTL,
+		collection: streamOpts.Collection,
+		timeout:    streamOpts.Timeout,
+		ttl:        streamOpts.TTL,
 	}, nil
 }
 

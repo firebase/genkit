@@ -14,29 +14,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// This sample demonstrates durable streaming, which allows clients to reconnect
-// to in-progress or completed streams using a stream ID.
+// This sample demonstrates durable streaming with Firestore backend.
+// Unlike in-memory streaming, Firestore-backed streams survive server restarts
+// and can be accessed across multiple server instances.
 //
-// Start the server:
-//
-//	go run .
-//
-// Test streaming (get a stream ID back in X-Genkit-Stream-Id header):
-//
-//	curl -N -i -H "Accept: text/event-stream" \
-//	     -d '{"data": 5}' \
-//	     http://localhost:8080/countdown
-//
-// Subscribe to an existing stream using the stream ID from the previous response:
-//
-//	curl -N -H "Accept: text/event-stream" \
-//	     -H "X-Genkit-Stream-Id: <stream-id-from-above>" \
-//	     -d '{"data": 5}' \
-//	     http://localhost:8080/countdown
-//
-// The subscription will replay any buffered chunks and then continue with live updates.
-// If the stream has already completed, all chunks plus the final result are returned.
-
+// See README.md for setup instructions.
 package main
 
 import (
@@ -44,16 +26,24 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/firebase/genkit/go/core/x/streaming"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/firebase"
+	firebasex "github.com/firebase/genkit/go/plugins/firebase/x"
 	"github.com/firebase/genkit/go/plugins/server"
 )
 
 func main() {
 	ctx := context.Background()
-	g := genkit.Init(ctx)
+
+	collection := os.Getenv("FIRESTORE_STREAMS_COLLECTION")
+	if collection == "" {
+		collection = "genkit-streams"
+	}
+
+	g := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{}))
 
 	type CountdownChunk struct {
 		Count     int    `json:"count"`
@@ -61,7 +51,6 @@ func main() {
 		Timestamp string `json:"timestamp"`
 	}
 
-	// Define a streaming flow that counts down with delays.
 	countdown := genkit.DefineStreamingFlow(g, "countdown",
 		func(ctx context.Context, count int, sendChunk func(context.Context, CountdownChunk) error) (string, error) {
 			if count <= 0 {
@@ -89,11 +78,18 @@ func main() {
 			return "Liftoff!", nil
 		})
 
-	// Set up HTTP server with durable streaming enabled.
-	// Completed streams are kept for 10 minutes before cleanup (while server is running).
+	streamManager, err := firebasex.NewFirestoreStreamManager(ctx, g,
+		firebasex.WithCollection(collection),
+		firebasex.WithTimeout(2*time.Minute),
+		firebasex.WithTTL(10*time.Minute),
+	)
+	if err != nil {
+		log.Fatalf("Failed to create Firestore stream manager: %v", err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /countdown", genkit.Handler(countdown,
-		genkit.WithStreamManager(streaming.NewInMemoryStreamManager(streaming.WithTTL(10*time.Minute))),
+		genkit.WithStreamManager(streamManager),
 	))
 	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
 }
