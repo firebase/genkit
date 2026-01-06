@@ -443,4 +443,3 @@ func TestFirestoreStreamManager_WriteAfterClose(t *testing.T) {
 		t.Errorf("Expected FAILED_PRECONDITION, got %v", publicErr.Status)
 	}
 }
-
