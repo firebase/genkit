@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type * as z from 'zod';
+import * as z from 'zod';
 import { Action, ActionMetadata, defineAction } from './action.js';
 import { GenkitError } from './error.js';
 import { ActionMetadataRecord, ActionType, Registry } from './registry.js';
@@ -66,12 +66,17 @@ class SimpleCache {
           this.expiresAt = Date.now() + this.ttlMillis;
 
           if (!params?.skipTrace) {
-            // Also run the action
-            // This action actually does nothing, with the important side
-            // effect of logging its input and output (which are the same).
-            // It does not change what we return, it just makes
-            // the content of the DAP visible in the DevUI and logging trace.
-            await this.dap.run(transformDapValue(this.value));
+            // The action goes and gets the same data again, but it
+            // doesn't cache it. (It doesn't have access to the Cache and
+            // we are not allowed pass it in).
+            // We are not allowed to pass in either the DapValue we just got or
+            // the cache because the action input MUST be void
+            // and the output MUST be an array of ActionMetadata.
+            // And we can't construct the DapValue (which contains full Actions)
+            // from just the ActionMetadata.
+            // So unfortunately we need to fetch from the DAP twice, and there's
+            // a small chance that what gets traced is not what gets cached/used.
+            await this.dap.run(null);
           }
           return this.value;
         } catch (error) {
@@ -107,8 +112,8 @@ export interface DynamicRegistry {
 }
 
 export type DynamicActionProviderAction = Action<
-  z.ZodTypeAny,
-  z.ZodTypeAny,
+  z.ZodAny,
+  z.ZodAny,
   z.ZodTypeAny
 > &
   DynamicRegistry & {
@@ -142,12 +147,10 @@ export type DapMetadata = {
   [K in ActionType]?: ActionMetadata[];
 };
 
-function transformDapValue(value: DapValue): DapMetadata {
-  const metadata: DapMetadata = {};
-  for (const key of Object.keys(value)) {
-    metadata[key] = value[key].map((a) => {
-      return a.__action;
-    });
+function transformDapValue(value: DapValue): ActionMetadata[] {
+  const metadata: ActionMetadata[] = [];
+  for (const typeKey of Object.keys(value)) {
+    metadata.push(...value[typeKey].map((a) => a.__action));
   }
   return metadata;
 }
@@ -167,20 +170,13 @@ export function defineDynamicActionProvider(
     registry,
     {
       ...cfg,
+      inputSchema: z.any(),
+      outputSchema: z.any(),
       actionType: 'dynamic-action-provider',
       metadata: { ...(cfg.metadata || {}), type: 'dynamic-action-provider' },
     },
-    async (i, _options) => {
-      // The actions are retrieved, saved in a cache, formatted nicely and
-      // then passed in here so they can be automatically logged by the action
-      // call. This action is for logging only. We cannot run the actual
-      // 'getting the data from the DAP' here because the DAP data is required
-      // to resolve tools/resources etc. And there can be a LOT of tools etc.
-      // for a single generate. Which would log one DAP action per resolve,
-      // and unnecessarily overwhelm the Dev UI with DAP actions that all have
-      // the same information. So we only run this action (for the logging) when
-      // we go get new data from the DAP (so we can see what it returned).
-      return i;
+    async (_options) => {
+      return transformDapValue(await fn());
     }
   );
   implementDap(a as DynamicActionProviderAction, cfg, fn);

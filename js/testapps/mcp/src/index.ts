@@ -102,7 +102,7 @@ ai.defineFlow('get-file', async (q) => {
 ai.defineFlow('dynamic-get-file', async (q) => {
   const { text } = await ai.generate({
     prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
-    tools: ['test-mcp-manager:tool/fs/read_file'], // Just this one tool
+    tools: ['test-mcp-manager:tool/fs/read_text_file'], // Just this one tool
   });
 
   return text;
@@ -126,7 +126,7 @@ ai.defineFlow('dynamic-disable-enable', async (q) => {
   // we change something with the mcpHost config.
   const { text: text1 } = await ai.generate({
     prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
-    tools: ['test-mcp-manager:tool/fs/read_file'], // Just this one tool
+    tools: ['test-mcp-manager:tool/fs/read_text_file'], // Just this one tool
   });
 
   // Now disable fs to show that we invalidate the dap cache
@@ -137,7 +137,7 @@ ai.defineFlow('dynamic-disable-enable', async (q) => {
     // after disabling the mcp client providing it.
     const { text } = await ai.generate({
       prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
-      tools: ['test-mcp-manager:tool/fs/read_file'], // Just this one tool
+      tools: ['test-mcp-manager:tool/fs/read_text_file'], // Just this one tool
     });
     text2 =
       'ERROR! This should have failed to find the tool but succeeded instead: ' +
@@ -151,7 +151,7 @@ ai.defineFlow('dynamic-disable-enable', async (q) => {
   await mcpHost.reconnect('fs');
   const { text: text3 } = await ai.generate({
     prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
-    tools: ['test-mcp-manager:tool/fs/read_file'], // Just this one tool
+    tools: ['test-mcp-manager:tool/fs/read_text_file'], // Just this one tool
   });
   return (
     'Original: <br/>' +
