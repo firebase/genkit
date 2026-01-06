@@ -20,6 +20,7 @@ dependencies = [
   "genkit",
   "genkit-plugin-anthropic",
   "genkit-plugin-compat-oai",
+  "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-evaluators",
   "genkit-plugin-firebase",
@@ -105,6 +106,7 @@ evaluator-demo                      = { workspace = true }
 genkit                              = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
+genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-evaluators            = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }

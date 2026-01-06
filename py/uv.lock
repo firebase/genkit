@@ -12,6 +12,7 @@ resolution-markers = [
 members = [
     "anthropic-hello",
     "compat-oai-hello",
+    "deepseek-hello",
     "dev-local-vectorstore-hello",
     "eval-demo",
     "firestore-retreiver",
@@ -19,6 +20,7 @@ members = [
     "genkit",
     "genkit-plugin-anthropic",
     "genkit-plugin-compat-oai",
+    "genkit-plugin-deepseek",
     "genkit-plugin-dev-local-vectorstore",
     "genkit-plugin-evaluators",
     "genkit-plugin-firebase",
@@ -929,6 +931,25 @@ wheels = [
 ]
 
 [[package]]
+name = "deepseek-hello"
+version = "0.1.0"
+source = { editable = "samples/deepseek-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-deepseek" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "structlog", specifier = ">=24.0.0" },
+]
+
+[[package]]
 name = "defusedxml"
 version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1616,6 +1637,23 @@ requires-dist = [
 ]
 
 [[package]]
+name = "genkit-plugin-deepseek"
+version = "0.1.0"
+source = { editable = "plugins/deepseek" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-compat-oai" },
+    { name = "openai" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
+    { name = "openai", specifier = ">=1.0.0" },
+]
+
+[[package]]
 name = "genkit-plugin-dev-local-vectorstore"
 version = "0.4.0"
 source = { editable = "plugins/dev-local-vectorstore" }
@@ -1796,6 +1834,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-anthropic" },
     { name = "genkit-plugin-compat-oai" },
+    { name = "genkit-plugin-deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-evaluators" },
     { name = "genkit-plugin-firebase" },
@@ -1840,6 +1879,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
+    { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
