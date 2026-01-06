@@ -22,6 +22,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"maps"
+	"os"
 	"path"
 	"reflect"
 	"strings"
@@ -695,6 +696,16 @@ func LoadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace strin
 	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
 
 	return prompt
+}
+
+// LoadPromptDir loads prompts and partials from a directory on the local filesystem.
+func LoadPromptDir(r api.Registry, dir string, namespace string) {
+	LoadPromptDirFromFS(r, os.DirFS(dir), ".", namespace)
+}
+
+// LoadPrompt loads a single prompt from a directory on the local filesystem into the registry.
+func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
+	return LoadPromptFromFS(r, os.DirFS(dir), ".", filename, namespace)
 }
 
 // promptKey generates a unique key for the prompt in the registry.
