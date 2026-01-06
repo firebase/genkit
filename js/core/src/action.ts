@@ -453,7 +453,7 @@ export function action<
                 options.onChunk !== sentinelNoopStreamingCallback,
               sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
               inputStream:
-                options?.inputStream ?? asyncIteratorFromArray(input),
+                options?.inputStream ?? asyncIteratorFromArray([input]),
               trace: {
                 traceId,
                 spanId,
@@ -782,8 +782,6 @@ export function runOutsideActionRuntimeContext<R>(fn: () => R) {
 
 async function* asyncIteratorFromArray<T>(array: T[]): AsyncIterator<T> {
   for (const item of array) {
-    // Optionally, perform some async operation here
-    await new Promise((resolve) => setTimeout(resolve, 100)); // Example delay
     yield item;
   }
 }
