@@ -45,6 +45,14 @@ import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import { RunnerTypes as BaseRunnerTypes } from './types.js';
+import {
+  redactedThinkingBlockToPart,
+  serverToolUseBlockToPart,
+  textBlockToPart,
+  thinkingBlockToPart,
+  toolUseBlockToPart,
+  webSearchToolResultBlockToPart,
+} from './utils.js';
 
 interface RunnerTypes extends BaseRunnerTypes {
   Message: Message;
@@ -360,41 +368,22 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
       switch (block.type) {
         case 'server_tool_use':
-          return {
-            text: `[Anthropic server tool ${block.name}] input: ${JSON.stringify(block.input)}`,
-            custom: {
-              anthropicServerToolUse: {
-                id: block.id,
-                name: block.name,
-                input: block.input,
-              },
-            },
-          };
+          return serverToolUseBlockToPart(block);
 
         case 'web_search_tool_result':
-          return this.toWebSearchToolResultPart({
-            type: block.type,
-            toolUseId: block.tool_use_id,
-            content: block.content,
-          });
+          return webSearchToolResultBlockToPart(block);
 
         case 'text':
-          return { text: block.text };
+          return textBlockToPart(block);
 
         case 'thinking':
-          return this.createThinkingPart(block.thinking, block.signature);
+          return thinkingBlockToPart(block);
 
         case 'redacted_thinking':
-          return { custom: { redactedThinking: block.data } };
+          return redactedThinkingBlockToPart(block);
 
         case 'tool_use':
-          return {
-            toolRequest: {
-              ref: block.id,
-              name: block.name,
-              input: block.input,
-            },
-          };
+          return toolUseBlockToPart(block);
 
         default: {
           const unknownType = (block as { type: string }).type;
@@ -413,44 +402,22 @@ export class Runner extends BaseRunner<RunnerTypes> {
   protected fromAnthropicContentBlock(contentBlock: ContentBlock): Part {
     switch (contentBlock.type) {
       case 'server_tool_use':
-        return {
-          text: `[Anthropic server tool ${contentBlock.name}] input: ${JSON.stringify(contentBlock.input)}`,
-          custom: {
-            anthropicServerToolUse: {
-              id: contentBlock.id,
-              name: contentBlock.name,
-              input: contentBlock.input,
-            },
-          },
-        };
+        return serverToolUseBlockToPart(contentBlock);
 
       case 'web_search_tool_result':
-        return this.toWebSearchToolResultPart({
-          type: contentBlock.type,
-          toolUseId: contentBlock.tool_use_id,
-          content: contentBlock.content,
-        });
+        return webSearchToolResultBlockToPart(contentBlock);
 
       case 'tool_use':
-        return {
-          toolRequest: {
-            ref: contentBlock.id,
-            name: contentBlock.name,
-            input: contentBlock.input,
-          },
-        };
+        return toolUseBlockToPart(contentBlock);
 
       case 'text':
-        return { text: contentBlock.text };
+        return textBlockToPart(contentBlock);
 
       case 'thinking':
-        return this.createThinkingPart(
-          contentBlock.thinking,
-          contentBlock.signature
-        );
+        return thinkingBlockToPart(contentBlock);
 
       case 'redacted_thinking':
-        return { custom: { redactedThinking: contentBlock.data } };
+        return redactedThinkingBlockToPart(contentBlock);
 
       default: {
         const unknownType = (contentBlock as { type: string }).type;

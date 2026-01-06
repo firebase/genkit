@@ -47,6 +47,13 @@ import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import { RunnerTypes } from './types.js';
+import {
+  redactedThinkingBlockToPart,
+  textBlockToPart,
+  thinkingBlockToPart,
+  toolUseBlockToPart,
+  webSearchToolResultBlockToPart,
+} from './utils.js';
 
 /**
  * Server-managed tool blocks emitted by the beta API that Genkit cannot yet
@@ -66,6 +73,10 @@ const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
   'mcp_tool_use',
   'container_upload',
 ]);
+
+function unsupportedServerToolError(blockType: string): string {
+  return `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
+}
 
 const BETA_APIS = [
   // 'message-batches-2024-09-24',
@@ -118,8 +129,31 @@ function toAnthropicSchema(
   return out;
 }
 
-const unsupportedServerToolError = (blockType: string): string =>
-  `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
+/**
+ * Converts a beta server_tool_use block to a Genkit Part.
+ * Beta API has an optional server_name prefix that stable doesn't have.
+ */
+function betaServerToolUseBlockToPart(block: {
+  id: string;
+  name?: string;
+  input: unknown;
+  server_name?: string;
+}): Part {
+  const baseName = block.name ?? 'unknown_tool';
+  const serverToolName = block.server_name
+    ? `${block.server_name}/${baseName}`
+    : baseName;
+  return {
+    text: `[Anthropic server tool ${serverToolName}] input: ${JSON.stringify(block.input)}`,
+    custom: {
+      anthropicServerToolUse: {
+        id: block.id,
+        name: serverToolName,
+        input: block.input,
+      },
+    },
+  };
+}
 
 interface BetaRunnerTypes extends RunnerTypes {
   Message: BetaMessage;
@@ -486,55 +520,31 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
   private fromBetaContentBlock(contentBlock: BetaContentBlock): Part {
     switch (contentBlock.type) {
-      case 'tool_use': {
-        return {
-          toolRequest: {
-            ref: contentBlock.id,
-            name: contentBlock.name ?? 'unknown_tool',
-            input: contentBlock.input,
-          },
-        };
-      }
+      case 'tool_use':
+        // Beta API may have undefined name, fallback to 'unknown_tool'
+        return toolUseBlockToPart({
+          id: contentBlock.id,
+          name: contentBlock.name ?? 'unknown_tool',
+          input: contentBlock.input,
+        });
 
       case 'mcp_tool_use':
         throw new Error(unsupportedServerToolError(contentBlock.type));
 
-      case 'server_tool_use': {
-        const baseName = contentBlock.name ?? 'unknown_tool';
-        const serverToolName =
-          'server_name' in contentBlock && contentBlock.server_name
-            ? `${contentBlock.server_name}/${baseName}`
-            : baseName;
-        return {
-          text: `[Anthropic server tool ${serverToolName}] input: ${JSON.stringify(contentBlock.input)}`,
-          custom: {
-            anthropicServerToolUse: {
-              id: contentBlock.id,
-              name: serverToolName,
-              input: contentBlock.input,
-            },
-          },
-        };
-      }
+      case 'server_tool_use':
+        return betaServerToolUseBlockToPart(contentBlock);
 
       case 'web_search_tool_result':
-        return this.toWebSearchToolResultPart({
-          type: contentBlock.type,
-          toolUseId: contentBlock.tool_use_id,
-          content: contentBlock.content,
-        });
+        return webSearchToolResultBlockToPart(contentBlock);
 
       case 'text':
-        return { text: contentBlock.text };
+        return textBlockToPart(contentBlock);
 
       case 'thinking':
-        return this.createThinkingPart(
-          contentBlock.thinking,
-          contentBlock.signature
-        );
+        return thinkingBlockToPart(contentBlock);
 
       case 'redacted_thinking':
-        return { custom: { redactedThinking: contentBlock.data } };
+        return redactedThinkingBlockToPart(contentBlock);
 
       default: {
         if (BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(contentBlock.type)) {

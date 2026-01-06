@@ -49,8 +49,7 @@ import {
   RunnerToolResponseContent,
   RunnerTypes,
 } from './types.js';
-
-const ANTHROPIC_THINKING_CUSTOM_KEY = 'anthropicThinking';
+import { ANTHROPIC_THINKING_CUSTOM_KEY } from './utils.js';
 
 /**
  * Shared runner logic for Anthropic SDK integrations.
@@ -298,23 +297,6 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     };
   }
 
-  protected createThinkingPart(thinking: string, signature?: string): Part {
-    const custom =
-      signature !== undefined
-        ? {
-            [ANTHROPIC_THINKING_CUSTOM_KEY]: { signature },
-          }
-        : undefined;
-    return custom
-      ? {
-          reasoning: thinking,
-          custom,
-        }
-      : {
-          reasoning: thinking,
-        };
-  }
-
   protected getThinkingSignature(part: Part): string | undefined {
     const custom = part.custom as Record<string, unknown> | undefined;
     const thinkingValue = custom?.[ANTHROPIC_THINKING_CUSTOM_KEY];
@@ -361,24 +343,6 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     }
 
     return undefined;
-  }
-
-  protected toWebSearchToolResultPart(params: {
-    toolUseId: string;
-    content: unknown;
-    type: string;
-  }): Part {
-    const { toolUseId, content, type } = params;
-    return {
-      text: `[Anthropic server tool result ${toolUseId}] ${JSON.stringify(content)}`,
-      custom: {
-        anthropicServerToolResult: {
-          type,
-          toolUseId,
-          content,
-        },
-      },
-    };
   }
 
   /**
