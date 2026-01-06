@@ -351,39 +351,31 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
    * toAnthropicMessageContent implementation.
    */
   protected toAnthropicMessages(messages: MessageData[]): {
-    system?: string;
+    system?: RunnerContentBlockParam<ApiTypes>[];
     messages: RunnerMessageParam<ApiTypes>[];
   } {
-    let system: string | undefined;
+    let system: RunnerContentBlockParam<ApiTypes>[] | undefined;
 
     if (messages[0]?.role === 'system') {
       const systemMessage = messages[0];
-      const textParts: string[] = [];
+      messages = messages.slice(1);
 
       for (const part of systemMessage.content ?? []) {
-        if (part.text) {
-          textParts.push(part.text);
-        } else if (part.media || part.toolRequest || part.toolResponse) {
+        if (part.media || part.toolRequest || part.toolResponse) {
           throw new Error(
             'System messages can only contain text content. Media, tool requests, and tool responses are not supported in system messages.'
           );
         }
       }
 
-      // Concatenate multiple text parts into a single string.
-      // Note: The Anthropic SDK supports system as string | Array<TextBlockParam>,
-      // so we could alternatively preserve the multi-part structure as:
-      //   system = textParts.map(text => ({ type: 'text', text }))
-      // However, concatenation is simpler and maintains semantic equivalence while
-      // keeping the cache control logic straightforward in the concrete runners.
-      system = textParts.length > 0 ? textParts.join('\n\n') : undefined;
+      system = systemMessage.content.map((part) =>
+        this.toAnthropicMessageContent(part)
+      );
     }
 
-    const messagesToIterate =
-      system !== undefined ? messages.slice(1) : messages;
     const anthropicMsgs: RunnerMessageParam<ApiTypes>[] = [];
 
-    for (const message of messagesToIterate) {
+    for (const message of messages) {
       const msg = new GenkitMessage(message);
 
       // Detect tool message kind from Genkit Parts (no SDK typing needed)
@@ -405,7 +397,7 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
       anthropicMsgs.push({ role, content });
     }
 
-    return { system, messages: anthropicMsgs };
+    return { system: system, messages: anthropicMsgs };
   }
 
   /**

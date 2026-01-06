@@ -312,20 +312,6 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     const mappedModelName =
       request.config?.version ?? extractVersion(model, modelName);
 
-    let betaSystem: BetaMessageCreateParamsNonStreaming['system'];
-
-    if (system !== undefined) {
-      betaSystem = cacheSystemPrompt
-        ? [
-            {
-              type: 'text' as const,
-              text: system,
-              cache_control: { type: 'ephemeral' as const },
-            },
-          ]
-        : system;
-    }
-
     const thinkingConfig = this.toAnthropicThinkingConfig(
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
@@ -347,7 +333,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
-      system: betaSystem,
+      system: system as BetaTextBlockParam[],
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
       top_k: topK,
