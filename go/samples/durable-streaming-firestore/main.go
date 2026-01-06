@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/firebase/genkit/go/genkit"
@@ -37,11 +36,6 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	collection := os.Getenv("FIRESTORE_STREAMS_COLLECTION")
-	if collection == "" {
-		collection = "genkit-streams"
-	}
 
 	g := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{}))
 
@@ -78,8 +72,8 @@ func main() {
 			return "Liftoff!", nil
 		})
 
-	streamManager, err := firebasex.NewFirestoreStreamManager(ctx, g,
-		firebasex.WithCollection(collection),
+	sm, err := firebasex.NewFirestoreStreamManager(ctx, g,
+		firebasex.WithCollection("genkit-streams"),
 		firebasex.WithTimeout(2*time.Minute),
 		firebasex.WithTTL(10*time.Minute),
 	)
@@ -87,9 +81,9 @@ func main() {
 		log.Fatalf("Failed to create Firestore stream manager: %v", err)
 	}
 
+	// Set up HTTP server with durable streaming enabled.
+	// Completed streams are kept for 10 minutes before cleanup.
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /countdown", genkit.Handler(countdown,
-		genkit.WithStreamManager(streamManager),
-	))
-	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
+	mux.HandleFunc("POST /countdown", genkit.Handler(countdown, genkit.WithStreamManager(sm)))
+	log.Fatal(server.Start(ctx, "127.0.0.1:8088", mux))
 }
