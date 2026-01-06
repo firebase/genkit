@@ -37,6 +37,7 @@ import {
   type ThinkingConfig,
 } from '../types.js';
 
+import { ANTHROPIC_THINKING_CUSTOM_KEY } from './converters/shared.js';
 import {
   RunnerContentBlockParam,
   RunnerMessage,
@@ -49,7 +50,6 @@ import {
   RunnerToolResponseContent,
   RunnerTypes,
 } from './types.js';
-import { ANTHROPIC_THINKING_CUSTOM_KEY } from './utils.js';
 
 /**
  * Shared runner logic for Anthropic SDK integrations.

@@ -15,8 +15,7 @@
  */
 
 /**
- * Pure utility functions for converting Anthropic content blocks to Genkit Parts.
- *
+ * Shared utilities for converting Anthropic content blocks to Genkit Parts.
  * Uses structural typing so both stable and beta API types work with these functions.
  */
 
@@ -32,37 +31,6 @@ export const ANTHROPIC_THINKING_CUSTOM_KEY = 'anthropicThinking';
  */
 export function textBlockToPart(block: { text: string }): Part {
   return { text: block.text };
-}
-
-/**
- * Converts a thinking block to a Genkit Part, optionally including signature metadata.
- */
-export function thinkingBlockToPart(
-  block: { thinking: string; signature?: string },
-  signature?: string
-): Part {
-  const sig = signature ?? block.signature;
-  const custom =
-    sig !== undefined
-      ? {
-          [ANTHROPIC_THINKING_CUSTOM_KEY]: { signature: sig },
-        }
-      : undefined;
-  return custom
-    ? {
-        reasoning: block.thinking,
-        custom,
-      }
-    : {
-        reasoning: block.thinking,
-      };
-}
-
-/**
- * Converts a redacted thinking block to a Genkit Part.
- */
-export function redactedThinkingBlockToPart(block: { data: string }): Part {
-  return { custom: { redactedThinking: block.data } };
 }
 
 /**
@@ -83,23 +51,28 @@ export function toolUseBlockToPart(block: {
 }
 
 /**
- * Converts a server_tool_use block to a Genkit Part.
+ * Converts a thinking block to a Genkit Part, including signature metadata if present.
  */
-export function serverToolUseBlockToPart(block: {
-  id: string;
-  name: string;
-  input: unknown;
+export function thinkingBlockToPart(block: {
+  thinking: string;
+  signature?: string;
 }): Part {
-  return {
-    text: `[Anthropic server tool ${block.name}] input: ${JSON.stringify(block.input)}`,
-    custom: {
-      anthropicServerToolUse: {
-        id: block.id,
-        name: block.name,
-        input: block.input,
+  if (block.signature !== undefined) {
+    return {
+      reasoning: block.thinking,
+      custom: {
+        [ANTHROPIC_THINKING_CUSTOM_KEY]: { signature: block.signature },
       },
-    },
-  };
+    };
+  }
+  return { reasoning: block.thinking };
+}
+
+/**
+ * Converts a redacted thinking block to a Genkit Part.
+ */
+export function redactedThinkingBlockToPart(block: { data: string }): Part {
+  return { custom: { redactedThinking: block.data } };
 }
 
 /**
@@ -119,4 +92,29 @@ export function webSearchToolResultBlockToPart(block: {
       },
     },
   };
+}
+
+// --- Delta converters for streaming ---
+
+/**
+ * Converts a text_delta to a Genkit Part.
+ */
+export function textDeltaToPart(delta: { text: string }): Part {
+  return { text: delta.text };
+}
+
+/**
+ * Converts a thinking_delta to a Genkit Part.
+ */
+export function thinkingDeltaToPart(delta: { thinking: string }): Part {
+  return { reasoning: delta.thinking };
+}
+
+/**
+ * Error for unsupported input_json_delta in streaming.
+ */
+export function inputJsonDeltaError(): Error {
+  return new Error(
+    'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
+  );
 }

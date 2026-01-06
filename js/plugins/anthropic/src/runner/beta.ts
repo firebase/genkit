@@ -46,37 +46,21 @@ import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
-import { RunnerTypes } from './types.js';
 import {
+  betaServerToolUseBlockToPart,
+  unsupportedServerToolError,
+} from './converters/beta.js';
+import {
+  inputJsonDeltaError,
   redactedThinkingBlockToPart,
   textBlockToPart,
+  textDeltaToPart,
   thinkingBlockToPart,
+  thinkingDeltaToPart,
   toolUseBlockToPart,
   webSearchToolResultBlockToPart,
-} from './utils.js';
-
-/**
- * Server-managed tool blocks emitted by the beta API that Genkit cannot yet
- * interpret. We fail fast on these so callers do not accidentally treat them as
- * locally executable tool invocations.
- */
-/**
- * Server tool types that exist in beta but are not yet supported.
- * Note: server_tool_use and web_search_tool_result ARE supported (same as stable API).
- */
-const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
-  'web_fetch_tool_result',
-  'code_execution_tool_result',
-  'bash_code_execution_tool_result',
-  'text_editor_code_execution_tool_result',
-  'mcp_tool_result',
-  'mcp_tool_use',
-  'container_upload',
-]);
-
-function unsupportedServerToolError(blockType: string): string {
-  return `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
-}
+} from './converters/shared.js';
+import { RunnerTypes } from './types.js';
 
 const BETA_APIS = [
   // 'message-batches-2024-09-24',
@@ -127,32 +111,6 @@ function toAnthropicSchema(
   }
 
   return out;
-}
-
-/**
- * Converts a beta server_tool_use block to a Genkit Part.
- * Beta API has an optional server_name prefix that stable doesn't have.
- */
-function betaServerToolUseBlockToPart(block: {
-  id: string;
-  name?: string;
-  input: unknown;
-  server_name?: string;
-}): Part {
-  const baseName = block.name ?? 'unknown_tool';
-  const serverToolName = block.server_name
-    ? `${block.server_name}/${baseName}`
-    : baseName;
-  return {
-    text: `[Anthropic server tool ${serverToolName}] input: ${JSON.stringify(block.input)}`,
-    custom: {
-      anthropicServerToolUse: {
-        id: block.id,
-        name: serverToolName,
-        input: block.input,
-      },
-    },
-  };
 }
 
 interface BetaRunnerTypes extends RunnerTypes {
@@ -496,23 +454,19 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
   protected toGenkitPart(event: BetaRawMessageStreamEvent): Part | undefined {
     if (event.type === 'content_block_start') {
-      const blockType = (event.content_block as { type?: string }).type;
-      if (
-        blockType &&
-        BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(blockType)
-      ) {
-        throw new Error(unsupportedServerToolError(blockType));
-      }
       return this.fromBetaContentBlock(event.content_block);
     }
     if (event.type === 'content_block_delta') {
       if (event.delta.type === 'text_delta') {
-        return { text: event.delta.text };
+        return textDeltaToPart(event.delta);
       }
       if (event.delta.type === 'thinking_delta') {
-        return { reasoning: event.delta.thinking };
+        return thinkingDeltaToPart(event.delta);
       }
-      // server/client tool input_json_delta not supported yet
+      if (event.delta.type === 'input_json_delta') {
+        throw inputJsonDeltaError();
+      }
+      // signature_delta - ignore
       return undefined;
     }
     return undefined;
@@ -520,6 +474,9 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
   private fromBetaContentBlock(contentBlock: BetaContentBlock): Part {
     switch (contentBlock.type) {
+      case 'text':
+        return textBlockToPart(contentBlock);
+
       case 'tool_use':
         // Beta API may have undefined name, fallback to 'unknown_tool'
         return toolUseBlockToPart({
@@ -528,8 +485,11 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
           input: contentBlock.input,
         });
 
-      case 'mcp_tool_use':
-        throw new Error(unsupportedServerToolError(contentBlock.type));
+      case 'thinking':
+        return thinkingBlockToPart(contentBlock);
+
+      case 'redacted_thinking':
+        return redactedThinkingBlockToPart(contentBlock);
 
       case 'server_tool_use':
         return betaServerToolUseBlockToPart(contentBlock);
@@ -537,24 +497,26 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       case 'web_search_tool_result':
         return webSearchToolResultBlockToPart(contentBlock);
 
-      case 'text':
-        return textBlockToPart(contentBlock);
-
-      case 'thinking':
-        return thinkingBlockToPart(contentBlock);
-
-      case 'redacted_thinking':
-        return redactedThinkingBlockToPart(contentBlock);
+      // Unsupported beta server tool types
+      case 'mcp_tool_use':
+      case 'mcp_tool_result':
+      case 'web_fetch_tool_result':
+      case 'code_execution_tool_result':
+      case 'bash_code_execution_tool_result':
+      case 'text_editor_code_execution_tool_result':
+      case 'container_upload':
+      case 'tool_search_tool_result':
+        throw new Error(unsupportedServerToolError(contentBlock.type));
 
       default: {
-        if (BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(contentBlock.type)) {
-          throw new Error(unsupportedServerToolError(contentBlock.type));
-        }
+        // Exhaustive check (uncomment when all types are handled):
+        // const _exhaustive: never = contentBlock;
+        // throw new Error(
+        //   `Unhandled block type: ${(_exhaustive as { type: string }).type}`
+        // );
         const unknownType = (contentBlock as { type: string }).type;
         logger.warn(
-          `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(
-            contentBlock
-          )}`
+          `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
         );
         return { text: '' };
       }
