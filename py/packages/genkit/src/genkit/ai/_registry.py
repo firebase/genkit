@@ -30,6 +30,7 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 | `'indexer'`   | Indexer     |
 | `'model'`     | Model       |
 | `'prompt'`    | Prompt      |
+| `'resource'`  | Resource    |
 | `'retriever'` | Retriever   |
 | `'text-llm'`  | Text LLM    |
 | `'tool'`      | Tool        |
@@ -42,7 +43,10 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any, Type
+from typing import TYPE_CHECKING, Any, Callable, Type
+
+if TYPE_CHECKING:
+    from genkit.blocks.resource import ResourceFn, ResourceOptions
 
 import structlog
 from pydantic import BaseModel
@@ -674,6 +678,24 @@ class GenkitRegistry:
             name=name,
             variant=variant,
         )
+
+    def define_resource(
+        self,
+        opts: 'ResourceOptions',
+        fn: 'ResourceFn',
+    ) -> Action:
+        """Define a resource action.
+
+        Args:
+            opts: Options defining the resource (e.g. uri, template, name).
+            fn: Function implementing the resource behavior.
+
+        Returns:
+            The registered Action for the resource.
+        """
+        from genkit.blocks.resource import define_resource as define_resource_block
+
+        return define_resource_block(self.registry, opts, fn)
 
 
 class FlowWrapper:
