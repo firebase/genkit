@@ -30,6 +30,7 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 | `'indexer'`   | Indexer     |
 | `'model'`     | Model       |
 | `'prompt'`    | Prompt      |
+| `'resource'`  | Resource    |
 | `'retriever'` | Retriever   |
 | `'text-llm'`  | Text LLM    |
 | `'tool'`      | Tool        |
@@ -56,6 +57,11 @@ from genkit.blocks.prompt import (
     define_prompt,
     lookup_prompt,
 )
+
+# from genkit.blocks.resource import (
+#     ResourceContent,
+#     matches_uri_template,
+# )
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -674,6 +680,24 @@ class GenkitRegistry:
             name=name,
             variant=variant,
         )
+
+    def define_resource(
+        self,
+        opts: dict[str, Any],
+        fn: Callable,
+    ) -> Action:
+        """Define a resource action.
+
+        Args:
+            opts: Options defining the resource (e.g. uri, template, name).
+            fn: Function implementing the resource behavior.
+
+        Returns:
+            The registered Action for the resource.
+        """
+        from genkit.blocks.resource import define_resource as define_resource_block
+
+        return define_resource_block(self.registry, opts, fn)
 
 
 class FlowWrapper:
