@@ -599,7 +599,6 @@ class GenkitRegistry:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable | None = None,
-        # TODO:
     ):
         """Define a prompt.
 

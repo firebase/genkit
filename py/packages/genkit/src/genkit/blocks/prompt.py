@@ -403,8 +403,6 @@ def define_prompt(
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
     docs: list[DocumentData] | Callable | None = None,
-    # TODO:
-    #  docs: list[Document]
 ) -> ExecutablePrompt:
     """Defines an executable prompt.
 
@@ -796,7 +794,7 @@ async def render_message_prompt(
         resolved = await ensure_async(options.messages)(input, context)
         return resolved
 
-    return [Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))]
+    raise TypeError(f"Unsupported type for messages: {type(options.messages)}")
 
 
 async def render_user_prompt(
