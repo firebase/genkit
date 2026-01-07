@@ -14,7 +14,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package x contains experimental Firebase features that are subject to change.
+// Package x contains experimental Firebase features.
+//
+// APIs in this package are under active development and may change in any
+// minor version release. Use with caution in production environments.
 package x
 
 import (
@@ -135,7 +138,6 @@ type streamError struct {
 }
 
 // NewFirestoreStreamManager creates a FirestoreStreamManager for durable streaming.
-// This is an experimental feature and the API may change.
 func NewFirestoreStreamManager(ctx context.Context, g *genkit.Genkit, opts ...FirestoreStreamManagerOption) (*FirestoreStreamManager, error) {
 	streamOpts := &firestoreStreamManagerOptions{}
 	for _, opt := range opts {
