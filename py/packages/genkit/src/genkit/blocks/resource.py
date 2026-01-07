@@ -25,7 +25,6 @@ import re
 import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any, Callable, Protocol, TypedDict
-
 from pydantic import BaseModel
 
 from genkit.aio import ensure_async
@@ -362,8 +361,6 @@ async def find_matching_resource(
     if resource:
         return resource
 
-    # Iterate all resources to check for matches (e.g. templates)
-    # This is less efficient but necessary for template matching if not optimized
     # Iterate all resources to check for matches (e.g. templates)
     # This is less efficient but necessary for template matching if not optimized
     resources = registry.get_actions_by_kind(ActionKind.RESOURCE) if hasattr(registry, 'get_actions_by_kind') else {}
