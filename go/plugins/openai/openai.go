@@ -30,9 +30,9 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal"
 	"github.com/invopop/jsonschema"
-	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/shared"
 )
 
@@ -307,19 +307,20 @@ func toOpenAIRequest(model string, input *ai.ModelRequest) (*openai.ChatCompleti
 	}
 
 	if len(input.Tools) > 0 {
-		tools, err := toOpenAITools(input.Tools)
+		tools, tc, err := toOpenAITools(input.Tools, input.ToolChoice)
 		if err != nil {
 			return nil, err
 		}
 		request.Tools = tools
+		request.ToolChoice = *tc
 	}
 
 	return request, nil
 }
 
-func toOpenAITools(tools []*ai.ToolDefinition) ([]openai.ChatCompletionToolUnionParam, error) {
+func toOpenAITools(tools []*ai.ToolDefinition, toolChoice ai.ToolChoice) ([]openai.ChatCompletionToolUnionParam, *openai.ChatCompletionToolChoiceOptionUnionParam, error) {
 	if tools == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	toolParams := make([]openai.ChatCompletionToolUnionParam, 0, len(tools))
@@ -334,10 +335,36 @@ func toOpenAITools(tools []*ai.ToolDefinition) ([]openai.ChatCompletionToolUnion
 			Strict:      openai.Bool(false), // TODO: implement constrained gen
 		}))
 	}
-	return toolParams, nil
+
+	var choice openai.ChatCompletionToolChoiceOptionUnionParam
+	switch toolChoice {
+	case ai.ToolChoiceAuto, "":
+		choice = openai.ChatCompletionToolChoiceOptionUnionParam{
+			OfAuto: param.NewOpt(string(openai.ChatCompletionToolChoiceOptionAutoAuto)),
+		}
+	case ai.ToolChoiceRequired:
+		choice = openai.ChatCompletionToolChoiceOptionUnionParam{
+			OfAuto: param.NewOpt(string(openai.ChatCompletionToolChoiceOptionAutoRequired)),
+		}
+	case ai.ToolChoiceNone:
+		choice = openai.ChatCompletionToolChoiceOptionUnionParam{
+			OfAuto: param.NewOpt(string(openai.ChatCompletionToolChoiceOptionAutoNone)),
+		}
+	default:
+		choice = openai.ToolChoiceOptionFunctionToolChoice(openai.ChatCompletionNamedToolChoiceFunctionParam{
+			Name: string(toolChoice),
+		})
+	}
+
+	return toolParams, &choice, nil
 }
 
-func toOpenAIToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (openai.ChatCompletionToolChoiceOptionUnionParam, error) {
+func generateStream(ctx context.Context, client *openai.Client, req *openai.ChatCompletionNewParams, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+	return nil, errors.New("not implemented: generateStream")
+}
+
+func generateComplete(ctx context.Context, client *openai.Client, req *openai.ChatCompletionNewParams, input *ai.ModelRequest) (*ai.ModelResponse, error) {
+	return nil, errors.New("not implemented: generateComplete")
 }
 
 func configFromRequest(config any) (*openai.ChatCompletionNewParams, error) {
