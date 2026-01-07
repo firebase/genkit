@@ -939,11 +939,8 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	var gp *genai.Part
 	switch {
 	case p.IsReasoning():
-		// NOTE: go-genai does not support genai.NewPartFromThought()
-		gp = &genai.Part{
-			Thought: true,
-			Text:    p.Text,
-		}
+		gp = genai.NewPartFromText(p.Text)
+		gp.Thought = true
 	case p.IsText():
 		gp = genai.NewPartFromText(p.Text)
 	case p.IsMedia():
@@ -962,7 +959,6 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 			return nil, err
 		}
 		gp = genai.NewPartFromBytes(data, contentType)
-
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
 		var output map[string]any
