@@ -102,12 +102,3 @@ export function textDeltaToPart(delta: { text: string }): Part {
 export function thinkingDeltaToPart(delta: { thinking: string }): Part {
   return { reasoning: delta.thinking };
 }
-
-/**
- * Error for unsupported input_json_delta in streaming.
- */
-export function inputJsonDeltaError(): Error {
-  return new Error(
-    'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
-  );
-}

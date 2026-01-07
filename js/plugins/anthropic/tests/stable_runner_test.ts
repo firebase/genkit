@@ -762,19 +762,18 @@ describe('fromAnthropicContentBlockChunk', () => {
     });
   }
 
-  it('should throw for unsupported tool input streaming deltas', () => {
-    assert.throws(
-      () =>
-        testRunner.fromAnthropicContentBlockChunk({
-          index: 0,
-          type: 'content_block_delta',
-          delta: {
-            type: 'input_json_delta',
-            partial_json: '{"foo":',
-          },
-        } as MessageStreamEvent),
-      /Anthropic streaming tool input \(input_json_delta\) is not yet supported/
-    );
+  it('should handle tool input streaming deltas', () => {
+    const actualOutput = testRunner.fromAnthropicContentBlockChunk({
+      index: 0,
+      type: 'content_block_delta',
+      delta: {
+        type: 'input_json_delta',
+        partial_json: '{"foo":',
+      },
+    } as MessageStreamEvent);
+    assert.deepStrictEqual(actualOutput, {
+      inputJson: '{"foo":',
+    });
   });
 });
 

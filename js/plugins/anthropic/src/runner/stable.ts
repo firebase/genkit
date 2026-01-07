@@ -45,7 +45,6 @@ import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import {
-  inputJsonDeltaError,
   redactedThinkingBlockToPart,
   textBlockToPart,
   textDeltaToPart,
@@ -356,7 +355,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
       }
 
       if (delta.type === 'input_json_delta') {
-        throw inputJsonDeltaError();
+        return { data: delta.partial_json };
       }
 
       // signature_delta - ignore
