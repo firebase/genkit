@@ -124,7 +124,7 @@ func TestInMemoryStreamManager_WriteAndReceiveChunks(t *testing.T) {
 	// Write chunks
 	chunks := []string{"chunk1", "chunk2", "chunk3"}
 	for _, chunk := range chunks {
-		if err := writer.Write(json.RawMessage(`"` + chunk + `"`)); err != nil {
+		if err := writer.Write(ctx, json.RawMessage(`"`+chunk+`"`)); err != nil {
 			t.Fatalf("Write failed: %v", err)
 		}
 	}
@@ -168,13 +168,13 @@ func TestInMemoryStreamManager_Done(t *testing.T) {
 	defer unsubscribe()
 
 	// Write a chunk
-	if err := writer.Write(json.RawMessage(`"test-chunk"`)); err != nil {
+	if err := writer.Write(ctx, json.RawMessage(`"test-chunk"`)); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
 
 	// Mark as done
 	output := json.RawMessage(`{"result": "success"}`)
-	if err := writer.Done(output); err != nil {
+	if err := writer.Done(ctx, output); err != nil {
 		t.Fatalf("Done failed: %v", err)
 	}
 
@@ -221,7 +221,7 @@ func TestInMemoryStreamManager_Error(t *testing.T) {
 
 	// Mark as error
 	streamErr := core.NewPublicError(core.INTERNAL, "test error", nil)
-	if err := writer.Error(streamErr); err != nil {
+	if err := writer.Error(ctx, streamErr); err != nil {
 		t.Fatalf("Error failed: %v", err)
 	}
 
@@ -250,12 +250,12 @@ func TestInMemoryStreamManager_WriteAfterDone(t *testing.T) {
 		t.Fatalf("Open failed: %v", err)
 	}
 
-	if err := writer.Done(json.RawMessage(`"done"`)); err != nil {
+	if err := writer.Done(ctx, json.RawMessage(`"done"`)); err != nil {
 		t.Fatalf("Done failed: %v", err)
 	}
 
 	// Try to write after done
-	err = writer.Write(json.RawMessage(`"chunk"`))
+	err = writer.Write(ctx, json.RawMessage(`"chunk"`))
 	if err == nil {
 		t.Fatal("Expected error when writing after done")
 	}
@@ -286,7 +286,7 @@ func TestInMemoryStreamManager_WriteAfterClose(t *testing.T) {
 	}
 
 	// Try to write after close
-	err = writer.Write(json.RawMessage(`"chunk"`))
+	err = writer.Write(ctx, json.RawMessage(`"chunk"`))
 	if err == nil {
 		t.Fatal("Expected error when writing after close")
 	}
@@ -312,12 +312,12 @@ func TestInMemoryStreamManager_DoneAfterError(t *testing.T) {
 		t.Fatalf("Open failed: %v", err)
 	}
 
-	if err := writer.Error(core.NewPublicError(core.INTERNAL, "test", nil)); err != nil {
+	if err := writer.Error(ctx, core.NewPublicError(core.INTERNAL, "test", nil)); err != nil {
 		t.Fatalf("Error failed: %v", err)
 	}
 
 	// Try to mark done after error
-	err = writer.Done(json.RawMessage(`"done"`))
+	err = writer.Done(ctx, json.RawMessage(`"done"`))
 	if err == nil {
 		t.Fatal("Expected error when calling Done after Error")
 	}
@@ -350,7 +350,7 @@ func TestInMemoryStreamManager_MultipleSubscribers(t *testing.T) {
 
 	// Write a chunk
 	chunk := json.RawMessage(`"shared-chunk"`)
-	if err := writer.Write(chunk); err != nil {
+	if err := writer.Write(ctx, chunk); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
 
@@ -385,7 +385,7 @@ func TestInMemoryStreamManager_LateSubscriberGetsBufferedChunks(t *testing.T) {
 	// Write chunks before any subscriber
 	chunks := []string{"early1", "early2"}
 	for _, chunk := range chunks {
-		if err := writer.Write(json.RawMessage(`"` + chunk + `"`)); err != nil {
+		if err := writer.Write(ctx, json.RawMessage(`"`+chunk+`"`)); err != nil {
 			t.Fatalf("Write failed: %v", err)
 		}
 	}
@@ -430,14 +430,14 @@ func TestInMemoryStreamManager_SubscribeToCompletedStream(t *testing.T) {
 	}
 
 	// Write and complete before subscribing
-	if err := writer.Write(json.RawMessage(`"chunk1"`)); err != nil {
+	if err := writer.Write(ctx, json.RawMessage(`"chunk1"`)); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
-	if err := writer.Write(json.RawMessage(`"chunk2"`)); err != nil {
+	if err := writer.Write(ctx, json.RawMessage(`"chunk2"`)); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
 	output := json.RawMessage(`{"final": true}`)
-	if err := writer.Done(output); err != nil {
+	if err := writer.Done(ctx, output); err != nil {
 		t.Fatalf("Done failed: %v", err)
 	}
 
@@ -497,11 +497,11 @@ func TestInMemoryStreamManager_SubscribeToErroredStream(t *testing.T) {
 	}
 
 	// Write and error before subscribing
-	if err := writer.Write(json.RawMessage(`"chunk1"`)); err != nil {
+	if err := writer.Write(ctx, json.RawMessage(`"chunk1"`)); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
 	streamErr := core.NewPublicError(core.INTERNAL, "test error", nil)
-	if err := writer.Error(streamErr); err != nil {
+	if err := writer.Error(ctx, streamErr); err != nil {
 		t.Fatalf("Error failed: %v", err)
 	}
 
@@ -554,7 +554,7 @@ func TestInMemoryStreamManager_Unsubscribe(t *testing.T) {
 	unsubscribe()
 
 	// Write a chunk - should not panic
-	if err := writer.Write(json.RawMessage(`"chunk"`)); err != nil {
+	if err := writer.Write(ctx, json.RawMessage(`"chunk"`)); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
 
@@ -629,13 +629,13 @@ func TestInMemoryStreamManager_ConcurrentOperations(t *testing.T) {
 
 	// Write chunks concurrently
 	for i := 0; i < numChunks; i++ {
-		if err := writer.Write(json.RawMessage(`"chunk"`)); err != nil {
+		if err := writer.Write(ctx, json.RawMessage(`"chunk"`)); err != nil {
 			t.Fatalf("Write failed: %v", err)
 		}
 	}
 
 	// Complete the stream
-	if err := writer.Done(json.RawMessage(`"done"`)); err != nil {
+	if err := writer.Done(ctx, json.RawMessage(`"done"`)); err != nil {
 		t.Fatalf("Done failed: %v", err)
 	}
 
@@ -676,7 +676,7 @@ func TestInMemoryStreamManager_CleanupExpiredStreams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	if err := writer.Done(json.RawMessage(`"done"`)); err != nil {
+	if err := writer.Done(ctx, json.RawMessage(`"done"`)); err != nil {
 		t.Fatalf("Done failed: %v", err)
 	}
 
@@ -743,7 +743,7 @@ func TestInMemoryStreamManager_ErrorAfterClose(t *testing.T) {
 	}
 
 	// Try to error after close
-	err = writer.Error(core.NewPublicError(core.INTERNAL, "test", nil))
+	err = writer.Error(ctx, core.NewPublicError(core.INTERNAL, "test", nil))
 	if err == nil {
 		t.Fatal("Expected error when calling Error after Close")
 	}
@@ -774,7 +774,7 @@ func TestInMemoryStreamManager_DoneAfterClose(t *testing.T) {
 	}
 
 	// Try to done after close
-	err = writer.Done(json.RawMessage(`"done"`))
+	err = writer.Done(ctx, json.RawMessage(`"done"`))
 	if err == nil {
 		t.Fatal("Expected error when calling Done after Close")
 	}

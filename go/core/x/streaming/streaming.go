@@ -52,11 +52,11 @@ type StreamEvent struct {
 // StreamInput provides methods for writing to a durable stream.
 type StreamInput interface {
 	// Write sends a chunk to the stream and notifies all subscribers.
-	Write(chunk json.RawMessage) error
+	Write(ctx context.Context, chunk json.RawMessage) error
 	// Done marks the stream as successfully completed with the given output.
-	Done(output json.RawMessage) error
+	Done(ctx context.Context, output json.RawMessage) error
 	// Error marks the stream as failed with the given error.
-	Error(err error) error
+	Error(ctx context.Context, err error) error
 	// Close releases resources without marking the stream as done or errored.
 	Close() error
 }
@@ -278,13 +278,13 @@ type inMemoryStreamInput struct {
 	mu       sync.Mutex
 }
 
-func (s *inMemoryStreamInput) Write(chunk json.RawMessage) error {
+func (s *inMemoryStreamInput) Write(_ context.Context, chunk json.RawMessage) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.closed {
-		s.mu.Unlock()
 		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
-	s.mu.Unlock()
 
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
@@ -308,14 +308,14 @@ func (s *inMemoryStreamInput) Write(chunk json.RawMessage) error {
 	return nil
 }
 
-func (s *inMemoryStreamInput) Done(output json.RawMessage) error {
+func (s *inMemoryStreamInput) Done(_ context.Context, output json.RawMessage) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.closed {
-		s.mu.Unlock()
 		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
-	s.mu.Unlock()
 
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
@@ -341,14 +341,14 @@ func (s *inMemoryStreamInput) Done(output json.RawMessage) error {
 	return nil
 }
 
-func (s *inMemoryStreamInput) Error(err error) error {
+func (s *inMemoryStreamInput) Error(_ context.Context, err error) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.closed {
-		s.mu.Unlock()
 		return core.NewPublicError(core.FAILED_PRECONDITION, "stream writer is closed", nil)
 	}
 	s.closed = true
-	s.mu.Unlock()
 
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
