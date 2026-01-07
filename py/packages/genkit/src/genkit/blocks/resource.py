@@ -23,7 +23,7 @@ and return content (`ResourceOutput`) containing `Part`s.
 
 import re
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
 from typing import Any, Callable, Protocol, TypedDict
 from pydantic import BaseModel
 
