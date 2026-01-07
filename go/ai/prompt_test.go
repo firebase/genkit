@@ -150,6 +150,214 @@ type HelloPromptInput struct {
 	Name string
 }
 
+func TestPromptDefaultInput(t *testing.T) {
+	reg := registry.New()
+
+	type GreetingInput struct {
+		Name     string `json:"name"`
+		Greeting string `json:"greeting"`
+	}
+
+	t.Run("uses struct values as defaults when nil input provided", func(t *testing.T) {
+		p := DefinePrompt(
+			reg, "greeting-nil",
+			WithPrompt("{{greeting}} {{name}}!"),
+			WithInputType(GreetingInput{Name: "World", Greeting: "Hello"}),
+		)
+
+		req, err := p.Render(context.Background(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := "Hello World!"
+		got := req.Messages[0].Content[0].Text
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+
+	t.Run("partial input uses defaults for missing optional fields", func(t *testing.T) {
+		// Note: Fields must use omitempty to be optional and allow partial input
+		type PartialGreetingInput struct {
+			Name     string `json:"name,omitempty"`
+			Greeting string `json:"greeting,omitempty"`
+		}
+
+		p := DefinePrompt(
+			reg, "greeting-partial",
+			WithPrompt("{{greeting}} {{name}}!"),
+			WithInputType(PartialGreetingInput{Name: "World", Greeting: "Hello"}),
+		)
+
+		// Only provide name, greeting should come from default
+		req, err := p.Render(context.Background(), map[string]any{"name": "Alice"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := "Hello Alice!"
+		got := req.Messages[0].Content[0].Text
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+
+	t.Run("provided input overrides defaults", func(t *testing.T) {
+		p := DefinePrompt(
+			reg, "greeting-override",
+			WithPrompt("{{greeting}} {{name}}!"),
+			WithInputType(GreetingInput{Name: "World", Greeting: "Hello"}),
+		)
+
+		// Provide both values, should override defaults
+		req, err := p.Render(context.Background(), map[string]any{"name": "Bob", "greeting": "Hi"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := "Hi Bob!"
+		got := req.Messages[0].Content[0].Text
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+
+	t.Run("map default input works", func(t *testing.T) {
+		p := DefinePrompt(
+			reg, "greeting-map",
+			WithPrompt("{{greeting}} {{name}}!"),
+			WithInputType(map[string]any{"name": "Universe", "greeting": "Howdy"}),
+		)
+
+		req, err := p.Render(context.Background(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := "Howdy Universe!"
+		got := req.Messages[0].Content[0].Text
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+
+	t.Run("zero values are treated as valid defaults", func(t *testing.T) {
+		type CountInput struct {
+			Count int  `json:"count"`
+			Show  bool `json:"show"`
+		}
+
+		p := DefinePrompt(
+			reg, "count-zero",
+			WithPrompt("Count: {{count}}, Show: {{show}}"),
+			WithInputType(CountInput{Count: 0, Show: false}),
+		)
+
+		req, err := p.Render(context.Background(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := "Count: 0, Show: false"
+		got := req.Messages[0].Content[0].Text
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+}
+
+func TestPromptDefaultInputWithJsonschemaDefaults(t *testing.T) {
+	reg := registry.New()
+
+	// Test that jsonschema defaults in tags are correctly reflected in schema
+	type InputWithSchemaDefaults struct {
+		Name     string `json:"name" jsonschema:"default=guest"`
+		Priority int    `json:"priority" jsonschema:"default=5"`
+	}
+
+	t.Run("struct values override jsonschema defaults during rendering", func(t *testing.T) {
+		p := DefinePrompt(
+			reg, "schema-defaults-override",
+			WithPrompt("{{name}} (priority: {{priority}})"),
+			WithInputType(InputWithSchemaDefaults{Name: "admin", Priority: 10}),
+		)
+
+		req, err := p.Render(context.Background(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Should use struct values, not jsonschema defaults
+		want := "admin (priority: 10)"
+		got := req.Messages[0].Content[0].Text
+		if got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+
+	t.Run("schema has jsonschema defaults exposed", func(t *testing.T) {
+		p := DefinePrompt(
+			reg, "schema-defaults-exposed",
+			WithPrompt("{{name}}"),
+			WithInputType(InputWithSchemaDefaults{Name: "admin", Priority: 10}),
+		)
+
+		desc := p.(api.Action).Desc()
+		schema := desc.InputSchema
+
+		props, ok := schema["properties"].(map[string]any)
+		if !ok {
+			t.Fatal("expected properties in input schema")
+		}
+
+		nameSchema, ok := props["name"].(map[string]any)
+		if !ok {
+			t.Fatal("expected name property in schema")
+		}
+
+		if nameSchema["default"] != "guest" {
+			t.Errorf("expected schema default to be 'guest', got %v", nameSchema["default"])
+		}
+
+		prioritySchema, ok := props["priority"].(map[string]any)
+		if !ok {
+			t.Fatal("expected priority property in schema")
+		}
+
+		if prioritySchema["default"] != float64(5) {
+			t.Errorf("expected schema default to be 5, got %v", prioritySchema["default"])
+		}
+	})
+
+	t.Run("defaultInput in metadata uses struct values not jsonschema defaults", func(t *testing.T) {
+		p := DefinePrompt(
+			reg, "schema-defaults-metadata",
+			WithPrompt("{{name}}"),
+			WithInputType(InputWithSchemaDefaults{Name: "admin", Priority: 10}),
+		)
+
+		desc := p.(api.Action).Desc()
+		promptMeta, ok := desc.Metadata["prompt"].(map[string]any)
+		if !ok {
+			t.Fatal("expected prompt metadata")
+		}
+
+		defaultInput, ok := promptMeta["defaultInput"].(map[string]any)
+		if !ok {
+			t.Fatal("expected defaultInput in prompt metadata")
+		}
+
+		if defaultInput["name"] != "admin" {
+			t.Errorf("expected defaultInput name to be 'admin', got %v", defaultInput["name"])
+		}
+
+		if defaultInput["priority"] != float64(10) {
+			t.Errorf("expected defaultInput priority to be 10, got %v", defaultInput["priority"])
+		}
+	})
+}
+
 func definePromptModel(reg api.Registry) Model {
 	return DefineModel(reg, "test/chat",
 		&ModelOptions{Supports: &ModelSupports{

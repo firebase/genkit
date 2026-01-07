@@ -120,6 +120,62 @@ func TestSchemaAsMap(t *testing.T) {
 	}
 }
 
+func TestSchemaAsMapWithDefaults(t *testing.T) {
+	type WithDefaults struct {
+		Name     string  `json:"name" jsonschema:"default=guest"`
+		Age      int     `json:"age" jsonschema:"default=25"`
+		Active   bool    `json:"active" jsonschema:"default=true"`
+		Score    float64 `json:"score" jsonschema:"default=0.5"`
+		Optional string  `json:"optional,omitempty"`
+	}
+
+	schema := SchemaAsMap(InferJSONSchema(WithDefaults{}))
+
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("expected properties in schema")
+	}
+
+	tests := []struct {
+		field    string
+		expected any
+	}{
+		{"name", "guest"},
+		{"age", float64(25)},
+		{"active", true},
+		{"score", 0.5},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.field, func(t *testing.T) {
+			prop, ok := props[tc.field].(map[string]any)
+			if !ok {
+				t.Fatalf("expected %s property in schema", tc.field)
+			}
+			if prop["default"] != tc.expected {
+				t.Errorf("expected default for %s to be %v, got %v", tc.field, tc.expected, prop["default"])
+			}
+		})
+	}
+
+	// Optional field should not be in required
+	required, ok := schema["required"].([]any)
+	if !ok {
+		t.Fatal("expected required array in schema")
+	}
+
+	hasOptional := false
+	for _, r := range required {
+		if r == "optional" {
+			hasOptional = true
+			break
+		}
+	}
+	if hasOptional {
+		t.Error("optional field with omitempty should not be in required")
+	}
+}
+
 func TestSchemaAsMapRecursive(t *testing.T) {
 	type Node struct {
 		Value    string  `json:"value,omitempty"`
