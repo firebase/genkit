@@ -35,6 +35,7 @@ import {
   SERVER_HARNESS_COMMAND,
   serverHarness,
 } from './commands/server-harness';
+import { devTestModel } from './commands/dev-test-model';
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
@@ -59,6 +60,7 @@ const commands: Command[] = [
   initAiTools,
   config,
   start,
+  devTestModel,
   mcp,
 ];
 
