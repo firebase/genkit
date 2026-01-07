@@ -653,3 +653,146 @@ func (t *mockTool) Definition() *ToolDefinition {
 func (t *mockTool) RunRaw(ctx context.Context, input any) (any, error) {
 	return nil, nil
 }
+
+func TestWithInputTypeDefaultValues(t *testing.T) {
+	t.Run("struct field values are captured as DefaultInput", func(t *testing.T) {
+		type TestInput struct {
+			Name    string  `json:"name"`
+			Age     int     `json:"age"`
+			Active  bool    `json:"active"`
+			Balance float64 `json:"balance"`
+		}
+
+		input := TestInput{
+			Name:    "John",
+			Age:     30,
+			Active:  true,
+			Balance: 100.50,
+		}
+
+		opt := WithInputType(input).(*inputOptions)
+
+		expectedDefaults := map[string]any{
+			"name":    "John",
+			"age":     float64(30),
+			"active":  true,
+			"balance": 100.50,
+		}
+
+		if diff := cmp.Diff(expectedDefaults, opt.DefaultInput); diff != "" {
+			t.Errorf("DefaultInput mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("zero values are included in DefaultInput", func(t *testing.T) {
+		type TestInput struct {
+			Name   string `json:"name"`
+			Count  int    `json:"count"`
+			Active bool   `json:"active"`
+		}
+
+		input := TestInput{} // all zero values
+
+		opt := WithInputType(input).(*inputOptions)
+
+		expectedDefaults := map[string]any{
+			"name":   "",
+			"count":  float64(0),
+			"active": false,
+		}
+
+		if diff := cmp.Diff(expectedDefaults, opt.DefaultInput); diff != "" {
+			t.Errorf("DefaultInput should include zero values, diff (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("map input is used directly as DefaultInput", func(t *testing.T) {
+		input := map[string]any{
+			"name": "default",
+			"age":  25,
+		}
+
+		opt := WithInputType(input).(*inputOptions)
+
+		if diff := cmp.Diff(input, opt.DefaultInput); diff != "" {
+			t.Errorf("DefaultInput should match map input, diff (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("jsonschema default tag is reflected in schema", func(t *testing.T) {
+		type TestInputWithDefaults struct {
+			Name   string `json:"name" jsonschema:"default=guest"`
+			Age    int    `json:"age" jsonschema:"default=25"`
+			Active bool   `json:"active" jsonschema:"default=true"`
+		}
+
+		opt := WithInputType(TestInputWithDefaults{}).(*inputOptions)
+
+		props, ok := opt.InputSchema["properties"].(map[string]any)
+		if !ok {
+			t.Fatal("expected properties in schema")
+		}
+
+		nameSchema, ok := props["name"].(map[string]any)
+		if !ok {
+			t.Fatal("expected name property in schema")
+		}
+		if nameSchema["default"] != "guest" {
+			t.Errorf("expected name default to be 'guest', got %v", nameSchema["default"])
+		}
+
+		ageSchema, ok := props["age"].(map[string]any)
+		if !ok {
+			t.Fatal("expected age property in schema")
+		}
+		if ageSchema["default"] != float64(25) {
+			t.Errorf("expected age default to be 25, got %v", ageSchema["default"])
+		}
+
+		activeSchema, ok := props["active"].(map[string]any)
+		if !ok {
+			t.Fatal("expected active property in schema")
+		}
+		if activeSchema["default"] != true {
+			t.Errorf("expected active default to be true, got %v", activeSchema["default"])
+		}
+	})
+
+	t.Run("struct values take precedence over jsonschema defaults", func(t *testing.T) {
+		type TestInputWithDefaults struct {
+			Name string `json:"name" jsonschema:"default=guest"`
+			Age  int    `json:"age" jsonschema:"default=25"`
+		}
+
+		input := TestInputWithDefaults{
+			Name: "admin",
+			Age:  40,
+		}
+
+		opt := WithInputType(input).(*inputOptions)
+
+		// DefaultInput should have the struct values, not the jsonschema defaults
+		expectedDefaults := map[string]any{
+			"name": "admin",
+			"age":  float64(40),
+		}
+
+		if diff := cmp.Diff(expectedDefaults, opt.DefaultInput); diff != "" {
+			t.Errorf("struct values should be used as DefaultInput, diff (-want +got):\n%s", diff)
+		}
+
+		// But the schema should still have the jsonschema tag defaults
+		props, ok := opt.InputSchema["properties"].(map[string]any)
+		if !ok {
+			t.Fatal("expected properties in schema")
+		}
+
+		nameSchema, ok := props["name"].(map[string]any)
+		if !ok {
+			t.Fatal("expected name property in schema")
+		}
+		if nameSchema["default"] != "guest" {
+			t.Errorf("schema should retain jsonschema default 'guest', got %v", nameSchema["default"])
+		}
+	})
+}
