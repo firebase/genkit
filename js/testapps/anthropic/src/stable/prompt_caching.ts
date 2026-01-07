@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { CacheControlEphemeral } from '@anthropic-ai/sdk/resources';
 import { anthropic } from '@genkit-ai/anthropic';
 import { promises as fs } from 'fs';
 import { genkit } from 'genkit';
@@ -77,7 +78,7 @@ ai.defineFlow('caching user prompt', async () => {
               cache_control: {
                 type: 'ephemeral',
                 ttl: '5m',
-              },
+              } satisfies CacheControlEphemeral,
             },
           },
         ],
