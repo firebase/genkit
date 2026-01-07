@@ -395,7 +395,7 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
       anthropicMsgs.push({ role, content });
     }
 
-    return { system: system, messages: anthropicMsgs };
+    return { system, messages: anthropicMsgs };
   }
 
   /**
