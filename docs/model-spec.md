@@ -40,7 +40,7 @@ The input to a model action.
 
 | Field | Type | Description |
 |---|---|---|
-| `messages` | `Message[]` | List of messages in the conversation history. |
+| `messages` | `Message[]` | **(Required)** List of messages in the conversation history. |
 | `config` | `any` | Model-specific configuration options (e.g., temperature, topK). Validated against the model's config schema. |
 | `tools` | `ToolDefinition[]` | List of tools available for the model to call. |
 | `toolChoice` | `enum` | Tool selection strategy: `'auto'`, `'required'`, or `'none'`. |
@@ -68,7 +68,7 @@ The output from a model action.
 | `usage` | `GenerationUsage` | Token and character usage statistics. |
 | `latencyMs` | `number` | Time taken for generation in milliseconds. |
 | `custom` | `any` | Model-specific extra information. |
-| `request` | `GenerateRequest` | The request that triggered this response (optional). |
+| `request` | `GenerateRequest` | The request that triggered this response. |
 
 ### GenerateResponseChunk
 
@@ -78,7 +78,7 @@ The chunk format for streaming responses.
 |---|---|---|
 | `role` | `Role` | Role of the message being generated (usually `'model'`). |
 | `index` | `number` | Index of the message in the response (typically 0). |
-| `content` | `Part[]` | Content parts in this chunk. |
+| `content` | `Part[]` | **(Required)** Content parts in this chunk. |
 | `aggregated` | `boolean` | If true, this chunk contains the full accumulated content so far. |
 | `custom` | `any` | Model-specific extra information. |
 
@@ -86,8 +86,8 @@ The chunk format for streaming responses.
 
 | Field | Type | Description |
 |---|---|---|
-| `role` | `enum` | The role of the message sender: `'system'`, `'user'`, `'model'`, `'tool'`. |
-| `content` | `Part[]` | The content of the message, composed of one or more parts. |
+| `role` | `enum` | **(Required)** The role of the message sender: `'system'`, `'user'`, `'model'`, `'tool'`. |
+| `content` | `Part[]` | **(Required)** The content of the message, composed of one or more parts. |
 | `metadata` | `Record<string, any>` | Arbitrary metadata associated with the message. |
 
 ### Parts
