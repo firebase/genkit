@@ -249,7 +249,7 @@ Represents chain-of-thought or reasoning text provided by the model.
 
 #### Data Part
 
-DO NOT USE... currently unused and no known plugins support it. Represents generic structured data. 
+This part is reserved for future use and is not currently supported by any known plugins. Represents generic structured data. 
 
 ```json
 {
