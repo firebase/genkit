@@ -686,19 +686,47 @@ class GenkitRegistry:
 
     def define_resource(
         self,
-        opts: 'ResourceOptions',
-        fn: 'ResourceFn',
+        opts: 'ResourceOptions | None' = None,
+        fn: 'ResourceFn | None' = None,
+        *,
+        name: str | None = None,
+        uri: str | None = None,
+        template: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Action:
         """Define a resource action.
 
         Args:
             opts: Options defining the resource (e.g. uri, template, name).
             fn: Function implementing the resource behavior.
+            name: Optional name for the resource.
+            uri: Optional URI for the resource.
+            template: Optional URI template for the resource.
+            description: Optional description for the resource.
+            metadata: Optional metadata for the resource.
 
         Returns:
             The registered Action for the resource.
         """
-        from genkit.blocks.resource import define_resource as define_resource_block
+        from genkit.blocks.resource import (
+            define_resource as define_resource_block,
+        )
+
+        if fn is None:
+            raise ValueError("A function `fn` must be provided to define a resource.")
+        if opts is None:
+            opts = {}
+        if name:
+            opts['name'] = name
+        if uri:
+            opts['uri'] = uri
+        if template:
+            opts['template'] = template
+        if description:
+            opts['description'] = description
+        if metadata:
+            opts['metadata'] = metadata
 
         return define_resource_block(self.registry, opts, fn)
 

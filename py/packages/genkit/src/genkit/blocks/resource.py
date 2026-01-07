@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,12 +21,14 @@ This module provides tools to define resource actions that can resolve these URI
 and return content (`ResourceOutput`) containing `Part`s.
 """
 
+import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Callable, Protocol, TypedDict
+from typing import Any, Protocol, TypedDict
 
 from pydantic import BaseModel
 
+from genkit.aio import ensure_async
 from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
@@ -35,6 +37,7 @@ from genkit.core.typing import Metadata, Part
 
 class ResourceOptions(TypedDict, total=False):
     """Options for defining a resource.
+
     Attributes:
         name: Resource name. If not specified, uri or template will be used as name.
         uri: The URI of the resource. Can contain template variables for simple matches,
@@ -54,6 +57,7 @@ class ResourceOptions(TypedDict, total=False):
 
 class ResourceInput(BaseModel):
     """Input structure for a resource request.
+
     Attributes:
         uri: The full URI being requested/resolved.
     """
@@ -63,6 +67,7 @@ class ResourceInput(BaseModel):
 
 class ResourceOutput(BaseModel):
     """Output structure from a resource resolution.
+
     Attributes:
         content: A list of `Part` objects representing the resource content.
     """
@@ -84,12 +89,15 @@ ResourceArgument = Action | str
 
 async def resolve_resources(registry: Registry, resources: list[ResourceArgument] | None = None) -> list[Action]:
     """Resolves a list of resource names or actions into a list of Action objects.
+
     Args:
         registry: The registry to lookup resources in.
         resources: A list of resource references, which can be either direct `Action`
                    objects or strings (names/URIs).
+
     Returns:
         A list of resolved `Action` objects.
+
     Raises:
         ValueError: If a resource reference is invalid or cannot be found.
     """
@@ -111,11 +119,14 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
     """Looks up a resource action by name in the registry.
     Tries to resolve the name directly, or with common prefixes like `/resource/`
     or `/dynamic-action-provider/`.
+
     Args:
         registry: The registry to search.
         name: The name or URI of the resource to lookup.
+
     Returns:
         The found `Action`.
+
     Raises:
         ValueError: If the resource cannot be found.
     """
@@ -133,10 +144,12 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
     """Defines a resource and registers it with the given registry.
     This creates a resource action that can handle requests for a specific URI
     or URI template.
+
     Args:
         registry: The registry to register the resource with.
         opts: Options defining the resource (name, uri, template, etc.).
         fn: The function that implements resource content retrieval.
+
     Returns:
         The registered `Action` for the resource.
     """
@@ -156,9 +169,11 @@ def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     """Defines a dynamic resource action without immediate registration.
     This is an alias for `dynamic_resource`. Useful for defining resources that
     might be registered later or used as standalone actions.
+
     Args:
         opts: Options defining the resource.
         fn: The resource implementation function.
+
     Returns:
         The created `Action`.
     """
@@ -172,11 +187,14 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     1. Input validation and matching against the URI/Template.
     2. Execution of the resource function.
     3. Post-processing of output to attach metadata (like parent resource info).
+
     Args:
         opts: Options including `uri` or `template` for matching.
         fn: The function performing the resource retrieval.
+
     Returns:
         An `Action` configured as a resource.
+
     Raises:
         ValueError: If neither `uri` nor `template` is provided in options.
     """
@@ -195,7 +213,16 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
             if not template_match:
                 raise ValueError(f'input {input_data} did not match template {uri}')
 
-            parts = await fn(input_data, ctx)
+            sig = inspect.signature(fn)
+            afn = ensure_async(fn)
+            n_params = len(sig.parameters)
+
+            if n_params == 0:
+                parts = await afn()
+            elif n_params == 1:
+                parts = await afn(input_data)
+            else:
+                parts = await afn(input_data, ctx)
 
             # Post-processing parts to add metadata
             content_list = parts.content if hasattr(parts, 'content') else parts.get('content', [])
@@ -237,7 +264,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                     parts['content'] = [p.model_dump() if isinstance(p, BaseModel) else p for p in parts['content']]
                 return parts
             return parts
-        except Exception as e:
+        except Exception:
             raise
 
     name = opts.get('name') or uri
@@ -262,9 +289,11 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
 
 def create_matcher(uri: str | None, template: str | None) -> Callable[[ResourceInput], bool]:
     """Creates a matching function for resource validation.
+
     Args:
         uri: Optional fixed URI string.
         template: Optional URI template string.
+
     Returns:
         A callable that takes ResourceInput and returns True if it matches.
     """
@@ -281,8 +310,10 @@ def create_matcher(uri: str | None, template: str | None) -> Callable[[ResourceI
 
 def is_dynamic_resource_action(action: Action) -> bool:
     """Checks if an action is a dynamic resource (not registered).
+
     Args:
         action: The action to check.
+
     Returns:
         True if the action is a dynamic resource, False otherwise.
     """
@@ -334,10 +365,12 @@ async def find_matching_resource(
 ) -> Action | None:
     """Finds a matching resource action.
     Checks dynamic resources first, then the registry.
+
     Args:
         registry: The registry to search.
         dynamic_resources: Optional list of dynamic resource actions to check first.
         input_data: The resource input containing the URI matched against.
+
     Returns:
         The matching Action or None.
     """
@@ -351,8 +384,6 @@ async def find_matching_resource(
     if resource:
         return resource
 
-    # Iterate all resources to check for matches (e.g. templates)
-    # This is less efficient but necessary for template matching if not optimized
     # Iterate all resources to check for matches (e.g. templates)
     # This is less efficient but necessary for template matching if not optimized
     resources = registry.get_actions_by_kind(ActionKind.RESOURCE) if hasattr(registry, 'get_actions_by_kind') else {}
