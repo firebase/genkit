@@ -408,19 +408,11 @@ class McpServer:
 
         if not transport:
             async with stdio_server() as (read, write):
-                await self.server.run(
-                    read,
-                    write,
-                    self.server.create_initialization_options()
-                )
+                await self.server.run(read, write, self.server.create_initialization_options())
         else:
             # Connect the transport
             async with transport as (read, write):
-                await self.server.run(
-                    read,
-                    write,
-                    self.server.create_initialization_options()
-                )
+                await self.server.run(read, write, self.server.create_initialization_options())
 
         logger.debug(f"[MCP Server] MCP server '{self.options.name}' started successfully.")
 
