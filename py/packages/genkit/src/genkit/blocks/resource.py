@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -195,7 +195,20 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
             if not template_match:
                 raise ValueError(f'input {input_data} did not match template {uri}')
 
-            parts = await fn(input_data, ctx)
+            import inspect
+
+            from genkit.aio import ensure_async
+
+            sig = inspect.signature(fn)
+            afn = ensure_async(fn)
+            n_params = len(sig.parameters)
+
+            if n_params == 0:
+                parts = await afn()
+            elif n_params == 1:
+                parts = await afn(input_data)
+            else:
+                parts = await afn(input_data, ctx)
 
             # Post-processing parts to add metadata
             content_list = parts.content if hasattr(parts, 'content') else parts.get('content', [])
