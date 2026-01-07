@@ -835,6 +835,7 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		if part.FileData != nil {
 			partFound++
 			p = ai.NewMediaPart(part.FileData.MIMEType, part.FileData.FileURI)
+
 		}
 		if part.FunctionCall != nil {
 			partFound++
@@ -870,6 +871,13 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		}
 		if p == nil {
 			continue
+		}
+
+		if len(part.ThoughtSignature) > 0 {
+			if p.Metadata == nil {
+				p.Metadata = make(map[string]any)
+			}
+			p.Metadata["signature"] = part.ThoughtSignature
 		}
 
 		msg.Content = append(msg.Content, p)
@@ -928,37 +936,29 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
+	var gp *genai.Part
 	switch {
 	case p.IsReasoning():
-		// NOTE: go-genai does not support genai.NewPartFromThought()
-		signature := []byte{}
-		if p.Metadata != nil {
-			if sig, ok := p.Metadata["signature"].([]byte); ok {
-				signature = sig
-			}
-		}
-		return &genai.Part{
-			Thought:          true,
-			Text:             p.Text,
-			ThoughtSignature: signature,
-		}, nil
+		gp = genai.NewPartFromText(p.Text)
+		gp.Thought = true
 	case p.IsText():
-		return genai.NewPartFromText(p.Text), nil
+		gp = genai.NewPartFromText(p.Text)
 	case p.IsMedia():
 		if strings.HasPrefix(p.Text, "data:") {
 			contentType, data, err := uri.Data(p)
 			if err != nil {
 				return nil, err
 			}
-			return genai.NewPartFromBytes(data, contentType), nil
+			gp = genai.NewPartFromBytes(data, contentType)
+		} else {
+			gp = genai.NewPartFromURI(p.Text, p.ContentType)
 		}
-		return genai.NewPartFromURI(p.Text, p.ContentType), nil
 	case p.IsData():
 		contentType, data, err := uri.Data(p)
 		if err != nil {
 			return nil, err
 		}
-		return genai.NewPartFromBytes(data, contentType), nil
+		gp = genai.NewPartFromBytes(data, contentType)
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
 		var output map[string]any
@@ -970,7 +970,6 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 				"content": toolResp.Output,
 			}
 		}
-
 		var isMultipart bool
 		if multiPart, ok := p.Metadata["multipart"].(bool); ok {
 			isMultipart = multiPart
@@ -1005,8 +1004,16 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 		}
 		return fc, nil
 	default:
-		panic("unknown part type in a request")
+		return nil, fmt.Errorf("unknown part in the request: %q", p.Kind)
 	}
+
+	if p.Metadata != nil {
+		if sig, ok := p.Metadata["signature"].([]byte); ok {
+			gp.ThoughtSignature = sig
+		}
+	}
+
+	return gp, nil
 }
 
 // validToolName checks whether the provided tool name matches the
