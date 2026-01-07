@@ -16,6 +16,7 @@
 
 import { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.js';
 import type {
+  CitationsDelta,
   ContentBlock,
   DocumentBlockParam,
   ImageBlockParam,
@@ -26,7 +27,9 @@ import type {
   MessageParam,
   MessageStreamEvent,
   RedactedThinkingBlockParam,
+  TextBlock,
   TextBlockParam,
+  TextCitation,
   ThinkingBlockParam,
   Tool,
   ToolResultBlockParam,
@@ -41,7 +44,12 @@ import type {
 import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
-import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import {
+  AnthropicConfigSchema,
+  type AnthropicCitation,
+  type AnthropicDocumentOptions,
+  type ClaudeRunnerParams,
+} from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import { RunnerTypes as BaseRunnerTypes } from './types.js';
@@ -100,6 +108,13 @@ export class Runner extends BaseRunner<RunnerTypes> {
         type: 'redacted_thinking',
         data: redactedThinking,
       };
+    }
+
+    // Custom document (for citations support)
+    if (part.custom?.anthropicDocument) {
+      return this.toAnthropicDocumentBlock(
+        part.custom.anthropicDocument as AnthropicDocumentOptions
+      );
     }
 
     if (part.text) {
@@ -350,6 +365,22 @@ export class Runner extends BaseRunner<RunnerTypes> {
         return { reasoning: delta.thinking };
       }
 
+      if (delta.type === 'citations_delta') {
+        const citationsDelta = delta as CitationsDelta;
+        const citation = this.fromAnthropicCitation(citationsDelta.citation);
+        if (citation) {
+          // Citations are emitted as text parts with empty text and citation data in metadata.
+          // Empty text is intentional: genkit's `.text` getter concatenates all text parts,
+          // so empty strings contribute nothing to the final text while preserving the citation
+          // in the parts array for consumers who need to access citation metadata.
+          return {
+            text: '',
+            metadata: { citations: [citation] },
+          };
+        }
+        return undefined;
+      }
+
       // signature_delta - ignore
       return undefined;
     }
@@ -440,8 +471,21 @@ export class Runner extends BaseRunner<RunnerTypes> {
           },
         };
 
-      case 'text':
-        return { text: contentBlock.text };
+      case 'text': {
+        const textBlock = contentBlock as TextBlock;
+        if (textBlock.citations && textBlock.citations.length > 0) {
+          const citations = textBlock.citations
+            .map((c) => this.fromAnthropicCitation(c))
+            .filter((c): c is AnthropicCitation => c !== undefined);
+          if (citations.length > 0) {
+            return {
+              text: textBlock.text,
+              metadata: { citations },
+            };
+          }
+        }
+        return { text: textBlock.text };
+      }
 
       case 'thinking':
         return this.createThinkingPart(
@@ -459,6 +503,133 @@ export class Runner extends BaseRunner<RunnerTypes> {
         );
         return { text: '' };
       }
+    }
+  }
+
+  /**
+   * Convert AnthropicDocumentOptions to Anthropic's document block format.
+   */
+  private toAnthropicDocumentBlock(
+    options: AnthropicDocumentOptions
+  ): DocumentBlockParam {
+    const block: DocumentBlockParam = {
+      type: 'document',
+      source: this.toAnthropicDocumentSource(options.source),
+    };
+
+    if (options.title) {
+      block.title = options.title;
+    }
+    if (options.context) {
+      block.context = options.context;
+    }
+    if (options.citations) {
+      block.citations = options.citations;
+    }
+
+    return block;
+  }
+
+  /**
+   * Convert document source options to Anthropic's source format.
+   * Note: The stable API does not support file-based sources (Files API).
+   * Use the beta API for file-based document sources.
+   */
+  private toAnthropicDocumentSource(
+    source: AnthropicDocumentOptions['source']
+  ): DocumentBlockParam['source'] {
+    switch (source.type) {
+      case 'text':
+        return {
+          type: 'text',
+          media_type: (source.mediaType ?? 'text/plain') as 'text/plain',
+          data: source.data,
+        };
+      case 'base64':
+        return {
+          type: 'base64',
+          media_type: source.mediaType as 'application/pdf',
+          data: source.data,
+        };
+      case 'file':
+        throw new Error(
+          'File-based document sources require the beta API. Set apiVersion: "beta" in your plugin config or request config.'
+        );
+      case 'content':
+        return {
+          type: 'content',
+          content: source.content.map((item) => {
+            if (item.type === 'text') {
+              return item;
+            }
+            // Image content - cast media_type to literal type
+            return {
+              type: 'image' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: item.source.mediaType as
+                  | 'image/jpeg'
+                  | 'image/png'
+                  | 'image/gif'
+                  | 'image/webp',
+                data: item.source.data,
+              },
+            };
+          }),
+        };
+      case 'url':
+        return {
+          type: 'url',
+          url: source.url,
+        };
+      default:
+        throw new Error(
+          `Unsupported document source type: ${(source as { type: string }).type}`
+        );
+    }
+  }
+
+  /**
+   * Convert Anthropic's citation format (snake_case) to genkit format (camelCase).
+   * Only handles document-based citations (char_location, page_location, content_block_location).
+   */
+  private fromAnthropicCitation(
+    citation: TextCitation
+  ): AnthropicCitation | undefined {
+    switch (citation.type) {
+      case 'char_location':
+        return {
+          type: 'char_location',
+          citedText: citation.cited_text,
+          documentIndex: citation.document_index,
+          documentTitle: citation.document_title ?? undefined,
+          startCharIndex: citation.start_char_index,
+          endCharIndex: citation.end_char_index,
+        };
+      case 'page_location':
+        return {
+          type: 'page_location',
+          citedText: citation.cited_text,
+          documentIndex: citation.document_index,
+          documentTitle: citation.document_title ?? undefined,
+          startPageNumber: citation.start_page_number,
+          endPageNumber: citation.end_page_number,
+        };
+      case 'content_block_location':
+        return {
+          type: 'content_block_location',
+          citedText: citation.cited_text,
+          documentIndex: citation.document_index,
+          documentTitle: citation.document_title ?? undefined,
+          startBlockIndex: citation.start_block_index,
+          endBlockIndex: citation.end_block_index,
+        };
+      default:
+        // Skip web search and other citation types - they're not from documents
+        logger.warn(
+          `Skipping unsupported citation type: ${(citation as { type: string }).type}`
+        );
+        return undefined;
     }
   }
 

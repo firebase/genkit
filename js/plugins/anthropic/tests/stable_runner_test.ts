@@ -725,6 +725,39 @@ describe('fromAnthropicContentBlockChunk', () => {
       expectedOutput: { reasoning: 'Step by step...' },
     },
     {
+      should: 'should return citation part from citations_delta event',
+      event: {
+        index: 0,
+        type: 'content_block_delta',
+        delta: {
+          type: 'citations_delta',
+          citation: {
+            type: 'char_location',
+            cited_text: 'The grass is green.',
+            document_index: 0,
+            document_title: 'Basic Facts',
+            start_char_index: 0,
+            end_char_index: 19,
+          },
+        },
+      } as MessageStreamEvent,
+      expectedOutput: {
+        text: '',
+        metadata: {
+          citations: [
+            {
+              type: 'char_location',
+              citedText: 'The grass is green.',
+              documentIndex: 0,
+              documentTitle: 'Basic Facts',
+              startCharIndex: 0,
+              endCharIndex: 19,
+            },
+          ],
+        },
+      },
+    },
+    {
       should: 'should return tool use requests',
       event: {
         index: 0,
@@ -902,6 +935,71 @@ describe('fromAnthropicResponse', () => {
                     name: 'tellAJoke',
                     input: { topic: 'dogs' },
                     ref: 'abc123',
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+        },
+      },
+    },
+    {
+      should: 'should work with text content containing citations',
+      message: {
+        id: 'abc123',
+        model: 'whatever',
+        type: 'message',
+        role: 'assistant',
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        content: [
+          {
+            type: 'text',
+            text: 'The grass is green.',
+            citations: [
+              {
+                type: 'char_location',
+                cited_text: 'The grass is green.',
+                document_index: 0,
+                document_title: 'Basic Facts',
+                start_char_index: 0,
+                end_char_index: 19,
+              },
+            ],
+          },
+        ],
+        usage: createUsage({
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_creation_input_tokens: null,
+          cache_read_input_tokens: null,
+        }),
+      } as Message,
+      expectedOutput: {
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text: 'The grass is green.',
+                  metadata: {
+                    citations: [
+                      {
+                        type: 'char_location',
+                        citedText: 'The grass is green.',
+                        documentIndex: 0,
+                        documentTitle: 'Basic Facts',
+                        startCharIndex: 0,
+                        endCharIndex: 19,
+                      },
+                    ],
                   },
                 },
               ],

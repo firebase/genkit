@@ -241,4 +241,58 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
       'Should have at least one citation'
     );
   });
+
+  it('should return citations using stable API', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY })], // No apiVersion = stable
+    });
+
+    const result = await ai.generate({
+      model: anthropic.model('claude-sonnet-4-5'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            anthropicDocument({
+              source: {
+                type: 'text',
+                data: 'The ocean is blue. The sun is yellow. Snow is white.',
+              },
+              title: 'Color Facts',
+              citations: { enabled: true },
+            }),
+            { text: 'What color is the ocean? Cite your source.' },
+          ],
+        },
+      ],
+    });
+
+    assert.ok(result.text, 'Should have response text');
+    assert.ok(
+      result.text.toLowerCase().includes('blue'),
+      'Response should mention blue'
+    );
+
+    // Extract citations from response parts
+    const citations = result.message?.content
+      .filter((part) => part.metadata?.citations)
+      .flatMap(
+        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
+      )
+      .filter((c): c is AnthropicCitation => c !== undefined);
+
+    assert.ok(
+      citations && citations.length > 0,
+      'Should have at least one citation with stable API'
+    );
+
+    // Verify citation structure
+    const citation = citations[0];
+    assert.strictEqual(
+      citation.type,
+      'char_location',
+      'Should be a char_location citation'
+    );
+    assert.ok(citation.citedText, 'Citation should have cited text');
+  });
 });
