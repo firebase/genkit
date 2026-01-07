@@ -28,8 +28,10 @@ from genkit.ai import Genkit
 from genkit.blocks.prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
+    DocumentData,
     GenerateActionOptions,
     GenerateRequest,
+    GenerateResponse,
     GenerationCommonConfig,
     Message,
     Role,
@@ -145,6 +147,55 @@ async def test_prompt_with_kitchensink() -> None:
     _, response = my_prompt.stream()
 
     assert (await response).text == want_txt
+
+
+@pytest.mark.asyncio
+async def test_prompt_with_resolvers() -> None:
+    """Test that the rendering works with resolvers."""
+    ai, *_ = setup_test()
+
+    async def system_resolver(input, context):
+        return f'system {input["name"]}'
+
+    def prompt_resolver(input, context):
+        return f'prompt {input["name"]}'
+
+    async def messages_resolver(input, context):
+        return [Message(role=Role.USER, content=[TextPart(text=f'msg {input["name"]}')])]
+
+    my_prompt = ai.define_prompt(
+        system=system_resolver,
+        prompt=prompt_resolver,
+        messages=messages_resolver,
+    )
+
+    want_txt = '[ECHO] system: "system world" user: "msg world" user: "prompt world"'
+
+    response = await my_prompt(input={'name': 'world'})
+
+    assert response.text == want_txt
+
+
+@pytest.mark.asyncio
+async def test_prompt_with_docs_resolver() -> None:
+    """Test that the rendering works with docs resolver."""
+    ai, _, pm = setup_test()
+
+    pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='ok')]))]
+
+    async def docs_resolver(input, context):
+        return [DocumentData(content=[TextPart(text=f'doc {input["name"]}')])]
+
+    my_prompt = ai.define_prompt(
+        model='programmableModel',
+        prompt='hi',
+        docs=docs_resolver,
+    )
+
+    await my_prompt(input={'name': 'world'})
+
+    # Check that PM received the docs
+    assert pm.last_request.docs[0].content[0].root.text == 'doc world'
 
 
 test_cases_parse_partial_json = [

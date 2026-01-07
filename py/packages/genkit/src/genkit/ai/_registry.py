@@ -30,6 +30,7 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 | `'indexer'`   | Indexer     |
 | `'model'`     | Model       |
 | `'prompt'`    | Prompt      |
+| `'resource'`  | Resource    |
 | `'retriever'` | Retriever   |
 | `'text-llm'`  | Text LLM    |
 | `'tool'`      | Tool        |
@@ -42,7 +43,10 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any, Type
+from typing import TYPE_CHECKING, Any, Callable, Type
+
+if TYPE_CHECKING:
+    from genkit.blocks.resource import ResourceFn, ResourceOptions
 
 import structlog
 from pydantic import BaseModel
@@ -65,6 +69,7 @@ from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.tracing import run_in_new_span
 from genkit.core.typing import (
+    DocumentData,
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
@@ -573,14 +578,15 @@ class GenkitRegistry:
 
     def define_prompt(
         self,
+        name: str | None = None,
         variant: str | None = None,
         model: str | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         description: str | None = None,
         input_schema: type | dict[str, Any] | None = None,
-        system: str | Part | list[Part] | None = None,
-        prompt: str | Part | list[Part] | None = None,
-        messages: str | list[Message] | None = None,
+        system: str | Part | list[Part] | Callable | None = None,
+        prompt: str | Part | list[Part] | Callable | None = None,
+        messages: str | list[Message] | Callable | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
@@ -592,12 +598,12 @@ class GenkitRegistry:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        # TODO:
-        #  docs: list[Document]
+        docs: list[DocumentData] | Callable | None = None,
     ):
         """Define a prompt.
 
         Args:
+            name: Optional name for the prompt.
             variant: Optional variant name for the prompt.
             model: Optional model name to use for the prompt.
             config: Optional configuration for the model.
@@ -619,9 +625,11 @@ class GenkitRegistry:
             tools: Optional list of tools to use for the prompt.
             tool_choice: Optional tool choice for the prompt.
             use: Optional list of model middlewares to use for the prompt.
+            docs: Optional list of documents or a callable to be used for grounding.
         """
         return define_prompt(
             self.registry,
+            name=name,
             variant=variant,
             model=model,
             config=config,
@@ -641,6 +649,7 @@ class GenkitRegistry:
             tools=tools,
             tool_choice=tool_choice,
             use=use,
+            docs=docs,
         )
 
     async def prompt(
@@ -674,6 +683,24 @@ class GenkitRegistry:
             name=name,
             variant=variant,
         )
+
+    def define_resource(
+        self,
+        opts: 'ResourceOptions',
+        fn: 'ResourceFn',
+    ) -> Action:
+        """Define a resource action.
+
+        Args:
+            opts: Options defining the resource (e.g. uri, template, name).
+            fn: Function implementing the resource behavior.
+
+        Returns:
+            The registered Action for the resource.
+        """
+        from genkit.blocks.resource import define_resource as define_resource_block
+
+        return define_resource_block(self.registry, opts, fn)
 
 
 class FlowWrapper:

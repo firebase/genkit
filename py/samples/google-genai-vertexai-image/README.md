@@ -21,7 +21,7 @@ To run this sample:
 Use the following command from a sample folder:
 
 ```bash
-uv run src/google_genai_vertexai_image.py
+uv run src/main.py
 ```
 
 ## Available options

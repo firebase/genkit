@@ -16,7 +16,7 @@ export GEMINI_API_KEY='<Your api key>'
 ## Run the sample
 
 ```bash
-genkit start -- uv run src/google_genai_hello.py
+genkit start -- uv run src/main.py
 ```
 
 ### Testing GCP telemetry
@@ -40,5 +40,5 @@ To test Google Cloud Platform telemetry (tracing and metrics), you need a GCP pr
     
 3.  **Run with Telemetry**:
     ```bash
-    genkit start -- uv run src/google_genai_hello.py --enable-gcp-telemetry
+    genkit start -- uv run src/main.py --enable-gcp-telemetry
     ```
