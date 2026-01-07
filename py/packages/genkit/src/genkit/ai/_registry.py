@@ -713,9 +713,10 @@ class GenkitRegistry:
             define_resource as define_resource_block,
         )
 
+        if fn is None:
+            raise ValueError("A function `fn` must be provided to define a resource.")
         if opts is None:
             opts = {}
-
         if name:
             opts['name'] = name
         if uri:

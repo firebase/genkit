@@ -127,8 +127,11 @@ def to_mcp_resource_contents(uri: str, parts: list[Part]) -> list[TextResourceCo
                     raise ValueError('MCP resource messages only support base64 data images.')
 
                 # Extract MIME type and base64 data
-                mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
-                blob_data = url[url.index(',') + 1 :]
+                try:
+                    mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
+                    blob_data = url[url.index(',') + 1 :]
+                except ValueError as e:
+                    raise ValueError(f'Invalid data URL format: {url}') from e
 
                 contents.append(BlobResourceContents(uri=uri, mimeType=mime_type, blob=blob_data))
 

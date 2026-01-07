@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1832,6 +1832,7 @@ dependencies = [
     { name = "genkit-plugin-vertex-ai" },
     { name = "genkit-plugin-xai" },
     { name = "liccheck" },
+    { name = "mcp" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
 ]
 
@@ -1876,6 +1877,7 @@ requires-dist = [
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "genkit-plugin-xai", editable = "plugins/xai" },
     { name = "liccheck", specifier = ">=0.9.2" },
+    { name = "mcp", specifier = ">=1.25.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
 ]
 

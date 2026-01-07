@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -114,24 +114,18 @@ class McpServer:
 
         # Create MCP Server instance
         self.server = Server(
-            {'name': self.options.name, 'version': self.options.version},
-            {
-                'capabilities': {
-                    'prompts': {},
-                    'tools': {},
-                    'resources': {},
-                }
-            },
+            self.options.name,
+            version=self.options.version,
         )
 
-        # Register request handlers
-        self.server.setRequestHandler(ListToolsRequestSchema, self.list_tools)
-        self.server.setRequestHandler(CallToolRequestSchema, self.call_tool)
-        self.server.setRequestHandler(ListPromptsRequestSchema, self.list_prompts)
-        self.server.setRequestHandler(GetPromptRequestSchema, self.get_prompt)
-        self.server.setRequestHandler(ListResourcesRequestSchema, self.list_resources)
-        self.server.setRequestHandler(ListResourceTemplatesRequestSchema, self.list_resource_templates)
-        self.server.setRequestHandler(ReadResourceRequestSchema, self.read_resource)
+        # Register request handlers using decorators
+        self.server.list_tools()(self.list_tools)
+        self.server.call_tool()(self.call_tool)
+        self.server.list_prompts()(self.list_prompts)
+        self.server.get_prompt()(self.get_prompt)
+        self.server.list_resources()(self.list_resources)
+        self.server.list_resource_templates()(self.list_resource_templates)
+        self.server.read_resource()(self.read_resource)
 
         # Resolve all actions from Genkit registry
         # We need the actual Action objects, not just serializable dicts
@@ -410,27 +404,35 @@ class McpServer:
             transport: Optional MCP transport instance. If not provided,
                       a StdioServerTransport will be created and used.
         """
-        if not transport:
-            transport = await stdio_server()
-
         await self.setup()
 
-        # Connect the transport
-        async with transport as (read, write):
-            await self.server.run(read, write, self.server.create_initialization_options())
+        if not transport:
+            async with stdio_server() as (read, write):
+                await self.server.run(
+                    read,
+                    write,
+                    self.server.create_initialization_options()
+                )
+        else:
+            # Connect the transport
+            async with transport as (read, write):
+                await self.server.run(
+                    read,
+                    write,
+                    self.server.create_initialization_options()
+                )
 
         logger.debug(f"[MCP Server] MCP server '{self.options.name}' started successfully.")
 
 
-# Schema imports (these would normally come from mcp.types)
-# For now, we'll use the string names
-ListToolsRequestSchema = 'ListToolsRequest'
-CallToolRequestSchema = 'CallToolRequest'
-ListPromptsRequestSchema = 'ListPromptsRequest'
-GetPromptRequestSchema = 'GetPromptRequest'
-ListResourcesRequestSchema = 'ListResourcesRequest'
-ListResourceTemplatesRequestSchema = 'ListResourceTemplatesRequest'
-ReadResourceRequestSchema = 'ReadResourceRequest'
+# Schema types from mcp.types
+ListToolsRequestSchema = ListToolsRequest
+CallToolRequestSchema = CallToolRequest
+ListPromptsRequestSchema = ListPromptsRequest
+GetPromptRequestSchema = GetPromptRequest
+ListResourcesRequestSchema = ListResourcesRequest
+ListResourceTemplatesRequestSchema = ListResourceTemplatesRequest
+ReadResourceRequestSchema = ReadResourceRequest
 
 
 def create_mcp_server(ai: Genkit, options: McpServerOptions) -> McpServer:

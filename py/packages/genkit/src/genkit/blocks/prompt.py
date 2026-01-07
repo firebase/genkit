@@ -794,7 +794,7 @@ async def render_message_prompt(
         resolved = await ensure_async(options.messages)(input, context)
         return resolved
 
-    raise TypeError(f"Unsupported type for messages: {type(options.messages)}")
+    raise TypeError(f'Unsupported type for messages: {type(options.messages)}')
 
 
 async def render_user_prompt(

@@ -138,8 +138,6 @@ def to_mcp_tool_result(result: Any) -> list[TextContent | ImageContent]:
         if 'type' in result and 'text' in result:
             return [TextContent(type='text', text=result['text'])]
         # Otherwise, serialize to JSON
-        import json
-
         return [TextContent(type='text', text=json.dumps(result))]
     else:
         # Convert to string for other types

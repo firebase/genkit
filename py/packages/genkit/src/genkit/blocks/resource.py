@@ -22,11 +22,13 @@ and return content (`ResourceOutput`) containing `Part`s.
 """
 
 import re
+import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any, Callable, Protocol, TypedDict
 
 from pydantic import BaseModel
 
+from genkit.aio import ensure_async
 from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
@@ -194,10 +196,6 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
             template_match = matcher(input_data)
             if not template_match:
                 raise ValueError(f'input {input_data} did not match template {uri}')
-
-            import inspect
-
-            from genkit.aio import ensure_async
 
             sig = inspect.signature(fn)
             afn = ensure_async(fn)
