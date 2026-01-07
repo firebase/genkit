@@ -24,9 +24,11 @@ Model actions should define the following metadata:
     - `tools`: Boolean (tool calling support).
     - `systemRole`: Boolean (system message support).
     - `output`: Array of supported output formats (e.g., `['json', 'text']`).
+    - `contentType`: Array of supported output content types.
     - `context`: Boolean (document context support).
     - `constrained`: Enum (`'none'`, `'all'`, `'no-tools'`) - native constrained generation support.
     - `toolChoice`: Boolean (forcing tool selection).
+    - `longRunning`: Boolean (long running operation support).
   - `stage`: Development stage (`'featured'`, `'stable'`, `'unstable'`, `'legacy'`, `'deprecated'`).
   - `customOptions`: JSON Schema for model-specific configuration (exposed as `config` in request).
 
