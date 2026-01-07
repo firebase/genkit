@@ -86,10 +86,14 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 			name: "GenerationCommonConfig pointer",
 			cfg: &ai.GenerationCommonConfig{
 				Temperature: temp,
+				TopK:        1,
+				TopP:        2.0,
 			},
 			want: &ollamaChatRequest{
 				Options: map[string]any{
 					"temperature": temp,
+					"top_k":       1,
+					"top_p":       2.0,
 				},
 			},
 		},
