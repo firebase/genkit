@@ -18,30 +18,34 @@ import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
-import { McpRuntimeManager } from './util.js';
+import {
+  McpRuntimeManager,
+  getCommonSchema,
+  resolveProjectRoot,
+} from './util.js';
 
-export function defineTraceTools(
-  server: McpServer,
-  manager: McpRuntimeManager
-) {
+export function defineTraceTools(server: McpServer, projectRoot: string) {
   server.registerTool(
     'get_trace',
     {
       title: 'Get Genkit Trace',
       description: 'Returns the trace details',
-      inputSchema: {
+      inputSchema: getCommonSchema({
         traceId: z
           .string()
           .describe(
             'trace id (typically returned after running a flow or other actions)'
           ),
-      },
+      }),
     },
-    async ({ traceId }) => {
+    async (opts) => {
       await record(new McpRunToolEvent('get_trace'));
+      const rootOrError = resolveProjectRoot(opts, projectRoot);
+      if (typeof rootOrError !== 'string') return rootOrError;
+      const { traceId } = opts;
 
       try {
-        const runtimeManager = await manager.getManager();
+        const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
         const response = await runtimeManager.getTrace({ traceId });
         return {
           content: [
