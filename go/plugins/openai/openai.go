@@ -315,9 +315,160 @@ func toOpenAIRequest(model string, input *ai.ModelRequest) (*openai.ChatCompleti
 		request.ToolChoice = *tc
 	}
 
+	oaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(input.Messages))
+	for _, m := range input.Messages {
+		switch m.Role {
+		case ai.RoleSystem:
+			oaiMessages = append(oaiMessages, toOpenAISystemMessage(m))
+
+		case ai.RoleModel:
+			msg, err := toOpenAIModelMessage(m)
+			if err != nil {
+				return nil, err
+			}
+			oaiMessages = append(oaiMessages, msg)
+
+		case ai.RoleUser:
+			msg, err := toOpenAIUserMessage(m)
+			if err != nil {
+				return nil, err
+			}
+			oaiMessages = append(oaiMessages, msg)
+
+		case ai.RoleTool:
+			msgs, err := toOpenAIToolMessages(m)
+			if err != nil {
+				return nil, err
+			}
+			oaiMessages = append(oaiMessages, msgs...)
+
+		default:
+			return nil, fmt.Errorf("unsupported role detected: %q", m.Role)
+		}
+	}
+
+	request.Messages = oaiMessages
+
 	return request, nil
 }
 
+func toOpenAISystemMessage(m *ai.Message) openai.ChatCompletionMessageParamUnion {
+	return openai.SystemMessage(m.Text())
+}
+
+func toOpenAIModelMessage(m *ai.Message) (openai.ChatCompletionMessageParamUnion, error) {
+	var (
+		textParts []openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion
+		toolCalls []openai.ChatCompletionMessageToolCallUnionParam
+	)
+
+	for _, p := range m.Content {
+		if p.IsText() {
+			textParts = append(textParts, openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion{
+				OfText: openai.TextContentPart(p.Text).OfText,
+			})
+		} else if p.IsToolRequest() {
+			toolCall, err := convertToolCall(p)
+			if err != nil {
+				return openai.ChatCompletionMessageParamUnion{}, err
+			}
+			toolCalls = append(toolCalls, *toolCall)
+		} else {
+			slog.Warn("unsupported part for assistant message", "kind", p.Kind)
+		}
+	}
+
+	msg := openai.ChatCompletionAssistantMessageParam{}
+	if len(textParts) > 0 {
+		msg.Content = openai.ChatCompletionAssistantMessageParamContentUnion{
+			OfArrayOfContentParts: textParts,
+		}
+	}
+	if len(toolCalls) > 0 {
+		msg.ToolCalls = toolCalls
+	}
+	return openai.ChatCompletionMessageParamUnion{
+		OfAssistant: &msg,
+	}, nil
+}
+
+func toOpenAIUserMessage(m *ai.Message) (openai.ChatCompletionMessageParamUnion, error) {
+	msg, err := toOpenAIParts(m.Content)
+	if err != nil {
+		return openai.ChatCompletionMessageParamUnion{}, err
+	}
+	userParts := make([]openai.ChatCompletionContentPartUnionParam, len(msg))
+	for i, p := range msg {
+		userParts[i] = *p
+	}
+	return openai.ChatCompletionMessageParamUnion{
+		OfUser: &openai.ChatCompletionUserMessageParam{
+			Content: openai.ChatCompletionUserMessageParamContentUnion{
+				OfArrayOfContentParts: userParts,
+			},
+		},
+	}, nil
+}
+
+func toOpenAIToolMessages(m *ai.Message) ([]openai.ChatCompletionMessageParamUnion, error) {
+	var msgs []openai.ChatCompletionMessageParamUnion
+	for _, p := range m.Content {
+		if p.IsToolResponse() {
+			content, err := json.Marshal(p.ToolResponse.Output)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal tool response output: %w", err)
+			}
+			msgs = append(msgs, openai.ChatCompletionMessageParamUnion{
+				OfTool: &openai.ChatCompletionToolMessageParam{
+					ToolCallID: p.ToolResponse.Ref,
+					Content: openai.ChatCompletionToolMessageParamContentUnion{
+						OfString: param.NewOpt(string(content)),
+					},
+				},
+			})
+		}
+	}
+	return msgs, nil
+}
+
+// toOpenAIParts converts a slice of [ai.Part] to a slice of [openai.ChatCompletionMessageParamUnion]
+func toOpenAIParts(parts []*ai.Part) ([]*openai.ChatCompletionContentPartUnionParam, error) {
+	resp := make([]*openai.ChatCompletionContentPartUnionParam, 0, len(parts))
+	for _, p := range parts {
+		part, err := toOpenAIPart(p)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, part)
+	}
+	return resp, nil
+}
+
+func toOpenAIPart(p *ai.Part) (*openai.ChatCompletionContentPartUnionParam, error) {
+	var m openai.ChatCompletionContentPartUnionParam
+	if p == nil {
+		return nil, fmt.Errorf("empty part detected")
+	}
+
+	switch {
+	case p.IsText():
+		m = openai.TextContentPart(p.Text)
+	case p.IsImage(), p.IsMedia():
+		m = openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
+			URL: p.Text,
+		})
+	case p.IsData():
+		m = openai.FileContentPart(openai.ChatCompletionContentPartFileFileParam{
+			FileData: openai.String(p.Text),
+		})
+	default:
+		return nil, fmt.Errorf("unsupported part kind: %v", p.Kind)
+	}
+
+	return &m, nil
+}
+
+// toOpenAITools converts a slice of [ai.ToolDefinition] and [ai.ToolChoice] to their appropriate openAI types
 func toOpenAITools(tools []*ai.ToolDefinition, toolChoice ai.ToolChoice) ([]openai.ChatCompletionToolUnionParam, *openai.ChatCompletionToolChoiceOptionUnionParam, error) {
 	if tools == nil {
 		return nil, nil, nil
@@ -386,6 +537,55 @@ func configFromRequest(config any) (*openai.ChatCompletionNewParams, error) {
 		return nil, fmt.Errorf("unexpected config type: %T", config)
 	}
 	return &openaiConfig, nil
+}
+
+func convertToolCalls(content []*ai.Part) ([]openai.ChatCompletionMessageToolCallUnionParam, error) {
+	var toolCalls []openai.ChatCompletionMessageToolCallUnionParam
+	for _, p := range content {
+		if !p.IsToolRequest() {
+			continue
+		}
+		toolCall, err := convertToolCall(p)
+		if err != nil {
+			return nil, err
+		}
+		toolCalls = append(toolCalls, *toolCall)
+	}
+	return toolCalls, nil
+}
+
+func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageToolCallUnionParam, error) {
+	toolCallID := part.ToolRequest.Ref
+	if toolCallID == "" {
+		toolCallID = part.ToolRequest.Name
+	}
+
+	param := &openai.ChatCompletionMessageToolCallUnionParam{
+		OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
+			ID: (toolCallID),
+			Function: (openai.ChatCompletionMessageFunctionToolCallFunctionParam{
+				Name: (part.ToolRequest.Name),
+			}),
+		},
+	}
+
+	args, err := anyToJSONString(part.ToolRequest.Input)
+	if err != nil {
+		return nil, err
+	}
+	if part.ToolRequest.Input != nil {
+		param.OfFunction.Function.Arguments = args
+	}
+
+	return param, nil
+}
+
+func anyToJSONString(data any) (string, error) {
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal any to JSON string: data, %#v %w", data, err)
+	}
+	return string(jsonBytes), nil
 }
 
 // mapToStruct converts the provided map into a given struct
