@@ -15,8 +15,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import asyncio
-import os
 from pathlib import Path
 
 import structlog
@@ -64,7 +62,6 @@ async def dynamic_git_commits(query: str = ''):
 
     # Simulate wildcard matching "git-client:tool/*" by passing all tools
     # (since registration prefixes with server name)
-    # JS: tools: ['test-mcp-manager:tool/*']
 
     result = await ai.generate(prompt=f"summarize last 5 commits in '{repo_root}'", tools=tools)
 
@@ -91,7 +88,6 @@ async def dynamic_get_file(query: str = ''):
     tools = await mcp_host.register_tools(ai)
 
     # Filter for specific tool: 'fs/read_file'
-    # JS: tools: ['test-mcp-manager:tool/fs/read_file']
     import fnmatch
 
     filtered_tools = [t for t in tools if fnmatch.fnmatch(t, '*/fs/read_file') or t.endswith('fs/read_file')]
@@ -111,7 +107,6 @@ async def dynamic_prefix_tool(query: str = ''):
     tools = await mcp_host.register_tools(ai)
 
     # Filter for prefix: 'fs/read_*'
-    # JS: tools: ['test-mcp-manager:tool/fs/read_*']
     import fnmatch
 
     filtered_tools = [t for t in tools if fnmatch.fnmatch(t, '*/fs/read_*')]
@@ -144,11 +139,6 @@ async def dynamic_disable_enable(query: str = ''):
     await mcp_host.disable('fs')
     text2 = ''
     try:
-        # Note: In Python, we might need to verify if tools list is updated
-        # or if the tool call fails. disable() closes connection.
-        # register_tools should ideally be called again or the tool invocation fails.
-        # Since we passed 'filtered_tools' (names), the model will try to call.
-        # The tool wrapper checks connection.
         result = await ai.generate(
             prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=filtered_tools
         )
@@ -158,9 +148,6 @@ async def dynamic_disable_enable(query: str = ''):
 
     # 3. Re-enable 'fs' and run
     await mcp_host.enable('fs')
-    # Re-registering might be needed if registry was cleaned, but here we just re-connnect
-    # Implementation detail: Does register_tools need to be called again?
-    # Code shows wrappers capture client, client.session is updated on connect.
     await mcp_host.clients['fs'].connect()
 
     result3 = await ai.generate(
@@ -197,7 +184,8 @@ async def test_resource(query: str = ''):
                     resource_content = res.contents[0].text
                     found = True
                     break
-            except Exception:
+            except Exception as e:
+                logger.debug("Failed to read resource from client", error=e)
                 continue
 
     result = await ai.generate(

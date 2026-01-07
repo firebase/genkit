@@ -20,16 +20,15 @@ This will:
 2. Execute sample flows demonstrating tool usage
 3. Clean up connections on exit
 
-### Run the MCP Client/Host
+### Run the HTTP MCP Server
 ```bash
 cd py/samples/mcp
 genkit start -- uv run src/http_server.py
 ```
 
 This will:
-1. Connect to the configured MCP servers
-2. Execute sample flows demonstrating tool usage
-3. Clean up connections on exit
+1. Start an MCP server over HTTP/SSE on port 3334.
+2. Expose a test tool named test_http.
 
 ### Run the MCP Server
 ```bash
