@@ -15,7 +15,7 @@
         - valid-media:audio
 - model: googleai/gemini-2.5-pro
 - model: googleai/gemini-3-pro-preview
-  supports: 
+  supports:
     - tool-request
     - structured-output
     - multiturn

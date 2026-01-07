@@ -23,6 +23,7 @@ import {
 } from '@genkit-ai/tools-common/utils';
 import { Command, program } from 'commander';
 import { config } from './commands/config';
+import { devTestModel } from './commands/dev-test-model';
 import { evalExtractData } from './commands/eval-extract-data';
 import { evalFlow } from './commands/eval-flow';
 import { evalRun } from './commands/eval-run';
@@ -35,7 +36,6 @@ import {
   SERVER_HARNESS_COMMAND,
   serverHarness,
 } from './commands/server-harness';
-import { devTestModel } from './commands/dev-test-model';
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';

@@ -467,7 +467,8 @@ export const devTestModel = new Command('dev-test-model')
       } else {
         if (!modelOrCmd) {
           logger.error('Model name is required unless --from-file is used.');
-          process.exit(1);
+          process.exitCode = 1;
+          return;
         }
         defaultModelName = modelOrCmd;
         if (args) cmd = args;
@@ -534,13 +535,11 @@ export const devTestModel = new Command('dev-test-model')
         );
 
         if (totalFailed > 0) {
-          process.exit(1);
-        } else {
-          process.exit(0);
+          process.exitCode = 1;
         }
       } catch (e) {
         logger.error('Error running tests:', e);
-        process.exit(1);
+        process.exitCode = 1;
       }
     }
   );
