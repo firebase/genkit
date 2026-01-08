@@ -46,6 +46,7 @@ import {
   type GenerationCommonConfigSchema,
   type IndexerParams,
   type ModelArgument,
+  type ModelReference,
   type Part,
   type PromptConfig,
   type PromptGenerateOptions,
@@ -953,7 +954,7 @@ export class Genkit implements HasRegistry {
       this.registry.registerValue(
         'defaultModel',
         'defaultModel',
-        this.options.model
+        modelName(this.options.model)
       );
     }
     if (this.options.promptDir !== null) {
@@ -1085,4 +1086,20 @@ let disableReflectionApi = false;
 
 export function __disableReflectionApi() {
   disableReflectionApi = true;
+}
+
+/** Helper method to map ModelArgument to string */
+function modelName(
+  modelArg: ModelArgument<any> | undefined
+): string | undefined {
+  if (modelArg === undefined) {
+    return undefined;
+  }
+  if (typeof modelArg === 'string') {
+    return modelArg;
+  }
+  if ((modelArg as ModelReference<any>).name) {
+    return (modelArg as ModelReference<any>).name;
+  }
+  return (modelArg as ModelAction).__action.name;
 }
