@@ -2920,3 +2920,175 @@ func TestDefineDataPromptPanics(t *testing.T) {
 		}, "name is required")
 	})
 }
+
+// TestLoadPromptTemplateVariableSubstitution tests that template variables are
+// properly substituted with actual input values at execution time.
+// This is a regression test for https://github.com/firebase/genkit/issues/3924
+func TestLoadPromptTemplateVariableSubstitution(t *testing.T) {
+	t.Run("single role", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		mockPromptFile := filepath.Join(tempDir, "greeting.prompt")
+		mockPromptContent := `---
+model: test/chat
+description: A greeting prompt with variables
+---
+Hello {{name}}, welcome to {{place}}!
+`
+
+		if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+			t.Fatalf("Failed to create mock prompt file: %v", err)
+		}
+
+		prompt := LoadPrompt(registry.New(), tempDir, "greeting.prompt", "template-var-test")
+
+		// Test with first set of input values
+		actionOpts1, err := prompt.Render(context.Background(), map[string]any{
+			"name":  "Alice",
+			"place": "Wonderland",
+		})
+		if err != nil {
+			t.Fatalf("Failed to render prompt with first input: %v", err)
+		}
+
+		if len(actionOpts1.Messages) != 1 {
+			t.Fatalf("Expected 1 message, got %d", len(actionOpts1.Messages))
+		}
+
+		text1 := actionOpts1.Messages[0].Content[0].Text
+		if !strings.Contains(text1, "Alice") {
+			t.Errorf("Expected message to contain 'Alice', got: %s", text1)
+		}
+		if !strings.Contains(text1, "Wonderland") {
+			t.Errorf("Expected message to contain 'Wonderland', got: %s", text1)
+		}
+
+		// Test with second set of input values (different from first)
+		actionOpts2, err := prompt.Render(context.Background(), map[string]any{
+			"name":  "Bob",
+			"place": "Paradise",
+		})
+		if err != nil {
+			t.Fatalf("Failed to render prompt with second input: %v", err)
+		}
+
+		if len(actionOpts2.Messages) != 1 {
+			t.Fatalf("Expected 1 message, got %d", len(actionOpts2.Messages))
+		}
+
+		text2 := actionOpts2.Messages[0].Content[0].Text
+		if !strings.Contains(text2, "Bob") {
+			t.Errorf("Expected message to contain 'Bob', got: %s", text2)
+		}
+		if !strings.Contains(text2, "Paradise") {
+			t.Errorf("Expected message to contain 'Paradise', got: %s", text2)
+		}
+
+		// Critical: Ensure the second render did NOT use the first input values
+		if strings.Contains(text2, "Alice") {
+			t.Errorf("BUG: Second render contains 'Alice' from first input! Got: %s", text2)
+		}
+		if strings.Contains(text2, "Wonderland") {
+			t.Errorf("BUG: Second render contains 'Wonderland' from first input! Got: %s", text2)
+		}
+	})
+
+	t.Run("multi role", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		mockPromptFile := filepath.Join(tempDir, "handlebars_role.prompt")
+		mockPromptContent := `---
+model: test/chat
+description: A multi-role prompt using Handlebars role syntax
+---
+{{role "system"}}
+You are a {{personality}} assistant.
+
+{{role "user"}}
+Hello {{name}}, please help me with {{task}}.
+`
+
+		if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+			t.Fatalf("Failed to create mock prompt file: %v", err)
+		}
+
+		prompt := LoadPrompt(registry.New(), tempDir, "handlebars_role.prompt", "handlebars-role-test")
+
+		// Test with first set of input values
+		actionOpts1, err := prompt.Render(context.Background(), map[string]any{
+			"personality": "helpful",
+			"name":        "Alice",
+			"task":        "coding",
+		})
+		if err != nil {
+			t.Fatalf("Failed to render prompt with first input: %v", err)
+		}
+
+		if len(actionOpts1.Messages) != 2 {
+			t.Fatalf("Expected 2 messages, got %d", len(actionOpts1.Messages))
+		}
+
+		// Check system message
+		systemMsg := actionOpts1.Messages[0]
+		if systemMsg.Role != RoleSystem {
+			t.Errorf("Expected first message role to be 'system', got '%s'", systemMsg.Role)
+		}
+		systemText := systemMsg.Content[0].Text
+		if !strings.Contains(systemText, "helpful") {
+			t.Errorf("Expected system message to contain 'helpful', got: %s", systemText)
+		}
+
+		// Check user message
+		userMsg := actionOpts1.Messages[1]
+		if userMsg.Role != RoleUser {
+			t.Errorf("Expected second message role to be 'user', got '%s'", userMsg.Role)
+		}
+		userText := userMsg.Content[0].Text
+		if !strings.Contains(userText, "Alice") {
+			t.Errorf("Expected user message to contain 'Alice', got: %s", userText)
+		}
+		if !strings.Contains(userText, "coding") {
+			t.Errorf("Expected user message to contain 'coding', got: %s", userText)
+		}
+
+		// Test with second set of input values (different from first)
+		actionOpts2, err := prompt.Render(context.Background(), map[string]any{
+			"personality": "professional",
+			"name":        "Bob",
+			"task":        "writing",
+		})
+		if err != nil {
+			t.Fatalf("Failed to render prompt with second input: %v", err)
+		}
+
+		if len(actionOpts2.Messages) != 2 {
+			t.Fatalf("Expected 2 messages, got %d", len(actionOpts2.Messages))
+		}
+
+		// Check system message with new values
+		systemMsg2 := actionOpts2.Messages[0]
+		systemText2 := systemMsg2.Content[0].Text
+		if !strings.Contains(systemText2, "professional") {
+			t.Errorf("Expected system message to contain 'professional', got: %s", systemText2)
+		}
+		if strings.Contains(systemText2, "helpful") {
+			t.Errorf("BUG: Second render system message contains 'helpful' from first input! Got: %s", systemText2)
+		}
+
+		// Check user message with new values
+		userMsg2 := actionOpts2.Messages[1]
+		userText2 := userMsg2.Content[0].Text
+		if !strings.Contains(userText2, "Bob") {
+			t.Errorf("Expected user message to contain 'Bob', got: %s", userText2)
+		}
+		if !strings.Contains(userText2, "writing") {
+			t.Errorf("Expected user message to contain 'writing', got: %s", userText2)
+		}
+		if strings.Contains(userText2, "Alice") {
+			t.Errorf("BUG: Second render user message contains 'Alice' from first input! Got: %s", userText2)
+		}
+		if strings.Contains(userText2, "coding") {
+			t.Errorf("BUG: Second render user message contains 'coding' from first input! Got: %s", userText2)
+		}
+	})
+}
