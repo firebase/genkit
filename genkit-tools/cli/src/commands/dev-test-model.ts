@@ -18,6 +18,7 @@ import {
   GenerateRequestData,
   GenerateResponseData,
   GenerateResponseSchema,
+  Part,
 } from '@genkit-ai/tools-common';
 import {
   GenkitToolsError,
@@ -59,7 +60,7 @@ const getMessageContent = (response: GenerateResponseData) => {
 
 const getMediaPart = (response: GenerateResponseData) => {
   const content = getMessageContent(response);
-  return content?.find((p: any) => p.media);
+  return content?.find((p: Part) => p.media);
 };
 
 const imageBase64 =
@@ -80,7 +81,7 @@ const VALIDATORS: Record<
         )}`
       );
     }
-    const toolRequest = content.find((c: any) => c.toolRequest);
+    const toolRequest = content.find((c: Part) => c.toolRequest);
     if (!toolRequest) {
       throw new Error(
         `Model did not return a tool request. Content: ${JSON.stringify(
@@ -107,7 +108,7 @@ const VALIDATORS: Record<
         )}`
       );
     }
-    const textPart = content.find((c: any) => c.text);
+    const textPart = content.find((c: Part) => c.text);
     if (!textPart) {
       throw new Error(
         `Model did not return text content for JSON. Content: ${JSON.stringify(
