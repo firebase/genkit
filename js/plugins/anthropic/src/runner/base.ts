@@ -50,8 +50,6 @@ import {
   RunnerTypes,
 } from './types.js';
 
-const ANTHROPIC_THINKING_CUSTOM_KEY = 'anthropicThinking';
-
 /**
  * Shared runner logic for Anthropic SDK integrations.
  *
@@ -298,35 +296,11 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     };
   }
 
-  protected createThinkingPart(thinking: string, signature?: string): Part {
-    const custom =
-      signature !== undefined
-        ? {
-            [ANTHROPIC_THINKING_CUSTOM_KEY]: { signature },
-          }
-        : undefined;
-    return custom
-      ? {
-          reasoning: thinking,
-          custom,
-        }
-      : {
-          reasoning: thinking,
-        };
-  }
-
   protected getThinkingSignature(part: Part): string | undefined {
-    const custom = part.custom as Record<string, unknown> | undefined;
-    const thinkingValue = custom?.[ANTHROPIC_THINKING_CUSTOM_KEY];
-    if (
-      typeof thinkingValue === 'object' &&
-      thinkingValue !== null &&
-      'signature' in thinkingValue &&
-      typeof (thinkingValue as { signature: unknown }).signature === 'string'
-    ) {
-      return (thinkingValue as { signature: string }).signature;
-    }
-    return undefined;
+    const metadata = part.metadata as Record<string, unknown> | undefined;
+    return typeof metadata?.thoughtSignature === 'string'
+      ? metadata.thoughtSignature
+      : undefined;
   }
 
   protected getRedactedThinkingData(part: Part): string | undefined {
@@ -361,24 +335,6 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     }
 
     return undefined;
-  }
-
-  protected toWebSearchToolResultPart(params: {
-    toolUseId: string;
-    content: unknown;
-    type: string;
-  }): Part {
-    const { toolUseId, content, type } = params;
-    return {
-      text: `[Anthropic server tool result ${toolUseId}] ${JSON.stringify(content)}`,
-      custom: {
-        anthropicServerToolResult: {
-          type,
-          toolUseId,
-          content,
-        },
-      },
-    };
   }
 
   /**
