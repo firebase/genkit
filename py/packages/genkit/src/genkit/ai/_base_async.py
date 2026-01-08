@@ -20,11 +20,14 @@ from collections.abc import Coroutine
 from typing import Any, TypeVar
 
 import anyio
+import os
 import structlog
+import threading
 import uvicorn
 
 from genkit.aio.loop import run_loop
 from genkit.blocks.formats import built_in_formats
+from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.web.manager import find_free_port_sync
@@ -37,6 +40,10 @@ from ._server import ServerSpec
 logger = structlog.get_logger(__name__)
 
 T = TypeVar('T')
+
+
+_instance_count = -1
+_instance_lock = threading.Lock()
 
 
 class GenkitBase(GenkitRegistry):
@@ -57,8 +64,14 @@ class GenkitBase(GenkitRegistry):
                 server. If not provided in dev mode, a default will be used.
         """
         super().__init__()
+        global _instance_count
+        global _instance_lock
+        with _instance_lock:
+            _instance_count += 1
+            self.id = f'{os.getpid()}-{_instance_count}'
         self._reflection_server_spec = reflection_server_spec
         self._initialize_registry(model, plugins)
+        define_generate_action(self.registry)
 
     def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None) -> None:
         """Initialize the registry for the Genkit instance.
@@ -91,7 +104,7 @@ class GenkitBase(GenkitRegistry):
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 
-    def run_main(self, coro: Coroutine[Any, Any, T]) -> T:
+    def run_main(self, coro: Coroutine[Any, Any, T] | None = None) -> T:
         """Run the user's main coroutine.
 
         In development mode (`GENKIT_ENV=dev`), this starts the Genkit
@@ -109,6 +122,13 @@ class GenkitBase(GenkitRegistry):
         Returns:
             The result of the user's coroutine.
         """
+        if coro is None:
+
+            async def blank_coro():
+                pass
+
+            coro = blank_coro()
+
         if not is_dev_environment():
             logger.info('Running in production mode.')
             return run_loop(coro)
@@ -139,10 +159,10 @@ class GenkitBase(GenkitRegistry):
                 finally:
                     user_task_finished_event.set()
 
-            reflection_server = _make_reflection_server(self.registry, spec)
+            reflection_server = _make_reflection_server(self.registry, spec, self.id)
 
             try:
-                async with RuntimeManager(spec):
+                async with RuntimeManager(spec, id=self.id):
                     # We use anyio.TaskGroup because it is compatible with
                     # asyncio's event loop and works with Python 3.10
                     # (asyncio.TaskGroup was added in 3.11, and we can switch to
@@ -178,7 +198,7 @@ class GenkitBase(GenkitRegistry):
         return anyio.run(dev_runner)
 
 
-def _make_reflection_server(registry: GenkitRegistry, spec: ServerSpec) -> uvicorn.Server:
+def _make_reflection_server(registry: GenkitRegistry, spec: ServerSpec, id: str) -> uvicorn.Server:
     """Make a reflection server for the given registry and spec.
 
     This is a helper function to make it easier to test the reflection server
@@ -191,6 +211,6 @@ def _make_reflection_server(registry: GenkitRegistry, spec: ServerSpec) -> uvico
     Returns:
         A uvicorn server instance.
     """
-    app = create_reflection_asgi_app(registry=registry)
+    app = create_reflection_asgi_app(registry=registry, id=id)
     config = uvicorn.Config(app, host=spec.host, port=spec.port, loop='asyncio')
     return uvicorn.Server(config)

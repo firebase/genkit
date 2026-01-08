@@ -28,6 +28,7 @@ from types import TracebackType
 
 import structlog
 
+from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from ._server import ServerSpec
 
 logger = structlog.get_logger(__name__)
@@ -76,7 +77,7 @@ def _register_atexit_cleanup_handler(path_to_remove: Path | None) -> None:
     atexit.register(sync_cleanup)
 
 
-def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
+def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec, id: str, genkit_version: str) -> Path:
     """Calculates metadata, creates filename, and writes the runtime file.
 
     Args:
@@ -92,8 +93,9 @@ def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
 
     metadata = json.dumps({
         'reflectionApiSpecVersion': 1,
-        'id': f'{os.getpid()}',
+        'id': id,
         'pid': os.getpid(),
+        'genkitVersion': genkit_version,
         'reflectionServerUrl': spec.url,
         'timestamp': f'{current_datetime.isoformat()}',
     })
@@ -135,19 +137,30 @@ class RuntimeManager:
     that the context manager exits cleanly and allows exceptions to propagate.
     """
 
-    def __init__(self, spec: ServerSpec, runtime_dir: str | Path | None = None):
+    def __init__(
+        self,
+        spec: ServerSpec,
+        runtime_dir: str | Path | None = None,
+        id: str | None = None,
+        genkit_version: str | None = None,
+    ):
         """Initialize the RuntimeManager.
 
         Args:
             spec: The server specification for the reflection server.
             runtime_dir: The directory to store the runtime file in.
                          Defaults to .genkit/runtimes in the current directory.
+            id: The unique identifier for this runtime instance. Defaults to pid.
+            genkit_version: The version string of Genkit. Defaults to py/<version>.
         """
         self.spec = spec
         if runtime_dir is None:
             self._runtime_dir = Path(os.getcwd()) / DEFAULT_RUNTIME_DIR_NAME
         else:
             self._runtime_dir = Path(runtime_dir)
+
+        self.id = id if id else str(os.getpid())
+        self.genkit_version = genkit_version if genkit_version else f'py/{DEFAULT_GENKIT_VERSION}'
 
         self._runtime_file_path: Path | None = None
 
@@ -156,8 +169,10 @@ class RuntimeManager:
         try:
             await logger.adebug(f'Ensuring runtime directory exists: {self._runtime_dir}')
             self._runtime_dir.mkdir(parents=True, exist_ok=True)
-            runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
-            _register_atexit_cleanup_handler(runtime_file_path)
+            self._runtime_file_path = _create_and_write_runtime_file(
+                self._runtime_dir, self.spec, self.id, self.genkit_version
+            )
+            _register_atexit_cleanup_handler(self._runtime_file_path)
 
         except Exception as e:
             logger.error(f'Failed to initialize runtime file: {e}', exc_info=True)
@@ -181,6 +196,7 @@ class RuntimeManager:
             True if cleanup was successful, False if cleanup failed.
         """
         await logger.adebug('RuntimeManager async context exited.')
+        _remove_file(self._runtime_file_path)
         return True
 
     def __enter__(self) -> RuntimeManager:
@@ -188,7 +204,9 @@ class RuntimeManager:
         try:
             logger.debug(f'[sync] Ensuring runtime directory exists: {self._runtime_dir}')
             self._runtime_dir.mkdir(parents=True, exist_ok=True)
-            self._runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
+            self._runtime_file_path = _create_and_write_runtime_file(
+                self._runtime_dir, self.spec, self.id, self.genkit_version
+            )
             _register_atexit_cleanup_handler(self._runtime_file_path)
 
         except Exception as e:

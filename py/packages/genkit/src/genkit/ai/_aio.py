@@ -61,7 +61,7 @@ from genkit.types import (
     ToolChoice,
 )
 
-from ._base import GenkitBase
+from ._base_async import GenkitBase
 from ._plugin import Plugin
 from ._server import ServerSpec
 
