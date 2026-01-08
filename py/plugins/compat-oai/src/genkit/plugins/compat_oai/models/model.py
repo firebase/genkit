@@ -241,11 +241,16 @@ class OpenAIModel:
             return config
 
         if isinstance(config, dict):
-            if config.get('topK'):
-                del config['topK']
-            if config.get('topP'):
-                config['top_p'] = config['topP']
-                del config['topP']
-            return OpenAIConfig(**config)
+             # Handled below
+             pass
+        elif hasattr(config, 'model_dump'):
+             config = config.model_dump(exclude_none=True)
+        else:
+            raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')
 
-        raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')
+        if config.get('topK'):
+            del config['topK']
+        if config.get('topP'):
+            config['top_p'] = config['topP']
+            del config['topP']
+        return OpenAIConfig(**config)

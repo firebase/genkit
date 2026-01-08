@@ -260,6 +260,7 @@ def create_reflection_asgi_app(
     on_app_shutdown: LifespanHandler | None = None,
     version: str = DEFAULT_GENKIT_VERSION,
     encoding: str = 'utf-8',
+    id: str | None = None,
 ) -> Application:
     """Create and return a ASGI application for the Genkit reflection API.
 
@@ -289,6 +290,7 @@ def create_reflection_asgi_app(
         version: The version string to use when setting the value of
             the X-GENKIT-VERSION HTTP header.
         encoding: The text encoding to use; default 'utf-8'.
+        id: The unique identifier for this Genkit instance.
 
     Returns:
         An ASGI application configured with the given registry.
@@ -303,6 +305,12 @@ def create_reflection_asgi_app(
         Returns:
             A JSON response with status code 200.
         """
+        if id:
+             query_params = request.query_params
+             expected_id = query_params.get('id')
+             if expected_id is not None and expected_id != id:
+                 return JSONResponse(status_code=500, content={})
+
         return JSONResponse(content={'status': 'OK'})
 
     async def handle_terminate(request: Request) -> JSONResponse:
@@ -327,8 +335,11 @@ def create_reflection_asgi_app(
         Returns:
             A JSON response containing all serializable actions.
         """
+
+        actions = registry.list_serializable_actions()
+        actions = registry.list_actions(actions)
         return JSONResponse(
-            content=registry.list_serializable_actions(),
+            content=actions,
             status_code=200,
             headers={'x-genkit-version': version},
         )
