@@ -17,7 +17,7 @@ from menu_ai import ai
 from menu_schemas import MenuQuestionInputSchema
 
 from genkit.plugins.google_genai import google_genai_name
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 s01_vanillaPrompt = ai.define_prompt(
     variant='s01_vanillaPrompt',
@@ -28,7 +28,7 @@ s01_vanillaPrompt = ai.define_prompt(
 
 s01_staticMenuDotPrompt = ai.define_prompt(
     variant='s01_staticMenuDotPrompt',
-    model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=google_genai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
     input_schema=MenuQuestionInputSchema,
     system="""
     You are acting as a helpful AI assistant named "Walt" that can answer
