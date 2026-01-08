@@ -81,6 +81,93 @@ console.log(response.reasoning);  // Summarized thinking steps
 
 When thinking is enabled, request bodies sent through the plugin include the `thinking` payload (`{ type: 'enabled', budget_tokens: … }`) that Anthropic's API expects, and streamed responses deliver `reasoning` parts as they arrive so you can render the chain-of-thought incrementally.
 
+### MCP (Model Context Protocol) Tools
+
+The beta API supports connecting to MCP servers, allowing Claude to use external tools hosted on MCP-compatible servers. This feature requires the beta API.
+
+```typescript
+const response = await ai.generate({
+  model: anthropic.model('claude-sonnet-4-5'),
+  prompt: 'Search for TypeScript files in my project',
+  config: {
+    apiVersion: 'beta',
+    mcp_servers: [
+      {
+        type: 'url',
+        url: 'https://your-mcp-server.com/v1',
+        name: 'filesystem',
+        authorization_token: process.env.MCP_TOKEN, // Optional
+      },
+    ],
+    mcp_toolsets: [
+      {
+        type: 'mcp_toolset',
+        mcp_server_name: 'filesystem',
+        default_config: { enabled: true },
+        // Optionally configure specific tools:
+        configs: {
+          search_files: { enabled: true },
+          delete_files: { enabled: false }, // Disable dangerous tools
+        },
+      },
+    ],
+  },
+});
+
+// Access MCP tool usage from the response
+const mcpToolUse = response.message?.content.find(
+  (part) => part.custom?.anthropicMcpToolUse
+);
+if (mcpToolUse) {
+  console.log('MCP tool used:', mcpToolUse.custom.anthropicMcpToolUse);
+}
+```
+
+**Response Structure:**
+
+When Claude uses an MCP tool, the response contains parts for both tool invocation and results:
+
+**Tool Invocation (`mcp_tool_use`):**
+- `text`: Human-readable description of the tool invocation
+- `custom.anthropicMcpToolUse`: Structured tool use data
+  - `id`: Unique tool use identifier
+  - `name`: Full tool name (server/tool)
+  - `serverName`: MCP server name
+  - `toolName`: Tool name on the server
+  - `input`: Tool input parameters
+
+**Tool Result (`mcp_tool_result`):**
+- `text`: Human-readable result (prefixed with `[ERROR]` if execution failed)
+- `custom.anthropicMcpToolResult`: Structured result data
+  - `toolUseId`: Reference to the original tool use
+  - `isError`: Boolean indicating if the tool execution failed
+  - `content`: The tool execution result
+
+```typescript
+// Access MCP tool results from the response
+const mcpToolResult = response.message?.content.find(
+  (part) => part.custom?.anthropicMcpToolResult
+);
+if (mcpToolResult) {
+  const result = mcpToolResult.custom.anthropicMcpToolResult;
+  if (result.isError) {
+    console.error('MCP tool failed:', result.content);
+  } else {
+    console.log('MCP tool result:', result.content);
+  }
+}
+```
+
+**Note:** MCP tools are server-managed - they execute on Anthropic's infrastructure, not locally. The response will include both the tool invocation (`mcp_tool_use`) and results (`mcp_tool_result`) as they occur.
+
+**Configuration Validation:**
+
+The plugin validates MCP configuration at runtime:
+- MCP server URLs must use HTTPS protocol
+- MCP server names must be unique
+- MCP toolsets must reference servers defined in `mcp_servers`
+- Each MCP server must be referenced by exactly one toolset
+
 ### Beta API Limitations
 
 The beta API surface provides access to experimental features, but some server-managed tool blocks are not yet supported by this plugin. The following beta API features will cause an error if encountered:
@@ -89,11 +176,9 @@ The beta API surface provides access to experimental features, but some server-m
 - `code_execution_tool_result`
 - `bash_code_execution_tool_result`
 - `text_editor_code_execution_tool_result`
-- `mcp_tool_result`
-- `mcp_tool_use`
 - `container_upload`
 
-Note that `server_tool_use` and `web_search_tool_result` ARE supported and work with both stable and beta APIs.
+Note that `server_tool_use`, `web_search_tool_result`, `mcp_tool_use`, and `mcp_tool_result` ARE supported and work with the beta API.
 
 ### Within a flow
 

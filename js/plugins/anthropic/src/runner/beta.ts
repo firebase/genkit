@@ -62,8 +62,6 @@ const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
   'code_execution_tool_result',
   'bash_code_execution_tool_result',
   'text_editor_code_execution_tool_result',
-  'mcp_tool_result',
-  'mcp_tool_use',
   'container_upload',
 ]);
 
@@ -76,7 +74,7 @@ const BETA_APIS = [
   // 'token-efficient-tools-2025-02-19',
   // 'output-128k-2025-02-19',
   'files-api-2025-04-14',
-  // 'mcp-client-2025-04-04',
+  'mcp-client-2025-11-20',
   // 'dev-full-thinking-2025-05-14',
   // 'interleaved-thinking-2025-05-14',
   // 'code-execution-2025-05-22',
@@ -141,11 +139,48 @@ interface BetaRunnerTypes extends RunnerTypes {
 }
 
 /**
+ * Return type for _prepareConfigAndTools helper.
+ */
+interface PreparedConfigAndTools {
+  topP: number | undefined;
+  topK: number | undefined;
+  mcp_servers: unknown[] | undefined;
+  tools: unknown[] | undefined;
+  restConfig: Record<string, unknown>;
+}
+
+/**
  * Runner for the Anthropic Beta API.
  */
 export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
   constructor(params: ClaudeRunnerParams) {
     super(params);
+  }
+
+  /**
+   * Extract and prepare config fields and tools array from request.
+   * Handles MCP toolset merging with regular tools.
+   */
+  private _prepareConfigAndTools(
+    request: GenerateRequest<typeof AnthropicConfigSchema>
+  ): PreparedConfigAndTools {
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      mcp_servers,
+      mcp_toolsets,
+      ...restConfig
+    } = request.config ?? {};
+
+    const genkitTools = request.tools?.map((tool) => this.toAnthropicTool(tool));
+    const tools =
+      genkitTools || mcp_toolsets
+        ? [...(genkitTools ?? []), ...(mcp_toolsets ?? [])]
+        : undefined;
+
+    return { topP, topK, mcp_servers, tools, restConfig };
   }
 
   /**
@@ -325,17 +360,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
-    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
-    // Thinking is extracted separately to avoid type issues.
-    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
-    const {
-      topP,
-      topK,
-      apiVersion: _1,
-      thinking: _2,
-      ...restConfig
-    } = request.config ?? {};
+    const { topP, topK, mcp_servers, tools, restConfig } =
+      this._prepareConfigAndTools(request);
 
     const body = {
       model: mappedModelName,
@@ -349,7 +375,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       top_p: topP,
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
-      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      tools,
+      mcp_servers,
       thinking: thinkingConfig,
       output_format: this.isStructuredOutputEnabled(request)
         ? {
@@ -396,17 +423,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       request.config?.thinking
     ) as BetaMessageCreateParams['thinking'] | undefined;
 
-    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
-    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
-    // Thinking is extracted separately to avoid type issues.
-    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
-    const {
-      topP,
-      topK,
-      apiVersion: _1,
-      thinking: _2,
-      ...restConfig
-    } = request.config ?? {};
+    const { topP, topK, mcp_servers, tools, restConfig } =
+      this._prepareConfigAndTools(request);
 
     const body = {
       model: mappedModelName,
@@ -421,7 +439,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       top_p: topP,
       tool_choice: request.config?.tool_choice,
       metadata: request.config?.metadata,
-      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      tools,
+      mcp_servers,
       thinking: thinkingConfig,
       output_format: this.isStructuredOutputEnabled(request)
         ? {
@@ -496,8 +515,72 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         };
       }
 
-      case 'mcp_tool_use':
-        throw new Error(unsupportedServerToolError(contentBlock.type));
+      case 'mcp_tool_use': {
+        let serverName: string;
+        if (
+          'server_name' in contentBlock &&
+          typeof contentBlock.server_name === 'string'
+        ) {
+          serverName = contentBlock.server_name;
+        } else {
+          serverName = 'unknown_server';
+          logger.warn(
+            `MCP tool use block missing 'server_name' field. Block id: ${contentBlock.id}`
+          );
+        }
+        const toolName = contentBlock.name ?? 'unknown_tool';
+        if (!contentBlock.name) {
+          logger.warn(
+            `MCP tool use block missing 'name' field. Block id: ${contentBlock.id}`
+          );
+        }
+        return {
+          text: `[Anthropic MCP tool ${serverName}/${toolName}] input: ${JSON.stringify(contentBlock.input)}`,
+          custom: {
+            anthropicMcpToolUse: {
+              id: contentBlock.id,
+              name: `${serverName}/${toolName}`,
+              serverName,
+              toolName,
+              input: contentBlock.input,
+            },
+          },
+        };
+      }
+
+      case 'mcp_tool_result': {
+        const toolUseId =
+          'tool_use_id' in contentBlock &&
+          typeof contentBlock.tool_use_id === 'string'
+            ? contentBlock.tool_use_id
+            : 'unknown';
+        const isError =
+          'is_error' in contentBlock &&
+          typeof contentBlock.is_error === 'boolean'
+            ? contentBlock.is_error
+            : false;
+        const content =
+          'content' in contentBlock ? contentBlock.content : undefined;
+
+        // Log MCP tool errors so they don't go unnoticed
+        if (isError) {
+          logger.warn(
+            `MCP tool execution failed for tool_use_id '${toolUseId}'. Content: ${JSON.stringify(content)}`
+          );
+        }
+
+        const statusPrefix = isError ? '[ERROR] ' : '';
+        return {
+          text: `${statusPrefix}[Anthropic MCP tool result ${toolUseId}] ${JSON.stringify(content)}`,
+          custom: {
+            anthropicMcpToolResult: {
+              toolUseId,
+              isError,
+              content,
+            },
+          },
+        };
+      }
 
       case 'server_tool_use': {
         const baseName = contentBlock.name ?? 'unknown_tool';

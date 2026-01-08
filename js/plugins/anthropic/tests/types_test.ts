@@ -17,7 +17,11 @@
 import * as assert from 'assert';
 import { z } from 'genkit';
 import { describe, it } from 'node:test';
-import { AnthropicConfigSchema, resolveBetaEnabled } from '../src/types.js';
+import {
+  AnthropicConfigSchema,
+  McpServerConfigSchema,
+  resolveBetaEnabled,
+} from '../src/types.js';
 
 describe('resolveBetaEnabled', () => {
   it('should return true when config.apiVersion is beta', () => {
@@ -85,5 +89,172 @@ describe('resolveBetaEnabled', () => {
     };
     assert.strictEqual(resolveBetaEnabled(config, 'stable'), false);
     assert.strictEqual(resolveBetaEnabled(config, 'beta'), true);
+  });
+});
+
+describe('McpServerConfigSchema', () => {
+  it('should require HTTPS URL', () => {
+    const httpConfig = {
+      type: 'url' as const,
+      url: 'http://example.com/mcp',
+      name: 'test-server',
+    };
+    const result = McpServerConfigSchema.safeParse(httpConfig);
+    assert.strictEqual(result.success, false);
+    if (!result.success) {
+      assert.ok(
+        result.error.issues.some((i) =>
+          i.message.includes('HTTPS')
+        )
+      );
+    }
+  });
+
+  it('should accept HTTPS URL', () => {
+    const httpsConfig = {
+      type: 'url' as const,
+      url: 'https://example.com/mcp',
+      name: 'test-server',
+    };
+    const result = McpServerConfigSchema.safeParse(httpsConfig);
+    assert.strictEqual(result.success, true);
+  });
+});
+
+describe('AnthropicConfigSchema MCP validation', () => {
+  it('should fail when server is not referenced by any toolset', () => {
+    const config = {
+      mcp_servers: [
+        {
+          type: 'url' as const,
+          url: 'https://example.com/mcp',
+          name: 'orphan-server',
+        },
+      ],
+      // No mcp_toolsets
+    };
+    const result = AnthropicConfigSchema.safeParse(config);
+    assert.strictEqual(result.success, false);
+    if (!result.success) {
+      assert.ok(
+        result.error.issues.some((i) =>
+          i.message.includes('not referenced by any toolset')
+        )
+      );
+    }
+  });
+
+  it('should fail when server is referenced by multiple toolsets', () => {
+    const config = {
+      mcp_servers: [
+        {
+          type: 'url' as const,
+          url: 'https://example.com/mcp',
+          name: 'multi-ref-server',
+        },
+      ],
+      mcp_toolsets: [
+        {
+          type: 'mcp_toolset' as const,
+          mcp_server_name: 'multi-ref-server',
+        },
+        {
+          type: 'mcp_toolset' as const,
+          mcp_server_name: 'multi-ref-server',
+        },
+      ],
+    };
+    const result = AnthropicConfigSchema.safeParse(config);
+    assert.strictEqual(result.success, false);
+    if (!result.success) {
+      assert.ok(
+        result.error.issues.some((i) =>
+          i.message.includes('referenced by 2 toolsets')
+        )
+      );
+    }
+  });
+
+  it('should pass when server is referenced by exactly one toolset', () => {
+    const config = {
+      mcp_servers: [
+        {
+          type: 'url' as const,
+          url: 'https://example.com/mcp',
+          name: 'valid-server',
+        },
+      ],
+      mcp_toolsets: [
+        {
+          type: 'mcp_toolset' as const,
+          mcp_server_name: 'valid-server',
+        },
+      ],
+    };
+    const result = AnthropicConfigSchema.safeParse(config);
+    assert.strictEqual(result.success, true);
+  });
+
+  it('should fail when mcp_server names are not unique', () => {
+    const config = {
+      mcp_servers: [
+        {
+          type: 'url' as const,
+          url: 'https://example.com/mcp1',
+          name: 'duplicate-name',
+        },
+        {
+          type: 'url' as const,
+          url: 'https://example.com/mcp2',
+          name: 'duplicate-name',
+        },
+      ],
+      mcp_toolsets: [
+        {
+          type: 'mcp_toolset' as const,
+          mcp_server_name: 'duplicate-name',
+        },
+      ],
+    };
+    const result = AnthropicConfigSchema.safeParse(config);
+    assert.strictEqual(result.success, false);
+    if (!result.success) {
+      assert.ok(
+        result.error.issues.some((i) =>
+          i.message.includes('must be unique')
+        )
+      );
+    }
+  });
+
+  it('should fail when toolset references unknown server', () => {
+    const config = {
+      mcp_servers: [
+        {
+          type: 'url' as const,
+          url: 'https://example.com/mcp',
+          name: 'real-server',
+        },
+      ],
+      mcp_toolsets: [
+        {
+          type: 'mcp_toolset' as const,
+          mcp_server_name: 'real-server',
+        },
+        {
+          type: 'mcp_toolset' as const,
+          mcp_server_name: 'unknown-server',
+        },
+      ],
+    };
+    const result = AnthropicConfigSchema.safeParse(config);
+    assert.strictEqual(result.success, false);
+    if (!result.success) {
+      assert.ok(
+        result.error.issues.some((i) =>
+          i.message.includes("unknown server 'unknown-server'")
+        )
+      );
+    }
   });
 });
