@@ -41,30 +41,27 @@ import (
 const (
 	streamBufferSize = 100
 	defaultTimeout   = 60 * time.Second
-	defaultTTL       = 5 * time.Minute
 	streamEventChunk = "chunk"
 	streamEventDone  = "done"
 	streamEventError = "error"
 )
 
-// FirestoreStreamManagerOption configures a FirestoreStreamManager.
-type FirestoreStreamManagerOption interface {
-	applyFirestoreStreamManager(*firestoreStreamManagerOptions) error
+// StreamManagerOption configures a FirestoreStreamManager.
+// Implemented by firestoreOptions (WithCollection, WithTTL) and streamManagerOptions (WithTimeout).
+type StreamManagerOption interface {
+	applyStreamManager(*streamManagerOptions) error
 }
 
-// firestoreStreamManagerOptions holds configuration for FirestoreStreamManager.
-type firestoreStreamManagerOptions struct {
-	Collection string
-	Timeout    time.Duration
-	TTL        time.Duration
+// streamManagerOptions holds configuration for FirestoreStreamManager.
+type streamManagerOptions struct {
+	firestoreOptions
+	Timeout time.Duration
 }
 
-func (o *firestoreStreamManagerOptions) applyFirestoreStreamManager(opts *firestoreStreamManagerOptions) error {
-	if o.Collection != "" {
-		if opts.Collection != "" {
-			return errors.New("cannot set collection more than once (WithCollection)")
-		}
-		opts.Collection = o.Collection
+// applyStreamManager implements StreamManagerOption for streamManagerOptions.
+func (o *streamManagerOptions) applyStreamManager(opts *streamManagerOptions) error {
+	if err := o.firestoreOptions.applyFirestore(&opts.firestoreOptions); err != nil {
+		return err
 	}
 
 	if o.Timeout > 0 {
@@ -74,34 +71,14 @@ func (o *firestoreStreamManagerOptions) applyFirestoreStreamManager(opts *firest
 		opts.Timeout = o.Timeout
 	}
 
-	if o.TTL > 0 {
-		if opts.TTL > 0 {
-			return errors.New("cannot set TTL more than once (WithFirestoreTTL)")
-		}
-		opts.TTL = o.TTL
-	}
-
 	return nil
-}
-
-// WithCollection sets the Firestore collection name where stream documents are stored.
-// This option is required.
-func WithCollection(collection string) FirestoreStreamManagerOption {
-	return &firestoreStreamManagerOptions{Collection: collection}
 }
 
 // WithTimeout sets how long a subscriber waits for new events before giving up.
 // If no activity occurs within this duration, subscribers receive a DEADLINE_EXCEEDED error.
 // Default is 60 seconds.
-func WithTimeout(timeout time.Duration) FirestoreStreamManagerOption {
-	return &firestoreStreamManagerOptions{Timeout: timeout}
-}
-
-// WithTTL sets how long completed streams are retained before Firestore auto-deletes them.
-// Requires a TTL policy on the collection for the "expiresAt" field. Default is 5 minutes.
-// See: https://firebase.google.com/docs/firestore/ttl
-func WithTTL(ttl time.Duration) FirestoreStreamManagerOption {
-	return &firestoreStreamManagerOptions{TTL: ttl}
+func WithTimeout(timeout time.Duration) StreamManagerOption {
+	return &streamManagerOptions{Timeout: timeout}
 }
 
 // FirestoreStreamManager implements [streaming.StreamManager] using Firestore as the backend.
@@ -138,10 +115,11 @@ type streamError struct {
 }
 
 // NewFirestoreStreamManager creates a FirestoreStreamManager for durable streaming.
-func NewFirestoreStreamManager(ctx context.Context, g *genkit.Genkit, opts ...FirestoreStreamManagerOption) (*FirestoreStreamManager, error) {
-	streamOpts := &firestoreStreamManagerOptions{}
+// Accepts both StreamManagerOption (e.g., WithTimeout) and FirestoreOption (e.g., WithCollection, WithTTL).
+func NewFirestoreStreamManager(ctx context.Context, g *genkit.Genkit, opts ...StreamManagerOption) (*FirestoreStreamManager, error) {
+	streamOpts := &streamManagerOptions{}
 	for _, opt := range opts {
-		if err := opt.applyFirestoreStreamManager(streamOpts); err != nil {
+		if err := opt.applyStreamManager(streamOpts); err != nil {
 			return nil, fmt.Errorf("firebase.NewFirestoreStreamManager: error applying options: %w", err)
 		}
 	}
@@ -154,7 +132,7 @@ func NewFirestoreStreamManager(ctx context.Context, g *genkit.Genkit, opts ...Fi
 		streamOpts.Timeout = defaultTimeout
 	}
 	if streamOpts.TTL == 0 {
-		streamOpts.TTL = defaultTTL
+		streamOpts.TTL = DefaultTTL
 	}
 
 	plugin := genkit.LookupPlugin(g, "firebase")
