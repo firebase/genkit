@@ -434,7 +434,7 @@ async function runTestSuite(
   return { passed, failed };
 }
 
-export const devTestModel = new Command('dev-test-model')
+export const devTestModel = new Command('dev:test-model')
   .description('Test a model against the Genkit model specification')
   .argument('[modelOrCmd]', 'Model name or command')
   .argument('[args...]', 'Command arguments')
