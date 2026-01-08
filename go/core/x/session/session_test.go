@@ -32,7 +32,8 @@ type UserState struct {
 }
 
 func TestNew_DefaultID(t *testing.T) {
-	sess, err := New[UserState]()
+	ctx := context.Background()
+	sess, err := New[UserState](ctx)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -43,8 +44,9 @@ func TestNew_DefaultID(t *testing.T) {
 }
 
 func TestNew_WithID(t *testing.T) {
+	ctx := context.Background()
 	customID := "my-custom-id"
-	sess, err := New[UserState](WithID[UserState](customID))
+	sess, err := New(ctx, WithID[UserState](customID))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -55,8 +57,9 @@ func TestNew_WithID(t *testing.T) {
 }
 
 func TestNew_WithInitialState(t *testing.T) {
+	ctx := context.Background()
 	initial := UserState{Name: "Alice", Count: 42}
-	sess, err := New[UserState](WithInitialState[UserState](initial))
+	sess, err := New(ctx, WithInitialState(initial))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -71,8 +74,9 @@ func TestNew_WithInitialState(t *testing.T) {
 }
 
 func TestNew_WithStore(t *testing.T) {
+	ctx := context.Background()
 	store := NewInMemoryStore[UserState]()
-	sess, err := New[UserState](WithStore[UserState](store))
+	sess, err := New(ctx, WithStore(store))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -83,14 +87,15 @@ func TestNew_WithStore(t *testing.T) {
 }
 
 func TestNew_MultipleOptions(t *testing.T) {
+	ctx := context.Background()
 	store := NewInMemoryStore[UserState]()
 	customID := "multi-option-id"
 	initial := UserState{Name: "Bob", Count: 100}
 
-	sess, err := New[UserState](
+	sess, err := New(ctx,
 		WithID[UserState](customID),
-		WithInitialState[UserState](initial),
-		WithStore[UserState](store),
+		WithInitialState(initial),
+		WithStore(store),
 	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
@@ -108,7 +113,8 @@ func TestNew_MultipleOptions(t *testing.T) {
 }
 
 func TestNew_DuplicateID(t *testing.T) {
-	_, err := New[UserState](
+	ctx := context.Background()
+	_, err := New(ctx,
 		WithID[UserState]("first"),
 		WithID[UserState]("second"),
 	)
@@ -121,9 +127,10 @@ func TestNew_DuplicateID(t *testing.T) {
 }
 
 func TestNew_DuplicateInitialState(t *testing.T) {
-	_, err := New[UserState](
-		WithInitialState[UserState](UserState{Name: "First"}),
-		WithInitialState[UserState](UserState{Name: "Second"}),
+	ctx := context.Background()
+	_, err := New(ctx,
+		WithInitialState(UserState{Name: "First"}),
+		WithInitialState(UserState{Name: "Second"}),
 	)
 	if err == nil {
 		t.Fatal("Expected error for duplicate WithInitialState")
@@ -134,11 +141,12 @@ func TestNew_DuplicateInitialState(t *testing.T) {
 }
 
 func TestNew_DuplicateStore(t *testing.T) {
+	ctx := context.Background()
 	store1 := NewInMemoryStore[UserState]()
 	store2 := NewInMemoryStore[UserState]()
-	_, err := New[UserState](
-		WithStore[UserState](store1),
-		WithStore[UserState](store2),
+	_, err := New(ctx,
+		WithStore(store1),
+		WithStore(store2),
 	)
 	if err == nil {
 		t.Fatal("Expected error for duplicate WithStore")
@@ -149,12 +157,13 @@ func TestNew_DuplicateStore(t *testing.T) {
 }
 
 func TestSession_State(t *testing.T) {
+	ctx := context.Background()
 	initial := UserState{
 		Name:        "Alice",
 		Count:       10,
 		Preferences: map[string]string{"theme": "dark"},
 	}
-	sess, err := New[UserState](WithInitialState[UserState](initial))
+	sess, err := New(ctx, WithInitialState(initial))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -171,12 +180,17 @@ func TestSession_State(t *testing.T) {
 	}
 }
 
-func TestSession_UpdateState_NoStore(t *testing.T) {
-	sess, err := New[UserState](WithInitialState[UserState](UserState{Name: "Alice"}))
+func TestSession_UpdateState_DefaultStore(t *testing.T) {
+	ctx := context.Background()
+	sess, err := New(ctx, WithInitialState(UserState{Name: "Alice"}))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	ctx := context.Background()
+
+	// Verify store is set (default InMemoryStore)
+	if sess.store == nil {
+		t.Fatal("Expected default store to be set")
+	}
 
 	newState := UserState{Name: "Bob", Count: 5}
 	if err := sess.UpdateState(ctx, newState); err != nil {
@@ -190,19 +204,31 @@ func TestSession_UpdateState_NoStore(t *testing.T) {
 	if got.Count != newState.Count {
 		t.Errorf("Expected Count %d, got %d", newState.Count, got.Count)
 	}
+
+	// Verify persistence in the default store
+	data, err := sess.store.Get(ctx, sess.ID())
+	if err != nil {
+		t.Fatalf("Store.Get failed: %v", err)
+	}
+	if data == nil {
+		t.Fatal("Expected data in default store, got nil")
+	}
+	if data.State.Name != newState.Name {
+		t.Errorf("Store: expected Name %q, got %q", newState.Name, data.State.Name)
+	}
 }
 
 func TestSession_UpdateState_WithStore(t *testing.T) {
+	ctx := context.Background()
 	store := NewInMemoryStore[UserState]()
-	sess, err := New[UserState](
+	sess, err := New(ctx,
 		WithID[UserState]("test-session"),
-		WithInitialState[UserState](UserState{Name: "Alice"}),
-		WithStore[UserState](store),
+		WithInitialState(UserState{Name: "Alice"}),
+		WithStore(store),
 	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	ctx := context.Background()
 
 	newState := UserState{Name: "Bob", Count: 5}
 	if err := sess.UpdateState(ctx, newState); err != nil {
@@ -242,7 +268,7 @@ func TestLoad_Success(t *testing.T) {
 	}
 
 	// Load the session
-	loaded, err := Load[UserState](ctx, "existing-session", store)
+	loaded, err := Load(ctx, store, "existing-session")
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
@@ -262,7 +288,7 @@ func TestLoad_NotFound(t *testing.T) {
 	store := NewInMemoryStore[UserState]()
 	ctx := context.Background()
 
-	_, err := Load[UserState](ctx, "non-existent", store)
+	_, err := Load(ctx, store, "non-existent")
 	if err == nil {
 		t.Fatal("Expected error for non-existent session")
 	}
@@ -277,14 +303,14 @@ func TestLoad_NotFound(t *testing.T) {
 }
 
 func TestNewContext_FromContext(t *testing.T) {
-	sess, err := New[UserState](
+	ctx := context.Background()
+	sess, err := New(ctx,
 		WithID[UserState]("ctx-test"),
-		WithInitialState[UserState](UserState{Name: "Diana"}),
+		WithInitialState(UserState{Name: "Diana"}),
 	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	ctx := context.Background()
 
 	// Attach session to context
 	ctx = NewContext(ctx, sess)
@@ -312,15 +338,15 @@ func TestFromContext_NoSession(t *testing.T) {
 }
 
 func TestFromContext_WrongType(t *testing.T) {
+	ctx := context.Background()
 	// Create session with one type
 	type OtherState struct {
 		Value string
 	}
-	sess, err := New[OtherState](WithInitialState[OtherState](OtherState{Value: "test"}))
+	sess, err := New(ctx, WithInitialState(OtherState{Value: "test"}))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	ctx := context.Background()
 	ctx = NewContext(ctx, sess)
 
 	// Try to retrieve with different type
@@ -442,16 +468,16 @@ func TestInMemoryStore_Overwrite(t *testing.T) {
 }
 
 func TestSession_ConcurrentAccess(t *testing.T) {
+	ctx := context.Background()
 	store := NewInMemoryStore[UserState]()
-	sess, err := New[UserState](
+	sess, err := New(ctx,
 		WithID[UserState]("concurrent-test"),
-		WithInitialState[UserState](UserState{Name: "Initial", Count: 0}),
-		WithStore[UserState](store),
+		WithInitialState(UserState{Name: "Initial", Count: 0}),
+		WithStore(store),
 	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	ctx := context.Background()
 
 	const numGoroutines = 10
 	const numUpdates = 100
@@ -534,8 +560,9 @@ func TestNotFoundError(t *testing.T) {
 }
 
 func TestSession_ZeroState(t *testing.T) {
+	ctx := context.Background()
 	// Create session without initial state
-	sess, err := New[UserState]()
+	sess, err := New[UserState](ctx)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -553,6 +580,7 @@ func TestSession_ZeroState(t *testing.T) {
 }
 
 func TestSession_ComplexState(t *testing.T) {
+	ctx := context.Background()
 	type NestedState struct {
 		Inner struct {
 			Value string `json:"value"`
@@ -566,15 +594,14 @@ func TestSession_ComplexState(t *testing.T) {
 	}
 	initial.Inner.Value = "nested"
 
-	sess, err := New[NestedState](
+	sess, err := New(ctx,
 		WithID[NestedState]("complex-state"),
-		WithInitialState[NestedState](initial),
-		WithStore[NestedState](store),
+		WithInitialState(initial),
+		WithStore(store),
 	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	ctx := context.Background()
 
 	// Update with nested modifications
 	newState := NestedState{
@@ -617,18 +644,38 @@ func (s *mockFailingStore[S]) Get(_ context.Context, _ string) (*Data[S], error)
 func (s *mockFailingStore[S]) Save(_ context.Context, _ string, _ *Data[S]) error {
 	return s.saveErr
 }
-
-func TestSession_UpdateState_StoreError(t *testing.T) {
+func TestNew_StoreError(t *testing.T) {
+	ctx := context.Background()
 	expectedErr := errors.New("store failure")
 	store := &mockFailingStore[UserState]{saveErr: expectedErr}
-	sess, err := New[UserState](
+	_, err := New(ctx,
 		WithID[UserState]("error-test"),
-		WithStore[UserState](store),
+		WithStore(store),
+	)
+	if err == nil {
+		t.Fatal("Expected error from failing store")
+	}
+	if !strings.Contains(err.Error(), "failed to persist initial state") {
+		t.Errorf("Expected persist error, got: %v", err)
+	}
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("Expected wrapped error %v, got %v", expectedErr, err)
+	}
+}
+
+func TestSession_UpdateState_StoreError(t *testing.T) {
+	ctx := context.Background()
+	store := NewInMemoryStore[UserState]()
+	sess, err := New(ctx,
+		WithID[UserState]("error-test"),
+		WithStore(store),
 	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	ctx := context.Background()
+
+	expectedErr := errors.New("store failure")
+	sess.store = &mockFailingStore[UserState]{saveErr: expectedErr}
 
 	err = sess.UpdateState(ctx, UserState{Name: "Test"})
 	if err == nil {

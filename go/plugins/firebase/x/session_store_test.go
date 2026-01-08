@@ -367,10 +367,10 @@ func TestFirestoreSessionStore_IntegrationWithSession(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a session with the Firestore store
-	sess, err := session.New[TestState](
+	sess, err := session.New(ctx,
 		session.WithID[TestState]("integration-test"),
-		session.WithInitialState[TestState](TestState{Name: "Integration", Count: 0}),
-		session.WithStore[TestState](store),
+		session.WithInitialState(TestState{Name: "Integration", Count: 0}),
+		session.WithStore(store),
 	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
@@ -382,7 +382,7 @@ func TestFirestoreSessionStore_IntegrationWithSession(t *testing.T) {
 	}
 
 	// Load session from store
-	loaded, err := session.Load[TestState](ctx, "integration-test", store)
+	loaded, err := session.Load(ctx, store, "integration-test")
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}

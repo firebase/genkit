@@ -114,8 +114,8 @@ type streamError struct {
 	Message string `firestore:"message"`
 }
 
-// NewFirestoreStreamManager creates a FirestoreStreamManager for durable streaming.
-// Accepts both StreamManagerOption (e.g., WithTimeout) and FirestoreOption (e.g., WithCollection, WithTTL).
+// NewFirestoreStreamManager creates a [FirestoreStreamManager] for durable streaming.
+// Requires the Firebase plugin to be initialized in the Genkit instance.
 func NewFirestoreStreamManager(ctx context.Context, g *genkit.Genkit, opts ...StreamManagerOption) (*FirestoreStreamManager, error) {
 	streamOpts := &streamManagerOptions{}
 	for _, opt := range opts {

@@ -47,7 +47,7 @@ func (o *sessionStoreOptions) applySessionStore(opts *sessionStoreOptions) error
 	return o.firestoreOptions.applyFirestore(&opts.firestoreOptions)
 }
 
-// FirestoreSessionStore implements session.Store[S] using Firestore as the backend.
+// FirestoreSessionStore implements [session.Store[S]] using Firestore as the backend.
 // Session state is persisted in Firestore documents, allowing sessions to survive
 // server restarts and be accessible across multiple instances.
 type FirestoreSessionStore[S any] struct {
@@ -65,8 +65,7 @@ type sessionDocument struct {
 }
 
 // NewFirestoreSessionStore creates a Firestore-backed session store.
-// Requires the Firebase plugin to be initialized.
-// Accepts FirestoreOption options (WithCollection, WithTTL).
+// Requires the Firebase plugin to be initialized in the Genkit instance.
 func NewFirestoreSessionStore[S any](ctx context.Context, g *genkit.Genkit, opts ...SessionStoreOption) (*FirestoreSessionStore[S], error) {
 	storeOpts := &sessionStoreOptions{}
 	for _, opt := range opts {
