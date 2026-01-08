@@ -17,6 +17,7 @@
 import {
   GenerateRequestData,
   GenerateResponseData,
+  GenerateResponseSchema,
 } from '@genkit-ai/tools-common';
 import {
   GenkitToolsError,
