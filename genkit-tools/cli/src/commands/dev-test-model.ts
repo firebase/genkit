@@ -535,6 +535,10 @@ export const devTestModel = new Command('dev:test-model')
       } catch (e) {
         logger.error('Error running tests:', e);
         process.exitCode = 1;
+      } finally {
+        if (manager) {
+          await manager.stop();
+        }
       }
     }
   );
