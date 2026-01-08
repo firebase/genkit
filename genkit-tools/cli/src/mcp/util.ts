@@ -41,7 +41,8 @@ export class McpRuntimeManager {
     const devManager = await startDevProcessManager(
       this.projectRoot,
       command,
-      args
+      args,
+      { nonInteractive: true }
     );
     this.manager = devManager.manager;
     return this.manager;

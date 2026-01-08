@@ -567,6 +567,7 @@ export class RuntimeManager {
     try {
       const runtimesDir = await findRuntimesDir(this.projectRoot);
       await fs.mkdir(runtimesDir, { recursive: true });
+      logger.debug(`Watching runtimes in ${runtimesDir}`);
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
         ignoreInitial: false,

@@ -68,6 +68,7 @@ export async function startManager(
 
 export interface DevProcessManagerOptions {
   disableRealtimeTelemetry?: boolean;
+  nonInteractive?: boolean;
 }
 
 export async function startDevProcessManager(
@@ -93,7 +94,7 @@ export async function startDevProcessManager(
     processManager,
     disableRealtimeTelemetry,
   });
-  const processPromise = processManager.start();
+  const processPromise = processManager.start(options);
   return { manager, processPromise };
 }
 
