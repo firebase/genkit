@@ -366,7 +366,7 @@ async function runTest(
       input: testCase.input,
     });
 
-    const response = actionResponse.result as GenerateResponseData;
+    const response = GenerateResponseSchema.parse(actionResponse.result);
 
     for (const v of testCase.validators) {
       const [valName, ...args] = v.split(':');
