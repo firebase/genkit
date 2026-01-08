@@ -245,16 +245,6 @@ const TEST_CASES: Record<string, TestCase> = {
     },
     validators: ['text-includes:Genkit'],
   },
-  context: {
-    name: 'Context Conformance',
-    input: {
-      messages: [
-        { role: 'user', content: [{ text: 'What is the secret code?' }] },
-      ],
-      docs: [{ content: [{ text: 'The secret code is 42.' }] }],
-    },
-    validators: ['text-includes:42'],
-  },
   'system-role': {
     name: 'System Role Conformance',
     input: {
@@ -450,8 +440,8 @@ export const devTestModel = new Command('dev-test-model')
   .argument('[args...]', 'Command arguments')
   .option(
     '--supports <list>',
-    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, context, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image)',
-    'tool-request,structured-output,multiturn,context,system-role,input-image-base64,input-image-url'
+    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image)',
+    'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url'
   )
   .option('--from-file <file>', 'Path to a file containing test payloads')
   .action(

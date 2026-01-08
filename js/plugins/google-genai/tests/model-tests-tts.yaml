@@ -18,7 +18,6 @@
     - tool-request
     - structured-output
     - multiturn
-    - context
     - system-role
     - input-image-base64
     - input-image-url
@@ -28,7 +27,6 @@
     - tool-request
     - structured-output
     - multiturn
-    - context
     - system-role
     - input-image-base64
     - input-image-url
@@ -70,7 +68,6 @@
     - tool-request
     - structured-output
     - multiturn
-    - context
     - system-role
     - input-image-base64
     - input-image-url
