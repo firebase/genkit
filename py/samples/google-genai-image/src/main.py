@@ -54,12 +54,12 @@ async def describe_image_with_gemini(data: str) -> str:
     Returns:
         The description of the image.
     """
-    if not data.startswith('data:'):
+    if not (data.startswith('data:') and ',' in data):
         raise ValueError(
             f'Expected a data URI (e.g., "data:image/jpeg;base64,..."), '
             f'but got: {data[:50]}...'
         )
-    
+
     result = await ai.generate(
         messages=[
             Message(
@@ -91,19 +91,15 @@ async def main() -> None:
     # Gemini draws an image by description. The model used is available only in
     # Gemini API.
     result = await draw_image_with_gemini()
-    
+
     # Find the media part in the response
-    media_part = None
-    for part in result.message.content:
-        if part.root.media is not None:
-            media_part = part.root.media
-            break
-    
+    media_part = next((part.root.media for part in result.message.content if part.root.media is not None), None)
+
     if media_part is None:
-        print("No media found in response")
-        print(f"Response content: {result.message.content}")
+        print('No media found in response')
+        print(f'Response content: {result.message.content}')
         return
-    
+
     media_url = media_part.url
     # Extract base64 data after the comma in "data:image/png;base64,..."
     base64_data = media_url.split(',', 1)[1]
