@@ -28,15 +28,13 @@ from menu_schemas import (
 )
 
 
-@ai.flow(name='s05_readMenuFlow')
-async def s05_readMenuFlow(_) -> ReadMenuPromptOutputSchema:
+@ai.flow(name='s05_readMenu')
+async def s05_readMenuFlow(_: None = None) -> str:
     image_data_url = inline_data_url('menu.jpeg', 'image/jpeg')
     response = await s05_readMenuPrompt(
-        image_url=image_data_url,
+        {'imageUrl': image_data_url}
     )
-    return ReadMenuPromptOutputSchema(
-        menu_text=response.text,
-    )
+    return response.text
 
 
 @ai.flow(name='s05_textMenuQuestion')
@@ -44,11 +42,10 @@ async def s05_textMenuQuestionFlow(
     my_input: TextMenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
     response = await s05_textMenuPrompt(
-        menu_text=my_input.menu_text,
-        question=my_input.question,
+        {'menuText': my_input.menuText, 'question': my_input.question}
     )
-    return ReadMenuPromptOutputSchema(
-        menu_text=response.text,
+    return AnswerOutputSchema(
+        answer=response.text,
     )
 
 
@@ -56,11 +53,11 @@ async def s05_textMenuQuestionFlow(
 async def s05_visionMenuQuestionFlow(
     my_input: MenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
-    menu_result = await s05_readMenuFlow()
-    return s05_textMenuQuestionFlow(
-        my_input=TextMenuQuestionInputSchema(
+    menu_text = await s05_readMenuFlow()
+    return await s05_textMenuQuestionFlow(
+        TextMenuQuestionInputSchema(
             question=my_input.question,
-            menu_text=menu_result.menu_text,
+            menuText=menu_text,
         )
     )
 

@@ -22,6 +22,7 @@ from genkit.types import (
     Media,
     MediaPart,
     Part,
+    ReasoningPart,
     TextPart,
     ToolRequest,
     ToolRequestPart,
@@ -71,31 +72,61 @@ class PartConverter:
             A `genai.types.Part` object representing the converted content.
         """
         if isinstance(part.root, TextPart):
-            return genai.types.Part(text=part.root.text)
+            return genai.types.Part(text=part.root.text or ' ')
         if isinstance(part.root, ToolRequestPart):
+            thought_sig = (
+                part.root.metadata.root.get('thoughtSignature')
+                if part.root.metadata
+                else None
+            )
+            if isinstance(thought_sig, str):
+                thought_sig = base64.b64decode(thought_sig)
             return genai.types.Part(
                 function_call=genai.types.FunctionCall(
-                    id=part.root.tool_request.ref,
-                    name=part.root.tool_request.name,
+                    # Gemini throws on '/' in tool name
+                    name=part.root.tool_request.name.replace('/', '__'),
                     args=part.root.tool_request.input,
-                )
+                ),
+                thought_signature=thought_sig,
+            )
+        if isinstance(part.root, ReasoningPart):
+            thought_sig = (
+                part.root.metadata.root.get('thoughtSignature')
+                if part.root.metadata
+                else None
+            )
+            if isinstance(thought_sig, str):
+                thought_sig = base64.b64decode(thought_sig)
+            return genai.types.Part(
+                thought=True,
+                text=part.root.reasoning,
+                thought_signature=thought_sig,
             )
         if isinstance(part.root, ToolResponsePart):
             return genai.types.Part(
                 function_response=genai.types.FunctionResponse(
                     id=part.root.tool_response.ref,
-                    name=part.root.tool_response.name,
-                    response={'output': part.root.tool_response.output},
+                    name=part.root.tool_response.name.replace('/', '__'),
+                    response=part.root.tool_response.output,
                 )
             )
         if isinstance(part.root, MediaPart):
             url = part.root.media.url
             if not url.startswith(cls.DATA):
                 raise ValueError(f'Unsupported media URL for inline_data: {url}')
-            data = base64.b64decode(url.split(',', 1)[1])
+
+            # Extract mime type and data from data:mime_type;base64,data
+            metadata, data_str = url.split(',', 1)
+            mime_type = (
+                part.root.media.content_type
+                or metadata.split(':', 1)[1].split(';', 1)[0]
+            )
+            data = base64.b64decode(data_str)
+
             return genai.types.Part(
                 inline_data=genai.types.Blob(
                     data=data,
+                    mime_type=mime_type,
                 )
             )
         if isinstance(part.root, CustomPart):
@@ -144,22 +175,48 @@ class PartConverter:
         Returns:
             A Genkit `Part` object representing the converted content.
         """
+        if part.thought:
+            return Part(
+                root=ReasoningPart(
+                    reasoning=part.text or '',
+                    metadata={
+                        'thoughtSignature': base64.b64encode(
+                            part.thought_signature
+                        ).decode('utf-8')
+                    }
+                    if part.thought_signature
+                    else None,
+                )
+            )
         if part.text:
-            return Part(text=part.text)
+            return Part(root=TextPart(text=part.text))
         if part.function_call:
             return Part(
-                toolRequest=ToolRequest(
-                    ref=part.function_call.id,
-                    name=part.function_call.name,
-                    input=part.function_call.args,
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(
+                        ref=part.function_call.id,
+                        # restore slashes
+                        name=part.function_call.name.replace('__', '/'),
+                        input=part.function_call.args,
+                    ),
+                    metadata={
+                        'thoughtSignature': base64.b64encode(
+                            part.thought_signature
+                        ).decode('utf-8')
+                    }
+                    if part.thought_signature
+                    else None,
                 )
             )
         if part.function_response:
             return Part(
-                toolResponse=ToolResponse(
-                    ref=part.function_call.id,
-                    name=part.function_response.name,
-                    output=part.function_response.response,
+                root=ToolResponsePart(
+                    tool_response=ToolResponse(
+                        ref=part.function_response.id,
+                        # restore slashes
+                        name=part.function_response.name.replace('__', '/'),
+                        output=part.function_response.response,
+                    )
                 )
             )
         if part.inline_data:
