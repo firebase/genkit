@@ -2167,3 +2167,756 @@ func TestPromptExecuteStream(t *testing.T) {
 		}
 	})
 }
+
+// TestDefineExecuteOptionInteractions tests the complex interactions between
+// options set at DefinePrompt time vs Execute time.
+func TestDefineExecuteOptionInteractions(t *testing.T) {
+	t.Run("ToolChoice override", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/toolChoiceModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		tool := defineFakeTool(t, r, "testTool", "a test tool")
+
+		// Define with ToolChoiceAuto
+		p := DefinePrompt(r, "toolChoicePrompt",
+			WithModel(model),
+			WithPrompt("test"),
+			WithTools(tool),
+			WithToolChoice(ToolChoiceAuto),
+			WithMaxTurns(1),
+		)
+
+		// Execute with ToolChoiceRequired - should override
+		_, err := p.Execute(context.Background(),
+			WithToolChoice(ToolChoiceRequired),
+		)
+		assertNoError(t, err)
+
+		if captured.ToolChoice != ToolChoiceRequired {
+			t.Errorf("ToolChoice = %q, want %q", captured.ToolChoice, ToolChoiceRequired)
+		}
+	})
+
+	t.Run("ToolChoice no override when not specified at execute", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/toolChoiceNoOverride",
+			handler: capturingModelHandler(&captured),
+		})
+
+		tool := defineFakeTool(t, r, "testTool2", "a test tool")
+
+		// Define with ToolChoiceRequired
+		p := DefinePrompt(r, "toolChoiceNoOverridePrompt",
+			WithModel(model),
+			WithPrompt("test"),
+			WithTools(tool),
+			WithToolChoice(ToolChoiceRequired),
+			WithMaxTurns(1),
+		)
+
+		// Execute without specifying ToolChoice - should use define-time value
+		_, err := p.Execute(context.Background())
+		assertNoError(t, err)
+
+		if captured.ToolChoice != ToolChoiceRequired {
+			t.Errorf("ToolChoice = %q, want %q", captured.ToolChoice, ToolChoiceRequired)
+		}
+	})
+
+	t.Run("MaxTurns override", func(t *testing.T) {
+		r := newTestRegistry(t)
+		callCount := 0
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name: "test/maxTurnsModel",
+			handler: func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+				callCount++
+				// Always request tool call to test max turns
+				if callCount < 10 {
+					return &ModelResponse{
+						Request: req,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{NewToolRequestPart(&ToolRequest{
+								Name:  "maxTurnsTool",
+								Input: map[string]any{"value": "test"},
+							})},
+						},
+					}, nil
+				}
+				return &ModelResponse{
+					Request: req,
+					Message: NewModelTextMessage("done"),
+				}, nil
+			},
+		})
+
+		tool := defineFakeTool(t, r, "maxTurnsTool", "a tool for max turns test")
+
+		// Define with MaxTurns 5
+		p := DefinePrompt(r, "maxTurnsPrompt",
+			WithModel(model),
+			WithPrompt("test"),
+			WithTools(tool),
+			WithMaxTurns(5),
+		)
+
+		// Execute with MaxTurns 2 - should override and stop after 2 turns
+		_, err := p.Execute(context.Background(),
+			WithMaxTurns(2),
+		)
+
+		// Should error due to max turns exceeded
+		if err == nil {
+			t.Error("expected max turns error, got nil")
+		}
+		// Call count should be limited by execute-time MaxTurns (2) + 1 for initial
+		if callCount > 3 {
+			t.Errorf("callCount = %d, expected <= 3 (limited by execute MaxTurns)", callCount)
+		}
+	})
+
+	t.Run("ReturnToolRequests override", func(t *testing.T) {
+		r := newTestRegistry(t)
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name: "test/returnToolReqsModel",
+			handler: func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+				return &ModelResponse{
+					Request: req,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{NewToolRequestPart(&ToolRequest{
+							Name:  "returnToolReqsTool",
+							Input: map[string]any{"value": "test"},
+						})},
+					},
+				}, nil
+			},
+		})
+
+		tool := defineFakeTool(t, r, "returnToolReqsTool", "tool for return requests test")
+
+		// Define with ReturnToolRequests false (default)
+		p := DefinePrompt(r, "returnToolReqsPrompt",
+			WithModel(model),
+			WithPrompt("test"),
+			WithTools(tool),
+			WithReturnToolRequests(false),
+			WithMaxTurns(1),
+		)
+
+		// Execute with ReturnToolRequests true - should override and return tool requests
+		resp, err := p.Execute(context.Background(),
+			WithReturnToolRequests(true),
+		)
+		assertNoError(t, err)
+
+		// Should have tool request in response
+		hasToolRequest := false
+		for _, part := range resp.Message.Content {
+			if part.IsToolRequest() {
+				hasToolRequest = true
+				break
+			}
+		}
+		if !hasToolRequest {
+			t.Error("expected tool request in response when ReturnToolRequests=true")
+		}
+	})
+
+	t.Run("Tools complete replacement", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/toolsReplaceModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		toolA := defineFakeTool(t, r, "toolA", "tool A")
+		toolB := defineFakeTool(t, r, "toolB", "tool B")
+		toolC := defineFakeTool(t, r, "toolC", "tool C")
+
+		// Define with tools A and B
+		p := DefinePrompt(r, "toolsReplacePrompt",
+			WithModel(model),
+			WithPrompt("test"),
+			WithTools(toolA, toolB),
+			WithMaxTurns(1),
+		)
+
+		// Execute with tool C - should REPLACE (not merge) define-time tools
+		_, err := p.Execute(context.Background(),
+			WithTools(toolC),
+		)
+		assertNoError(t, err)
+
+		// Should only have tool C
+		if len(captured.Tools) != 1 {
+			t.Errorf("len(Tools) = %d, want 1", len(captured.Tools))
+		}
+		if len(captured.Tools) > 0 && captured.Tools[0].Name != "toolC" {
+			t.Errorf("Tool name = %q, want %q", captured.Tools[0].Name, "toolC")
+		}
+	})
+
+	t.Run("Tools inherit when not specified at execute", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/toolsInheritModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		toolA := defineFakeTool(t, r, "toolInheritA", "tool A")
+		toolB := defineFakeTool(t, r, "toolInheritB", "tool B")
+
+		// Define with tools A and B
+		p := DefinePrompt(r, "toolsInheritPrompt",
+			WithModel(model),
+			WithPrompt("test"),
+			WithTools(toolA, toolB),
+			WithMaxTurns(1),
+		)
+
+		// Execute without specifying tools - should inherit define-time tools
+		_, err := p.Execute(context.Background())
+		assertNoError(t, err)
+
+		if len(captured.Tools) != 2 {
+			t.Errorf("len(Tools) = %d, want 2", len(captured.Tools))
+		}
+	})
+
+	t.Run("Docs at execute time", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/docsModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		// Define without docs
+		p := DefinePrompt(r, "docsPrompt",
+			WithModel(model),
+			WithPrompt("test"),
+		)
+
+		// Execute with docs
+		doc := DocumentFromText("context document", nil)
+		_, err := p.Execute(context.Background(),
+			WithDocs(doc),
+		)
+		assertNoError(t, err)
+
+		if len(captured.Docs) != 1 {
+			t.Errorf("len(Docs) = %d, want 1", len(captured.Docs))
+		}
+	})
+
+	t.Run("Config replacement not merge", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/configReplaceModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		// Define with Temperature and TopK
+		p := DefinePrompt(r, "configReplacePrompt",
+			WithModel(model),
+			WithPrompt("test"),
+			WithConfig(&GenerationCommonConfig{Temperature: 0.5, TopK: 10}),
+		)
+
+		// Execute with only Temperature - config is REPLACED, not merged
+		_, err := p.Execute(context.Background(),
+			WithConfig(&GenerationCommonConfig{Temperature: 0.9}),
+		)
+		assertNoError(t, err)
+
+		config, ok := captured.Config.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("Config type = %T, want *GenerationCommonConfig", captured.Config)
+		}
+		if config.Temperature != 0.9 {
+			t.Errorf("Temperature = %v, want 0.9", config.Temperature)
+		}
+		// TopK should be zero (default) since config was replaced
+		if config.TopK != 0 {
+			t.Errorf("TopK = %v, want 0 (config replaced, not merged)", config.TopK)
+		}
+	})
+
+	t.Run("Model override at execute time", func(t *testing.T) {
+		r := newTestRegistry(t)
+
+		defineModel := defineFakeModel(t, r, fakeModelConfig{
+			name: "test/defineModel",
+			handler: func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+				return &ModelResponse{
+					Request: req,
+					Message: NewModelTextMessage("from define model"),
+				}, nil
+			},
+		})
+
+		executeModel := defineFakeModel(t, r, fakeModelConfig{
+			name: "test/executeModel",
+			handler: func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+				return &ModelResponse{
+					Request: req,
+					Message: NewModelTextMessage("from execute model"),
+				}, nil
+			},
+		})
+
+		// Define with defineModel
+		p := DefinePrompt(r, "modelOverridePrompt",
+			WithModel(defineModel),
+			WithPrompt("test"),
+		)
+
+		// Execute with executeModel - should use execute model
+		resp, err := p.Execute(context.Background(),
+			WithModel(executeModel),
+		)
+		assertNoError(t, err)
+
+		if resp.Text() != "from execute model" {
+			t.Errorf("response = %q, want %q", resp.Text(), "from execute model")
+		}
+	})
+
+	t.Run("MessagesFn at execute time inserts between system and user", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		model := defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/messagesFnModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		// Define with system and user prompt
+		p := DefinePrompt(r, "messagesFnPrompt",
+			WithModel(model),
+			WithSystem("system instruction"),
+			WithPrompt("user question"),
+		)
+
+		// Execute with MessagesFn - messages should be inserted between system and user
+		_, err := p.Execute(context.Background(),
+			WithMessages(NewModelTextMessage("conversation history")),
+		)
+		assertNoError(t, err)
+
+		// Expected order: system, MessagesFn content, user
+		if len(captured.Messages) != 3 {
+			t.Fatalf("len(Messages) = %d, want 3", len(captured.Messages))
+		}
+		if captured.Messages[0].Role != RoleSystem {
+			t.Errorf("Messages[0].Role = %q, want %q", captured.Messages[0].Role, RoleSystem)
+		}
+		if captured.Messages[1].Role != RoleModel {
+			t.Errorf("Messages[1].Role = %q, want %q", captured.Messages[1].Role, RoleModel)
+		}
+		if captured.Messages[2].Role != RoleUser {
+			t.Errorf("Messages[2].Role = %q, want %q", captured.Messages[2].Role, RoleUser)
+		}
+	})
+
+	t.Run("ModelRef config used when no explicit config", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		// Define model first
+		defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/modelRefConfigModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		// Create ModelRef with embedded config
+		modelRef := NewModelRef("test/modelRefConfigModel", &GenerationCommonConfig{Temperature: 0.7})
+
+		p := DefinePrompt(r, "modelRefConfigPrompt",
+			WithModel(modelRef),
+			WithPrompt("test"),
+		)
+
+		// Execute without config - should use ModelRef's config
+		_, err := p.Execute(context.Background())
+		assertNoError(t, err)
+
+		config, ok := captured.Config.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("Config type = %T, want *GenerationCommonConfig", captured.Config)
+		}
+		if config.Temperature != 0.7 {
+			t.Errorf("Temperature = %v, want 0.7", config.Temperature)
+		}
+	})
+
+	t.Run("Explicit config overrides ModelRef config", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var captured *ModelRequest
+
+		defineFakeModel(t, r, fakeModelConfig{
+			name:    "test/modelRefOverrideModel",
+			handler: capturingModelHandler(&captured),
+		})
+
+		modelRef := NewModelRef("test/modelRefOverrideModel", &GenerationCommonConfig{Temperature: 0.7})
+
+		p := DefinePrompt(r, "modelRefOverridePrompt",
+			WithModel(modelRef),
+			WithPrompt("test"),
+		)
+
+		// Execute with explicit config - should override ModelRef's config
+		_, err := p.Execute(context.Background(),
+			WithConfig(&GenerationCommonConfig{Temperature: 0.3}),
+		)
+		assertNoError(t, err)
+
+		config, ok := captured.Config.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("Config type = %T, want *GenerationCommonConfig", captured.Config)
+		}
+		if config.Temperature != 0.3 {
+			t.Errorf("Temperature = %v, want 0.3", config.Temperature)
+		}
+	})
+}
+
+// TestPromptErrorPaths tests error handling in prompt operations.
+func TestPromptErrorPaths(t *testing.T) {
+	t.Run("DefinePrompt with empty name panics", func(t *testing.T) {
+		r := newTestRegistry(t)
+		assertPanic(t, func() {
+			DefinePrompt(r, "")
+		}, "name is required")
+	})
+
+	t.Run("Execute on nil prompt returns error", func(t *testing.T) {
+		var p *prompt
+		_, err := p.Execute(context.Background())
+		assertError(t, err, "prompt is nil")
+	})
+
+	t.Run("Render on nil prompt returns error", func(t *testing.T) {
+		var p *prompt
+		_, err := p.Render(context.Background(), nil)
+		assertError(t, err, "prompt is nil")
+	})
+
+	t.Run("ExecuteStream on nil prompt yields error", func(t *testing.T) {
+		var p *prompt
+		var gotErr error
+		for _, err := range p.ExecuteStream(context.Background()) {
+			if err != nil {
+				gotErr = err
+				break
+			}
+		}
+		assertError(t, gotErr, "prompt is nil")
+	})
+
+	t.Run("buildVariables with invalid type returns error", func(t *testing.T) {
+		// buildVariables expects struct, pointer to struct, or map
+		_, err := buildVariables(42) // int is not valid
+		if err == nil {
+			t.Error("expected error for invalid type, got nil")
+		}
+	})
+}
+
+// TestLookupPromptCoverage tests LookupPrompt edge cases.
+func TestLookupPromptCoverage(t *testing.T) {
+	t.Run("returns nil for non-existent prompt", func(t *testing.T) {
+		r := newTestRegistry(t)
+		p := LookupPrompt(r, "nonexistent")
+		if p != nil {
+			t.Error("expected nil for non-existent prompt")
+		}
+	})
+
+	t.Run("returns prompt for existing prompt", func(t *testing.T) {
+		r := newTestRegistry(t)
+		DefinePrompt(r, "existingPrompt", WithPrompt("hello"))
+		p := LookupPrompt(r, "existingPrompt")
+		if p == nil {
+			t.Error("expected prompt, got nil")
+		}
+		if p.Name() != "existingPrompt" {
+			t.Errorf("Name() = %q, want %q", p.Name(), "existingPrompt")
+		}
+	})
+}
+
+// TestDataPromptRender tests DataPrompt.Render method.
+func TestDataPromptRender(t *testing.T) {
+	r := newTestRegistry(t)
+
+	type RenderInput struct {
+		Name string `json:"name"`
+	}
+
+	type RenderOutput struct {
+		Greeting string `json:"greeting"`
+	}
+
+	model := defineFakeModel(t, r, fakeModelConfig{
+		name: "test/renderModel",
+	})
+
+	dp := DefineDataPrompt[RenderInput, RenderOutput](r, "renderPrompt",
+		WithModel(model),
+		WithPrompt("Hello {{name}}"),
+	)
+
+	t.Run("renders with typed input", func(t *testing.T) {
+		opts, err := dp.Render(context.Background(), RenderInput{Name: "World"})
+		assertNoError(t, err)
+
+		if len(opts.Messages) == 0 {
+			t.Fatal("expected messages")
+		}
+		if opts.Messages[0].Text() != "Hello World" {
+			t.Errorf("rendered text = %q, want %q", opts.Messages[0].Text(), "Hello World")
+		}
+	})
+
+	t.Run("nil DataPrompt returns error", func(t *testing.T) {
+		var nilDP *DataPrompt[RenderInput, RenderOutput]
+		_, err := nilDP.Render(context.Background(), RenderInput{})
+		if err == nil {
+			t.Error("expected error for nil DataPrompt")
+		}
+	})
+}
+
+// TestLookupDataPrompt tests LookupDataPrompt function.
+func TestLookupDataPrompt(t *testing.T) {
+	r := newTestRegistry(t)
+
+	model := defineFakeModel(t, r, fakeModelConfig{
+		name: "test/lookupDataModel",
+	})
+
+	DefinePrompt(r, "lookupDataPrompt",
+		WithModel(model),
+		WithPrompt("test"),
+	)
+
+	t.Run("returns DataPrompt for existing prompt", func(t *testing.T) {
+		dp := LookupDataPrompt[map[string]any, string](r, "lookupDataPrompt")
+		if dp == nil {
+			t.Error("expected DataPrompt, got nil")
+		}
+	})
+
+	t.Run("returns nil for non-existent prompt", func(t *testing.T) {
+		dp := LookupDataPrompt[map[string]any, string](r, "nonexistent")
+		if dp != nil {
+			t.Error("expected nil for non-existent prompt")
+		}
+	})
+}
+
+// TestAsDataPrompt tests AsDataPrompt function.
+func TestAsDataPrompt(t *testing.T) {
+	r := newTestRegistry(t)
+
+	model := defineFakeModel(t, r, fakeModelConfig{
+		name: "test/asDataModel",
+	})
+
+	p := DefinePrompt(r, "asDataPrompt",
+		WithModel(model),
+		WithPrompt("test"),
+	)
+
+	t.Run("wraps existing prompt", func(t *testing.T) {
+		dp := AsDataPrompt[map[string]any, string](p)
+		if dp == nil {
+			t.Error("expected DataPrompt, got nil")
+		}
+	})
+
+	t.Run("returns nil for nil prompt", func(t *testing.T) {
+		dp := AsDataPrompt[map[string]any, string](nil)
+		if dp != nil {
+			t.Error("expected nil for nil prompt")
+		}
+	})
+}
+
+// TestPromptKeyVariantKey tests the prompt key generation helpers.
+func TestPromptKeyVariantKey(t *testing.T) {
+	tests := []struct {
+		name       string
+		promptName string
+		variant    string
+		namespace  string
+		want       string
+	}{
+		{
+			name:       "simple name",
+			promptName: "greeting",
+			want:       "greeting",
+		},
+		{
+			name:       "with variant",
+			promptName: "greeting",
+			variant:    "formal",
+			want:       "greeting.formal",
+		},
+		{
+			name:       "with namespace",
+			promptName: "greeting",
+			namespace:  "myapp",
+			want:       "myapp/greeting",
+		},
+		{
+			name:       "with namespace and variant",
+			promptName: "greeting",
+			variant:    "formal",
+			namespace:  "myapp",
+			want:       "myapp/greeting.formal",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := promptKey(tt.promptName, tt.variant, tt.namespace)
+			if got != tt.want {
+				t.Errorf("promptKey(%q, %q, %q) = %q, want %q",
+					tt.promptName, tt.variant, tt.namespace, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestContentType tests the contentType helper function.
+func TestContentType(t *testing.T) {
+	tests := []struct {
+		name        string
+		ct          string
+		uri         string
+		wantCT      string
+		wantData    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "gs:// URL with content type",
+			ct:       "image/png",
+			uri:      "gs://bucket/image.png",
+			wantCT:   "image/png",
+			wantData: "gs://bucket/image.png",
+		},
+		{
+			name:        "gs:// URL without content type",
+			ct:          "",
+			uri:         "gs://bucket/image.png",
+			wantErr:     true,
+			errContains: "must supply contentType",
+		},
+		{
+			name:     "http URL with content type",
+			ct:       "image/jpeg",
+			uri:      "https://example.com/image.jpg",
+			wantCT:   "image/jpeg",
+			wantData: "https://example.com/image.jpg",
+		},
+		{
+			name:        "http URL without content type",
+			ct:          "",
+			uri:         "https://example.com/image.jpg",
+			wantErr:     true,
+			errContains: "must supply contentType",
+		},
+		{
+			name:     "data URI with base64",
+			ct:       "",
+			uri:      "data:image/png;base64,iVBORw0KGgo=",
+			wantCT:   "image/png",
+			wantData: "data:image/png;base64,iVBORw0KGgo=",
+		},
+		{
+			name:     "data URI with explicit content type override",
+			ct:       "image/jpeg",
+			uri:      "data:image/png;base64,iVBORw0KGgo=",
+			wantCT:   "image/jpeg",
+			wantData: "data:image/png;base64,iVBORw0KGgo=",
+		},
+		{
+			name:        "empty URI",
+			ct:          "image/png",
+			uri:         "",
+			wantErr:     true,
+			errContains: "found empty URI",
+		},
+		{
+			name:        "malformed data URI",
+			ct:          "",
+			uri:         "data:image/png",
+			wantErr:     true,
+			errContains: "missing comma",
+		},
+		{
+			name:        "unknown URI scheme",
+			ct:          "",
+			uri:         "file:///path/to/file",
+			wantErr:     true,
+			errContains: "uri content type not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCT, gotData, err := contentType(tt.ct, tt.uri)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error containing %q, got nil", tt.errContains)
+				} else if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("error = %q, want containing %q", err.Error(), tt.errContains)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if gotCT != tt.wantCT {
+				t.Errorf("contentType = %q, want %q", gotCT, tt.wantCT)
+			}
+			if string(gotData) != tt.wantData {
+				t.Errorf("data = %q, want %q", string(gotData), tt.wantData)
+			}
+		})
+	}
+}
+
+// TestDefineDataPromptPanics tests panic conditions in DefineDataPrompt.
+func TestDefineDataPromptPanics(t *testing.T) {
+	t.Run("empty name panics", func(t *testing.T) {
+		r := newTestRegistry(t)
+		assertPanic(t, func() {
+			DefineDataPrompt[map[string]any, string](r, "")
+		}, "name is required")
+	})
+}
