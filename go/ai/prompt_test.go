@@ -2766,11 +2766,11 @@ func TestAsDataPrompt(t *testing.T) {
 // TestPromptKeyVariantKey tests the prompt key generation helpers.
 func TestPromptKeyVariantKey(t *testing.T) {
 	tests := []struct {
-		name      string
+		name       string
 		promptName string
-		variant   string
-		namespace string
-		want      string
+		variant    string
+		namespace  string
+		want       string
 	}{
 		{
 			name:       "simple name",

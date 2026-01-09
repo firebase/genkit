@@ -272,7 +272,6 @@ func assertNoPanic(t *testing.T, fn func()) {
 	fn()
 }
 
-
 // defineFakeTool creates a simple tool for testing.
 func defineFakeTool(t *testing.T, r api.Registry, name, description string) Tool {
 	t.Helper()
