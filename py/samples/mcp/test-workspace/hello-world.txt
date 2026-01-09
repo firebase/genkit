@@ -1,0 +1,4 @@
+Hello, World!
+
+This is a test file for the MCP filesystem sample.
+It demonstrates reading and writing files through the MCP protocol.
