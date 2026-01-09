@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -297,11 +298,38 @@ func newModel(client *openai.Client, name string, opts *ai.ModelOptions) ai.Mode
 // configToMap converts a config struct to a map[string]any
 func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
-		DoNotReference: true,
-		ExpandedStruct: true,
+		DoNotReference:             false,
+		AllowAdditionalProperties:  false,
+		RequiredFromJSONSchemaTags: true,
+	}
+
+	r.Mapper = func(r reflect.Type) *jsonschema.Schema {
+		if r.Name() == "Opt[float64]" {
+			return &jsonschema.Schema{
+				Type: "number",
+			}
+		}
+		if r.Name() == "Opt[int64]" {
+			return &jsonschema.Schema{
+				Type: "integer",
+			}
+		}
+		if r.Name() == "Opt[string]" {
+			return &jsonschema.Schema{
+				Type: "string",
+			}
+		}
+		if r.Name() == "Opt[bool]" {
+			return &jsonschema.Schema{
+				Type: "boolean",
+			}
+		}
+		return nil
 	}
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
+
+	fmt.Printf("result: %#v\n", result)
 	return result
 }
 
@@ -341,15 +369,8 @@ func toOpenAIRequest(model string, input *ai.ModelRequest) (*openai.ChatCompleti
 	}
 
 	request.Model = model
-	// generate only one candidate response
-	if request.N == openai.Int(0) {
-		request.N = openai.Int(1)
-	}
+	request.N = openai.Int(1)
 
-	// Genkit primitive fields must be used instead of openai-go fields
-	if request.N != openai.Int(1) {
-		return nil, errors.New("generation of multiple candidates is not supported")
-	}
 	if !param.IsOmitted(request.ResponseFormat) {
 		return nil, errors.New("response format must be set using Genkit feature: ai.WithOutputType() or ai.WithOutputSchema()")
 	}
@@ -679,7 +700,12 @@ func translateResponse(c *openai.ChatCompletion) (*ai.ModelResponse, error) {
 		usage.Custom["rejectedPredictionTokens"] = float64(rpt)
 	}
 
-	resp := &ai.ModelResponse{}
+	resp := &ai.ModelResponse{
+		Message: &ai.Message{
+			Role:    ai.RoleModel,
+			Content: make([]*ai.Part, 0),
+		},
+	}
 
 	switch candidate.FinishReason {
 	case "stop", "tool_calls":
