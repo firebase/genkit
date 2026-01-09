@@ -1018,8 +1018,8 @@ class GeminiModel:
         if response.candidates:
             for candidate in response.candidates:
                 if candidate.content:
-                    for part in candidate.content.parts:
-                        content.append(PartConverter.from_gemini(part=part))
+                    for i, part in enumerate(candidate.content.parts):
+                        content.append(PartConverter.from_gemini(part=part, ref=str(i)))
 
         return content
 

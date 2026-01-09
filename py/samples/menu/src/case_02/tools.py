@@ -30,5 +30,5 @@ with open(menu_json_path) as f:
 def todaysMenu(input=None) -> MenuToolOutputSchema:
     """Use this tool to retrieve all the items on today's menu."""
     return MenuToolOutputSchema(
-        menuData=menu_data,
+        menu_data=menu_data,
     )

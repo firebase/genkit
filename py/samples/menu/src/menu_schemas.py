@@ -48,20 +48,20 @@ class DataMenuQuestionInputSchema(BaseModel):
 class TextMenuQuestionInputSchema(BaseModel):
     """Input schema for the text menu question prompt."""
 
-    menuText: str = Field(...)
+    menu_text: str = Field(...)
     question: str = Field(..., description='A question about the menu')
 
 
 class MenuToolOutputSchema(BaseModel):
     """Output schema for the menu tool."""
 
-    menuData: list[MenuItemSchema] = Field(..., description='A list of all the items on the menu')
+    menu_data: list[MenuItemSchema] = Field(..., description='A list of all the items on the menu')
 
 
 class ReadMenuImagePromptSchema(BaseModel):
     """Input schema for the read menu image prompt."""
 
-    imageUrl: str = Field(...)
+    image_url: str = Field(...)
 
 
 class ReadMenuPromptOutputSchema(BaseModel):

@@ -74,33 +74,19 @@ class PartConverter:
         if isinstance(part.root, TextPart):
             return genai.types.Part(text=part.root.text or ' ')
         if isinstance(part.root, ToolRequestPart):
-            thought_sig = (
-                part.root.metadata.root.get('thoughtSignature')
-                if part.root.metadata
-                else None
-            )
-            if isinstance(thought_sig, str):
-                thought_sig = base64.b64decode(thought_sig)
             return genai.types.Part(
                 function_call=genai.types.FunctionCall(
                     # Gemini throws on '/' in tool name
                     name=part.root.tool_request.name.replace('/', '__'),
                     args=part.root.tool_request.input,
                 ),
-                thought_signature=thought_sig,
+                thought_signature=cls._extract_thought_signature(part.root.metadata),
             )
         if isinstance(part.root, ReasoningPart):
-            thought_sig = (
-                part.root.metadata.root.get('thoughtSignature')
-                if part.root.metadata
-                else None
-            )
-            if isinstance(thought_sig, str):
-                thought_sig = base64.b64decode(thought_sig)
             return genai.types.Part(
                 thought=True,
                 text=part.root.reasoning,
-                thought_signature=thought_sig,
+                thought_signature=cls._extract_thought_signature(part.root.metadata),
             )
         if isinstance(part.root, ToolResponsePart):
             return genai.types.Part(
@@ -117,10 +103,7 @@ class PartConverter:
 
             # Extract mime type and data from data:mime_type;base64,data
             metadata, data_str = url.split(',', 1)
-            mime_type = (
-                part.root.media.content_type
-                or metadata.split(':', 1)[1].split(';', 1)[0]
-            )
+            mime_type = part.root.media.content_type or metadata.split(':', 1)[1].split(';', 1)[0]
             data = base64.b64decode(data_str)
 
             return genai.types.Part(
@@ -162,7 +145,7 @@ class PartConverter:
             )
 
     @classmethod
-    def from_gemini(cls, part: genai.types.Part) -> Part:
+    def from_gemini(cls, part: genai.types.Part, ref: str | None = None) -> Part:
         """Maps a Gemini Part back to a Genkit Part.
 
         This method inspects the type of the Gemini Part and converts it into
@@ -171,6 +154,7 @@ class PartConverter:
 
         Args:
             part: The `genai.types.Part` object to convert.
+            ref: The tool call reference ID.
 
         Returns:
             A Genkit `Part` object representing the converted content.
@@ -179,13 +163,7 @@ class PartConverter:
             return Part(
                 root=ReasoningPart(
                     reasoning=part.text or '',
-                    metadata={
-                        'thoughtSignature': base64.b64encode(
-                            part.thought_signature
-                        ).decode('utf-8')
-                    }
-                    if part.thought_signature
-                    else None,
+                    metadata=cls._encode_thought_signature(part.thought_signature),
                 )
             )
         if part.text:
@@ -194,25 +172,19 @@ class PartConverter:
             return Part(
                 root=ToolRequestPart(
                     tool_request=ToolRequest(
-                        ref=part.function_call.id,
+                        ref=ref or getattr(part.function_call, 'id', None),
                         # restore slashes
                         name=part.function_call.name.replace('__', '/'),
                         input=part.function_call.args,
                     ),
-                    metadata={
-                        'thoughtSignature': base64.b64encode(
-                            part.thought_signature
-                        ).decode('utf-8')
-                    }
-                    if part.thought_signature
-                    else None,
+                    metadata=cls._encode_thought_signature(part.thought_signature),
                 )
             )
         if part.function_response:
             return Part(
                 root=ToolResponsePart(
                     tool_response=ToolResponse(
-                        ref=part.function_response.id,
+                        ref=getattr(part.function_response, 'id', None),
                         # restore slashes
                         name=part.function_response.name.replace('__', '/'),
                         output=part.function_response.response,
@@ -245,3 +217,22 @@ class PartConverter:
                     }
                 }
             )
+
+    @classmethod
+    def _extract_thought_signature(cls, metadata: Any) -> bytes | None:
+        """Extracts and decodes the thought signature from metadata."""
+        thought_sig = metadata.root.get('thoughtSignature') if metadata else None
+        if isinstance(thought_sig, str):
+            return base64.b64decode(thought_sig)
+        return None
+
+    @classmethod
+    def _encode_thought_signature(
+        cls, thought_signature: bytes | None
+    ) -> dict[str, str] | None:
+        """Encodes the thought signature into metadata format."""
+        if thought_signature:
+            return {
+                'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')
+            }
+        return None

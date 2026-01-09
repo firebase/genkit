@@ -31,9 +31,7 @@ from menu_schemas import (
 @ai.flow(name='s05_readMenu')
 async def s05_readMenuFlow(_: None = None) -> str:
     image_data_url = inline_data_url('menu.jpeg', 'image/jpeg')
-    response = await s05_readMenuPrompt(
-        {'imageUrl': image_data_url}
-    )
+    response = await s05_readMenuPrompt({'imageUrl': image_data_url})
     return response.text
 
 
@@ -41,9 +39,7 @@ async def s05_readMenuFlow(_: None = None) -> str:
 async def s05_textMenuQuestionFlow(
     my_input: TextMenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
-    response = await s05_textMenuPrompt(
-        {'menuText': my_input.menuText, 'question': my_input.question}
-    )
+    response = await s05_textMenuPrompt({'menuText': my_input.menuText, 'question': my_input.question})
     return AnswerOutputSchema(
         answer=response.text,
     )

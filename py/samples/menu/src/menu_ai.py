@@ -17,7 +17,7 @@
 
 from genkit.ai import Genkit
 from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
-from genkit.plugins.google_genai import GoogleAI, GeminiEmbeddingModels, googleai_name
+from genkit.plugins.google_genai import GeminiEmbeddingModels, GoogleAI, googleai_name
 
 ai = Genkit(
     plugins=[
