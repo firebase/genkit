@@ -2305,6 +2305,7 @@ func TestSessionStateInjection(t *testing.T) {
 		}
 	})
 }
+
 // TestDefineExecuteOptionInteractions tests the complex interactions between
 // options set at DefinePrompt time vs Execute time.
 func TestDefineExecuteOptionInteractions(t *testing.T) {
