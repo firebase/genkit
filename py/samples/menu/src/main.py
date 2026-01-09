@@ -25,7 +25,6 @@ import case_04.flows
 import case_04.prompts
 import case_05.flows
 import case_05.prompts
-
 from menu_ai import ai
 
 if __name__ == '__main__':
