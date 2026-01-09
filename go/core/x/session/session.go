@@ -258,6 +258,31 @@ func FromContext[S any](ctx context.Context) *Session[S] {
 	return session
 }
 
+// stateGetter is an internal interface for retrieving state without type parameters.
+type stateGetter interface {
+	getState() any
+}
+
+// getState implements stateGetter, returning the session state as any.
+func (s *Session[S]) getState() any {
+	return s.State()
+}
+
+// StateFromContext retrieves the current session state from context without
+// requiring knowledge of the state type. This is useful for template rendering
+// where the state type is not known at compile time.
+// Returns nil if no session is in context.
+func StateFromContext(ctx context.Context) any {
+	holder, ok := ctx.Value(sessionContextKey).(*sessionHolder)
+	if !ok || holder == nil {
+		return nil
+	}
+	if getter, ok := holder.session.(stateGetter); ok {
+		return getter.getState()
+	}
+	return nil
+}
+
 // NotFoundError is returned when a session cannot be found in the store.
 type NotFoundError struct {
 	SessionID string

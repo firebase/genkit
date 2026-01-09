@@ -26,6 +26,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/core/x/session"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
@@ -2164,6 +2165,143 @@ func TestPromptExecuteStream(t *testing.T) {
 		}
 		if config.Temperature != 0.9 {
 			t.Errorf("expected temperature 0.9, got %v", config.Temperature)
+		}
+	})
+}
+
+// TestSessionStateInjection tests that session state is automatically injected
+// into prompt templates and accessible via {{@state.field}} syntax.
+func TestSessionStateInjection(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+
+	// Define a test state type
+	type UserState struct {
+		Name        string            `json:"name"`
+		Preferences map[string]string `json:"preferences"`
+	}
+
+	t.Run("session state accessible in prompt template", func(t *testing.T) {
+		var capturedPrompt string
+
+		testModel := DefineModel(r, "test/sessionStateModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedPrompt = req.Messages[0].Text()
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("response"),
+			}, nil
+		})
+
+		// Create a prompt that uses {{@state.name}} syntax
+		p := DefinePrompt(r, "sessionStatePrompt",
+			WithModel(testModel),
+			WithPrompt("Hello {{@state.name}}, your theme is {{@state.preferences.theme}}"),
+		)
+
+		// Create a session with state
+		ctx := context.Background()
+		sess, err := session.New(ctx, session.WithInitialState(UserState{
+			Name:        "Alice",
+			Preferences: map[string]string{"theme": "dark"},
+		}))
+		if err != nil {
+			t.Fatalf("Failed to create session: %v", err)
+		}
+
+		// Attach session to context
+		ctx = session.NewContext(ctx, sess)
+
+		// Execute prompt with session in context
+		_, err = p.Execute(ctx)
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		// Verify the session state was injected into the template
+		expected := "Hello Alice, your theme is dark"
+		if capturedPrompt != expected {
+			t.Errorf("Expected prompt %q, got %q", expected, capturedPrompt)
+		}
+	})
+
+	t.Run("prompt works without session in context", func(t *testing.T) {
+		var capturedPrompt string
+
+		testModel := DefineModel(r, "test/noSessionModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedPrompt = req.Messages[0].Text()
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("response"),
+			}, nil
+		})
+
+		// Create a prompt that uses regular input variables (not session state)
+		p := DefinePrompt(r, "noSessionPrompt",
+			WithModel(testModel),
+			WithPrompt("Hello {{name}}"),
+			WithInputType(struct {
+				Name string `json:"name"`
+			}{}),
+		)
+
+		// Execute without session in context
+		ctx := context.Background()
+		_, err := p.Execute(ctx, WithInput(map[string]any{"name": "Bob"}))
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		expected := "Hello Bob"
+		if capturedPrompt != expected {
+			t.Errorf("Expected prompt %q, got %q", expected, capturedPrompt)
+		}
+	})
+
+	t.Run("session state and input variables can be used together", func(t *testing.T) {
+		var capturedPrompt string
+
+		testModel := DefineModel(r, "test/mixedModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedPrompt = req.Messages[0].Text()
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("response"),
+			}, nil
+		})
+
+		// Create a prompt that uses both input and session state
+		p := DefinePrompt(r, "mixedPrompt",
+			WithModel(testModel),
+			WithPrompt("User {{@state.name}} asks: {{question}}"),
+			WithInputType(struct {
+				Question string `json:"question"`
+			}{}),
+		)
+
+		// Create session
+		ctx := context.Background()
+		sess, err := session.New(ctx, session.WithInitialState(UserState{
+			Name: "Charlie",
+		}))
+		if err != nil {
+			t.Fatalf("Failed to create session: %v", err)
+		}
+		ctx = session.NewContext(ctx, sess)
+
+		// Execute with both session and input
+		_, err = p.Execute(ctx, WithInput(map[string]any{"question": "What is the weather?"}))
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		expected := "User Charlie asks: What is the weather?"
+		if capturedPrompt != expected {
+			t.Errorf("Expected prompt %q, got %q", expected, capturedPrompt)
 		}
 	})
 }

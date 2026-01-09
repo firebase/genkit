@@ -357,6 +357,83 @@ func TestNewContext_FromContext(t *testing.T) {
 	}
 }
 
+func TestStateFromContext(t *testing.T) {
+	t.Run("returns state when session exists", func(t *testing.T) {
+		ctx := context.Background()
+		initial := UserState{
+			Name:        "Alice",
+			Count:       42,
+			Preferences: map[string]string{"theme": "dark"},
+		}
+		sess, err := New(ctx, WithInitialState(initial))
+		if err != nil {
+			t.Fatalf("New failed: %v", err)
+		}
+
+		ctx = NewContext(ctx, sess)
+
+		state := StateFromContext(ctx)
+		if state == nil {
+			t.Fatal("Expected state from context, got nil")
+		}
+
+		// StateFromContext returns the state as any, so we need to type assert
+		userState, ok := state.(UserState)
+		if !ok {
+			t.Fatalf("Expected UserState, got %T", state)
+		}
+
+		if userState.Name != "Alice" {
+			t.Errorf("Expected Name %q, got %q", "Alice", userState.Name)
+		}
+		if userState.Count != 42 {
+			t.Errorf("Expected Count %d, got %d", 42, userState.Count)
+		}
+		if userState.Preferences["theme"] != "dark" {
+			t.Errorf("Expected theme %q, got %q", "dark", userState.Preferences["theme"])
+		}
+	})
+
+	t.Run("returns nil when no session in context", func(t *testing.T) {
+		ctx := context.Background()
+		state := StateFromContext(ctx)
+		if state != nil {
+			t.Errorf("Expected nil for empty context, got %v", state)
+		}
+	})
+
+	t.Run("returns deep copy that cannot mutate session", func(t *testing.T) {
+		ctx := context.Background()
+		initial := UserState{
+			Name:        "Bob",
+			Preferences: map[string]string{"lang": "en"},
+		}
+		sess, err := New(ctx, WithInitialState(initial))
+		if err != nil {
+			t.Fatalf("New failed: %v", err)
+		}
+
+		ctx = NewContext(ctx, sess)
+
+		// Get state via StateFromContext
+		state := StateFromContext(ctx)
+		userState := state.(UserState)
+
+		// Modify the returned state
+		userState.Name = "Modified"
+		userState.Preferences["lang"] = "fr"
+
+		// Verify the session's internal state is unchanged
+		originalState := sess.State()
+		if originalState.Name != "Bob" {
+			t.Errorf("Session state was mutated: expected Name %q, got %q", "Bob", originalState.Name)
+		}
+		if originalState.Preferences["lang"] != "en" {
+			t.Errorf("Session state was mutated: expected lang %q, got %q", "en", originalState.Preferences["lang"])
+		}
+	})
+}
+
 func TestFromContext_NoSession(t *testing.T) {
 	ctx := context.Background()
 
