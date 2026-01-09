@@ -128,6 +128,8 @@ class Registry:
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
         span_metadata: dict[str, str] | None = None,
+        input_schema: dict[str, Any] | None = None,
+        output_schema: dict[str, Any] | None = None,
     ) -> Action:
         """Register a new action with the registry.
 
@@ -143,6 +145,8 @@ class Registry:
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
+            input_schema: Optional JSON schema for the input.
+            output_schema: Optional JSON schema for the output.
 
         Returns:
             The newly created and registered Action instance.
@@ -155,6 +159,8 @@ class Registry:
             description=description,
             metadata=metadata,
             span_metadata=span_metadata,
+            input_schema=input_schema,
+            output_schema=output_schema,
         )
         with self._lock:
             if kind not in self._entries:
@@ -174,7 +180,26 @@ class Registry:
                 self._entries[action.kind] = {}
             self._entries[action.kind][action.name] = action
 
-    def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
+    async def resolve_action_names(self, key: str) -> list[str]:
+        """Resolves all action names matching a key (including dynamic providers)."""
+        kind, name = parse_action_key(key)
+        if ':' in name:
+            host_part, pattern = name.split(':', 1)
+            provider_key = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, host_part)
+            dap = await self.lookup_action_by_key(provider_key)
+            if dap and is_dynamic_action_provider(dap):
+                # pattern is like "tool/mytool" or "tool/*"
+                if '/' in pattern:
+                    p_kind_str, p_name_pattern = pattern.split('/', 1)
+                    p_kind = ActionKind(p_kind_str)
+                    metadata = await dap.list_action_metadata(p_kind, p_name_pattern)
+                    return [f'{provider_key}:{p_kind.value}/{m.name}' for m in metadata]
+
+        if await self.lookup_action(kind, name):
+            return [key]
+        return []
+
+    async def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
         """Look up an action by its kind and name.
 
         Args:
@@ -184,6 +209,16 @@ class Registry:
         Returns:
             The Action instance if found, None otherwise.
         """
+        if ':' in name:
+            host_part, tool_part = name.split(':', 1)
+            provider_key = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, host_part)
+            dap = await self.lookup_action_by_key(provider_key)
+            if dap and is_dynamic_action_provider(dap):
+                if '/' in tool_part:
+                    p_kind_str, p_name = tool_part.split('/', 1)
+                    p_kind = ActionKind(p_kind_str)
+                    return await dap.get_action(p_kind, p_name)
+
         with self._lock:
             # If the entry does not exist, we fist try to call the action
             # resolver for the plugin to give it a chance to dynamically add the
@@ -211,7 +246,7 @@ class Registry:
         with self._lock:
             return self._entries.get(kind, {}).copy()
 
-    def lookup_action_by_key(self, key: str) -> Action | None:
+    async def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.
 
         The key format is `<kind>/<name>`, where kind must be a valid
@@ -228,9 +263,9 @@ class Registry:
                 `ActionKind`.
         """
         kind, name = parse_action_key(key)
-        return self.lookup_action(kind, name)
+        return await self.lookup_action(kind, name)
 
-    def list_serializable_actions(self, allowed_kinds: set[ActionKind] | None = None) -> dict[str, Action] | None:
+    async def list_serializable_actions(self, allowed_kinds: set[ActionKind] | None = None) -> dict[str, Any] | None:
         """Enlist all the actions into a dictionary.
 
         Args:
@@ -246,7 +281,7 @@ class Registry:
                 if allowed_kinds is not None and kind not in allowed_kinds:
                     continue
                 for name in self._entries[kind]:
-                    action = self.lookup_action(kind, name)
+                    action = await self.lookup_action(kind, name)
                     if action is not None:
                         key = create_action_key(kind, name)
                         # TODO: Serialize the Action instance
@@ -259,42 +294,26 @@ class Registry:
                         }
             return actions
 
-    def list_actions(
-        self,
-        actions: dict[str, Action] | None = None,
-        allowed_kinds: set[ActionKind] | None = None,
-    ) -> dict[str, Action] | None:
-        """Add actions or models.
-
-        Args:
-            actions: dictionary of serializable actions.
-            allowed_kinds: The types of actions to list. If None, all actions
-            are listed.
-
-        Returns:
-            A dictionary of serializable Actions updated.
-        """
-        if actions is None:
-            actions = {}
-
-        for plugin_name in self._list_actions_resolvers:
-            actions_list = self._list_actions_resolvers[plugin_name]()
-
-            for _action in actions_list:
-                kind = _action.kind
-                if allowed_kinds is not None and kind not in allowed_kinds:
-                    continue
-                key = create_action_key(kind, _action.name)
-
-                if key not in actions:
-                    actions[key] = {
-                        'key': key,
-                        'name': _action.name,
-                        'inputSchema': _action.input_json_schema,
-                        'outputSchema': _action.output_json_schema,
-                        'metadata': _action.metadata,
+    async def list_resolvable_actions(self) -> dict[str, Any]:
+        """Returns all resolvable actions including dynamic ones."""
+        resolvable_actions = {}
+        # TODO: parallelize or use resolvers?
+        with self._lock:
+            # First add all directly registered actions
+            for kind in self._entries:
+                for name, action in self._entries[kind].items():
+                    key = create_action_key(kind, name)
+                    resolvable_actions[key] = {
+                        'name': action.name,
+                        'inputSchema': action.input_schema,
+                        'outputSchema': action.output_schema,
+                        'metadata': action.metadata,
                     }
-        return actions
+                    if is_dynamic_action_provider(action):
+                        dap_prefix = key
+                        dap_record = await action.get_action_metadata_record(dap_prefix)
+                        resolvable_actions.update(dap_record)
+        return resolvable_actions
 
     def register_value(self, kind: str, name: str, value: Any):
         """Registers a value with a given kind and name.

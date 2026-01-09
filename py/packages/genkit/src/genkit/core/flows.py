@@ -156,7 +156,7 @@ def create_flows_asgi_app(
 
         try:
             # Look up the flow action.
-            action = registry.lookup_action_by_key(flow_name)
+            action = await registry.lookup_action_by_key(flow_name)
             if action is None:
                 await logger.aerror(
                     'Flow not found',

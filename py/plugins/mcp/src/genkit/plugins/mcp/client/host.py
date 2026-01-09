@@ -59,6 +59,24 @@ class McpHost:
             client.config.disabled = True
             await client.close()
 
+    async def get_active_tools(self, ai: Optional[Genkit] = None) -> List[str]:
+        """Returns all active tool names across all clients."""
+        all_tools = []
+        for client in self.clients.values():
+            if client.session and not client.config.disabled:
+                tools = await client.get_active_tools()
+                all_tools.extend([f'{client.server_name}/{t.name}' for t in tools])
+        return all_tools
+
+    async def get_active_resources(self, ai: Optional[Genkit] = None) -> List[str]:
+        """Returns all active resource URIs across all clients."""
+        all_resources = []
+        for client in self.clients.values():
+            if client.session and not client.config.disabled:
+                resources = await client.get_active_resources()
+                all_resources.extend([r.uri for r in resources])
+        return all_resources
+
 
 def create_mcp_host(configs: Dict[str, McpServerConfig]) -> McpHost:
     return McpHost(configs)

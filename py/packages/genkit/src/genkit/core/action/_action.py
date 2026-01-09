@@ -202,6 +202,8 @@ class Action:
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
         span_metadata: dict[str, Any] | None = None,
+        input_schema: dict[str, Any] | None = None,
+        output_schema: dict[str, Any] | None = None,
     ) -> None:
         """Initialize an Action.
 
@@ -214,6 +216,8 @@ class Action:
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
+            input_schema: Optional JSON schema for the input.
+            output_schema: Optional JSON schema for the output.
         """
         self._kind = kind
         self._name = name
@@ -225,7 +229,7 @@ class Action:
         action_args, arg_types = extract_action_args_and_types(input_spec)
         n_action_args = len(action_args)
         self._fn, self._afn = _make_tracing_wrappers(name, kind, span_metadata, n_action_args, fn)
-        self._initialize_io_schemas(action_args, arg_types, input_spec)
+        self._initialize_io_schemas(action_args, arg_types, input_spec, input_schema, output_schema)
 
     @property
     def kind(self) -> ActionKind:
@@ -362,7 +366,10 @@ class Action:
         Raises:
             GenkitError: If an error occurs during action execution.
         """
-        input_action = self._input_type.validate_python(raw_input) if self._input_type is not None else None
+        input_action = raw_input
+        if self._input_type is not None:
+            input_action = self._input_type.validate_python(raw_input)
+
         return await self.arun(
             input=input_action,
             on_chunk=on_chunk,
@@ -419,6 +426,8 @@ class Action:
         action_args: list[str],
         arg_types: list[type],
         input_spec: inspect.FullArgSpec,
+        input_schema: dict[str, Any] | None = None,
+        output_schema: dict[str, Any] | None = None,
     ):
         """Initializes input/output schemas based on function signature and hints.
 
@@ -431,6 +440,8 @@ class Action:
             action_args: List of detected argument names.
             arg_types: List of detected argument types.
             input_spec: The FullArgSpec object from inspecting the function.
+            input_schema: Optional JSON schema for the input.
+            output_schema: Optional JSON schema for the output.
 
         Raises:
             TypeError: If the function has more than two arguments.
@@ -438,23 +449,28 @@ class Action:
         if len(action_args) > 2:
             raise TypeError(f'can only have up to 2 arg: {action_args}')
 
-        if len(action_args) > 0:
+        if input_schema:
+            self._input_schema = input_schema
+            self._input_type = None
+        elif len(action_args) > 0:
             type_adapter = TypeAdapter(arg_types[0])
             self._input_schema = type_adapter.json_schema()
             self._input_type = type_adapter
-            self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
         else:
             self._input_schema = TypeAdapter(Any).json_schema()
             self._input_type = None
-            self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
 
-        if ActionMetadataKey.RETURN in input_spec.annotations:
+        self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
+
+        if output_schema:
+            self._output_schema = output_schema
+        elif ActionMetadataKey.RETURN in input_spec.annotations:
             type_adapter = TypeAdapter(input_spec.annotations[ActionMetadataKey.RETURN])
             self._output_schema = type_adapter.json_schema()
-            self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
         else:
             self._output_schema = TypeAdapter(Any).json_schema()
-            self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
+
+        self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
 
 
 class ActionMetadata(BaseModel):

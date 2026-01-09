@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "genkit": {
+      "command": "genkit",
+      "args": [
+        "mcp",
+        "--no-update-notification"
+      ],
+      "cwd": ".",
+      "timeout": 30000,
+      "trust": false,
+      "excludeTools": [
+        "run_shell_command(genkit start)",
+        "run_shell_command(npx genkit start)"
+      ]
+    }
+  },
+  "contextFileName": "GENKIT.md"
+}
