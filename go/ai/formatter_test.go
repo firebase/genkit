@@ -1031,3 +1031,72 @@ func TestDefaultFormats(t *testing.T) {
 		})
 	}
 }
+
+func TestArrayFormatterParseMessage(t *testing.T) {
+	schema := map[string]any{
+		"type": "array",
+		"items": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"id": map[string]any{"type": "integer"},
+			},
+		},
+	}
+
+	t.Run("returns message unchanged", func(t *testing.T) {
+		handler, err := arrayFormatter{}.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+
+		msg := &Message{
+			Role:    RoleModel,
+			Content: []*Part{NewTextPart(`[{"id": 1}, {"id": 2}]`)},
+		}
+
+		got, err := handler.ParseMessage(msg)
+		if err != nil {
+			t.Fatalf("ParseMessage() error = %v", err)
+		}
+
+		// Array formatter's ParseMessage returns the message unchanged
+		if got != msg {
+			t.Error("ParseMessage() should return the same message object")
+		}
+	})
+}
+
+func TestJSONLFormatterParseMessage(t *testing.T) {
+	schema := map[string]any{
+		"type": "array",
+		"items": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"id":   map[string]any{"type": "integer"},
+				"name": map[string]any{"type": "string"},
+			},
+		},
+	}
+
+	t.Run("returns message unchanged", func(t *testing.T) {
+		handler, err := jsonlFormatter{}.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+
+		msg := &Message{
+			Role:    RoleModel,
+			Content: []*Part{NewTextPart("{\"id\": 1, \"name\": \"Alice\"}\n{\"id\": 2, \"name\": \"Bob\"}")},
+		}
+
+		got, err := handler.ParseMessage(msg)
+		if err != nil {
+			t.Fatalf("ParseMessage() error = %v", err)
+		}
+
+		// JSONL formatter's ParseMessage returns the message unchanged
+		if got != msg {
+			t.Error("ParseMessage() should return the same message object")
+		}
+	})
+}

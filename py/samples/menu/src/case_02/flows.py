@@ -27,5 +27,5 @@ async def s02_menuQuestionFlow(
 ) -> AnswerOutputSchema:
     text = await s02_dataMenuPrompt({'question': my_input.question})
     return AnswerOutputSchema(
-        answer=text,
+        answer=text.text,
     )

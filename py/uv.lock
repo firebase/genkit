@@ -1764,6 +1764,7 @@ version = "0.4.0"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-compat-oai" },
     { name = "google-cloud-aiplatform" },
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-firestore" },
@@ -1775,6 +1776,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-firestore" },
@@ -3373,12 +3375,14 @@ version = "0.1.0"
 source = { virtual = "samples/model-garden" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-vertex-ai" },
     { name = "pydantic" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "pydantic", specifier = ">=2.10.5" },
 ]
 

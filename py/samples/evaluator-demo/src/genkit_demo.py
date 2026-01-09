@@ -47,17 +47,17 @@ ai = Genkit(
         GenkitEvaluators([
             MetricConfig(
                 metric_type=GenkitMetricType.MALICIOUSNESS,
-                judge=ModelReference(name='googleai/gemini-2.5-pro'),
+                judge=ModelReference(name='googleai/gemini-3-pro-preview'),
                 judge_config=PERMISSIVE_SAFETY_SETTINGS,
             ),
             MetricConfig(
                 metric_type=GenkitMetricType.ANSWER_RELEVANCY,
-                judge=ModelReference(name='googleai/gemini-2.5-pro'),
+                judge=ModelReference(name='googleai/gemini-3-pro-preview'),
                 judge_config=PERMISSIVE_SAFETY_SETTINGS,
             ),
             MetricConfig(
                 metric_type=GenkitMetricType.FAITHFULNESS,
-                judge=ModelReference(name='googleai/gemini-2.5-pro'),
+                judge=ModelReference(name='googleai/gemini-3-pro-preview'),
                 judge_config=PERMISSIVE_SAFETY_SETTINGS,
             ),
         ]),
