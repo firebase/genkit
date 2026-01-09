@@ -682,7 +682,7 @@ class GeminiModel:
             name=tool.name,
             description=tool.description,
             parameters=params,
-            response=tool.output_schema,
+            response=self._convert_schema_property(tool.output_schema) if tool.output_schema else None,
         )
         return genai_types.Tool(function_declarations=[function])
 
@@ -985,6 +985,8 @@ class GeminiModel:
         cache = None
 
         for msg in request.messages:
+            if msg.role == Role.SYSTEM:
+                continue
             content_parts: list[genai_types.Part] = []
             for p in msg.content:
                 content_parts.append(PartConverter.to_gemini(p))
@@ -997,6 +999,9 @@ class GeminiModel:
                     cache_config=msg.metadata['cache'],
                     contents=request_contents,
                 )
+
+        if not request_contents:
+            request_contents.append(genai_types.Content(parts=[genai_types.Part(text=' ')], role='user'))
 
         return request_contents, cache
 
@@ -1013,8 +1018,8 @@ class GeminiModel:
         if response.candidates:
             for candidate in response.candidates:
                 if candidate.content:
-                    for part in candidate.content.parts:
-                        content.append(PartConverter.from_gemini(part=part))
+                    for i, part in enumerate(candidate.content.parts):
+                        content.append(PartConverter.from_gemini(part=part, ref=str(i)))
 
         return content
 
@@ -1075,7 +1080,6 @@ class GeminiModel:
             for msg in system_messages:
                 for p in msg.content:
                     system_parts.append(PartConverter.to_gemini(p))
-                request.messages.remove(msg)
             cfg.system_instruction = genai.types.Content(parts=system_parts)
 
         return cfg

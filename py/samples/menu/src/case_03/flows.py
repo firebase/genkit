@@ -26,14 +26,14 @@ from case_03.chats import (
 from menu_ai import ai
 
 from genkit.core.typing import Message, Role, TextPart
-from genkit.plugins.google_genai import google_genai_name
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai import googleai_name
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion as GeminiVersion
 
 menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
 with open(menu_json_path) as f:
     menu_data = json.load(f)
 
-formatted_menu_data = '\n'.join([f'- ${r["title"]} ${r["price"]}\n${r["description"]}' for r in menu_data])
+formatted_menu_data = '\n'.join([f'- {r["title"]} ${r["price"]}\n{r["description"]}' for r in menu_data])
 
 preamble = [
     Message(
@@ -43,13 +43,15 @@ preamble = [
         ],
     ),
     Message(
-        role=Role.USER,
+        role=Role.MODEL,
         content=[
             TextPart(
-                text=f"""I am Walt, a helpful AI assistant here at the restaurant.\n' +
-                          'I can answer questions about the food on the menu or any other questions\n' +
-                          "you have about food in general. I probably can't help you with anything else.\n" +
-                          "Here is today's menu: \n {formatted_menu_data}\nDo you have any questions about the menu?"""
+                text=f"""I am Walt, a helpful AI assistant here at the restaurant.
+I can answer questions about the food on the menu or any other questions
+you have about food in general. I probably can't help you with anything else.
+Here is today's menu:
+{formatted_menu_data}
+Do you have any questions about the menu?"""
             ),
         ],
     ),
@@ -67,7 +69,7 @@ async def s03_multiTurnChatFlow(
     history = chat_history_store.read(my_input.session_id)
 
     llm_response = await ai.generate(
-        model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+        model=googleai_name(GeminiVersion.GEMINI_3_FLASH_PREVIEW),
         messages=history,
         prompt=[TextPart(text=my_input.question)],
     )
