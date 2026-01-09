@@ -28,10 +28,12 @@ Actions and flows defined with Genkit are automatically traced. Each action
 execution creates a span with input/output data, timing, and any errors.
 Use [core.Run] within flows to create traced sub-steps:
 
-	flow := genkit.DefineFlow(g, "myFlow",
+	// In a real scenario, 'r' would be the registry from your Genkit instance.
+	var r api.Registry
+	flow := core.DefineFlow(r, "myFlow",
 		func(ctx context.Context, input string) (string, error) {
 			// This creates a traced step named "processData"
-			result, err := genkit.Run(ctx, "processData", func() (string, error) {
+			result, err := core.Run(ctx, "processData", func() (string, error) {
 				return process(input), nil
 			})
 			return result, err
