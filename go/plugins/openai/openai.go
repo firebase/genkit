@@ -96,15 +96,20 @@ func (o *OpenAI) Init(ctx context.Context) []api.Action {
 }
 
 // DefineModel defines an unknown model with the given name.
-func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, opts ai.ModelOptions) (ai.Model, error) {
+func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
 		panic("OpenAI.Init not called")
 	}
+	if name == "" {
+		return nil, fmt.Errorf("OpenAI.DefineModel: called with empty model name")
+	}
 
-	// TODO: define a model, basically you need the generate() func
-	return nil, nil
+	if opts == nil {
+		return nil, fmt.Errorf("OpenAI.DefineModel: called with unknown model options")
+	}
+	return newModel(o.client, name, opts), nil
 }
 
 // OpenAIModel returns the [ai.Model] with the given name.
@@ -134,6 +139,7 @@ func (o *OpenAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 	return genkit.LookupEmbedder(g, name) != nil
 }
 
+// ListActions lists all the actions supported by the OpenAI plugin.
 func (o *OpenAI) ListActions(ctx context.Context) []api.ActionDesc {
 	actions := []api.ActionDesc{}
 	models, err := listOpenAIModels(ctx, o.client)
@@ -157,6 +163,7 @@ func (o *OpenAI) ListActions(ctx context.Context) []api.ActionDesc {
 	return actions
 }
 
+// ResolveAction resolves an action with the given name.
 func (o *OpenAI) ResolveAction(atype api.ActionType, name string) api.Action {
 	switch atype {
 	case api.ActionTypeEmbedder:
@@ -182,6 +189,7 @@ func (o *OpenAI) ResolveAction(atype api.ActionType, name string) api.Action {
 	return nil
 }
 
+// openaiModels contains the collection of supported OpenAI models
 type openaiModels struct {
 	chat      []string // gpt, tts, o1, o2, o3...
 	image     []string // gpt-image
@@ -189,6 +197,15 @@ type openaiModels struct {
 	embedders []string // text-embedding...
 }
 
+// listOpenAIModels returns a list of models available in the OpenAI API
+// The returned struct is a filtered list of models based on plain string comparisons:
+// chat: gpt, tts, o1, o2, o3...
+// image: gpt-image
+// video: sora
+// embedders: text-embedding
+// NOTE: the returned list from the SDK is just a plain slice of model names.
+// No extra information about the model stage or type is provided.
+// See: platform.openai.com/docs/models
 func listOpenAIModels(ctx context.Context, client *openai.Client) (openaiModels, error) {
 	models := openaiModels{}
 	iter := client.Models.ListAutoPaging(ctx)
@@ -206,10 +223,6 @@ func listOpenAIModels(ctx context.Context, client *openai.Client) (openaiModels,
 			models.embedders = append(models.embedders, m.ID)
 			continue
 		}
-
-		// NOTE: model list is just a slice of names, no extra information about them
-		// is available, we might select deprecated models here
-		// see platform.openai.com/docs/models
 		models.chat = append(models.chat, m.ID)
 	}
 	if err := iter.Err(); err != nil {
@@ -219,6 +232,7 @@ func listOpenAIModels(ctx context.Context, client *openai.Client) (openaiModels,
 	return models, nil
 }
 
+// newEmbedder creates a new embedder without registering it
 func newEmbedder(client *openai.Client, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	return ai.NewEmbedder(api.NewName(openaiProvider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var data openai.EmbeddingNewParamsInputUnion
@@ -291,6 +305,7 @@ func configToMap(config any) map[string]any {
 	return result
 }
 
+// generate is the entry point function to request content generation to the OpenAI client
 func generate(ctx context.Context, client *openai.Client, model string, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
 	req, err := toOpenAIRequest(model, input)
@@ -315,6 +330,7 @@ func generate(ctx context.Context, client *openai.Client, model string, input *a
 	return resp, nil
 }
 
+// toOpenAIRequest translates an [ai.ModelRequest] into [openai.ChatCompletionNewParams]
 func toOpenAIRequest(model string, input *ai.ModelRequest) (*openai.ChatCompletionNewParams, error) {
 	request, err := configFromRequest(input.Config)
 	if err != nil {
@@ -387,10 +403,14 @@ func toOpenAIRequest(model string, input *ai.ModelRequest) (*openai.ChatCompleti
 	return request, nil
 }
 
+// toOpenAISystemMessage translates a system message contained in [ai.Message] into
+// [openai.ChatCompletionMessageParamUnion]
 func toOpenAISystemMessage(m *ai.Message) openai.ChatCompletionMessageParamUnion {
 	return openai.SystemMessage(m.Text())
 }
 
+// toOpenAIModelMessage translates a model message contained in [ai.Message] into
+// [openai.ChatCompletionMessageParamUnion]
 func toOpenAIModelMessage(m *ai.Message) (openai.ChatCompletionMessageParamUnion, error) {
 	var (
 		textParts []openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion
@@ -427,6 +447,7 @@ func toOpenAIModelMessage(m *ai.Message) (openai.ChatCompletionMessageParamUnion
 	}, nil
 }
 
+// toOpenAIUserMessage translates a user message contained in [ai.Message] into [openai.ChatCompletionMessageParamUnion]
 func toOpenAIUserMessage(m *ai.Message) (openai.ChatCompletionMessageParamUnion, error) {
 	msg, err := toOpenAIParts(m.Content)
 	if err != nil {
@@ -445,6 +466,7 @@ func toOpenAIUserMessage(m *ai.Message) (openai.ChatCompletionMessageParamUnion,
 	}, nil
 }
 
+// toOpenAIToolMessages translates an [ai.Message] into a slice of [openai.ChatCompletionMessageParamUnion]
 func toOpenAIToolMessages(m *ai.Message) ([]openai.ChatCompletionMessageParamUnion, error) {
 	var msgs []openai.ChatCompletionMessageParamUnion
 	for _, p := range m.Content {
@@ -479,6 +501,7 @@ func toOpenAIParts(parts []*ai.Part) ([]*openai.ChatCompletionContentPartUnionPa
 	return resp, nil
 }
 
+// toOpenAIPart translates an [ai.Part] into [openai.ChatCompletionContentPartUnionParam]
 func toOpenAIPart(p *ai.Part) (*openai.ChatCompletionContentPartUnionParam, error) {
 	var m openai.ChatCompletionContentPartUnionParam
 	if p == nil {
@@ -545,6 +568,7 @@ func toOpenAITools(tools []*ai.ToolDefinition, toolChoice ai.ToolChoice) ([]open
 	return toolParams, &choice, nil
 }
 
+// generateStream starts a new chat streaming completion in the OpenAI client
 func generateStream(ctx context.Context, client *openai.Client, req *openai.ChatCompletionNewParams, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("empty request detected")
@@ -596,6 +620,7 @@ func generateStream(ctx context.Context, client *openai.Client, req *openai.Chat
 	return resp, nil
 }
 
+// generateComplete starts a new chat completion in the OpenAI client
 func generateComplete(ctx context.Context, client *openai.Client, req *openai.ChatCompletionNewParams, input *ai.ModelRequest) (*ai.ModelResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("empty request detected")
@@ -614,6 +639,7 @@ func generateComplete(ctx context.Context, client *openai.Client, req *openai.Ch
 	return resp, nil
 }
 
+// translateResponse translates an [openai.ChatCompletion] into an [ai.ModelResponse]
 func translateResponse(c *openai.ChatCompletion) (*ai.ModelResponse, error) {
 	if len(c.Choices) == 0 {
 		return nil, fmt.Errorf("nothing to translate, empty response")
@@ -708,6 +734,7 @@ func translateResponse(c *openai.ChatCompletion) (*ai.ModelResponse, error) {
 	return resp, nil
 }
 
+// configFromRequest casts the given configuration into [openai.ChatCompletionNewParams]
 func configFromRequest(config any) (*openai.ChatCompletionNewParams, error) {
 	if config == nil {
 		return nil, nil
@@ -729,6 +756,7 @@ func configFromRequest(config any) (*openai.ChatCompletionNewParams, error) {
 	return &openaiConfig, nil
 }
 
+// convertToolCall translates a tool part in [ai.Part] into a [openai.ChatCompletionMessageToolCallUnionParam]
 func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageToolCallUnionParam, error) {
 	toolCallID := part.ToolRequest.Ref
 	if toolCallID == "" {
@@ -755,10 +783,11 @@ func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageToolCallUnionP
 	return param, nil
 }
 
+// anyToJSONString converts a stream of bytes to a JSON string
 func anyToJSONString(data any) (string, error) {
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal any to JSON string: data, %#v %w", data, err)
+		return "", fmt.Errorf("failed to marshal any to JSON string: %w", err)
 	}
 	return string(jsonBytes), nil
 }
