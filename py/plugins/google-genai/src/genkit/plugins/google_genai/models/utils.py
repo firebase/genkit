@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import base64
+from typing import Any
 
 from google import genai
 
@@ -227,12 +228,8 @@ class PartConverter:
         return None
 
     @classmethod
-    def _encode_thought_signature(
-        cls, thought_signature: bytes | None
-    ) -> dict[str, str] | None:
+    def _encode_thought_signature(cls, thought_signature: bytes | None) -> dict[str, str] | None:
         """Encodes the thought signature into metadata format."""
         if thought_signature:
-            return {
-                'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')
-            }
+            return {'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')}
         return None

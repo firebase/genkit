@@ -31,7 +31,10 @@ class IndexMenuItemsOutputSchema(BaseModel):
 async def s04_indexMenuItemsFlow(
     menu_items: list[MenuItemSchema],
 ) -> IndexMenuItemsOutputSchema:
-    documents = [Document.from_text(f'{item.title} {item.price} \n {item.description}', metadata=item.model_dump()) for item in menu_items]
+    documents = [
+        Document.from_text(f'{item.title} {item.price} \n {item.description}', metadata=item.model_dump())
+        for item in menu_items
+    ]
 
     await ai.index(
         indexer='menu-items',
