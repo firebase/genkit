@@ -2097,3 +2097,191 @@ func TestGenerateDataStream(t *testing.T) {
 		}
 	})
 }
+
+func TestGenerateText(t *testing.T) {
+	r := newTestRegistry(t)
+
+	echoModel := DefineModel(r, "test/echoTextModel", nil, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Request: req,
+			Message: NewModelTextMessage("echo: " + req.Messages[0].Content[0].Text),
+		}, nil
+	})
+
+	t.Run("returns text from model", func(t *testing.T) {
+		text, err := GenerateText(context.Background(), r,
+			WithModel(echoModel),
+			WithPrompt("hello"),
+		)
+
+		if err != nil {
+			t.Fatalf("GenerateText error: %v", err)
+		}
+		if text != "echo: hello" {
+			t.Errorf("text = %q, want %q", text, "echo: hello")
+		}
+	})
+}
+
+func TestGenerateData(t *testing.T) {
+	r := newTestRegistry(t)
+
+	type TestOutput struct {
+		Value int `json:"value"`
+	}
+
+	jsonModel := DefineModel(r, "test/jsonDataModel", &ModelOptions{
+		Supports: &ModelSupports{
+			Constrained: ConstrainedSupportAll,
+		},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Request: req,
+			Message: NewModelTextMessage(`{"value": 42}`),
+		}, nil
+	})
+
+	t.Run("returns typed data from model", func(t *testing.T) {
+		output, _, err := GenerateData[TestOutput](context.Background(), r,
+			WithModel(jsonModel),
+			WithPrompt("get value"),
+		)
+
+		if err != nil {
+			t.Fatalf("GenerateData error: %v", err)
+		}
+		if output.Value != 42 {
+			t.Errorf("output.Value = %d, want 42", output.Value)
+		}
+	})
+}
+
+func TestModelResponseReasoning(t *testing.T) {
+	t.Run("returns reasoning from response", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewReasoningPart("thinking about this...", nil),
+					NewTextPart("final answer"),
+				},
+			},
+		}
+
+		reasoning := resp.Reasoning()
+
+		if reasoning != "thinking about this..." {
+			t.Errorf("Reasoning() = %q, want %q", reasoning, "thinking about this...")
+		}
+	})
+
+	t.Run("returns empty string when no reasoning", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage("just text"),
+		}
+
+		reasoning := resp.Reasoning()
+
+		if reasoning != "" {
+			t.Errorf("Reasoning() = %q, want empty string", reasoning)
+		}
+	})
+}
+
+func TestModelResponseInterrupts(t *testing.T) {
+	t.Run("returns interrupt tool requests", func(t *testing.T) {
+		interruptPart := NewToolRequestPart(&ToolRequest{
+			Name:  "confirmAction",
+			Input: map[string]any{},
+		})
+		interruptPart.Metadata = map[string]any{"interrupt": true}
+
+		resp := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Please confirm"),
+					interruptPart,
+				},
+			},
+		}
+
+		interrupts := resp.Interrupts()
+
+		if len(interrupts) != 1 {
+			t.Fatalf("len(Interrupts()) = %d, want 1", len(interrupts))
+		}
+		if interrupts[0].ToolRequest.Name != "confirmAction" {
+			t.Errorf("interrupt name = %q, want %q", interrupts[0].ToolRequest.Name, "confirmAction")
+		}
+	})
+
+	t.Run("returns empty slice when no interrupts", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage("no interrupts here"),
+		}
+
+		interrupts := resp.Interrupts()
+
+		if len(interrupts) != 0 {
+			t.Errorf("len(Interrupts()) = %d, want 0", len(interrupts))
+		}
+	})
+}
+
+func TestModelResponseMedia(t *testing.T) {
+	t.Run("returns media URL from response", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Here's an image"),
+					NewMediaPart("image/png", "data:image/png;base64,abc123"),
+				},
+			},
+		}
+
+		media := resp.Media()
+
+		if media == "" {
+			t.Error("Media() returned empty string")
+		}
+		if media != "data:image/png;base64,abc123" {
+			t.Errorf("Media() = %q, want %q", media, "data:image/png;base64,abc123")
+		}
+	})
+
+	t.Run("returns empty string when no media", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage("just text"),
+		}
+
+		media := resp.Media()
+
+		if media != "" {
+			t.Errorf("Media() = %q, want empty string", media)
+		}
+	})
+}
+
+func TestOutputFrom(t *testing.T) {
+	type TestData struct {
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	}
+
+	t.Run("extracts typed output from response", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage(`{"name": "test", "count": 5}`),
+		}
+
+		output := OutputFrom[TestData](resp)
+
+		if output.Name != "test" {
+			t.Errorf("output.Name = %q, want %q", output.Name, "test")
+		}
+		if output.Count != 5 {
+			t.Errorf("output.Count = %d, want 5", output.Count)
+		}
+	})
+}
