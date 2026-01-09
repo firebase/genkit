@@ -571,38 +571,6 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 // input of type `any`, and returning an output of type `Out`.
 //
 // Deprecated: Use [DefineTool] with [ai.WithInputSchema] instead.
-//
-// Example:
-//
-//	// Define a custom input schema
-//	inputSchema := map[string]any{
-//		"type": "object",
-//		"properties": map[string]any{
-//			"city": map[string]any{"type": "string"},
-//			"unit": map[string]any{
-//				"type": "string",
-//				"enum": []any{"C", "F"},
-//			},
-//		},
-//		"required": []string{"city"},
-//	}
-//
-//	// Define the tool with the schema
-//	weatherTool := genkit.DefineTool(g, "getWeather",
-//		"Fetches the weather for a given city with unit preference",
-//		func(ctx *ai.ToolContext, input any) (string, error) {
-//			// Parse and validate input
-//			data := input.(map[string]any)
-//			city := data["city"].(string)
-//			unit := "C" // default
-//			if u, ok := data["unit"].(string); ok {
-//				unit = u
-//			}
-//			// Implementation...
-//			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
-//		},
-//		ai.WithToolInputSchema(inputSchema),
-//	)
 func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema map[string]any, fn ai.ToolFunc[any, Out]) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn, ai.WithInputSchema(inputSchema))
 }
