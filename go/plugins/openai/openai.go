@@ -298,8 +298,9 @@ func newModel(client *openai.Client, name string, opts *ai.ModelOptions) ai.Mode
 // configToMap converts a config struct to a map[string]any
 func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
-		DoNotReference:             false,
+		DoNotReference:             true,
 		AllowAdditionalProperties:  false,
+		ExpandedStruct:             true,
 		RequiredFromJSONSchemaTags: true,
 	}
 
@@ -329,7 +330,6 @@ func configToMap(config any) map[string]any {
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
 
-	fmt.Printf("result: %#v\n", result)
 	return result
 }
 
