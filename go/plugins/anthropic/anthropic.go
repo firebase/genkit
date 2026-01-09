@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"reflect"
 	"sync"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -169,36 +168,11 @@ func newModel(client anthropic.Client, name string, opts ai.ModelOptions) ai.Mod
 // configToMap converts a config struct to a map[string]any.
 func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
-		DoNotReference:             false, // Prevent $ref usage
-		AllowAdditionalProperties:  false,
+		DoNotReference:             true, // Prevent $ref usage
+		ExpandedStruct:             true,
 		RequiredFromJSONSchemaTags: true,
 	}
-	// The anthropic SDK uses a number of wrapper types for float, int, etc.
-	// By default, jsonschema will treat these as objects, but we want to
-	// treat them as their underlying primitive types.
-	r.Mapper = func(r reflect.Type) *jsonschema.Schema {
-		if r.Name() == "Opt[float64]" {
-			return &jsonschema.Schema{
-				Type: "number",
-			}
-		}
-		if r.Name() == "Opt[int64]" {
-			return &jsonschema.Schema{
-				Type: "integer",
-			}
-		}
-		if r.Name() == "Opt[string]" {
-			return &jsonschema.Schema{
-				Type: "string",
-			}
-		}
-		if r.Name() == "Opt[bool]" {
-			return &jsonschema.Schema{
-				Type: "boolean",
-			}
-		}
-		return nil
-	}
+
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
 	return result
