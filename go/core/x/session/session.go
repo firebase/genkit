@@ -188,7 +188,24 @@ func (s *Session[S]) ID() string {
 func (s *Session[S]) State() S {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state
+	return deepCopyState(s.state)
+}
+
+// deepCopyState creates a deep copy of the state using JSON marshaling.
+// Panics if serialization fails, as this indicates a programming error
+// (the state type S must be JSON-serializable per the Session contract).
+func deepCopyState[S any](state S) S {
+	bytes, err := json.Marshal(state)
+	if err != nil {
+		panic(fmt.Sprintf("session.State: failed to marshal state: %v", err))
+	}
+
+	var copied S
+	if err := json.Unmarshal(bytes, &copied); err != nil {
+		panic(fmt.Sprintf("session.State: failed to unmarshal state: %v", err))
+	}
+
+	return copied
 }
 
 // UpdateState updates the session state and persists it to the store (if configured).

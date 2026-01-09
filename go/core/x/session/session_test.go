@@ -168,16 +168,45 @@ func TestSession_State(t *testing.T) {
 		t.Fatalf("New failed: %v", err)
 	}
 
-	got := sess.State()
-	if got.Name != initial.Name {
-		t.Errorf("Expected Name %q, got %q", initial.Name, got.Name)
-	}
-	if got.Count != initial.Count {
-		t.Errorf("Expected Count %d, got %d", initial.Count, got.Count)
-	}
-	if got.Preferences["theme"] != "dark" {
-		t.Errorf("Expected theme %q, got %q", "dark", got.Preferences["theme"])
-	}
+	t.Run("returns correct values", func(t *testing.T) {
+		got := sess.State()
+		if got.Name != initial.Name {
+			t.Errorf("Expected Name %q, got %q", initial.Name, got.Name)
+		}
+		if got.Count != initial.Count {
+			t.Errorf("Expected Count %d, got %d", initial.Count, got.Count)
+		}
+		if got.Preferences["theme"] != "dark" {
+			t.Errorf("Expected theme %q, got %q", "dark", got.Preferences["theme"])
+		}
+	})
+
+	t.Run("modifications to returned copy do not affect session", func(t *testing.T) {
+		// Get a copy of the state
+		copy1 := sess.State()
+
+		// Modify the map in the returned copy
+		copy1.Preferences["theme"] = "light"
+		copy1.Preferences["newKey"] = "newValue"
+		copy1.Name = "Modified"
+		copy1.Count = 999
+
+		// Get another copy and verify the session's internal state is unchanged
+		copy2 := sess.State()
+
+		if copy2.Name != "Alice" {
+			t.Errorf("Session state was mutated: expected Name %q, got %q", "Alice", copy2.Name)
+		}
+		if copy2.Count != 10 {
+			t.Errorf("Session state was mutated: expected Count %d, got %d", 10, copy2.Count)
+		}
+		if copy2.Preferences["theme"] != "dark" {
+			t.Errorf("Session state was mutated: expected theme %q, got %q", "dark", copy2.Preferences["theme"])
+		}
+		if _, exists := copy2.Preferences["newKey"]; exists {
+			t.Errorf("Session state was mutated: unexpected key 'newKey' in Preferences")
+		}
+	})
 }
 
 func TestSession_UpdateState_DefaultStore(t *testing.T) {

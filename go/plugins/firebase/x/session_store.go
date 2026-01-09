@@ -140,6 +140,8 @@ func (s *FirestoreSessionStore[S]) Get(ctx context.Context, sessionID string) (*
 }
 
 // Save persists session data to Firestore, creating or updating as needed.
+// CreatedAt is only set when the document is first created; subsequent saves
+// only update UpdatedAt and ExpiresAt.
 func (s *FirestoreSessionStore[S]) Save(ctx context.Context, sessionID string, data *session.Data[S]) error {
 	docRef := s.client.Collection(s.collection).Doc(sessionID)
 
@@ -151,12 +153,29 @@ func (s *FirestoreSessionStore[S]) Save(ctx context.Context, sessionID string, d
 	now := time.Now()
 	expiresAt := now.Add(s.ttl)
 
-	_, err = docRef.Set(ctx, sessionDocument{
-		State:     stateJSON,
-		CreatedAt: now,
-		UpdatedAt: now,
-		ExpiresAt: &expiresAt,
-	}, firestore.MergeAll)
+	err = s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snapshot, err := tx.Get(docRef)
+		if err != nil && status.Code(err) != codes.NotFound {
+			return err
+		}
+
+		if !snapshot.Exists() {
+			// Document doesn't exist - create it with CreatedAt
+			return tx.Create(docRef, sessionDocument{
+				State:     stateJSON,
+				CreatedAt: now,
+				UpdatedAt: now,
+				ExpiresAt: &expiresAt,
+			})
+		}
+
+		// Document exists - update without modifying CreatedAt
+		return tx.Update(docRef, []firestore.Update{
+			{Path: "state", Value: stateJSON},
+			{Path: "updatedAt", Value: now},
+			{Path: "expiresAt", Value: &expiresAt},
+		})
+	})
 	if err != nil {
 		return fmt.Errorf("firebase.FirestoreSessionStore.Save: %w", err)
 	}
