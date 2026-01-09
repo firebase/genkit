@@ -95,6 +95,7 @@ class PartConverter:
             data = base64.b64decode(url.split(',', 1)[1])
             return genai.types.Part(
                 inline_data=genai.types.Blob(
+                    mime_type=part.root.media.content_type,
                     data=data,
                 )
             )
