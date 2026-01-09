@@ -12,12 +12,6 @@ Prerequisites:
 ## Setup environment
 
 1. Install the `genkit` package.
-1. Obtain an API key from [ai.dev](https://ai.dev).
-Export the API key as env variable `GEMINI\_API\_KEY` in your shell
-configuration.
-```bash
-export GEMINI_API_KEY='<Your api key>'
-```
 2. Install [GCP CLI](https://cloud.google.com/sdk/docs/install).
 3. Add your project to Google Cloud. Run the following code to log in and set up the configuration.
 ```bash
