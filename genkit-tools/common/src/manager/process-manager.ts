@@ -25,6 +25,7 @@ export interface AppProcessStatus {
 }
 
 export interface ProcessManagerStartOptions {
+  cwd?: string;
   nonInteractive?: boolean;
 }
 
@@ -51,6 +52,7 @@ export class ProcessManager {
     return new Promise((resolve, reject) => {
       this._status = 'running';
       this.appProcess = spawn(this.command, this.args, {
+        cwd: options?.cwd,
         env: {
           ...process.env,
           ...this.env,

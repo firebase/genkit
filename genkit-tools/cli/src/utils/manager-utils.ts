@@ -21,10 +21,12 @@ import {
 import type { Status } from '@genkit-ai/tools-common';
 import {
   ProcessManager,
+  RuntimeEvent,
   RuntimeManager,
   type GenkitToolsError,
 } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
+import * as crypto from 'crypto';
 import getPort, { makeRange } from 'get-port';
 
 /**
@@ -79,9 +81,11 @@ export async function startDevProcessManager(
 ): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
   const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
   const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
+  const runtimeId = crypto.randomUUID().substring(0, 8);
   const envVars: Record<string, string> = {
     GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
     GENKIT_ENV: 'dev',
+    GENKIT_RUNTIME_ID: runtimeId,
   };
   if (!disableRealtimeTelemetry) {
     envVars.GENKIT_ENABLE_REALTIME_TELEMETRY = 'true';
@@ -94,8 +98,57 @@ export async function startDevProcessManager(
     processManager,
     disableRealtimeTelemetry,
   });
-  const processPromise = processManager.start(options);
+  const processPromise = processManager.start({ ...options, cwd: projectRoot });
+
+  await waitForRuntime(manager, runtimeId, processPromise);
+
   return { manager, processPromise };
+}
+
+/**
+ * Waits for the runtime with the given ID to register itself.
+ * Rejects if the process exits or if the timeout is reached.
+ */
+export async function waitForRuntime(
+  manager: RuntimeManager,
+  runtimeId: string,
+  processPromise: Promise<void>
+): Promise<void> {
+  if (manager.getRuntimeById(runtimeId)) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    let timeoutId: NodeJS.Timeout;
+    let unsubscribe: () => void;
+
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (unsubscribe) unsubscribe();
+    };
+
+    timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Timeout waiting for runtime to be ready'));
+    }, 30000);
+
+    unsubscribe = manager.onRuntimeEvent((event, runtime) => {
+      if (event === RuntimeEvent.ADD && runtime.id === runtimeId) {
+        cleanup();
+        resolve();
+      }
+    });
+
+    processPromise
+      .then(() => {
+        cleanup();
+        reject(new Error('Process exited before runtime was ready'));
+      })
+      .catch((err) => {
+        cleanup();
+        reject(err);
+      });
+  });
 }
 
 /**

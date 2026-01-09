@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { debugToFile, findProjectRoot } from '@genkit-ai/tools-common/utils';
+import {
+  debugToFile,
+  findProjectRoot,
+  forceStderr,
+} from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { startMcpServer } from '../mcp/server';
 
@@ -29,6 +33,7 @@ export const mcp = new Command('mcp')
   .option('-d, --debug', 'debug to file', false)
   .description('run MCP stdio server (EXPERIMENTAL, subject to change)')
   .action(async (options: McpOptions) => {
+    forceStderr();
     if (options.debug) {
       debugToFile();
     }
