@@ -68,19 +68,13 @@ def get_weather(input: WeatherInput) -> str:
     # Mocked weather data
     weather_data = {
         'San Francisco, CA': {'temp': 72, 'condition': 'sunny', 'humidity': 65},
-        'Seattle, WA': {'temp': 55, 'condition': 'rainy', 'humidity': 85}
+        'Seattle, WA': {'temp': 55, 'condition': 'rainy', 'humidity': 85},
     }
 
     location = input.location
-    data = weather_data.get(
-        location,
-        {'temp': 70, 'condition': 'partly cloudy', 'humidity': 55}
-    )
+    data = weather_data.get(location, {'temp': 70, 'condition': 'partly cloudy', 'humidity': 55})
 
-    return (
-        f"The weather in {location} is {data['temp']}°F and "
-        f"{data['condition']}. Humidity is {data['humidity']}%."
-    )
+    return f'The weather in {location} is {data["temp"]}°F and {data["condition"]}. Humidity is {data["humidity"]}%.'
 
 
 @ai.flow()
@@ -123,9 +117,9 @@ async def weather_flow(location: str) -> str:
         model=deepseek_name('deepseek-chat'),
         prompt=f'What is the weather in {location}?',
         system=(
-            "You have a tool called get_weather. "
+            'You have a tool called get_weather. '
             "It takes an object with a 'location' field. "
-            "Always use this tool when asked about weather."
+            'Always use this tool when asked about weather.'
         ),
         tools=['get_weather'],
         tool_choice='required',
@@ -228,8 +222,7 @@ async def chat_flow() -> str:
 
     # Second turn - Ask question requiring context from first turn
     response2 = await ai.generate(
-        messages=history
-        + [Message(role=Role.USER, content=[TextPart(text='What foods did I say I enjoy?')])],
+        messages=history + [Message(role=Role.USER, content=[TextPart(text='What foods did I say I enjoy?')])],
         system='You are a helpful travel assistant.',
     )
     history.append(Message(role=Role.USER, content=[TextPart(text='What foods did I say I enjoy?')]))
@@ -239,7 +232,12 @@ async def chat_flow() -> str:
     # Third turn - Ask question requiring context from both previous turns
     response3 = await ai.generate(
         messages=history
-        + [Message(role=Role.USER, content=[TextPart(text='Based on our conversation, suggest one restaurant I should visit.')])],
+        + [
+            Message(
+                role=Role.USER,
+                content=[TextPart(text='Based on our conversation, suggest one restaurant I should visit.')],
+            )
+        ],
         system='You are a helpful travel assistant.',
     )
     return response3.text
