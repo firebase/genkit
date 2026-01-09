@@ -113,10 +113,15 @@ func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOption
 	return newModel(o.client, name, opts), nil
 }
 
-// OpenAIModel returns the [ai.Model] with the given name.
+// Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not previously defined.
-func (o *OpenAI) OpenAIModel(g *genkit.Genkit, name string) ai.Model {
+func Model(g *genkit.Genkit, name string) ai.Model {
 	return genkit.LookupModel(g, api.NewName(openaiProvider, name))
+}
+
+// IsDefinedModel reports whether the named [ai.Model] is defined by this plugin
+func IsDefinedModel(g *genkit.Genkit, name string) bool {
+	return genkit.LookupModel(g, name) != nil
 }
 
 // DefineEmbedder defines an embedder with a given name
@@ -131,12 +136,12 @@ func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string, embedOpts *ai.Emb
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not previously defined.
-func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {
+func Embedder(g *genkit.Genkit, name string) ai.Embedder {
 	return genkit.LookupEmbedder(g, name)
 }
 
 // IsDefinedEmbedder reports whether the named [ai.Embedder] is defined by this plugin
-func (o *OpenAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
+func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 	return genkit.LookupEmbedder(g, name) != nil
 }
 
@@ -594,6 +599,10 @@ func generateStream(ctx context.Context, client *openai.Client, req *openai.Chat
 	if req == nil {
 		return nil, fmt.Errorf("empty request detected")
 	}
+
+	// include usage stats by default, otherwise token count will always be zero
+	req.StreamOptions.IncludeUsage = openai.Bool(true)
+
 	stream := client.Chat.Completions.NewStreaming(ctx, *req)
 	defer stream.Close()
 
@@ -754,6 +763,19 @@ func translateResponse(c *openai.ChatCompletion) (*ai.ModelResponse, error) {
 		resp.Custom = custom
 	}
 
+	// Add tool calls
+	for _, toolCall := range candidate.Message.ToolCalls {
+		args, err := jsonStringToMap(toolCall.Function.Arguments)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse tool args: %w", err)
+		}
+		resp.Message.Content = append(resp.Message.Content, ai.NewToolRequestPart(&ai.ToolRequest{
+			Ref:   toolCall.ID,
+			Name:  toolCall.Function.Name,
+			Input: args,
+		}))
+	}
+
 	resp.Message.Content = append(resp.Message.Content, ai.NewTextPart(candidate.Message.Content))
 	resp.Usage = usage
 
@@ -825,4 +847,13 @@ func mapToStruct(m map[string]any, v any) error {
 		return err
 	}
 	return json.Unmarshal(jsonData, v)
+}
+
+// jsonStringToMap translates a JSON string into a map
+func jsonStringToMap(jsonString string) (map[string]any, error) {
+	var result map[string]any
+	if err := json.Unmarshal([]byte(jsonString), &result); err != nil {
+		return nil, fmt.Errorf("unmarshal failed to parse json string %s: %w", jsonString, err)
+	}
+	return result, nil
 }
