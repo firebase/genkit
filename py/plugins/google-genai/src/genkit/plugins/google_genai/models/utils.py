@@ -109,6 +109,7 @@ class PartConverter:
 
             return genai.types.Part(
                 inline_data=genai.types.Blob(
+                    mime_type=part.root.media.content_type,
                     data=data,
                     mime_type=mime_type,
                 )
