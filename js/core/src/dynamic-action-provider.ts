@@ -15,7 +15,12 @@
  */
 
 import * as z from 'zod';
-import { Action, ActionMetadata, defineAction } from './action.js';
+import {
+  Action,
+  ActionMetadata,
+  ActionMetadataSchema,
+  defineAction,
+} from './action.js';
 import { GenkitError } from './error.js';
 import { ActionMetadataRecord, ActionType, Registry } from './registry.js';
 
@@ -107,8 +112,8 @@ export interface DynamicRegistry {
 }
 
 export type DynamicActionProviderAction = Action<
-  z.ZodAny,
-  z.ZodAny,
+  z.ZodVoid,
+  z.ZodArray<typeof ActionMetadataSchema>,
   z.ZodTypeAny
 > &
   DynamicRegistry & {
@@ -165,7 +170,7 @@ export function defineDynamicActionProvider(
     {
       ...cfg,
       inputSchema: z.void(),
-      outputSchema: z.any(),
+      outputSchema: z.array(ActionMetadataSchema),
       actionType: 'dynamic-action-provider',
       metadata: { ...(cfg.metadata || {}), type: 'dynamic-action-provider' },
     },

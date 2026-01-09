@@ -15,7 +15,7 @@
  */
 
 import type { JSONSchema7 } from 'json-schema';
-import type * as z from 'zod';
+import * as z from 'zod';
 import { getAsyncContext } from './async-context.js';
 import { lazy } from './async.js';
 import { getContext, runWithContext, type ActionContext } from './context.js';
@@ -61,6 +61,39 @@ export interface ActionMetadata<
   streamSchema?: S;
   metadata?: Record<string, any>;
 }
+
+export const ActionMetadataSchema = z.object({
+  actionType: z
+    .enum([
+      'custom',
+      'dynamic-action-provider',
+      'embedder',
+      'evaluator',
+      'executable-prompt',
+      'flow',
+      'indexer',
+      'model',
+      'background-model',
+      'check-operation',
+      'cancel-operation',
+      'prompt',
+      'reranker',
+      'retriever',
+      'tool',
+      'tool.v2',
+      'util',
+      'resource',
+    ])
+    .optional(),
+  name: z.string(),
+  description: z.string().optional(),
+  inputSchema: z.unknown().optional(),
+  inputJsonSchema: z.object({}).optional(),
+  outputSchema: z.unknown().optional(),
+  outputJsonSchema: z.object({}).optional(),
+  streamSchema: z.unknown().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
 
 /**
  * Results of an action run. Includes telemetry.
