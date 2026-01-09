@@ -178,7 +178,7 @@ func TestFirestoreSessionStore_SaveAndGet(t *testing.T) {
 }
 
 func TestFirestoreSessionStore_Overwrite(t *testing.T) {
-	store, _, cleanup := setupTestSessionStore(t)
+	store, client, cleanup := setupTestSessionStore(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -193,6 +193,24 @@ func TestFirestoreSessionStore_Overwrite(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
+	// Get the initial document to capture CreatedAt and UpdatedAt
+	snapshot1, err := client.Collection(*testSessionCollection).Doc(sessionID).Get(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get initial document: %v", err)
+	}
+	initialData := snapshot1.Data()
+	initialCreatedAt, ok := initialData["createdAt"].(time.Time)
+	if !ok {
+		t.Fatal("Expected createdAt to be a timestamp")
+	}
+	initialUpdatedAt, ok := initialData["updatedAt"].(time.Time)
+	if !ok {
+		t.Fatal("Expected updatedAt to be a timestamp")
+	}
+
+	// Wait a moment to ensure timestamp difference is detectable
+	time.Sleep(10 * time.Millisecond)
+
 	// Overwrite with new data
 	updated := &session.Data[TestState]{
 		ID:    sessionID,
@@ -202,7 +220,32 @@ func TestFirestoreSessionStore_Overwrite(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	// Retrieve and verify
+	// Get the updated document to verify timestamps
+	snapshot2, err := client.Collection(*testSessionCollection).Doc(sessionID).Get(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get updated document: %v", err)
+	}
+	updatedData := snapshot2.Data()
+	updatedCreatedAt, ok := updatedData["createdAt"].(time.Time)
+	if !ok {
+		t.Fatal("Expected createdAt to be a timestamp after update")
+	}
+	updatedUpdatedAt, ok := updatedData["updatedAt"].(time.Time)
+	if !ok {
+		t.Fatal("Expected updatedAt to be a timestamp after update")
+	}
+
+	// Verify CreatedAt is preserved (not modified during overwrite)
+	if !updatedCreatedAt.Equal(initialCreatedAt) {
+		t.Errorf("CreatedAt was modified during overwrite: initial=%v, after=%v", initialCreatedAt, updatedCreatedAt)
+	}
+
+	// Verify UpdatedAt is modified (should be later than initial)
+	if !updatedUpdatedAt.After(initialUpdatedAt) {
+		t.Errorf("UpdatedAt should be later after overwrite: initial=%v, after=%v", initialUpdatedAt, updatedUpdatedAt)
+	}
+
+	// Retrieve and verify state data
 	retrieved, err := store.Get(ctx, sessionID)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
