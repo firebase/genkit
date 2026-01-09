@@ -158,6 +158,27 @@ func (o *OpenAI) ListActions(ctx context.Context) []api.ActionDesc {
 }
 
 func (o *OpenAI) ResolveAction(atype api.ActionType, name string) api.Action {
+	switch atype {
+	case api.ActionTypeEmbedder:
+		return newEmbedder(o.client, name, &ai.EmbedderOptions{}).(api.Action)
+	case api.ActionTypeModel:
+		var supports *ai.ModelSupports
+		var config any
+
+		switch {
+		// TODO: add image and video models
+		default:
+			supports = &internal.Multimodal
+			config = &openai.ChatCompletionNewParams{}
+		}
+		return newModel(o.client, name, &ai.ModelOptions{
+			Label:        fmt.Sprintf("%s - %s", openaiLabelPrefix, name),
+			Stage:        ai.ModelStageStable,
+			Versions:     []string{},
+			Supports:     supports,
+			ConfigSchema: configToMap(config),
+		}).(api.Action)
+	}
 	return nil
 }
 
@@ -230,8 +251,8 @@ func newEmbedder(client *openai.Client, name string, embedOpts *ai.EmbedderOptio
 	})
 }
 
+// newModel creates a new model without registering it in the registry
 func newModel(client *openai.Client, name string, opts *ai.ModelOptions) ai.Model {
-	// TODO: add support for imagen models
 	var config any
 	config = &openai.ChatCompletionNewParams{}
 	meta := &ai.ModelOptions{
@@ -242,15 +263,17 @@ func newModel(client *openai.Client, name string, opts *ai.ModelOptions) ai.Mode
 		Stage:        opts.Stage,
 	}
 
-	fmt.Printf("meta for [%s]: %#v\n", name, meta)
 	fn := func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		switch config.(type) {
+		// TODO: add support for imagen and video
+		case *openai.ChatCompletionNewParams:
+			return generate(ctx, client, name, input, cb)
 		default:
-			return nil, nil
+			return generate(ctx, client, name, input, cb)
 		}
 	}
 
@@ -274,10 +297,22 @@ func generate(ctx context.Context, client *openai.Client, model string, input *a
 	if err != nil {
 		return nil, err
 	}
+
+	// stream mode
 	if cb != nil {
-		return generateStream(ctx, client, req, cb)
+		resp, err := generateStream(ctx, client, req, input, cb)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+
 	}
-	return generateComplete(ctx, client, req, input)
+
+	resp, err := generateComplete(ctx, client, req, input)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func toOpenAIRequest(model string, input *ai.ModelRequest) (*openai.ChatCompletionNewParams, error) {
@@ -510,12 +545,167 @@ func toOpenAITools(tools []*ai.ToolDefinition, toolChoice ai.ToolChoice) ([]open
 	return toolParams, &choice, nil
 }
 
-func generateStream(ctx context.Context, client *openai.Client, req *openai.ChatCompletionNewParams, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
-	return nil, errors.New("not implemented: generateStream")
+func generateStream(ctx context.Context, client *openai.Client, req *openai.ChatCompletionNewParams, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("empty request detected")
+	}
+	stream := client.Chat.Completions.NewStreaming(ctx, *req)
+	defer stream.Close()
+
+	acc := &openai.ChatCompletionAccumulator{}
+
+	for stream.Next() {
+		chunk := stream.Current()
+		// last chunk won't have choices but usage stats
+		acc.AddChunk(chunk)
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+
+		callbackChunk := &ai.ModelResponseChunk{}
+		chunkContent := chunk.Choices[0].Delta.Content
+		if chunkContent != "" {
+			callbackChunk.Content = append(callbackChunk.Content, ai.NewTextPart(chunkContent))
+		}
+
+		for _, toolCall := range chunk.Choices[0].Delta.ToolCalls {
+			if toolCall.Function.Name != "" || toolCall.Function.Arguments != "" {
+				callbackChunk.Content = append(callbackChunk.Content,
+					ai.NewToolRequestPart(&ai.ToolRequest{
+						Name:  toolCall.Function.Name,
+						Input: toolCall.Function.Arguments,
+						Ref:   toolCall.ID,
+					}))
+			}
+		}
+		if len(callbackChunk.Content) > 0 {
+			if err := cb(ctx, callbackChunk); err != nil {
+				return nil, fmt.Errorf("callback error: %w", err)
+			}
+		}
+	}
+	if err := stream.Err(); err != nil {
+		return nil, fmt.Errorf("stream error: %w", err)
+	}
+
+	resp, err := translateResponse(&acc.ChatCompletion)
+	if err != nil {
+		return nil, err
+	}
+	resp.Request = input
+	return resp, nil
 }
 
 func generateComplete(ctx context.Context, client *openai.Client, req *openai.ChatCompletionNewParams, input *ai.ModelRequest) (*ai.ModelResponse, error) {
-	return nil, errors.New("not implemented: generateComplete")
+	if req == nil {
+		return nil, fmt.Errorf("empty request detected")
+	}
+	c, err := client.Chat.Completions.New(ctx, *req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := translateResponse(c)
+	if err != nil {
+		return nil, err
+	}
+
+	resp.Request = input
+	return resp, nil
+}
+
+func translateResponse(c *openai.ChatCompletion) (*ai.ModelResponse, error) {
+	if len(c.Choices) == 0 {
+		return nil, fmt.Errorf("nothing to translate, empty response")
+	}
+
+	// by default the client will always generate 1 candidate
+	candidate := c.Choices[0]
+	usage := &ai.GenerationUsage{
+		InputTokens:  int(c.Usage.PromptTokens),
+		OutputTokens: int(c.Usage.CompletionTokens),
+		TotalTokens:  int(c.Usage.TotalTokens),
+	}
+
+	rt := c.Usage.CompletionTokensDetails.ReasoningTokens
+	if rt > 0 {
+		usage.ThoughtsTokens = int(rt)
+	}
+	ct := c.Usage.PromptTokensDetails.CachedTokens
+	if ct > 0 {
+		usage.CachedContentTokens = int(ct)
+	}
+
+	// custom OpenAI usage stats
+	if usage.Custom == nil {
+		usage.Custom = make(map[string]float64)
+	}
+	at := c.Usage.CompletionTokensDetails.AudioTokens
+	if at > 0 {
+		usage.Custom["audioTokens"] = float64(at)
+	}
+	apt := c.Usage.CompletionTokensDetails.AcceptedPredictionTokens
+	if apt > 0 {
+		usage.Custom["acceptedPredictionTokens"] = float64(apt)
+	}
+	rpt := c.Usage.CompletionTokensDetails.RejectedPredictionTokens
+	if rpt > 0 {
+		usage.Custom["rejectedPredictionTokens"] = float64(rpt)
+	}
+
+	resp := &ai.ModelResponse{}
+
+	switch candidate.FinishReason {
+	case "stop", "tool_calls":
+		resp.FinishReason = ai.FinishReasonStop
+	case "length":
+		resp.FinishReason = ai.FinishReasonLength
+	case "content_filter":
+		resp.FinishReason = ai.FinishReasonBlocked
+	case "function_call":
+		resp.FinishReason = ai.FinishReasonOther
+	default:
+		resp.FinishReason = ai.FinishReasonUnknown
+	}
+
+	if candidate.Message.Refusal != "" {
+		resp.FinishMessage = candidate.Message.Refusal
+		resp.FinishReason = ai.FinishReasonBlocked
+	}
+
+	// candidate custom fields
+	if resp.Custom == nil {
+		custom := map[string]any{
+			"id":      c.ID,
+			"model":   c.Model,
+			"created": c.Created,
+		}
+
+		type Citation struct {
+			EndIndex   int64  `json:"end_index"`
+			StartIndex int64  `json:"start_index"`
+			Title      string `json:"title"`
+			URL        string `json:"url"`
+		}
+
+		citations := []Citation{}
+		// citations for web_search tool
+		for _, a := range candidate.Message.Annotations {
+			citations = append(citations, Citation{
+				EndIndex:   a.URLCitation.EndIndex,
+				StartIndex: a.URLCitation.StartIndex,
+				Title:      a.URLCitation.Title,
+				URL:        a.URLCitation.URL,
+			})
+		}
+		custom["citations"] = citations
+		resp.Custom = custom
+	}
+
+	resp.Message.Content = append(resp.Message.Content, ai.NewTextPart(candidate.Message.Content))
+	resp.Usage = usage
+
+	return resp, nil
 }
 
 func configFromRequest(config any) (*openai.ChatCompletionNewParams, error) {
@@ -537,21 +727,6 @@ func configFromRequest(config any) (*openai.ChatCompletionNewParams, error) {
 		return nil, fmt.Errorf("unexpected config type: %T", config)
 	}
 	return &openaiConfig, nil
-}
-
-func convertToolCalls(content []*ai.Part) ([]openai.ChatCompletionMessageToolCallUnionParam, error) {
-	var toolCalls []openai.ChatCompletionMessageToolCallUnionParam
-	for _, p := range content {
-		if !p.IsToolRequest() {
-			continue
-		}
-		toolCall, err := convertToolCall(p)
-		if err != nil {
-			return nil, err
-		}
-		toolCalls = append(toolCalls, *toolCall)
-	}
-	return toolCalls, nil
 }
 
 func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageToolCallUnionParam, error) {
