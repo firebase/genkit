@@ -97,7 +97,7 @@ async def generate_action(
     Returns:
         The generated response.
     """
-    model, tools, format_def = resolve_parameters(registry, raw_request)
+    model, tools, resources, format_def = await resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
 
@@ -120,7 +120,7 @@ async def generate_action(
         )
     raw_request = revised_request
 
-    request = await action_to_generate_request(raw_request, tools, model)
+    request = await action_to_generate_request(raw_request, tools, resources, model)
 
     prev_chunks: list[GenerateResponseChunk] = []
 
@@ -425,9 +425,9 @@ def assert_valid_tool_names(raw_request: GenerateActionOptions):
     pass
 
 
-def resolve_parameters(
+async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
-) -> tuple[Action, list[Action], FormatDef | None]:
+) -> tuple[Action, list[Action], list[Action], FormatDef | None]:
     """Resolve parameters for the generate action.
 
     Args:
@@ -453,6 +453,16 @@ def resolve_parameters(
             if tool_action is None:
                 raise Exception(f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
+ 
+    resources: list[Action] = []
+    if request.resources:
+        from genkit.blocks.resource import lookup_resource_by_name
+ 
+        for res_name in request.resources:
+            res_action = await lookup_resource_by_name(registry, res_name)
+            if res_action is None:
+                raise Exception(f'Unable to resolve resource {res_name}')
+            resources.append(res_action)
 
     format_def: FormatDef | None = None
     if request.output and request.output.format:
@@ -460,11 +470,11 @@ def resolve_parameters(
         if not format_def:
             raise ValueError(f'Unable to resolve format {request.output.format}')
 
-    return (model_action, tools, format_def)
+    return (model_action, tools, resources, format_def)
 
 
 async def action_to_generate_request(
-    options: GenerateActionOptions, resolved_tools: list[Action], model: Action
+    options: GenerateActionOptions, resolved_tools: list[Action], resolved_resources: list[Action], model: Action
 ) -> GenerateRequest:
     """Convert generate action options to a generate request.
 
@@ -485,6 +495,7 @@ async def action_to_generate_request(
         config=options.config if options.config is not None else {},
         docs=options.docs,
         tools=tool_defs,
+        resources=[to_tool_definition(r) for r in resolved_resources] if resolved_resources else [],
         tool_choice=options.tool_choice,
         output=OutputConfig(
             content_type=options.output.content_type if options.output else None,

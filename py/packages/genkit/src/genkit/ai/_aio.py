@@ -41,7 +41,7 @@ from genkit.blocks.model import (
 )
 from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
-from genkit.core.action import ActionRunContext
+from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
     BaseDataPoint,
@@ -107,6 +107,7 @@ class Genkit(GenkitBase):
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         tool_responses: list[Part] | None = None,
+        resources: list[str | Action] | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         max_turns: int | None = None,
         on_chunk: ModelStreamingCallback | None = None,
@@ -170,6 +171,7 @@ class Genkit(GenkitBase):
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
             docs: Optional. A list of documents to be used for grounding.
+            resources: Optional. A list of resource URIs to be used for grounding.
 
 
         Returns:
@@ -204,6 +206,7 @@ class Genkit(GenkitBase):
                     output_schema=output_schema,
                     output_constrained=output_constrained,
                     docs=docs,
+                    resources=resources,
                 ),
             ),
             on_chunk=on_chunk,
@@ -230,6 +233,7 @@ class Genkit(GenkitBase):
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
+        resources: list[str | Action] | None = None,
         timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
@@ -278,6 +282,7 @@ class Genkit(GenkitBase):
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
             docs: Optional. A list of documents to be used for grounding.
+            resources: Optional. A list of resource URIs to be used for grounding.
             timeout: Optional. The timeout for the streaming action.
 
         Returns:
@@ -310,6 +315,7 @@ class Genkit(GenkitBase):
             output_schema=output_schema,
             output_constrained=output_constrained,
             docs=docs,
+            resources=resources,
             use=use,
             on_chunk=lambda c: stream.send(c),
         )

@@ -118,6 +118,7 @@ genkit-plugin-xai                   = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
 prompt-demo                         = { workspace = true }
+genkit-plugins-mcp                  = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]

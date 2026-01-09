@@ -991,6 +991,7 @@ class GenerateActionOptions(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     model: str | None = None
     docs: list[DocumentData] | None = None
+    resources: list[str] | None = None
     messages: list[Message]
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
@@ -1012,6 +1013,7 @@ class GenerateRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputConfig | None = None
     docs: list[DocumentData] | None = None
+    resources: list[ToolDefinition] | None = None
     candidates: float | None = None
 
 

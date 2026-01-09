@@ -153,13 +153,10 @@ class McpServer:
                         if resource_meta.get('template'):
                             self.resource_templates.append((resource_meta['template'], action))
 
-        # Also get actions from plugins that might not be in _entries yet
-        # (though most plugins register them in _entries during initialization)
-        plugin_actions = self.ai.registry.list_actions()
-        for key in plugin_actions:
-            kind, name = parse_action_key(key)
-            action = self.ai.registry.lookup_action(kind, name)
-            if action:
+        # Get actions from registry by kind
+        for kind in [ActionKind.TOOL, ActionKind.PROMPT, ActionKind.RESOURCE]:
+            actions = self.ai.registry.get_actions_by_kind(kind)
+            for action in actions.values():
                 if kind == ActionKind.TOOL and action not in self.tool_actions:
                     self.tool_actions.append(action)
                     self.tool_actions_map[action.name] = action

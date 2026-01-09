@@ -87,7 +87,7 @@ class OpenAIModel:
         """
         result = []
         for tool_definition in tools:
-            action = self._registry.registry.lookup_action(ActionKind.TOOL, tool_definition.name)
+            action = self._registry.registry.get_action(ActionKind.TOOL, tool_definition.name)
             function_call = pydantic_function_tool(
                 model=action.input_type._type,
                 name=tool_definition.name,

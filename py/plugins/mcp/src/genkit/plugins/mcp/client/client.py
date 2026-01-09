@@ -197,11 +197,17 @@ class McpClient(Plugin):
         except Exception as e:
             logger.error(f'Error registering tools for {self.server_name}: {e}')
 
-    async def get_active_tools(self) -> List[Any]:
+    async def get_active_tools(self) -> List[Tool]:
         """Returns all active tools."""
         if not self.session:
             return []
         return await self.list_tools()
+
+    async def get_active_resources(self) -> List[Resource]:
+        """Returns all active resources."""
+        if not self.session:
+            return []
+        return await self.list_resources()
 
 
 def create_mcp_client(config: McpServerConfig, name: str = 'mcp-client') -> McpClient:

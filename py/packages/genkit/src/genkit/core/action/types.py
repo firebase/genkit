@@ -61,6 +61,7 @@ class ActionKind(StrEnum):
     RETRIEVER = 'retriever'
     TOOL = 'tool'
     UTIL = 'util'
+    DYNAMIC_ACTION_PROVIDER = 'dynamic-action-provider'
 
 
 class ActionResponse(BaseModel):

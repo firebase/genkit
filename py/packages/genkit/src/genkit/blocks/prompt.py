@@ -101,10 +101,11 @@ class PromptConfig(BaseModel):
     max_turns: int | None = None
     return_tool_requests: bool | None = None
     metadata: dict[str, Any] | None = None
-    tools: list[str] | None = None
+    tools: list[str | Action] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
     docs: list[DocumentData] | Callable | None = None
+    resources: list[str | Action] | None = None
     tool_responses: list[Part] | None = None
 
 
@@ -134,6 +135,7 @@ class ExecutablePrompt:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable | None = None,
+        resources: list[str | Action] | None = None,
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
         _prompt_action: Action | None = None,  # reference to PROMPT action
@@ -164,6 +166,7 @@ class ExecutablePrompt:
             tool_choice: The tool choice strategy.
             use: A list of model middlewares to apply.
             docs: A list of documents to be used for grounding.
+            resources: A list of resource URIs to be used for grounding.
         """
         self._registry = registry
         self._variant = variant
@@ -186,6 +189,7 @@ class ExecutablePrompt:
         self._tool_choice = tool_choice
         self._use = use
         self._docs = docs
+        self._resources = resources
         self._cache_prompt = PromptCache()
         self._name = _name  # Store name/ns for action lookup (used by as_tool())
         self._ns = _ns
@@ -298,6 +302,7 @@ class ExecutablePrompt:
             input_schema=self._input_schema,
             metadata=self._metadata,
             docs=self._docs,
+            resources=self._resources,
         )
 
         model = options.model or self._registry.default_model
@@ -348,6 +353,7 @@ class ExecutablePrompt:
             output=output,
             max_turns=options.max_turns,
             docs=await render_docs(input, options, context),
+            resources=options.resources,
             resume=resume,
         )
 
@@ -369,7 +375,7 @@ class ExecutablePrompt:
 
         lookup_key = registry_lookup_key(self._name, self._variant, self._ns)
 
-        action = self._registry.lookup_action_by_key(lookup_key)
+        action = await self._registry.lookup_action_by_key(lookup_key)
 
         if action is None or action.kind != ActionKind.PROMPT:
             raise GenkitError(
@@ -399,10 +405,11 @@ def define_prompt(
     max_turns: int | None = None,
     return_tool_requests: bool | None = None,
     metadata: dict[str, Any] | None = None,
-    tools: list[str] | None = None,
+    tools: list[str | Action] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
     docs: list[DocumentData] | Callable | None = None,
+    resources: list[str | Action] | None = None,
 ) -> ExecutablePrompt:
     """Defines an executable prompt.
 
@@ -429,6 +436,7 @@ def define_prompt(
         tool_choice: The tool choice strategy.
         use: A list of model middlewares to apply.
         docs: A list of documents to be used for grounding.
+        resources: A list of resource URIs to be used for grounding.
 
     Returns:
         An ExecutablePrompt instance.
@@ -455,6 +463,7 @@ def define_prompt(
         tool_choice=tool_choice,
         use=use,
         docs=docs,
+        resources=resources,
         _name=name,
     )
 
@@ -526,6 +535,14 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
         result = await render_user_prompt(registry, None, options, cache)
         resolved_msgs.append(result)
 
+    for tool in options.tools or []:
+        if isinstance(tool, Action):
+            registry.register_action_from_instance(tool)
+ 
+    for res in options.resources or []:
+        if isinstance(res, Action):
+            registry.register_action_from_instance(res)
+ 
     # If is schema is set but format is not explicitly set, default to
     # `json` format.
     if options.output_schema and not options.output_format:
@@ -549,16 +566,22 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     if options.tool_responses:
         resume = Resume(respond=[r.root for r in options.tool_responses])
 
+    def resolve_to_name(act: str | Action) -> str:
+        if isinstance(act, str):
+            return act
+        return act.name
+
     return GenerateActionOptions(
         model=model,
         messages=resolved_msgs,
         config=options.config,
-        tools=options.tools,
+        tools=[resolve_to_name(t) for t in options.tools] if options.tools else None,
         return_tool_requests=options.return_tool_requests,
         tool_choice=options.tool_choice,
         output=output,
         max_turns=options.max_turns,
         docs=await render_docs(None, options),
+        resources=[resolve_to_name(r) for r in options.resources] if options.resources else None,
         resume=resume,
     )
 
@@ -588,10 +611,22 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
     tools: list[Action] = []
     if options.tools:
         for tool_name in options.tools:
-            tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
+            tool_action = await registry.lookup_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
                 raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
+
+    resources: list[Action] = []
+    if options.resources:
+        from genkit.blocks.resource import lookup_resource_by_name
+
+        for res_name in options.resources:
+            res_action = await lookup_resource_by_name(registry, res_name)
+            if res_action is None:
+                raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve resource {res_name}')
+            resources.append(res_action)
+
+    from genkit.blocks.generate import to_tool_definition
 
     tool_defs = [to_tool_definition(tool) for tool in tools] if tools else []
 
@@ -606,6 +641,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
         config=options.config if options.config is not None else {},
         docs=options.docs,
         tools=tool_defs,
+        resources=[to_tool_definition(res) for res in resources] if resources else [],
         tool_choice=options.tool_choice,
         output=OutputConfig(
             content_type=options.output.content_type if options.output else None,
