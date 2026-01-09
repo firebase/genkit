@@ -15,5 +15,5 @@ export DEEPSEEK_API_KEY=your-api-key
 
 3. Run the sample:
 ```bash
-genkit start -- uv run src/deepseek_hello.py
+genkit start -- uv run src/main.py
 ```
