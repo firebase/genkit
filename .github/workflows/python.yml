@@ -104,5 +104,14 @@ jobs:
       - name: Run Python tests
         run: uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
 
+      - name: Run Python tests (tox)
+        run: |
+           clean_version=$(echo "${{ matrix.python-version }}" | tr -d '.')
+           uv run --directory py tox -e "py$clean_version"
+
+      - name: Run Python tests (nox)
+        run: |
+           uv run --directory py nox -s "tests-${{ matrix.python-version }}"
+
       - name: Build distributions
         run: ./py/bin/build_dists
