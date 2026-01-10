@@ -199,9 +199,9 @@ convention = "google"
 docstring-code-format      = true
 docstring-code-line-length = 120
 indent-style               = "space"
+line-ending                = "lf"
 quote-style                = "single"
 skip-magic-trailing-comma  = false
-line-ending                = "lf"
 
 [tool.datamodel-codegen]
 #collapse-root-models = true # Don't use; produces Any as types.
