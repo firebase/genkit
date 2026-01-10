@@ -1158,8 +1158,8 @@ async def test_generate_simulates_doc_grounding(
     assert (await response).request.messages[0] == want_msg
 
 
-class TestFormat(FormatDef):
-    """Test format for testing the format."""
+class MockBananaFormat(FormatDef):
+    """Mock format for testing the format."""
 
     def __init__(self):
         """Initialize the format."""
@@ -1200,7 +1200,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     """Test that the define format function works."""
     ai, _, pm, *_ = setup_test
 
-    ai.define_format(TestFormat())
+    ai.define_format(MockBananaFormat())
 
     class TestSchema(BaseModel):
         foo: int = Field(None, description='foo field')

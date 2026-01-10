@@ -90,10 +90,6 @@ asyncio_mode = "strict"
 fail_under = 78
 
 [tool.coverage.run]
-source = [
-  "packages",
-  "plugins",
-]
 omit = [
   "**/__init__.py",  # Often contains just imports
   "**/testing.py",   # Test utilities
@@ -101,6 +97,7 @@ omit = [
   "**/typing.py",    # Often auto-generated or complex types
   "**/types.py",     # Often auto-generated or complex types
 ]
+source = ["packages", "plugins"]
 
 # uv based package management.
 [tool.uv]
