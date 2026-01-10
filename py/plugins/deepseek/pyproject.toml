@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -35,7 +34,7 @@ classifiers = [
 ]
 dependencies = ["genkit", "genkit-plugin-compat-oai", "openai>=1.0.0"]
 description = "Genkit DeepSeek Plugin"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "genkit-plugin-deepseek"
 requires-python = ">=3.10"
 version = "0.1.0"

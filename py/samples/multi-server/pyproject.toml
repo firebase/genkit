@@ -15,13 +15,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
+authors = [{ name = "Google" }]
+license = "Apache-2.0"
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
