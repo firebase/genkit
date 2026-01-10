@@ -46,4 +46,14 @@ var (
 		Media:       true,
 		Constrained: ai.ConstrainedSupportNone,
 	}
+
+	// Media describes model capabilities for models with media and text input and output
+	Media = ai.ModelSupports{
+		Multiturn:   false,
+		Tools:       false,
+		ToolChoice:  false,
+		SystemRole:  false,
+		Media:       true,
+		Constrained: ai.ConstrainedSupportNone,
+	}
 )
