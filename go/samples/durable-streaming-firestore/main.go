@@ -18,7 +18,27 @@
 // Unlike in-memory streaming, Firestore-backed streams survive server restarts
 // and can be accessed across multiple server instances.
 //
-// See README.md for setup instructions.
+// Prerequisites:
+//   - Firebase/GCP project with Firestore enabled
+//   - Run: gcloud auth application-default login
+//   - Set: export FIREBASE_PROJECT_ID=your-project-id
+//
+// To run:
+//
+//	go run .
+//
+// In another terminal, start a streaming request:
+//
+//	curl -N -i -H "Accept: text/event-stream" \
+//	  -d '{"data": 5}' \
+//	  http://localhost:8088/countdown
+//
+// Note the X-Genkit-Stream-Id header. To reconnect to the same stream:
+//
+//	curl -N -H "Accept: text/event-stream" \
+//	  -H "X-Genkit-Stream-Id: <stream-id>" \
+//	  -d '{"data": 5}' \
+//	  http://localhost:8088/countdown
 package main
 
 import (

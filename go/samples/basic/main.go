@@ -12,6 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This sample demonstrates basic Genkit flows: a non-streaming flow and a
+// streaming flow that generate jokes about a given topic.
+//
+// To run:
+//
+//	go run .
+//
+// In another terminal, test the non-streaming flow:
+//
+//	curl -X POST http://localhost:8080/jokesFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": "bananas"}'
+//
+// Test the streaming flow:
+//
+//	curl -N -X POST http://localhost:8080/streamingJokesFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": "bananas"}'
 package main
 
 import (

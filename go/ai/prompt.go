@@ -32,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/x/session"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
@@ -588,14 +589,19 @@ func renderPrompt(ctx context.Context, opts promptOptions, templateText string, 
 // renderDotpromptToMessages executes a dotprompt prompt function and converts the result to a slice of messages
 func renderDotpromptToMessages(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Message, error) {
 	// Prepare the context for rendering
-	context := map[string]any{}
+	templateContext := map[string]any{}
 	actionCtx := core.FromContext(ctx)
-	maps.Copy(context, actionCtx)
+	maps.Copy(templateContext, actionCtx)
+
+	// Inject session state if available (accessible via {{@state.field}} in templates)
+	if state := session.StateFromContext(ctx); state != nil {
+		templateContext["state"] = state
+	}
 
 	// Call the prompt function with the input and context
 	rendered, err := promptFn(&dotprompt.DataArgument{
 		Input:   input,
-		Context: context,
+		Context: templateContext,
 	}, additionalMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to render prompt: %w", err)
