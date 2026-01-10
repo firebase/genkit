@@ -90,6 +90,10 @@ asyncio_mode = "strict"
 fail_under = 78
 
 [tool.coverage.run]
+source = [
+  "packages",
+  "plugins",
+]
 omit = [
   "**/__init__.py",  # Often contains just imports
   "**/testing.py",   # Test utilities
