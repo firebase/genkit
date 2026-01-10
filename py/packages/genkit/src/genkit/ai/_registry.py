@@ -57,6 +57,7 @@ from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import (
     define_helper,
+    define_partial,
     define_prompt,
     lookup_prompt,
 )
@@ -193,6 +194,18 @@ class GenkitRegistry:
             fn: The helper function to register.
         """
         define_helper(self.registry, name, fn)
+
+    def define_partial(self, name: str, source: str) -> None:
+        """Define a Handlebars partial template in the registry.
+
+        Partials are reusable template fragments that can be included
+        in other prompts using {{>partialName}} syntax.
+
+        Args:
+            name: The name of the partial.
+            source: The template source code for the partial.
+        """
+        define_partial(self.registry, name, source)
 
     def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.

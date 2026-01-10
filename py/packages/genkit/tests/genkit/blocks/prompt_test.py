@@ -372,6 +372,25 @@ async def test_load_and_use_partial() -> None:
 
 
 @pytest.mark.asyncio
+async def test_define_partial_programmatically() -> None:
+    """Test defining partials programmatically using ai.define_partial()."""
+    ai, *_ = setup_test()
+
+    # Define a partial programmatically
+    ai.define_partial('myGreeting', 'Greetings, {{name}}!')
+
+    # Create a prompt that uses the partial
+    my_prompt = ai.define_prompt(
+        messages='{{>myGreeting}} Welcome to Genkit.',
+    )
+
+    response = await my_prompt(input={'name': 'Developer'})
+
+    # The partial should be included in the output
+    assert 'Greetings' in response.text and 'Developer' in response.text
+
+
+@pytest.mark.asyncio
 async def test_prompt_with_messages_list() -> None:
     """Test prompt with explicit messages list."""
     ai, *_ = setup_test()
