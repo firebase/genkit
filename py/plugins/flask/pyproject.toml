@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -41,7 +40,7 @@ dependencies = [
   "flask",
 ]
 description = "Genkit Firebase Plugin"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "genkit-plugin-flask"
 readme = "README.md"
 requires-python = ">=3.10"
