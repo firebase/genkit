@@ -29,6 +29,19 @@ export function forceStderr() {
   );
 }
 
+export function debugToFile() {
+  logger.add(
+    new winston.transports.File({
+      filename: 'genkit-debug.log',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+      ),
+    })
+  );
+  logger.level = 'debug';
+}
+
 export const logger = winston.createLogger({
   level: process.env.DEBUG ? 'debug' : 'info',
   format: winston.format.printf((log) => {
