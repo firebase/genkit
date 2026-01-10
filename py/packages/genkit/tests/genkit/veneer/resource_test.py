@@ -33,7 +33,7 @@ async def test_define_resource_veneer():
     ai = Genkit(plugins=[])
 
     async def my_resource_fn(input, ctx):
-        return {'content': [Part(TextPart(text=f'Content for {input.uri}'))]}
+        return {'content': [Part(root=TextPart(text=f'Content for {input.uri}'))]}
 
     act = ai.define_resource({'uri': 'http://example.com/foo'}, my_resource_fn)
 
