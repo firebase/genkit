@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
+authors = [{ name = "Google" }]
 dependencies = [
   "dotpromptz==0.1.4",
   "genkit",
@@ -35,7 +36,7 @@ dependencies = [
   "strenum>=0.4.15; python_version < '3.11'",
 ]
 description = "Workspace for Genkit packages"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "genkit-workspace"
 readme = "README.md"
 requires-python = ">=3.10"
