@@ -31,7 +31,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
-	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
@@ -154,101 +154,106 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
-	// Render() should populate all data from the prompt. Prompt fields should
-	// *not* be referenced in this function as it may have been loaded from
-	// the registry and is missing the options passed in at definition.
-	actionOpts, err := p.Render(ctx, execOpts.Input)
-	if err != nil {
-		return nil, err
-	}
 
-	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
-		execOpts.Config = modelRef.Config()
-	}
-
-	if execOpts.Config != nil {
-		actionOpts.Config = execOpts.Config
-	}
-
-	if len(execOpts.Documents) > 0 {
-		actionOpts.Docs = execOpts.Documents
-	}
-
-	if execOpts.ToolChoice != "" {
-		actionOpts.ToolChoice = execOpts.ToolChoice
-	}
-
-	if execOpts.Model != nil {
-		actionOpts.Model = execOpts.Model.Name()
-	}
-
-	if execOpts.MaxTurns != 0 {
-		actionOpts.MaxTurns = execOpts.MaxTurns
-	}
-
-	if execOpts.ReturnToolRequests != nil {
-		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
-	}
-
-	if execOpts.MessagesFn != nil {
-		m, err := buildVariables(execOpts.Input)
+	// Wrap the entire prompt execution in a parent span named after the prompt.
+	// This span will contain 'render' and 'generate' as child spans.
+	return tracing.RunInNewSpan(ctx, tracing.Span(p.Name(), "dotprompt"), execOpts.Input, func(ctx context.Context, _ any) (*ModelResponse, error) {
+		// Run render in its own span.
+		actionOpts, err := tracing.RunInNewSpan(ctx, tracing.Span("render", "promptTemplate"), execOpts.Input, func(ctx context.Context, input any) (*GenerateActionOptions, error) {
+			return p.Render(ctx, input)
+		})
 		if err != nil {
 			return nil, err
 		}
 
-		tempOpts := promptOptions{
-			commonGenOptions: commonGenOptions{
-				MessagesFn: execOpts.MessagesFn,
-			},
+		if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
+			execOpts.Config = modelRef.Config()
 		}
 
-		execMsgs, err := renderMessages(ctx, tempOpts, []*Message{}, m, execOpts.Input, p.registry.Dotprompt())
-		if err != nil {
-			return nil, err
+		if execOpts.Config != nil {
+			actionOpts.Config = execOpts.Config
 		}
 
-		var systemMsgs []*Message
-		var msgs []*Message
-		foundNonSystem := false
+		if len(execOpts.Documents) > 0 {
+			actionOpts.Docs = execOpts.Documents
+		}
 
-		for _, msg := range actionOpts.Messages {
-			if msg.Role == RoleSystem && !foundNonSystem {
-				systemMsgs = append(systemMsgs, msg)
-			} else {
-				foundNonSystem = true
-				msgs = append(msgs, msg)
+		if execOpts.ToolChoice != "" {
+			actionOpts.ToolChoice = execOpts.ToolChoice
+		}
+
+		if execOpts.Model != nil {
+			actionOpts.Model = execOpts.Model.Name()
+		}
+
+		if execOpts.MaxTurns != 0 {
+			actionOpts.MaxTurns = execOpts.MaxTurns
+		}
+
+		if execOpts.ReturnToolRequests != nil {
+			actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
+		}
+
+		if execOpts.MessagesFn != nil {
+			m, err := buildVariables(execOpts.Input)
+			if err != nil {
+				return nil, err
+			}
+
+			tempOpts := promptOptions{
+				commonGenOptions: commonGenOptions{
+					MessagesFn: execOpts.MessagesFn,
+				},
+			}
+
+			execMsgs, err := renderMessages(ctx, tempOpts, []*Message{}, m, execOpts.Input, p.registry.Dotprompt())
+			if err != nil {
+				return nil, err
+			}
+
+			var systemMsgs []*Message
+			var msgs []*Message
+			foundNonSystem := false
+
+			for _, msg := range actionOpts.Messages {
+				if msg.Role == RoleSystem && !foundNonSystem {
+					systemMsgs = append(systemMsgs, msg)
+				} else {
+					foundNonSystem = true
+					msgs = append(msgs, msg)
+				}
+			}
+
+			actionOpts.Messages = append(systemMsgs, execMsgs...)
+			actionOpts.Messages = append(actionOpts.Messages, msgs...)
+		}
+
+		toolRefs := execOpts.Tools
+		if len(toolRefs) == 0 {
+			toolRefs = make([]ToolRef, 0, len(actionOpts.Tools))
+			for _, toolName := range actionOpts.Tools {
+				toolRefs = append(toolRefs, ToolName(toolName))
 			}
 		}
 
-		actionOpts.Messages = append(systemMsgs, execMsgs...)
-		actionOpts.Messages = append(actionOpts.Messages, msgs...)
-	}
-
-	toolRefs := execOpts.Tools
-	if len(toolRefs) == 0 {
-		toolRefs = make([]ToolRef, 0, len(actionOpts.Tools))
-		for _, toolName := range actionOpts.Tools {
-			toolRefs = append(toolRefs, ToolName(toolName))
+		toolNames, newTools, err := resolveUniqueTools(p.registry, toolRefs)
+		if err != nil {
+			return nil, err
 		}
-	}
+		actionOpts.Tools = toolNames
 
-	toolNames, newTools, err := resolveUniqueTools(p.registry, toolRefs)
-	if err != nil {
-		return nil, err
-	}
-	actionOpts.Tools = toolNames
-
-	r := p.registry
-	if len(newTools) > 0 {
-		if !r.IsChild() {
-			r = r.NewChild()
+		r := p.registry
+		if len(newTools) > 0 {
+			if !r.IsChild() {
+				r = r.NewChild()
+			}
+			for _, t := range newTools {
+				t.Register(r)
+			}
 		}
-		for _, t := range newTools {
-			t.Register(r)
-		}
-	}
 
-	return GenerateWithRequest(ctx, r, actionOpts, execOpts.Middleware, execOpts.Stream)
+		return GenerateWithRequest(ctx, r, actionOpts, execOpts.Middleware, execOpts.Stream)
+	})
 }
 
 // ExecuteStream executes the prompt with streaming and returns an iterator.
@@ -297,16 +302,7 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 		return nil, core.NewError(core.INVALID_ARGUMENT, "Prompt.Render: prompt is nil")
 	}
 
-	if len(p.Middleware) > 0 {
-		logger.FromContext(ctx).Warn(fmt.Sprintf("middleware set on prompt %q will be ignored during Prompt.Render", p.Name()))
-	}
-
-	// TODO: This is hacky; we should have a helper that fetches the metadata.
-	if input == nil {
-		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
-	}
-
-	return p.Run(ctx, input, nil)
+	return p.ActionDef.RunRaw(ctx, input, nil)
 }
 
 // Desc returns a descriptor of the prompt with resolved schema references.

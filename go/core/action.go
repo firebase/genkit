@@ -181,6 +181,12 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 	return r.Result, nil
 }
 
+// RunRaw executes the Action's function directly without creating a trace span.
+// This is useful when the caller is managing tracing themselves.
+func (a *ActionDef[In, Out, Stream]) RunRaw(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
+	return a.fn(ctx, input, cb)
+}
+
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
 	inputBytes, _ := json.Marshal(input)
