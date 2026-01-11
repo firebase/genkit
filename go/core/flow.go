@@ -91,12 +91,7 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		var z Out
 		return z, fmt.Errorf("flow.Run(%q): must be called from a flow", name)
 	}
-	spanMetadata := &tracing.SpanMetadata{
-		Name:    name,
-		Type:    "flowStep",
-		Subtype: "flowStep",
-	}
-	return tracing.RunInNewSpan(ctx, spanMetadata, nil, func(ctx context.Context, _ any) (Out, error) {
+	return tracing.RunInNewSpan(ctx, tracing.Span(name, "flowStep"), nil, func(ctx context.Context, _ any) (Out, error) {
 		o, err := fn()
 		if err != nil {
 			return base.Zero[Out](), err

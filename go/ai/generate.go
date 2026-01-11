@@ -325,13 +325,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 
 	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
-		spanMetadata := &tracing.SpanMetadata{
-			Name:    "generate",
-			Type:    "util",
-			Subtype: "util",
-		}
-
-		return tracing.RunInNewSpan(ctx, spanMetadata, req, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
+		return tracing.RunInNewSpan(ctx, tracing.Span("generate", "util"), req, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
 			var wrappedCb ModelStreamCallback
 			currentRole := RoleModel
 			currentIndex := messageIndex

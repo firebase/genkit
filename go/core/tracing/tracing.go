@@ -171,6 +171,12 @@ type SpanMetadata struct {
 	Metadata map[string]string
 }
 
+// Span creates a SpanMetadata with the given name and type.
+// The subtype defaults to the same value as spanType.
+func Span(name, spanType string) *SpanMetadata {
+	return &SpanMetadata{Name: name, Type: spanType, Subtype: spanType}
+}
+
 // RunInNewSpan runs f on input in a new span with the provided metadata.
 // The metadata contains all span configuration including name, type, labels, etc.
 // If a telemetry callback was set on the context via WithTelemetryCallback,
