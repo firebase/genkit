@@ -118,13 +118,15 @@ func WithInitialState[S any](state S) Option[S] {
 }
 
 // WithStore sets the persistence backend for the session.
-// If not provided, an in-memory store is used.
+// If not provided, the session is not persisted and exists only in memory.
 func WithStore[S any](store Store[S]) Option[S] {
 	return &options[S]{Store: store, hasStore: true}
 }
 
-// New creates a new session with the provided options and persists it to the store.
-// If no store is provided, an in-memory store is used.
+// New creates a new session with the provided options.
+// If a store is provided via [WithStore], the session is persisted immediately.
+// If no store is provided, the session exists only in memory for the current
+// request and can be propagated via context using [NewContext].
 // If no ID is provided, a new UUID is generated.
 // If no initial state is provided, the session is created with an empty state.
 func New[S any](ctx context.Context, opts ...Option[S]) (*Session[S], error) {
@@ -135,28 +137,26 @@ func New[S any](ctx context.Context, opts ...Option[S]) (*Session[S], error) {
 		}
 	}
 
-	store := o.Store
-	if !o.hasStore {
-		store = NewInMemoryStore[S]()
-	}
-
 	id := o.ID
 	if !o.hasID {
 		id = uuid.New().String()
 	}
 
-	data := &Data[S]{
-		ID:    id,
-		State: o.InitialState,
-	}
-	if err := store.Save(ctx, id, data); err != nil {
-		return nil, fmt.Errorf("session.New: failed to persist initial state: %w", err)
+	// Only persist if a store was explicitly provided
+	if o.hasStore {
+		data := &Data[S]{
+			ID:    id,
+			State: o.InitialState,
+		}
+		if err := o.Store.Save(ctx, id, data); err != nil {
+			return nil, fmt.Errorf("session.New: failed to persist initial state: %w", err)
+		}
 	}
 
 	return &Session[S]{
 		id:    id,
 		state: o.InitialState,
-		store: store,
+		store: o.Store, // nil if no store provided
 	}, nil
 }
 

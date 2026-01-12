@@ -209,16 +209,16 @@ func TestSession_State(t *testing.T) {
 	})
 }
 
-func TestSession_UpdateState_DefaultStore(t *testing.T) {
+func TestSession_UpdateState_NoStore(t *testing.T) {
 	ctx := context.Background()
 	sess, err := New(ctx, WithInitialState(UserState{Name: "Alice"}))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
 
-	// Verify store is set (default InMemoryStore)
-	if sess.store == nil {
-		t.Fatal("Expected default store to be set")
+	// Verify no store is set when not provided
+	if sess.store != nil {
+		t.Fatal("Expected no store when not provided")
 	}
 
 	newState := UserState{Name: "Bob", Count: 5}
@@ -226,24 +226,13 @@ func TestSession_UpdateState_DefaultStore(t *testing.T) {
 		t.Fatalf("UpdateState failed: %v", err)
 	}
 
+	// State should still be updated in memory
 	got := sess.State()
 	if got.Name != newState.Name {
 		t.Errorf("Expected Name %q, got %q", newState.Name, got.Name)
 	}
 	if got.Count != newState.Count {
 		t.Errorf("Expected Count %d, got %d", newState.Count, got.Count)
-	}
-
-	// Verify persistence in the default store
-	data, err := sess.store.Get(ctx, sess.ID())
-	if err != nil {
-		t.Fatalf("Store.Get failed: %v", err)
-	}
-	if data == nil {
-		t.Fatal("Expected data in default store, got nil")
-	}
-	if data.State.Name != newState.Name {
-		t.Errorf("Store: expected Name %q, got %q", newState.Name, data.State.Name)
 	}
 }
 
