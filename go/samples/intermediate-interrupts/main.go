@@ -68,18 +68,13 @@ func main() {
 					return TransferOutput{"rejected", "Account balance is 0. Please add funds.", accountBalance}, nil
 				}
 				return TransferOutput{}, ai.InterruptWith(ctx, TransferInterrupt{
-					Reason:    "insufficient_balance",
-					ToAccount: input.ToAccount,
-					Amount:    input.Amount,
-					Balance:   accountBalance,
+					"insufficient_balance", input.ToAccount, input.Amount, accountBalance,
 				})
 			}
 
 			if !ctx.IsResumed() && input.Amount > 100 {
 				return TransferOutput{}, ai.InterruptWith(ctx, TransferInterrupt{
-					Reason:    "confirm_large",
-					ToAccount: input.ToAccount,
-					Amount:    input.Amount,
+					"confirm_large", input.ToAccount, input.Amount, accountBalance,
 				})
 			}
 
