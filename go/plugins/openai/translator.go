@@ -26,6 +26,7 @@ import (
 	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/responses"
 	"github.com/openai/openai-go/v3/shared"
+	"github.com/openai/openai-go/v3/shared/constant"
 )
 
 // toOpenAIResponseParams translates an [ai.ModelRequest] into [responses.ResponseNewParams]
@@ -47,7 +48,9 @@ func toOpenAIResponseParams(model string, input *ai.ModelRequest) (*responses.Re
 		if err != nil {
 			return nil, err
 		}
-		params.Tools = tools
+		// Append user tools to any existing tools (e.g. built-in tools provided in config)
+		params.Tools = append(params.Tools, tools...)
+
 		switch input.ToolChoice {
 		case ai.ToolChoiceAuto, "":
 			params.ToolChoice = responses.ResponseNewParamsToolChoiceUnion{
@@ -180,6 +183,7 @@ func toOpenAIInputItems(m *ai.Message) ([]responses.ResponseInputItemUnionParam,
 						OfOutputText: &responses.ResponseOutputTextParam{
 							Text:        p.Text,
 							Annotations: []responses.ResponseOutputTextAnnotationUnionParam{},
+							Type:        constant.OutputText("output_text"),
 						},
 					})
 				}
@@ -238,6 +242,7 @@ func toOpenAIInputItems(m *ai.Message) ([]responses.ResponseInputItemUnionParam,
 			if ref == "" {
 				ref = p.ToolRequest.Name
 			}
+			fmt.Printf("tool request detected: %#v\n", p.ToolRequest)
 			items = append(items, responses.ResponseInputItemParamOfFunctionCall(args, ref, p.ToolRequest.Name))
 		} else if p.IsToolResponse() {
 			if err := flush(); err != nil {

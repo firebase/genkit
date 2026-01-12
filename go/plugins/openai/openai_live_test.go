@@ -17,6 +17,7 @@ package openai_test
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -359,7 +360,75 @@ func TestOpenAILive(t *testing.T) {
 
 	t.Run("tools streaming with constrained gen", func(t *testing.T) {
 		t.Skip("skipped until constrained gen is implemented")
-		// ... implementation would be here
+	})
+
+	t.Run("built-in tools", func(t *testing.T) {
+		m := oai.Model(g, "gpt-4o")
+
+		// define a built-in web search tool configuration
+		webSearchTool := responses.ToolParamOfWebSearch(responses.WebSearchToolTypeWebSearch)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&responses.ResponseNewParams{
+				Temperature:     openai.Float(1),
+				MaxOutputTokens: openai.Int(1024),
+				// Add built-in tool via config
+				Tools: []responses.ToolUnionParam{webSearchTool},
+			}),
+			ai.WithPrompt("What's the current weather in SFO?"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(resp.Text()) == 0 {
+			t.Fatal("expected a response but nothing was returned")
+		}
+
+		fmt.Printf("tool requests: %#v\n", resp.ToolRequests())
+
+		t.Logf("Response: %s", resp.Text())
+	})
+
+	t.Run("mixed tools", func(t *testing.T) {
+		m := oai.Model(g, "gpt-4o")
+
+		gablorkenDefinitionTool := genkit.DefineTool(
+			g,
+			"gablorkenDefinitionTool",
+			"Custom tool that must be used when the user asks for the definition of a gablorken",
+			func(ctx *ai.ToolContext, input *any) (string, error) {
+				return "A gablorken is a interstellar currency for the Andromeda Galaxy. It is equivalent to 0.4 USD per Gablorken (GAB)", nil
+			},
+		)
+
+		// define a built-in web search tool configuration
+		webSearchTool := responses.ToolParamOfWebSearch(responses.WebSearchToolTypeWebSearch)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&responses.ResponseNewParams{
+				Temperature:       openai.Float(1),
+				MaxOutputTokens:   openai.Int(1024),
+				ParallelToolCalls: openai.Bool(true),
+				// Add built-in tool via config
+				Tools: []responses.ToolUnionParam{webSearchTool},
+			}),
+			ai.WithPrompt("I'd would like to ask you two things: What's the current weather in SFO? What's the meaning of gablorken?"),
+			ai.WithTools(gablorkenDefinitionTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(resp.Text()) == 0 {
+			t.Fatal("expected a response but nothing was returned")
+		}
+
+		fmt.Printf("tool requests: %#v\n", resp.ToolRequests())
+
+		t.Logf("Response: %s", resp.Text())
 	})
 }
 

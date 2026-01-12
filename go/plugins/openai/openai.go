@@ -68,12 +68,18 @@ func (o *OpenAI) Init(ctx context.Context) []api.Action {
 		panic("plugin already initialized")
 	}
 
-	apiKey := os.Getenv("OPENAI_API_KEY")
+	apiKey := o.APIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("OPENAI_API_KEY")
+	}
 	if apiKey != "" {
 		o.Opts = append([]option.RequestOption{option.WithAPIKey(apiKey)}, o.Opts...)
 	}
 
-	baseURL := os.Getenv("OPENAI_BASE_URL")
+	baseURL := o.BaseURL
+	if baseURL == "" {
+		baseURL = os.Getenv("OPENAI_BASE_URL")
+	}
 	if baseURL != "" {
 		o.Opts = append([]option.RequestOption{option.WithBaseURL(baseURL)}, o.Opts...)
 	}
