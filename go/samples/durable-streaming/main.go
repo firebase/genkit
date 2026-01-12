@@ -36,7 +36,6 @@
 //
 // The subscription will replay any buffered chunks and then continue with live updates.
 // If the stream has already completed, all chunks plus the final result are returned.
-
 package main
 
 import (
