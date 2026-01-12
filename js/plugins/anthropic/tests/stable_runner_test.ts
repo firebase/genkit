@@ -772,7 +772,7 @@ describe('fromAnthropicContentBlockChunk', () => {
       },
     } as MessageStreamEvent);
     assert.deepStrictEqual(actualOutput, {
-      inputJson: '{"foo":',
+      data: '{"foo":',
     });
   });
 });
