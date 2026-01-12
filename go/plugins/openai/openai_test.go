@@ -16,233 +16,258 @@ package openai
 
 import (
 	"encoding/json"
-	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/responses"
+	"github.com/openai/openai-go/v3/shared"
 )
 
-func TestToOpenAISystemMessage(t *testing.T) {
+func TestToOpenAIResponseParams_SystemMessage(t *testing.T) {
+	msg := &ai.Message{
+		Role:    ai.RoleSystem,
+		Content: []*ai.Part{ai.NewTextPart("system instruction")},
+	}
+	req := &ai.ModelRequest{
+		Messages: []*ai.Message{msg},
+	}
+
+	params, err := toOpenAIResponseParams("gpt-4o", req)
+	if err != nil {
+		t.Fatalf("toOpenAIResponseParams() error = %v", err)
+	}
+
+	if params.Instructions.Value != "system instruction" {
+		t.Errorf("Instructions = %q, want %q", params.Instructions.Value, "system instruction")
+	}
+}
+
+func TestToOpenAIInputItems_JSON(t *testing.T) {
 	tests := []struct {
 		name string
 		msg  *ai.Message
-		want string
+		want []string // substrings to match in JSON
 	}{
 		{
-			name: "basic system message",
-			msg: &ai.Message{
-				Role:    ai.RoleSystem,
-				Content: []*ai.Part{ai.NewTextPart("system instruction")},
-			},
-			want: "system instruction",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			gotUnion := toOpenAISystemMessage(tc.msg)
-
-			if gotUnion.OfSystem == nil {
-				t.Fatalf("toOpenAISystemMessage() returned union with nil OfSystem")
-			}
-			val := gotUnion.OfSystem.Content.OfString.Value
-			if val != tc.want {
-				t.Errorf("toOpenAISystemMessage() content = %q, want %q", val, tc.want)
-			}
-		})
-	}
-}
-
-func TestToOpenAIModelMessage(t *testing.T) {
-	tests := []struct {
-		name      string
-		msg       *ai.Message
-		checkFunc func(*testing.T, openai.ChatCompletionMessageParamUnion)
-	}{
-		{
-			name: "text message",
-			msg: &ai.Message{
-				Role:    ai.RoleModel,
-				Content: []*ai.Part{ai.NewTextPart("model response")},
-			},
-			checkFunc: func(t *testing.T, gotUnion openai.ChatCompletionMessageParamUnion) {
-				if gotUnion.OfAssistant == nil {
-					t.Fatalf("expected OfAssistant to be non-nil")
-				}
-				parts := gotUnion.OfAssistant.Content.OfArrayOfContentParts
-				if len(parts) != 1 {
-					t.Fatalf("got %d content parts, want 1", len(parts))
-				}
-				textPart := parts[0].OfText
-				if got, want := textPart.Text, "model response"; got != want {
-					t.Errorf("content = %q, want %q", got, want)
-				}
-			},
-		},
-		{
-			name: "tool call message",
-			msg: &ai.Message{
-				Role: ai.RoleModel,
-				Content: []*ai.Part{
-					ai.NewToolRequestPart(&ai.ToolRequest{
-						Name:  "myTool",
-						Ref:   "call_123",
-						Input: map[string]any{"arg": "value"},
-					}),
-				},
-			},
-			checkFunc: func(t *testing.T, gotUnion openai.ChatCompletionMessageParamUnion) {
-				if gotUnion.OfAssistant == nil {
-					t.Fatalf("expected OfAssistant to be non-nil")
-				}
-				toolCalls := gotUnion.OfAssistant.ToolCalls
-				if len(toolCalls) != 1 {
-					t.Fatalf("got %d tool calls, want 1", len(toolCalls))
-				}
-
-				if toolCalls[0].OfFunction == nil {
-					t.Fatalf("expected Function tool call")
-				}
-				fnCall := toolCalls[0].OfFunction
-
-				if got, want := fnCall.ID, "call_123"; got != want {
-					t.Errorf("tool call ID = %q, want %q", got, want)
-				}
-				if got, want := fnCall.Function.Name, "myTool"; got != want {
-					t.Errorf("function name = %q, want %q", got, want)
-				}
-
-				var gotArgs map[string]any
-				if err := json.Unmarshal([]byte(fnCall.Function.Arguments), &gotArgs); err != nil {
-					t.Fatalf("failed to unmarshal arguments: %v", err)
-				}
-				wantArgs := map[string]any{"arg": "value"}
-				if !reflect.DeepEqual(gotArgs, wantArgs) {
-					t.Errorf("arguments = %v, want %v", gotArgs, wantArgs)
-				}
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := toOpenAIModelMessage(tc.msg)
-			if err != nil {
-				t.Fatalf("toOpenAIModelMessage() unexpected error: %v", err)
-			}
-			tc.checkFunc(t, got)
-		})
-	}
-}
-
-func TestToOpenAIUserMessage(t *testing.T) {
-	tests := []struct {
-		name      string
-		msg       *ai.Message
-		checkFunc func(*testing.T, openai.ChatCompletionMessageParamUnion)
-	}{
-		{
-			name: "text message",
+			name: "user text message",
 			msg: &ai.Message{
 				Role:    ai.RoleUser,
 				Content: []*ai.Part{ai.NewTextPart("user query")},
 			},
-			checkFunc: func(t *testing.T, gotUnion openai.ChatCompletionMessageParamUnion) {
-				if gotUnion.OfUser == nil {
-					t.Fatalf("expected OfUser to be non-nil")
-				}
-				parts := gotUnion.OfUser.Content.OfArrayOfContentParts
-				if len(parts) != 1 {
-					t.Fatalf("got %d content parts, want 1", len(parts))
-				}
-				textPart := parts[0].OfText
-				if textPart == nil {
-					t.Fatalf("expected Text content part")
-				}
-				if got, want := textPart.Text, "user query"; got != want {
-					t.Errorf("content = %q, want %q", got, want)
-				}
-			},
+			want: []string{`"role":"user"`, `"type":"input_text"`, `"text":"user query"`},
 		},
 		{
-			name: "image message",
+			name: "model text message",
 			msg: &ai.Message{
-				Role: ai.RoleUser,
-				Content: []*ai.Part{
-					ai.NewMediaPart("image/png", "http://example.com/image.png"),
-				},
+				Role:    ai.RoleModel,
+				Content: []*ai.Part{ai.NewTextPart("model response")},
 			},
-			checkFunc: func(t *testing.T, gotUnion openai.ChatCompletionMessageParamUnion) {
-				if gotUnion.OfUser == nil {
-					t.Fatalf("expected OfUser to be non-nil")
-				}
-				parts := gotUnion.OfUser.Content.OfArrayOfContentParts
-				if len(parts) != 1 {
-					t.Fatalf("got %d content parts, want 1", len(parts))
-				}
-				imagePart := parts[0].OfImageURL
-				if imagePart == nil {
-					t.Fatalf("expected Image content part")
-				}
-				if got, want := imagePart.ImageURL.URL, "http://example.com/image.png"; got != want {
-					t.Errorf("image URL = %q, want %q", got, want)
-				}
-			},
+			want: []string{`"role":"assistant"`, `"type":"output_text"`, `"text":"model response"`, `"status":"completed"`},
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := toOpenAIUserMessage(tc.msg)
-			if err != nil {
-				t.Fatalf("toOpenAIUserMessage() unexpected error: %v", err)
-			}
-			tc.checkFunc(t, got)
-		})
-	}
-}
-
-func TestToOpenAIToolMessages(t *testing.T) {
-	tests := []struct {
-		name      string
-		msg       *ai.Message
-		checkFunc func(*testing.T, []openai.ChatCompletionMessageParamUnion)
-	}{
+		{
+			name: "tool request",
+			msg: &ai.Message{
+				Role: ai.RoleModel,
+				Content: []*ai.Part{ai.NewToolRequestPart(&ai.ToolRequest{
+					Name:  "myTool",
+					Ref:   "call_123",
+					Input: map[string]string{"arg": "val"},
+				})},
+			},
+			want: []string{`"type":"function_call"`, `"name":"myTool"`, `"call_id":"call_123"`, `"arguments":"{\"arg\":\"val\"}"`},
+		},
 		{
 			name: "tool response",
 			msg: &ai.Message{
 				Role: ai.RoleTool,
-				Content: []*ai.Part{
-					ai.NewToolResponsePart(&ai.ToolResponse{
-						Name:   "myTool",
-						Ref:    "call_123",
-						Output: map[string]any{"result": "success"},
-					}),
+				Content: []*ai.Part{ai.NewToolResponsePart(&ai.ToolResponse{
+					Name:   "myTool",
+					Ref:    "call_123",
+					Output: map[string]string{"res": "ok"},
+				})},
+			},
+			want: []string{`"type":"function_call_output"`, `"call_id":"call_123"`, `"output":"{\"res\":\"ok\"}"`},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			items, err := toOpenAIInputItems(tc.msg)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			b, err := json.Marshal(items)
+			if err != nil {
+				t.Fatalf("marshal error: %v", err)
+			}
+			jsonStr := string(b)
+
+			for _, w := range tc.want {
+				if !strings.Contains(jsonStr, w) {
+					t.Errorf("JSON output missing %q. Got: %s", w, jsonStr)
+				}
+			}
+		})
+	}
+}
+
+func TestToOpenAITools(t *testing.T) {
+	tests := []struct {
+		name      string
+		tools     []*ai.ToolDefinition
+		wantCount int
+		check     func(*testing.T, []responses.ToolUnionParam)
+	}{
+		{
+			name: "basic function tool",
+			tools: []*ai.ToolDefinition{
+				{
+					Name:        "myTool",
+					Description: "does something",
+					InputSchema: map[string]any{"type": "object"},
 				},
 			},
-			checkFunc: func(t *testing.T, gotMsgs []openai.ChatCompletionMessageParamUnion) {
-				if len(gotMsgs) != 1 {
-					t.Fatalf("got %d messages, want 1", len(gotMsgs))
+			wantCount: 1,
+			check: func(t *testing.T, got []responses.ToolUnionParam) {
+				tool := got[0]
+				// We need to marshal to check fields since they are hidden in UnionParam
+				b, _ := json.Marshal(tool)
+				s := string(b)
+				if !strings.Contains(s, `"name":"myTool"`) {
+					t.Errorf("missing name: %s", s)
 				}
-				if gotMsgs[0].OfTool == nil {
-					t.Fatalf("expected OfTool to be non-nil")
+				if !strings.Contains(s, `"type":"function"`) {
+					t.Errorf("missing type function: %s", s)
 				}
-				toolMsg := gotMsgs[0].OfTool
-				if got, want := toolMsg.ToolCallID, "call_123"; got != want {
-					t.Errorf("tool call ID = %q, want %q", got, want)
-				}
+			},
+		},
+		{
+			name: "empty name tool ignored",
+			tools: []*ai.ToolDefinition{
+				{Name: ""},
+			},
+			wantCount: 0,
+			check:     func(t *testing.T, got []responses.ToolUnionParam) {},
+		},
+	}
 
-				// Content is Union. Expecting OfString.
-				content := toolMsg.Content.OfString.Value
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := toOpenAITools(tc.tools)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(got) != tc.wantCount {
+				t.Errorf("got %d tools, want %d", len(got), tc.wantCount)
+			}
+			tc.check(t, got)
+		})
+	}
+}
 
-				var gotOutput map[string]any
-				if err := json.Unmarshal([]byte(content), &gotOutput); err != nil {
-					t.Fatalf("failed to unmarshal output: %v", err)
+func TestTranslateResponse(t *testing.T) {
+	// this is a workaround function to bypass Union types used in the openai-go SDK
+	createResponse := func(jsonStr string) *responses.Response {
+		var r responses.Response
+		if err := json.Unmarshal([]byte(jsonStr), &r); err != nil {
+			t.Fatalf("failed to create mock response: %v", err)
+		}
+		return &r
+	}
+
+	tests := []struct {
+		name       string
+		respJSON   string
+		wantReason ai.FinishReason
+		check      func(*testing.T, *ai.ModelResponse)
+	}{
+		{
+			name: "text response completed",
+			respJSON: `{
+				"id": "resp_1",
+				"status": "completed",
+				"usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30},
+				"output": [
+					{
+						"type": "message",
+						"role": "assistant",
+						"content": [{"type": "output_text", "text": "Hello world"}]
+					}
+				]
+			}`,
+			wantReason: ai.FinishReasonStop,
+			check: func(t *testing.T, m *ai.ModelResponse) {
+				if len(m.Message.Content) != 1 {
+					t.Fatalf("got %d parts, want 1", len(m.Message.Content))
 				}
-				wantOutput := map[string]any{"result": "success"}
-				if !reflect.DeepEqual(gotOutput, wantOutput) {
-					t.Errorf("output = %v, want %v", gotOutput, wantOutput)
+				if got := m.Message.Content[0].Text; got != "Hello world" {
+					t.Errorf("got text %q, want 'Hello world'", got)
+				}
+				if m.Usage.TotalTokens != 30 {
+					t.Errorf("got usage %d, want 30", m.Usage.TotalTokens)
+				}
+			},
+		},
+		{
+			name: "incomplete response",
+			respJSON: `{
+				"id": "resp_2",
+				"status": "incomplete",
+				"output": []
+			}`,
+			wantReason: ai.FinishReasonLength, // mapped from Incomplete
+			check:      func(t *testing.T, m *ai.ModelResponse) {},
+		},
+		{
+			name: "refusal response",
+			respJSON: `{
+				"id": "resp_3",
+				"status": "completed",
+				"output": [
+					{
+						"type": "message",
+						"role": "assistant",
+						"content": [{"type": "refusal", "refusal": "I cannot do that"}]
+					}
+				]
+			}`,
+			wantReason: ai.FinishReasonBlocked,
+			check: func(t *testing.T, m *ai.ModelResponse) {
+				if m.FinishMessage != "I cannot do that" {
+					t.Errorf("got FinishMessage %q, want 'I cannot do that'", m.FinishMessage)
+				}
+			},
+		},
+		{
+			name: "tool call",
+			respJSON: `{
+				"id": "resp_4",
+				"status": "completed",
+				"output": [
+					{
+						"type": "function_call",
+						"call_id": "call_abc",
+						"name": "weather",
+						"arguments": "{\"loc\":\"SFO\"}"
+					}
+				]
+			}`,
+			wantReason: ai.FinishReasonStop,
+			check: func(t *testing.T, m *ai.ModelResponse) {
+				if len(m.Message.Content) != 1 {
+					t.Fatalf("got %d parts, want 1", len(m.Message.Content))
+				}
+				p := m.Message.Content[0]
+				if !p.IsToolRequest() {
+					t.Fatalf("expected tool request part")
+				}
+				if p.ToolRequest.Name != "weather" {
+					t.Errorf("got tool name %q, want 'weather'", p.ToolRequest.Name)
+				}
+				args := p.ToolRequest.Input.(map[string]any)
+				if args["loc"] != "SFO" {
+					t.Errorf("got arg loc %v, want 'SFO'", args["loc"])
 				}
 			},
 		},
@@ -250,11 +275,75 @@ func TestToOpenAIToolMessages(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := toOpenAIToolMessages(tc.msg)
+			r := createResponse(tc.respJSON)
+			got, err := translateResponse(r)
 			if err != nil {
-				t.Fatalf("toOpenAIToolMessages() unexpected error: %v", err)
+				t.Fatalf("translateResponse() unexpected error: %v", err)
 			}
-			tc.checkFunc(t, got)
+			if got.FinishReason != tc.wantReason {
+				t.Errorf("got reason %v, want %v", got.FinishReason, tc.wantReason)
+			}
+			tc.check(t, got)
+		})
+	}
+}
+
+func TestConfigFromRequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   any
+		wantErr bool
+		check   func(*testing.T, *responses.ResponseNewParams)
+	}{
+		{
+			name:  "nil config",
+			input: nil,
+			check: func(t *testing.T, got *responses.ResponseNewParams) {
+				if got != nil {
+					t.Errorf("expected nil params")
+				}
+			},
+		},
+		{
+			name: "struct config",
+			input: responses.ResponseNewParams{
+				Model: shared.ResponsesModel("gpt-4o"),
+			},
+			check: func(t *testing.T, got *responses.ResponseNewParams) {
+				if got.Model != shared.ResponsesModel("gpt-4o") {
+					t.Errorf("got model %v, want %v", got.Model, shared.ResponsesModel("gpt-4o"))
+				}
+			},
+		},
+		{
+			name: "map config",
+			input: map[string]any{
+				"model": "gpt-4o",
+			},
+			check: func(t *testing.T, got *responses.ResponseNewParams) {
+				if got.Model != "gpt-4o" {
+					t.Errorf("got model %v, want gpt-4o", got.Model)
+				}
+			},
+		},
+		{
+			name:    "invalid type",
+			input:   "some string",
+			wantErr: true,
+			check:   func(t *testing.T, got *responses.ResponseNewParams) {},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := configFromRequest(tc.input)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("configFromRequest() error = %v, wantErr %v", err, tc.wantErr)
+				return
+			}
+			if !tc.wantErr {
+				tc.check(t, got)
+			}
 		})
 	}
 }
