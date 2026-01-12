@@ -16,6 +16,7 @@
 
 import * as assert from 'assert';
 import type { Part } from 'genkit';
+import { logger } from 'genkit/logging';
 import { describe, it } from 'node:test';
 
 import { BetaRunner } from '../src/runner/beta.js';
@@ -341,7 +342,7 @@ describe('BetaRunner', () => {
     assert.strictEqual(ignored, undefined);
   });
 
-  it('should throw on unsupported mcp tool stream events', () => {
+  it('should handle mcp_tool_use stream events', () => {
     const mockClient = createMockAnthropicClient();
     const runner = new BetaRunner({
       name: 'claude-test',
@@ -349,19 +350,49 @@ describe('BetaRunner', () => {
     });
 
     const exposed = runner as any;
-    assert.throws(
-      () =>
-        exposed.toGenkitPart({
-          type: 'content_block_start',
-          index: 0,
-          content_block: {
-            type: 'mcp_tool_use',
-            id: 'toolu_unsupported',
-            input: {},
-          },
-        }),
-      /server-managed tool block 'mcp_tool_use'/
-    );
+    const part = exposed.toGenkitPart({
+      type: 'content_block_start',
+      index: 0,
+      content_block: {
+        type: 'mcp_tool_use',
+        id: 'mcp_tool_123',
+        name: 'search_files',
+        server_name: 'filesystem',
+        input: { query: 'test' },
+      },
+    });
+
+    assert.ok(part.text.includes('MCP tool filesystem/search_files'));
+    assert.ok(part.custom.anthropicMcpToolUse);
+    assert.strictEqual(part.custom.anthropicMcpToolUse.id, 'mcp_tool_123');
+    assert.strictEqual(part.custom.anthropicMcpToolUse.serverName, 'filesystem');
+    assert.strictEqual(part.custom.anthropicMcpToolUse.toolName, 'search_files');
+    assert.deepStrictEqual(part.custom.anthropicMcpToolUse.input, { query: 'test' });
+  });
+
+  it('should handle mcp_tool_result stream events', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
+
+    const exposed = runner as any;
+    const part = exposed.toGenkitPart({
+      type: 'content_block_start',
+      index: 0,
+      content_block: {
+        type: 'mcp_tool_result',
+        tool_use_id: 'mcp_tool_123',
+        is_error: false,
+        content: [{ type: 'text', text: 'Found 5 files' }],
+      },
+    });
+
+    assert.ok(part.text.includes('mcp_tool_123'));
+    assert.ok(part.custom.anthropicMcpToolResult);
+    assert.strictEqual(part.custom.anthropicMcpToolResult.toolUseId, 'mcp_tool_123');
+    assert.strictEqual(part.custom.anthropicMcpToolResult.isError, false);
   });
 
   it('should map beta stop reasons correctly', () => {
@@ -699,7 +730,7 @@ describe('BetaRunner', () => {
     );
   });
 
-  it('should throw for unsupported mcp tool use blocks', () => {
+  it('should handle mcp_tool_use content blocks', () => {
     const mockClient = createMockAnthropicClient();
     const runner = new BetaRunner({
       name: 'claude-test',
@@ -707,15 +738,327 @@ describe('BetaRunner', () => {
     });
     const exposed = runner as any;
 
-    assert.throws(
-      () =>
-        exposed.fromBetaContentBlock({
-          type: 'mcp_tool_use',
-          id: 'toolu_unknown',
-          input: {},
-        }),
-      /server-managed tool block 'mcp_tool_use'/
+    const part = exposed.fromBetaContentBlock({
+      type: 'mcp_tool_use',
+      id: 'mcp_tool_456',
+      name: 'read_file',
+      server_name: 'fs-server',
+      input: { path: '/tmp/test.txt' },
+    });
+
+    assert.ok(part.text.includes('MCP tool fs-server/read_file'));
+    assert.ok(part.custom.anthropicMcpToolUse);
+    assert.strictEqual(part.custom.anthropicMcpToolUse.id, 'mcp_tool_456');
+    assert.strictEqual(part.custom.anthropicMcpToolUse.name, 'fs-server/read_file');
+    assert.strictEqual(part.custom.anthropicMcpToolUse.serverName, 'fs-server');
+    assert.strictEqual(part.custom.anthropicMcpToolUse.toolName, 'read_file');
+    assert.deepStrictEqual(part.custom.anthropicMcpToolUse.input, { path: '/tmp/test.txt' });
+  });
+
+  it('should handle mcp_tool_result content blocks', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
+    const exposed = runner as any;
+
+    const part = exposed.fromBetaContentBlock({
+      type: 'mcp_tool_result',
+      tool_use_id: 'mcp_tool_456',
+      is_error: false,
+      content: [{ type: 'text', text: 'file contents here' }],
+    });
+
+    assert.ok(part.text.includes('mcp_tool_456'));
+    assert.ok(part.custom.anthropicMcpToolResult);
+    assert.strictEqual(part.custom.anthropicMcpToolResult.toolUseId, 'mcp_tool_456');
+    assert.strictEqual(part.custom.anthropicMcpToolResult.isError, false);
+    assert.ok(Array.isArray(part.custom.anthropicMcpToolResult.content));
+  });
+
+  it('should handle mcp_tool_result with is_error true', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
+    const exposed = runner as any;
+
+    const part = exposed.fromBetaContentBlock({
+      type: 'mcp_tool_result',
+      tool_use_id: 'mcp_tool_789',
+      is_error: true,
+      content: [{ type: 'text', text: 'Permission denied' }],
+    });
+
+    assert.strictEqual(part.custom.anthropicMcpToolResult.isError, true);
+    // Verify the [ERROR] prefix is added to the text
+    assert.ok(part.text.startsWith('[ERROR]'));
+  });
+
+  it('should handle mcp_tool_use with missing server_name', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
+    const exposed = runner as any;
+
+    // Suppress warning for this test
+    const warnMock = mock.method(logger, 'warn', () => {});
+
+    const part = exposed.fromBetaContentBlock({
+      type: 'mcp_tool_use',
+      id: 'mcp_tool_no_server',
+      name: 'some_tool',
+      input: { query: 'test' },
+    });
+
+    assert.strictEqual(part.custom.anthropicMcpToolUse.serverName, 'unknown_server');
+    assert.ok(part.text.includes('unknown_server/some_tool'));
+    // Should have logged a warning about missing server_name
+    assert.strictEqual(warnMock.mock.calls.length, 1);
+    warnMock.mock.restore();
+  });
+
+  it('should handle mcp_tool_use with missing name', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
+    const exposed = runner as any;
+
+    // Suppress warning for this test
+    const warnMock = mock.method(logger, 'warn', () => {});
+
+    const part = exposed.fromBetaContentBlock({
+      type: 'mcp_tool_use',
+      id: 'mcp_tool_no_name',
+      server_name: 'my-server',
+      input: { query: 'test' },
+    });
+
+    assert.strictEqual(part.custom.anthropicMcpToolUse.toolName, 'unknown_tool');
+    assert.ok(part.text.includes('my-server/unknown_tool'));
+    // Should have logged a warning about missing name
+    assert.strictEqual(warnMock.mock.calls.length, 1);
+    warnMock.mock.restore();
+  });
+
+  it('should handle mcp_tool_result with missing content', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
+    const exposed = runner as any;
+
+    const part = exposed.fromBetaContentBlock({
+      type: 'mcp_tool_result',
+      tool_use_id: 'mcp_tool_no_content',
+      is_error: false,
+    });
+
+    assert.strictEqual(part.custom.anthropicMcpToolResult.content, undefined);
+    assert.ok(part.text.includes('mcp_tool_no_content'));
+  });
+
+  it('should include mcp_servers and mcp_toolsets in request body', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
+      config: {
+        mcp_servers: [
+          {
+            type: 'url',
+            url: 'https://mcp.example.com/server',
+            name: 'my-mcp-server',
+            authorization_token: 'secret-token',
+          },
+        ],
+        mcp_toolsets: [
+          {
+            type: 'mcp_toolset',
+            mcp_server_name: 'my-mcp-server',
+            default_config: { enabled: true },
+          },
+        ],
+      },
+    } satisfies any;
+
+    const body = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
     );
+
+    assert.deepStrictEqual(body.mcp_servers, [
+      {
+        type: 'url',
+        url: 'https://mcp.example.com/server',
+        name: 'my-mcp-server',
+        authorization_token: 'secret-token',
+      },
+    ]);
+    assert.ok(body.tools?.some((t: any) => t.type === 'mcp_toolset'));
+  });
+
+  it('should merge mcp_toolsets with regular tools', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
+      tools: [
+        {
+          name: 'get_weather',
+          description: 'Get weather',
+          inputSchema: { type: 'object' },
+        },
+      ],
+      config: {
+        mcp_toolsets: [
+          {
+            type: 'mcp_toolset',
+            mcp_server_name: 'my-mcp-server',
+          },
+        ],
+      },
+    } satisfies any;
+
+    const body = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
+    );
+
+    // Should have both regular tool and MCP toolset
+    assert.strictEqual(body.tools?.length, 2);
+    assert.ok(body.tools?.some((t: any) => t.name === 'get_weather'));
+    assert.ok(body.tools?.some((t: any) => t.type === 'mcp_toolset'));
+  });
+
+  it('should include mcp_servers and mcp_toolsets in streaming request body', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
+      config: {
+        mcp_servers: [
+          {
+            type: 'url',
+            url: 'https://mcp.example.com/server',
+            name: 'stream-mcp-server',
+          },
+        ],
+        mcp_toolsets: [
+          {
+            type: 'mcp_toolset',
+            mcp_server_name: 'stream-mcp-server',
+            default_config: { enabled: true },
+          },
+        ],
+      },
+    } satisfies any;
+
+    const body = runner.toAnthropicStreamingRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
+    );
+
+    assert.strictEqual(body.stream, true);
+    assert.deepStrictEqual(body.mcp_servers, [
+      {
+        type: 'url',
+        url: 'https://mcp.example.com/server',
+        name: 'stream-mcp-server',
+      },
+    ]);
+    assert.ok(body.tools?.some((t: any) => t.type === 'mcp_toolset'));
+  });
+
+  it('should include mcp_servers without mcp_toolsets', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
+      config: {
+        mcp_servers: [
+          {
+            type: 'url',
+            url: 'https://mcp.example.com/server',
+            name: 'server-only',
+          },
+        ],
+        // No mcp_toolsets
+      },
+    } satisfies any;
+
+    const body = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
+    );
+
+    assert.deepStrictEqual(body.mcp_servers, [
+      {
+        type: 'url',
+        url: 'https://mcp.example.com/server',
+        name: 'server-only',
+      },
+    ]);
+    // tools should be undefined when no tools or toolsets
+    assert.strictEqual(body.tools, undefined);
+  });
+
+  it('should include mcp_toolsets without regular tools', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
+      // No tools array
+      config: {
+        mcp_toolsets: [
+          {
+            type: 'mcp_toolset',
+            mcp_server_name: 'toolset-only-server',
+          },
+        ],
+      },
+    } satisfies any;
+
+    const body = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
+    );
+
+    // Should have only MCP toolset
+    assert.strictEqual(body.tools?.length, 1);
+    assert.ok(body.tools?.some((t: any) => t.type === 'mcp_toolset'));
   });
 
   it('should convert additional beta content block types', () => {
@@ -775,7 +1118,7 @@ describe('BetaRunner', () => {
       },
     });
 
-    const warnMock = mock.method(console, 'warn', () => {});
+    const warnMock = mock.method(logger, 'warn', () => {});
     const fallbackPart = (runner as any).fromBetaContentBlock({
       type: 'mystery',
     });

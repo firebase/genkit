@@ -64,6 +64,77 @@ export interface ClaudeModelParams extends ClaudeHelperParamsBase {}
  */
 export interface ClaudeRunnerParams extends ClaudeHelperParamsBase {}
 
+/**
+ * MCP tool configuration for individual tools.
+ */
+export const McpToolConfigSchema = z
+  .object({
+    enabled: z
+      .boolean()
+      .optional()
+      .describe('Whether this tool is enabled. Defaults to true.'),
+    defer_loading: z
+      .boolean()
+      .optional()
+      .describe(
+        'If true, tool description is not sent to the model initially. Used with Tool Search Tool.'
+      ),
+  })
+  .passthrough();
+
+/**
+ * MCP server configuration for connecting to remote MCP servers.
+ */
+export const McpServerConfigSchema = z
+  .object({
+    type: z
+      .literal('url')
+      .describe('Type of MCP server connection. Currently only "url" is supported.'),
+    url: z
+      .string()
+      .url('MCP server URL must be a valid URL')
+      .refine((url) => url.startsWith('https://'), {
+        message: 'MCP server URL must use HTTPS protocol',
+      })
+      .describe('The URL of the MCP server. Must start with https://.'),
+    name: z
+      .string()
+      .min(1, 'MCP server name cannot be empty')
+      .describe(
+        'A unique identifier for this MCP server. Must be referenced by exactly one MCPToolset.'
+      ),
+    authorization_token: z
+      .string()
+      .optional()
+      .describe('OAuth authorization token if required by the MCP server.'),
+  })
+  .passthrough();
+
+/**
+ * MCP toolset configuration for exposing tools from an MCP server.
+ */
+export const McpToolsetSchema = z
+  .object({
+    type: z.literal('mcp_toolset').describe('Type must be "mcp_toolset".'),
+    mcp_server_name: z
+      .string()
+      .describe('Must match a server name defined in the mcp_servers array.'),
+    default_config: McpToolConfigSchema.optional().describe(
+      'Default configuration applied to all tools. Individual tool configs will override these defaults.'
+    ),
+    configs: z
+      .record(z.string(), McpToolConfigSchema)
+      .optional()
+      .describe(
+        'Per-tool configuration overrides. Keys are tool names, values are configuration objects.'
+      ),
+  })
+  .passthrough();
+
+export type McpToolConfig = z.infer<typeof McpToolConfigSchema>;
+export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
+export type McpToolset = z.infer<typeof McpToolsetSchema>;
+
 export const AnthropicBaseConfigSchema = GenerationCommonConfigSchema.extend({
   tool_choice: z
     .union([
@@ -101,6 +172,20 @@ export const AnthropicBaseConfigSchema = GenerationCommonConfigSchema.extend({
     .optional()
     .describe(
       'The API version to use for the request. Both stable and beta features are available on the beta API surface.'
+    ),
+  /** MCP servers to connect to for server-managed tools (beta API only) */
+  mcp_servers: z
+    .array(McpServerConfigSchema)
+    .optional()
+    .describe(
+      'List of MCP servers to connect to. Requires beta API (apiVersion: "beta").'
+    ),
+  /** MCP toolsets to expose from connected MCP servers (beta API only) */
+  mcp_toolsets: z
+    .array(McpToolsetSchema)
+    .optional()
+    .describe(
+      'List of MCP toolsets to expose. Each toolset references an MCP server by name.'
     ),
 }).passthrough();
 
@@ -140,7 +225,83 @@ export const AnthropicThinkingConfigSchema = AnthropicBaseConfigSchema.extend({
   ),
 }).passthrough();
 
-export const AnthropicConfigSchema = AnthropicThinkingConfigSchema;
+/**
+ * Validates MCP configuration:
+ * - MCP server names must be unique
+ * - MCP toolsets must reference servers defined in mcp_servers
+ * - Each MCP server must be referenced by exactly one toolset
+ */
+function validateMcpConfig(
+  config: z.infer<typeof AnthropicThinkingConfigSchema>,
+  ctx: z.RefinementCtx
+): void {
+  // Validate MCP server name uniqueness
+  if (config.mcp_servers && config.mcp_servers.length > 1) {
+    const names = config.mcp_servers.map(
+      (s: z.infer<typeof McpServerConfigSchema>) => s.name
+    );
+    const uniqueNames = new Set(names);
+    if (uniqueNames.size !== names.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['mcp_servers'],
+        message: 'MCP server names must be unique',
+      });
+    }
+  }
+
+  // Validate mcp_server_name references exist in mcp_servers
+  if (config.mcp_toolsets && config.mcp_toolsets.length > 0) {
+    const serverNames = new Set(
+      config.mcp_servers?.map(
+        (s: z.infer<typeof McpServerConfigSchema>) => s.name
+      ) ?? []
+    );
+    config.mcp_toolsets.forEach(
+      (toolset: z.infer<typeof McpToolsetSchema>, i: number) => {
+        if (!serverNames.has(toolset.mcp_server_name)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mcp_toolsets', i, 'mcp_server_name'],
+            message: `MCP toolset references unknown server '${toolset.mcp_server_name}'. Available servers: ${[...serverNames].join(', ') || '(none)'}`,
+          });
+        }
+      }
+    );
+  }
+
+  // Validate each MCP server is referenced by exactly one toolset
+  if (config.mcp_servers && config.mcp_servers.length > 0) {
+    const toolsetReferences = new Map<string, number>();
+    (config.mcp_toolsets ?? []).forEach(
+      (t: z.infer<typeof McpToolsetSchema>) => {
+        const count = toolsetReferences.get(t.mcp_server_name) ?? 0;
+        toolsetReferences.set(t.mcp_server_name, count + 1);
+      }
+    );
+    config.mcp_servers.forEach(
+      (server: z.infer<typeof McpServerConfigSchema>, i: number) => {
+        const refCount = toolsetReferences.get(server.name) ?? 0;
+        if (refCount === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mcp_servers', i, 'name'],
+            message: `MCP server '${server.name}' is not referenced by any toolset. Each server must be referenced by exactly one mcp_toolset.`,
+          });
+        } else if (refCount > 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mcp_servers', i, 'name'],
+            message: `MCP server '${server.name}' is referenced by ${refCount} toolsets. Each server must be referenced by exactly one mcp_toolset.`,
+          });
+        }
+      }
+    );
+  }
+}
+
+export const AnthropicConfigSchema =
+  AnthropicThinkingConfigSchema.superRefine(validateMcpConfig);
 
 export type ThinkingConfig = z.infer<typeof ThinkingConfigSchema>;
 export type AnthropicBaseConfig = z.infer<typeof AnthropicBaseConfigSchema>;
