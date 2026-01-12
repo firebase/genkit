@@ -143,8 +143,8 @@ export class ProcessManager {
       this.originalStdIn = undefined;
     }
     if (this.appProcess) {
-      this.appProcess.stdout?.unpipe();
-      this.appProcess.stderr?.unpipe();
+      this.appProcess.stdout?.removeAllListeners();
+      this.appProcess.stderr?.removeAllListeners();
     }
     this.appProcess = undefined;
     this._status = 'stopped';
