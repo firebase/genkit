@@ -99,14 +99,6 @@ func configToMap(config any) map[string]any {
 	return result
 }
 
-// mapToStruct unmarshals a map[string]any to the expected config api.
-func mapToStruct(m map[string]any, v any) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonData, v)
-}
 
 // configFromRequest converts any supported config type to [genai.GenerateContentConfig].
 func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
@@ -119,7 +111,9 @@ func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, er
 		result = *config
 	case map[string]any:
 		// TODO: Log warnings if unknown parameters are found.
-		if err := mapToStruct(config, &result); err != nil {
+		var err error
+		result, err = base.MapToStruct[genai.GenerateContentConfig](config)
+		if err != nil {
 			return nil, err
 		}
 	case nil:

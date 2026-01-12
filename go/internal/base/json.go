@@ -118,6 +118,32 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	return s
 }
 
+// MapToStruct converts a map[string]any to a struct of type T via JSON round-trip.
+func MapToStruct[T any](m map[string]any) (T, error) {
+	var result T
+	data, err := json.Marshal(m)
+	if err != nil {
+		return result, err
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+// StructToMap converts a struct to map[string]any via JSON round-trip.
+func StructToMap[T any](v T) (map[string]any, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // SchemaAsMap converts json schema struct to a map (JSON representation).
 func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	jsb, err := s.MarshalJSON()

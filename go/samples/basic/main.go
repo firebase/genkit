@@ -50,8 +50,7 @@ func main() {
 			})),
 			ai.WithPrompt("Share a joke about %s.", input),
 		)
-	},
-	)
+	})
 
 	// Define a streaming flow that generates jokes about a given topic with passthrough streaming.
 	genkit.DefineStreamingFlow(g, "streamingJokesFlow",

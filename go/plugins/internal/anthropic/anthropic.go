@@ -26,6 +26,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -195,14 +196,6 @@ func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error)
 	return req, nil
 }
 
-// mapToStruct unmarshals a map[string]any to the expected type
-func mapToStruct(m map[string]any, v any) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonData, v)
-}
 
 // configFromRequest converts any supported config type to [anthropic.MessageNewParams]
 func configFromRequest(input *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
@@ -214,7 +207,9 @@ func configFromRequest(input *ai.ModelRequest) (*anthropic.MessageNewParams, err
 	case *anthropic.MessageNewParams:
 		result = *config
 	case map[string]any:
-		if err := mapToStruct(config, &result); err != nil {
+		var err error
+		result, err = base.MapToStruct[anthropic.MessageNewParams](config)
+		if err != nil {
 			return nil, err
 		}
 	case nil:
@@ -243,7 +238,9 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 		if len(inputSchema) == 0 {
 			inputSchema = map[string]any{"type": "object", "properties": map[string]any{}}
 		}
-		if err := mapToStruct(inputSchema, &schema); err != nil {
+		var err error
+		schema, err = base.MapToStruct[anthropic.ToolInputSchemaParam](inputSchema)
+		if err != nil {
 			return nil, fmt.Errorf("unable to parse tool input schema: %w", err)
 		}
 
