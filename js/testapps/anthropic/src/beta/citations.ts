@@ -17,108 +17,98 @@
 import { anthropic, anthropicDocument } from '@genkit-ai/anthropic';
 import { genkit } from 'genkit';
 
-// Ensure the API key is set.
-const API_KEY = process.env.ANTHROPIC_API_KEY;
+const ai = genkit({
+  plugins: [
+    anthropic({
+      apiVersion: 'beta',
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    }),
+  ],
+});
 
-async function main() {
-  const ai = genkit({
-    plugins: [
-      anthropic({
-        apiVersion: 'beta',
-        apiKey: API_KEY,
-      }),
+/**
+ * This flow demonstrates citations with a plain text document.
+ * The response will include citations pointing back to the source text.
+ */
+ai.defineFlow('citations-text', async () => {
+  const response = await ai.generate({
+    model: anthropic.model('claude-sonnet-4-5'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          anthropicDocument({
+            source: {
+              type: 'text',
+              data: 'The grass is green. The sky is blue. Water is wet. Fire is hot.',
+            },
+            title: 'Basic Facts',
+            citations: { enabled: true },
+          }),
+          {
+            text: 'What color is the grass and sky? Please cite your sources.',
+          },
+        ],
+      },
     ],
   });
 
-  /**
-   * This flow demonstrates citations with a plain text document.
-   * The response will include citations pointing back to the source text.
-   */
-  ai.defineFlow('citations-text', async () => {
-    const response = await ai.generate({
-      model: anthropic.model('claude-sonnet-4-5'),
-      messages: [
-        {
-          role: 'user',
-          content: [
-            anthropicDocument({
-              source: {
-                type: 'text',
-                data: 'The grass is green. The sky is blue. Water is wet. Fire is hot.',
-              },
-              title: 'Basic Facts',
-              citations: { enabled: true },
-            }),
-            {
-              text: 'What color is the grass and sky? Please cite your sources.',
+  // Log the response with citations
+  console.log('Response text:', response.text);
+  console.log(
+    'Response content:',
+    JSON.stringify(response.message?.content, null, 2)
+  );
+
+  // Extract citations from the response
+  const citations = response.message?.content
+    .filter((part) => part.metadata?.citations)
+    .flatMap((part) => part.metadata?.citations);
+
+  console.log('Citations:', JSON.stringify(citations, null, 2));
+
+  return {
+    text: response.text,
+    citations,
+  };
+});
+
+/**
+ * This flow demonstrates citations with custom content blocks
+ * for more granular citation control.
+ */
+ai.defineFlow('citations-custom-content', async () => {
+  const response = await ai.generate({
+    model: anthropic.model('claude-sonnet-4-5'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          anthropicDocument({
+            source: {
+              type: 'content',
+              content: [
+                { type: 'text', text: 'Fact 1: Dogs are mammals.' },
+                { type: 'text', text: 'Fact 2: Cats are also mammals.' },
+                { type: 'text', text: 'Fact 3: Birds have feathers.' },
+              ],
             },
-          ],
-        },
-      ],
-    });
-
-    // Log the response with citations
-    console.log('Response text:', response.text);
-    console.log(
-      'Response content:',
-      JSON.stringify(response.message?.content, null, 2)
-    );
-
-    // Extract citations from the response
-    const citations = response.message?.content
-      .filter((part) => part.metadata?.citations)
-      .flatMap((part) => part.metadata?.citations);
-
-    console.log('Citations:', JSON.stringify(citations, null, 2));
-
-    return {
-      text: response.text,
-      citations,
-    };
+            title: 'Animal Facts',
+            citations: { enabled: true },
+          }),
+          {
+            text: 'What do dogs and cats have in common? Cite your source.',
+          },
+        ],
+      },
+    ],
   });
 
-  /**
-   * This flow demonstrates citations with custom content blocks
-   * for more granular citation control.
-   */
-  ai.defineFlow('citations-custom-content', async () => {
-    const response = await ai.generate({
-      model: anthropic.model('claude-sonnet-4-5'),
-      messages: [
-        {
-          role: 'user',
-          content: [
-            anthropicDocument({
-              source: {
-                type: 'content',
-                content: [
-                  { type: 'text', text: 'Fact 1: Dogs are mammals.' },
-                  { type: 'text', text: 'Fact 2: Cats are also mammals.' },
-                  { type: 'text', text: 'Fact 3: Birds have feathers.' },
-                ],
-              },
-              title: 'Animal Facts',
-              citations: { enabled: true },
-            }),
-            {
-              text: 'What do dogs and cats have in common? Cite your source.',
-            },
-          ],
-        },
-      ],
-    });
+  console.log('Response text:', response.text);
+  console.log(
+    'Response content:',
+    JSON.stringify(response.message?.content, null, 2)
+  );
 
-    console.log('Response text:', response.text);
-    console.log(
-      'Response content:',
-      JSON.stringify(response.message?.content, null, 2)
-    );
-
-    return response.text;
-  });
-}
-
-main().catch((error) => {
-  console.error('Error:', error);
-  process.exit(1);
+  return response.text;
 });
