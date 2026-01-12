@@ -17,7 +17,7 @@
 """Asynchronous server gateway interface implementation for Genkit."""
 
 import asyncio
-import inspect
+import threading
 from collections.abc import Coroutine
 from typing import Any, TypeVar
 
@@ -27,13 +27,13 @@ import uvicorn
 
 from genkit.aio.loop import run_loop
 from genkit.blocks.formats import built_in_formats
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import ActionKind
 from genkit.web.manager import find_free_port_sync
 
-from ._plugin import Plugin, PluginV2, is_plugin_v1, is_plugin_v2
+from ._plugin import Plugin
 from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
 from ._server import ServerSpec
@@ -48,7 +48,7 @@ class GenkitBase(GenkitRegistry):
 
     def __init__(
         self,
-        plugins: list[Plugin | PluginV2] | None = None,
+        plugins: list[Plugin] | None = None,
         model: str | None = None,
         reflection_server_spec: ServerSpec | None = None,
     ) -> None:
@@ -64,15 +64,12 @@ class GenkitBase(GenkitRegistry):
         self._reflection_server_spec = reflection_server_spec
         self._initialize_registry(model, plugins)
 
-    def _initialize_registry(self, model: str | None, plugins: list[Plugin | PluginV2] | None) -> None:
+    def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None = None) -> None:
         """Initialize the registry for the Genkit instance.
-
-        Supports both v1 (Plugin) and v2 (PluginV2) plugins. Detection is done
-        at runtime via is_plugin_v2().
 
         Args:
             model: Model name to use.
-            plugins: List of plugins to initialize (v1 or v2).
+            plugins: List of plugins to initialize.
 
         Raises:
             ValueError: If an invalid plugin is provided.
@@ -88,25 +85,13 @@ class GenkitBase(GenkitRegistry):
             logger.warning('No plugins provided to Genkit')
         else:
             for plugin in plugins:
-                if is_plugin_v2(plugin):
-                    logger.debug(f'Registering v2 plugin: {plugin.name}')
-                    self._register_v2_plugin(plugin)
-                elif is_plugin_v1(plugin):
-                    logger.debug(f'Registering v1 plugin: {plugin.plugin_name()}')
-                    plugin.initialize(ai=self)
+                if not isinstance(plugin, Plugin):
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
+                logger.debug(f'Registering plugin: {plugin.name}')
+                self._register_plugin(plugin)
 
-                    def resolver(kind, name, plugin=plugin):
-                        return plugin.resolve_action(self, kind, name)
-
-                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
-                else:
-                    raise ValueError(
-                        f'Invalid {plugin=} provided to Genkit: '
-                        f'must implement either Plugin or PluginV2 interface'
-                    )
-
-    def _register_v2_plugin(self, plugin: PluginV2) -> None:
-        """Register a v2 plugin by calling its methods and registering returned actions.
+    def _register_plugin(self, plugin: Plugin) -> None:
+        """Register a plugin by calling its methods and registering returned actions.
 
         Steps:
         1. Call plugin.init() to get resolved actions
@@ -116,32 +101,68 @@ class GenkitBase(GenkitRegistry):
         Args:
             plugin: V2 plugin instance to register.
         """
-        if inspect.iscoroutinefunction(plugin.init):
-            resolved_actions = asyncio.run(plugin.init())
-        else:
-            resolved_actions = plugin.init()
+        initialized = False
+        init_lock = threading.Lock()
+        init_task: asyncio.Task[None] | None = None
 
-        for action in resolved_actions:
-            self._register_action_v2(action, plugin)
+        async def ensure_initialized() -> None:
+            """Initialize the plugin exactly once (async-first)."""
+            nonlocal initialized, init_task
+            if initialized:
+                return
 
-        def resolver(kind: ActionKind, name: str) -> None:
+            with init_lock:
+                if initialized:
+                    return
+                if init_task is None:
+
+                    async def do_init():
+                        nonlocal initialized, init_task
+                        try:
+                            resolved_actions = await plugin.init()
+                            for action in resolved_actions:
+                                self._register_action(action, plugin)
+                            initialized = True
+                        finally:
+                            if not initialized:
+                                with init_lock:
+                                    init_task = None
+
+                    init_task = asyncio.create_task(do_init())
+
+            await init_task
+
+        async def resolver(kind: ActionKind, name: str):
             """Lazy resolver for v2 plugin.
 
             Called when framework needs an action not returned from init().
             """
-            # Check if resolve method is async
-            if inspect.iscoroutinefunction(plugin.resolve):
-                action = asyncio.run(plugin.resolve(kind, name))
-            else:
-                action = plugin.resolve(kind, name)
-
+            await ensure_initialized()
+            clean_name = name.removeprefix(f'{plugin.name}/') if name.startswith(f'{plugin.name}/') else name
+            action = await plugin.resolve(kind, clean_name)
             if action:
                 self._register_action_v2(action, plugin)
 
         self.registry.register_action_resolver(plugin.name, resolver)
 
-    def _register_action_v2(self, action: Action, plugin: PluginV2) -> None:
-        """Register a single action from a v2 plugin.
+        async def list_actions_resolver(plugin=plugin):
+            """List available actions for a plugin (for discovery/devtools)."""
+            resolved = await plugin.list_actions()
+
+            namespaced: list[ActionMetadata] = []
+            for meta in resolved:
+                if meta.name.startswith(f'{plugin.name}/'):
+                    namespaced.append(meta)
+                else:
+                    data = meta.model_dump()
+                    data['name'] = f'{plugin.name}/{meta.name}'
+                    namespaced.append(ActionMetadata(**data))
+            return namespaced
+
+        self.registry.register_list_actions_resolver(plugin.name, list_actions_resolver)
+
+    def _register_action(self, action: Action, plugin: Plugin) -> None:
+        """Register a single action from a plugin.
 
         Responsibilities:
         1. Add plugin namespace to action name (if not already present)
@@ -149,13 +170,12 @@ class GenkitBase(GenkitRegistry):
 
         Args:
             action: Action instance from the plugin.
-            plugin: The v2 plugin that created this action.
+            plugin: The plugin that created this action.
         """
-        # Register the pre-constructed action instance and let the registry apply
-        # namespacing for v2 plugins.
+        # Register the pre-constructed action instance and let the registry apply namespacing
         self.registry.register_action_instance(action, namespace=plugin.name)
 
-        logger.debug(f'Registered v2 action: {action.name}')
+        logger.debug(f'Registered action: {action.name}')
 
     def run_main(self, coro: Coroutine[Any, Any, T]) -> T:
         """Run the user's main coroutine.

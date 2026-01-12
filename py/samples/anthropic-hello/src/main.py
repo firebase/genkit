@@ -195,7 +195,6 @@ async def say_hi_with_config(name: str) -> str:
 
 async def main() -> None:
     """Main entry point for the Anthropic sample."""
-
     result = await say_hi('John Doe')
     await logger.ainfo('Simple greeting', result=result)
 

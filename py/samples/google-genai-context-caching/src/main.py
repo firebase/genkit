@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample that demonstrates caching of generation context in Genkit
+"""Sample that demonstrates caching of generation context in Genkit.
 
 In this sample user actor supplies "Tom Sawyer" book content from Gutenberg library archive
 and model caches this context.
@@ -34,7 +34,7 @@ logger = structlog.getLogger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_1_5_FLASH),
+    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
 )
 
 # Tom Sawyer is taken as a sample book here
@@ -67,7 +67,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
             Message(
                 role=Role.MODEL,
-                content=[TextPart(text=f'Here is some analysis based on the text provided.')],
+                content=[TextPart(text='Here is some analysis based on the text provided.')],
                 metadata={
                     'cache': {
                         'ttl_seconds': 300,
@@ -76,7 +76,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
         ],
         config=GenerationCommonConfig(
-            version='gemini-1.5-flash-001',
+            version='gemini-3-flash-preview',
             temperature=0.7,
             maxOutputTokens=1000,
             topK=50,

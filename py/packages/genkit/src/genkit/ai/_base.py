@@ -17,7 +17,6 @@
 """Base/shared implementation for Genkit user-facing API."""
 
 import asyncio
-import inspect
 import os
 import threading
 from collections.abc import Coroutine
@@ -29,13 +28,13 @@ import structlog
 from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
 from genkit.blocks.generate import define_generate_action
-from genkit.core.action import Action
+from genkit.core.action import ActionMetadata
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import ActionKind
 from genkit.web.manager import find_free_port_sync
 
-from ._plugin import Plugin, PluginV2, is_plugin_v2
+from ._plugin import Plugin
 from ._registry import GenkitRegistry
 from ._server import ServerSpec, init_default_runtime
 
@@ -123,61 +122,95 @@ class GenkitBase(GenkitRegistry):
             logger.warning('No plugins provided to Genkit')
         else:
             for plugin in plugins:
-                if is_plugin_v2(plugin):
-                    self._initialize_v2_plugin(plugin)
-                elif isinstance(plugin, Plugin):
-                    plugin.initialize(ai=self)
+                if not isinstance(plugin, Plugin):
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
+                self._initialize_plugin(plugin)
 
-                    def resolver(kind, name, plugin=plugin):
-                        return plugin.resolve_action(self, kind, name)
+    def _initialize_plugin(self, plugin: Plugin) -> None:
+        """Register a plugin without eagerly initializing it.
 
-                    def action_resolver(plugin=plugin):
-                        if isinstance(plugin.list_actions, list):
-                            return plugin.list_actions
-                        else:
-                            return plugin.list_actions()
+        Plugins are registered during Genkit construction, but their
+        `init()` is only invoked when the plugin is *initialized* (e.g. first
+        use via action lookup).
 
-                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
-                    self.registry.register_list_actions_resolver(plugin.plugin_name(), action_resolver)
-                else:
-                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin` or `genkit.ai.PluginV2`')
-
-    def _initialize_v2_plugin(self, plugin: PluginV2) -> None:
-        """Register a v2 plugin by calling its methods and registering returned actions.
-
-        Steps:
-        1. Call plugin.init() to get resolved actions
-        2. Register each action with automatic namespacing
-        3. Set up lazy resolver for on-demand actions
-
-        Args:
-            plugin: V2 plugin instance to register.
+        This method wires:
+        - a lazy initializer (calls `plugin.init()` once, on-demand)
+        - an action resolver (calls `plugin.resolve()` on cache miss)
+        - a list-actions resolver (calls `plugin.list_actions()` for discovery)
         """
-        if inspect.iscoroutinefunction(plugin.init):
-            resolved_actions = asyncio.run(plugin.init())
-        else:
-            resolved_actions = plugin.init()
+        initialized = False
+        init_lock = threading.Lock()
+        init_task: asyncio.Task[None] | None = None
 
-        for action in resolved_actions:
-            self._register_action(action, plugin)
+        async def ensure_initialized() -> None:
+            """Initialize the plugin exactly once (async-first).
 
-        def resolver(kind: ActionKind, name: str) -> None:
+            This is the JS-style 'initializer promise' pattern: cache a single
+            task and await it from all concurrent callers.
+            """
+            nonlocal initialized, init_task
+            if initialized:
+                return
+
+            with init_lock:
+                if initialized:
+                    return
+                if init_task is None:
+
+                    async def do_init():
+                        nonlocal initialized, init_task
+                        try:
+                            resolved_actions = await plugin.init()
+                            for action in resolved_actions:
+                                self._register_action(action, plugin)
+                            initialized = True
+                        finally:
+                            # If init failed, allow retry on next access.
+                            if not initialized:
+                                with init_lock:
+                                    init_task = None
+
+                    init_task = asyncio.create_task(do_init())
+
+            # Safe: init_task is set under lock.
+            await init_task
+
+        async def resolver(kind: ActionKind, name: str):
             """Lazy resolver for v2 plugin.
 
             Called when framework needs an action not returned from init().
             """
-            if inspect.iscoroutinefunction(plugin.resolve):
-                action = asyncio.run(plugin.resolve(kind, name))
-            else:
-                action = plugin.resolve(kind, name)
+            await ensure_initialized()
+            clean_name = name.removeprefix(f'{plugin.name}/') if name.startswith(f'{plugin.name}/') else name
 
+            action = await plugin.resolve(kind, clean_name)
             if action:
                 self._register_action(action, plugin)
 
         self.registry.register_action_resolver(plugin.name, resolver)
 
-    def _register_action(self, action: Any, plugin: PluginV2) -> None:
-        """Register a single action from a v2 plugin.
+        async def list_actions_resolver(plugin=plugin):
+            """List available actions for a plugin (for discovery/devtools).
+
+            Important: This should not force plugin initialization; it should use
+            lightweight `Plugin.list_actions()` metadata instead.
+            """
+            resolved = await plugin.list_actions()
+
+            namespaced: list[ActionMetadata] = []
+            for meta in resolved:
+                if meta.name.startswith(f'{plugin.name}/'):
+                    namespaced.append(meta)
+                else:
+                    data = meta.model_dump()
+                    data['name'] = f'{plugin.name}/{meta.name}'
+                    namespaced.append(ActionMetadata(**data))
+            return namespaced
+
+        self.registry.register_list_actions_resolver(plugin.name, list_actions_resolver)
+
+    def _register_action(self, action: Any, plugin: Plugin) -> None:
+        """Register a single action from a plugin.
 
         Responsibilities:
         1. Add plugin namespace to action name (if not already present)
@@ -185,12 +218,10 @@ class GenkitBase(GenkitRegistry):
 
         Args:
             action: Action instance from the plugin.
-            plugin: The v2 plugin that created this action.
+            plugin: The plugin that created this action.
         """
-        # Register the pre-constructed action instance and let the registry apply
-        # namespacing for v2 plugins.
+        # Register the pre-constructed action instance and let the registry apply namespacing
         self.registry.register_action_instance(action, namespace=plugin.name)
-
 
     def _initialize_server(self, reflection_server_spec: ServerSpec | None) -> None:
         """Initialize the server for the Genkit instance.

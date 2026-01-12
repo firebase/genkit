@@ -56,7 +56,7 @@ def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest
         second_response,
     ]
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=mock_client)
 
     response = model._generate(sample_request)
 
@@ -79,9 +79,7 @@ def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest
 
 
 def test_generate_stream_with_tool_calls(sample_request):
-    """
-    Test generate_stream processes tool calls streamed in chunks correctly.
-    """
+    """Test generate_stream processes tool calls streamed in chunks correctly."""
     mock_client = MagicMock()
 
     class MockToolCall:
@@ -127,7 +125,7 @@ def test_generate_stream_with_tool_calls(sample_request):
 
     mock_client.chat.completions.create.return_value = MockStream()
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=mock_client)
     collected_chunks = []
 
     def callback(chunk: GenerateResponseChunk):

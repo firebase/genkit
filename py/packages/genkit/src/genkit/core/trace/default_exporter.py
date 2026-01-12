@@ -25,11 +25,10 @@ The module includes:
     - Utility functions for converting and formatting trace attributes
 """
 
-import asyncio
 import json
 import os
 import sys
-from collections.abc import Awaitable, Sequence
+from collections.abc import Sequence
 from typing import Any
 from urllib.parse import urljoin
 

@@ -25,7 +25,6 @@ from genkit.ai._aio import Genkit
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import (
     EmbedderOptions,
-    EmbedderRef,
     EmbedderSupports,
     create_embedder_ref,
     embedder_action_metadata,
@@ -155,6 +154,13 @@ class MockGenkitRegistry:
 
     def lookup_action(self, kind, name):
         return self.actions.get((kind, name))
+
+    async def resolve_action(self, kind, name):
+        return self.lookup_action(kind, name)
+
+    # Backwards compatibility
+    async def aresolve_action(self, kind, name):
+        return self.lookup_action(kind, name)
 
 
 @pytest.fixture

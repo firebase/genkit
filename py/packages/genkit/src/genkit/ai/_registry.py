@@ -30,6 +30,7 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 | `'indexer'`   | Indexer     |
 | `'model'`     | Model       |
 | `'prompt'`    | Prompt      |
+| `'resource'`  | Resource    |
 | `'retriever'` | Retriever   |
 | `'text-llm'`  | Text LLM    |
 | `'tool'`      | Tool        |
@@ -42,7 +43,10 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any, Type
+from typing import TYPE_CHECKING, Any, Callable, Type
+
+if TYPE_CHECKING:
+    from genkit.blocks.resource import ResourceFn, ResourceOptions
 
 import structlog
 from pydantic import BaseModel
@@ -53,8 +57,17 @@ from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import (
     define_helper,
+    define_partial,
     define_prompt,
     lookup_prompt,
+)
+from genkit.blocks.reranker import (
+    RankedDocument,
+    RerankerFn,
+    RerankerOptions,
+    RerankerRef,
+    define_reranker as define_reranker_block,
+    rerank as rerank_block,
 )
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
@@ -65,6 +78,7 @@ from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.tracing import run_in_new_span
 from genkit.core.typing import (
+    DocumentData,
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
@@ -180,6 +194,18 @@ class GenkitRegistry:
             fn: The helper function to register.
         """
         define_helper(self.registry, name, fn)
+
+    def define_partial(self, name: str, source: str) -> None:
+        """Define a Handlebars partial template in the registry.
+
+        Partials are reusable template fragments that can be included
+        in other prompts using {{>partialName}} syntax.
+
+        Args:
+            name: The name of the partial.
+            source: The template source code for the partial.
+        """
+        define_partial(self.registry, name, source)
 
     def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
@@ -324,6 +350,100 @@ class GenkitRegistry:
             fn=fn,
             metadata=indexer_meta,
             description=indexer_description,
+        )
+
+    def define_reranker(
+        self,
+        name: str,
+        fn: RerankerFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define a reranker action.
+
+        Rerankers reorder documents based on their relevance to a query.
+        They are commonly used in RAG pipelines to improve retrieval quality.
+
+        Args:
+            name: Name of the reranker.
+            fn: Function implementing the reranker behavior. Should accept
+                (query_doc, documents, options) and return RerankerResponse.
+            config_schema: Optional schema for reranker configuration.
+            metadata: Optional metadata for the reranker.
+            description: Optional description for the reranker.
+
+        Returns:
+            The registered Action for the reranker.
+
+        Example:
+            >>> async def my_reranker(query, docs, options):
+            ...     # Score documents based on relevance to query
+            ...     scored = [(doc, compute_score(query, doc)) for doc in docs]
+            ...     scored.sort(key=lambda x: x[1], reverse=True)
+            ...     return RerankerResponse(documents=[...])
+            >>> ai.define_reranker('my-reranker', my_reranker)
+        """
+        reranker_meta = metadata.copy() if metadata else {}
+        if 'reranker' not in reranker_meta:
+            reranker_meta['reranker'] = {}
+        if 'label' not in reranker_meta['reranker'] or not reranker_meta['reranker']['label']:
+            reranker_meta['reranker']['label'] = name
+        if config_schema:
+            reranker_meta['reranker']['customOptions'] = to_json_schema(config_schema)
+
+        reranker_description = get_func_description(fn, description)
+        return define_reranker_block(
+            self.registry,
+            name=name,
+            fn=fn,
+            options=RerankerOptions(
+                config_schema=reranker_meta['reranker'].get('customOptions'),
+                label=reranker_meta['reranker'].get('label'),
+            ),
+        )
+
+    async def rerank(
+        self,
+        reranker: str | Action | RerankerRef,
+        query: str | DocumentData,
+        documents: list[DocumentData],
+        options: Any | None = None,
+    ) -> list[RankedDocument]:
+        """Rerank documents based on their relevance to a query.
+
+        This method takes a query and a list of documents, and returns the
+        documents reordered by relevance as determined by the specified reranker.
+
+        Args:
+            reranker: The reranker to use - can be a name string, Action, or RerankerRef.
+            query: The query to rank documents against - can be a string or DocumentData.
+            documents: The list of documents to rerank.
+            options: Optional configuration options for this rerank call.
+
+        Returns:
+            A list of RankedDocument objects sorted by relevance score.
+
+        Raises:
+            ValueError: If the reranker cannot be resolved.
+
+        Example:
+            >>> ranked_docs = await ai.rerank(
+            ...     reranker='my-reranker',
+            ...     query='What is machine learning?',
+            ...     documents=[doc1, doc2, doc3],
+            ... )
+            >>> for doc in ranked_docs:
+            ...     print(f'Score: {doc.score}, Text: {doc.text()}')
+        """
+        return await rerank_block(
+            self.registry,
+            {
+                'reranker': reranker,
+                'query': query,
+                'documents': documents,
+                'options': options,
+            },
         )
 
     def define_evaluator(
@@ -488,7 +608,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
-        config_schema: Type[BaseModel] | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
@@ -573,14 +693,15 @@ class GenkitRegistry:
 
     def define_prompt(
         self,
+        name: str | None = None,
         variant: str | None = None,
         model: str | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         description: str | None = None,
         input_schema: type | dict[str, Any] | None = None,
-        system: str | Part | list[Part] | None = None,
-        prompt: str | Part | list[Part] | None = None,
-        messages: str | list[Message] | None = None,
+        system: str | Part | list[Part] | Callable | None = None,
+        prompt: str | Part | list[Part] | Callable | None = None,
+        messages: str | list[Message] | Callable | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
@@ -592,12 +713,12 @@ class GenkitRegistry:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        # TODO:
-        #  docs: list[Document]
+        docs: list[DocumentData] | Callable | None = None,
     ):
         """Define a prompt.
 
         Args:
+            name: Optional name for the prompt.
             variant: Optional variant name for the prompt.
             model: Optional model name to use for the prompt.
             config: Optional configuration for the model.
@@ -619,9 +740,11 @@ class GenkitRegistry:
             tools: Optional list of tools to use for the prompt.
             tool_choice: Optional tool choice for the prompt.
             use: Optional list of model middlewares to use for the prompt.
+            docs: Optional list of documents or a callable to be used for grounding.
         """
         return define_prompt(
             self.registry,
+            name=name,
             variant=variant,
             model=model,
             config=config,
@@ -641,6 +764,7 @@ class GenkitRegistry:
             tools=tools,
             tool_choice=tool_choice,
             use=use,
+            docs=docs,
         )
 
     async def prompt(
@@ -668,12 +792,57 @@ class GenkitRegistry:
         Raises:
             GenkitError: If the prompt is not found.
         """
-
         return await lookup_prompt(
             registry=self.registry,
             name=name,
             variant=variant,
         )
+
+    def define_resource(
+        self,
+        opts: 'ResourceOptions | None' = None,
+        fn: 'ResourceFn | None' = None,
+        *,
+        name: str | None = None,
+        uri: str | None = None,
+        template: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Action:
+        """Define a resource action.
+
+        Args:
+            opts: Options defining the resource (e.g. uri, template, name).
+            fn: Function implementing the resource behavior.
+            name: Optional name for the resource.
+            uri: Optional URI for the resource.
+            template: Optional URI template for the resource.
+            description: Optional description for the resource.
+            metadata: Optional metadata for the resource.
+
+        Returns:
+            The registered Action for the resource.
+        """
+        from genkit.blocks.resource import (
+            define_resource as define_resource_block,
+        )
+
+        if fn is None:
+            raise ValueError('A function `fn` must be provided to define a resource.')
+        if opts is None:
+            opts = {}
+        if name:
+            opts['name'] = name
+        if uri:
+            opts['uri'] = uri
+        if template:
+            opts['template'] = template
+        if description:
+            opts['description'] = description
+        if metadata:
+            opts['metadata'] = metadata
+
+        return define_resource_block(self.registry, opts, fn)
 
 
 class FlowWrapper:

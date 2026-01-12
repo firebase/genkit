@@ -56,7 +56,7 @@ class ModelGarden:
         model: str,
         location: str,
         project_id: str,
-        registry: GenkitRegistry,
+        registry: GenkitRegistry | None,
     ) -> None:
         """Initializes the ModelGarden instance.
 
@@ -104,8 +104,13 @@ class ModelGarden:
             A callable function (specifically, the `generate` method of an
             `OpenAIModel` instance) that can be used by Genkit.
         """
-        openai_model = OpenAIModel(self.name, self.client, self.ai)
+        # In PluginV2 paths we avoid registry-dependent tool lookup, but the legacy
+        # registry-based flow still passes a registry here.
+        openai_model = OpenAIModel(self.name, self.client)
         return openai_model.generate
+
+    # NOTE: OpenAIModel no longer requires a registry; tool schemas are provided via
+    # GenerateRequest.tools, so the returned function works for both v1/v2 flows.
 
     def define_model(self) -> None:
         """Defines and registers the Model Garden model with the Genkit registry.
@@ -114,6 +119,8 @@ class ModelGarden:
         of the OpenAI-compatible generation function, then registers this model
         within the Genkit framework using `self.ai.define_model`.
         """
+        if self.ai is None:
+            raise ValueError('ModelGarden.define_model() requires a GenkitRegistry')
         model_info = self.get_model_info()
         generate_fn = self.to_openai_compatible_model()
         self.ai.define_model(

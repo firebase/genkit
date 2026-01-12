@@ -22,7 +22,7 @@ from hashlib import md5
 from genkit.blocks.document import Document
 from genkit.blocks.retriever import IndexerRequest
 from genkit.codec import dump_json
-from genkit.types import DocumentData, Embedding
+from genkit.types import Embedding
 
 from .constant import DbValue
 from .local_vector_store_api import (

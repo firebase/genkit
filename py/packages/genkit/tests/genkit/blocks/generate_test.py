@@ -43,7 +43,7 @@ def setup_test():
 
     @ai.tool(name='testTool')
     def test_tool():
-        """description"""
+        """Description."""
         return 'tool called'
 
     return (ai, pm)
@@ -333,7 +333,7 @@ async def test_generate_action_spec(spec) -> None:
 
     @ai.tool(name='testTool')
     def test_tool():
-        """description"""
+        """Description."""
         return 'tool called'
 
     if 'modelResponses' in spec:

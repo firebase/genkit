@@ -45,7 +45,6 @@ from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
     BaseDataPoint,
-    BaseEvalDataPoint,
     EmbedRequest,
     EmbedResponse,
     EvalRequest,
@@ -351,9 +350,14 @@ class Genkit(GenkitBase):
 
         final_options = {**(retriever_config or {}), **(options or {})}
 
-        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever_name)
+        retrieve_action = await self.registry.resolve_action(ActionKind.RETRIEVER, retriever_name)
 
-        return (await retrieve_action.arun(RetrieverRequest(query=query, options=final_options))).response
+        parent_ctx = ActionRunContext._current_context() or {}
+        action_ctx = dict(parent_ctx)
+        action_ctx.setdefault('__genkit_ai__', self)
+        return (
+            await retrieve_action.arun(RetrieverRequest(query=query, options=final_options), context=action_ctx)
+        ).response
 
     async def index(
         self,
@@ -383,9 +387,12 @@ class Genkit(GenkitBase):
 
         final_options = {**(indexer_config or {}), **(options or {})}
 
-        index_action = self.registry.lookup_action(ActionKind.INDEXER, indexer_name)
+        index_action = await self.registry.resolve_action(ActionKind.INDEXER, indexer_name)
 
-        await index_action.arun(IndexerRequest(documents=documents, options=final_options))
+        parent_ctx = ActionRunContext._current_context() or {}
+        action_ctx = dict(parent_ctx)
+        action_ctx.setdefault('__genkit_ai__', self)
+        await index_action.arun(IndexerRequest(documents=documents, options=final_options), context=action_ctx)
 
     async def embed(
         self,
@@ -410,9 +417,14 @@ class Genkit(GenkitBase):
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}
 
-        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder_name)
+        embed_action = await self.registry.resolve_action(ActionKind.EMBEDDER, embedder_name)
 
-        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
+        parent_ctx = ActionRunContext._current_context() or {}
+        action_ctx = dict(parent_ctx)
+        action_ctx.setdefault('__genkit_ai__', self)
+        return (
+            await embed_action.arun(EmbedRequest(input=documents, options=final_options), context=action_ctx)
+        ).response
 
     async def evaluate(
         self,
@@ -445,17 +457,21 @@ class Genkit(GenkitBase):
 
         final_options = {**(evaluator_config or {}), **(options or {})}
 
-        eval_action = self.registry.lookup_action(ActionKind.EVALUATOR, evaluator_name)
+        eval_action = await self.registry.resolve_action(ActionKind.EVALUATOR, evaluator_name)
 
         if not eval_run_id:
             eval_run_id = str(uuid.uuid4())
 
+        parent_ctx = ActionRunContext._current_context() or {}
+        action_ctx = dict(parent_ctx)
+        action_ctx.setdefault('__genkit_ai__', self)
         return (
             await eval_action.arun(
                 EvalRequest(
                     dataset=dataset,
                     options=final_options,
                     eval_run_id=eval_run_id,
-                )
+                ),
+                context=action_ctx,
             )
         ).response

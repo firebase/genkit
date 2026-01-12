@@ -14,69 +14,49 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from openai.types import Model
 
-from genkit.ai._aio import Genkit
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
-from genkit.plugins.compat_oai import OpenAIConfig
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 
 
-def test_openai_plugin_initialize() -> None:
-    """Test OpenAI plugin registry initialization."""
-    registry = MagicMock(spec=Genkit)
+@pytest.mark.asyncio
+async def test_openai_plugin_initialize() -> None:
+    """Test OpenAI plugin init() returns model actions."""
     plugin = OpenAI(api_key='test-key')
 
     with patch('genkit.plugins.compat_oai.models.OpenAIModelHandler.get_model_handler') as mock_get_handler:
         mock_handler = MagicMock()
         mock_get_handler.return_value = mock_handler
 
-        plugin.initialize(registry)
+        actions = await plugin.init()
 
         assert mock_get_handler.call_count == len(SUPPORTED_OPENAI_MODELS)
-        assert registry.define_model.call_count == len(SUPPORTED_OPENAI_MODELS)
+        assert len(actions) == len(SUPPORTED_OPENAI_MODELS)
 
 
 @pytest.mark.parametrize(
     'kind, name',
     [(ActionKind.MODEL, 'gpt-3.5-turbo')],
 )
-def test_openai_plugin_resolve_action(kind, name):
-    """Unit Tests for resolve action method."""
+@pytest.mark.asyncio
+async def test_openai_plugin_resolve_action(kind, name):
+    """Unit Tests for resolve method."""
     plugin = OpenAI(api_key='test-key')
-    registry = MagicMock(spec=Genkit)
-    plugin.resolve_action(registry, kind, name)
-
-    model_info = SUPPORTED_OPENAI_MODELS[name]
-
-    registry.define_model.assert_called_once_with(
-        name=f'openai/{name}',
-        fn=ANY,
-        config_schema=OpenAIConfig,
-        metadata={
-            'model': {
-                'label': model_info.label,
-                'supports': {
-                    'media': False,
-                    'multiturn': True,
-                    'output': [
-                        'json_mode',
-                        'text',
-                    ],
-                    'system_role': True,
-                    'tools': True,
-                },
-            },
-        },
-    )
+    action = await plugin.resolve(kind, name)
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
+    assert action.name == name
+    assert action.metadata is not None
 
 
-def test_openai_plugin_list_actions() -> None:
+@pytest.mark.asyncio
+async def test_openai_plugin_list_actions() -> None:
     entries = [
         Model(id='gpt-4-0613', created=1686588896, object='model', owned_by='openai'),
         Model(id='gpt-4', created=1687882411, object='model', owned_by='openai'),
@@ -94,9 +74,7 @@ def test_openai_plugin_list_actions() -> None:
 
     plugin._openai_client = mock_client
 
-    actions: list[ActionMetadata] = plugin.list_actions
-    mock_client.models.list.assert_called_once()
-    _ = plugin.list_actions
+    actions: list[ActionMetadata] = await plugin.list_actions()
     mock_client.models.list.assert_called_once()
 
     assert len(actions) == len(entries)
@@ -108,14 +86,14 @@ def test_openai_plugin_list_actions() -> None:
     'kind, name',
     [(ActionKind.MODEL, 'model_doesnt_exist')],
 )
-def test_openai_plugin_resolve_action_not_found(kind, name):
-    """Unit Tests for resolve action method."""
-
+@pytest.mark.asyncio
+async def test_openai_plugin_resolve_action_not_found(kind, name):
+    """Unknown models are still resolvable (compat plugin)."""
     plugin = OpenAI(api_key='test-key')
-    registry = MagicMock(spec=Genkit)
-    plugin.resolve_action(registry, kind, name)
-
-    registry.define_model.assert_called_once()
+    action = await plugin.resolve(kind, name)
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
+    assert action.name == name
 
 
 def test_openai_model_function() -> None:

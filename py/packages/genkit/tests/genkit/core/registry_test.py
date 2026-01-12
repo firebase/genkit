@@ -11,7 +11,7 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import pytest
 
-from genkit.ai import Genkit, GenkitRegistry, Plugin
+from genkit.ai import Genkit
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind, ActionMetadataKey
 from genkit.core.registry import Registry
@@ -29,17 +29,21 @@ def test_register_list_actions_resolver():
     assert 'test_plugin' in registry._list_actions_resolvers
 
 
-def test_register_list_actions_resolver_raises_exception():
-    """Test when ValueError is raised."""
+def test_register_list_actions_resolver_multiple():
+    """Test that multiple resolvers can be registered for the same plugin."""
     registry = Registry()
 
-    def list_actions_mock():
+    def list_actions_mock1():
         return []
 
-    registry._list_actions_resolvers['test_plugin'] = list_actions_mock
+    def list_actions_mock2():
+        return []
 
-    with pytest.raises(ValueError, match=r'Plugin .* already registered'):
-        registry.register_list_actions_resolver('test_plugin', list_actions_mock)
+    registry.register_list_actions_resolver('test_plugin', list_actions_mock1)
+    registry.register_list_actions_resolver('test_plugin', list_actions_mock2)
+
+    assert 'test_plugin' in registry._list_actions_resolvers
+    assert len(registry._list_actions_resolvers['test_plugin']) == 2
 
 
 def test_register_action_with_name_and_kind() -> None:
@@ -159,45 +163,12 @@ def test_list_actions(allowed_kind, expected) -> None:
         ]
 
     registry = Registry()
-    registry._list_actions_resolvers['test_plugin'] = list_actions_mock
+    registry._list_actions_resolvers['test_plugin'] = [list_actions_mock]
     registry._entries[ActionKind.CUSTOM] = {}
     registry._entries[ActionKind.TOOL] = {}
 
-    got = registry.list_actions({}, allowed_kind)
+    got = registry.list_actions_sync({}, allowed_kind)
     assert got == expected
-
-
-def test_resolve_action_from_plugin():
-    """Resolve action from plugin test."""
-    resolver_calls = []
-
-    class MyPlugin(Plugin):
-        name = 'myplugin'
-
-        def resolve_action(self, ai: GenkitRegistry, kind: ActionKind, name: str):
-            nonlocal resolver_calls
-            resolver_calls.append([kind, name])
-
-            def model_fn():
-                pass
-
-            ai.define_model(name=name, fn=model_fn)
-
-        def initialize(self, ai: GenkitRegistry) -> None:
-            pass
-
-    ai = Genkit(plugins=[MyPlugin()])
-
-    action = ai.registry.lookup_action(ActionKind.MODEL, 'myplugin/foo')
-
-    assert action is not None
-    assert len(resolver_calls) == 1
-
-    assert resolver_calls == [[ActionKind.MODEL, 'myplugin/foo']]
-
-    # should be idempotent
-    ai.registry.lookup_action(ActionKind.MODEL, 'myplugin/foo')
-    assert len(resolver_calls) == 1
 
 
 def test_register_value():

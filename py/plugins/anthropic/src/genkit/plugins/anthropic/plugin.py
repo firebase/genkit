@@ -16,8 +16,10 @@
 
 """Anthropic plugin for Genkit."""
 
+import os
+
 from anthropic import AsyncAnthropic
-from genkit.ai import PluginV2
+from genkit.ai import Plugin
 from genkit.blocks.model import model
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
@@ -40,39 +42,50 @@ def anthropic_name(name: str) -> str:
     return f'{ANTHROPIC_PLUGIN_NAME}/{name}'
 
 
-class Anthropic(PluginV2):
-    """Anthropic plugin for Genkit (v2).
+class Anthropic(Plugin):
+    """Anthropic plugin for Genkit.
 
     This plugin adds Anthropic models to Genkit for generative AI applications.
     Can be used standalone (without framework) or with Genkit framework.
 
     Example (standalone):
-        >>> plugin = Anthropic(api_key="...")
-        >>> claude = await plugin.model("claude-3-5-sonnet")
-        >>> response = await claude.arun({"messages": [...]})
+        >>> plugin = Anthropic(api_key='...')
+        >>> claude = await plugin.model('claude-3-5-sonnet')
+        >>> response = await claude.arun({'messages': [...]})
 
     Example (with framework):
-        >>> ai = Genkit(plugins=[Anthropic(api_key="...")])
-        >>> response = await ai.generate("anthropic/claude-3-5-sonnet", prompt="Hi")
+        >>> ai = Genkit(plugins=[Anthropic(api_key='...')])
+        >>> response = await ai.generate('anthropic/claude-3-5-sonnet', prompt='Hi')
     """
 
     name = ANTHROPIC_PLUGIN_NAME
 
     def __init__(
         self,
+        api_key: str | None = None,
+        models: list[str] | None = None,
         **anthropic_params: str,
     ) -> None:
         """Initializes Anthropic plugin with given configuration.
 
         Args:
+            api_key: Optional Anthropic API key. If not provided, uses `ANTHROPIC_API_KEY`
+                from the environment (or lets the Anthropic client handle defaults).
+            models: Optional list of supported Anthropic models to expose via this plugin.
             **anthropic_params: Additional parameters passed to the AsyncAnthropic client.
                 This may include api_key, base_url, timeout, and other configuration
                 settings required by Anthropic's API.
         """
-        self._anthropic_params = anthropic_params
-        self._anthropic_client = AsyncAnthropic(**anthropic_params)
+        if api_key is None:
+            api_key = os.getenv('ANTHROPIC_API_KEY')
 
-    def init(self) -> list[Action]:
+        self.models = models or list(SUPPORTED_ANTHROPIC_MODELS.keys())
+        self._anthropic_params = anthropic_params
+        self._anthropic_client = (
+            AsyncAnthropic(api_key=api_key, **anthropic_params) if api_key else AsyncAnthropic(**anthropic_params)
+        )
+
+    async def init(self) -> list[Action]:
         """Return eagerly-initialized model actions.
 
         Called once during Genkit initialization. Loads ALL supported
@@ -81,12 +94,9 @@ class Anthropic(PluginV2):
         Returns:
             List of Action objects for all supported models.
         """
-        return [
-            self._create_model_action(model_name)
-            for model_name in SUPPORTED_ANTHROPIC_MODELS.keys()
-        ]
+        return [self._create_model_action(model_name) for model_name in self.models]
 
-    def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve a specific model action on-demand.
 
         Called when framework needs an action not from init().
@@ -101,12 +111,12 @@ class Anthropic(PluginV2):
         """
         if action_type == ActionKind.MODEL:
             # Check if we support this model
-            if name in SUPPORTED_ANTHROPIC_MODELS:
+            if name in self.models:
                 return self._create_model_action(name)
 
         return None
 
-    def list(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[ActionMetadata]:
         """Return metadata for all supported Anthropic models.
 
         Used for discovery and developer tools.
@@ -120,9 +130,8 @@ class Anthropic(PluginV2):
                 kind=ActionKind.MODEL,
                 info=get_model_info(model_name).model_dump(),
             )
-            for model_name in SUPPORTED_ANTHROPIC_MODELS.keys()
+            for model_name in self.models
         ]
-
 
     def _create_model_action(self, model_name: str) -> Action:
         """Create an Action for an Anthropic model (doesn't register).

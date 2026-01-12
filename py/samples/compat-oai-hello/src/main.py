@@ -212,7 +212,7 @@ async def get_weather_flow_stream(location: str) -> str:
 
 
 class Skills(BaseModel):
-    """A set of core character skills for an RPG character"""
+    """A set of core character skills for an RPG character."""
 
     strength: int = Field(description='strength (0-100)')
     charisma: int = Field(description='charisma (0-100)')

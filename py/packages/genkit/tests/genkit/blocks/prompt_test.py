@@ -28,14 +28,15 @@ from genkit.ai import Genkit
 from genkit.blocks.prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
+    DocumentData,
     GenerateActionOptions,
     GenerateRequest,
+    GenerateResponse,
     GenerationCommonConfig,
     Message,
     Role,
     TextPart,
     ToolChoice,
-    ToolDefinition,
 )
 from genkit.testing import (
     define_echo_model,
@@ -147,6 +148,55 @@ async def test_prompt_with_kitchensink() -> None:
     assert (await response).text == want_txt
 
 
+@pytest.mark.asyncio
+async def test_prompt_with_resolvers() -> None:
+    """Test that the rendering works with resolvers."""
+    ai, *_ = setup_test()
+
+    async def system_resolver(input, context):
+        return f'system {input["name"]}'
+
+    def prompt_resolver(input, context):
+        return f'prompt {input["name"]}'
+
+    async def messages_resolver(input, context):
+        return [Message(role=Role.USER, content=[TextPart(text=f'msg {input["name"]}')])]
+
+    my_prompt = ai.define_prompt(
+        system=system_resolver,
+        prompt=prompt_resolver,
+        messages=messages_resolver,
+    )
+
+    want_txt = '[ECHO] system: "system world" user: "msg world" user: "prompt world"'
+
+    response = await my_prompt(input={'name': 'world'})
+
+    assert response.text == want_txt
+
+
+@pytest.mark.asyncio
+async def test_prompt_with_docs_resolver() -> None:
+    """Test that the rendering works with docs resolver."""
+    ai, _, pm = setup_test()
+
+    pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='ok')]))]
+
+    async def docs_resolver(input, context):
+        return [DocumentData(content=[TextPart(text=f'doc {input["name"]}')])]
+
+    my_prompt = ai.define_prompt(
+        model='programmableModel',
+        prompt='hi',
+        docs=docs_resolver,
+    )
+
+    await my_prompt(input={'name': 'world'})
+
+    # Check that PM received the docs
+    assert pm.last_request.docs[0].content[0].root.text == 'doc world'
+
+
 test_cases_parse_partial_json = [
     (
         'renders system prompt',
@@ -208,7 +258,6 @@ test_cases_parse_partial_json = [
 ]
 
 
-@pytest.mark.skip(reason='issues when running on CI')
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     'test_case, prompt, input, input_option, context, want_rendered',
@@ -321,6 +370,25 @@ async def test_load_and_use_partial() -> None:
 
 
 @pytest.mark.asyncio
+async def test_define_partial_programmatically() -> None:
+    """Test defining partials programmatically using ai.define_partial()."""
+    ai, *_ = setup_test()
+
+    # Define a partial programmatically
+    ai.define_partial('myGreeting', 'Greetings, {{name}}!')
+
+    # Create a prompt that uses the partial
+    my_prompt = ai.define_prompt(
+        messages='{{>myGreeting}} Welcome to Genkit.',
+    )
+
+    response = await my_prompt(input={'name': 'Developer'})
+
+    # The partial should be included in the output
+    assert 'Greetings' in response.text and 'Developer' in response.text
+
+
+@pytest.mark.asyncio
 async def test_prompt_with_messages_list() -> None:
     """Test prompt with explicit messages list."""
     ai, *_ = setup_test()
@@ -350,7 +418,7 @@ async def test_messages_with_explicit_override() -> None:
         prompt='Final question',
     )
 
-    override_messages = [
+    [
         Message(role=Role.USER, content=[TextPart(text='First message')]),
         Message(role=Role.MODEL, content=[TextPart(text='First response')]),
     ]
@@ -509,7 +577,6 @@ async def test_prompt_and_executable_prompt_return_types() -> None:
 @pytest.mark.asyncio
 async def test_lookup_prompt_returns_executable_prompt() -> None:
     """lookup_prompt should return an ExecutablePrompt that can be called."""
-
     ai, *_ = setup_test()
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -600,7 +667,7 @@ async def test_automatic_prompt_loading_defaults_mock():
 @pytest.mark.asyncio
 async def test_automatic_prompt_loading_defaults_missing():
     """Test that Genkit skips loading when ./prompts is missing."""
-    from unittest.mock import ANY, MagicMock, patch
+    from unittest.mock import MagicMock, patch
 
     with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
         # Setup mock to simulate ./prompts missing

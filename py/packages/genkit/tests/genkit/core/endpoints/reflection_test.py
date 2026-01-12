@@ -98,7 +98,7 @@ async def test_notify_endpoint(asgi_client):
 @pytest.mark.asyncio
 async def test_run_action_not_found(asgi_client, mock_registry):
     """Test that requesting a non-existent action returns a 404 error."""
-    mock_registry.lookup_action_by_key.return_value = None
+    mock_registry.resolve_action_by_key.return_value = None
     response = await asgi_client.post(
         '/api/runAction',
         json={'key': 'non_existent_action', 'input': {'data': 'test'}},
@@ -116,7 +116,7 @@ async def test_run_action_standard(asgi_client, mock_registry):
     mock_output.trace_id = 'test_trace_id'
     mock_action.arun_raw.return_value = mock_output
 
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    mock_registry.resolve_action_by_key.return_value = mock_action
 
     response = await asgi_client.post('/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}})
 
@@ -137,7 +137,7 @@ async def test_run_action_with_context(asgi_client, mock_registry):
     mock_output.trace_id = 'test_trace_id'
     mock_action.arun_raw.return_value = mock_output
 
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    mock_registry.resolve_action_by_key.return_value = mock_action
 
     response = await asgi_client.post(
         '/api/runAction',
@@ -169,7 +169,7 @@ async def test_run_action_streaming(mock_is_streaming, asgi_client, mock_registr
         return mock_output
 
     mock_action.arun_raw.side_effect = mock_streaming
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    mock_registry.resolve_action_by_key.return_value = mock_action
 
     response = await asgi_client.post(
         '/api/runAction?stream=true',

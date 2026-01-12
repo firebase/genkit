@@ -20,7 +20,11 @@ from typing import Any
 from google.auth.credentials import Credentials
 from google.cloud import aiplatform_v1
 
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai import Plugin
+from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.vertex_ai.vector_search.retriever import (
     DocRetriever,
     RetrieverOptionsSchema,
@@ -42,13 +46,10 @@ def vertexai_name(name: str) -> str:
 
 
 class VertexAIVectorSearch(Plugin):
-    """A plugin for integrating VertexAI Vector Search.
+    """A plugin for integrating VertexAI Vector Search."""
 
-    This class registers VertexAI Vector Stores within a registry,
-    and allows interaction to retrieve similar documents.
-    """
-
-    name: str = 'vertexAIVectorSearch'
+    name: str = VERTEXAI_PLUGIN_NAME
+    retriever_name: str = 'vertexAIVectorSearch'
 
     def __init__(
         self,
@@ -90,25 +91,56 @@ class VertexAIVectorSearch(Plugin):
             credentials=credentials,
         )
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize plugin with the retriver specified.
+    async def init(self) -> list[Action]:
+        return [self._create_retriever_action()]
 
-        Register actions with the registry making them available for use in the Genkit framework.
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        if action_type != ActionKind.RETRIEVER:
+            return None
+        if name != self.retriever_name:
+            return None
+        return self._create_retriever_action()
 
-        Args:
-            ai: The registry to register actions with.
-        """
-        retriever = self.retriever_cls(
-            ai=ai,
-            name=self.name,
-            match_service_client_generator=self._match_service_client_generator,
-            embedder=self.embedder,
-            embedder_options=self.embedder_options,
-            **self.retriever_extra_args,
-        )
+    async def list_actions(self) -> list[ActionMetadata]:
+        return [
+            retriever_action_metadata(
+                name=self.retriever_name,
+                options=RetrieverOptions(
+                    label='Vertex AI Vector Search',
+                    config_schema=to_json_schema(RetrieverOptionsSchema),
+                ),
+            )
+        ]
 
-        return ai.define_retriever(
-            name=vertexai_name(self.name),
-            config_schema=RetrieverOptionsSchema,
-            fn=retriever.retrieve,
+    def _create_retriever_action(self) -> Action:
+        metadata: dict[str, Any] = {
+            'retriever': {
+                'label': self.retriever_name,
+                'customOptions': to_json_schema(RetrieverOptionsSchema),
+            }
+        }
+
+        async def retrieve(request, ctx):
+            ai = (ctx.context or {}).get('__genkit_ai__')
+            if ai is None:
+                raise ValueError(
+                    'VertexAIVectorSearch retriever requires a Genkit instance in action context. '
+                    'Use it via `await ai.retrieve(...)`.'
+                )
+
+            retriever = self.retriever_cls(
+                ai=ai,
+                name=self.retriever_name,
+                match_service_client_generator=self._match_service_client_generator,
+                embedder=self.embedder,
+                embedder_options=self.embedder_options,
+                **self.retriever_extra_args,
+            )
+            return await retriever.retrieve(request, ctx)
+
+        return Action(
+            kind=ActionKind.RETRIEVER,
+            name=self.retriever_name,
+            fn=retrieve,
+            metadata=metadata,
         )

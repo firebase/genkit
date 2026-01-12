@@ -32,7 +32,7 @@ from genkit.blocks.model import (
 from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
-from genkit.core.error import GenkitError, StatusName
+from genkit.core.error import GenkitError
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -97,7 +97,7 @@ async def generate_action(
     Returns:
         The generated response.
     """
-    model, tools, format_def = resolve_parameters(registry, raw_request)
+    model, tools, format_def = await resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
 
@@ -350,11 +350,7 @@ def apply_format(
         raw_request.output.instructions if raw_request.output else None,
     )
 
-    if (
-        format_def.config.default_instructions != False or raw_request.output.instructions
-        if raw_request.output
-        else False
-    ):
+    if format_def.config.default_instructions or raw_request.output.instructions if raw_request.output else False:
         out_request.messages = inject_instructions(out_request.messages, instructions)
 
     if format_def.config.constrained is not None:
@@ -384,7 +380,7 @@ def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | No
     if isinstance(instructions_opt, str):
         # user provided instructions
         return instructions_opt
-    if instructions_opt == False:
+    if not instructions_opt:
         # user says no instructions
         return None
     if not formatter:
@@ -425,7 +421,7 @@ def assert_valid_tool_names(raw_request: GenerateActionOptions):
     pass
 
 
-def resolve_parameters(
+async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
 ) -> tuple[Action, list[Action], FormatDef | None]:
     """Resolve parameters for the generate action.
@@ -442,14 +438,14 @@ def resolve_parameters(
     if not model:
         raise Exception('No model configured.')
 
-    model_action = registry.lookup_action(ActionKind.MODEL, model)
+    model_action = await registry.resolve_action(ActionKind.MODEL, model)
     if model_action is None:
         raise Exception(f'Failed to to resolve model {model}')
 
     tools: list[Action] = []
     if request.tools:
         for tool_name in request.tools:
-            tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
+            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
                 raise Exception(f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
@@ -541,7 +537,7 @@ async def resolve_tool_requests(
     # TODO: prompt transfer
     tool_dict: dict[str, Action] = {}
     for tool_name in request.tools:
-        tool_dict[tool_name] = resolve_tool(registry, tool_name)
+        tool_dict[tool_name] = await resolve_tool(registry, tool_name)
 
     revised_model_message = message._original_message.model_copy(deep=True)
 
@@ -646,7 +642,7 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-def resolve_tool(registry: Registry, tool_name: str):
+async def resolve_tool(registry: Registry, tool_name: str):
     """Resolve a tool by name from the registry.
 
     Args:
@@ -659,7 +655,7 @@ def resolve_tool(registry: Registry, tool_name: str):
     Raises:
         ValueError: If the tool could not be resolved.
     """
-    return registry.lookup_action(kind=ActionKind.TOOL, name=tool_name)
+    return await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
 
 
 async def _resolve_resume_options(

@@ -65,7 +65,7 @@ def test_streaming():
         headers={'Authorization': 'Pavel', 'content-Type': 'application/json', 'accept': 'text/event-stream'},
     )
 
-    assert response.is_streamed == True
+    assert response.is_streamed
 
     chunks = []
     for chunk in response.response:

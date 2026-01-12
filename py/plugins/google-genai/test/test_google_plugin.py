@@ -24,14 +24,13 @@ from unittest.mock import MagicMock, patch, ANY
 
 from google.auth.credentials import Credentials
 from pydantic import BaseModel
-from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, HttpOptions
+from google.genai.types import HttpOptions
 
 import pytest
 from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
 from genkit.blocks.embedding import embedder_action_metadata, EmbedderOptions, EmbedderSupports
 from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
-from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai import (
     GoogleAI,
     VertexAI,
@@ -46,7 +45,6 @@ from genkit.plugins.google_genai.models.embedder import (
 )
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
-    GeminiConfigSchema,
     SUPPORTED_MODELS,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
@@ -131,23 +129,24 @@ class TestGoogleAIInit(unittest.TestCase):
                 GoogleAI()
 
 
-def test_googleai_initialize():
-    """Unit tests for GoogleAI.initialize method."""
+@pytest.mark.asyncio
+async def test_googleai_initialize():
+    """Unit tests for GoogleAI.init method (V2)."""
     api_key = 'test_api_key'
     plugin = GoogleAI(api_key=api_key)
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin.initialize(ai_mock)
+    actions = await plugin.init()
 
-    assert ai_mock.define_model.call_count == len(GoogleAIGeminiVersion)
-    assert ai_mock.define_embedder.call_count == len(GeminiEmbeddingModels)
+    # Check we got actions for all models and embedders
+    model_actions = [a for a in actions if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in actions if a.kind == ActionKind.EMBEDDER]
 
+    assert len(model_actions) == len(GoogleAIGeminiVersion)
+    assert len(embedder_actions) == len(GeminiEmbeddingModels)
+
+    # Check model names are correct
     for version in GoogleAIGeminiVersion:
-        ai_mock.define_model.assert_any_call(
-            name=googleai_name(version),
-            fn=ANY,
-            metadata=ANY,
-        )
+        assert any(a.name == str(version) for a in model_actions)
 
     for version in GeminiEmbeddingModels:
         ai_mock.define_embedder.assert_any_call(

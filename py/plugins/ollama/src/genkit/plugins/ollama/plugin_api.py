@@ -16,15 +16,15 @@
 
 """Ollama Plugin for Genkit."""
 
-import asyncio
-from functools import cached_property, partial
+from functools import partial
 
 import structlog
 
 import ollama as ollama_api
-from genkit.ai import GenkitRegistry, Plugin
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.blocks.model import model_action_metadata
+from genkit.ai import Plugin
+from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder, embedder_action_metadata
+from genkit.blocks.model import model, model_action_metadata
+from genkit.core.action import Action
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.plugins.ollama.constants import (
@@ -91,148 +91,54 @@ class Ollama(Plugin):
 
         self.client = partial(ollama_api.AsyncClient, host=self.server_address)
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize the Ollama plugin.
-
-        Registers the defined Ollama models and embedders with the Genkit AI registry.
-
-        Args:
-            ai: The AI registry to initialize the plugin with.
-        """
-        self._initialize_models(ai=ai)
-        self._initialize_embedders(ai=ai)
-
-    def _initialize_models(self, ai: GenkitRegistry) -> None:
-        """Initializes and registers the specified Ollama models with Genkit.
-
-        Args:
-            ai: The Genkit AI registry instance.
-        """
+    async def init(self):
+        """Return eagerly-initialized model and embedder actions."""
+        actions = []
         for model_definition in self.models:
-            self._define_ollama_model(ai, model_definition)
+            actions.append(self._create_model_action(model_definition))
+        for embedder_definition in self.embedders:
+            actions.append(self._create_embedder_action(embedder_definition))
+        return actions
 
-    def _initialize_embedders(self, ai: GenkitRegistry) -> None:
-        """Initializes and registers the specified Ollama embedders with Genkit.
+    async def resolve(self, action_type: ActionKind, name: str):
+        """Resolve a model or embedder action on-demand."""
+        clean_name = name.replace(f'{OLLAMA_PLUGIN_NAME}/', '') if name.startswith(OLLAMA_PLUGIN_NAME) else name
 
-        Args:
-            ai: The Genkit AI registry instance.
-        """
-        for embedding_definition in self.embedders:
-            self._define_ollama_embedder(ai, embedding_definition)
+        if action_type == ActionKind.MODEL:
+            # Prefer configured model definitions (api_type, supports) when available.
+            for model_def in self.models:
+                configured_name = (
+                    model_def.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
+                    if model_def.name.startswith(OLLAMA_PLUGIN_NAME)
+                    else model_def.name
+                )
+                if configured_name == clean_name:
+                    return self._create_model_action(model_def)
+            return self._create_model_action(ModelDefinition(name=clean_name))
+        elif action_type == ActionKind.EMBEDDER:
+            for embedder_def in self.embedders:
+                configured_name = (
+                    embedder_def.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
+                    if embedder_def.name.startswith(OLLAMA_PLUGIN_NAME)
+                    else embedder_def.name
+                )
+                if configured_name == clean_name:
+                    return self._create_embedder_action(embedder_def)
+            return self._create_embedder_action(EmbeddingDefinition(name=clean_name))
+        return None
 
-    def resolve_action(
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        """Resolves and action.
-
-        Args:
-            ai: The Genkit registry.
-            kind: The kind of action to resolve.
-            name: The name of the action to resolve.
-        """
-        if kind == ActionKind.MODEL:
-            self._define_ollama_model(ai, ModelDefinition(name=name))
-        elif kind == ActionKind.EMBEDDER:
-            self._define_ollama_embedder(ai, EmbeddingDefinition(name=name))
-
-    def _define_ollama_model(self, ai: GenkitRegistry, model_ref: ModelDefinition) -> None:
-        """Defines and registers an Ollama model with Genkit.
-
-        Cleans the model name, instantiates an OllamaModel, and registers it
-        with the provided Genkit AI registry, including metadata about its capabilities.
-
-        Args:
-            ai: The Genkit AI registry instance.
-            model_ref: The definition of the model to be registered.
-        """
-        _clean_name = (
-            model_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
-            if model_ref.name.startswith(OLLAMA_PLUGIN_NAME)
-            else model_ref.name
-        )
-
-        model_ref.name = _clean_name
-        model = OllamaModel(
-            client=self.client,
-            model_definition=model_ref,
-        )
-
-        ai.define_model(
-            name=ollama_name(model_ref.name),
-            fn=model.generate,
-            config_schema=GenerationCommonConfig,
-            metadata={
-                'label': f'Ollama - {_clean_name}',
-                'multiturn': model_ref.api_type == OllamaAPITypes.CHAT,
-                'system_role': True,
-                'tools': model_ref.supports.tools,
-            },
-        )
-
-    def _define_ollama_embedder(self, ai: GenkitRegistry, embedder_ref: EmbeddingDefinition) -> None:
-        """Defines and registers an Ollama embedder with Genkit.
-
-        Cleans the embedder name, instantiates an OllamaEmbedder, and registers it
-        with the provided Genkit AI registry, including metadata about its capabilities
-        and expected output dimensions.
-
-        Args:
-            ai: The Genkit AI registry instance.
-            embedder_ref: The definition of the embedding model to be registered.
-        """
-        _clean_name = (
-            embedder_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
-            if embedder_ref.name.startswith(OLLAMA_PLUGIN_NAME)
-            else embedder_ref.name
-        )
-
-        embedder_ref.name = _clean_name
-        embedder = OllamaEmbedder(
-            client=self.client,
-            embedding_definition=embedder_ref,
-        )
-
-        ai.define_embedder(
-            name=ollama_name(embedder_ref.name),
-            fn=embedder.embed,
-            options=EmbedderOptions(
-                config_schema=to_json_schema(ollama_api.Options),
-                label=f'Ollama Embedding - {_clean_name}',
-                dimensions=embedder_ref.dimensions,
-                supports=EmbedderSupports(input=['text']),
-            ),
-        )
-
-    @cached_property
-    def list_actions(self) -> list[dict[str, str]]:
-        """Generate a list of available actions or models.
-
-        Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                - name (str): The name of the action or model.
-                - kind (ActionKind): The type or category of the action.
-                - info (dict): The metadata dictionary describing the model configuration and properties.
-                - config_schema (type): The schema class used for validating the model's configuration.
-        """
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
+    async def list_actions(self):
+        """List all available Ollama models and embedders."""
         _client = self.client()
-        response = loop.run_until_complete(_client.list())
+        response = await _client.list()
 
         actions = []
-        for model in response.models:
-            _name = model.model
+        for model_info in response.models:
+            _name = model_info.model
             if 'embed' in _name:
                 actions.append(
                     embedder_action_metadata(
-                        name=ollama_name(_name),
+                        name=_name,
                         options=EmbedderOptions(
                             config_schema=to_json_schema(ollama_api.Options),
                             label=f'Ollama Embedding - {_name}',
@@ -243,7 +149,7 @@ class Ollama(Plugin):
             else:
                 actions.append(
                     model_action_metadata(
-                        name=ollama_name(_name),
+                        name=_name,
                         config_schema=GenerationCommonConfig,
                         info={
                             'label': f'Ollama - {_name}',
@@ -254,3 +160,54 @@ class Ollama(Plugin):
                     )
                 )
         return actions
+
+    def _create_model_action(self, model_ref: ModelDefinition) -> Action:
+        """Create an Ollama model action (doesn't register)."""
+        _clean_name = (
+            model_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
+            if model_ref.name.startswith(OLLAMA_PLUGIN_NAME)
+            else model_ref.name
+        )
+
+        model_ref.name = _clean_name
+        ollama_model = OllamaModel(
+            client=self.client,
+            model_definition=model_ref,
+        )
+
+        return model(
+            name=model_ref.name,
+            fn=ollama_model.generate,
+            config_schema=GenerationCommonConfig,
+            metadata={
+                'label': f'Ollama - {_clean_name}',
+                'multiturn': model_ref.api_type == OllamaAPITypes.CHAT,
+                'system_role': True,
+                'tools': model_ref.supports.tools,
+            },
+        )
+
+    def _create_embedder_action(self, embedder_ref: EmbeddingDefinition) -> Action:
+        """Create an Ollama embedder action (doesn't register)."""
+        _clean_name = (
+            embedder_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
+            if embedder_ref.name.startswith(OLLAMA_PLUGIN_NAME)
+            else embedder_ref.name
+        )
+
+        embedder_ref.name = _clean_name
+        ollama_embedder = OllamaEmbedder(
+            client=self.client,
+            embedding_definition=embedder_ref,
+        )
+
+        return embedder(
+            name=embedder_ref.name,
+            fn=ollama_embedder.embed,
+            options=EmbedderOptions(
+                config_schema=to_json_schema(ollama_api.Options),
+                label=f'Ollama Embedding - {_clean_name}',
+                dimensions=embedder_ref.dimensions,
+                supports=EmbedderSupports(input=['text']),
+            ),
+        )

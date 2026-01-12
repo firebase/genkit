@@ -20,14 +20,14 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
-from typing import Any, Awaitable, Dict, List, Literal, Protocol, Union
-
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum
 else:
     from enum import StrEnum
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # Type alias for action name.
 # type ActionName = str
@@ -57,6 +57,7 @@ class ActionKind(StrEnum):
     MODEL = 'model'
     PROMPT = 'prompt'
     RERANKER = 'reranker'
+    RESOURCE = 'resource'
     RETRIEVER = 'retriever'
     TOOL = 'tool'
     UTIL = 'util'

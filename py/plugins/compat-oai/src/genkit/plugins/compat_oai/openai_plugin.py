@@ -15,25 +15,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""OpenAI OpenAI API Compatible Plugin for Genkit."""
+"""OpenAI OpenAI API Compatible Plugin for Genkit (v2)."""
 
-from functools import cached_property
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from openai import OpenAI as OpenAIClient
-from openai.types import Embedding, Model
+from openai.types import Model
 
-from genkit.ai._plugin import Plugin
-from genkit.ai._registry import GenkitRegistry
+from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.blocks.model import model_action_metadata
+from genkit.blocks.model import model, model_action_metadata
 from genkit.core.action import ActionMetadata
-from genkit.core.action.types import ActionKind
+from genkit.core.registry import ActionKind
 from genkit.core.typing import GenerationCommonConfig
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
-    OpenAIModel,
     OpenAIModelHandler,
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
@@ -78,26 +76,9 @@ class OpenAI(Plugin):
         self._openai_params = openai_params
         self._openai_client = OpenAIClient(**openai_params)
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Registers supported OpenAI models in the given registry.
-
-        Args:
-            ai: The registry where OpenAI models will be registered.
-        """
-        for model_name, model_info in SUPPORTED_OPENAI_MODELS.items():
-            handler = OpenAIModelHandler.get_model_handler(model=model_name, client=self._openai_client, registry=ai)
-
-            ai.define_model(
-                name=f'openai/{model_name}',
-                fn=handler,
-                config_schema=OpenAIConfig,
-                metadata={
-                    'model': {
-                        'label': model_info.label,
-                        'supports': {'multiturn': model_info.supports.multiturn} if model_info.supports else {},
-                    },
-                },
-            )
+    async def init(self):
+        """Return eagerly-initialized model actions."""
+        return [self._create_model_action(model_name) for model_name in SUPPORTED_OPENAI_MODELS.keys()]
 
     def get_model_info(self, name: str) -> dict[str, str] | None:
         """Retrieves metadata and supported features for the specified model.
@@ -111,66 +92,40 @@ class OpenAI(Plugin):
             is provided). The 'supports' key contains a dictionary representing
             the model's capabilities (e.g., tools, streaming).
         """
-
         if model_supported := SUPPORTED_OPENAI_MODELS.get(name):
             return {
                 'label': model_supported.label,
                 'supports': model_supported.supports.model_dump(exclude_none=True),
             }
 
-        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(name, get_default_openai_model_info(self))
+        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(name, get_default_openai_model_info(name))
         return {
             'label': model_info.label,
             'supports': model_info.supports.model_dump(exclude_none=True),
         }
 
-    def resolve_action(  # noqa: B027
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        if kind is not ActionKind.MODEL:
+    async def resolve(self, action_type: ActionKind, name: str):
+        if action_type != ActionKind.MODEL:
             return None
 
-        self._define_openai_model(ai, name)
-        return None
+        clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
+        return self._create_model_action(clean_name)
 
-    def to_openai_compatible_model(self, name: str, ai: GenkitRegistry) -> Callable:
-        """Converts a OpenAi model into an OpenAI-compatible Genkit model function.
+    def to_openai_compatible_model(self, name: str) -> Callable:
+        """Return a Genkit model handler for a specific OpenAI model name."""
+        return OpenAIModelHandler.get_model_handler(model=name, client=self._openai_client)
 
-        Returns:
-            A callable function (specifically, the `generate` method of an
-            `OpenAIModel` instance) that can be used by Genkit.
-        """
-
-        openai_model = OpenAIModelHandler(OpenAIModel(name, self._openai_client, ai))
-        return openai_model.generate
-
-    def _define_openai_model(self, ai: GenkitRegistry, name: str) -> None:
-        """Defines and registers an OpenAI model with Genkit.
-
-        Cleans the model name, instantiates an OpenAI, and registers it
-        with the provided Genkit AI registry, including metadata about its capabilities.
-
-        Args:
-            ai: The Genkit AI registry instance.
-            name: The name of the model to be registered.
-        """
-
-        handler = self.to_openai_compatible_model(name, ai)
+    def _create_model_action(self, name: str):
+        handler = self.to_openai_compatible_model(name)
         model_info = self.get_model_info(name)
-        ai.define_model(
-            name=open_ai_name(name),
+        return model(
+            name=name,
             fn=handler,
             config_schema=OpenAIConfig,
-            metadata={
-                'model': model_info,
-            },
+            metadata={'model': model_info},
         )
 
-    @cached_property
-    def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
@@ -180,7 +135,6 @@ class OpenAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
-
         actions = []
         models_ = self._openai_client.models.list()
         models: list[Model] = models_.data

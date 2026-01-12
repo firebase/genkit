@@ -17,13 +17,13 @@
 """ModelGarden API Compatible Plugin for Genkit."""
 
 import os
-from functools import cached_property
 
-from genkit.ai import GenkitRegistry, Plugin
-from genkit.blocks.model import model_action_metadata
+from genkit.ai import Plugin
+from genkit.blocks.model import model, model_action_metadata
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
-from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS
+from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS, OpenAIModelHandler
+from genkit.plugins.compat_oai.models.model_info import PluginSource
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.vertex_ai import constants as const
 
@@ -61,83 +61,48 @@ class VertexAIModelGarden(Plugin):
         """
         self.project_id = project_id if project_id is not None else os.getenv(const.GCLOUD_PROJECT)
         self.location = location if location is not None else const.DEFAULT_REGION
-        self.models = models
+        self.models = models or []
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Handles actions for various openaicompatible models."""
-        models = self.models
-        if models is None:
-            return
+    async def init(self):
+        """Return eagerly-initialized model actions."""
+        return [self._create_model_action(m) for m in self.models]
 
-        for model in models:
-            model_proxy = ModelGarden(
-                model=model,
-                location=self.location,
-                project_id=self.project_id,
-                registry=ai,
-            )
-            model_proxy.define_model()
-
-    def resolve_action(
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        """Resolves and action.
-
-        Args:
-            ai: The Genkit registry.
-            kind: The kind of action to resolve.
-            name: The name of the action to resolve.
-        """
-        if kind == ActionKind.MODEL:
-            self._resolve_model(ai=ai, name=name)
-
-    def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
-        """Resolves and defines a Model Garden Vertex AI model within the Genkit registry.
-
-        This internal method handles the logic for registering new models
-        of Vertex AI Model Garden that are compatible with OpenaI
-        based on the provided name.
-        It extracts a clean name, determines the model type, instantiates the
-        appropriate model class, and registers it with the Genkit AI registry.
-
-        Args:
-            ai: The Genkit AI registry instance to define the model in.
-            name: The name of the model to resolve. This name might include a
-                prefix indicating it's from a specific plugin.
-        """
+    async def resolve(self, action_type: ActionKind, name: str):
+        if action_type != ActionKind.MODEL:
+            return None
         clean_name = (
             name.replace(MODELGARDEN_PLUGIN_NAME + '/', '') if name.startswith(MODELGARDEN_PLUGIN_NAME) else name
         )
+        if clean_name not in SUPPORTED_OPENAI_COMPAT_MODELS:
+            return None
+        return self._create_model_action(clean_name)
 
+    async def list_actions(self) -> list[ActionMetadata]:
+        return [
+            model_action_metadata(
+                name=model_garden_name(model_name),
+                info=model_info.model_dump(),
+                config_schema=OpenAIConfig,
+            )
+            for model_name, model_info in SUPPORTED_OPENAI_COMPAT_MODELS.items()
+        ]
+
+    def _create_model_action(self, model_name: str):
         model_proxy = ModelGarden(
-            model=clean_name,
+            model=model_name,
             location=self.location,
             project_id=self.project_id,
-            registry=ai,
+            registry=None,
         )
-        model_proxy.define_model()
-
-    @cached_property
-    def list_actions(self) -> list[ActionMetadata]:
-        """Generate a list of available actions or models.
-
-        Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                - name (str): The name of the action or model.
-                - kind (ActionKind): The type or category of the action.
-                - info (dict): The metadata dictionary describing the model configuration and properties.
-                - config_schema (type): The schema class used for validating the model's configuration.
-        """
-
-        actions_list = []
-        for model, model_info in SUPPORTED_OPENAI_COMPAT_MODELS.items():
-            actions_list.append(
-                model_action_metadata(
-                    name=model_garden_name(model), info=model_info.model_dump(), config_schema=OpenAIConfig
-                )
-            )
-
-        return actions_list
+        handler = OpenAIModelHandler.get_model_handler(
+            model=model_name,
+            client=model_proxy.client,  # Vertex Model Garden OpenAI-compatible client
+            source=PluginSource.MODEL_GARDEN,
+        )
+        model_info = model_proxy.get_model_info()
+        return model(
+            name=model_name,
+            fn=handler,
+            config_schema=OpenAIConfig,
+            metadata={'model': model_info},
+        )

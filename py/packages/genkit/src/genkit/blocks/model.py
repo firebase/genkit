@@ -72,7 +72,7 @@ def model(
     metadata: dict[str, Any] | None = None,
     info: ModelInfo | None = None,
     description: str | None = None,
-) -> 'Action':
+) -> Action:
     """Create a model action WITHOUT registering it.
 
     This is the v2 API for creating models. Unlike ai.define_model(),
@@ -102,8 +102,8 @@ def model(
         >>> def my_generate(request: GenerateRequest, ctx: ActionRunContext):
         ...     return GenerateResponse(...)
         >>>
-        >>> action = model(name="my-model", fn=my_generate)
-        >>> response = await action.arun({"messages": [...]})
+        >>> action = model(name='my-model', fn=my_generate)
+        >>> response = await action.arun({'messages': [...]})
 
     Note:
         This function extracts the "create action" logic from
@@ -236,12 +236,28 @@ class GenerateResponseWrapper(GenerateResponse):
             request: The GenerateRequest object associated with the response.
             message_parser: An optional function to parse the output from the message.
         """
+        # If message is not returned by generate response, try to infer
+        # message from the first candidate.
+        response_message = response.message
+        if response_message is None and response.candidates:
+            response_message = response.candidates[0].message
+        if response_message is None:
+            raise ValueError('GenerateResponse must include either `message` or at least one candidate message.')
+
+        finish_reason = response.finish_reason
+        if finish_reason is None and response.candidates:
+            finish_reason = response.candidates[0].finish_reason
+
+        finish_message = response.finish_message
+        if finish_message is None and response.candidates:
+            finish_message = response.candidates[0].finish_message
+
         super().__init__(
-            message=MessageWrapper(response.message)
-            if not isinstance(response.message, MessageWrapper)
-            else response.message,
-            finish_reason=response.finish_reason,
-            finish_message=response.finish_message,
+            message=MessageWrapper(response_message)
+            if not isinstance(response_message, MessageWrapper)
+            else response_message,
+            finish_reason=finish_reason,
+            finish_message=finish_message,
             latency_ms=response.latency_ms,
             usage=response.usage if response.usage is not None else GenerationUsage(),
             custom=response.custom if response.custom is not None else {},
@@ -529,10 +545,7 @@ def model_action_metadata(
 
 
 def model_ref(name: str, namespace: str | None = None, **options: Any) -> ModelReference:
-    """
-    The factory function equivalent to export function modelRef(...)
-    """
-
+    """The factory function equivalent to export function modelRef(...)."""
     # Logic: if (options.namespace && !name.startsWith(options.namespace + '/'))
     if namespace and not name.startswith(f'{namespace}/'):
         final_name = f'{namespace}/{name}'

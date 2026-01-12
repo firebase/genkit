@@ -16,7 +16,7 @@
 
 """Embedding actions."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -88,8 +88,8 @@ def embedder(
         >>> def my_embed(request: EmbedRequest) -> EmbedResponse:
         ...     return EmbedResponse(...)
         >>>
-        >>> action = embedder(name="my-embedder", fn=my_embed)
-        >>> response = await action.arun({"input": [...]})
+        >>> action = embedder(name='my-embedder', fn=my_embed)
+        >>> response = await action.arun({'input': [...]})
     """
     embedder_meta = metadata if metadata else {}
 

@@ -18,14 +18,14 @@
 
 from typing import Any
 
-from dotpromptz import Dotprompt
-from dotpromptz.typing import DataArgument, PromptFunction
+from dotprompt import Dotprompt
+from dotprompt.typing import DataArgument, PromptFunction
 
 dp = Dotprompt()
 
 
 async def load_prompt_file(path: str) -> PromptFunction:
-    with open(path, 'r') as f:
+    with open(path) as f:
         result = await dp.compile(f.read())
 
     return result

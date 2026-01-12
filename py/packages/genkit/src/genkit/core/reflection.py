@@ -44,6 +44,8 @@ import asyncio
 import json
 import urllib.parse
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass, field
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
@@ -73,10 +75,22 @@ from genkit.web.typing import (
 logger = structlog.get_logger(__name__)
 
 
+@dataclass
+class ActiveAction:
+    """Represents an in-flight action that can be cancelled."""
+
+    task: asyncio.Task | None
+    trace_id: str
+    start_time: datetime = field(default_factory=datetime.now)
+
+
+# Global dict to track active actions by trace ID
+_active_actions: dict[str, ActiveAction] = {}
+
+
 def make_reflection_server(
     registry: Registry,
     loop: asyncio.AbstractEventLoop,
-    id: str,
     encoding='utf-8',
     quiet=True,
 ):
@@ -114,24 +128,16 @@ def make_reflection_server(
             For the /api/actions endpoint, returns a JSON object mapping action
             keys to their metadata, including input/output schemas.
             """
-            parsed_url = urllib.parse.urlparse(self.path)
-            if parsed_url.path == '/api/__health':
-                query_params = urllib.parse.parse_qs(parsed_url.query)
-                expected_id = query_params.get('id', [None])[0]
-                if expected_id is not None and expected_id != id:
-                    self.send_response(500)
-                    self.end_headers()
-                    return
-
+            if self.path == '/api/__health':
                 self.send_response(200, 'OK')
                 self.end_headers()
 
-            elif parsed_url.path == '/api/actions':
+            elif self.path == '/api/actions':
                 self.send_response(200)
                 self.send_header('content-type', 'application/json')
                 self.end_headers()
                 actions = registry.list_serializable_actions()
-                actions = registry.list_actions(actions)
+                actions = registry.list_actions_sync(actions)
                 self.wfile.write(bytes(json.dumps(actions), encoding))
             else:
                 self.send_response(404)
@@ -158,7 +164,6 @@ def make_reflection_server(
                 post_body = self.rfile.read(content_len)
                 payload = json.loads(post_body.decode(encoding=encoding))
                 action = registry.lookup_action_by_key(payload['key'])
-                action_input = payload.get('input')
                 context = payload['context'] if 'context' in payload else {}
 
                 query = urllib.parse.urlparse(self.path).query
@@ -186,7 +191,7 @@ def make_reflection_server(
 
                         async def run_fn():
                             return await action.arun_raw(
-                                raw_input=payload.get('input'),
+                                raw_input=payload['input'],
                                 on_chunk=send_chunk,
                                 context=context,
                             )
@@ -217,7 +222,7 @@ def make_reflection_server(
                     try:
 
                         async def run_fn():
-                            return await action.arun_raw(raw_input=payload.get('input'), context=context)
+                            return await action.arun_raw(raw_input=payload['input'], context=context)
 
                         output = run_async(loop, run_fn)
 
@@ -327,8 +332,10 @@ def create_reflection_asgi_app(
         Returns:
             A JSON response containing all serializable actions.
         """
+        actions = registry.list_serializable_actions()
+        actions = await registry.list_actions(actions)
         return JSONResponse(
-            content=registry.list_serializable_actions(),
+            content=actions,
             status_code=200,
             headers={'x-genkit-version': version},
         )
@@ -347,6 +354,41 @@ def create_reflection_asgi_app(
             status_code=200,
             headers={'x-genkit-version': version},
         )
+
+    async def handle_cancel_action(request: Request) -> JSONResponse:
+        """Handle the cancelAction endpoint for cancelling running actions.
+
+        Args:
+            request: The Starlette request object containing traceId.
+
+        Returns:
+            200 with success message if action was cancelled.
+            400 if traceId is missing.
+            404 if action not found or already completed.
+        """
+        payload = await request.json()
+        trace_id = payload.get('traceId')
+
+        if not trace_id or not isinstance(trace_id, str):
+            return JSONResponse(
+                content={'error': 'traceId is required'},
+                status_code=400,
+            )
+
+        active = _active_actions.get(trace_id)
+        if active:
+            if active.task and not active.task.done():
+                active.task.cancel()
+            del _active_actions[trace_id]
+            return JSONResponse(
+                content={'message': 'Action cancelled'},
+                status_code=200,
+            )
+        else:
+            return JSONResponse(
+                content={'message': 'Action not found or already completed'},
+                status_code=404,
+            )
 
     async def handle_run_action(
         request: Request,
@@ -368,7 +410,7 @@ def create_reflection_asgi_app(
         """
         # Get the action.
         payload = await request.json()
-        action = registry.lookup_action_by_key(payload['key'])
+        action = await registry.resolve_action_by_key(payload['key'])
         if action is None:
             return JSONResponse(
                 content={'error': f'Action not found: {payload["key"]}'},
@@ -377,15 +419,13 @@ def create_reflection_asgi_app(
 
         # Run the action.
         context = payload.get('context', {})
-        action_input = payload.get('input')
         stream = is_streaming_requested(request)
         handler = run_streaming_action if stream else run_standard_action
-        return await handler(action, payload, action_input, context, version)
+        return await handler(action, payload, context, version)
 
     async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: Any,
         context: dict[str, Any],
         version: str,
     ) -> StreamingResponse | JSONResponse:
@@ -416,7 +456,7 @@ def create_reflection_asgi_app(
                     yield f'{out}\n'
 
                 output = await action.arun_raw(
-                    raw_input=payload.get('input'),
+                    raw_input=payload['input'],
                     on_chunk=send_chunk,
                     context=context,
                 )
@@ -450,7 +490,6 @@ def create_reflection_asgi_app(
     async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: Any,
         context: dict[str, Any],
         version: str,
     ) -> JSONResponse:
@@ -466,7 +505,7 @@ def create_reflection_asgi_app(
             A JSONResponse with the action result or error.
         """
         try:
-            output = await action.arun_raw(raw_input=payload.get('input'), context=context)
+            output = await action.arun_raw(raw_input=payload['input'], context=context)
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
@@ -491,6 +530,7 @@ def create_reflection_asgi_app(
             Route('/api/actions', handle_list_actions, methods=['GET']),
             Route('/api/notify', handle_notify, methods=['POST']),
             Route('/api/runAction', handle_run_action, methods=['POST']),
+            Route('/api/cancelAction', handle_cancel_action, methods=['POST']),
         ],
         middleware=[
             Middleware(

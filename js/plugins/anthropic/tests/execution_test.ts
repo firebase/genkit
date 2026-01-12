@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import type { GenerateRequest, ModelAction } from '@genkit-ai/ai/model';
 import * as assert from 'assert';
+import type { GenerateRequest } from 'genkit';
+import type { ModelAction } from 'genkit/model';
 import { describe, mock, test } from 'node:test';
 import { anthropic } from '../src/index.js';
-import { __testClient } from '../src/types.js';
+import { PluginOptions, __testClient } from '../src/types.js';
 import {
   createMockAnthropicClient,
   createMockAnthropicMessage,
@@ -35,11 +36,17 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     // Resolve the model action via plugin
-    const modelAction = plugin.resolve('model', 'claude-3-5-haiku-20241022');
-    assert.ok(modelAction, 'Model should be resolved');
+    const modelAction = plugin.resolve(
+      'model',
+      'claude-3-5-haiku-20241022'
+    ) as ModelAction;
+
     assert.strictEqual(
       (modelAction as ModelAction).__action.name,
       'anthropic/claude-3-5-haiku-20241022'
@@ -55,11 +62,11 @@ describe('Model Execution Integration Tests', () => {
       ],
     };
 
-    const response = await (modelAction as ModelAction)(request, {
+    const response = await modelAction(request, {
       streamingRequested: false,
       sendChunk: mock.fn(),
       abortSignal: new AbortController().signal,
-    });
+    } as Parameters<typeof modelAction>[1]);
 
     assert.ok(response, 'Response should be returned');
     assert.ok(response.candidates, 'Response should have candidates');
@@ -86,7 +93,10 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     const modelAction = plugin.resolve(
       'model',
@@ -114,9 +124,10 @@ describe('Model Execution Integration Tests', () => {
       streamingRequested: false,
       sendChunk: mock.fn(),
       abortSignal: new AbortController().signal,
-    });
+    } as Parameters<typeof modelAction>[1]);
 
     assert.ok(response, 'Response should be returned');
+    assert.ok(response.candidates, 'Response should have candidates');
     assert.strictEqual(
       response.candidates[0].message.content[0].text,
       'The capital of France is Paris.'
@@ -139,7 +150,10 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     const modelAction = plugin.resolve(
       'model',
@@ -163,7 +177,7 @@ describe('Model Execution Integration Tests', () => {
       streamingRequested: false,
       sendChunk: mock.fn(),
       abortSignal: new AbortController().signal,
-    });
+    } as Parameters<typeof modelAction>[1]);
 
     assert.ok(response, 'Response should be returned');
 
@@ -197,7 +211,10 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     const modelAction = plugin.resolve(
       'model',
@@ -212,7 +229,7 @@ describe('Model Execution Integration Tests', () => {
         streamingRequested: false,
         sendChunk: mock.fn(),
         abortSignal: new AbortController().signal,
-      }
+      } as Parameters<typeof modelAction>[1]
     );
 
     assert.ok(response.usage, 'Usage should be returned');
@@ -231,7 +248,10 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     const modelAction = plugin.resolve(
       'model',
@@ -246,10 +266,11 @@ describe('Model Execution Integration Tests', () => {
         streamingRequested: false,
         sendChunk: mock.fn(),
         abortSignal: new AbortController().signal,
-      }
+      } as Parameters<typeof modelAction>[1]
     );
 
     assert.ok(response, 'Response should be returned');
+    assert.ok(response.candidates, 'Response should have candidates');
     assert.strictEqual(response.candidates[0].finishReason, 'length');
   });
 
@@ -263,7 +284,10 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     // Resolve without prefix
     const modelAction = plugin.resolve(
@@ -280,7 +304,7 @@ describe('Model Execution Integration Tests', () => {
         streamingRequested: false,
         sendChunk: mock.fn(),
         abortSignal: new AbortController().signal,
-      }
+      } as Parameters<typeof modelAction>[1]
     );
 
     assert.ok(response, 'Response should be returned');
@@ -296,7 +320,10 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     // Resolve with prefix
     const modelAction = plugin.resolve(
@@ -313,7 +340,7 @@ describe('Model Execution Integration Tests', () => {
         streamingRequested: false,
         sendChunk: mock.fn(),
         abortSignal: new AbortController().signal,
-      }
+      } as Parameters<typeof modelAction>[1]
     );
 
     assert.ok(response, 'Response should be returned');
@@ -329,7 +356,10 @@ describe('Model Execution Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
+
+    // Verify plugin has resolve method
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
 
     // Resolve unknown model (passes through to API)
     const modelAction = plugin.resolve(
@@ -346,13 +376,15 @@ describe('Model Execution Integration Tests', () => {
         streamingRequested: false,
         sendChunk: mock.fn(),
         abortSignal: new AbortController().signal,
-      }
+      } as Parameters<typeof modelAction>[1]
     );
 
     assert.ok(response, 'Response should be returned for unknown model');
+    assert.ok(response.candidates, 'Response should have candidates');
     assert.strictEqual(
-      response.candidates[0].message.content[0].text,
-      'Response from future model'
+      response.candidates?.[0]?.message.content[0].text,
+      'Response from future model',
+      'Response should have candidates'
     );
   });
 });

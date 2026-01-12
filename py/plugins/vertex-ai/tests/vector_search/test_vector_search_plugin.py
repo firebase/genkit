@@ -18,17 +18,22 @@
 
 from unittest.mock import MagicMock
 
-from genkit.ai import Genkit
+import pytest
+
+from genkit.core.action.types import ActionKind
 from genkit.plugins.vertex_ai.vector_search import VertexAIVectorSearch
 
 
-def test_initialize_plugin():
-    """Test plugin initialization."""
+@pytest.mark.asyncio
+async def test_init_plugin_returns_retriever_action():
+    """PluginV2 init should return the vector-search retriever action."""
     plugin = VertexAIVectorSearch(
         retriever=MagicMock(),
         embedder='embedder',
     )
 
-    result = plugin.initialize(ai=MagicMock(spec=Genkit))
+    actions = await plugin.init()
 
-    assert result is not None
+    assert len(actions) == 1
+    assert actions[0].kind == ActionKind.RETRIEVER
+    assert actions[0].name == 'vertexAIVectorSearch'

@@ -58,6 +58,26 @@ def test_response_wrapper_text() -> None:
     assert wrapper.text == 'hello world'
 
 
+def test_response_wrapper_uses_candidates_fallback() -> None:
+    wrapper = GenerateResponseWrapper(
+        response=GenerateResponse(
+            candidates=[
+                Candidate(
+                    index=0,
+                    message=Message(role='model', content=[Part(text='hello')]),
+                    finish_reason='stop',
+                )
+            ]
+        ),
+        request=GenerateRequest(
+            messages=[],  # doesn't matter for now
+        ),
+    )
+
+    assert wrapper.text == 'hello'
+    assert wrapper.finish_reason == 'stop'
+
+
 def test_response_wrapper_output() -> None:
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(

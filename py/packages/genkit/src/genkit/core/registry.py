@@ -27,6 +27,7 @@ Example:
     >>> action = registry.lookup_action('<action kind>', 'my_action')
 """
 
+import inspect
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -36,7 +37,6 @@ from dotpromptz.dotprompt import Dotprompt
 
 from genkit.core.action import (
     Action,
-    ActionMetadata,
     create_action_key,
     parse_action_key,
     parse_plugin_name_from_action_name,
@@ -80,8 +80,10 @@ class Registry:
 
     def __init__(self):
         """Initialize an empty Registry instance."""
-        self._action_resolvers: dict[str, ActionResolver] = {}
-        self._list_actions_resolvers: dict[str, Callable] = {}
+        # Multiple plugins can contribute actions under the same plugin namespace.
+        # Example: `vertexai/*` for both model + vector search capabilities.
+        self._action_resolvers: dict[str, list[ActionResolver]] = {}
+        self._list_actions_resolvers: dict[str, list[Callable]] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
@@ -96,13 +98,9 @@ class Registry:
             plugin_name: The name of the plugin.
             resolver: The ActionResolver instance to register.
 
-        Raises:
-            ValueError: If a resolver is already registered for the plugin.
         """
         with self._lock:
-            if plugin_name in self._action_resolvers:
-                raise ValueError(f'Plugin {plugin_name} already registered')
-            self._action_resolvers[plugin_name] = resolver
+            self._action_resolvers.setdefault(plugin_name, []).append(resolver)
 
     def register_list_actions_resolver(self, plugin_name: str, resolver: Callable) -> None:
         """Registers an Callable function to list available actions or models.
@@ -111,13 +109,9 @@ class Registry:
             plugin_name: The name of the plugin.
             resolver: The Callable function to list models.
 
-        Raises:
-            ValueError: If a resolver is already registered for the plugin.
         """
         with self._lock:
-            if plugin_name in self._list_actions_resolvers:
-                raise ValueError(f'Plugin {plugin_name} already registered')
-            self._list_actions_resolvers[plugin_name] = resolver
+            self._list_actions_resolvers.setdefault(plugin_name, []).append(resolver)
 
     def register_action(
         self,
@@ -182,8 +176,24 @@ class Registry:
                 self._entries[action.kind] = {}
             self._entries[action.kind][name] = action
 
+    def register_action_from_instance(self, action: Action) -> None:
+        """Register an existing Action instance.
+        Allows registering a pre-configured Action object, such as one created via
+        `dynamic_resource` or other factory methods.
+        Args:
+           action: The action instance to register.
+        """
+        with self._lock:
+            if action.kind not in self._entries:
+                self._entries[action.kind] = {}
+            self._entries[action.kind][action.name] = action
+
     def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
         """Look up an action by its kind and name.
+
+        .. deprecated::
+            Use `await registry.resolve_action(kind, name)` instead.
+            This sync method cannot properly handle async PluginV2 plugins.
 
         Args:
             kind: The type of action to look up.
@@ -192,6 +202,13 @@ class Registry:
         Returns:
             The Action instance if found, None otherwise.
         """
+        import warnings
+
+        warnings.warn(
+            'registry.lookup_action() is deprecated. Use `await registry.resolve_action(kind, name)` instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
         with self._lock:
             # If the entry does not exist, we fist try to call the action
             # resolver for the plugin to give it a chance to dynamically add the
@@ -199,17 +216,132 @@ class Registry:
             if kind not in self._entries or name not in self._entries[kind]:
                 plugin_name = parse_plugin_name_from_action_name(name)
                 if plugin_name and plugin_name in self._action_resolvers:
-                    # Strip plugin prefix before calling resolver
-                    action_name = name.removeprefix(f"{plugin_name}/")
-                    self._action_resolvers[plugin_name](kind, action_name)
+                    # Pass the full namespaced action name to the plugin resolver.
+                    # (Many v1 plugins/tests expect to receive the full name and will
+                    # register actions using it; v2 resolvers can strip the prefix
+                    # internally.)
+                    for resolver in self._action_resolvers[plugin_name]:
+                        result = resolver(kind, name)
+                        if inspect.isawaitable(result):
+                            raise TypeError(
+                                f'Action resolver for plugin "{plugin_name}" returned an awaitable while resolving "{name}". '
+                                'Use async resolution (e.g. `await registry.resolve_action(...)`) instead of sync `lookup_action(...)`.'
+                            )
+                        if kind in self._entries and name in self._entries[kind]:
+                            break
 
             if kind in self._entries and name in self._entries[kind]:
                 return self._entries[kind][name]
 
             return None
 
+    async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
+        """Resolve an action by kind and name (async).
+
+        Resolves an action name like "openai/gpt-4" (namespaced form).
+        Registry hit: if name is already in entries[kind], return it.
+        If miss: parse plugin_name from name (first segment before /). If there's no
+        plugin prefix, it can't route → returns None.
+        If plugin prefix exists: look up the list of resolver functions registered for that
+        plugin and await them.
+        Check _entries again; if present, return it.
+
+        Args:
+            kind: The type of action to look up.
+            name: The namespaced action name (e.g., "openai/gpt-4").
+
+        Returns:
+            The Action instance if found, None otherwise.
+
+        Example:
+            >>> action = await registry.resolve_action(ActionKind.MODEL, 'openai/gpt-4')
+        """
+        # Fast path: already registered (do not trigger resolvers).
+        with self._lock:
+            if kind in self._entries and name in self._entries[kind]:
+                return self._entries[kind][name]
+
+        plugin_name = parse_plugin_name_from_action_name(name)
+        if not plugin_name:
+            return None
+
+        resolvers = self._action_resolvers.get(plugin_name)
+        if not resolvers:
+            return None
+
+        # Important: pass the full namespaced action name to the plugin resolver.
+        # V2 resolvers can strip the prefix internally if needed.
+        for resolver in resolvers:
+            result = resolver(kind, name)
+            if inspect.isawaitable(result):
+                await result
+            with self._lock:
+                if kind in self._entries and name in self._entries[kind]:
+                    return self._entries[kind][name]
+
+        with self._lock:
+            if kind in self._entries and name in self._entries[kind]:
+                return self._entries[kind][name]
+        return None
+
+    # Backwards compatibility alias
+    async def aresolve_action(self, kind: ActionKind, name: str) -> Action | None:
+        """Deprecated: use resolve_action() instead."""
+        import warnings
+
+        warnings.warn(
+            'aresolve_action() is deprecated. Use resolve_action() instead.', DeprecationWarning, stacklevel=2
+        )
+        return await self.resolve_action(kind, name)
+
+    async def resolve_action_by_key(self, key: str) -> Action | None:
+        """Resolve an action by registry key (async).
+
+        Resolves by registry key (e.g., "/model/openai/gpt-4").
+
+        Args:
+            key: The action key in the format "/kind/name".
+
+        Returns:
+            The Action instance if found, None otherwise.
+
+        Example:
+            >>> action = await registry.resolve_action_by_key('/model/openai/gpt-4')
+        """
+        kind, name = parse_action_key(key)
+        return await self.resolve_action(kind, name)
+
+    # Backwards compatibility alias
+    async def aresolve_action_by_key(self, key: str) -> Action | None:
+        """Deprecated: use resolve_action_by_key() instead."""
+        import warnings
+
+        warnings.warn(
+            'aresolve_action_by_key() is deprecated. Use resolve_action_by_key() instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return await self.resolve_action_by_key(key)
+
+    def get_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
+        """Returns a dictionary of all registered actions for a specific kind.
+
+        Args:
+            kind: The type of actions to retrieve (e.g., TOOL, MODEL, RESOURCE).
+
+        Returns:
+            A dictionary mapping action names to Action instances.
+            Returns an empty dictionary if no actions of that kind are registered.
+        """
+        with self._lock:
+            return self._entries.get(kind, {}).copy()
+
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.
+
+        .. deprecated::
+            Use `await registry.resolve_action_by_key(key)` instead.
+            This sync method cannot properly handle async PluginV2 plugins.
 
         The key format is `<kind>/<name>`, where kind must be a valid
         `ActionKind` and name must be a registered action name within that kind.
@@ -224,8 +356,18 @@ class Registry:
             ValueError: If the key format is invalid or the kind is not a valid
                 `ActionKind`.
         """
+        import warnings
+
+        warnings.warn(
+            'registry.lookup_action_by_key() is deprecated. Use `await registry.resolve_action_by_key(key)` instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
         kind, name = parse_action_key(key)
-        return self.lookup_action(kind, name)
+        # Suppress nested deprecation warning (internal delegation)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', DeprecationWarning)
+            return self.lookup_action(kind, name)
 
     def list_serializable_actions(self, allowed_kinds: set[ActionKind] | None = None) -> dict[str, Action] | None:
         """Enlist all the actions into a dictionary.
@@ -243,7 +385,8 @@ class Registry:
                 if allowed_kinds is not None and kind not in allowed_kinds:
                     continue
                 for name in self._entries[kind]:
-                    action = self.lookup_action(kind, name)
+                    # Read directly from _entries (already registered actions)
+                    action = self._entries[kind].get(name)
                     if action is not None:
                         key = create_action_key(kind, name)
                         # TODO: Serialize the Action instance
@@ -256,12 +399,16 @@ class Registry:
                         }
             return actions
 
-    def list_actions(
+    def list_actions_sync(
         self,
         actions: dict[str, Action] | None = None,
         allowed_kinds: set[ActionKind] | None = None,
     ) -> dict[str, Action] | None:
-        """Add actions or models.
+        """Add actions or models (sync version - deprecated).
+
+        .. deprecated::
+            Use `await registry.list_actions(...)` instead.
+            This sync method cannot properly handle async PluginV2 plugins.
 
         Args:
             actions: dictionary of serializable actions.
@@ -271,27 +418,97 @@ class Registry:
         Returns:
             A dictionary of serializable Actions updated.
         """
+        import warnings
+
+        warnings.warn(
+            'list_actions_sync() is deprecated. Use `await registry.list_actions(...)` instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         if actions is None:
             actions = {}
 
         for plugin_name in self._list_actions_resolvers:
-            actions_list = self._list_actions_resolvers[plugin_name]()
+            for resolver in self._list_actions_resolvers[plugin_name]:
+                actions_list = resolver()
+                if inspect.isawaitable(actions_list):
+                    raise TypeError(
+                        f'list_actions resolver for plugin "{plugin_name}" returned an awaitable. '
+                        'Use `await registry.list_actions(...)` to list actions asynchronously.'
+                    )
 
-            for _action in actions_list:
-                kind = _action.kind
-                if allowed_kinds is not None and kind not in allowed_kinds:
-                    continue
-                key = create_action_key(kind, _action.name)
+                for _action in actions_list:
+                    kind = _action.kind
+                    if allowed_kinds is not None and kind not in allowed_kinds:
+                        continue
+                    key = create_action_key(kind, _action.name)
 
-                if key not in actions:
-                    actions[key] = {
-                        'key': key,
-                        'name': _action.name,
-                        'inputSchema': _action.input_json_schema,
-                        'outputSchema': _action.output_json_schema,
-                        'metadata': _action.metadata,
-                    }
+                    if key not in actions:
+                        actions[key] = {
+                            'key': key,
+                            'name': _action.name,
+                            'inputSchema': _action.input_json_schema,
+                            'outputSchema': _action.output_json_schema,
+                            'metadata': _action.metadata,
+                        }
         return actions
+
+    async def list_actions(
+        self,
+        actions: dict[str, Action] | None = None,
+        allowed_kinds: set[ActionKind] | None = None,
+    ) -> dict[str, Action] | None:
+        """List all actions (async).
+
+        Async listing that awaits plugin list() resolvers. If allowed_kinds not provided,
+        returns action metadata for all kinds.
+
+        Args:
+            actions: Optional dictionary to append actions to.
+            allowed_kinds: Optional set of ActionKind to filter by.
+
+        Returns:
+            Dictionary of serializable actions.
+
+        Example:
+            >>> actions = await registry.list_actions(allowed_kinds={ActionKind.MODEL})
+        """
+        if actions is None:
+            actions = {}
+
+        for plugin_name in self._list_actions_resolvers:
+            for resolver in self._list_actions_resolvers[plugin_name]:
+                actions_list = resolver()
+                if inspect.isawaitable(actions_list):
+                    actions_list = await actions_list
+
+                for _action in actions_list:
+                    kind = _action.kind
+                    if allowed_kinds is not None and kind not in allowed_kinds:
+                        continue
+                    key = create_action_key(kind, _action.name)
+                    if key not in actions:
+                        actions[key] = {
+                            'key': key,
+                            'name': _action.name,
+                            'inputSchema': _action.input_json_schema,
+                            'outputSchema': _action.output_json_schema,
+                            'metadata': _action.metadata,
+                        }
+        return actions
+
+    # Backwards compatibility alias
+    async def alist_actions(
+        self,
+        actions: dict[str, Action] | None = None,
+        allowed_kinds: set[ActionKind] | None = None,
+    ) -> dict[str, Action] | None:
+        """Deprecated: use list_actions() instead."""
+        import warnings
+
+        warnings.warn('alist_actions() is deprecated. Use list_actions() instead.', DeprecationWarning, stacklevel=2)
+        return await self.list_actions(actions, allowed_kinds)
 
     def register_value(self, kind: str, name: str, value: Any):
         """Registers a value with a given kind and name.

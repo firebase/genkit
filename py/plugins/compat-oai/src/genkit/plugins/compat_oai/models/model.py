@@ -19,10 +19,9 @@
 from collections.abc import Callable
 from typing import Any
 
-from openai import OpenAI, pydantic_function_tool
+from openai import OpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
-from genkit.ai import ActionKind, GenkitRegistry
 from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import DictMessageAdapter, MessageAdapter, MessageConverter
@@ -41,17 +40,15 @@ from genkit.types import (
 class OpenAIModel:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: str, client: OpenAI, registry: GenkitRegistry):
+    def __init__(self, model: str, client: OpenAI):
         """Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
 
         Args:
             model: The OpenAI model to use for generating responses.
             client: OpenAI client instance.
-            registry: The registry where OpenAI models will be registered.
         """
         self._model = model
         self._openai_client = client
-        self._registry = registry
 
     @property
     def name(self) -> str:
@@ -85,15 +82,19 @@ class OpenAIModel:
         Returns:
             A list of dictionaries representing the formatted tools.
         """
-        result = []
+        # NOTE: ToolDefinition objects already contain JSON Schema for inputs/outputs.
+        # Do NOT reach back into the registry to reconstruct schemas.
+        result: list[dict[str, Any]] = []
         for tool_definition in tools:
-            action = self._registry.registry.lookup_action(ActionKind.TOOL, tool_definition.name)
-            function_call = pydantic_function_tool(
-                model=action.input_type._type,
-                name=tool_definition.name,
-                description=tool_definition.description,
-            )
-            result.append(function_call)
+            parameters = tool_definition.input_schema or {'type': 'object', 'properties': {}}
+            result.append({
+                'type': 'function',
+                'function': {
+                    'name': tool_definition.name,
+                    'description': tool_definition.description,
+                    'parameters': parameters,
+                },
+            })
         return result
 
     def _get_response_format(self, output: OutputConfig) -> dict | None:
@@ -140,6 +141,11 @@ class OpenAIModel:
         }
         if request.tools:
             openai_config['tools'] = self._get_tools_definition(request.tools)
+        if any(msg.role == Role.TOOL for msg in request.messages):
+            # After a tool response, stop forcing additional tool calls.
+            openai_config['tool_choice'] = 'none'
+        elif request.tool_choice:
+            openai_config['tool_choice'] = request.tool_choice
         if request.output:
             openai_config['response_format'] = self._get_response_format(request.output)
         if request.config:

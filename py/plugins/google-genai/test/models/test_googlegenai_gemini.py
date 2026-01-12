@@ -16,7 +16,7 @@
 
 import sys
 import urllib.request
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 if sys.version_info < (3, 11):  # noqa
     from strenum import StrEnum  # noqa

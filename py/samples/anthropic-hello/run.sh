@@ -15,4 +15,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+set -euo pipefail
+
+# Load local env if present (do not commit .env; see env.example)
+if [ -f ".env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ".env"
+  set +a
+fi
+
 exec genkit start -- uv run src/main.py "$@"

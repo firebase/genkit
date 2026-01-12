@@ -22,7 +22,7 @@
  */
 
 import * as assert from 'assert';
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
 import { describe, it } from 'node:test';
 import { anthropic } from '../src/index.js';
 
@@ -79,5 +79,51 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
     });
 
     assert.ok(result.text.toLowerCase().includes('hello'));
+  });
+
+  it('should return structured output matching the schema', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
+    });
+
+    const schema = z.object({
+      name: z.string(),
+      age: z.number(),
+      city: z.string(),
+      isStudent: z.boolean(),
+      isEmployee: z.boolean(),
+      isRetired: z.boolean(),
+      isUnemployed: z.boolean(),
+      isDisabled: z.boolean(),
+    });
+
+    const result = await ai.generate({
+      model: 'anthropic/claude-sonnet-4-5',
+      prompt:
+        'Generate a fictional person with name "Alice", age 30, and city "New York". Return only the JSON.',
+      output: { schema, format: 'json', constrained: true },
+    });
+
+    const parsed = result.output;
+    assert.ok(parsed, 'Should have parsed output');
+    assert.deepStrictEqual(
+      { name: parsed.name, age: parsed.age, city: parsed.city },
+      { name: 'Alice', age: 30, city: 'New York' }
+    );
+
+    // Check that boolean fields are present and are actually booleans
+    for (const key of [
+      'isStudent',
+      'isEmployee',
+      'isRetired',
+      'isUnemployed',
+      'isDisabled',
+    ]) {
+      assert.strictEqual(
+        typeof parsed[key],
+        'boolean',
+        `Field ${key} should be a boolean but got: ${typeof parsed[key]}`
+      );
+    }
   });
 });

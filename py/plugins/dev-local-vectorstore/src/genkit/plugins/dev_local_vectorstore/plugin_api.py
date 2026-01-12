@@ -18,9 +18,16 @@
 
 from typing import Any
 
-from genkit.ai import GenkitRegistry, Plugin
-from genkit.core.action import Action
-from genkit.types import Docs
+from genkit.ai import Plugin
+from genkit.blocks.retriever import (
+    IndexerOptions,
+    RetrieverOptions,
+    indexer_action_metadata,
+    retriever_action_metadata,
+)
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
 
 from .indexer import (
     DevLocalVectorStoreIndexer,
@@ -44,62 +51,83 @@ class DevLocalVectorStore(Plugin):
         self.embedder = embedder
         self.embedder_options = embedder_options
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize the plugin by registering actions with the registry.
+    async def init(self) -> list[Action]:
+        return [
+            self._create_retriever_action(),
+            self._create_indexer_action(),
+        ]
 
-        This method registers the Local Vector Store actions with the provided
-        registry, making them available for use in the Genkit framework.
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        if name != self.index_name:
+            return None
+        if action_type == ActionKind.RETRIEVER:
+            return self._create_retriever_action()
+        if action_type == ActionKind.INDEXER:
+            return self._create_indexer_action()
+        return None
 
-        Args:
-            ai: The registry to register actions with.
+    async def list_actions(self) -> list[ActionMetadata]:
+        return [
+            retriever_action_metadata(
+                name=self.index_name,
+                options=RetrieverOptions(
+                    label=self.index_name,
+                    config_schema=to_json_schema(RetrieverOptionsSchema),
+                ),
+            ),
+            indexer_action_metadata(
+                name=self.index_name,
+                options=IndexerOptions(
+                    label=self.index_name,
+                ),
+            ),
+        ]
 
-        Returns:
-            None
-        """
-        self._configure_dev_local_retriever(ai=ai)
-        self._configure_dev_local_indexer(ai=ai)
+    def _create_retriever_action(self) -> Action:
+        metadata: dict[str, Any] = {
+            'retriever': {
+                'label': self.index_name,
+                'customOptions': to_json_schema(RetrieverOptionsSchema),
+            }
+        }
 
-    def _configure_dev_local_retriever(self, ai: GenkitRegistry) -> Action:
-        """Registers Local Vector Store retriever for provided parameters.
+        async def retrieve(request, ctx):
+            ai = (ctx.context or {}).get('__genkit_ai__')
+            if ai is None:
+                raise ValueError(
+                    'DevLocalVectorStore retriever requires a Genkit instance in action context. '
+                    'Use it via `await ai.retrieve(...)`.'
+                )
+            retriever = DevLocalVectorStoreRetriever(
+                ai=ai,
+                index_name=self.index_name,
+                embedder=self.embedder,
+                embedder_options=self.embedder_options,
+            )
+            return await retriever.retrieve(request, ctx)
 
-        Args:
-            ai: The registry to register retriever with.
-            params: Parameters to register retriever with.
+        return Action(kind=ActionKind.RETRIEVER, name=self.index_name, fn=retrieve, metadata=metadata)
 
-        Returns:
-            registered Action instance
-        """
-        retriever = DevLocalVectorStoreRetriever(
-            ai=ai,
-            index_name=self.index_name,
-            embedder=self.embedder,
-            embedder_options=self.embedder_options,
-        )
+    def _create_indexer_action(self) -> Action:
+        metadata: dict[str, Any] = {
+            'indexer': {
+                'label': self.index_name,
+            }
+        }
 
-        return ai.define_retriever(
-            name=self.index_name,
-            config_schema=RetrieverOptionsSchema,
-            fn=retriever.retrieve,
-        )
+        async def index(request, ctx):
+            ai = (ctx.context or {}).get('__genkit_ai__')
+            if ai is None:
+                raise ValueError(
+                    'DevLocalVectorStore indexer requires a Genkit instance in action context. '
+                    'Use it via `await ai.index(...)`.'
+                )
+            indexer = DevLocalVectorStoreIndexer(
+                ai=ai,
+                index_name=self.index_name,
+                embedder=self.embedder,
+                embedder_options=self.embedder_options,
+            )
+            return await indexer.index(request)
 
-    def _configure_dev_local_indexer(self, ai: GenkitRegistry) -> Action:
-        """Registers Local Vector Store indexer for provided parameters.
-
-        Args:
-            ai: The registry to register indexer with.
-            params: Parameters to register indexer with.
-
-        Returns:
-            registered Action instance
-        """
-        indexer = DevLocalVectorStoreIndexer(
-            ai=ai,
-            index_name=self.index_name,
-            embedder=self.embedder,
-            embedder_options=self.embedder_options,
-        )
-
-        return ai.define_indexer(
-            name=self.index_name,
-            fn=indexer.index,
-        )
+        return Action(kind=ActionKind.INDEXER, name=self.index_name, fn=index, metadata=metadata)
