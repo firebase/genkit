@@ -112,8 +112,7 @@ func main() {
 
 				switch meta.Reason {
 				case "insufficient_balance":
-					fmt.Printf("\n[Insufficient Balance] You requested $%.2f but only have $%.2f\n",
-						meta.Amount, meta.Balance)
+					fmt.Printf("\n[Insufficient Balance] You requested $%.2f but only have $%.2f\n", meta.Amount, meta.Balance)
 					fmt.Printf("Options: [1] Transfer $%.2f instead  [2] Cancel\n", meta.Balance)
 					fmt.Print("Choice: ")
 
@@ -136,8 +135,7 @@ func main() {
 					}
 
 				case "confirm_large":
-					fmt.Printf("\n[Confirm Large Transfer] Send $%.2f to %s? (yes/no): ",
-						meta.Amount, meta.ToAccount)
+					fmt.Printf("\n[Confirm Large Transfer] Send $%.2f to %s? (yes/no): ", meta.Amount, meta.ToAccount)
 
 					if promptYesNo(reader) {
 						// RestartWith: Re-execute the tool with approval
