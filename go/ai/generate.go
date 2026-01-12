@@ -1190,7 +1190,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 						}
 					}
 				}
-				if originalInputVal, ok := restartPart.Metadata["originalInput"]; ok {
+				if originalInputVal, ok := restartPart.Metadata["replacedInput"]; ok {
 					resumedCtx = origInputCtxKey.NewContext(resumedCtx, originalInputVal)
 				}
 

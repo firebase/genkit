@@ -258,8 +258,19 @@ func OriginalInputAs[T any](tc *ToolContext) (T, bool) {
 	if tc.OriginalInput == nil {
 		return zero, false
 	}
-	typed, ok := tc.OriginalInput.(T)
-	return typed, ok
+	// Try direct type assertion first (for when input is already typed)
+	if typed, ok := tc.OriginalInput.(T); ok {
+		return typed, ok
+	}
+	// Otherwise try to convert from map[string]any (common case from JSON)
+	if m, ok := tc.OriginalInput.(map[string]any); ok {
+		result, err := base.MapToStruct[T](m)
+		if err != nil {
+			return zero, false
+		}
+		return result, true
+	}
+	return zero, false
 }
 
 // DefineTool creates a new [ToolDef] and registers it.
