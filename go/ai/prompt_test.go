@@ -1368,6 +1368,68 @@ Simple prompt
 			t.Fatal("Prompt 'simple' was not registered")
 		}
 	})
+
+	t.Run("prompt with inline output schema", func(t *testing.T) {
+		reg := registry.New()
+		ConfigureFormats(reg)
+
+		source := `---
+model: test/chat
+output:
+  format: json
+  schema:
+    type: object
+    properties:
+      title:
+        type: string
+      description:
+        type: string
+    required:
+      - title
+      - description
+---
+Generate something
+`
+		prompt, err := LoadPromptFromSource(reg, source, "outputSchemaPrompt", "")
+		if err != nil {
+			t.Fatalf("LoadPromptFromRaw failed: %v", err)
+		}
+		if prompt == nil {
+			t.Fatal("LoadPromptFromRaw returned nil prompt")
+		}
+
+		actionOpts, err := prompt.Render(context.Background(), nil)
+		if err != nil {
+			t.Fatalf("Render failed: %v", err)
+		}
+
+		// Verify that the output config is set correctly
+		if actionOpts.Output == nil {
+			t.Fatal("Expected Output config to be set")
+		}
+		if actionOpts.Output.Format != OutputFormatJSON {
+			t.Errorf("Expected output format 'json', got %q", actionOpts.Output.Format)
+		}
+		if actionOpts.Output.JsonSchema == nil {
+			t.Fatal("Expected output JsonSchema to be set for inline schema")
+		}
+
+		// Verify the schema structure
+		schema := actionOpts.Output.JsonSchema
+		if schema["type"] != "object" {
+			t.Errorf("Expected schema type 'object', got %v", schema["type"])
+		}
+		properties, ok := schema["properties"].(map[string]any)
+		if !ok {
+			t.Fatal("Expected schema properties to be a map")
+		}
+		if _, ok := properties["title"]; !ok {
+			t.Error("Expected schema to have 'title' property")
+		}
+		if _, ok := properties["description"]; !ok {
+			t.Error("Expected schema to have 'description' property")
+		}
+	})
 }
 
 // TestDefinePartialAndHelperJourney demonstrates a complete user journey for defining

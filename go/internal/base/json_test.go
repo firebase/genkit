@@ -78,6 +78,31 @@ func TestExtractJSONFromMarkdown(t *testing.T) {
 			in:   "```json\n{\"a\": 1}\n``` ```yaml\nkey: 1\nanother-key: 2```",
 			want: "{\"a\": 1}",
 		},
+		{
+			desc: "uppercase JSON identifier",
+			in:   "```JSON\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "mixed case Json identifier",
+			in:   "```Json\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "plain code block without identifier",
+			in:   "```\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "plain code block with text before",
+			in:   "Here is the result:\n\n```\n{\"title\": \"Pizza\"}\n```",
+			want: "{\"title\": \"Pizza\"}",
+		},
+		{
+			desc: "json block preferred over plain block",
+			in:   "```\n{\"plain\": true}\n``` then ```json\n{\"json\": true}\n```",
+			want: "{\"json\": true}",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {

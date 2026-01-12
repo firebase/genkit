@@ -776,7 +776,11 @@ func LoadPromptFromSource(r api.Registry, source, name, namespace string) (Promp
 	}
 
 	if inputSchema, ok := metadata.Input.Schema.(map[string]any); ok {
-		opts.InputSchema = inputSchema
+		if ref, ok := inputSchema["$ref"].(string); ok {
+			opts.InputSchema = core.SchemaRef(ref)
+		} else {
+			opts.InputSchema = inputSchema
+		}
 	}
 
 	if metadata.Output.Format != "" {
@@ -788,6 +792,17 @@ func LoadPromptFromSource(r api.Registry, source, name, namespace string) (Promp
 			opts.OutputSchema = core.SchemaRef(outputSchema.Ref)
 		} else {
 			opts.OutputSchema = base.SchemaAsMap(outputSchema)
+		}
+		if opts.OutputFormat == "" {
+			opts.OutputFormat = OutputFormatJSON
+		}
+	}
+
+	if outputSchema, ok := metadata.Output.Schema.(map[string]any); ok {
+		if ref, ok := outputSchema["$ref"].(string); ok {
+			opts.OutputSchema = core.SchemaRef(ref)
+		} else {
+			opts.OutputSchema = outputSchema
 		}
 		if opts.OutputFormat == "" {
 			opts.OutputFormat = OutputFormatJSON
