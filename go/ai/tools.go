@@ -625,20 +625,25 @@ func (t *ToolDef[In, Out]) Restart(p *Part, opts *RestartOptions) *Part {
 }
 
 // RespondWith creates a part for [WithToolResponses] to provide a resolved response for an interrupted tool call.
-// Returns nil if the part is not a tool request.
 //
 // Example:
 //
-//	part := myTool.RespondWith(toolReq, output, WithResponseMetadata[MyOutput](meta))
-func (t *ToolDef[In, Out]) RespondWith(toolReq *Part, output Out, opts ...RespondWithOption[Out]) *Part {
-	if toolReq == nil || !toolReq.IsToolRequest() {
-		return nil
+//	part, err := myTool.RespondWith(toolReq, output, WithResponseMetadata[MyOutput](meta))
+func (t *ToolDef[In, Out]) RespondWith(toolReq *Part, output Out, opts ...RespondWithOption[Out]) (*Part, error) {
+	if toolReq == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RespondWith: toolReq is nil")
+	}
+	if !toolReq.IsToolRequest() {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RespondWith: part is not a tool request")
+	}
+	if toolReq.ToolRequest.Name != t.Name() {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RespondWith: tool request is for %q, not %q", toolReq.ToolRequest.Name, t.Name())
 	}
 
 	cfg := &RespondOptions{}
 	for _, opt := range opts {
 		if err := opt.applyRespondWith(cfg); err != nil {
-			panic(fmt.Errorf("ai.ToolDef.RespondWith: %w", err))
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RespondWith: %v", err)
 		}
 	}
 
@@ -650,24 +655,29 @@ func (t *ToolDef[In, Out]) RespondWith(toolReq *Part, output Out, opts ...Respon
 		newToolResp.Metadata["interruptResponse"] = cfg.Metadata
 	}
 
-	return newToolResp
+	return newToolResp, nil
 }
 
 // RestartWith creates a part for [WithToolRestarts] to re-execute an interrupted tool call with additional context.
-// Returns nil if the part is not a tool request.
 //
 // Example:
 //
-//	part := myTool.RestartWith(toolReq, WithReplaceInput(newInput), WithResumedMetadata[MyInput](meta))
-func (t *ToolDef[In, Out]) RestartWith(toolReq *Part, opts ...RestartWithOption[In]) *Part {
-	if toolReq == nil || !toolReq.IsToolRequest() {
-		return nil
+//	part, err := myTool.RestartWith(toolReq, WithReplaceInput(newInput), WithResumedMetadata[MyInput](meta))
+func (t *ToolDef[In, Out]) RestartWith(toolReq *Part, opts ...RestartWithOption[In]) (*Part, error) {
+	if toolReq == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RestartWith: toolReq is nil")
+	}
+	if !toolReq.IsToolRequest() {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RestartWith: part is not a tool request")
+	}
+	if toolReq.ToolRequest.Name != t.Name() {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RestartWith: tool request is for %q, not %q", toolReq.ToolRequest.Name, t.Name())
 	}
 
 	cfg := &RestartOptions{}
 	for _, opt := range opts {
 		if err := opt.applyRestartWith(cfg); err != nil {
-			panic(fmt.Errorf("ai.ToolDef.RestartWith: %w", err))
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RestartWith: %v", err)
 		}
 	}
 
@@ -702,7 +712,7 @@ func (t *ToolDef[In, Out]) RestartWith(toolReq *Part, opts ...RestartWithOption[
 	})
 	newToolReqPart.Metadata = newMeta
 
-	return newToolReqPart
+	return newToolReqPart, nil
 }
 
 // resolveUniqueTools resolves the list of tool refs to a list of all tool names and new tools that must be registered.
