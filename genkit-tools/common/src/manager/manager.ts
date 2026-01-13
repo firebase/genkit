@@ -214,14 +214,22 @@ export class RuntimeManager {
           : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
-    const response = await axios
-      .get(`${runtime.reflectionServerUrl}/api/values`, {
-        params: {
-          type: input.type,
-        },
-      })
-      .catch((err) => this.httpErrorHandler(err, 'Error listing values.'));
-    return response.data as Record<string, unknown>;
+    try {
+      const response = await axios.get(
+        `${runtime.reflectionServerUrl}/api/values`,
+        {
+          params: {
+            type: input.type,
+          },
+        }
+      );
+      return response.data as Record<string, unknown>;
+    } catch (err) {
+      if ((err as AxiosError).response?.status === 404) {
+        return {};
+      }
+      this.httpErrorHandler(err as AxiosError, 'Error listing values.');
+    }
   }
 
   /**
