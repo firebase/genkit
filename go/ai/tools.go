@@ -177,7 +177,8 @@ func WithNewInput[In any](input In) RestartWithOption[In] {
 }
 
 // WithResumedMetadata sets metadata to pass to the resumed tool execution.
-func WithResumedMetadata[In any](meta any) RestartWithOption[In] {
+// The metadata will be available in the tool's [ToolContext.Resumed] field.
+func WithResumedMetadata[In any](meta map[string]any) RestartWithOption[In] {
 	return &RestartOptions{ResumedMetadata: meta}
 }
 
