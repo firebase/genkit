@@ -150,11 +150,13 @@ func handleResponseItem(item responses.ResponseOutputItemUnion, resp *ai.ModelRe
 		return handleFunctionToolCall(v, resp)
 	case responses.ResponseFunctionWebSearch:
 		return handleWebSearchResponse(v, resp)
+	default:
+		return fmt.Errorf("unsupported response item type: %T", v)
 	}
-	return nil
 }
 
 // handleOutputMessage translates a [responses.ResponseOutputMessage] into an [ai.ModelResponse]
+// and appends the content into the provided response message.
 func handleOutputMessage(msg responses.ResponseOutputMessage, resp *ai.ModelResponse) error {
 	for _, content := range msg.Content {
 		switch c := content.AsAny().(type) {
@@ -169,6 +171,7 @@ func handleOutputMessage(msg responses.ResponseOutputMessage, resp *ai.ModelResp
 }
 
 // handleReasoningItem translates a [responses.ResponseReasoningItem] into an [ai.ModelResponse]
+// and appends the content into the provided response message.
 func handleReasoningItem(item responses.ResponseReasoningItem, resp *ai.ModelResponse) error {
 	for _, content := range item.Content {
 		resp.Message.Content = append(resp.Message.Content, ai.NewReasoningPart(content.Text, nil))
@@ -177,6 +180,7 @@ func handleReasoningItem(item responses.ResponseReasoningItem, resp *ai.ModelRes
 }
 
 // handleFunctionToolCall translates a [responses.ResponseFunctionToolCall] into an [ai.ModelResponse]
+// and appends the content into the provided response message.
 func handleFunctionToolCall(call responses.ResponseFunctionToolCall, resp *ai.ModelResponse) error {
 	args, err := jsonStringToMap(call.Arguments)
 	if err != nil {
@@ -191,6 +195,7 @@ func handleFunctionToolCall(call responses.ResponseFunctionToolCall, resp *ai.Mo
 }
 
 // handleWebSearchResponse translates a [responses.ResponseFunctionWebSearch] into an [ai.ModelResponse]
+// and appends the content into the provided response message.
 func handleWebSearchResponse(webSearch responses.ResponseFunctionWebSearch, resp *ai.ModelResponse) error {
 	resp.Message.Content = append(resp.Message.Content, ai.NewToolResponsePart(&ai.ToolResponse{
 		Ref:  webSearch.ID,
