@@ -25,7 +25,7 @@ import type { Registry } from './registry.js';
 const ajv = new Ajv();
 addFormats(ajv);
 
-const SCHEMA_VALIDATION_MODE = 'schemaValidationMode' as const;
+export const SCHEMA_VALIDATION_MODE = 'schemaValidationMode' as const;
 
 /**
  * Disable schema code generation in runtime. Use this if your runtime

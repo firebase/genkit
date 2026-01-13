@@ -37,7 +37,6 @@ import {
   projectNameFromGenkitFilePath,
   removeToolsInfoFile,
   retriable,
-  waitUntilHealthy,
   type DevToolsInfo,
 } from '../utils/utils';
 import { ProcessManager } from './process-manager';
@@ -74,7 +73,6 @@ export class RuntimeManager {
   private eventEmitter = new EventEmitter();
   private watchers: chokidar.FSWatcher[] = [];
   private healthCheckInterval?: NodeJS.Timeout;
-  private pendingRuntimeUrl?: string;
 
   private constructor(
     readonly telemetryServerUrl: string | undefined,
@@ -100,11 +98,6 @@ export class RuntimeManager {
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
-
-    if (process.env.GENKIT_RUNTIME_URL) {
-      manager.pendingRuntimeUrl = process.env.GENKIT_RUNTIME_URL;
-    }
-
     if (manager.manageHealth) {
       manager.healthCheckInterval = setInterval(
         async () => await manager.performHealthChecks(),
@@ -831,34 +824,12 @@ export class RuntimeManager {
    * Performs health checks on all runtimes.
    */
   private async performHealthChecks() {
-    if (this.pendingRuntimeUrl && !this.filenameToRuntimeMap['env:runtime']) {
-      if (await checkServerHealth(this.pendingRuntimeUrl)) {
-        const runtimeInfo: RuntimeInfo = {
-          id: 'env',
-          reflectionServerUrl: this.pendingRuntimeUrl,
-          timestamp: new Date().toISOString(),
-          genkitVersion: 'unknown',
-          reflectionApiSpecVersion: 1,
-        };
-        this.filenameToRuntimeMap['env:runtime'] = runtimeInfo;
-        this.idToFileMap[runtimeInfo.id] = 'env:runtime';
-        this.eventEmitter.emit(RuntimeEvent.ADD, runtimeInfo);
-        await this.notifyRuntime(runtimeInfo);
-      }
-    }
-
     const healthCheckPromises = Object.entries(this.filenameToRuntimeMap).map(
       async ([fileName, runtime]) => {
         if (
           !(await checkServerHealth(runtime.reflectionServerUrl, runtime.id))
         ) {
-          if (fileName === 'env:runtime') {
-            delete this.filenameToRuntimeMap[fileName];
-            delete this.idToFileMap[runtime.id];
-            this.eventEmitter.emit(RuntimeEvent.REMOVE, runtime);
-          } else {
-            await this.removeRuntime(fileName);
-          }
+          await this.removeRuntime(fileName);
         }
       }
     );
@@ -895,7 +866,7 @@ function isValidRuntimeInfo(data: any): data is RuntimeInfo {
     typeof data === 'object' &&
     data !== null &&
     typeof data.id === 'string' &&
-    (data.pid === undefined || typeof data.pid === 'number') &&
+    typeof data.pid === 'number' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
     !isNaN(Date.parse(timestamp)) &&

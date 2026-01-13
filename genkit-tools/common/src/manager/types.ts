@@ -33,7 +33,7 @@ export interface RuntimeInfo {
   /** Runtime ID (either user-set or `pid`). */
   id: string;
   /** Process ID of the runtime. */
-  pid?: number;
+  pid: number;
   /** URL of the reflection server. */
   reflectionServerUrl: string;
   /** Timestamp when the runtime was started. */

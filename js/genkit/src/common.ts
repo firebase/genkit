@@ -127,7 +127,6 @@ export {
   StatusCodes,
   StatusSchema,
   UserFacingError,
-  createReflectionApiHandler,
   defineJsonSchema,
   defineSchema,
   disableSchemaCodeGeneration,
