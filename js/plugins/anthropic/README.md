@@ -173,7 +173,7 @@ This plugin builds on the community work published as [`genkitx-anthropic`](http
 
 ## Contributing
 
-Want to contribute to the project? That's awesome! Head over to our [Contribution Guidelines](../../../CONTRIBUTING.md).
+Want to contribute to the project? That's awesome! Head over to our [Contribution Guidelines](/CONTRIBUTING.md).
 
 ## Need support?
 
