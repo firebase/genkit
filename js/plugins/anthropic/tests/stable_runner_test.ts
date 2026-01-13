@@ -684,7 +684,7 @@ describe('fromAnthropicContentBlockChunk', () => {
       },
       expectedOutput: {
         reasoning: 'Let me reason through this.',
-        custom: { anthropicThinking: { signature: 'sig_123' } },
+        metadata: { thoughtSignature: 'sig_123' },
       },
     },
     {
