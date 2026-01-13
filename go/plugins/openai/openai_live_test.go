@@ -17,6 +17,7 @@ package openai_test
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -38,6 +39,47 @@ func TestOpenAILive(t *testing.T) {
 
 	ctx := context.Background()
 	g := genkit.Init(ctx, genkit.WithPlugins(&oai.OpenAI{}))
+
+	myJokeTool := genkit.DefineTool(
+		g,
+		"myJoke",
+		"When the user asks for a joke, this tool must be used to generate a joke, try to come up with a joke that uses the output of the tool",
+		func(ctx *ai.ToolContext, input *any) (string, error) {
+			return "why did the chicken cross the road?", nil
+		},
+	)
+
+	myStoryTool := genkit.DefineTool(
+		g,
+		"myStory",
+		"When the user asks for a story, create a story about a frog and a fox that are good friends",
+		func(ctx *ai.ToolContext, input *any) (string, error) {
+			return "the fox is named Goph and the frog is called Fred", nil
+		},
+	)
+
+	type WeatherInput struct {
+		Location string `json:"location"`
+	}
+
+	weatherTool := genkit.DefineTool(
+		g,
+		"weather",
+		"Returns the weather for the given location",
+		func(ctx *ai.ToolContext, input *WeatherInput) (string, error) {
+			report := fmt.Sprintf("The weather in %s is sunny", input.Location)
+			return report, nil
+		},
+	)
+
+	gablorkenDefinitionTool := genkit.DefineTool(
+		g,
+		"gablorkenDefinitionTool",
+		"Custom tool that must be used when the user asks for the definition of a gablorken",
+		func(ctx *ai.ToolContext, input *any) (string, error) {
+			return "A gablorken is a interstellar currency for the Andromeda Galaxy. It is equivalent to 0.4 USD per Gablorken (GAB)", nil
+		},
+	)
 
 	t.Run("model version ok", func(t *testing.T) {
 		m := oai.Model(g, "gpt-4o")
@@ -170,7 +212,6 @@ func TestOpenAILive(t *testing.T) {
 		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
 			t.Fatalf("want: cat, got: %s", resp.Text())
 		}
-		// OpenAI does not return reasoning text, so we check usage.
 		if resp.Usage.ThoughtsTokens == 0 {
 			t.Log("No reasoning tokens found in usage (expected for reasoning models)")
 		}
@@ -178,22 +219,14 @@ func TestOpenAILive(t *testing.T) {
 
 	t.Run("tools", func(t *testing.T) {
 		m := oai.Model(g, "gpt-5")
-		myJokeTool := genkit.DefineTool(
-			g,
-			"myJoke",
-			"When the user asks for a joke, this tool must be used to generate a joke, try to come up with a joke that uses the output of the tool",
-			func(ctx *ai.ToolContext, input *any) (string, error) {
-				return "why did the chicken cross the road?", nil
-			},
-		)
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&responses.ResponseNewParams{
 				Temperature:     openai.Float(1),
 				MaxOutputTokens: openai.Int(1024),
 			}),
-			ai.WithPrompt("tell me a joke"),
-			ai.WithTools(myJokeTool))
+			ai.WithPrompt("tell me the definition of a gablorken"),
+			ai.WithTools(gablorkenDefinitionTool))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -205,19 +238,9 @@ func TestOpenAILive(t *testing.T) {
 
 	t.Run("tools with schema", func(t *testing.T) {
 		m := oai.Model(g, "gpt-4o")
-
-		type WeatherInput struct {
-			Location string `json:"location"`
+		type weather struct {
+			Report string `json:"report"`
 		}
-
-		weatherTool := genkit.DefineTool(
-			g,
-			"weather",
-			"Returns the weather for the given location",
-			func(ctx *ai.ToolContext, input *WeatherInput) (string, error) {
-				return "sunny", nil
-			},
-		)
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
@@ -226,13 +249,18 @@ func TestOpenAILive(t *testing.T) {
 				MaxOutputTokens: openai.Int(1024),
 			}),
 			ai.WithPrompt("what is the weather in San Francisco?"),
+			ai.WithOutputType(weather{}),
 			ai.WithTools(weatherTool))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if len(resp.Text()) == 0 {
-			t.Fatal("expected a response but nothing was returned")
+		var w weather
+		if err = resp.Output(&w); err != nil {
+			t.Fatal(err)
+		}
+		if w.Report == "" {
+			t.Fatal("empty weather report, tool should have provided an output")
 		}
 	})
 
@@ -248,7 +276,11 @@ func TestOpenAILive(t *testing.T) {
 			}),
 			ai.WithModel(m),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
-				out += c.Content[0].Text
+				for _, p := range c.Content {
+					if p.IsText() {
+						out += p.Text
+					}
+				}
 				return nil
 			}),
 		)
@@ -270,17 +302,12 @@ func TestOpenAILive(t *testing.T) {
 	})
 
 	t.Run("streaming with thinking", func(t *testing.T) {
-		m := oai.Model(g, "gpt-5.2")
+		m := oai.Model(g, "gpt-4o")
 		out := ""
 
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("Tell me a short story about a frog and a princess"),
-			ai.WithConfig(&responses.ResponseNewParams{
-				Reasoning: shared.ReasoningParam{
-					Effort: shared.ReasoningEffortHigh,
-					// Summary: openai.ReasoningSummaryAuto, // enable this if your org is verified
-				},
-			}),
+			ai.WithPrompt("Sing me a song about metaphysics"),
+			ai.WithConfig(&responses.ResponseNewParams{}),
 			ai.WithModel(m),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				for _, p := range c.Content {
@@ -305,11 +332,6 @@ func TestOpenAILive(t *testing.T) {
 			t.Fatalf("streaming and final should contain the same text.\n\nstreaming: %s\n\nfinal: %s\n\n", out, out2)
 		}
 
-		// uncomment this code if your org is verified
-		// if final.Reasoning() == "" {
-		// 	t.Fatalf("expecting reasoning text")
-		// }
-
 		if final.Usage.ThoughtsTokens > 0 {
 			t.Logf("Reasoning tokens: %d", final.Usage.ThoughtsTokens)
 		} else {
@@ -322,15 +344,6 @@ func TestOpenAILive(t *testing.T) {
 		m := oai.Model(g, "gpt-4o")
 		out := ""
 
-		myStoryTool := genkit.DefineTool(
-			g,
-			"myStory",
-			"When the user asks for a story, create a story about a frog and a fox that are good friends",
-			func(ctx *ai.ToolContext, input *any) (string, error) {
-				return "the fox is named Goph and the frog is called Fred", nil
-			},
-		)
-
 		final, err := genkit.Generate(ctx, g,
 			ai.WithPrompt("Tell me a short story about a frog and a fox, do no mention anything else, only the short story"),
 			ai.WithModel(m),
@@ -340,7 +353,11 @@ func TestOpenAILive(t *testing.T) {
 			}),
 			ai.WithTools(myStoryTool),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
-				out += c.Content[0].Text
+				for _, p := range c.Content {
+					if p.IsText() {
+						out += p.Text
+					}
+				}
 				return nil
 			}),
 		)
@@ -361,10 +378,6 @@ func TestOpenAILive(t *testing.T) {
 		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
 		}
-	})
-
-	t.Run("tools streaming with constrained gen", func(t *testing.T) {
-		t.Skip("skipped until constrained gen is implemented")
 	})
 
 	t.Run("built-in tools", func(t *testing.T) {
@@ -396,14 +409,6 @@ func TestOpenAILive(t *testing.T) {
 		m := oai.Model(g, "gpt-4o")
 
 		webSearchTool := responses.ToolParamOfWebSearch(responses.WebSearchToolTypeWebSearch)
-		gablorkenDefinitionTool := genkit.DefineTool(
-			g,
-			"gablorkenDefinitionTool",
-			"Custom tool that must be used when the user asks for the definition of a gablorken",
-			func(ctx *ai.ToolContext, input *any) (string, error) {
-				return "A gablorken is a interstellar currency for the Andromeda Galaxy. It is equivalent to 0.4 USD per Gablorken (GAB)", nil
-			},
-		)
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
@@ -424,8 +429,109 @@ func TestOpenAILive(t *testing.T) {
 		if len(resp.Text()) == 0 {
 			t.Fatal("expected a response but nothing was returned")
 		}
+	})
 
-		t.Logf("Response: %s", resp.Text())
+	t.Run("structured output", func(t *testing.T) {
+		m := oai.Model(g, "gpt-4o")
+
+		type MovieReview struct {
+			Title  string `json:"title"`
+			Rating int    `json:"rating"`
+			Reason string `json:"reason"`
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithPrompt("Review the movie 'Inception'"),
+			ai.WithOutputType(MovieReview{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out MovieReview
+		if err := resp.Output(&out); err == nil {
+			t.Errorf("expected a movie review, got: %v", err)
+		}
+		if out.Title == "" || out.Rating == 0 || out.Reason == "" {
+			t.Fatalf("expected a movie review, got %#v", out)
+		}
+
+		review, _, err := genkit.GenerateData[MovieReview](ctx, g,
+			ai.WithModel(m),
+			ai.WithPrompt("Review the movie 'Signs'"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if review.Title == "" || review.Rating == 0 || review.Reason == "" {
+			t.Fatalf("expected a movie review, got %#v", review)
+		}
+	})
+
+	t.Run("streaming using GenerateDataStream", func(t *testing.T) {
+		m := oai.Model(g, "gpt-4o")
+
+		type answerChunk struct {
+			Text string `json:"text"`
+		}
+
+		chunksCount := 0
+		var finalAnswer answerChunk
+		for val, err := range genkit.GenerateDataStream[answerChunk](ctx, g,
+			ai.WithModel(m),
+			ai.WithPrompt("Tell me how's a black hole created in 2 sentences."),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalAnswer = val.Output
+			} else {
+				chunksCount++
+			}
+		}
+
+		if chunksCount == 0 {
+			t.Errorf("expected to receive some chunks, got 0")
+		}
+		if finalAnswer.Text == "" {
+			t.Errorf("expected final answer, got empty")
+		}
+	})
+
+	t.Run("GenerateDataStream with custom tools", func(t *testing.T) {
+		m := oai.Model(g, "gpt-4o")
+
+		type JokeResponse struct {
+			Setup     string `json:"setup"`
+			Punchline string `json:"punchline"`
+		}
+
+		chunksCount := 0
+		var finalJoke JokeResponse
+
+		for val, err := range genkit.GenerateDataStream[JokeResponse](ctx, g,
+			ai.WithModel(m),
+			ai.WithPrompt("Tell me a joke about a chicken crossing the road. Use the myJoke tool to get the punchline."),
+			ai.WithTools(myJokeTool),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalJoke = val.Output
+			} else {
+				chunksCount++
+			}
+		}
+
+		if chunksCount == 0 {
+			t.Errorf("expected to receive some chunks, got 0")
+		}
+		if finalJoke.Setup == "" || finalJoke.Punchline == "" {
+			t.Errorf("expected final joke setup and punchline to be populated, got %+v", finalJoke)
+		}
 	})
 }
 

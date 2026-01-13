@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -40,6 +41,9 @@ func toOpenAIResponseParams(model string, input *ai.ModelRequest) (*responses.Re
 	}
 
 	params.Model = shared.ResponsesModel(model)
+
+	// Handle output format
+	params.Text = handleOutputFormat(params.Text, input.Output)
 
 	// Handle tools
 	if len(input.Tools) > 0 {
@@ -311,7 +315,8 @@ func toOpenAIInputItems(m *ai.Message) ([]responses.ResponseInputItemUnionParam,
 				return nil, err
 			}
 
-			// Handle Web Search specifically
+			// handle built-in tools
+			// TODO: consider adding support for more built-in tools
 			if p.ToolResponse.Name == "web_search_call" {
 				item, err := handleWebSearchCall(p.ToolResponse, p.ToolResponse.Ref)
 				if err != nil {
@@ -400,11 +405,8 @@ func toOpenAITools(tools []*ai.ToolDefinition) ([]responses.ToolUnionParam, erro
 
 // configFromRequest casts the given configuration into [responses.ResponseNewParams]
 func configFromRequest(config any) (*responses.ResponseNewParams, error) {
-	if config == nil {
-		return nil, nil
-	}
-
 	var openaiConfig responses.ResponseNewParams
+
 	switch cfg := config.(type) {
 	case responses.ResponseNewParams:
 		openaiConfig = cfg
@@ -414,6 +416,8 @@ func configFromRequest(config any) (*responses.ResponseNewParams, error) {
 		if err := mapToStruct(cfg, &openaiConfig); err != nil {
 			return nil, fmt.Errorf("failed to convert config to responses.ResponseNewParams: %w", err)
 		}
+	case nil:
+		// empty but valid config
 	default:
 		return nil, fmt.Errorf("unexpected config type: %T", config)
 	}
@@ -483,4 +487,53 @@ func configToMap(config any) map[string]any {
 	result := base.SchemaAsMap(schema)
 
 	return result
+}
+
+// handleOutputFormat determines whether to enable structured output or json_mode in the request
+func handleOutputFormat(textConfig responses.ResponseTextConfigParam, output *ai.ModelOutputConfig) responses.ResponseTextConfigParam {
+	if output == nil || output.Format != ai.OutputFormatJSON {
+		return textConfig
+	}
+
+	// strict mode is used for latest gpt models
+	if output.Constrained && output.Schema != nil {
+		name := "output_schema"
+		// openai schemas require a name to be provided
+		if title, ok := output.Schema["title"].(string); ok {
+			name = title
+		}
+
+		textConfig.Format = responses.ResponseFormatTextConfigUnionParam{
+			OfJSONSchema: &responses.ResponseFormatTextJSONSchemaConfigParam{
+				Type:   constant.JSONSchema("json_schema"),
+				Name:   sanitizeSchemaName(name),
+				Strict: param.NewOpt(true),
+				Schema: output.Schema,
+			},
+		}
+	} else {
+		textConfig.Format = responses.ResponseFormatTextConfigUnionParam{
+			OfJSONObject: &shared.ResponseFormatJSONObjectParam{
+				Type: constant.JSONObject("json_object"),
+			},
+		}
+	}
+	return textConfig
+}
+
+// sanitizeSchemaName ensures the schema name contains only alphanumeric characters, underscores, or dashes,
+// and is no longer than 64 characters.
+func sanitizeSchemaName(name string) string {
+	schemaNameRegex := regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+	newName := schemaNameRegex.ReplaceAllString(name, "_")
+
+	// do not return error, cut the string instead
+	if len(newName) > 64 {
+		return newName[:64]
+	}
+	if newName == "" {
+		// schema name is a mandatory field
+		return "output_schema"
+	}
+	return newName
 }

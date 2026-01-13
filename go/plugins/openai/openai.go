@@ -26,7 +26,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/internal"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/responses"
@@ -38,7 +37,14 @@ const (
 )
 
 var defaultOpenAIOpts = ai.ModelOptions{
-	Supports: &internal.Multimodal,
+	Supports: &ai.ModelSupports{
+		Multiturn:   true,
+		Tools:       true,
+		ToolChoice:  true,
+		SystemRole:  true,
+		Media:       true,
+		Constrained: ai.ConstrainedSupportAll,
+	},
 	Versions: []string{},
 	Stage:    ai.ModelStageUnstable,
 }
@@ -176,8 +182,15 @@ func (o *OpenAI) ResolveAction(atype api.ActionType, name string) api.Action {
 		switch {
 		// TODO: add image and video models
 		default:
-			supports = &internal.Multimodal
-			config = &openai.ChatCompletionNewParams{}
+			supports = &ai.ModelSupports{
+				Multiturn:   true,
+				Tools:       true,
+				ToolChoice:  true,
+				SystemRole:  true,
+				Media:       true,
+				Constrained: ai.ConstrainedSupportAll,
+			}
+			config = &responses.ResponseNewParams{}
 		}
 		return newModel(o.client, name, &ai.ModelOptions{
 			Label:        fmt.Sprintf("%s - %s", openaiLabelPrefix, name),
@@ -268,8 +281,7 @@ func newEmbedder(client *openai.Client, name string, embedOpts *ai.EmbedderOptio
 
 // newModel creates a new model without registering it in the registry
 func newModel(client *openai.Client, name string, opts *ai.ModelOptions) ai.Model {
-	var config any
-	config = &responses.ResponseNewParams{}
+	config := &responses.ResponseNewParams{}
 	meta := &ai.ModelOptions{
 		Label:        opts.Label,
 		Supports:     opts.Supports,
@@ -283,13 +295,8 @@ func newModel(client *openai.Client, name string, opts *ai.ModelOptions) ai.Mode
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		switch config.(type) {
 		// TODO: add support for imagen and video
-		case *responses.ResponseNewParams:
-			return generate(ctx, client, name, input, cb)
-		default:
-			return generate(ctx, client, name, input, cb)
-		}
+		return generate(ctx, client, name, input, cb)
 	}
 
 	return ai.NewModel(api.NewName(openaiProvider, name), meta, fn)
