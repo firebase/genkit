@@ -20,7 +20,12 @@ from genkit.plugins.google_genai.models.embedder import (
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
 )
-from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema, GeminiImageConfigSchema, GoogleAIGeminiVersion, VertexAIGeminiVersion
+from genkit.plugins.google_genai.models.gemini import (
+    GeminiConfigSchema,
+    GeminiImageConfigSchema,
+    GoogleAIGeminiVersion,
+    VertexAIGeminiVersion,
+)
 from genkit.plugins.google_genai.models.imagen import ImagenVersion
 
 

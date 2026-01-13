@@ -43,13 +43,20 @@ Key features demonstrated in this sample:
 """
 
 import argparse
+import asyncio
 import base64
-from enum import Enum
+import os
 import pathlib
+import sys
+from enum import Enum
+
 import structlog
+from google import genai
+from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.core.action import ActionRunContext
 from genkit.plugins.evaluators import (
     GenkitEvaluators,
     GenkitMetricType,
@@ -57,13 +64,6 @@ from genkit.plugins.evaluators import (
     PluginOptions,
 )
 from genkit.plugins.google_cloud import add_gcp_telemetry
-import asyncio
-import os
-import sys
-
-from google import genai
-from google.genai import types as genai_types
-from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -73,12 +73,12 @@ from genkit.plugins.google_genai import (
 from genkit.types import (
     GenerateRequest,
     GenerationCommonConfig,
+    Media,
+    MediaPart,
     Message,
     Part,
     Role,
     TextPart,
-    MediaPart,
-    Media,
 )
 
 logger = structlog.get_logger(__name__)
@@ -204,7 +204,9 @@ async def say_hi(name: str):
 
 
 from typing import Annotated
+
 from pydantic import Field
+
 
 @ai.flow()
 async def embed_docs(docs: Annotated[list[str], Field(default=[''], description='List of texts to embed')] = ['']):
@@ -259,12 +261,6 @@ async def say_hi_stream(name: str, ctx):
             result += part.root.text
 
     return result
-
-
-
-
-
-
 
 
 class Skills(BaseModel):
@@ -347,7 +343,9 @@ async def generate_images(name: str, ctx):
     result = await ai.generate(
         model='googleai/gemini-3-flash-image-preview',
         prompt=f'tell me about {name} with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image'], api_version='v1alpha').model_dump(exclude_none=True),
+        config=GeminiConfigSchema(response_modalities=['text', 'image'], api_version='v1alpha').model_dump(
+            exclude_none=True
+        ),
     )
     return result
 
@@ -358,15 +356,10 @@ def screenshot() -> dict:
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
     with open(room_path, 'rb') as f:
         room_b64 = base64.b64encode(f.read()).decode('utf-8')
-    
+
     return {
         'output': 'success',
-        'content': [{
-            'media': {
-                'url': f'data:image/png;base64,{room_b64}',
-                'contentType': 'image/png'
-            }
-        }]
+        'content': [{'media': {'url': f'data:image/png;base64,{room_b64}', 'contentType': 'image/png'}}],
     }
 
 
@@ -469,7 +462,7 @@ async def gemini_image_editing():
     for part in response.message.content:
         if isinstance(part.root, MediaPart):
             return part.root.media
-    
+
     return None
 
 
@@ -485,16 +478,17 @@ async def nano_banana_pro():
                 'aspect_ratio': '21:9',
                 'image_size': '4K',
             },
-            'api_version': 'v1alpha', 
+            'api_version': 'v1alpha',
         },
     )
     for part in response.message.content:
         if isinstance(part.root, MediaPart):
-             return part.root.media
+            return part.root.media
     return response.media
 
 
 from typing import Any
+
 
 @ai.flow()
 async def photo_move_veo(_: Any, context: Any = None):
@@ -502,86 +496,80 @@ async def photo_move_veo(_: Any, context: Any = None):
     # Find photo.jpg (or my_room.png)
     room_path = pathlib.Path(__file__).parent / 'my_room.png'
     if not room_path.exists():
-         # Fallback search
-         room_path = pathlib.Path('samples/google-genai-hello/src/my_room.png')
-         if not room_path.exists():
-             room_path = pathlib.Path('my_room.png')
+        # Fallback search
+        room_path = pathlib.Path('samples/google-genai-hello/src/my_room.png')
+        if not room_path.exists():
+            room_path = pathlib.Path('my_room.png')
 
-    encoded_image = ""
+    encoded_image = ''
     if room_path.exists():
-        with open(room_path, "rb") as f:
-            encoded_image = base64.b64encode(f.read()).decode("utf-8")
+        with open(room_path, 'rb') as f:
+            encoded_image = base64.b64encode(f.read()).decode('utf-8')
     else:
         # Fallback dummy
-        encoded_image = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        encoded_image = (
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        )
 
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_GENAI_API_KEY")
+    api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_GENAI_API_KEY')
     if not api_key:
-         raise ValueError("GEMINI_API_KEY not set")
+        raise ValueError('GEMINI_API_KEY not set')
 
     # Use v1alpha for Veo
     client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
-    
+
     # Prompt construction
     prompt_parts = [
         genai_types.Part(text='make the subject in the photo move'),
-        genai_types.Part(
-            inline_data=genai_types.Blob(
-                mime_type='image/jpeg',
-                data=base64.b64decode(encoded_image)
-            )
-        )
+        genai_types.Part(inline_data=genai_types.Blob(mime_type='image/jpeg', data=base64.b64decode(encoded_image))),
     ]
-    
+
     # Send chunk equivalent
     if context:
-        context.send_chunk(f"Starting generation with veo-3.0-generate-001...")
+        context.send_chunk(f'Starting generation with veo-3.0-generate-001...')
 
     try:
         operation = await client.aio.models.generate_videos(
             model='veo-3.0-generate-001',
             prompt='make the subject in the photo move',
-            image=genai_types.Image(
-                image_bytes=base64.b64decode(encoded_image),
-                mime_type='image/png'
-            ),
+            image=genai_types.Image(image_bytes=base64.b64decode(encoded_image), mime_type='image/png'),
             config={
-                # 'aspect_ratio': '9:16', 
-            }
+                # 'aspect_ratio': '9:16',
+            },
         )
-        
+
         if not operation:
-             raise ValueError("Expected operation to be returned")
-             
+            raise ValueError('Expected operation to be returned')
+
         while not operation.done:
             op_id = operation.name.split('/')[-1] if operation.name else 'unknown'
             if context:
-                context.send_chunk(f"check status of operation {op_id}")
-            
+                context.send_chunk(f'check status of operation {op_id}')
+
             # Poll
             operation = await client.aio.operations.get(operation)
             await asyncio.sleep(5)
-            
+
         if operation.error:
-             if context:
-                 context.send_chunk(f"Error: {operation.error.message}")
-             raise ValueError(f"Failed to generate video: {operation.error.message}")
-             
+            if context:
+                context.send_chunk(f'Error: {operation.error.message}')
+            raise ValueError(f'Failed to generate video: {operation.error.message}')
+
         # Done
-        result_info = "Video generated successfully."
+        result_info = 'Video generated successfully.'
         if hasattr(operation, 'result') and operation.result:
-             if hasattr(operation.result, 'generated_videos') and operation.result.generated_videos:
-                   vid = operation.result.generated_videos[0]
-                   if vid.video and vid.video.uri:
-                       result_info += f" URI: {vid.video.uri}"
-        
+            if hasattr(operation.result, 'generated_videos') and operation.result.generated_videos:
+                vid = operation.result.generated_videos[0]
+                if vid.video and vid.video.uri:
+                    result_info += f' URI: {vid.video.uri}'
+
         if context:
-            context.send_chunk(f"Done! {result_info}")
-            
+            context.send_chunk(f'Done! {result_info}')
+
         return operation
-            
+
     except Exception as e:
-        raise ValueError(f"Flow failed: {e}")
+        raise ValueError(f'Flow failed: {e}')
 
     """A simple example of image generation with Gemini (Imagen)."""
     response = await ai.generate(
@@ -594,7 +582,7 @@ async def photo_move_veo(_: Any, context: Any = None):
     for part in response.message.content:
         if isinstance(part.root, MediaPart):
             return part.root.media
-    return f"No media found. Content: {response.message.content}"
+    return f'No media found. Content: {response.message.content}'
 
 
 @ai.flow()
@@ -610,7 +598,7 @@ async def gemini_media_resolution():
             TextPart(text='What is in this picture?'),
             MediaPart(
                 media=Media(url=f'data:image/png;base64,{plant_b64}'),
-                metadata={'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}}
+                metadata={'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}},
             ),
         ],
         config={'api_version': 'v1alpha'},
@@ -644,7 +632,7 @@ async def url_context():
 async def file_search():
     """File Search."""
     # TODO: add file search store
-    store_name = "fileSearchStores/sample-store"
+    store_name = 'fileSearchStores/sample-store'
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
         prompt="What is the character's name in the story?",
@@ -657,7 +645,6 @@ async def file_search():
         },
     )
     return response.text
-
 
 
 @ai.flow()
@@ -730,11 +717,6 @@ async def main() -> None:
     await logger.ainfo(await say_hi(', tell me a joke'))
 
 
-
-
-
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Google GenAI Hello Sample')
     parser.add_argument(
@@ -746,5 +728,3 @@ if __name__ == '__main__':
     if args.enable_gcp_telemetry:
         add_gcp_telemetry()
     ai.run_main(main())
-
-

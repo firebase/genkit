@@ -16,13 +16,13 @@
 
 import argparse
 import base64
-from enum import Enum
 import pathlib
+from enum import Enum
 
 import structlog
 
-from genkit.ai import Genkit, MediaPart, Media, TextPart
-from genkit.plugins.google_genai import VertexAI, GeminiImageConfigSchema
+from genkit.ai import Genkit, Media, MediaPart, TextPart
+from genkit.plugins.google_genai import GeminiImageConfigSchema, VertexAI
 from genkit.types import GenerationCommonConfig
 
 logger = structlog.get_logger(__name__)
@@ -110,7 +110,7 @@ async def video_understanding_metadata():
                         'startOffset': '3.5s',
                         'endOffset': '10.2s',
                     }
-                }
+                },
             ),
             TextPart(text='describe this video'),
         ],
@@ -152,14 +152,14 @@ async def search_grounding():
 async def gemini_media_resolution():
     """Media resolution."""
     # Placeholder base64 for sample
-    plant_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    plant_b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
     response = await ai.generate(
         model='vertexai/gemini-3-pro-preview',
         prompt=[
             TextPart(text='What is in this picture?'),
             MediaPart(
                 media=Media(url=f'data:image/png;base64,{plant_b64}'),
-                metadata={'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}}
+                metadata={'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}},
             ),
         ],
     )

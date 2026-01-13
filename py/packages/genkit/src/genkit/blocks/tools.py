@@ -96,7 +96,7 @@ def tool_response(
     """
     # TODO: validate against tool schema
     tool_request = interrupt.root.tool_request if isinstance(interrupt, Part) else interrupt.tool_request
-    
+
     interrupt_metadata = True
     if isinstance(metadata, Metadata):
         interrupt_metadata = metadata.root
