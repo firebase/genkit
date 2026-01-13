@@ -66,6 +66,9 @@ func generateStream(ctx context.Context, client *openai.Client, req *responses.R
 		case responses.ResponseTextDeltaEvent:
 			chunk.Content = append(chunk.Content, ai.NewTextPart(v.Delta))
 
+		case responses.ResponseReasoningTextDeltaEvent:
+			chunk.Content = append(chunk.Content, ai.NewReasoningPart(v.Delta, nil))
+
 		case responses.ResponseFunctionCallArgumentsDeltaEvent:
 			name := toolRefMap[v.ItemID]
 			chunk.Content = append(chunk.Content, ai.NewToolRequestPart(&ai.ToolRequest{

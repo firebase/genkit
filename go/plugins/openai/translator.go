@@ -131,31 +131,77 @@ func translateResponse(r *responses.Response) (*ai.ModelResponse, error) {
 	}
 
 	for _, item := range r.Output {
-		switch v := item.AsAny().(type) {
-		case responses.ResponseOutputMessage:
-			for _, content := range v.Content {
-				switch c := content.AsAny().(type) {
-				case responses.ResponseOutputText:
-					resp.Message.Content = append(resp.Message.Content, ai.NewTextPart(c.Text))
-				case responses.ResponseOutputRefusal:
-					resp.FinishMessage = c.Refusal
-					resp.FinishReason = ai.FinishReasonBlocked
-				}
-			}
-		case responses.ResponseFunctionToolCall:
-			args, err := jsonStringToMap(v.Arguments)
-			if err != nil {
-				return nil, fmt.Errorf("could not parse tool args: %w", err)
-			}
-			resp.Message.Content = append(resp.Message.Content, ai.NewToolRequestPart(&ai.ToolRequest{
-				Ref:   v.CallID,
-				Name:  v.Name,
-				Input: args,
-			}))
+		if err := handleResponseItem(item, resp); err != nil {
+			return nil, err
 		}
 	}
 
 	return resp, nil
+}
+
+// handleResponseItem is the entry point to translate response items
+func handleResponseItem(item responses.ResponseOutputItemUnion, resp *ai.ModelResponse) error {
+	switch v := item.AsAny().(type) {
+	case responses.ResponseOutputMessage:
+		return handleOutputMessage(v, resp)
+	case responses.ResponseReasoningItem:
+		return handleReasoningItem(v, resp)
+	case responses.ResponseFunctionToolCall:
+		return handleFunctionToolCall(v, resp)
+	case responses.ResponseFunctionWebSearch:
+		return handleWebSearchResponse(v, resp)
+	}
+	return nil
+}
+
+// handleOutputMessage translates a [responses.ResponseOutputMessage] into an [ai.ModelResponse]
+func handleOutputMessage(msg responses.ResponseOutputMessage, resp *ai.ModelResponse) error {
+	for _, content := range msg.Content {
+		switch c := content.AsAny().(type) {
+		case responses.ResponseOutputText:
+			resp.Message.Content = append(resp.Message.Content, ai.NewTextPart(c.Text))
+		case responses.ResponseOutputRefusal:
+			resp.FinishMessage = c.Refusal
+			resp.FinishReason = ai.FinishReasonBlocked
+		}
+	}
+	return nil
+}
+
+// handleReasoningItem translates a [responses.ResponseReasoningItem] into an [ai.ModelResponse]
+func handleReasoningItem(item responses.ResponseReasoningItem, resp *ai.ModelResponse) error {
+	for _, content := range item.Content {
+		resp.Message.Content = append(resp.Message.Content, ai.NewReasoningPart(content.Text, nil))
+	}
+	return nil
+}
+
+// handleFunctionToolCall translates a [responses.ResponseFunctionToolCall] into an [ai.ModelResponse]
+func handleFunctionToolCall(call responses.ResponseFunctionToolCall, resp *ai.ModelResponse) error {
+	args, err := jsonStringToMap(call.Arguments)
+	if err != nil {
+		return fmt.Errorf("could not parse tool args: %w", err)
+	}
+	resp.Message.Content = append(resp.Message.Content, ai.NewToolRequestPart(&ai.ToolRequest{
+		Ref:   call.CallID,
+		Name:  call.Name,
+		Input: args,
+	}))
+	return nil
+}
+
+// handleWebSearchResponse translates a [responses.ResponseFunctionWebSearch] into an [ai.ModelResponse]
+func handleWebSearchResponse(webSearch responses.ResponseFunctionWebSearch, resp *ai.ModelResponse) error {
+	resp.Message.Content = append(resp.Message.Content, ai.NewToolResponsePart(&ai.ToolResponse{
+		Ref:  webSearch.ID,
+		Name: string(webSearch.Type),
+		Output: map[string]any{
+			"query":   webSearch.Action.Query,
+			"type":    webSearch.Action.Type,
+			"sources": webSearch.Action.Sources,
+		},
+	}))
+	return nil
 }
 
 // toOpenAIInputItems converts a Genkit message to OpenAI Input Items
@@ -242,12 +288,34 @@ func toOpenAIInputItems(m *ai.Message) ([]responses.ResponseInputItemUnionParam,
 			if ref == "" {
 				ref = p.ToolRequest.Name
 			}
-			fmt.Printf("tool request detected: %#v\n", p.ToolRequest)
 			items = append(items, responses.ResponseInputItemParamOfFunctionCall(args, ref, p.ToolRequest.Name))
+		} else if p.IsReasoning() {
+			if err := flush(); err != nil {
+				return nil, err
+			}
+			id := fmt.Sprintf("reasoning_%p", p)
+			summary := []responses.ResponseReasoningItemSummaryParam{
+				{
+					Text: p.Text,
+					Type: constant.SummaryText("summary_text"),
+				},
+			}
+			items = append(items, responses.ResponseInputItemParamOfReasoning(id, summary))
 		} else if p.IsToolResponse() {
 			if err := flush(); err != nil {
 				return nil, err
 			}
+
+			// Handle Web Search specifically
+			if p.ToolResponse.Name == "web_search_call" {
+				item, err := handleWebSearchCall(p.ToolResponse, p.ToolResponse.Ref)
+				if err != nil {
+					return nil, err
+				}
+				items = append(items, item)
+				continue
+			}
+
 			output, err := anyToJSONString(p.ToolResponse.Output)
 			if err != nil {
 				return nil, err
@@ -261,6 +329,56 @@ func toOpenAIInputItems(m *ai.Message) ([]responses.ResponseInputItemUnionParam,
 	}
 
 	return items, nil
+}
+
+// handleWebSearchCall handles built-in tool responses for the web_search tool
+func handleWebSearchCall(toolResponse *ai.ToolResponse, ref string) (responses.ResponseInputItemUnionParam, error) {
+	output, ok := toolResponse.Output.(map[string]any)
+	if !ok {
+		return responses.ResponseInputItemUnionParam{}, fmt.Errorf("invalid output format for web_search_call: expected map[string]any")
+	}
+
+	actionType, _ := output["type"].(string)
+	jsonBytes, err := json.Marshal(output)
+	if err != nil {
+		return responses.ResponseInputItemUnionParam{}, err
+	}
+
+	var item responses.ResponseInputItemUnionParam
+
+	switch actionType {
+	case "open_page":
+		var openPageAction responses.ResponseFunctionWebSearchActionOpenPageParam
+		if err := json.Unmarshal(jsonBytes, &openPageAction); err != nil {
+			return responses.ResponseInputItemUnionParam{}, err
+		}
+		item = responses.ResponseInputItemParamOfWebSearchCall(
+			openPageAction,
+			ref,
+			responses.ResponseFunctionWebSearchStatusCompleted,
+		)
+	case "find":
+		var findAction responses.ResponseFunctionWebSearchActionFindParam
+		if err := json.Unmarshal(jsonBytes, &findAction); err != nil {
+			return responses.ResponseInputItemUnionParam{}, err
+		}
+		item = responses.ResponseInputItemParamOfWebSearchCall(
+			findAction,
+			ref,
+			responses.ResponseFunctionWebSearchStatusCompleted,
+		)
+	default:
+		var searchAction responses.ResponseFunctionWebSearchActionSearchParam
+		if err := json.Unmarshal(jsonBytes, &searchAction); err != nil {
+			return responses.ResponseInputItemUnionParam{}, err
+		}
+		item = responses.ResponseInputItemParamOfWebSearchCall(
+			searchAction,
+			ref,
+			responses.ResponseFunctionWebSearchStatusCompleted,
+		)
+	}
+	return item, nil
 }
 
 // toOpenAITools converts a slice of [ai.ToolDefinition] to [responses.ToolUnionParam]

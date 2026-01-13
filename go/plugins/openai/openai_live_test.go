@@ -17,7 +17,6 @@ package openai_test
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -279,6 +278,7 @@ func TestOpenAILive(t *testing.T) {
 			ai.WithConfig(&responses.ResponseNewParams{
 				Reasoning: shared.ReasoningParam{
 					Effort: shared.ReasoningEffortHigh,
+					// Summary: openai.ReasoningSummaryAuto, // enable this if your org is verified
 				},
 			}),
 			ai.WithModel(m),
@@ -305,10 +305,15 @@ func TestOpenAILive(t *testing.T) {
 			t.Fatalf("streaming and final should contain the same text.\n\nstreaming: %s\n\nfinal: %s\n\n", out, out2)
 		}
 
+		// uncomment this code if your org is verified
+		// if final.Reasoning() == "" {
+		// 	t.Fatalf("expecting reasoning text")
+		// }
+
 		if final.Usage.ThoughtsTokens > 0 {
 			t.Logf("Reasoning tokens: %d", final.Usage.ThoughtsTokens)
 		} else {
-			// This might happen if the model decides not to reason much or if stats are missing.
+			// this might happen if the model decides not to reason much or if stats are missing.
 			t.Log("No reasoning tokens reported.")
 		}
 	})
@@ -365,9 +370,7 @@ func TestOpenAILive(t *testing.T) {
 	t.Run("built-in tools", func(t *testing.T) {
 		m := oai.Model(g, "gpt-4o")
 
-		// define a built-in web search tool configuration
 		webSearchTool := responses.ToolParamOfWebSearch(responses.WebSearchToolTypeWebSearch)
-
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&responses.ResponseNewParams{
@@ -386,14 +389,13 @@ func TestOpenAILive(t *testing.T) {
 			t.Fatal("expected a response but nothing was returned")
 		}
 
-		fmt.Printf("tool requests: %#v\n", resp.ToolRequests())
-
 		t.Logf("Response: %s", resp.Text())
 	})
 
 	t.Run("mixed tools", func(t *testing.T) {
 		m := oai.Model(g, "gpt-4o")
 
+		webSearchTool := responses.ToolParamOfWebSearch(responses.WebSearchToolTypeWebSearch)
 		gablorkenDefinitionTool := genkit.DefineTool(
 			g,
 			"gablorkenDefinitionTool",
@@ -402,9 +404,6 @@ func TestOpenAILive(t *testing.T) {
 				return "A gablorken is a interstellar currency for the Andromeda Galaxy. It is equivalent to 0.4 USD per Gablorken (GAB)", nil
 			},
 		)
-
-		// define a built-in web search tool configuration
-		webSearchTool := responses.ToolParamOfWebSearch(responses.WebSearchToolTypeWebSearch)
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
@@ -415,7 +414,7 @@ func TestOpenAILive(t *testing.T) {
 				// Add built-in tool via config
 				Tools: []responses.ToolUnionParam{webSearchTool},
 			}),
-			ai.WithPrompt("I'd would like to ask you two things: What's the current weather in SFO? What's the meaning of gablorken?"),
+			ai.WithPrompt("I'd would like to ask you two things: What's the current weather in SFO? What's the meaning of gablorken?. Use the web search tool to get the weather in SFO and use the gablorken definition tool to give me its definition. Make sure to include the response for both questions in your answer"),
 			ai.WithTools(gablorkenDefinitionTool),
 		)
 		if err != nil {
@@ -425,8 +424,6 @@ func TestOpenAILive(t *testing.T) {
 		if len(resp.Text()) == 0 {
 			t.Fatal("expected a response but nothing was returned")
 		}
-
-		fmt.Printf("tool requests: %#v\n", resp.ToolRequests())
 
 		t.Logf("Response: %s", resp.Text())
 	})
