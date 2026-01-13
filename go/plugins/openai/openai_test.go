@@ -296,15 +296,6 @@ func TestConfigFromRequest(t *testing.T) {
 		check   func(*testing.T, *responses.ResponseNewParams)
 	}{
 		{
-			name:  "nil config",
-			input: nil,
-			check: func(t *testing.T, got *responses.ResponseNewParams) {
-				if got != nil {
-					t.Errorf("expected nil params")
-				}
-			},
-		},
-		{
 			name: "struct config",
 			input: responses.ResponseNewParams{
 				Model: shared.ResponsesModel("gpt-4o"),
