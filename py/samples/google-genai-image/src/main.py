@@ -55,10 +55,7 @@ async def describe_image_with_gemini(data: str) -> str:
         The description of the image.
     """
     if not (data.startswith('data:') and ',' in data):
-        raise ValueError(
-            f'Expected a data URI (e.g., "data:image/jpeg;base64,..."), '
-            f'but got: {data[:50]}...'
-        )
+        raise ValueError(f'Expected a data URI (e.g., "data:image/jpeg;base64,..."), but got: {data[:50]}...')
 
     result = await ai.generate(
         messages=[

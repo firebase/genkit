@@ -180,7 +180,6 @@ from genkit.types import (
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
     """Gemini Config Schema."""
 
-
     code_execution: bool | None = None
     response_modalities: list[str] | None = None
     thinking_config: dict[str, Any] | None = None
@@ -686,7 +685,7 @@ class GeminiModel:
         # Fix for no-arg tools: parameters cannot be None if we want the tool to be callable?
         # Actually Google GenAI expects type=OBJECT for params usually.
         if not params:
-             params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
+            params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
 
         function = genai_types.FunctionDeclaration(
             name=tool.name,
@@ -884,14 +883,18 @@ class GeminiModel:
                     kwargs['api_key'] = api_client.api_key
                 # Do NOT pass project/location/credentials if in Google AI mode to be safe
                 if api_client._credentials and not kwargs.get('api_key'):
-                     # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
-                     kwargs['credentials'] = api_client._credentials
+                    # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
+                    kwargs['credentials'] = api_client._credentials
 
             client = genai.Client(**kwargs)
 
         if ctx.is_streaming:
             response = await self._streaming_generate(
-                request_contents=request_contents, request_cfg=request_cfg, ctx=ctx, model_name=model_name, client=client
+                request_contents=request_contents,
+                request_cfg=request_cfg,
+                ctx=ctx,
+                model_name=model_name,
+                client=client,
             )
         else:
             response = await self._generate(
