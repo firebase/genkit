@@ -68,15 +68,14 @@ ai.defineFlow(
           city: z.string(),
         }),
         format: 'json',
-        constrained: true,
       },
     });
 
-    const collected: string[] = [];
+    const collected: any[] = [];
     for await (const chunk of stream) {
       if (chunk.text) {
-        collected.push(chunk.text);
-        sendChunk(chunk.text);
+        collected.push(chunk.output);
+        sendChunk(chunk.output);
       }
     }
 

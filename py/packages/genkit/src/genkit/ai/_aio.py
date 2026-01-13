@@ -20,13 +20,16 @@ To use Genkit in your application, construct an instance of the `Genkit`
 class while customizing it with any plugins.
 """
 
+import uuid
 from asyncio import Future
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 from genkit.aio import Channel
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
+from genkit.blocks.evaluator import EvaluatorRef
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -36,11 +39,18 @@ from genkit.blocks.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.blocks.prompt import PromptConfig, to_generate_action_options
+from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
-from genkit.core.typing import EmbedRequest, EmbedResponse
+from genkit.core.typing import (
+    BaseDataPoint,
+    BaseEvalDataPoint,
+    EmbedRequest,
+    EmbedResponse,
+    EvalRequest,
+    EvalResponse,
+)
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -63,6 +73,7 @@ class Genkit(GenkitBase):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
+        prompt_dir: str | Path | None = None,
         reflection_server_spec: ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
@@ -70,10 +81,21 @@ class Genkit(GenkitBase):
         Args:
             plugins: List of plugins to initialize.
             model: Model name to use.
+            prompt_dir: Directory to automatically load prompts from.
+                If not provided, defaults to loading from './prompts' if it exists.
             reflection_server_spec: Server spec for the reflection
                 server.
         """
         super().__init__(plugins=plugins, model=model, reflection_server_spec=reflection_server_spec)
+
+        load_path = prompt_dir
+        if load_path is None:
+            default_prompts_path = Path('./prompts')
+            if default_prompts_path.is_dir():
+                load_path = default_prompts_path
+
+        if load_path:
+            load_prompt_folder(self.registry, dir_path=load_path)
 
     async def generate(
         self,
@@ -391,3 +413,49 @@ class Genkit(GenkitBase):
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder_name)
 
         return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
+
+    async def evaluate(
+        self,
+        evaluator: str | EvaluatorRef | None = None,
+        dataset: list[BaseDataPoint] | None = None,
+        options: Any | None = None,
+        eval_run_id: str | None = None,
+    ) -> EvalResponse:
+        """Evaluates a dataset using an evaluator.
+
+        Args:
+            evaluator: Name or reference of the evaluator to use.
+            dataset: Dataset to evaluate.
+            options: Evaluation options.
+            eval_run_id: Optional ID for the evaluation run.
+
+        Returns:
+            The evaluation results.
+        """
+        evaluator_name: str = ''
+        evaluator_config: dict[str, Any] = {}
+
+        if isinstance(evaluator, EvaluatorRef):
+            evaluator_name = evaluator.name
+            evaluator_config = evaluator.config_schema or {}
+        elif isinstance(evaluator, str):
+            evaluator_name = evaluator
+        else:
+            raise ValueError('Evaluator must be specified as a string name or an EvaluatorRef.')
+
+        final_options = {**(evaluator_config or {}), **(options or {})}
+
+        eval_action = self.registry.lookup_action(ActionKind.EVALUATOR, evaluator_name)
+
+        if not eval_run_id:
+            eval_run_id = str(uuid.uuid4())
+
+        return (
+            await eval_action.arun(
+                EvalRequest(
+                    dataset=dataset,
+                    options=final_options,
+                    eval_run_id=eval_run_id,
+                )
+            )
+        ).response

@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -913,7 +913,7 @@ class Message(BaseModel):
     """Model for message data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    role: Role
+    role: Role | str
     content: list[Part]
     metadata: dict[str, Any] | None = None
 

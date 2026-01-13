@@ -12,5 +12,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- uv run src/compat_oai_hello.py
+genkit start -- uv run src/main.py
 ```

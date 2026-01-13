@@ -206,10 +206,11 @@ class ImagenModel:
         content = []
         if response.generated_images:
             for image in response.generated_images:
+                b64_data = base64.b64encode(image.image.image_bytes).decode('utf-8')
                 content.append(
                     Part(
                         media=Media(
-                            url=base64.b64encode(image.image.image_bytes),
+                            url=f'data:{image.image.mime_type};base64,{b64_data}',
                             contentType=image.image.mime_type,
                         )
                     )

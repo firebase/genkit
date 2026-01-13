@@ -75,10 +75,10 @@ class AnthropicModel:
 
         if streaming:
             response = await self._generate_streaming(params, ctx)
-            content = []
         else:
             response = await self.client.messages.create(**params)
-            content = self._to_genkit_content(response.content)
+
+        content = self._to_genkit_content(response.content)
 
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -155,7 +155,7 @@ class AnthropicModel:
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
-                            content=[TextPart(text=chunk.delta.text)],
+                            content=[Part(root=TextPart(text=chunk.delta.text))],
                         )
                     )
             return await stream.get_final_message()
@@ -223,15 +223,17 @@ class AnthropicModel:
         parts = []
         for block in content_blocks:
             if block.type == 'text':
-                parts.append(TextPart(text=block.text))
+                parts.append(Part(root=TextPart(text=block.text)))
             elif block.type == 'tool_use':
                 parts.append(
-                    ToolRequestPart(
-                        tool_request={
-                            'ref': block.id,
-                            'name': block.name,
-                            'input': block.input,
-                        }
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request={
+                                'ref': block.id,
+                                'name': block.name,
+                                'input': block.input,
+                            }
+                        )
                     )
                 )
         return parts

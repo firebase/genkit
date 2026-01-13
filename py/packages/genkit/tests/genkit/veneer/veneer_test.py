@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the action module."""
@@ -17,6 +17,7 @@ from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import MessageWrapper, text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
+    BaseDataPoint,
     BaseEvalDataPoint,
     Details,
     DocumentData,
@@ -1157,8 +1158,8 @@ async def test_generate_simulates_doc_grounding(
     assert (await response).request.messages[0] == want_msg
 
 
-class TestFormat(FormatDef):
-    """Test format for testing the format."""
+class MockBananaFormat(FormatDef):
+    """Mock format for testing the format."""
 
     def __init__(self):
         """Initialize the format."""
@@ -1199,7 +1200,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     """Test that the define format function works."""
     ai, _, pm, *_ = setup_test
 
-    ai.define_format(TestFormat())
+    ai.define_format(MockBananaFormat())
 
     class TestSchema(BaseModel):
         foo: int = Field(None, description='foo field')
@@ -1563,3 +1564,36 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
 
     assert chunks == [1, 2, 3]
     assert (await response) == 'banana2'
+
+
+@pytest.mark.asyncio
+async def test_evaluate(setup_test: SetupFixture) -> None:
+    """Test that the evaluate function works."""
+    ai, _, _, *_ = setup_test
+
+    async def my_eval_fn(datapoint: BaseDataPoint, options: Any | None):
+        return EvalFnResponse(
+            test_case_id=datapoint.test_case_id,
+            evaluation=Score(score=True, details=Details(reasoning='I think it is true')),
+        )
+
+    ai.define_evaluator(
+        name='my_eval',
+        display_name='Test evaluator',
+        definition='Test evaluator that always returns True',
+        fn=my_eval_fn,
+    )
+
+    dataset = [
+        BaseDataPoint(input='hi', output='hi', test_case_id='case1'),
+        BaseDataPoint(input='bye', output='bye', test_case_id='case2'),
+    ]
+
+    response = await ai.evaluate(evaluator='my_eval', dataset=dataset)
+
+    assert isinstance(response, EvalResponse)
+    assert len(response.root) == 2
+    assert response.root[0].test_case_id == 'case1'
+    assert response.root[0].evaluation.score is True
+    assert response.root[1].test_case_id == 'case2'
+    assert response.root[1].evaluation.score is True

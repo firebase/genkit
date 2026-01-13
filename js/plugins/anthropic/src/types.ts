@@ -109,16 +109,27 @@ export type AnthropicBaseConfigSchemaType = typeof AnthropicBaseConfigSchema;
 export const ThinkingConfigSchema = z
   .object({
     enabled: z.boolean().optional(),
-    budgetTokens: z.number().int().min(1_024).optional(),
+    budgetTokens: z.number().min(1_024).optional(),
   })
   .passthrough()
   .passthrough()
   .superRefine((value, ctx) => {
-    if (value.enabled && value.budgetTokens === undefined) {
+    if (!value.enabled) return;
+
+    if (value.budgetTokens === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['budgetTokens'],
         message: 'budgetTokens is required when thinking is enabled',
+      });
+    } else if (
+      value.budgetTokens !== undefined &&
+      !Number.isInteger(value.budgetTokens)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['budgetTokens'],
+        message: 'budgetTokens must be an integer',
       });
     }
   });

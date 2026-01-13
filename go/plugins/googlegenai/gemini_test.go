@@ -158,10 +158,10 @@ func TestConvertRequest(t *testing.T) {
 			t.Errorf("topK: got: nil, want %d", ogCfg.TopK)
 		}
 		if gcc.ResponseMIMEType != "" {
-			t.Errorf("ResponseMIMEType should been empty if tools are present")
+			t.Errorf("ResponseMIMEType should be empty if tools are present")
 		}
-		if gcc.ResponseSchema == nil {
-			t.Errorf("ResponseSchema should not be empty")
+		if gcc.ResponseSchema != nil {
+			t.Errorf("ResponseSchema should be nil when tools are present (JSON mode is not compatible with tools)")
 		}
 		if gcc.ThinkingConfig == nil {
 			t.Errorf("ThinkingConfig should not be empty")
@@ -704,6 +704,82 @@ func TestValidToolName(t *testing.T) {
 				t.Errorf("Test %q failed: expected: %v, got: %v", tc.name, tc.expected, got)
 			}
 		})
+	}
+}
+
+func TestToGeminiParts_MultipartToolResponse(t *testing.T) {
+	t.Run("ValidPartType", func(t *testing.T) {
+		// Create a tool response with both output and additional content (media)
+		toolResp := &ai.ToolResponse{
+			Name:   "generateImage",
+			Output: map[string]any{"status": "success"},
+			Content: []*ai.Part{
+				ai.NewMediaPart("image/png", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
+			},
+		}
+
+		// create a mock ToolResponsePart, setting "multipart" to true is required
+		part := ai.NewToolResponsePart(toolResp)
+		part.Metadata = map[string]any{"multipart": true}
+
+		geminiParts, err := toGeminiParts([]*ai.Part{part})
+		if err != nil {
+			t.Fatalf("toGeminiParts failed: %v", err)
+		}
+
+		// Expecting 1 part which contains the function response with internal parts
+		if len(geminiParts) != 1 {
+			t.Fatalf("expected 1 Gemini part, got %d", len(geminiParts))
+		}
+
+		if geminiParts[0].FunctionResponse == nil {
+			t.Error("expected first part to be FunctionResponse")
+		}
+		if geminiParts[0].FunctionResponse.Name != "generateImage" {
+			t.Errorf("expected function name 'generateImage', got %q", geminiParts[0].FunctionResponse.Name)
+		}
+	})
+
+	t.Run("UnsupportedPartType", func(t *testing.T) {
+		// Create a tool response with text content (unsupported for multipart)
+		toolResp := &ai.ToolResponse{
+			Name:   "generateText",
+			Output: map[string]any{"status": "success"},
+			Content: []*ai.Part{
+				ai.NewTextPart("Generated text"),
+			},
+		}
+
+		part := ai.NewToolResponsePart(toolResp)
+		part.Metadata = map[string]any{"multipart": true}
+
+		_, err := toGeminiParts([]*ai.Part{part})
+		if err == nil {
+			t.Fatal("expected error for unsupported text part in multipart response, got nil")
+		}
+	})
+}
+
+func TestToGeminiParts_SimpleToolResponse(t *testing.T) {
+	// Create a simple tool response (no content)
+	toolResp := &ai.ToolResponse{
+		Name:   "search",
+		Output: map[string]any{"result": "foo"},
+	}
+
+	part := ai.NewToolResponsePart(toolResp)
+
+	geminiParts, err := toGeminiParts([]*ai.Part{part})
+	if err != nil {
+		t.Fatalf("toGeminiParts failed: %v", err)
+	}
+
+	if len(geminiParts) != 1 {
+		t.Fatalf("expected 1 Gemini part, got %d", len(geminiParts))
+	}
+
+	if geminiParts[0].FunctionResponse == nil {
+		t.Error("expected part to be FunctionResponse")
 	}
 }
 
