@@ -61,7 +61,7 @@ func main() {
 		}
 
 		return genkit.GenerateText(ctx, g,
-			ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
+			ai.WithModel(googlegenai.ModelRef("gemini-3-flash-preview", &genai.GenerateContentConfig{
 				ThinkingConfig: &genai.ThinkingConfig{
 					ThinkingBudget: genai.Ptr[int32](0),
 				},
