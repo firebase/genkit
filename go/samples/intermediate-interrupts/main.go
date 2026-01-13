@@ -117,9 +117,9 @@ func main() {
 					fmt.Print("Choice: ")
 
 					if promptChoice(reader, 1, 2) == 1 {
-						// RestartWith + WithReplaceInput: Retry with adjusted amount
+						// RestartWith + WithNewInput: Retry with adjusted amount
 						part, err := transferMoney.RestartWith(interrupt,
-							ai.WithReplaceInput(TransferInput{meta.ToAccount, meta.Balance}))
+							ai.WithNewInput(TransferInput{meta.ToAccount, meta.Balance}))
 						if err != nil {
 							return "", fmt.Errorf("RestartWith: %w", err)
 						}

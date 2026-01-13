@@ -158,7 +158,7 @@ type RestartWithOption[In any] interface {
 func (o *RestartOptions) applyRestartWith(opts *RestartOptions) error {
 	if o.ReplaceInput != nil {
 		if opts.ReplaceInput != nil {
-			return errors.New("cannot set replace input more than once (WithReplaceInput)")
+			return errors.New("cannot set new input more than once (WithNewInput)")
 		}
 		opts.ReplaceInput = o.ReplaceInput
 	}
@@ -171,8 +171,8 @@ func (o *RestartOptions) applyRestartWith(opts *RestartOptions) error {
 	return nil
 }
 
-// WithReplaceInput sets a new input value to replace the original tool request input.
-func WithReplaceInput[In any](input In) RestartWithOption[In] {
+// WithNewInput sets a new input value to replace the original tool request input.
+func WithNewInput[In any](input In) RestartWithOption[In] {
 	return &RestartOptions{ReplaceInput: input}
 }
 
@@ -673,7 +673,7 @@ func (t *ToolDef[In, Out]) RespondWith(toolReq *Part, output Out, opts ...Respon
 //
 // Example:
 //
-//	part, err := myTool.RestartWith(toolReq, WithReplaceInput(newInput), WithResumedMetadata[MyInput](meta))
+//	part, err := myTool.RestartWith(toolReq, WithNewInput(newInput), WithResumedMetadata[MyInput](meta))
 func (t *ToolDef[In, Out]) RestartWith(toolReq *Part, opts ...RestartWithOption[In]) (*Part, error) {
 	if toolReq == nil {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.RestartWith: toolReq is nil")
