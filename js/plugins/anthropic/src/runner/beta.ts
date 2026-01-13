@@ -43,14 +43,20 @@ import type {
 import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
-import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import {
+  AnthropicConfigSchema,
+  type AnthropicDocumentOptions,
+  type ClaudeRunnerParams,
+} from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import {
   betaServerToolUseBlockToPart,
+  toBetaDocumentBlock,
   unsupportedServerToolError,
 } from './converters/beta.js';
 import {
+  citationsDeltaToPart,
   inputJsonDeltaError,
   redactedThinkingBlockToPart,
   textBlockToPart,
@@ -180,6 +186,13 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     // Text
     if (part.text) {
       return { type: 'text', text: part.text };
+    }
+
+    // Custom document (for citations support)
+    if (part.custom?.anthropicDocument) {
+      return toBetaDocumentBlock(
+        part.custom.anthropicDocument as AnthropicDocumentOptions
+      );
     }
 
     // Media
@@ -462,6 +475,13 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       }
       if (event.delta.type === 'thinking_delta') {
         return thinkingDeltaToPart(event.delta);
+      }
+      if (event.delta.type === 'citations_delta') {
+        return citationsDeltaToPart(
+          event.delta as {
+            citation: Parameters<typeof citationsDeltaToPart>[0]['citation'];
+          }
+        );
       }
       if (event.delta.type === 'input_json_delta') {
         throw inputJsonDeltaError();

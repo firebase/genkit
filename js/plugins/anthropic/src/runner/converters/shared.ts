@@ -20,11 +20,93 @@
  */
 
 import type { Part } from 'genkit';
+import type { AnthropicCitation } from '../../types.js';
+
+/** Structural type for Anthropic citations (works with both stable and beta APIs). */
+interface AnthropicCitationInput {
+  type: string;
+  cited_text: string;
+  // document_index is optional since web search citations don't have it
+  document_index?: number;
+  document_title?: string | null;
+  file_id?: string | null;
+  start_char_index?: number;
+  end_char_index?: number;
+  start_page_number?: number;
+  end_page_number?: number;
+  start_block_index?: number;
+  end_block_index?: number;
+}
 
 /**
- * Converts a text block to a Genkit Part.
+ * Converts Anthropic's citation format (snake_case) to genkit format (camelCase).
+ * Only handles document-based citations (char_location, page_location, content_block_location).
+ * Skips web search and other citation types that don't reference documents.
  */
-export function textBlockToPart(block: { text: string }): Part {
+export function fromAnthropicCitation(
+  citation: AnthropicCitationInput
+): AnthropicCitation | undefined {
+  // Skip citations without document_index (e.g., web search results)
+  if (citation.document_index === undefined) {
+    return undefined;
+  }
+
+  switch (citation.type) {
+    case 'char_location':
+      return {
+        type: 'char_location',
+        citedText: citation.cited_text,
+        documentIndex: citation.document_index,
+        documentTitle: citation.document_title ?? undefined,
+        fileId: citation.file_id ?? undefined,
+        startCharIndex: citation.start_char_index!,
+        endCharIndex: citation.end_char_index!,
+      };
+    case 'page_location':
+      return {
+        type: 'page_location',
+        citedText: citation.cited_text,
+        documentIndex: citation.document_index,
+        documentTitle: citation.document_title ?? undefined,
+        fileId: citation.file_id ?? undefined,
+        startPageNumber: citation.start_page_number!,
+        endPageNumber: citation.end_page_number!,
+      };
+    case 'content_block_location':
+      return {
+        type: 'content_block_location',
+        citedText: citation.cited_text,
+        documentIndex: citation.document_index,
+        documentTitle: citation.document_title ?? undefined,
+        fileId: citation.file_id ?? undefined,
+        startBlockIndex: citation.start_block_index!,
+        endBlockIndex: citation.end_block_index!,
+      };
+    default:
+      // Skip web search and other citation types - they're not from documents
+      return undefined;
+  }
+}
+
+/**
+ * Converts a text block to a Genkit Part, including citations if present.
+ * Uses structural typing for compatibility with both stable and beta APIs.
+ */
+export function textBlockToPart(block: {
+  text: string;
+  citations?: AnthropicCitationInput[] | null;
+}): Part {
+  if (block.citations && block.citations.length > 0) {
+    const citations = block.citations
+      .map((c) => fromAnthropicCitation(c))
+      .filter((c): c is AnthropicCitation => c !== undefined);
+    if (citations.length > 0) {
+      return {
+        text: block.text,
+        metadata: { citations },
+      };
+    }
+  }
   return { text: block.text };
 }
 
@@ -101,6 +183,26 @@ export function textDeltaToPart(delta: { text: string }): Part {
  */
 export function thinkingDeltaToPart(delta: { thinking: string }): Part {
   return { reasoning: delta.thinking };
+}
+
+/**
+ * Converts a citations_delta to a Genkit Part for streaming.
+ * Returns a text part with empty text and citation data in metadata.
+ * Empty text is intentional: genkit's `.text` getter concatenates all text parts,
+ * so empty strings contribute nothing to the final text while preserving the citation
+ * in the parts array for consumers who need to access citation metadata.
+ */
+export function citationsDeltaToPart(delta: {
+  citation: AnthropicCitationInput;
+}): Part | undefined {
+  const citation = fromAnthropicCitation(delta.citation);
+  if (citation) {
+    return {
+      text: '',
+      metadata: { citations: [citation] },
+    };
+  }
+  return undefined;
 }
 
 /**
