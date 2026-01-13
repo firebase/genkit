@@ -128,6 +128,13 @@ export class ReflectionServer {
    * The server will be registered to be shut down on process exit.
    */
   async start() {
+    if ((global as any).schemaValidationMode === 'interpret') {
+      logger.debug(
+        'Skipping ReflectionServer start: not supported in interpret mode (Cloudflare Workers).'
+      );
+      return;
+    }
+
     const server = express();
 
     server.use(express.json({ limit: this.options.bodyLimit }));
@@ -510,4 +517,205 @@ if (typeof module !== 'undefined' && 'hot' in module) {
     logger.debug('Cleaning up reflection server(s) before module reload...');
     await ReflectionServer.stopAll();
   });
+}
+
+/**
+ * Creates a handler for the Reflection API that uses standard Web API Request/Response.
+ * This is suitable for use in Cloudflare Workers and other serverless environments.
+ */
+export function createReflectionApiHandler(registry: Registry) {
+  const activeActions = new Map<
+    string,
+    {
+      abortController: AbortController;
+      startTime: Date;
+    }
+  >();
+
+  return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-genkit-version',
+    };
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    try {
+      if (request.method === 'GET' && path === '/api/actions') {
+        const actions = await registry.listResolvableActions();
+        const convertedActions: any = {};
+        Object.keys(actions).forEach((key) => {
+          const action = actions[key];
+          convertedActions[key] = {
+            key,
+            name: action.name,
+            description: action.description,
+            metadata: action.metadata,
+          };
+          if (action.inputSchema || action.inputJsonSchema) {
+            convertedActions[key].inputSchema = toJsonSchema({
+              schema: action.inputSchema,
+              jsonSchema: action.inputJsonSchema,
+            });
+          }
+          if (action.outputSchema || action.outputJsonSchema) {
+            convertedActions[key].outputSchema = toJsonSchema({
+              schema: action.outputSchema,
+              jsonSchema: action.outputJsonSchema,
+            });
+          }
+        });
+        return new Response(JSON.stringify(convertedActions), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+
+      if (request.method === 'GET' && path === '/api/envs') {
+        return new Response(JSON.stringify(['dev']), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+
+      if (request.method === 'GET' && path === '/api/__health') {
+        return new Response('OK', { headers: corsHeaders });
+      }
+
+      if (request.method === 'POST' && path === '/api/runAction') {
+        const body = (await request.json()) as any;
+        const { key, input, context, telemetryLabels } = body;
+        const stream = url.searchParams.get('stream') === 'true';
+
+        const action = await registry.lookupAction(key);
+        if (!action) {
+          return new Response(`action ${key} not found`, {
+            status: 404,
+            headers: corsHeaders,
+          });
+        }
+
+        const abortController = new AbortController();
+        let traceId: string | undefined;
+
+        if (stream) {
+          const encoder = new TextEncoder();
+          const readable = new ReadableStream({
+            async start(controller) {
+              try {
+                const onTraceStartCallback = (metadata: any) => {
+                  traceId = metadata.traceId;
+                  activeActions.set(traceId!, {
+                    abortController,
+                    startTime: new Date(),
+                  });
+                };
+
+                const result = await action.run(input, {
+                  context,
+                  onChunk: (chunk) => {
+                    controller.enqueue(
+                      encoder.encode(JSON.stringify(chunk) + '\n')
+                    );
+                  },
+                  telemetryLabels,
+                  onTraceStart: onTraceStartCallback,
+                  abortSignal: abortController.signal,
+                });
+
+                await flushTracing();
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({
+                      result: result.result,
+                      telemetry: { traceId: result.telemetry.traceId },
+                    } as RunActionResponse)
+                  )
+                );
+                controller.close();
+              } catch (err: any) {
+                const errorResponse: Status = {
+                  code: isAbortError(err)
+                    ? StatusCodes.CANCELLED
+                    : StatusCodes.INTERNAL,
+                  message: isAbortError(err)
+                    ? 'Action was cancelled'
+                    : err.message,
+                  details: { stack: err.stack },
+                };
+                if (err.traceId) errorResponse.details.traceId = err.traceId;
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({ error: errorResponse } as RunActionResponse)
+                  )
+                );
+                controller.close();
+              } finally {
+                if (traceId) activeActions.delete(traceId);
+              }
+            },
+          });
+
+          return new Response(readable, {
+            headers: { 'Content-Type': 'text/plain', ...corsHeaders },
+          });
+        } else {
+          // Non-streaming
+          let result;
+          try {
+            result = await action.run(input, {
+              context,
+              telemetryLabels,
+              onTraceStart: (metadata) => {
+                traceId = metadata.traceId;
+                activeActions.set(traceId!, {
+                  abortController,
+                  startTime: new Date(),
+                });
+              },
+              abortSignal: abortController.signal,
+            });
+            await flushTracing();
+          } catch (err: any) {
+            const errorResponse: Status = {
+              code: isAbortError(err)
+                ? StatusCodes.CANCELLED
+                : StatusCodes.INTERNAL,
+              message: isAbortError(err) ? 'Action was cancelled' : err.message,
+              details: { stack: err.stack, traceId },
+            };
+            return new Response(
+              JSON.stringify({ error: errorResponse } as RunActionResponse),
+              {
+                headers: { 'Content-Type': 'application/json', ...corsHeaders },
+              }
+            );
+          } finally {
+            if (traceId) activeActions.delete(traceId);
+          }
+
+          return new Response(
+            JSON.stringify({
+              result: result.result,
+              telemetry: { traceId: result.telemetry.traceId },
+            } as RunActionResponse),
+            {
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            }
+          );
+        }
+      }
+
+      return new Response('Not Found', { status: 404, headers: corsHeaders });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message, stack: e.stack }), {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+  };
 }

@@ -160,7 +160,7 @@ export function validateSchema(
       validator = new Validator(toValidate);
       cfWorkerValidators.set(toValidate, validator);
     }
-    const result = validator.validate(data);
+    const result = validator.validate(sanitizeForJsonSchema(data));
     return {
       valid: result.valid,
       errors: result.errors?.map(cfWorkerErrorToValidationErrorDetail),
@@ -214,4 +214,19 @@ export function defineJsonSchema(
 ) {
   registry.registerSchema(name, { jsonSchema });
   return jsonSchema;
+}
+
+function sanitizeForJsonSchema(data: any): any {
+  if (Array.isArray(data)) {
+    return data.map(sanitizeForJsonSchema);
+  } else if (data !== null && typeof data === 'object') {
+    const out: any = {};
+    for (const key in data) {
+      if (data[key] !== undefined) {
+        out[key] = sanitizeForJsonSchema(data[key]);
+      }
+    }
+    return out;
+  }
+  return data;
 }

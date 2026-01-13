@@ -188,4 +188,64 @@ describe('disableSchemaCodeGeneration()', () => {
     compileMock.mock.restore();
     resetSchemaCodeGeneration();
   });
+
+  it('should strip undefined values before validating', () => {
+    disableSchemaCodeGeneration();
+    const result = validateSchema(
+      { foo: 'hello', bar: undefined },
+      {
+        jsonSchema: {
+          type: 'object',
+          properties: { foo: { type: 'string' }, bar: { type: 'string' } },
+          required: ['foo'],
+        },
+      }
+    );
+    assert.strictEqual(result.valid, true);
+    resetSchemaCodeGeneration();
+  });
+
+  it('should strip undefined values recursively', () => {
+    disableSchemaCodeGeneration();
+    const result = validateSchema(
+      { wrapper: { inner: 'hello', ignored: undefined } },
+      {
+        jsonSchema: {
+          type: 'object',
+          properties: {
+            wrapper: {
+              type: 'object',
+              properties: { inner: { type: 'string' } },
+            },
+          },
+        },
+      }
+    );
+    assert.strictEqual(result.valid, true);
+    resetSchemaCodeGeneration();
+  });
+
+  it('should strip undefined values in objects inside arrays', () => {
+    disableSchemaCodeGeneration();
+    const result = validateSchema(
+      { items: [{ name: 'item1', desc: undefined }, { name: 'item2' }] },
+      {
+        jsonSchema: {
+          type: 'object',
+          properties: {
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { name: { type: 'string' } },
+                required: ['name'],
+              },
+            },
+          },
+        },
+      }
+    );
+    assert.strictEqual(result.valid, true);
+    resetSchemaCodeGeneration();
+  });
 });
