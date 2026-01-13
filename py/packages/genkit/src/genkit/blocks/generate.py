@@ -637,7 +637,7 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
                 Part(
                     tool_request=tool_request_part.tool_request,
                     metadata={
-                        **(tool_request_part.metadata if tool_request_part.metadata else {}),
+                        **(tool_request_part.metadata.root if tool_request_part.metadata and isinstance(tool_request_part.metadata, Metadata) else tool_request_part.metadata if tool_request_part.metadata else {}),
                         'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
                     },
                 ),
@@ -815,7 +815,7 @@ def _find_corresponding_tool_response(responses: list[ToolResponsePart], request
     """
     for p in responses:
         if p.tool_response.name == request.tool_request.name and p.tool_response.ref == request.tool_request.ref:
-            return p
+            return Part(root=p)
     return None
 
 
