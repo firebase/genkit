@@ -401,8 +401,6 @@ func TestOpenAILive(t *testing.T) {
 		if len(resp.Text()) == 0 {
 			t.Fatal("expected a response but nothing was returned")
 		}
-
-		t.Logf("Response: %s", resp.Text())
 	})
 
 	t.Run("mixed tools", func(t *testing.T) {
@@ -449,7 +447,7 @@ func TestOpenAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		var out MovieReview
-		if err := resp.Output(&out); err == nil {
+		if err := resp.Output(&out); err != nil {
 			t.Errorf("expected a movie review, got: %v", err)
 		}
 		if out.Title == "" || out.Rating == 0 || out.Reason == "" {

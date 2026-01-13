@@ -495,34 +495,30 @@ func handleOutputFormat(textConfig responses.ResponseTextConfigParam, output *ai
 		return textConfig
 	}
 
-	// strict mode is used for latest gpt models
-	if output.Constrained && output.Schema != nil {
-		name := "output_schema"
-		// openai schemas require a name to be provided
-		if title, ok := output.Schema["title"].(string); ok {
-			name = title
-		}
+	if !output.Constrained || output.Schema == nil {
+		return textConfig
+	}
 
-		textConfig.Format = responses.ResponseFormatTextConfigUnionParam{
-			OfJSONSchema: &responses.ResponseFormatTextJSONSchemaConfigParam{
-				Type:   constant.JSONSchema("json_schema"),
-				Name:   sanitizeSchemaName(name),
-				Strict: param.NewOpt(true),
-				Schema: output.Schema,
-			},
-		}
-	} else {
-		textConfig.Format = responses.ResponseFormatTextConfigUnionParam{
-			OfJSONObject: &shared.ResponseFormatJSONObjectParam{
-				Type: constant.JSONObject("json_object"),
-			},
-		}
+	// strict mode is used for latest gpt models
+	name := "output_schema"
+	// openai schemas require a name to be provided
+	if title, ok := output.Schema["title"].(string); ok {
+		name = title
+	}
+
+	textConfig.Format = responses.ResponseFormatTextConfigUnionParam{
+		OfJSONSchema: &responses.ResponseFormatTextJSONSchemaConfigParam{
+			Type:   constant.JSONSchema("json_schema"),
+			Name:   sanitizeSchemaName(name),
+			Strict: param.NewOpt(true),
+			Schema: output.Schema,
+		},
 	}
 	return textConfig
 }
 
 // sanitizeSchemaName ensures the schema name contains only alphanumeric characters, underscores, or dashes,
-// and is no longer than 64 characters.
+// replaces invalid characters with underscores (_) and makes sure is no longer than 64 characters.
 func sanitizeSchemaName(name string) string {
 	schemaNameRegex := regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 	newName := schemaNameRegex.ReplaceAllString(name, "_")
