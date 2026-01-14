@@ -101,6 +101,7 @@ ai.defineFlow(
       config: {
         thinkingConfig: {
           thinkingLevel: level,
+          includeThoughts: true,
         },
       },
     });
@@ -129,6 +130,7 @@ ai.defineFlow(
       config: {
         thinkingConfig: {
           thinkingLevel: level,
+          includeThoughts: true,
         },
       },
     });
@@ -796,3 +798,132 @@ ai.defineFlow(
     return text;
   }
 );
+
+// Deep research example
+ai.defineFlow('deep-research', async (_, { sendChunk }) => {
+  let { operation } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    prompt:
+      'Compare the differences between TCP and UDP protocols. Provide the answer in a markdown table focusing on reliability, connection type, and speed.',
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    sendChunk('check status of operation ' + operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  }
+
+  if (operation.error) {
+    sendChunk('Error: ' + operation.error.message);
+    throw new Error('failed to deep research: ' + operation.error.message);
+  }
+
+  return operation.output?.message?.content.find((p) => !!p.text)?.text;
+});
+
+ai.defineFlow('deep-research-multi-turn', async (_, { sendChunk }) => {
+  // 1. First turn: Initial comparison with specific requirements
+  sendChunk('--- Turn 1: Initial Research ---');
+  let { operation } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    messages: [
+      {
+        role: 'system',
+        content: [{ text: 'You are a technical research assistant.' }],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Compare TCP vs UDP.',
+          },
+        ],
+      },
+    ],
+    config: {
+      thinkingSummaries: 'AUTO',
+      responseModalities: ['TEXT'],
+      store: true,
+    },
+  });
+
+  if (!operation) throw new Error('No operation returned');
+
+  while (!operation.done) {
+    sendChunk('Turn 1 status: ' + operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  }
+
+  if (operation.error) {
+    throw new Error('Turn 1 failed: ' + operation.error.message);
+  }
+
+  const response1 = operation.output?.message?.content.find(
+    (p) => !!p.text
+  )?.text;
+  sendChunk('Turn 1 Response: ' + response1);
+
+  // 2. Second turn: Follow up using the previous interaction ID
+  sendChunk('\n--- Turn 2: Follow up ---');
+  const interactionId = operation.id;
+
+  let { operation: op2 } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { text: 'Which one is better for video streaming? Explain why.' },
+        ],
+      },
+    ],
+    config: {
+      thinkingSummaries: 'AUTO',
+      responseModalities: ['TEXT'],
+      previousInteractionId: interactionId,
+    },
+  });
+
+  if (!op2) throw new Error('No operation returned for turn 2');
+
+  while (!op2.done) {
+    sendChunk('Turn 2 status: ' + op2.id);
+    op2 = await ai.checkOperation(op2);
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  }
+
+  if (op2.error) {
+    throw new Error('Turn 2 failed: ' + op2.error.message);
+  }
+
+  return op2.output?.message?.content.find((p) => !!p.text)?.text;
+});
+
+// Deep research cancel example
+ai.defineFlow('deep-research-cancel', async (_, { sendChunk }) => {
+  let { operation } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    prompt:
+      'Compare the differences between TCP and UDP protocols. Provide the answer in a markdown table focusing on reliability, connection type, and speed.',
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  sendChunk('Started operation: ' + operation.id);
+  // Wait a bit before cancelling
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  sendChunk('Cancelling operation: ' + operation.id);
+
+  const canceledOp = await ai.cancelOperation(operation);
+  sendChunk('Operation cancelled');
+
+  return JSON.stringify(canceledOp, null, 2);
+});
