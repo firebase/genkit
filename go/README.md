@@ -526,7 +526,7 @@ response, _ := genkit.Generate(ctx, g,
 Use the Genkit CLI to run your app with tracing and a local development UI:
 
 ```bash
-npm install -g genkit-cli
+curl -sL cli.genkit.dev | bash
 genkit start -- go run main.go
 ```
 
