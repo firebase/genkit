@@ -1106,16 +1106,28 @@ class GeminiModel:
                     stop_sequences=request_config.stop_sequences,
                 )
             elif isinstance(request_config, GeminiConfigSchema):
-                cfg = request_config
+                config_dict = request_config.model_dump(exclude_none=True)
+                # Remove extra fields not in GenerateContentConfig
+                for extra in ['code_execution', 'file_search', 'url_context', 'api_version']:
+                    config_dict.pop(extra, None)
+                cfg = genai_types.GenerateContentConfig(**config_dict)
+
                 if request_config.code_execution:
                     tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
                 if 'image_config' in request_config:
-                    cfg = GeminiImageConfigSchema(**request_config)
+                    validation_config = GeminiImageConfigSchema(**request_config)
                 elif 'speech_config' in request_config:
-                    cfg = GeminiTtsConfigSchema(**request_config)
+                    validation_config = GeminiTtsConfigSchema(**request_config)
                 else:
-                    cfg = GeminiConfigSchema(**request_config)
+                    validation_config = GeminiConfigSchema(**request_config)
+                
+                config_dict = validation_config.model_dump(exclude_none=True)
+                # Remove extra fields
+                for extra in ['code_execution', 'file_search', 'url_context', 'api_version']:
+                    config_dict.pop(extra, None)
+                cfg = genai_types.GenerateContentConfig(**config_dict)
+
 
         if request.output:
             if not cfg:
