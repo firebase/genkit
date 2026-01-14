@@ -40,7 +40,7 @@ func main() {
 			ai.WithModel(m),
 			ai.WithConfig(&anthropic.MessageNewParams{
 				Temperature: anthropic.Float(1.0),
-				MaxTokens:   *anthropic.IntPtr(1024),
+				MaxTokens:   1024,
 			}),
 			ai.WithPrompt(`Tell a short joke about %s`, input))
 		if err != nil {
