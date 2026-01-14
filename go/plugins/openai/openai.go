@@ -121,7 +121,7 @@ func Model(g *genkit.Genkit, name string) ai.Model {
 }
 
 // ModelRef creates a new ModelRef for an OpenAI model with the given ID and configuration
-func ModelRef(g *genkit.Genkit, name string, config *responses.ResponseNewParams) ai.ModelRef {
+func ModelRef(name string, config *responses.ResponseNewParams) ai.ModelRef {
 	return ai.NewModelRef(openaiProvider+"/"+name, config)
 }
 

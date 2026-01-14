@@ -115,6 +115,39 @@ func TestOpenAILive(t *testing.T) {
 		}
 	})
 
+	t.Run("model ref", func(t *testing.T) {
+		config := &responses.ResponseNewParams{
+			Temperature:     openai.Float(1),
+			MaxOutputTokens: openai.Int(1024),
+			// Add built-in tool via config
+		}
+		mr := oai.ModelRef("gpt-4o", config)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("tell me a fact about Golang"),
+			ai.WithModel(mr),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Text() == "" {
+			t.Error("expected to have a response, got empty")
+		}
+		if resp.Request.Config == nil {
+			t.Fatal("expected a not nil configuration, got empty")
+		}
+		if cfg, ok := resp.Request.Config.(*responses.ResponseNewParams); ok {
+			if cfg.MaxOutputTokens != openai.Int(1024) {
+				t.Errorf("wrong MaxOutputTokens value, got: %d, want: 1024", cfg.MaxOutputTokens.Value)
+			}
+			if cfg.Temperature != openai.Float(1) {
+				t.Errorf("wrongTemperature value, got: %f, want: 1", cfg.Temperature.Value)
+			}
+		} else {
+			t.Fatalf("unexpected config, got: %T, want: %T", cfg, config)
+		}
+	})
+
 	t.Run("media content", func(t *testing.T) {
 		i, err := fetchImgAsBase64()
 		if err != nil {
