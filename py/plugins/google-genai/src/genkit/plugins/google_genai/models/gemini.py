@@ -863,6 +863,10 @@ class GeminiModel:
                 api_version = request.config.get('api_version')
 
         if api_version:
+            # TODO: Request public API from google-genai maintainers.
+            # Currently, there is no public way to access the configured api_key, project, or location
+            # from an existing Client instance. We need to access the private _api_client to
+            # clone the configuration when overriding the api_version.
             api_client = self._client._api_client
             kwargs = {
                 'vertexai': api_client.vertexai,
