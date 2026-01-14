@@ -61,12 +61,15 @@ async def describe_image_with_gemini(data: str = '') -> str:
         The description of the image.
     """
     if not data:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        image_path = os.path.join(current_dir, '..', 'image.jpg')
-        with open(image_path, 'rb') as image_file:
-            buffer = image_file.read()
-            img_base64 = base64.b64encode(buffer).decode('utf-8')
-            data = f'data:image/jpeg;base64,{img_base64}'
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            image_path = os.path.join(current_dir, '..', 'image.jpg')
+            with open(image_path, 'rb') as image_file:
+                buffer = image_file.read()
+                img_base64 = base64.b64encode(buffer).decode('utf-8')
+                data = f'data:image/jpeg;base64,{img_base64}'
+        except FileNotFoundError as e:
+            raise ValueError("Default image 'image.jpg' not found. Please provide image data.") from e
 
     if not (data.startswith('data:') and ',' in data):
         raise ValueError(f'Expected a data URI (e.g., "data:image/jpeg;base64,..."), but got: {data[:50]}...')
