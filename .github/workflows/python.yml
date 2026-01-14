@@ -98,11 +98,23 @@ jobs:
       - name: Lint with ruff
         run: uv run --directory py ruff check --select I .
 
+      - name: Type check with Ty
+        run: uv run --directory py ty check --exit-zero .
+
       - name: Check licenses
         run: ./bin/check_license
 
       - name: Run Python tests
         run: uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
+
+      - name: Run Python tests (tox)
+        run: |
+           clean_version=$(echo "${{ matrix.python-version }}" | tr -d '.')
+           uv run --directory py tox -e "py$clean_version"
+
+      - name: Run Python tests (nox)
+        run: |
+           uv run --directory py nox -s "tests-${{ matrix.python-version }}"
 
       - name: Build distributions
         run: ./py/bin/build_dists

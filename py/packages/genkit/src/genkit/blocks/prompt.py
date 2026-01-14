@@ -682,7 +682,7 @@ async def render_system_prompt(
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=options.input_schema,
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
@@ -783,7 +783,11 @@ async def render_message_prompt(
                 context=context,
                 messages=messages_,
             ),
-            options=PromptMetadata(input=PromptInputConfig()),
+            options=PromptMetadata(
+                input=PromptInputConfig(
+                    schema=to_json_schema(options.input_schema) if options.input_schema else None,
+                )
+            ),
         )
         return [Message.model_validate(e.model_dump()) for e in rendered.messages]
 
@@ -794,7 +798,7 @@ async def render_message_prompt(
         resolved = await ensure_async(options.messages)(input, context)
         return resolved
 
-    raise TypeError(f"Unsupported type for messages: {type(options.messages)}")
+    raise TypeError(f'Unsupported type for messages: {type(options.messages)}')
 
 
 async def render_user_prompt(
@@ -834,7 +838,11 @@ async def render_user_prompt(
                 context,
                 prompt_cache.user_prompt,
                 input,
-                PromptMetadata(input=PromptInputConfig()),
+                PromptMetadata(
+                    input=PromptInputConfig(
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
+                    )
+                ),
             ),
         )
 

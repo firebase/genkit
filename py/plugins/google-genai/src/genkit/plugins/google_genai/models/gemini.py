@@ -181,6 +181,29 @@ class GeminiConfigSchema(genai_types.GenerateContentConfig):
     """Gemini Config Schema."""
 
     code_execution: bool | None = None
+    response_modalities: list[str] | None = None
+    thinking_config: dict[str, Any] | None = None
+    file_search: dict[str, Any] | None = None
+    url_context: dict[str, Any] | None = None
+    api_version: str | None = None
+
+
+class GeminiTtsConfigSchema(GeminiConfigSchema):
+    """Gemini TTS Config Schema."""
+
+    speech_config: dict[str, Any] | None = None
+
+
+class GeminiImageConfigSchema(GeminiConfigSchema):
+    """Gemini Image Config Schema."""
+
+    image_config: dict[str, Any] | None = None
+
+
+class GemmaConfigSchema(GeminiConfigSchema):
+    """Gemma Config Schema."""
+
+    temperature: float | None = None
 
 
 GEMINI_1_5_PRO = ModelInfo(
@@ -341,6 +364,57 @@ GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
     ),
 )
 
+GENERIC_GEMINI_MODEL = ModelInfo(
+    label='Google AI - Gemini',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+        output=['text', 'json'],
+    ),
+)
+
+GENERIC_TTS_MODEL = ModelInfo(
+    label='Google AI - Gemini TTS',
+    supports=Supports(
+        multiturn=False,
+        media=False,
+        tools=False,
+        tool_choice=False,
+        system_role=False,
+        constrained='no-tools',
+    ),
+)
+
+GENERIC_IMAGE_MODEL = ModelInfo(
+    label='Google AI - Gemini Image',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+        output=['text'],
+    ),
+)
+
+GENERIC_GEMMA_MODEL = ModelInfo(
+    label='Google AI - Gemma',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+        output=['text', 'json'],
+    ),
+)
+
 
 Deprecations = deprecated_enum_metafactory({
     'GEMINI_1_0_PRO': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
@@ -368,6 +442,21 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported    |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
     | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported    |
+    | `gemini-3-flash-preview`             | Gemini 3 Flash Preview               | Supported    |
+    | `gemini-3-pro-preview`               | Gemini 3 Pro Preview                 | Supported    |
+    | `gemini-2.5-pro`                     | Gemini 2.5 Pro                       | Supported    |
+    | `gemini-2.5-flash`                   | Gemini 2.5 Flash                     | Supported    |
+    | `gemini-2.5-flash-lite`              | Gemini 2.5 Flash Lite                | Supported    |
+    | `gemini-2.5-flash-preview-tts`       | Gemini 2.5 Flash Preview TTS         | Supported    |
+    | `gemini-2.5-pro-preview-tts`         | Gemini 2.5 Pro Preview TTS           | Supported    |
+    | `gemini-3-pro-image-preview`         | Gemini 3 Pro Image Preview           | Supported    |
+    | `gemini-2.5-flash-image-preview`     | Gemini 2.5 Flash Image Preview       | Supported    |
+    | `gemini-2.5-flash-image`             | Gemini 2.5 Flash Image               | Supported    |
+    | `gemma-3-12b-it`                     | Gemma 3 12B IT                       | Supported    |
+    | `gemma-3-1b-it`                      | Gemma 3 1B IT                        | Supported    |
+    | `gemma-3-27b-it`                     | Gemma 3 27B IT                       | Supported    |
+    | `gemma-3-4b-it`                      | Gemma 3 4B IT                        | Supported    |
+    | `gemma-3n-e4b-it`                    | Gemma 3n E4B IT                      | Supported    |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -381,6 +470,21 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
     GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
+    GEMINI_3_FLASH_PREVIEW = 'gemini-3-flash-preview'
+    GEMINI_3_PRO_PREVIEW = 'gemini-3-pro-preview'
+    GEMINI_2_5_PRO = 'gemini-2.5-pro'
+    GEMINI_2_5_FLASH = 'gemini-2.5-flash'
+    GEMINI_2_5_FLASH_LITE = 'gemini-2.5-flash-lite'
+    GEMINI_2_5_FLASH_PREVIEW_TTS = 'gemini-2.5-flash-preview-tts'
+    GEMINI_2_5_PRO_PREVIEW_TTS = 'gemini-2.5-pro-preview-tts'
+    GEMINI_3_PRO_IMAGE_PREVIEW = 'gemini-3-pro-image-preview'
+    GEMINI_2_5_FLASH_IMAGE_PREVIEW = 'gemini-2.5-flash-image-preview'
+    GEMINI_2_5_FLASH_IMAGE = 'gemini-2.5-flash-image'
+    GEMMA_3_12B_IT = 'gemma-3-12b-it'
+    GEMMA_3_1B_IT = 'gemma-3-1b-it'
+    GEMMA_3_27B_IT = 'gemma-3-27b-it'
+    GEMMA_3_4B_IT = 'gemma-3-4b-it'
+    GEMMA_3N_E4B_IT = 'gemma-3n-e4b-it'
 
 
 class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
@@ -401,6 +505,21 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported  |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
     | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
+    | `gemini-3-flash-preview`             | Gemini 3 Flash Preview               | Supported  |
+    | `gemini-3-pro-preview`               | Gemini 3 Pro Preview                 | Supported  |
+    | `gemini-2.5-pro`                     | Gemini 2.5 Pro                       | Supported  |
+    | `gemini-2.5-flash`                   | Gemini 2.5 Flash                     | Supported  |
+    | `gemini-2.5-flash-lite`              | Gemini 2.5 Flash Lite                | Supported  |
+    | `gemini-2.5-flash-preview-tts`       | Gemini 2.5 Flash Preview TTS         | Supported  |
+    | `gemini-2.5-pro-preview-tts`         | Gemini 2.5 Pro Preview TTS           | Supported  |
+    | `gemini-3-pro-image-preview`         | Gemini 3 Pro Image Preview           | Supported  |
+    | `gemini-2.5-flash-image-preview`     | Gemini 2.5 Flash Image Preview       | Supported  |
+    | `gemini-2.5-flash-image`             | Gemini 2.5 Flash Image               | Supported  |
+    | `gemma-3-12b-it`                     | Gemma 3 12B IT                       | Supported  |
+    | `gemma-3-1b-it`                      | Gemma 3 1B IT                        | Supported  |
+    | `gemma-3-27b-it`                     | Gemma 3 27B IT                       | Supported  |
+    | `gemma-3-4b-it`                      | Gemma 3 4B IT                        | Supported  |
+    | `gemma-3n-e4b-it`                    | Gemma 3n E4B IT                      | Supported  |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -414,6 +533,21 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
     GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
+    GEMINI_3_FLASH_PREVIEW = 'gemini-3-flash-preview'
+    GEMINI_3_PRO_PREVIEW = 'gemini-3-pro-preview'
+    GEMINI_2_5_PRO = 'gemini-2.5-pro'
+    GEMINI_2_5_FLASH = 'gemini-2.5-flash'
+    GEMINI_2_5_FLASH_LITE = 'gemini-2.5-flash-lite'
+    GEMINI_2_5_FLASH_PREVIEW_TTS = 'gemini-2.5-flash-preview-tts'
+    GEMINI_2_5_PRO_PREVIEW_TTS = 'gemini-2.5-pro-preview-tts'
+    GEMINI_3_PRO_IMAGE_PREVIEW = 'gemini-3-pro-image-preview'
+    GEMINI_2_5_FLASH_IMAGE_PREVIEW = 'gemini-2.5-flash-image-preview'
+    GEMINI_2_5_FLASH_IMAGE = 'gemini-2.5-flash-image'
+    GEMMA_3_12B_IT = 'gemma-3-12b-it'
+    GEMMA_3_1B_IT = 'gemma-3-1b-it'
+    GEMMA_3_27B_IT = 'gemma-3-27b-it'
+    GEMMA_3_4B_IT = 'gemma-3-4b-it'
+    GEMMA_3N_E4B_IT = 'gemma-3n-e4b-it'
 
 
 SUPPORTED_MODELS = {
@@ -428,6 +562,21 @@ SUPPORTED_MODELS = {
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
+    GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW: GENERIC_GEMINI_MODEL,
+    GoogleAIGeminiVersion.GEMINI_3_PRO_PREVIEW: GENERIC_GEMINI_MODEL,
+    GoogleAIGeminiVersion.GEMINI_2_5_PRO: GENERIC_GEMINI_MODEL,
+    GoogleAIGeminiVersion.GEMINI_2_5_FLASH: GENERIC_GEMINI_MODEL,
+    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_LITE: GENERIC_GEMINI_MODEL,
+    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_TTS: GENERIC_TTS_MODEL,
+    GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_TTS: GENERIC_TTS_MODEL,
+    GoogleAIGeminiVersion.GEMINI_3_PRO_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
+    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
+    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE: GENERIC_IMAGE_MODEL,
+    GoogleAIGeminiVersion.GEMMA_3_12B_IT: GENERIC_GEMMA_MODEL,
+    GoogleAIGeminiVersion.GEMMA_3_1B_IT: GENERIC_GEMMA_MODEL,
+    GoogleAIGeminiVersion.GEMMA_3_27B_IT: GENERIC_GEMMA_MODEL,
+    GoogleAIGeminiVersion.GEMMA_3_4B_IT: GENERIC_GEMMA_MODEL,
+    GoogleAIGeminiVersion.GEMMA_3N_E4B_IT: GENERIC_GEMMA_MODEL,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
     VertexAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
@@ -439,6 +588,21 @@ SUPPORTED_MODELS = {
     VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
+    VertexAIGeminiVersion.GEMINI_3_FLASH_PREVIEW: GENERIC_GEMINI_MODEL,
+    VertexAIGeminiVersion.GEMINI_3_PRO_PREVIEW: GENERIC_GEMINI_MODEL,
+    VertexAIGeminiVersion.GEMINI_2_5_PRO: GENERIC_GEMINI_MODEL,
+    VertexAIGeminiVersion.GEMINI_2_5_FLASH: GENERIC_GEMINI_MODEL,
+    VertexAIGeminiVersion.GEMINI_2_5_FLASH_LITE: GENERIC_GEMINI_MODEL,
+    VertexAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_TTS: GENERIC_TTS_MODEL,
+    VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_TTS: GENERIC_TTS_MODEL,
+    VertexAIGeminiVersion.GEMINI_3_PRO_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
+    VertexAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
+    VertexAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE: GENERIC_IMAGE_MODEL,
+    VertexAIGeminiVersion.GEMMA_3_12B_IT: GENERIC_GEMMA_MODEL,
+    VertexAIGeminiVersion.GEMMA_3_1B_IT: GENERIC_GEMMA_MODEL,
+    VertexAIGeminiVersion.GEMMA_3_27B_IT: GENERIC_GEMMA_MODEL,
+    VertexAIGeminiVersion.GEMMA_3_4B_IT: GENERIC_GEMMA_MODEL,
+    VertexAIGeminiVersion.GEMMA_3N_E4B_IT: GENERIC_GEMMA_MODEL,
 }
 
 
@@ -518,11 +682,16 @@ class GeminiModel:
             Genai tool compatible with Gemini API.
         """
         params = self._convert_schema_property(tool.input_schema)
+        # Fix for no-arg tools: parameters cannot be None if we want the tool to be callable?
+        # Actually Google GenAI expects type=OBJECT for params usually.
+        if not params:
+            params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
+
         function = genai_types.FunctionDeclaration(
             name=tool.name,
             description=tool.description,
             parameters=params,
-            response=tool.output_schema,
+            response=self._convert_schema_property(tool.output_schema) if tool.output_schema else None,
         )
         return genai_types.Tool(function_declarations=[function])
 
@@ -581,7 +750,7 @@ class GeminiModel:
 
             if schema_type == genai_types.Type.OBJECT:
                 schema.properties = {}
-                properties = input_schema['properties']
+                properties = input_schema.get('properties', {})
                 for key in properties:
                     nested_schema = self._convert_schema_property(properties[key], defs)
                     schema.properties[key] = nested_schema
@@ -684,13 +853,59 @@ class GeminiModel:
         if cached_content:
             request_cfg.cached_content = cached_content.name
 
+        client = self._client
+        # If config specifies an api_version different from default (e.g. 'v1alpha'),
+        # Create a temporary client with that version, since api_version is a client-level setting.
+        api_version = None
+        if request.config:
+            api_version = getattr(request.config, 'api_version', None)
+            if not api_version and isinstance(request.config, dict):
+                api_version = request.config.get('api_version')
+
+        if api_version:
+            # TODO: Request public API from google-genai maintainers.
+            # Currently, there is no public way to access the configured api_key, project, or location
+            # from an existing Client instance. We need to access the private _api_client to
+            # clone the configuration when overriding the api_version.
+            # This is brittle and relies on internal implementation details of the google-genai library.
+            # If the library changes its internal structure (e.g. renames _api_client or _credentials),
+            # this code WILL BREAK.
+            api_client = self._client._api_client
+            kwargs = {
+                'vertexai': api_client.vertexai,
+                'http_options': {'api_version': api_version},
+            }
+            if api_client.vertexai:
+                # Vertex AI mode: requires project/location (api_key is optional/unlikely)
+                if api_client.project:
+                    kwargs['project'] = api_client.project
+                if api_client.location:
+                    kwargs['location'] = api_client.location
+                if api_client._credentials:
+                    kwargs['credentials'] = api_client._credentials
+                # Don't pass api_key if we are in Vertex AI mode with credentials/project
+            else:
+                # Google AI mode: primarily uses api_key
+                if api_client.api_key:
+                    kwargs['api_key'] = api_client.api_key
+                # Do NOT pass project/location/credentials if in Google AI mode to be safe
+                if api_client._credentials and not kwargs.get('api_key'):
+                    # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
+                    kwargs['credentials'] = api_client._credentials
+
+            client = genai.Client(**kwargs)
+
         if ctx.is_streaming:
             response = await self._streaming_generate(
-                request_contents=request_contents, request_cfg=request_cfg, ctx=ctx, model_name=model_name
+                request_contents=request_contents,
+                request_cfg=request_cfg,
+                ctx=ctx,
+                model_name=model_name,
+                client=client,
             )
         else:
             response = await self._generate(
-                request_contents=request_contents, request_cfg=request_cfg, model_name=model_name
+                request_contents=request_contents, request_cfg=request_cfg, model_name=model_name, client=client
             )
 
         response.usage = self._create_usage_stats(request=request, response=response)
@@ -702,6 +917,7 @@ class GeminiModel:
         request_contents: list[genai_types.Content],
         request_cfg: genai_types.GenerateContentConfig,
         model_name: str,
+        client: genai.Client | None = None,
     ) -> GenerateResponse:
         """Call google-genai generate.
 
@@ -725,7 +941,8 @@ class GeminiModel:
                     fallback=lambda _: '[!! failed to serialize !!]',
                 ),
             )
-            response = await self._client.aio.models.generate_content(
+            client = client or self._client
+            response = await client.aio.models.generate_content(
                 model=model_name, contents=request_contents, config=request_cfg
             )
             span.set_attribute('genkit:output', dump_json(response))
@@ -745,6 +962,7 @@ class GeminiModel:
         request_cfg: genai_types.GenerateContentConfig | None,
         ctx: ActionRunContext,
         model_name: str,
+        client: genai.Client | None = None,
     ) -> GenerateResponse:
         """Call google-genai generate for streaming.
 
@@ -766,7 +984,8 @@ class GeminiModel:
                     'model': model_name,
                 }),
             )
-            generator = self._client.aio.models.generate_content_stream(
+            client = client or self._client
+            generator = client.aio.models.generate_content_stream(
                 model=model_name, contents=request_contents, config=request_cfg
             )
         accumulated_content = []
@@ -825,9 +1044,15 @@ class GeminiModel:
         cache = None
 
         for msg in request.messages:
+            if msg.role == Role.SYSTEM:
+                continue
             content_parts: list[genai_types.Part] = []
             for p in msg.content:
-                content_parts.append(PartConverter.to_gemini(p))
+                converted = PartConverter.to_gemini(p)
+                if isinstance(converted, list):
+                    content_parts.extend(converted)
+                else:
+                    content_parts.append(converted)
             request_contents.append(genai_types.Content(parts=content_parts, role=msg.role))
 
             if msg.metadata and msg.metadata.get('cache'):
@@ -837,6 +1062,9 @@ class GeminiModel:
                     cache_config=msg.metadata['cache'],
                     contents=request_contents,
                 )
+
+        if not request_contents:
+            request_contents.append(genai_types.Content(parts=[genai_types.Part(text=' ')], role='user'))
 
         return request_contents, cache
 
@@ -853,8 +1081,8 @@ class GeminiModel:
         if response.candidates:
             for candidate in response.candidates:
                 if candidate.content:
-                    for part in candidate.content.parts:
-                        content.append(PartConverter.from_gemini(part=part))
+                    for i, part in enumerate(candidate.content.parts):
+                        content.append(PartConverter.from_gemini(part=part, ref=str(i)))
 
         return content
 
@@ -885,7 +1113,19 @@ class GeminiModel:
                 if request_config.code_execution:
                     tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
-                cfg = genai_types.GenerateContentConfig(**request_config)
+                if 'image_config' in request_config:
+                    cfg = GeminiImageConfigSchema(**request_config)
+                elif 'speech_config' in request_config:
+                    cfg = GeminiTtsConfigSchema(**request_config)
+                else:
+                    cfg = GeminiConfigSchema(**request_config)
+
+            if isinstance(cfg, GeminiConfigSchema):
+                dumped_config = cfg.model_dump(exclude_none=True)
+                for key in ['code_execution', 'file_search', 'url_context', 'api_version']:
+                    if key in dumped_config:
+                        del dumped_config[key]
+                cfg = genai_types.GenerateContentConfig(**dumped_config)
 
         if request.output:
             if not cfg:
@@ -915,7 +1155,6 @@ class GeminiModel:
             for msg in system_messages:
                 for p in msg.content:
                     system_parts.append(PartConverter.to_gemini(p))
-                request.messages.remove(msg)
             cfg.system_instruction = genai.types.Content(parts=system_parts)
 
         return cfg

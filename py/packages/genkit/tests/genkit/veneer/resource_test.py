@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ async def test_define_resource_veneer():
     ai = Genkit(plugins=[])
 
     async def my_resource_fn(input, ctx):
-        return {'content': [Part(TextPart(text=f'Content for {input.uri}'))]}
+        return {'content': [Part(root=TextPart(text=f'Content for {input.uri}'))]}
 
     act = ai.define_resource({'uri': 'http://example.com/foo'}, my_resource_fn)
 
