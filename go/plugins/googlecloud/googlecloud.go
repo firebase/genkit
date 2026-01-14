@@ -126,7 +126,12 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 	var spanProcessors []sdktrace.SpanProcessor
 
 	shouldExport := opts.ForceDevExport || os.Getenv("GENKIT_ENV") != "dev"
-	if shouldExport && !opts.DisableTraces {
+	if !shouldExport {
+		slog.Info("Google Cloud telemetry export disabled in dev environment", "project_id", projectID)
+		return
+	}
+
+	if !opts.DisableTraces {
 		var traceOpts []texporter.Option
 		traceOpts = append(traceOpts, texporter.WithProjectID(projectID))
 
