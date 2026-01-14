@@ -1113,6 +1113,13 @@ class GeminiModel:
                 else:
                     cfg = GeminiConfigSchema(**request_config)
 
+            if isinstance(cfg, GeminiConfigSchema):
+                dumped_config = cfg.model_dump(exclude_none=True)
+                for key in ['code_execution', 'file_search', 'url_context', 'api_version']:
+                    if key in dumped_config:
+                        del dumped_config[key]
+                cfg = genai_types.GenerateContentConfig(**dumped_config)
+
         if request.output:
             if not cfg:
                 cfg = genai_types.GenerateContentConfig()
