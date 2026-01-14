@@ -1121,13 +1121,12 @@ class GeminiModel:
                     validation_config = GeminiTtsConfigSchema(**request_config)
                 else:
                     validation_config = GeminiConfigSchema(**request_config)
-                
+
                 config_dict = validation_config.model_dump(exclude_none=True)
                 # Remove extra fields
                 for extra in ['code_execution', 'file_search', 'url_context', 'api_version']:
                     config_dict.pop(extra, None)
                 cfg = genai_types.GenerateContentConfig(**config_dict)
-
 
         if request.output:
             if not cfg:

@@ -637,8 +637,11 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
                 Part(
                     tool_request=tool_request_part.tool_request,
                     metadata={
-                        **(tool_request_part.metadata.root if isinstance(tool_request_part.metadata,
-                                                                         Metadata) else tool_request_part.metadata or {}),
+                        **(
+                            tool_request_part.metadata.root
+                            if isinstance(tool_request_part.metadata, Metadata)
+                            else tool_request_part.metadata or {}
+                        ),
                         'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
                     },
                 ),
