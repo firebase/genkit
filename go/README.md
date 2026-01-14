@@ -42,7 +42,6 @@ package main
 import (
     "context"
     "fmt"
-    "log"
 
     "github.com/firebase/genkit/go/ai"
     "github.com/firebase/genkit/go/genkit"
@@ -58,7 +57,7 @@ func main() {
         ai.WithPrompt("Why is Go a great language for AI applications?"),
     )
     if err != nil {
-        log.Fatal("could not generate: %w", err)
+        fmt.Println("could not generate: %s", err)
     }
     fmt.Println(answer)
 }
@@ -527,7 +526,7 @@ response, _ := genkit.Generate(ctx, g,
 Use the Genkit CLI to run your app with tracing and a local development UI:
 
 ```bash
-npm install -g genkit-cli
+curl -sL cli.genkit.dev | bash
 genkit start -- go run main.go
 ```
 
@@ -614,5 +613,5 @@ Explore working examples to see Genkit in action:
 ---
 
 <p align="center">
-  Built by <a href="https://firebase.google.com/">Google</a> with contributions from the <a href="https://github.com/firebase/genkit/graphs/contributors">Open Source Community</a>
+  Built by Google with contributions from the <a href="https://github.com/firebase/genkit/graphs/contributors">Open Source Community</a>
 </p>
