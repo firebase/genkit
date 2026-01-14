@@ -20,19 +20,11 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/shared"
 )
-
-// mapToStruct unmarshals a map[string]any to the expected config api.
-func mapToStruct(m map[string]any, v any) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonData, v)
-}
 
 // ModelGenerator handles OpenAI generation requests
 type ModelGenerator struct {
@@ -163,7 +155,9 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 	case *openai.ChatCompletionNewParams:
 		openaiConfig = *cfg
 	case map[string]any:
-		if err := mapToStruct(cfg, &openaiConfig); err != nil {
+		var err error
+		openaiConfig, err = base.MapToStruct[openai.ChatCompletionNewParams](cfg)
+		if err != nil {
 			g.err = fmt.Errorf("failed to convert config to openai.ChatCompletionNewParams: %w", err)
 			return g
 		}

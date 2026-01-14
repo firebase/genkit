@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -658,15 +659,7 @@ func (t *mockTool) RunRawMultipart(ctx context.Context, input any) (*MultipartTo
 	return nil, nil
 }
 
-func (t *mockTool) Respond(toolReq *Part, outputData any, opts *RespondOptions) *Part {
-	return nil
-}
-
-func (t *mockTool) Restart(toolReq *Part, opts *RestartOptions) *Part {
-	return nil
-}
-
-func (t *mockTool) Register(r interface{ RegisterValue(string, any) }) {
+func (t *mockTool) Register(r api.Registry) {
 }
 
 func TestWithInputSchemaName(t *testing.T) {

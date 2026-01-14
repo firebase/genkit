@@ -915,12 +915,15 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 	return nil
 }
 
-// WithToolResponses sets the tool responses to return from interrupted tool calls.
+// WithToolResponses provides resolved responses for interrupted tool calls.
+// Use this when you already have the result and want to skip re-executing the tool.
 func WithToolResponses(parts ...*Part) GenerateOption {
 	return &generateOptions{RespondParts: parts}
 }
 
-// WithToolRestarts sets the tool requests to restart interrupted tools with.
+// WithToolRestarts re-executes interrupted tool calls with additional metadata.
+// Use this when the original call lacked required context (e.g., auth, user confirmation)
+// that should now allow the tool to complete successfully.
 func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
 }
