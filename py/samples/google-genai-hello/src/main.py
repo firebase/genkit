@@ -549,30 +549,6 @@ async def photo_move_veo(_: Any, context: Any = None):
             # Poll
             operation = await client.aio.operations.get(operation)
             await asyncio.sleep(5)
-<<<<<<< HEAD
-||||||| parent of d1387aa44 (fix(py): add more flows to genai sample)
-            
-        if operation.error:
-             if context:
-                 context.send_chunk(f"Error: {operation.error.message}")
-             raise ValueError(f"Failed to generate video: {operation.error.message}")
-             
-        # Done
-        result_info = "Video generated successfully."
-        if hasattr(operation, 'result') and operation.result:
-             if hasattr(operation.result, 'generated_videos') and operation.result.generated_videos:
-                   vid = operation.result.generated_videos[0]
-                   if vid.video and vid.video.uri:
-                       result_info += f" URI: {vid.video.uri}"
-        
-        if context:
-            context.send_chunk(f"Done! {result_info}")
-            
-        return operation
-            
-    except Exception as e:
-        raise ValueError(f"Flow failed: {e}")
-=======
 
         if operation.error:
             if context:
@@ -594,58 +570,8 @@ async def photo_move_veo(_: Any, context: Any = None):
 
     except Exception as e:
         raise ValueError(f'Flow failed: {e}')
->>>>>>> d1387aa44 (fix(py): add more flows to genai sample)
-
-<<<<<<< HEAD
-        if operation.error:
-            if context:
-                context.send_chunk(f'Error: {operation.error.message}')
-            raise ValueError(f'Failed to generate video: {operation.error.message}')
-
-        # Done
-        result_info = 'Video generated successfully.'
-        if hasattr(operation, 'result') and operation.result:
-            if hasattr(operation.result, 'generated_videos') and operation.result.generated_videos:
-                vid = operation.result.generated_videos[0]
-                if vid.video and vid.video.uri:
-                    result_info += f' URI: {vid.video.uri}'
-
-        if context:
-            context.send_chunk(f'Done! {result_info}')
-
-        return operation
-
-    except Exception as e:
-        raise ValueError(f'Flow failed: {e}')
 
 
-||||||| parent of d1387aa44 (fix(py): add more flows to genai sample)
-    """A simple example of image generation with Gemini (Imagen)."""
-    response = await ai.generate(
-        model='googleai/gemini-2.5-flash-image-preview',
-        prompt='generate an image of a large, industrial robot, clearly metallic and utilitarian in design, riding a custom-built bicycle designed for robots. The background will be a factory floor with visible machinery and equipment.',
-        config=GeminiImageConfigSchema(
-            response_modalities=['TEXT', 'IMAGE'],
-        ).model_dump(exclude_none=True),
-    )
-    for part in response.message.content:
-        if isinstance(part.root, MediaPart):
-            return part.root.media
-    return f"No media found. Content: {response.message.content}"
-=======
-    """A simple example of image generation with Gemini (Imagen)."""
-    response = await ai.generate(
-        model='googleai/gemini-2.5-flash-image-preview',
-        prompt='generate an image of a large, industrial robot, clearly metallic and utilitarian in design, riding a custom-built bicycle designed for robots. The background will be a factory floor with visible machinery and equipment.',
-        config=GeminiImageConfigSchema(
-            response_modalities=['TEXT', 'IMAGE'],
-        ).model_dump(exclude_none=True),
-    )
-    for part in response.message.content:
-        if isinstance(part.root, MediaPart):
-            return part.root.media
-    return f'No media found. Content: {response.message.content}'
->>>>>>> d1387aa44 (fix(py): add more flows to genai sample)
 
 
 @ai.flow()
