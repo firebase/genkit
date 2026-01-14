@@ -120,6 +120,11 @@ func Model(g *genkit.Genkit, name string) ai.Model {
 	return genkit.LookupModel(g, api.NewName(openaiProvider, name))
 }
 
+// ModelRef creates a new ModelRef for an OpenAI model with the given ID and configuration
+func ModelRef(g *genkit.Genkit, name string, config *responses.ResponseNewParams) ai.ModelRef {
+	return ai.NewModelRef(openaiProvider+"/"+name, config)
+}
+
 // IsDefinedModel reports whether the named [ai.Model] is defined by this plugin
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
 	return genkit.LookupModel(g, name) != nil
