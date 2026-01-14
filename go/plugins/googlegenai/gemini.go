@@ -99,7 +99,6 @@ func configToMap(config any) map[string]any {
 	return result
 }
 
-
 // configFromRequest converts any supported config type to [genai.GenerateContentConfig].
 func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
 	var result genai.GenerateContentConfig

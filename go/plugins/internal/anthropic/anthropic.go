@@ -196,7 +196,6 @@ func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error)
 	return req, nil
 }
 
-
 // configFromRequest converts any supported config type to [anthropic.MessageNewParams]
 func configFromRequest(input *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
 	var result anthropic.MessageNewParams
