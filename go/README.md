@@ -42,7 +42,6 @@ package main
 import (
     "context"
     "fmt"
-    "log"
 
     "github.com/firebase/genkit/go/ai"
     "github.com/firebase/genkit/go/genkit"
@@ -58,7 +57,7 @@ func main() {
         ai.WithPrompt("Why is Go a great language for AI applications?"),
     )
     if err != nil {
-        log.Fatal("could not generate: %w", err)
+        fmt.Println("could not generate: %s", err)
     }
     fmt.Println(answer)
 }
