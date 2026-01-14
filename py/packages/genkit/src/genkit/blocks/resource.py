@@ -232,8 +232,8 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                     p = p.root
 
                 if hasattr(p, 'metadata'):
-                    if p.metadata is None:
-                        p.metadata = {}
+                    if p.metadata is None or isinstance(p.metadata, dict):
+                        p.metadata = Metadata(root=p.metadata or {})
 
                     if isinstance(p.metadata, Metadata):
                         p_metadata = p.metadata.root

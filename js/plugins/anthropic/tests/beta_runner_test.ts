@@ -321,7 +321,7 @@ describe('BetaRunner', () => {
     const toolPart = exposed.toGenkitPart(serverToolEvent);
     assert.deepStrictEqual(toolPart, {
       text: '[Anthropic server tool srv/myTool] input: {"foo":"bar"}',
-      custom: {
+      metadata: {
         anthropicServerToolUse: {
           id: 'toolu_test',
           name: 'srv/myTool',
@@ -732,7 +732,7 @@ describe('BetaRunner', () => {
     });
     assert.deepStrictEqual(thinkingPart, {
       reasoning: 'pondering',
-      custom: { anthropicThinking: { signature: 'sig_456' } },
+      metadata: { thoughtSignature: 'sig_456' },
     });
 
     const redactedPart = (runner as any).fromBetaContentBlock({
@@ -766,7 +766,7 @@ describe('BetaRunner', () => {
     });
     assert.deepStrictEqual(serverToolPart, {
       text: '[Anthropic server tool srv/serverTool] input: {"arg":"value"}',
-      custom: {
+      metadata: {
         anthropicServerToolUse: {
           id: 'srv_tool_1',
           name: 'srv/serverTool',

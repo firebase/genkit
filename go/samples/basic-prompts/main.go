@@ -12,6 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This sample demonstrates prompts using both inline code definitions and
+// .prompt files (Dotprompt). It shows simple prompts, structured output with
+// typed schemas, and complex prompts with Handlebars conditionals.
+//
+// To run:
+//
+//	go run .
+//
+// In another terminal, test a simple joke flow:
+//
+//	curl -N -X POST http://localhost:8080/simpleJokePromptFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": "bananas"}'
+//
+// Test a structured joke flow (returns JSON):
+//
+//	curl -N -X POST http://localhost:8080/structuredJokePromptFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"topic": "bananas"}}'
+//
+// Test a recipe flow:
+//
+//	curl -N -X POST http://localhost:8080/recipePromptFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"dish": "tacos", "cuisine": "Mexican", "servingSize": 4}}'
 package main
 
 import (

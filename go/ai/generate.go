@@ -654,6 +654,10 @@ func GenerateDataStream[Out any](ctx context.Context, r api.Registry, opts ...Ge
 				yield(nil, err)
 				return err
 			}
+			// Skip yielding if there's no parseable output yet (e.g., incomplete JSON during streaming).
+			if base.IsNil(streamValue) {
+				return nil
+			}
 			if !yield(&StreamValue[Out, Out]{Chunk: streamValue}, nil) {
 				return errGenerateStop
 			}

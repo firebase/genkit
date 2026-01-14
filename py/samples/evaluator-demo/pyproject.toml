@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
+authors         = [{ name = "Google" }]
 dependencies    = ["genkit", "pydantic>=2.0.0", "structlog>=24.0.0", "pypdf"]
 description     = "Genkit Python Evaluation Demo"
 name            = "eval-demo"
