@@ -164,18 +164,29 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	return m
 }
 
-// jsonMarkdownRegex specifically looks for "json" language identifier
-var jsonMarkdownRegex = regexp.MustCompile("(?s)```json(.*?)```")
+// jsonMarkdownRegex matches fenced code blocks with "json" language identifier (case-insensitive).
+var jsonMarkdownRegex = regexp.MustCompile("(?si)```json\\s*(.*?)```")
+
+// plainMarkdownRegex matches fenced code blocks without any language identifier.
+var plainMarkdownRegex = regexp.MustCompile("(?s)```\\s*\\n(.*?)```")
 
 // ExtractJSONFromMarkdown returns the contents of the first fenced code block in
-// the markdown text md. If there is none, it returns md.
+// the markdown text md. It matches code blocks with "json" identifier (case-insensitive)
+// or code blocks without any language identifier. If there is no matching block, it returns md.
 func ExtractJSONFromMarkdown(md string) string {
+	// First try to match explicit json code blocks
 	matches := jsonMarkdownRegex.FindStringSubmatch(md)
-	if len(matches) < 2 {
-		return md
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
 	}
-	// capture group 1 matches the actual fenced JSON block
-	return strings.TrimSpace(matches[1])
+
+	// Fall back to plain code blocks (no language identifier)
+	matches = plainMarkdownRegex.FindStringSubmatch(md)
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
+	}
+
+	return md
 }
 
 // GetJSONObjectLines splits a string by newlines, trims whitespace from each line,

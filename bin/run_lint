@@ -24,7 +24,7 @@ PY_DIR="${TOP_DIR}/py"
 JS_DIR="${TOP_DIR}/js"j
 
 uv run --directory "${PY_DIR}" ruff check --select I --fix --preview --unsafe-fixes .
-uv run --directory "${PY_DIR}" mypy .
+uv run --directory "${PY_DIR}" ty check --exclude samples .
 
 # Disabled because there are many lint errors.
 #pushd "${GO_DIR}" &>/dev/null

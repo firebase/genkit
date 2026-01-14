@@ -345,7 +345,7 @@ describe('Anthropic Integration', () => {
     );
     assert.ok(reasoningPart, 'Expected reasoning part in assistant message');
     assert.strictEqual(
-      reasoningPart?.custom?.anthropicThinking?.signature,
+      (reasoningPart?.metadata as Record<string, unknown>)?.thoughtSignature,
       'sig_reasoning_123'
     );
   });
