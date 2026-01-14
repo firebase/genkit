@@ -613,5 +613,5 @@ Explore working examples to see Genkit in action:
 ---
 
 <p align="center">
-  Built by <a href="https://firebase.google.com/">Google</a> with contributions from the <a href="https://github.com/firebase/genkit/graphs/contributors">Open Source Community</a>
+  Built by Google with contributions from the <a href="https://github.com/firebase/genkit/graphs/contributors">Open Source Community</a>
 </p>
