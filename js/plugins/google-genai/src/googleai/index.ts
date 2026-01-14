@@ -30,11 +30,13 @@ import { calculateApiKey } from './utils.js';
 // These are namespaced because they all intentionally have
 // functions of the same name with the same arguments.
 // (All exports from these files are used here)
+import * as deepResearch from './deep-research.js';
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
 import * as imagen from './imagen.js';
 import * as veo from './veo.js';
 
+export { type DeepResearchConfig } from './deep-research.js';
 export { type EmbeddingConfig } from './embedder.js';
 export { type GeminiConfig, type GeminiTtsConfig } from './gemini.js';
 export { type ImagenConfig } from './imagen.js';
@@ -46,6 +48,7 @@ async function initializer(options?: GoogleAIPluginOptions) {
     ...gemini.listKnownModels(options),
     ...embedder.listKnownModels(options),
     ...veo.listKnownModels(options),
+    ...deepResearch.listKnownModels(options),
   ];
 }
 
@@ -56,7 +59,11 @@ async function resolver(
 ): Promise<ResolvableAction | undefined> {
   switch (actionType) {
     case 'model':
-      if (veo.isVeoModelName(actionName)) {
+      if (
+        veo.isVeoModelName(actionName) ||
+        deepResearch.isDeepResearchModelName(actionName)
+      ) {
+        // These are background models. Do not define them here.
         return undefined;
       } else if (imagen.isImagenModelName(actionName)) {
         return await imagen.defineModel(actionName, options);
@@ -68,6 +75,8 @@ async function resolver(
     case 'background-model':
       if (veo.isVeoModelName(actionName)) {
         return await veo.defineModel(actionName, options);
+      } else if (deepResearch.isDeepResearchModelName(actionName)) {
+        return await deepResearch.defineModel(actionName, options);
       }
       break;
     case 'embedder':
@@ -95,6 +104,7 @@ async function listActions(
       ...gemini.listActions(allModels),
       ...imagen.listActions(allModels),
       ...veo.listActions(allModels),
+      ...deepResearch.listActions(allModels),
       ...embedder.listActions(allModels),
     ];
   } catch (e: unknown) {
@@ -149,6 +159,10 @@ export type GoogleAIPlugin = {
     name: veo.KnownModels | (veo.VeoModelName & {}),
     config?: veo.VeoConfig
   ): ModelReference<veo.VeoConfigSchemaType>;
+  model(
+    name: deepResearch.KnownModels | (deepResearch.DeepResearchModelName & {}),
+    config?: deepResearch.DeepResearchConfig
+  ): ModelReference<deepResearch.DeepResearchConfigSchemaType>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
 
   embedder(
@@ -167,6 +181,9 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
 ): ModelReference<z.ZodTypeAny> => {
   if (veo.isVeoModelName(name)) {
     return veo.model(name, config);
+  }
+  if (deepResearch.isDeepResearchModelName(name)) {
+    return deepResearch.model(name, config);
   }
   if (imagen.isImagenModelName(name)) {
     return imagen.model(name, config);
