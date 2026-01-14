@@ -30,6 +30,7 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
+	"github.com/google/uuid"
 )
 
 // Model represents a model that can generate content based on a request.
@@ -361,6 +362,9 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return nil, err
 			}
 
+			// Ensure all tool requests have unique refs for matching during resume.
+			ensureToolRequestRefs(resp.Message)
+
 			// If this is a long-running operation response, return it immediately without further processing
 			if bm != nil && resp.Operation != nil {
 				return resp, nil
@@ -552,6 +556,9 @@ func GenerateText(ctx context.Context, r api.Registry, opts ...GenerateOption) (
 }
 
 // GenerateData runs a generate request and returns strongly-typed output.
+// If the response doesn't contain text output (e.g., contains tool requests
+// or interrupts instead), the output will be nil and no error is returned.
+// Check resp.Interrupts() or resp.ToolRequests() to handle these cases.
 func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
 	var value Out
 	opts = append(opts, WithOutputType(value))
@@ -561,9 +568,16 @@ func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...Generate
 		return nil, nil, err
 	}
 
+	// If there's no text content to parse (e.g., the response contains tool
+	// requests or interrupts), return nil output. The caller should check
+	// resp.Interrupts() or resp.ToolRequests() to handle these cases.
+	if resp.Text() == "" {
+		return nil, resp, nil
+	}
+
 	err = resp.Output(&value)
 	if err != nil {
-		return nil, nil, err
+		return nil, resp, err
 	}
 
 	return &value, resp, nil
@@ -713,6 +727,20 @@ func (m *model) supportsConstrained(hasTools bool) bool {
 	}
 
 	return true
+}
+
+// ensureToolRequestRefs assigns unique refs to tool request parts that don't have one.
+// This ensures that when there are multiple calls to the same tool, each can be
+// individually matched when resuming with Restart or Respond directives.
+func ensureToolRequestRefs(msg *Message) {
+	if msg == nil {
+		return
+	}
+	for _, part := range msg.Content {
+		if part.IsToolRequest() && part.ToolRequest.Ref == "" {
+			part.ToolRequest.Ref = uuid.New().String()
+		}
+	}
 }
 
 // clone creates a deep copy of the provided object using JSON marshaling and unmarshaling.
@@ -1166,7 +1194,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 						}
 					}
 				}
-				if originalInputVal, ok := restartPart.Metadata["originalInput"]; ok {
+				if originalInputVal, ok := restartPart.Metadata["replacedInput"]; ok {
 					resumedCtx = origInputCtxKey.NewContext(resumedCtx, originalInputVal)
 				}
 
