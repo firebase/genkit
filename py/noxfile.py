@@ -74,5 +74,5 @@ def lint(session: nox.Session) -> None:
     session.run('uv', 'run', 'ruff', 'format', '--check', '.', external=True)
     session.log('Running ruff checks')
     session.run('uv', 'run', 'ruff', 'check', '--preview', '--unsafe-fixes', '--fix', '.', external=True)
-    # session.log("Running mypy checks") # mypy has many errors currently
-    # session.run("mypy", external=True)
+    session.log('Running Ty checks')
+    session.run('uv', 'run', 'ty', 'check', '.', external=True)

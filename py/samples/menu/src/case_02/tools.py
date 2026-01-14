@@ -26,8 +26,8 @@ with open(menu_json_path) as f:
     menu_data = json.load(f)
 
 
-@ai.tool(name='menu_tool')
-def menu_tool(input=None) -> MenuToolOutputSchema:
+@ai.tool(name='todaysMenu')
+def todaysMenu(input=None) -> MenuToolOutputSchema:
     """Use this tool to retrieve all the items on today's menu."""
     return MenuToolOutputSchema(
         menu_data=menu_data,

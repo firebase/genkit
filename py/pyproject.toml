@@ -15,11 +15,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
+authors = [{ name = "Google" }]
 dependencies = [
   "dotpromptz==0.1.4",
   "genkit",
   "genkit-plugin-anthropic",
   "genkit-plugin-compat-oai",
+  "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-evaluators",
   "genkit-plugin-firebase",
@@ -34,7 +36,7 @@ dependencies = [
   "strenum>=0.4.15; python_version < '3.11'",
 ]
 description = "Workspace for Genkit packages"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "genkit-workspace"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -61,7 +63,7 @@ dev = [
   "nox-uv>=0.2.2",
 ]
 
-lint = ["mypy>=1.15", "ruff>=0.9"]
+lint = ["ty>=0.0.1", "ruff>=0.9"]
 
 [tool.hatch.build.targets.wheel]
 packages = []
@@ -96,6 +98,7 @@ omit = [
   "**/typing.py",    # Often auto-generated or complex types
   "**/types.py",     # Often auto-generated or complex types
 ]
+source = ["packages", "plugins"]
 
 # uv based package management.
 [tool.uv]
@@ -106,6 +109,7 @@ evaluator-demo                      = { workspace = true }
 genkit                              = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
+genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-evaluators            = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
@@ -198,29 +202,6 @@ indent-style               = "space"
 line-ending                = "lf"
 quote-style                = "single"
 skip-magic-trailing-comma  = false
-
-# Static type checking.
-[tool.mypy]
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-exclude = ["samples/"]
-explicit_package_bases = true
-mypy_path = [
-  "packages/genkit/src",
-  "plugins/chroma/src",
-  "plugins/compat-oai/src",
-  "plugins/dev-local-vectorstore/src",
-  "plugins/firebase/src",
-  "plugins/flask/src",
-  "plugins/google-cloud/src",
-  "plugins/google-genai/src",
-  "plugins/ollama/src",
-  "plugins/pinecone/src",
-  "plugins/vertex-ai/src",
-]
-namespace_packages = true
-strict = true
-warn_unused_configs = true
 
 [tool.datamodel-codegen]
 #collapse-root-models = true # Don't use; produces Any as types.

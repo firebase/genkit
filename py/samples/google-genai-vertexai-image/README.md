@@ -9,12 +9,20 @@ Prerequisites:
 * A Google Cloud account with access to VertexAI service.
 * The `genkit` package.
 
-To run this sample:
+## Setup environment
 
 1. Install the `genkit` package.
-2. Install [GCP CLI](https://cloud.google.com/sdk/docs/install)
-3. Put your GCP project and location in the code to run VertexAI there.
-4. Run the sample.
+2. Install [GCP CLI](https://cloud.google.com/sdk/docs/install).
+3. Add your project to Google Cloud. Run the following code to log in and set up the configuration.
+```bash
+export GOOGLE_CLOUD_LOCATION=global
+export GOOGLE_CLOUD_PROJECT=your-GCP-project-ID
+gcloud init
+```
+4. Run the following code to connect to VertexAI.
+```bash
+gcloud auth application-default login
+```
 
 ## Run the sample
 

@@ -118,6 +118,32 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	return s
 }
 
+// MapToStruct converts a map[string]any to a struct of type T via JSON round-trip.
+func MapToStruct[T any](m map[string]any) (T, error) {
+	var result T
+	data, err := json.Marshal(m)
+	if err != nil {
+		return result, err
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+// StructToMap converts a struct to map[string]any via JSON round-trip.
+func StructToMap[T any](v T) (map[string]any, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // SchemaAsMap converts json schema struct to a map (JSON representation).
 func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	jsb, err := s.MarshalJSON()
@@ -138,18 +164,29 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	return m
 }
 
-// jsonMarkdownRegex specifically looks for "json" language identifier
-var jsonMarkdownRegex = regexp.MustCompile("(?s)```json(.*?)```")
+// jsonMarkdownRegex matches fenced code blocks with "json" language identifier (case-insensitive).
+var jsonMarkdownRegex = regexp.MustCompile("(?si)```json\\s*(.*?)```")
+
+// plainMarkdownRegex matches fenced code blocks without any language identifier.
+var plainMarkdownRegex = regexp.MustCompile("(?s)```\\s*\\n(.*?)```")
 
 // ExtractJSONFromMarkdown returns the contents of the first fenced code block in
-// the markdown text md. If there is none, it returns md.
+// the markdown text md. It matches code blocks with "json" identifier (case-insensitive)
+// or code blocks without any language identifier. If there is no matching block, it returns md.
 func ExtractJSONFromMarkdown(md string) string {
+	// First try to match explicit json code blocks
 	matches := jsonMarkdownRegex.FindStringSubmatch(md)
-	if len(matches) < 2 {
-		return md
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
 	}
-	// capture group 1 matches the actual fenced JSON block
-	return strings.TrimSpace(matches[1])
+
+	// Fall back to plain code blocks (no language identifier)
+	matches = plainMarkdownRegex.FindStringSubmatch(md)
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
+	}
+
+	return md
 }
 
 // GetJSONObjectLines splits a string by newlines, trims whitespace from each line,

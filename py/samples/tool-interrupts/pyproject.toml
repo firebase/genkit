@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -35,7 +34,7 @@ classifiers = [
 ]
 dependencies = ["genkit", "genkit-plugin-google-genai", "pydantic>=2.10.5"]
 description = "Tool interrupts sample"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "tool-interrupts"
 readme = "README.md"
 requires-python = ">=3.10"
