@@ -571,18 +571,7 @@ async def photo_move_veo(_: Any, context: Any = None):
     except Exception as e:
         raise ValueError(f'Flow failed: {e}')
 
-    """A simple example of image generation with Gemini (Imagen)."""
-    response = await ai.generate(
-        model='googleai/gemini-2.5-flash-image-preview',
-        prompt='generate an image of a large, industrial robot, clearly metallic and utilitarian in design, riding a custom-built bicycle designed for robots. The background will be a factory floor with visible machinery and equipment.',
-        config=GeminiImageConfigSchema(
-            response_modalities=['TEXT', 'IMAGE'],
-        ).model_dump(exclude_none=True),
-    )
-    for part in response.message.content:
-        if isinstance(part.root, MediaPart):
-            return part.root.media
-    return f'No media found. Content: {response.message.content}'
+
 
 
 @ai.flow()
