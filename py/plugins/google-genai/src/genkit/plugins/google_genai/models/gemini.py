@@ -182,6 +182,10 @@ class GeminiConfigSchema(genai_types.GenerateContentConfig):
 
     code_execution: bool | None = None
     response_modalities: list[str] | None = None
+    thinking_config: dict[str, Any] | None = None
+    file_search: dict[str, Any] | None = None
+    url_context: dict[str, Any] | None = None
+    api_version: str | None = None
 
 
 class GeminiTtsConfigSchema(GeminiConfigSchema):
@@ -678,6 +682,11 @@ class GeminiModel:
             Genai tool compatible with Gemini API.
         """
         params = self._convert_schema_property(tool.input_schema)
+        # Fix for no-arg tools: parameters cannot be None if we want the tool to be callable?
+        # Actually Google GenAI expects type=OBJECT for params usually.
+        if not params:
+            params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
+
         function = genai_types.FunctionDeclaration(
             name=tool.name,
             description=tool.description,
@@ -741,7 +750,7 @@ class GeminiModel:
 
             if schema_type == genai_types.Type.OBJECT:
                 schema.properties = {}
-                properties = input_schema['properties']
+                properties = input_schema.get('properties', {})
                 for key in properties:
                     nested_schema = self._convert_schema_property(properties[key], defs)
                     schema.properties[key] = nested_schema
@@ -844,13 +853,59 @@ class GeminiModel:
         if cached_content:
             request_cfg.cached_content = cached_content.name
 
+        client = self._client
+        # If config specifies an api_version different from default (e.g. 'v1alpha'),
+        # Create a temporary client with that version, since api_version is a client-level setting.
+        api_version = None
+        if request.config:
+            api_version = getattr(request.config, 'api_version', None)
+            if not api_version and isinstance(request.config, dict):
+                api_version = request.config.get('api_version')
+
+        if api_version:
+            # TODO: Request public API from google-genai maintainers.
+            # Currently, there is no public way to access the configured api_key, project, or location
+            # from an existing Client instance. We need to access the private _api_client to
+            # clone the configuration when overriding the api_version.
+            # This is brittle and relies on internal implementation details of the google-genai library.
+            # If the library changes its internal structure (e.g. renames _api_client or _credentials),
+            # this code WILL BREAK.
+            api_client = self._client._api_client
+            kwargs = {
+                'vertexai': api_client.vertexai,
+                'http_options': {'api_version': api_version},
+            }
+            if api_client.vertexai:
+                # Vertex AI mode: requires project/location (api_key is optional/unlikely)
+                if api_client.project:
+                    kwargs['project'] = api_client.project
+                if api_client.location:
+                    kwargs['location'] = api_client.location
+                if api_client._credentials:
+                    kwargs['credentials'] = api_client._credentials
+                # Don't pass api_key if we are in Vertex AI mode with credentials/project
+            else:
+                # Google AI mode: primarily uses api_key
+                if api_client.api_key:
+                    kwargs['api_key'] = api_client.api_key
+                # Do NOT pass project/location/credentials if in Google AI mode to be safe
+                if api_client._credentials and not kwargs.get('api_key'):
+                    # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
+                    kwargs['credentials'] = api_client._credentials
+
+            client = genai.Client(**kwargs)
+
         if ctx.is_streaming:
             response = await self._streaming_generate(
-                request_contents=request_contents, request_cfg=request_cfg, ctx=ctx, model_name=model_name
+                request_contents=request_contents,
+                request_cfg=request_cfg,
+                ctx=ctx,
+                model_name=model_name,
+                client=client,
             )
         else:
             response = await self._generate(
-                request_contents=request_contents, request_cfg=request_cfg, model_name=model_name
+                request_contents=request_contents, request_cfg=request_cfg, model_name=model_name, client=client
             )
 
         response.usage = self._create_usage_stats(request=request, response=response)
@@ -862,6 +917,7 @@ class GeminiModel:
         request_contents: list[genai_types.Content],
         request_cfg: genai_types.GenerateContentConfig,
         model_name: str,
+        client: genai.Client | None = None,
     ) -> GenerateResponse:
         """Call google-genai generate.
 
@@ -885,7 +941,8 @@ class GeminiModel:
                     fallback=lambda _: '[!! failed to serialize !!]',
                 ),
             )
-            response = await self._client.aio.models.generate_content(
+            client = client or self._client
+            response = await client.aio.models.generate_content(
                 model=model_name, contents=request_contents, config=request_cfg
             )
             span.set_attribute('genkit:output', dump_json(response))
@@ -905,6 +962,7 @@ class GeminiModel:
         request_cfg: genai_types.GenerateContentConfig | None,
         ctx: ActionRunContext,
         model_name: str,
+        client: genai.Client | None = None,
     ) -> GenerateResponse:
         """Call google-genai generate for streaming.
 
@@ -926,7 +984,8 @@ class GeminiModel:
                     'model': model_name,
                 }),
             )
-            generator = self._client.aio.models.generate_content_stream(
+            client = client or self._client
+            generator = client.aio.models.generate_content_stream(
                 model=model_name, contents=request_contents, config=request_cfg
             )
         accumulated_content = []
@@ -989,7 +1048,11 @@ class GeminiModel:
                 continue
             content_parts: list[genai_types.Part] = []
             for p in msg.content:
-                content_parts.append(PartConverter.to_gemini(p))
+                converted = PartConverter.to_gemini(p)
+                if isinstance(converted, list):
+                    content_parts.extend(converted)
+                else:
+                    content_parts.append(converted)
             request_contents.append(genai_types.Content(parts=content_parts, role=msg.role))
 
             if msg.metadata and msg.metadata.get('cache'):
@@ -1050,7 +1113,19 @@ class GeminiModel:
                 if request_config.code_execution:
                     tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
-                cfg = genai_types.GenerateContentConfig(**request_config)
+                if 'image_config' in request_config:
+                    cfg = GeminiImageConfigSchema(**request_config)
+                elif 'speech_config' in request_config:
+                    cfg = GeminiTtsConfigSchema(**request_config)
+                else:
+                    cfg = GeminiConfigSchema(**request_config)
+
+            if isinstance(cfg, GeminiConfigSchema):
+                dumped_config = cfg.model_dump(exclude_none=True)
+                for key in ['code_execution', 'file_search', 'url_context', 'api_version']:
+                    if key in dumped_config:
+                        del dumped_config[key]
+                cfg = genai_types.GenerateContentConfig(**dumped_config)
 
         if request.output:
             if not cfg:

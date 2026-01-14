@@ -17,7 +17,7 @@
 from typing import Any
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import Part, ToolRequestPart, ToolResponse
+from genkit.core.typing import Metadata, Part, ToolRequestPart, ToolResponse
 
 
 class ToolRunContext(ActionRunContext):
@@ -96,6 +96,13 @@ def tool_response(
     """
     # TODO: validate against tool schema
     tool_request = interrupt.root.tool_request if isinstance(interrupt, Part) else interrupt.tool_request
+
+    interrupt_metadata = True
+    if isinstance(metadata, Metadata):
+        interrupt_metadata = metadata.root
+    elif metadata:
+        interrupt_metadata = metadata
+
     return Part(
         tool_response=ToolResponse(
             name=tool_request.name,
@@ -103,6 +110,6 @@ def tool_response(
             output=response_data,
         ),
         metadata={
-            'interruptResponse': metadata if metadata else True,
+            'interruptResponse': interrupt_metadata,
         },
     )
