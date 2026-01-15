@@ -25,7 +25,7 @@ describe('waitForRuntime', () => {
 
   beforeEach(() => {
     mockManager = {
-      getRuntimeById: jest.fn(),
+      listRuntimes: jest.fn(),
       onRuntimeEvent: jest.fn(),
     };
     mockProcessPromise = new Promise((_, reject) => {
@@ -34,14 +34,14 @@ describe('waitForRuntime', () => {
   });
 
   it('should resolve immediately if runtime is already present', async () => {
-    mockManager.getRuntimeById.mockReturnValue({});
+    mockManager.listRuntimes.mockReturnValue([{}]);
     await expect(
-      waitForRuntime(mockManager, 'test-id', mockProcessPromise)
+      waitForRuntime(mockManager, mockProcessPromise)
     ).resolves.toBeUndefined();
   });
 
   it('should wait for runtime event and resolve', async () => {
-    mockManager.getRuntimeById.mockReturnValue(undefined);
+    mockManager.listRuntimes.mockReturnValue([]);
     let eventCallback: (event: RuntimeEvent, runtime: any) => void;
 
     mockManager.onRuntimeEvent.mockImplementation((cb: any) => {
@@ -49,29 +49,21 @@ describe('waitForRuntime', () => {
       return jest.fn(); // unsubscribe
     });
 
-    const waitPromise = waitForRuntime(
-      mockManager,
-      'test-id',
-      mockProcessPromise
-    );
+    const waitPromise = waitForRuntime(mockManager, mockProcessPromise);
 
     // Simulate event
     setTimeout(() => {
-      eventCallback(RuntimeEvent.ADD, { id: 'test-id' });
+      eventCallback(RuntimeEvent.ADD, { id: 'any-id' });
     }, 10);
 
     await expect(waitPromise).resolves.toBeUndefined();
   });
 
   it('should reject if process exits early', async () => {
-    mockManager.getRuntimeById.mockReturnValue(undefined);
+    mockManager.listRuntimes.mockReturnValue([]);
     mockManager.onRuntimeEvent.mockReturnValue(jest.fn());
 
-    const waitPromise = waitForRuntime(
-      mockManager,
-      'test-id',
-      mockProcessPromise
-    );
+    const waitPromise = waitForRuntime(mockManager, mockProcessPromise);
 
     // Simulate process exit
     processReject(new Error('Process exited'));
@@ -81,14 +73,10 @@ describe('waitForRuntime', () => {
 
   it('should timeout if runtime never appears', async () => {
     jest.useFakeTimers();
-    mockManager.getRuntimeById.mockReturnValue(undefined);
+    mockManager.listRuntimes.mockReturnValue([]);
     mockManager.onRuntimeEvent.mockReturnValue(jest.fn());
 
-    const waitPromise = waitForRuntime(
-      mockManager,
-      'test-id',
-      mockProcessPromise
-    );
+    const waitPromise = waitForRuntime(mockManager, mockProcessPromise);
 
     jest.advanceTimersByTime(30000);
 

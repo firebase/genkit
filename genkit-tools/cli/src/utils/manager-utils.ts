@@ -26,7 +26,6 @@ import {
   type GenkitToolsError,
 } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
-import * as crypto from 'crypto';
 import getPort, { makeRange } from 'get-port';
 
 /**
@@ -71,6 +70,7 @@ export async function startManager(
 export interface DevProcessManagerOptions {
   disableRealtimeTelemetry?: boolean;
   nonInteractive?: boolean;
+  healthCheck?: boolean;
 }
 
 export async function startDevProcessManager(
@@ -81,11 +81,9 @@ export async function startDevProcessManager(
 ): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
   const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
   const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
-  const runtimeId = crypto.randomUUID().substring(0, 8);
   const envVars: Record<string, string> = {
     GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
     GENKIT_ENV: 'dev',
-    GENKIT_RUNTIME_ID: runtimeId,
   };
   if (!disableRealtimeTelemetry) {
     envVars.GENKIT_ENABLE_REALTIME_TELEMETRY = 'true';
@@ -100,21 +98,22 @@ export async function startDevProcessManager(
   });
   const processPromise = processManager.start({ ...options, cwd: projectRoot });
 
-  await waitForRuntime(manager, runtimeId, processPromise);
+  if (options?.healthCheck) {
+    await waitForRuntime(manager, processPromise);
+  }
 
   return { manager, processPromise };
 }
 
 /**
- * Waits for the runtime with the given ID to register itself.
+ * Waits for a new runtime to register itself.
  * Rejects if the process exits or if the timeout is reached.
  */
 export async function waitForRuntime(
   manager: RuntimeManager,
-  runtimeId: string,
   processPromise: Promise<void>
 ): Promise<void> {
-  if (manager.getRuntimeById(runtimeId)) {
+  if (manager.listRuntimes().length > 0) {
     return;
   }
 
@@ -132,8 +131,8 @@ export async function waitForRuntime(
       reject(new Error('Timeout waiting for runtime to be ready'));
     }, 30000);
 
-    unsubscribe = manager.onRuntimeEvent((event, runtime) => {
-      if (event === RuntimeEvent.ADD && runtime.id === runtimeId) {
+    unsubscribe = manager.onRuntimeEvent((event) => {
+      if (event === RuntimeEvent.ADD) {
         cleanup();
         resolve();
       }

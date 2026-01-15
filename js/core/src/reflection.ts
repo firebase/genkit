@@ -103,10 +103,7 @@ export class ReflectionServer {
   }
 
   get runtimeId() {
-    return (
-      process.env.GENKIT_RUNTIME_ID ??
-      `${process.pid}${this.port !== null ? `-${this.port}` : ''}`
-    );
+    return `${process.pid}${this.port !== null ? `-${this.port}` : ''}`;
   }
 
   /**
@@ -447,7 +444,7 @@ export class ReflectionServer {
       );
       const fileContent = JSON.stringify(
         {
-          id: this.runtimeId,
+          id: process.env.GENKIT_RUNTIME_ID || this.runtimeId,
           pid: process.pid,
           name: this.options.name,
           reflectionServerUrl: `http://localhost:${this.port}`,

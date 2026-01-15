@@ -698,6 +698,7 @@ export class RuntimeManager {
             runtimeInfo.id
           )
         ) {
+          console.log('we passed health!');
           if (
             runtimeInfo.reflectionApiSpecVersion !=
             GENKIT_REFLECTION_API_SPEC_VERSION
