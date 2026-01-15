@@ -15,8 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 CONTEXT_CACHE_SUPPORTED_MODELS = [
+    'gemini-1.5-flash',
     'gemini-1.5-flash-001',
+    'gemini-1.5-pro',
     'gemini-1.5-pro-001',
+    'gemini-2.0-flash-exp',
+    'gemini-3-flash-preview',
 ]
 
 INVALID_ARGUMENT_MESSAGES = {
