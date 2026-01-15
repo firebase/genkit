@@ -814,7 +814,7 @@ class GeminiModel:
                 cache = item
                 break
         if cache:
-            updated_expiration_time = datetime.now(timezone.UTC) + timedelta(seconds=ttl)
+            updated_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=ttl)
             cache = await self._client.aio.caches.update(
                 name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
             )
