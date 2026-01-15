@@ -14,12 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
+from enum import StrEnum
 
 DEFAULT_OLLAMA_SERVER_URL = 'http://127.0.0.1:11434'
 

@@ -17,6 +17,7 @@
 
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
+from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
 from genkit.plugins.firebase import add_firebase_telemetry
@@ -38,20 +39,21 @@ add_firebase_telemetry()
 
 firestore_client = firestore.Client()
 
-ai = Genkit(
-    plugins=[
-        VertexAI(),
-        FirestoreVectorStore(
-            name='my_firestore_retriever',
-            collection='films',
-            vector_field='embedding',
-            content_field='text',
-            embedder=EMBEDDING_MODEL,
-            distance_measure=DistanceMeasure.EUCLIDEAN,
-            firestore_client=firestore_client,
-        ),
-    ]
+# Create Genkit instance first with VertexAI plugin
+ai = Genkit(plugins=[VertexAI()])
+
+# Create FirestoreVectorStore with ai reference and register it
+firestore_plugin = FirestoreVectorStore(
+    retriever_name='my_firestore_retriever',
+    collection='films',
+    vector_field='embedding',
+    content_field='text',
+    embedder=EMBEDDING_MODEL,
+    distance_measure=DistanceMeasure.EUCLIDEAN,
+    firestore_client=firestore_client,
+    ai=ai,
 )
+ai.registry.register_plugin(firestore_plugin)
 
 collection_name = 'films'
 
@@ -84,7 +86,7 @@ async def index_documents() -> None:
         try:
             result = doc_ref.set({
                 'text': film_text,
-                'embedding': embedding,
+                'embedding': Vector(embedding),
                 'metadata': f'metadata for doc {i + 1}',
             })
             print(f'Indexed document {i + 1} with text: {film_text} (WriteResult: {result})')

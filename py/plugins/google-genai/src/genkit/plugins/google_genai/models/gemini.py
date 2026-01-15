@@ -748,7 +748,7 @@ class GeminiModel:
 
         return schema
 
-    def _call_tool(self, call: genai_types.FunctionCall) -> genai_types.Content:
+    async def _call_tool(self, call: genai_types.FunctionCall) -> genai_types.Content:
         """Calls tool's function from the registry.
 
         Args:
@@ -757,7 +757,7 @@ class GeminiModel:
         Returns:
             Gemini message content to add to the message
         """
-        tool_function = self._registry.registry.lookup_action(ActionKind.TOOL, call.name)
+        tool_function = await self._registry.registry.resolve_action(ActionKind.TOOL, call.name)
         if tool_function is None:
             raise LookupError(f'Tool {call.name} not found')
 
@@ -1050,7 +1050,11 @@ class GeminiModel:
                 if request_config.code_execution:
                     tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
+                # Extract code_execution before creating config
+                code_exec = request_config.pop('code_execution', None)
                 cfg = genai_types.GenerateContentConfig(**request_config)
+                if code_exec:
+                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
 
         if request.output:
             if not cfg:

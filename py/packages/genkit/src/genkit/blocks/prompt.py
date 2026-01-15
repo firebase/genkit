@@ -27,7 +27,7 @@ import weakref
 from asyncio import Future
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
-from typing import Any, Awaitable
+from typing import Any
 
 import structlog
 from dotpromptz.typing import (
@@ -35,7 +35,6 @@ from dotpromptz.typing import (
     PromptFunction,
     PromptInputConfig,
     PromptMetadata,
-    ToolDefinition as DotPromptzToolDefinition,
 )
 from pydantic import BaseModel, ConfigDict
 
@@ -66,7 +65,6 @@ from genkit.core.typing import (
     Resume,
     Role,
     ToolChoice,
-    Tools,
 )
 
 logger = structlog.get_logger(__name__)
@@ -369,7 +367,7 @@ class ExecutablePrompt:
 
         lookup_key = registry_lookup_key(self._name, self._variant, self._ns)
 
-        action = self._registry.lookup_action_by_key(lookup_key)
+        action = await self._registry.resolve_action_by_key(lookup_key)
 
         if action is None or action.kind != ActionKind.PROMPT:
             raise GenkitError(
@@ -584,11 +582,10 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
             the registry.
         GenkitError: If the options do not contain any messages.
     """
-
     tools: list[Action] = []
     if options.tools:
         for tool_name in options.tools:
-            tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
+            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
                 raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
@@ -666,7 +663,6 @@ async def render_system_prompt(
         Message: A Message object containing the rendered system prompt with Role.SYSTEM
 
     """
-
     if isinstance(options.system, str):
         if prompt_cache.system is None:
             prompt_cache.system = await registry.dotprompt.compile(options.system)
@@ -743,8 +739,7 @@ async def render_message_prompt(
     prompt_cache: PromptCache,
     context: dict[str, Any] | None = None,
 ) -> list[Message]:
-    """
-    Render a message prompt using a given registry, input data, options, and a context.
+    """Render a message prompt using a given registry, input data, options, and a context.
 
     This function processes different types of message options (string or list) to render
     appropriate messages using a prompt registry and cache. If the `messages` option is of type
@@ -808,8 +803,7 @@ async def render_user_prompt(
     prompt_cache: PromptCache,
     context: dict[str, Any] | None = None,
 ) -> Message:
-    """
-    Asynchronously renders a user prompt based on the given input, context, and options,
+    """Asynchronously renders a user prompt based on the given input, context, and options,
     utilizing a pre-compiled or dynamically compiled dotprompt template.
 
     Arguments:
@@ -984,7 +978,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         file_path = path / filename
 
     # Read the prompt file
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding='utf-8') as f:
         source = f.read()
 
     # Parse the prompt
@@ -1092,7 +1086,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         # Store reference to PROMPT action on the ExecutablePrompt
         # Actions are already registered at this point (lazy loading happens after registration)
         lookup_key = registry_lookup_key(name, variant, ns)
-        prompt_action = registry.lookup_action_by_key(lookup_key)
+        prompt_action = await registry.resolve_action_by_key(lookup_key)
         if prompt_action and prompt_action.kind == ActionKind.PROMPT:
             executable_prompt._prompt_action = prompt_action
             # Also store ExecutablePrompt reference on the action
@@ -1188,7 +1182,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                 if entry.name.startswith('_'):
                     # This is a partial
                     partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-                    with open(entry.path, 'r', encoding='utf-8') as f:
+                    with open(entry.path, encoding='utf-8') as f:
                         source = f.read()
 
                     # Strip frontmatter if present
@@ -1256,14 +1250,14 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
     # Use create_action_key to build the full key: "/prompt/<definition_key>"
     definition_key = registry_definition_key(name, variant, None)
     lookup_key = create_action_key(ActionKind.PROMPT, definition_key)
-    action = registry.lookup_action_by_key(lookup_key)
+    action = await registry.resolve_action_by_key(lookup_key)
 
     # If not found and no namespace was specified, try with default 'dotprompt' namespace
     # (for file-based prompts)
     if not action:
         definition_key = registry_definition_key(name, variant, 'dotprompt')
         lookup_key = create_action_key(ActionKind.PROMPT, definition_key)
-        action = registry.lookup_action_by_key(lookup_key)
+        action = await registry.resolve_action_by_key(lookup_key)
 
     if action:
         # First check if we've stored the ExecutablePrompt directly
@@ -1323,5 +1317,4 @@ async def prompt(
     Raises:
         GenkitError: If the prompt is not found.
     """
-
     return await lookup_prompt(registry, name, variant)

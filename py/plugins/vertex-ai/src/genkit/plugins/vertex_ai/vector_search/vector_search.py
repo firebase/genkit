@@ -20,10 +20,9 @@ from typing import Any
 from google.auth.credentials import Credentials
 from google.cloud import aiplatform_v1
 
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai import Plugin
 from genkit.plugins.vertex_ai.vector_search.retriever import (
     DocRetriever,
-    RetrieverOptionsSchema,
 )
 
 VERTEXAI_PLUGIN_NAME = 'vertexai'
@@ -90,25 +89,33 @@ class VertexAIVectorSearch(Plugin):
             credentials=credentials,
         )
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize plugin with the retriver specified.
+    async def init(self) -> list:
+        """Initialize plugin with the retriever specified.
 
         Register actions with the registry making them available for use in the Genkit framework.
 
-        Args:
-            ai: The registry to register actions with.
+        Returns:
+            Empty list (using lazy loading via resolve).
         """
-        retriever = self.retriever_cls(
-            ai=ai,
-            name=self.name,
-            match_service_client_generator=self._match_service_client_generator,
-            embedder=self.embedder,
-            embedder_options=self.embedder_options,
-            **self.retriever_extra_args,
-        )
+        return []
 
-        return ai.define_retriever(
-            name=vertexai_name(self.name),
-            config_schema=RetrieverOptionsSchema,
-            fn=retriever.retrieve,
-        )
+    async def resolve(self, action_type, name: str):
+        """Resolve an action by creating and returning an Action object.
+
+        Args:
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
+
+        Returns:
+            Action object if found, None otherwise.
+        """
+        # This plugin doesn't support dynamic resolution
+        return None
+
+    async def list_actions(self) -> list:
+        """List available actions.
+
+        Returns:
+            Empty list (actions are registered via init).
+        """
+        return []

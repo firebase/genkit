@@ -19,7 +19,7 @@
 import os
 import sys
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
@@ -30,8 +30,7 @@ mock_mcp_modules()
 import pytest
 
 from genkit.ai import Genkit
-from genkit.core.action.types import ActionKind
-from genkit.plugins.mcp import McpServer, McpServerOptions, create_mcp_server
+from genkit.plugins.mcp import McpServerOptions, create_mcp_server
 
 
 @pytest.mark.asyncio
@@ -145,7 +144,6 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # Read resource
-        from mcp.types import ReadResourceRequest
 
         request = MagicMock()
         request.params.uri = 'app://config'
@@ -294,7 +292,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertGreaterEqual(len(result.prompts), 2)
-        prompt_names = [p.name for p in result.prompts]
+        [p.name for p in result.prompts]
         # Prompt names might have variant suffixes
 
 

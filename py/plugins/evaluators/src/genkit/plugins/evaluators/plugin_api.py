@@ -22,7 +22,6 @@ from collections.abc import Callable
 from typing import Any
 
 import jsonata
-from dotpromptz.typing import DataArgument
 
 from genkit.ai import Genkit, Plugin
 from genkit.plugins.evaluators.constant import (
@@ -80,10 +79,46 @@ class GenkitEvaluators(Plugin):
             params = PluginOptions(root=params)
         self.params = params
 
+    async def init(self) -> list:
+        """Initialize the plugin.
+
+        Note: Evaluators are special - they need the Genkit instance to work,
+        so they will be registered eagerly during plugin initialization.
+        This is handled by the old initialize pattern which we keep for this special case.
+
+        Returns:
+            Empty list (evaluators registered via initialize).
+        """
+        return []
+
     def initialize(self, ai: Genkit) -> None:
-        """Initialize the plugin by registering actions with the registry."""
+        """Initialize the plugin by registering actions with the registry.
+
+        Note: This method is kept for the evaluators plugin because evaluators
+        need access to the Genkit instance to call ai.generate() during evaluation.
+        """
         for param in self.params.root:
             self._configure_evaluator(ai=ai, param=param)
+
+    async def resolve(self, action_type, name: str):
+        """Resolve an action.
+
+        Args:
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
+
+        Returns:
+            None (all actions are returned by init).
+        """
+        return None
+
+    async def list_actions(self) -> list:
+        """List available actions.
+
+        Returns:
+            Empty list (actions are registered via init).
+        """
+        return []
 
     def _configure_evaluator(self, ai: Genkit, param: MetricConfig):
         """Validates and configures supported evaluators."""

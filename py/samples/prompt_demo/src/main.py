@@ -14,7 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import asyncio
 from pathlib import Path
 
 import structlog
@@ -59,7 +58,7 @@ async def simple_template(input: str = ''):
 
 
 hello_dotprompt = ai.define_prompt(
-    input_schema={'name': str},
+    input_schema={'name': 'string'},
     prompt='You are a helpful AI assistant named Walt. Say hello to {{name}}',
 )
 
@@ -74,7 +73,7 @@ async def simple_dotprompt(input: NameInput):
 
 
 three_greetings_prompt = ai.define_prompt(
-    input_schema={'name': str},
+    input_schema={'name': 'string'},
     output_schema=OutputSchema,
     prompt='You are a helpful AI assistant named Walt. Say hello to {{name}}, write a response for each of the styles requested',
 )
@@ -88,13 +87,16 @@ async def three_greetings(input: str = 'Fred') -> OutputSchema:
 
 async def main():
     # List actions to verify loading
-    actions = ai.registry.list_serializable_actions()
+    from genkit.core.action.types import ActionKind
 
-    # Filter for prompts to be specific
-    # Keys start with /prompt
-    prompts = [key for key in actions.keys() if key.startswith(('/prompt/', '/executable-prompt/'))]
+    prompt_actions = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
+    executable_prompt_actions = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
 
-    await logger.ainfo('Registry Status', total_actions=len(actions), loaded_prompts=prompts)
+    # Combine prompt action names
+    prompts = list(prompt_actions.keys()) + list(executable_prompt_actions.keys())
+    total_actions = len(prompt_actions) + len(executable_prompt_actions)
+
+    await logger.ainfo('Registry Status', total_actions=total_actions, loaded_prompts=prompts)
 
     if not prompts:
         await logger.awarning('No prompts found! Check directory structure.')

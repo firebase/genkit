@@ -16,8 +16,6 @@
 
 """Tests for DeepSeek model information."""
 
-import pytest
-
 from genkit.plugins.deepseek.model_info import SUPPORTED_DEEPSEEK_MODELS, get_default_model_info
 
 
@@ -36,7 +34,7 @@ def test_model_order():
 
 def test_model_info_structure():
     """Test model info has required fields."""
-    for model_name, model_info in SUPPORTED_DEEPSEEK_MODELS.items():
+    for _model_name, model_info in SUPPORTED_DEEPSEEK_MODELS.items():
         assert model_info.label
         assert model_info.supports
         assert model_info.supports.multiturn is True

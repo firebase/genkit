@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
-from genkit.types import Message, Part, Role, TextPart, ToolResponse
+from genkit.types import Message, Role, TextPart
 
 logger = structlog.get_logger(__name__)
 
@@ -112,7 +112,6 @@ async def streaming_flow(topic: str, ctx: ActionRunContext) -> str:
 @ai.flow()
 async def weather_flow(location: str) -> str:
     """Get weather using compat-oai auto tool calling."""
-
     response = await ai.generate(
         model=deepseek_name('deepseek-chat'),
         prompt=f'What is the weather in {location}?',

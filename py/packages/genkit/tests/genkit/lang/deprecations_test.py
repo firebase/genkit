@@ -16,16 +16,9 @@
 
 """Tests for deprecation helpers."""
 
-import sys
 import unittest
 import warnings
-
-import pytest
-
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
+from enum import StrEnum
 
 from genkit.lang.deprecations import (
     DeprecationInfo,

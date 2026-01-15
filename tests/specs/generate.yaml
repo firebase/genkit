@@ -129,7 +129,7 @@ tests:
             tools:
               [
                 {
-                  description: 'description',
+                  description: 'Description.',
                   inputSchema:
                     { $schema: 'http://json-schema.org/draft-07/schema#' },
                   name: 'testTool',

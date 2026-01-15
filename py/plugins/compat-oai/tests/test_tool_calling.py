@@ -20,12 +20,15 @@ import json
 from functools import reduce
 from unittest.mock import MagicMock
 
+import pytest
+
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import GPT_4
 from genkit.types import GenerateRequest, GenerateResponseChunk, TextPart, ToolRequestPart
 
 
-def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest) -> None:
+@pytest.mark.asyncio
+async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest) -> None:
     """Test generate with tool calls executes tools."""
     mock_tool_call = MagicMock()
     mock_tool_call.id = 'tool123'
@@ -58,7 +61,7 @@ def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest
 
     model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
 
-    response = model._generate(sample_request)
+    response = await model._generate(sample_request)
 
     part = response.message.content[0].root
 
@@ -68,7 +71,7 @@ def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest
     assert part.tool_request.ref == 'tool123'
 
     # Assume the sample request was processed by Genkit, but a mock side effect was applied
-    response = model._generate(sample_request)
+    response = await model._generate(sample_request)
 
     part = response.message.content[0].root
 
@@ -78,10 +81,9 @@ def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest
     assert mock_client.chat.completions.create.call_count == 2
 
 
-def test_generate_stream_with_tool_calls(sample_request):
-    """
-    Test generate_stream processes tool calls streamed in chunks correctly.
-    """
+@pytest.mark.asyncio
+async def test_generate_stream_with_tool_calls(sample_request):
+    """Test generate_stream processes tool calls streamed in chunks correctly."""
     mock_client = MagicMock()
 
     class MockToolCall:
@@ -133,7 +135,7 @@ def test_generate_stream_with_tool_calls(sample_request):
     def callback(chunk: GenerateResponseChunk):
         collected_chunks.append(chunk.content[0].root)
 
-    model._generate_stream(sample_request, callback)
+    await model._generate_stream(sample_request, callback)
 
     assert len(collected_chunks) == 3
     assert all(isinstance(part, ToolRequestPart) for part in collected_chunks)

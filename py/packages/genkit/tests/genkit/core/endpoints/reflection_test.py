@@ -81,11 +81,25 @@ async def test_health_check(asgi_client):
 @pytest.mark.asyncio
 async def test_list_actions(asgi_client, mock_registry):
     """Test that the actions list endpoint returns registered actions."""
-    mock_registry.list_serializable_actions.return_value = {'action1': {'name': 'Action 1'}}
-    mock_registry.list_actions.return_value = {'action1': {'name': 'Action 1'}}
+    from genkit.core.action import ActionMetadata
+    from genkit.core.action.types import ActionKind
+
+    # Mock the async list_actions method to return a list of ActionMetadata
+    async def mock_list_actions_async(allowed_kinds=None):
+        return [
+            ActionMetadata(
+                kind=ActionKind.CUSTOM,
+                name='action1',
+            )
+        ]
+
+    mock_registry.list_actions = mock_list_actions_async
     response = await asgi_client.get('/api/actions')
     assert response.status_code == 200
-    assert response.json() == {'action1': {'name': 'Action 1'}}
+    result = response.json()
+    assert '/custom/action1' in result
+    assert result['/custom/action1']['name'] == 'action1'
+    assert result['/custom/action1']['type'] == 'custom'
 
 
 @pytest.mark.asyncio
@@ -98,7 +112,11 @@ async def test_notify_endpoint(asgi_client):
 @pytest.mark.asyncio
 async def test_run_action_not_found(asgi_client, mock_registry):
     """Test that requesting a non-existent action returns a 404 error."""
-    mock_registry.lookup_action_by_key.return_value = None
+
+    async def mock_resolve_action_by_key(key):
+        return None
+
+    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
     response = await asgi_client.post(
         '/api/runAction',
         json={'key': 'non_existent_action', 'input': {'data': 'test'}},
@@ -116,7 +134,10 @@ async def test_run_action_standard(asgi_client, mock_registry):
     mock_output.trace_id = 'test_trace_id'
     mock_action.arun_raw.return_value = mock_output
 
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    async def mock_resolve_action_by_key(key):
+        return mock_action
+
+    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
 
     response = await asgi_client.post('/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}})
 
@@ -137,7 +158,10 @@ async def test_run_action_with_context(asgi_client, mock_registry):
     mock_output.trace_id = 'test_trace_id'
     mock_action.arun_raw.return_value = mock_output
 
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    async def mock_resolve_action_by_key(key):
+        return mock_action
+
+    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
 
     response = await asgi_client.post(
         '/api/runAction',
@@ -169,7 +193,7 @@ async def test_run_action_streaming(mock_is_streaming, asgi_client, mock_registr
         return mock_output
 
     mock_action.arun_raw.side_effect = mock_streaming
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    mock_registry.resolve_action_by_key.return_value = mock_action
 
     response = await asgi_client.post(
         '/api/runAction?stream=true',

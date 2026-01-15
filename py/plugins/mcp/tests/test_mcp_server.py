@@ -14,8 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-MCP Server Tests
+"""MCP Server Tests.
 
 Mirrors the functionality of js/plugins/mcp/tests/server_test.ts
 Tests tools, prompts, and resources exposed via MCP server.
@@ -24,7 +23,7 @@ Tests tools, prompts, and resources exposed via MCP server.
 import os
 import sys
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
@@ -74,12 +73,12 @@ import pytest
 
 from genkit.ai import Genkit
 from genkit.core.action.types import ActionKind
-from genkit.plugins.mcp import McpServer, McpServerOptions, create_mcp_server
+from genkit.plugins.mcp import McpServerOptions, create_mcp_server
 
 
 @pytest.mark.asyncio
 class TestMcpServer(unittest.IsolatedAsyncioTestCase):
-    """Test MCP server functionality - mirrors JS server_test.ts"""
+    """Test MCP server functionality - mirrors JS server_test.ts."""
 
     def setUp(self):
         """Set up test fixtures before each test."""

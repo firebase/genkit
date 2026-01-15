@@ -14,16 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import asyncio
-import uuid
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any
 
 import structlog
 from pydantic import BaseModel
 
-from genkit.ai import Genkit
-from genkit.ai._plugin import Plugin
-from genkit.ai._registry import GenkitRegistry
+from genkit.ai import Genkit, Plugin
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
@@ -34,35 +31,61 @@ logger = structlog.get_logger(__name__)
 
 
 class McpServerConfig(BaseModel):
-    command: Optional[str] = None
-    args: Optional[List[str]] = None
-    env: Optional[Dict[str, str]] = None
-    url: Optional[str] = None
+    command: str | None = None
+    args: list[str] | None = None
+    env: dict[str, str] | None = None
+    url: str | None = None
     disabled: bool = False
 
 
 class McpClient(Plugin):
     """Client for connecting to a single MCP server."""
 
-    def __init__(self, name: str, config: McpServerConfig, server_name: Optional[str] = None):
+    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
         self.name = name
         self.config = config
         self.server_name = server_name or name
-        self.session: Optional[ClientSession] = None
+        self.session: ClientSession | None = None
         self._exit_stack = None
         self._session_context = None
-        self.ai: Optional[GenkitRegistry] = None
+        self.ai: Genkit | None = None
 
     def plugin_name(self) -> str:
         return self.name
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        self.ai = ai
+    async def init(self) -> list[Action]:
+        """Initialize MCP plugin.
 
-    def resolve_action(self, ai: GenkitRegistry, kind: ActionKind, name: str) -> None:
-        # MCP tools are dynamic and currently registered upon connection/Discovery.
-        # This hook allows lazy resolution if we implement it.
-        pass
+        MCP tools are registered dynamically upon connection, so this returns an empty list.
+
+        Returns:
+            Empty list (tools are registered dynamically).
+        """
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        """Resolve an action by name.
+
+        MCP uses dynamic registration, so this returns None.
+
+        Args:
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
+
+        Returns:
+            None (MCP uses dynamic registration).
+        """
+        return None
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        """List available MCP actions.
+
+        MCP tools are discovered at runtime, so this returns an empty list.
+
+        Returns:
+            Empty list (tools are discovered at runtime).
+        """
+        return []
 
     async def connect(self):
         """Connects to the MCP server."""
@@ -118,7 +141,7 @@ class McpClient(Plugin):
             except Exception as e:
                 logger.debug(f'Error closing transport: {e}')
 
-    async def list_tools(self) -> List[Tool]:
+    async def list_tools(self) -> list[Tool]:
         if not self.session:
             return []
         result = await self.session.list_tools()
@@ -136,18 +159,18 @@ class McpClient(Plugin):
         texts = [c.text for c in result.content if c.type == 'text']
         return ''.join(texts)
 
-    async def list_prompts(self) -> List[Prompt]:
+    async def list_prompts(self) -> list[Prompt]:
         if not self.session:
             return []
         result = await self.session.list_prompts()
         return result.prompts
 
-    async def get_prompt(self, name: str, arguments: Optional[dict] = None) -> Any:
+    async def get_prompt(self, name: str, arguments: dict | None = None) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
         return await self.session.get_prompt(name, arguments)
 
-    async def list_resources(self) -> List[Resource]:
+    async def list_resources(self) -> list[Resource]:
         if not self.session:
             return []
         result = await self.session.list_resources()
@@ -158,7 +181,7 @@ class McpClient(Plugin):
             raise RuntimeError('MCP client is not connected')
         return await self.session.read_resource(uri)
 
-    async def register_tools(self, ai: Optional[Genkit] = None):
+    async def register_tools(self, ai: Genkit | None = None):
         """Registers all tools from connected client to Genkit."""
         registry = ai.registry if ai else (self.ai.registry if self.ai else None)
         if not registry:
@@ -197,7 +220,7 @@ class McpClient(Plugin):
         except Exception as e:
             logger.error(f'Error registering tools for {self.server_name}: {e}')
 
-    async def get_active_tools(self) -> List[Any]:
+    async def get_active_tools(self) -> list[Any]:
         """Returns all active tools."""
         if not self.session:
             return []

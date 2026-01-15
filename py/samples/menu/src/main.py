@@ -15,16 +15,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Import all of the example prompts and flows to ensure they are registered
-import case_01.prompts
-import case_02.flows
-import case_02.prompts
-import case_02.tools
-import case_03.flows
-import case_03.prompts
-import case_04.flows
-import case_04.prompts
-import case_05.flows
-import case_05.prompts
 from menu_ai import ai
 
 if __name__ == '__main__':

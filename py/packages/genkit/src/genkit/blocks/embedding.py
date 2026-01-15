@@ -16,7 +16,7 @@
 
 """Embedding actions."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field

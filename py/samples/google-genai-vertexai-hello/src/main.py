@@ -49,7 +49,6 @@ from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,
 )
-from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
     GenerationCommonConfig,
     Message,
@@ -61,7 +60,7 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[VertexAI()],
-    model='vertexai/gemini-3-flash-preview',
+    model='vertexai/gemini-2.0-flash',
 )
 
 

@@ -135,7 +135,6 @@ from genkit.core.typing import (
     DocumentData,
     DocumentPart,
     RankedDocumentData,
-    RankedDocumentMetadata,
     RerankerRequest,
     RerankerResponse,
 )
@@ -409,9 +408,9 @@ async def rerank(
     reranker_action: Action | None = None
 
     if isinstance(params.reranker, str):
-        reranker_action = registry.lookup_action(ActionKind.RERANKER, params.reranker)
+        reranker_action = await registry.resolve_action(ActionKind.RERANKER, params.reranker)
     elif isinstance(params.reranker, RerankerRef):
-        reranker_action = registry.lookup_action(ActionKind.RERANKER, params.reranker.name)
+        reranker_action = await registry.resolve_action(ActionKind.RERANKER, params.reranker.name)
     elif isinstance(params.reranker, Action):
         reranker_action = params.reranker
 

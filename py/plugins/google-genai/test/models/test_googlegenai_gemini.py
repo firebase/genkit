@@ -16,7 +16,7 @@
 
 import sys
 import urllib.request
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 if sys.version_info < (3, 11):  # noqa
     from strenum import StrEnum  # noqa
@@ -691,7 +691,8 @@ def test_gemini_model__convert_schema_property_raises_exception(input_schema, de
         ('tool-2', {'complex_response': True}),
     ],
 )
-def test_gemini_model__call_tool(
+@pytest.mark.asyncio
+async def test_gemini_model__call_tool(
     tool_name,
     tool_response,
     gemini_model_instance,
@@ -702,23 +703,24 @@ def test_gemini_model__call_tool(
     mock_tool.run.return_value = ActionResponse(response=tool_response, trace_id='trace-id')
 
     gemini_model_instance._registry = MagicMock()
-    gemini_model_instance._registry.registry.lookup_action.return_value = mock_tool
+    gemini_model_instance._registry.registry.resolve_action = AsyncMock(return_value=mock_tool)
 
     call = genai_types.FunctionCall(name=tool_name)
-    response = gemini_model_instance._call_tool(call)
+    response = await gemini_model_instance._call_tool(call)
 
     assert isinstance(response, genai_types.Content)
     assert response.parts[0].function_response.name == tool_name
     assert response.parts[0].function_response.response == {'content': tool_response}
 
 
-def test_gemini_model__call_tool_raises_exception(gemini_model_instance):
+@pytest.mark.asyncio
+async def test_gemini_model__call_tool_raises_exception(gemini_model_instance):
     """Unit tests for GeminiModel._call_tool function not found."""
     gemini_model_instance._registry = MagicMock()
-    gemini_model_instance._registry.registry.lookup_action.return_value = None
+    gemini_model_instance._registry.registry.resolve_action = AsyncMock(return_value=None)
 
     with pytest.raises(LookupError, match=r'Tool .* not found'):
-        gemini_model_instance._call_tool(genai_types.FunctionCall(name='tool_name'))
+        await gemini_model_instance._call_tool(genai_types.FunctionCall(name='tool_name'))
 
 
 @pytest.mark.asyncio

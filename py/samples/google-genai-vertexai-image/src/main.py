@@ -16,7 +16,6 @@
 
 """This sample demonstrates how to use Gemini VertexAI to describe and draw images."""
 
-import asyncio
 import base64
 from io import BytesIO
 

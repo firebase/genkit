@@ -45,7 +45,7 @@ class OpenAIConfig(BaseModel):
 
 
 class SupportedOutputFormat(StrEnum):
-    """Model Output Formats"""
+    """Model Output Formats."""
 
     JSON_MODE = 'json_mode'
     STRUCTURED_OUTPUTS = 'structured_outputs'

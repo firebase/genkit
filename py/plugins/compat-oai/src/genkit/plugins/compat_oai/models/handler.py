@@ -51,6 +51,7 @@ class OpenAIModelHandler:
     @staticmethod
     def _get_supported_models(source: PluginSource) -> dict[str, Any]:
         """Returns the supported models based on the plugin source.
+
         Args:
             source: Helps distinguish if model handler is called from model-garden plugin.
                     Default source is openai.
@@ -59,7 +60,6 @@ class OpenAIModelHandler:
             Openai models if source is openai. Merges supported openai models with openai-compat models if source is model-garden.
 
         """
-
         return SUPPORTED_OPENAI_COMPAT_MODELS if source == PluginSource.MODEL_GARDEN else SUPPORTED_OPENAI_MODELS
 
     @classmethod
@@ -109,7 +109,7 @@ class OpenAIModelHandler:
         if version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
-    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:
@@ -127,4 +127,4 @@ class OpenAIModelHandler:
         if request.config.model:
             self._validate_version(request.config.model)
 
-        return self._model.generate(request, ctx)
+        return await self._model.generate(request, ctx)

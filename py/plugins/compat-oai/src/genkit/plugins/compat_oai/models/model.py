@@ -19,10 +19,10 @@
 from collections.abc import Callable
 from typing import Any
 
-from openai import OpenAI, pydantic_function_tool
+from openai import OpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
-from genkit.ai import ActionKind, GenkitRegistry
+from genkit.ai import GenkitRegistry
 from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import DictMessageAdapter, MessageAdapter, MessageConverter
@@ -76,7 +76,7 @@ class OpenAIModel:
             openai_messages.extend(MessageConverter.to_openai(message=message))
         return openai_messages
 
-    def _get_tools_definition(self, tools: list[ToolDefinition]) -> list[dict]:
+    async def _get_tools_definition(self, tools: list[ToolDefinition]) -> list[dict]:
         """Converts the provided tools into OpenAI-compatible function call format.
 
         Args:
@@ -87,12 +87,15 @@ class OpenAIModel:
         """
         result = []
         for tool_definition in tools:
-            action = self._registry.registry.lookup_action(ActionKind.TOOL, tool_definition.name)
-            function_call = pydantic_function_tool(
-                model=action.input_type._type,
-                name=tool_definition.name,
-                description=tool_definition.description,
-            )
+            # Construct the OpenAI function tool format directly
+            function_call = {
+                'type': 'function',
+                'function': {
+                    'name': tool_definition.name,
+                    'description': tool_definition.description or '',
+                    'parameters': tool_definition.input_schema or {},
+                },
+            }
             result.append(function_call)
         return result
 
@@ -125,7 +128,7 @@ class OpenAIModel:
 
         return {'type': 'text'}
 
-    def _get_openai_request_config(self, request: GenerateRequest) -> dict:
+    async def _get_openai_request_config(self, request: GenerateRequest) -> dict:
         """Get the OpenAI request configuration.
 
         Args:
@@ -139,7 +142,7 @@ class OpenAIModel:
             'model': self._model,
         }
         if request.tools:
-            openai_config['tools'] = self._get_tools_definition(request.tools)
+            openai_config['tools'] = await self._get_tools_definition(request.tools)
         if any(msg.role == Role.TOOL for msg in request.messages):
             # After a tool response, stop forcing additional tool calls.
             openai_config['tool_choice'] = 'none'
@@ -151,7 +154,7 @@ class OpenAIModel:
             openai_config.update(**request.config.model_dump(exclude_none=True))
         return openai_config
 
-    def _generate(self, request: GenerateRequest) -> GenerateResponse:
+    async def _generate(self, request: GenerateRequest) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API and returns the generated response.
 
         Args:
@@ -160,14 +163,15 @@ class OpenAIModel:
         Returns:
             A GenerateResponse object containing the generated message.
         """
-        response = self._openai_client.chat.completions.create(**self._get_openai_request_config(request=request))
+        openai_config = await self._get_openai_request_config(request=request)
+        response = self._openai_client.chat.completions.create(**openai_config)
 
         return GenerateResponse(
             request=request,
             message=MessageConverter.to_genkit(response.choices[0].message),
         )
 
-    def _generate_stream(self, request: GenerateRequest, callback: Callable) -> GenerateResponse:
+    async def _generate_stream(self, request: GenerateRequest, callback: Callable) -> GenerateResponse:
         """Streams responses from the OpenAI client and sends chunks to a callback.
 
         Args:
@@ -177,7 +181,7 @@ class OpenAIModel:
         Returns:
             GenerateResponse: A final message with accumulated content after streaming is complete.
         """
-        openai_config = self._get_openai_request_config(request=request)
+        openai_config = await self._get_openai_request_config(request=request)
         openai_config['stream'] = True
 
         stream = self._openai_client.chat.completions.create(**openai_config)
@@ -222,7 +226,7 @@ class OpenAIModel:
             message=Message(role=Role.MODEL, content=accumulated_content),
         )
 
-    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:
@@ -235,15 +239,19 @@ class OpenAIModel:
         request.config = self.normalize_config(request.config)
 
         if ctx.is_streaming:
-            return self._generate_stream(request, ctx.send_chunk)
+            return await self._generate_stream(request, ctx.send_chunk)
         else:
-            return self._generate(request)
+            return await self._generate(request)
 
     @staticmethod
     def normalize_config(config: Any) -> OpenAIConfig:
         """Ensures the config is an OpenAIConfig instance."""
         if isinstance(config, OpenAIConfig):
             return config
+
+        # Convert BaseModel instances to dict
+        if hasattr(config, 'model_dump'):
+            config = config.model_dump(exclude_none=True)
 
         if isinstance(config, dict):
             if config.get('topK'):

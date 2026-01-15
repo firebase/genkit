@@ -18,17 +18,20 @@
 
 from unittest.mock import MagicMock
 
-from genkit.ai import Genkit
+import pytest
+
 from genkit.plugins.vertex_ai.vector_search import VertexAIVectorSearch
 
 
-def test_initialize_plugin():
+@pytest.mark.asyncio
+async def test_initialize_plugin():
     """Test plugin initialization."""
     plugin = VertexAIVectorSearch(
         retriever=MagicMock(),
         embedder='embedder',
     )
 
-    result = plugin.initialize(ai=MagicMock(spec=Genkit))
+    result = await plugin.init()
 
-    assert result is not None
+    # init returns empty list for this plugin
+    assert result == []

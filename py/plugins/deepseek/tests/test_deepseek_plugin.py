@@ -55,33 +55,35 @@ def test_plugin_initialization_without_api_key():
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
-def test_plugin_initialize(mock_client):
-    """Test plugin registers models during initialization."""
+@pytest.mark.asyncio
+async def test_plugin_initialize(mock_client):
+    """Test plugin init method."""
     plugin = DeepSeek(api_key='test-key', models=['deepseek-chat'])
-    mock_registry = MagicMock()
 
-    plugin.initialize(mock_registry)
+    result = await plugin.init()
 
-    # Should call define_model for the specified model
-    mock_registry.define_model.assert_called_once()
+    # init returns empty list for lazy loading
+    assert result == []
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
-def test_plugin_resolve_action(mock_client):
+@pytest.mark.asyncio
+async def test_plugin_resolve_action(mock_client):
     """Test plugin resolves models dynamically."""
     plugin = DeepSeek(api_key='test-key', models=[])
-    mock_registry = MagicMock()
 
-    plugin.resolve_action(mock_registry, ActionKind.MODEL, 'deepseek/deepseek-chat')
+    action = await plugin.resolve(ActionKind.MODEL, 'deepseek/deepseek-chat')
 
-    # Should register the requested model
-    mock_registry.define_model.assert_called_once()
+    # Should return an action
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
 
 
-def test_plugin_list_actions():
+@pytest.mark.asyncio
+async def test_plugin_list_actions():
     """Test plugin lists available models."""
     plugin = DeepSeek(api_key='test-key')
-    actions = plugin.list_actions
+    actions = await plugin.list_actions()
 
     assert len(actions) == 2
     action_names = [action.name for action in actions]
@@ -104,41 +106,40 @@ def test_plugin_with_custom_params(mock_client):
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
-def test_plugin_initialize_no_models(mock_client):
-    """Test plugin registers all supported models when models is None."""
-    from genkit.plugins.deepseek.model_info import SUPPORTED_DEEPSEEK_MODELS
-
+@pytest.mark.asyncio
+async def test_plugin_initialize_no_models(mock_client):
+    """Test plugin init returns empty list for lazy loading."""
     plugin = DeepSeek(api_key='test-key')
-    mock_registry = MagicMock()
 
-    # When models is None, all supported models should be registered
-    plugin.initialize(mock_registry)
+    result = await plugin.init()
 
-    assert mock_registry.define_model.call_count == len(SUPPORTED_DEEPSEEK_MODELS)
+    # init returns empty list for lazy loading
+    assert result == []
 
 
-def test_plugin_resolve_action_non_model_kind():
-    """Test resolve_action does nothing for non-MODEL kinds."""
+@pytest.mark.asyncio
+async def test_plugin_resolve_action_non_model_kind():
+    """Test resolve does nothing for non-MODEL kinds."""
     plugin = DeepSeek(api_key='test-key')
-    mock_registry = MagicMock()
 
     # Using PROMPT kind to test the case where kind != MODEL
-    plugin.resolve_action(mock_registry, ActionKind.PROMPT, 'some-prompt')
+    action = await plugin.resolve(ActionKind.PROMPT, 'some-prompt')
 
-    # Should not attempt to register anything
-    mock_registry.define_model.assert_not_called()
+    # Should return None for non-model kinds
+    assert action is None
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
-def test_plugin_resolve_action_without_prefix(mock_client):
+@pytest.mark.asyncio
+async def test_plugin_resolve_action_without_prefix(mock_client):
     """Test plugin resolves models without plugin prefix."""
     plugin = DeepSeek(api_key='test-key', models=[])
-    mock_registry = MagicMock()
 
     # Pass name without 'deepseek/' prefix
-    plugin.resolve_action(mock_registry, ActionKind.MODEL, 'deepseek-chat')
+    action = await plugin.resolve(ActionKind.MODEL, 'deepseek-chat')
 
-    mock_registry.define_model.assert_called_once()
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
 
 
 @patch('genkit.plugins.deepseek.client.DeepSeekClient.__new__')
@@ -151,7 +152,7 @@ def test_deepseek_client_initialization(mock_new):
     mock_new.return_value = mock_client_instance
 
     # Create a DeepSeekClient
-    result = DeepSeekClient(api_key='test-key', timeout=30)
+    DeepSeekClient(api_key='test-key', timeout=30)
 
     # Verify __new__ was called with correct parameters
     mock_new.assert_called_once()

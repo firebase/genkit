@@ -17,12 +17,7 @@
 
 """OpenAI Compatible Models for Genkit."""
 
-import sys
-
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
+from enum import StrEnum
 
 from genkit.plugins.compat_oai.typing import SupportedOutputFormat
 from genkit.types import (

@@ -14,14 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Resource utilities for MCP plugin.
+"""Resource utilities for MCP plugin.
 
 This module contains helper functions for handling MCP resources,
 including reading and converting resource content.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
@@ -31,9 +30,8 @@ from mcp.types import BlobResourceContents, ReadResourceResult, Resource, TextRe
 logger = structlog.get_logger(__name__)
 
 
-def from_mcp_resource_part(content: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convert MCP resource content to Genkit Part format.
+def from_mcp_resource_part(content: dict[str, Any]) -> dict[str, Any]:
+    """Convert MCP resource content to Genkit Part format.
 
     Handles different content types:
     - Text content is mapped to text part
@@ -65,8 +63,7 @@ def from_mcp_resource_part(content: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def process_resource_content(resource_result: ReadResourceResult) -> Any:
-    """
-    Process MCP ReadResourceResult and extract content.
+    """Process MCP ReadResourceResult and extract content.
 
     Args:
         resource_result: The ReadResourceResult from MCP server
@@ -81,8 +78,7 @@ def process_resource_content(resource_result: ReadResourceResult) -> Any:
 
 
 def convert_resource_to_genkit_part(resource: Resource) -> dict[str, Any]:
-    """
-    Convert MCP resource to Genkit Part format.
+    """Convert MCP resource to Genkit Part format.
 
     Args:
         resource: MCP resource object

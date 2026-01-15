@@ -37,7 +37,6 @@ from genkit.core.typing import (
     Role,
     TextPart,
     ToolChoice,
-    ToolDefinition,
 )
 from genkit.testing import (
     define_echo_model,
@@ -419,7 +418,7 @@ async def test_messages_with_explicit_override() -> None:
         prompt='Final question',
     )
 
-    override_messages = [
+    [
         Message(role=Role.USER, content=[TextPart(text='First message')]),
         Message(role=Role.MODEL, content=[TextPart(text='First response')]),
     ]
@@ -538,8 +537,8 @@ async def test_file_based_prompt_registers_two_actions() -> None:
         # We need to look them up by kind and name (without the /prompt/ prefix)
         action_name = 'filePrompt'  # registry_definition_key format
 
-        prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
-        executable_prompt_action = ai.registry.lookup_action(ActionKind.EXECUTABLE_PROMPT, action_name)
+        prompt_action = await ai.registry.resolve_action(ActionKind.PROMPT, action_name)
+        executable_prompt_action = await ai.registry.resolve_action(ActionKind.EXECUTABLE_PROMPT, action_name)
 
         assert prompt_action is not None
         assert executable_prompt_action is not None
@@ -562,8 +561,8 @@ async def test_prompt_and_executable_prompt_return_types() -> None:
         load_prompt_folder(ai.registry, prompt_dir)
         action_name = 'testPrompt'
 
-        prompt_action = ai.registry.lookup_action(ActionKind.PROMPT, action_name)
-        executable_prompt_action = ai.registry.lookup_action(ActionKind.EXECUTABLE_PROMPT, action_name)
+        prompt_action = await ai.registry.resolve_action(ActionKind.PROMPT, action_name)
+        executable_prompt_action = await ai.registry.resolve_action(ActionKind.EXECUTABLE_PROMPT, action_name)
 
         assert prompt_action is not None
         assert executable_prompt_action is not None
@@ -578,7 +577,6 @@ async def test_prompt_and_executable_prompt_return_types() -> None:
 @pytest.mark.asyncio
 async def test_lookup_prompt_returns_executable_prompt() -> None:
     """lookup_prompt should return an ExecutablePrompt that can be called."""
-
     ai, *_ = setup_test()
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -635,20 +633,22 @@ Hello {{name}}!
 
         # Verify the prompt is registered
         # File-based prompts are registered with an empty namespace by default
-        actions = ai.registry.list_serializable_actions()
-        assert '/prompt/test' in actions
-        assert '/executable-prompt/test' in actions
+        prompt_actions = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
+        executable_prompt_actions = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
+        assert 'test' in prompt_actions
+        assert 'test' in executable_prompt_actions
 
 
 @pytest.mark.asyncio
 async def test_automatic_prompt_loading_default_none():
     """Test that Genkit does not load prompts if prompt_dir is None."""
     ai = Genkit(prompt_dir=None)
-    actions = ai.registry.list_serializable_actions()
 
     # Check that no prompts are registered (assuming a clean environment)
-    dotprompts = [key for key in actions.keys() if '/prompt/' in key or '/executable-prompt/' in key]
-    assert len(dotprompts) == 0
+    prompt_actions = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
+    executable_prompt_actions = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
+    assert len(prompt_actions) == 0
+    assert len(executable_prompt_actions) == 0
 
 
 @pytest.mark.asyncio
@@ -669,7 +669,7 @@ async def test_automatic_prompt_loading_defaults_mock():
 @pytest.mark.asyncio
 async def test_automatic_prompt_loading_defaults_missing():
     """Test that Genkit skips loading when ./prompts is missing."""
-    from unittest.mock import ANY, MagicMock, patch
+    from unittest.mock import MagicMock, patch
 
     with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
         # Setup mock to simulate ./prompts missing

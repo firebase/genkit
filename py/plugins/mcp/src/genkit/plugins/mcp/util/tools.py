@@ -14,26 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Tool utilities for MCP plugin.
+"""Tool utilities for MCP plugin.
 
 This module contains helper functions for converting between MCP tools
 and Genkit actions, processing tool results, and registering tools.
 """
 
 import json
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import structlog
 
-from mcp.types import CallToolResult, ImageContent, TextContent, Tool
+from mcp.types import CallToolResult, ImageContent, TextContent
 
 logger = structlog.get_logger(__name__)
 
 
-def to_text(content: List[Dict[str, Any]]) -> str:
-    """
-    Extract text from MCP CallToolResult content.
+def to_text(content: list[dict[str, Any]]) -> str:
+    """Extract text from MCP CallToolResult content.
 
     Args:
         content: List of content parts from CallToolResult
@@ -45,8 +43,7 @@ def to_text(content: List[Dict[str, Any]]) -> str:
 
 
 def process_result(result: CallToolResult) -> Any:
-    """
-    Process MCP CallToolResult and extract/parse content.
+    """Process MCP CallToolResult and extract/parse content.
 
     Handles different result types:
     - Error results return error dict
@@ -87,8 +84,7 @@ def process_result(result: CallToolResult) -> Any:
 
 
 def process_tool_result(result: CallToolResult) -> Any:
-    """
-    Process MCP CallToolResult and extract content.
+    """Process MCP CallToolResult and extract content.
 
     This is an alias for process_result() for backwards compatibility.
 
@@ -104,9 +100,8 @@ def process_tool_result(result: CallToolResult) -> Any:
     return process_result(result)
 
 
-def convert_tool_schema(mcp_schema: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convert MCP tool input schema (JSONSchema7) to Genkit format.
+def convert_tool_schema(mcp_schema: dict[str, Any]) -> dict[str, Any]:
+    """Convert MCP tool input schema (JSONSchema7) to Genkit format.
 
     Args:
         mcp_schema: MCP tool input schema

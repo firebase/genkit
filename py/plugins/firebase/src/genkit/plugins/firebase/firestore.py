@@ -20,7 +20,10 @@ from typing import Any
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai import Genkit, Plugin
+from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.action.types import ActionKind
 from genkit.plugins.firebase.retriever import FirestoreRetriever
 
 from .constant import MetadataTransformFn
@@ -54,9 +57,11 @@ class FirestoreVectorStore(Plugin):
         metadata_fields: Optional list of metadata fields to include.
     """
 
+    name = 'firestore'
+
     def __init__(
         self,
-        name: str,
+        retriever_name: str,
         firestore_client: Any,
         collection: str,
         vector_field: str,
@@ -65,11 +70,12 @@ class FirestoreVectorStore(Plugin):
         embedder_options: dict[str, Any] | None = None,
         distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
         metadata_fields: list[str] | MetadataTransformFn | None = None,
+        ai: Genkit | None = None,
     ) -> None:
         """Initialize the firestore plugin.
 
         Args:
-            name: name if the retriever.
+            retriever_name: name if the retriever.
             collection: The name of the Firestore collection to query.
             vector_field: The name of the field containing the vector embeddings.
             content_field: The name of the field containing the document content, you wish to return.
@@ -78,8 +84,9 @@ class FirestoreVectorStore(Plugin):
             distance_measure: The distance measure to use when comparing vectors. Defaults to 'COSINE'.
             firestore_client: The Firestore database instance from which to query.
             metadata_fields: Optional list of metadata fields to include.
+            ai: Optional Genkit instance for retriever initialization.
         """
-        self.name = name
+        self.retriever_name = retriever_name
         self.firestore_client = firestore_client
         self.collection = collection
         self.vector_field = vector_field
@@ -88,21 +95,22 @@ class FirestoreVectorStore(Plugin):
         self.embedder_options = embedder_options
         self.distance_measure = distance_measure
         self.metadata_fields = metadata_fields
+        self.ai = ai
 
-    def initialize(self, ai: GenkitRegistry) -> None:
+    async def init(self) -> list[Action]:
         """Initialize firestore plugin.
 
-        Register actions with the registry making them available for use in the Genkit framework.
-
-        Args:
-            ai: The registry to register actions with.
+        Creates and returns the retriever action.
 
         Returns:
-            None
+            List containing the retriever Action.
         """
+        if self.ai is None:
+            return []
+
         retriever = FirestoreRetriever(
-            ai=ai,
-            name=self.name,
+            ai=self.ai,
+            name=self.retriever_name,
             firestore_client=self.firestore_client,
             collection=self.collection,
             vector_field=self.vector_field,
@@ -113,7 +121,63 @@ class FirestoreVectorStore(Plugin):
             metadata_fields=self.metadata_fields,
         )
 
-        return ai.define_retriever(
-            name=firestore_action_name(self.name),
+        action = Action(
+            kind=ActionKind.RETRIEVER,
+            name=firestore_action_name(self.retriever_name),
             fn=retriever.retrieve,
         )
+
+        return [action]
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        """Resolve an action by name.
+
+        Args:
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
+
+        Returns:
+            Action object if found, None otherwise.
+        """
+        if action_type != ActionKind.RETRIEVER:
+            return None
+
+        # Extract local name (remove plugin prefix)
+        expected_name = firestore_action_name(self.retriever_name)
+        if name != expected_name:
+            return None
+
+        if self.ai is None:
+            return None
+
+        retriever = FirestoreRetriever(
+            ai=self.ai,
+            name=self.retriever_name,
+            firestore_client=self.firestore_client,
+            collection=self.collection,
+            vector_field=self.vector_field,
+            content_field=self.content_field,
+            embedder=self.embedder,
+            embedder_options=self.embedder_options,
+            distance_measure=self.distance_measure,
+            metadata_fields=self.metadata_fields,
+        )
+
+        return Action(
+            kind=ActionKind.RETRIEVER,
+            name=name,
+            fn=retriever.retrieve,
+        )
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        """List available retriever actions.
+
+        Returns:
+            List of ActionMetadata for the retriever.
+        """
+        return [
+            retriever_action_metadata(
+                name=firestore_action_name(self.retriever_name),
+                options=RetrieverOptions(),
+            )
+        ]

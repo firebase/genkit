@@ -24,7 +24,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from google.cloud import bigquery
 from google.cloud.aiplatform_v1 import (
     FindNeighborsRequest,
     FindNeighborsResponse,

@@ -14,14 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import asyncio
-import json
 import sys
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 from unittest.mock import MagicMock
 
 from genkit.ai import Genkit
-from genkit.core.action.types import ActionKind
 
 
 class MockSchema:
@@ -109,9 +106,8 @@ class FakeTransport:
     async def start(self):
         pass
 
-    async def send(self, message: Dict[str, Any]):
+    async def send(self, message: dict[str, Any]):
         """Handle incoming JSON-RPC message (simulating server)."""
-        request = message
         # msg_id = request.get("id")
 
         # In a real transport we'd write back to the stream.
@@ -121,8 +117,8 @@ class FakeTransport:
         pass
 
     # Helper methods to populate the fake state
-    def add_tool(self, name: str, description: str = '', schema: Dict = None):
+    def add_tool(self, name: str, description: str = '', schema: dict = None):
         self.tools.append({'name': name, 'description': description, 'inputSchema': schema or {'type': 'object'}})
 
-    def add_prompt(self, name: str, description: str = '', arguments: List = None):
+    def add_prompt(self, name: str, description: str = '', arguments: list = None):
         self.prompts.append({'name': name, 'description': description, 'arguments': arguments or []})

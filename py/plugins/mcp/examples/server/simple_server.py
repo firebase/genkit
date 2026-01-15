@@ -45,7 +45,7 @@ def main():
     # Genkit Python prompt definition (simplified)
     # Note: In Python, prompts are typically loaded from files via prompt_dir
     # This inline definition is for demonstration purposes
-    happy_prompt = ai.define_prompt(
+    ai.define_prompt(
         input_schema={'action': str},
         prompt="If you're happy and you know it, {{action}}.",
     )

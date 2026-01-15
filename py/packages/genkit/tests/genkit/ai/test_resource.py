@@ -20,8 +20,6 @@ in the Genkit framework. It covers static resources, template-based resources,
 dynamic resource matching, and metadata handling.
 """
 
-import asyncio
-
 import pytest
 
 from genkit.blocks.resource import define_resource, resolve_resources, resource
@@ -29,7 +27,8 @@ from genkit.core.registry import Registry
 from genkit.core.typing import Part, TextPart
 
 
-def test_define_resource():
+@pytest.mark.asyncio
+async def test_define_resource():
     """Verifies that a resource can be defined and registered correctly.
     Checks:
     - Resource name matches property.
@@ -45,11 +44,11 @@ def test_define_resource():
     assert act.name == 'http://example.com/foo'
     assert act.metadata['resource']['uri'] == 'http://example.com/foo'
 
-    # Verify lookup logic (mocking lookup_action effectively via direct access or helper)
+    # Verify that the action can be resolved from the registry
     # Registry lookup for resources usually prepends /resource/ etc.
     # but define_resource registers it with name=uri
 
-    looked_up = registry.lookup_action('resource', 'http://example.com/foo')
+    looked_up = await registry.resolve_action('resource', 'http://example.com/foo')
     assert looked_up == act
 
 

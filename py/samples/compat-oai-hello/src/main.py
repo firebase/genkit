@@ -94,8 +94,8 @@ async def say_hi(name: str) -> str:
         The response from the OpenAI API.
     """
     response = await ai.generate(
-        model=openai_model('gpt-4'),
-        config={'model': 'gpt-4-0613', 'temperature': 1},
+        model=openai_model('gpt-4o'),
+        config={'temperature': 1},
         prompt=f'hi {name}',
     )
     return response.message.content[0].root.text
@@ -212,7 +212,7 @@ async def get_weather_flow_stream(location: str) -> str:
 
 
 class Skills(BaseModel):
-    """A set of core character skills for an RPG character"""
+    """A set of core character skills for an RPG character."""
 
     strength: int = Field(description='strength (0-100)')
     charisma: int = Field(description='charisma (0-100)')

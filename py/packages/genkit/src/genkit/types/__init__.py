@@ -25,7 +25,9 @@ from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.typing import (
     BaseEvalDataPoint,
+    Constrained,
     CustomPart,
+    DataPart,
     Details,
     Docs,
     DocumentData,
@@ -36,6 +38,7 @@ from genkit.core.typing import (
     EvalRequest,
     EvalResponse,
     EvalStatusEnum,
+    FinishReason,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -67,7 +70,9 @@ from genkit.core.typing import (
 __all__ = [
     ActionRunContext.__name__,
     BaseEvalDataPoint.__name__,
+    Constrained.__name__,
     CustomPart.__name__,
+    DataPart.__name__,
     Details.__name__,
     Docs.__name__,
     Document.__name__,
@@ -79,6 +84,7 @@ __all__ = [
     EvalRequest.__name__,
     EvalResponse.__name__,
     EvalStatusEnum.__name__,
+    FinishReason.__name__,
     GenerateActionOptions.__name__,
     GenerateRequest.__name__,
     GenerateResponse.__name__,

@@ -25,11 +25,12 @@ import uvicorn
 
 from genkit.aio.loop import run_loop
 from genkit.blocks.formats import built_in_formats
+from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
+from genkit.core.plugin import Plugin
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.web.manager import find_free_port_sync
 
-from ._plugin import Plugin
 from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
 from ._server import ServerSpec
@@ -82,14 +83,12 @@ class GenkitBase(GenkitRegistry):
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    plugin.initialize(ai=self)
-
-                    def resolver(kind, name, plugin=plugin):
-                        return plugin.resolve_action(self, kind, name)
-
-                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
+                    # Register plugin with the new async plugin API
+                    self.registry.register_plugin(plugin)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
+
+        define_generate_action(self.registry)
 
     def run_main(self, coro: Coroutine[Any, Any, T]) -> T:
         """Run the user's main coroutine.

@@ -25,7 +25,7 @@ dp = Dotprompt()
 
 
 async def load_prompt_file(path: str) -> PromptFunction:
-    with open(path, 'r') as f:
+    with open(path) as f:
         result = await dp.compile(f.read())
 
     return result

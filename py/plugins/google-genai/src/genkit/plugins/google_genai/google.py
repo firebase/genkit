@@ -15,38 +15,30 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from functools import cached_property
 
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
-from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, HttpOptions, HttpOptionsDict
+from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
-from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
+from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import ActionMetadata
 from genkit.core.registry import ActionKind
-from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
-    GeminiEmbeddingModels,
-    VertexEmbeddingModels,
     default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
-    GeminiConfigSchema,
     GeminiModel,
-    GoogleAIGeminiVersion,
-    VertexAIGeminiVersion,
     google_model_info,
 )
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
     ImagenModel,
-    ImagenVersion,
     vertexai_image_model_info,
 )
 
@@ -128,107 +120,87 @@ class GoogleAI(Plugin):
             http_options=_inject_attribution_headers(http_options),
         )
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize the plugin by registering actions in the registry.
+    async def init(self) -> list:
+        """Initialize the plugin.
+
+        Returns:
+            Empty list (using lazy loading via resolve).
+        """
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str):
+        """Resolve an action by creating and returning an Action object.
 
         Args:
-            ai: the action registry.
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
+
+        Returns:
+            Action object if found, None otherwise.
         """
-        for version in GoogleAIGeminiVersion:
-            gemini_model = GeminiModel(version, self._client, ai)
-            ai.define_model(
-                name=googleai_name(version),
-                fn=gemini_model.generate,
-                metadata=gemini_model.metadata,
-                # config_schema=GeminiConfigSchema,
-            )
+        if action_type == ActionKind.MODEL:
+            return self._resolve_model(name)
+        elif action_type == ActionKind.EMBEDDER:
+            return self._resolve_embedder(name)
+        return None
 
-        for version in GeminiEmbeddingModels:
-            embedder = Embedder(version=version, client=self._client)
-            embedder_info = default_embedder_info(version)
-            ai.define_embedder(
-                name=googleai_name(version),
-                fn=embedder.generate,
-                options=EmbedderOptions(
-                    label=embedder_info.get('label'),
-                    dimensions=embedder_info.get('dimensions'),
-                    supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
-                ),
-            )
-
-    def resolve_action(
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        """Resolves and action.
+    def _resolve_model(self, name: str):
+        """Create an Action object for a Google AI model.
 
         Args:
-            ai: The Genkit registry.
-            kind: The kind of action to resolve.
-            name: The name of the action to resolve.
+            name: The namespaced name of the model.
+
+        Returns:
+            Action object for the model.
         """
-        if kind == ActionKind.MODEL:
-            self._resolve_model(ai, name)
-        elif kind == ActionKind.EMBEDDER:
-            self._resolve_embedder(ai, name)
+        from genkit.core.action import Action
 
-    def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
-        """Resolves and defines a Google AI model within the Genkit registry.
-
-        This internal method handles the logic for registering different types of
-        Google AI models (e.g., Gemini text models) based on the provided name.
-        It extracts a clean name, determines the model type, instantiates the
-        appropriate model class, and registers it with the Genkit AI registry.
-
-        Args:
-            ai: The Genkit AI registry instance to define the model in.
-            name: The name of the model to resolve. This name might include a
-                prefix indicating it's from a specific plugin (e.g., 'googleai/gemini-pro').
-        """
+        # Extract local name (remove plugin prefix)
         _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
         model_ref = google_model_info(_clean_name)
 
         SUPPORTED_MODELS[_clean_name] = model_ref
 
-        gemini_model = GeminiModel(_clean_name, self._client, ai)
+        gemini_model = GeminiModel(_clean_name, self._client, None)
 
-        ai.define_model(
-            name=googleai_name(_clean_name),
+        return Action(
+            kind=ActionKind.MODEL,
+            name=name,
             fn=gemini_model.generate,
             metadata=gemini_model.metadata,
-            # config_schema=GeminiConfigSchema,
         )
 
-    def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
-        """Resolves and defines a Google AI embedder within the Genkit registry.
-
-        This internal method handles the logic for registering Google AI embedder
-        models. It extracts a clean name, instantiates the embedder class, and
-        registers it with the Genkit AI registry.
+    def _resolve_embedder(self, name: str):
+        """Create an Action object for a Google AI embedder.
 
         Args:
-            ai: The Genkit AI registry instance to define the embedder in.
-            name: The name of the embedder to resolve. This name might include a
-                prefix indicating it's from a specific plugin (e.g., 'googleai/embedding-001').
+            name: The namespaced name of the embedder.
+
+        Returns:
+            Action object for the embedder.
         """
+        from genkit.core.action import Action
+
+        # Extract local name (remove plugin prefix)
         _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
         embedder = Embedder(version=_clean_name, client=self._client)
 
         embedder_info = default_embedder_info(_clean_name)
-        ai.define_embedder(
-            name=googleai_name(_clean_name),
+
+        return Action(
+            kind=ActionKind.EMBEDDER,
+            name=name,
             fn=embedder.generate,
-            options=EmbedderOptions(
-                label=embedder_info.get('label'),
-                dimensions=embedder_info.get('dimensions'),
-                supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
-            ),
+            metadata={
+                'embedder': {
+                    'label': embedder_info.get('label'),
+                    'dimensions': embedder_info.get('dimensions'),
+                    'supports': embedder_info['supports'] if embedder_info.get('supports') else None,
+                },
+            },
         )
 
-    @cached_property
-    def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
@@ -315,125 +287,91 @@ class VertexAI(Plugin):
             http_options=_inject_attribution_headers(http_options),
         )
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize the plugin by registering actions with the registry.
+    async def init(self) -> list:
+        """Initialize the plugin.
 
-        This method registers the Vertex AI model actions with the provided
-        registry, making them available for use in the Genkit framework.
+        Returns:
+            Empty list (using lazy loading via resolve).
+        """
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str):
+        """Resolve an action by creating and returning an Action object.
 
         Args:
-            ai: the action registry.
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
+
+        Returns:
+            Action object if found, None otherwise.
         """
-        for version in VertexAIGeminiVersion:
-            gemini_model = GeminiModel(version, self._client, ai)
-            ai.define_model(
-                name=vertexai_name(version),
-                fn=gemini_model.generate,
-                metadata=gemini_model.metadata,
-                # config_schema=GeminiConfigSchema,
-            )
+        if action_type == ActionKind.MODEL:
+            return self._resolve_model(name)
+        elif action_type == ActionKind.EMBEDDER:
+            return self._resolve_embedder(name)
+        return None
 
-        for version in VertexEmbeddingModels:
-            embedder = Embedder(version=version, client=self._client)
-            embedder_info = default_embedder_info(version)
-            ai.define_embedder(
-                name=vertexai_name(version),
-                fn=embedder.generate,
-                options=EmbedderOptions(
-                    label=embedder_info.get('label'),
-                    dimensions=embedder_info.get('dimensions'),
-                    supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
-                ),
-            )
-
-        for version in ImagenVersion:
-            imagen_model = ImagenModel(version, self._client)
-            ai.define_model(
-                name=vertexai_name(version),
-                fn=imagen_model.generate,
-                metadata=imagen_model.metadata,
-            )
-
-    def resolve_action(
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        """Resolves and action.
+    def _resolve_model(self, name: str):
+        """Create an Action object for a Vertex AI model.
 
         Args:
-            ai: The Genkit registry.
-            kind: The kind of action to resolve.
-            name: The name of the action to resolve.
+            name: The namespaced name of the model.
+
+        Returns:
+            Action object for the model.
         """
-        if kind == ActionKind.MODEL:
-            self._resolve_model(ai, name)
-        elif kind == ActionKind.EMBEDDER:
-            self._resolve_embedder(ai, name)
+        from genkit.core.action import Action
 
-    def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
-        """Resolves and defines a Vertex AI model within the Genkit registry.
-
-        This internal method handles the logic for registering different types of
-        Vertex AI models (e.g., Gemini text models, Imagen image models) based on
-        the provided name. It extracts a clean name, determines the model type,
-        instantiates the appropriate model class, and registers it with the Genkit
-        AI registry.
-
-        Args:
-            ai: The Genkit AI registry instance to define the model in.
-            name: The name of the model to resolve. This name might include a
-                prefix indicating it's from a specific plugin (e.g., 'vertexai/gemini-pro').
-        """
+        # Extract local name (remove plugin prefix)
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
         if _clean_name.lower().startswith('image'):
             model_ref = vertexai_image_model_info(_clean_name)
             model = ImagenModel(_clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
-            # config_schema = GenerateImagesConfigOrDict
         else:
             model_ref = google_model_info(_clean_name)
-            model = GeminiModel(_clean_name, self._client, ai)
+            model = GeminiModel(_clean_name, self._client, None)
             SUPPORTED_MODELS[_clean_name] = model_ref
-            # config_schema = GeminiConfigSchema
 
-        ai.define_model(
-            name=vertexai_name(_clean_name),
+        return Action(
+            kind=ActionKind.MODEL,
+            name=name,
             fn=model.generate,
             metadata=model.metadata,
-            # config_schema=config_schema,
         )
 
-    def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
-        """Resolves and defines a Vertex AI embedder within the Genkit registry.
-
-        This internal method handles the logic for registering Google AI embedder
-        models. It extracts a clean name, instantiates the embedder class, and
-        registers it with the Genkit AI registry.
+    def _resolve_embedder(self, name: str):
+        """Create an Action object for a Vertex AI embedder.
 
         Args:
-            ai: The Genkit AI registry instance to define the embedder in.
-            name: The name of the embedder to resolve. This name might include a
-                prefix indicating it's from a specific plugin (e.g., 'vertexai/embedding-001').
+            name: The namespaced name of the embedder.
+
+        Returns:
+            Action object for the embedder.
         """
+        from genkit.core.action import Action
+
+        # Extract local name (remove plugin prefix)
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
         embedder = Embedder(version=_clean_name, client=self._client)
 
         embedder_info = default_embedder_info(_clean_name)
-        ai.define_embedder(
-            name=vertexai_name(_clean_name),
+
+        return Action(
+            kind=ActionKind.EMBEDDER,
+            name=name,
             fn=embedder.generate,
-            options=EmbedderOptions(
-                label=embedder_info.get('label'),
-                dimensions=embedder_info.get('dimensions'),
-                supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
-            ),
+            metadata={
+                'embedder': {
+                    'label': embedder_info.get('label'),
+                    'dimensions': embedder_info.get('dimensions'),
+                    'supports': embedder_info['supports'] if embedder_info.get('supports') else None,
+                },
+            },
         )
 
-    @cached_property
-    def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:

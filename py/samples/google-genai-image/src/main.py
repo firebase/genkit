@@ -16,7 +16,6 @@
 
 """This sample demonstrates how to use Gemini to describe and draw images."""
 
-import asyncio
 import base64
 import os
 from io import BytesIO

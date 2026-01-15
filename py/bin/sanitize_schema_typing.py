@@ -42,10 +42,9 @@ Transformations applied:
 
 import ast
 import sys
-from _ast import AST
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Type, cast
+from typing import Any, cast
 
 
 class ClassTransformer(ast.NodeTransformer):

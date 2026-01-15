@@ -43,7 +43,7 @@ def setup_test():
 
     @ai.tool(name='testTool')
     def test_tool():
-        """description"""
+        """Description."""
         return 'tool called'
 
     return (ai, pm)
@@ -333,7 +333,7 @@ async def test_generate_action_spec(spec) -> None:
 
     @ai.tool(name='testTool')
     def test_tool():
-        """description"""
+        """Description."""
         return 'tool called'
 
     if 'modelResponses' in spec:
@@ -347,7 +347,7 @@ async def test_generate_action_spec(spec) -> None:
                 converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
             pm.chunks.append(converted)
 
-    action = ai.registry.lookup_action(kind=ActionKind.UTIL, name='generate')
+    action = await ai.registry.resolve_action(kind=ActionKind.UTIL, name='generate')
 
     response = None
     chunks = None

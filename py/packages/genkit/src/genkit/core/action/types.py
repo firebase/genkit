@@ -18,16 +18,11 @@
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Callable
-from typing import Any, Awaitable, Dict, List, Literal, Protocol, Union
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
-
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
 
 # Type alias for action name.
 # type ActionName = str
