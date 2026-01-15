@@ -63,13 +63,19 @@ class VertexAIModelGarden(Plugin):
                 Google Cloud regions. This overrides the default `location` for the
                 specified models.
         """
-        self.project_id = project_id if project_id is not None else os.getenv(const.GCLOUD_PROJECT) or os.getenv('GOOGLE_CLOUD_PROJECT')
-        
-        if location:
-            self.location = location
-        else:
-            self.location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION') or const.DEFAULT_REGION
-            
+        self.project_id = (
+            project_id
+            if project_id is not None
+            else os.getenv(const.GCLOUD_PROJECT) or os.getenv('GOOGLE_CLOUD_PROJECT')
+        )
+
+        self.location = (
+            location
+            or os.getenv('GOOGLE_CLOUD_LOCATION')
+            or os.getenv('GOOGLE_CLOUD_REGION')
+            or const.DEFAULT_REGION
+        )
+
         self.models = models
         self.model_locations = model_locations or {}
 

@@ -14,9 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable
 
 from anthropic import AsyncAnthropicVertex
+
 from genkit.ai import GenkitRegistry
 from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.types import GenerationCommonConfig, ModelInfo
@@ -53,11 +53,11 @@ class AnthropicModelGarden:
         """Defines and registers the Anthropic model with the Genkit registry."""
         # Strip 'anthropic/' prefix if present for the model passed to Anthropic SDK
         # But for model definition in Genkit, use the full name format we want to expose
-        clean_model_name = self.name.replace('anthropic/', '') if 'anthropic/' in self.name else self.name
-        
+        clean_model_name = self.name.removeprefix('anthropic/')
+
         # AnthropicModel wrapper from genkit-anthropic expects the clean name (e.g. claude-3-5-sonnet...)
         anthropic_model = AnthropicModel(model_name=clean_model_name, client=self.client)
-        
+
         self.ai.define_model(
             name=model_garden_name(self.name),
             fn=anthropic_model.generate,

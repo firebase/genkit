@@ -82,7 +82,7 @@ async def jokes_flow(subject: str) -> str:
     response = await ai.generate(
         # Note: The model name usually includes the publisher prefix for Model Garden
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
-        config={'temperature': 1, 'maxOutputTokens': 1024},
+        config={'temperature': 1, 'max_output_tokens': 1024},
         prompt=f'Tell a short joke about {subject}',
     )
 
