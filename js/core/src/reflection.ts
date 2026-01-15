@@ -24,7 +24,7 @@ import { StatusCodes, type Status } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import type { Registry } from './registry.js';
-import { toJsonSchema } from './schema.js';
+import { SCHEMA_VALIDATION_MODE, toJsonSchema } from './schema.js';
 import { flushTracing, setTelemetryServerUrl } from './tracing.js';
 
 // TODO: Move this to common location for schemas.
