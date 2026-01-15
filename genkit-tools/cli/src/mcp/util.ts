@@ -42,7 +42,7 @@ export class McpRuntimeManager {
       this.projectRoot,
       command,
       args,
-      { nonInteractive: true }
+      { nonInteractive: true, healthCheck: true }
     );
     this.manager = devManager.manager;
     return this.manager;

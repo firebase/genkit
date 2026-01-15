@@ -38,7 +38,7 @@ export function defineRuntimeTools(
         args: z
           .array(z.string())
           .describe(
-            'List of command line arguments. IMPORTANT: This must be a JSON array of strings, not a single string.'
+            'List of command line arguments. IMPORTANT: This must be an array of strings, not a single string.'
           ),
       },
     },

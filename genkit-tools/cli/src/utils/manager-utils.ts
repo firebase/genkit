@@ -113,41 +113,46 @@ export async function waitForRuntime(
   manager: RuntimeManager,
   processPromise: Promise<void>
 ): Promise<void> {
+  const TIMEOUT_MS = 30000;
+  let unsubscribe: (() => void) | undefined;
+  let timeoutId: NodeJS.Timeout | undefined;
+
   if (manager.listRuntimes().length > 0) {
     return;
   }
 
-  await new Promise<void>((resolve, reject) => {
-    let timeoutId: NodeJS.Timeout;
-    let unsubscribe: () => void;
-
-    const cleanup = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      if (unsubscribe) unsubscribe();
-    };
-
-    timeoutId = setTimeout(() => {
-      cleanup();
-      reject(new Error('Timeout waiting for runtime to be ready'));
-    }, 30000);
-
-    unsubscribe = manager.onRuntimeEvent((event) => {
-      if (event === RuntimeEvent.ADD) {
-        cleanup();
-        resolve();
-      }
+  try {
+    const runtimeAddedPromise = new Promise<void>((resolve) => {
+      unsubscribe = manager.onRuntimeEvent((event) => {
+        // Just listen for a new runtime, not for a specific ID.
+        if (event === RuntimeEvent.ADD) {
+          resolve();
+        }
+      });
     });
 
-    processPromise
-      .then(() => {
-        cleanup();
-        reject(new Error('Process exited before runtime was ready'));
-      })
-      .catch((err) => {
-        cleanup();
-        reject(err);
-      });
-  });
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error('Timeout waiting for runtime to be ready')),
+        TIMEOUT_MS
+      );
+    });
+
+    const processExitedPromise = processPromise.then(
+      () =>
+        Promise.reject(new Error('Process exited before runtime was ready')),
+      (err) => Promise.reject(err)
+    );
+
+    await Promise.race([
+      runtimeAddedPromise,
+      timeoutPromise,
+      processExitedPromise,
+    ]);
+  } finally {
+    if (unsubscribe) unsubscribe();
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 /**
