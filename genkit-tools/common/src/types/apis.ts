@@ -88,7 +88,7 @@ export const ListValuesRequestSchema = z.object({
       'ID of the Genkit runtime to run the action on. Typically $pid-$port.'
     ),
   type: z
-    .enum(['defaultModel'])
+    .string()
     .describe(
       "The type of values to fetch. Currently only supports 'defaultModel'"
     ),

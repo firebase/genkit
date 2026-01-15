@@ -227,7 +227,12 @@ export class RuntimeManager {
     } catch (err) {
       if ((err as AxiosError).response?.status === 404) {
         return {};
+      } else if ((err as AxiosError).response?.status === 400) {
+        throw new GenkitToolsError(
+          `Bad request: ${(err as AxiosError).response?.data}`
+        );
       }
+      console.log(JSON.stringify(err));
       this.httpErrorHandler(err as AxiosError, 'Error listing values.');
     }
   }

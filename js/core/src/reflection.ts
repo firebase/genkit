@@ -159,6 +159,14 @@ export class ReflectionServer {
           response.status(400).send('Query parameter "type" is required.');
           return;
         }
+        if (type !== 'defaultModel') {
+          response
+            .status(400)
+            .send(
+              `'type' ${type} is not supported. Only 'defaultModel' is supported`
+            );
+          return;
+        }
         const values = await this.registry.listValues(type as string);
         response.send(values);
       } catch (err) {

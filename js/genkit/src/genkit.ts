@@ -25,6 +25,7 @@ import {
   generate,
   generateStream,
   loadPromptFolder,
+  modelRef,
   prompt,
   rerank,
   retrieve,
@@ -1091,15 +1092,20 @@ export function __disableReflectionApi() {
 /** Helper method to map ModelArgument to string */
 function modelName(
   modelArg: ModelArgument<any> | undefined
-): string | undefined {
+): ModelReference<any> | undefined {
   if (modelArg === undefined) {
     return undefined;
   }
   if (typeof modelArg === 'string') {
-    return modelArg;
+    return modelRef({ name: modelArg });
   }
   if ((modelArg as ModelReference<any>).name) {
-    return (modelArg as ModelReference<any>).name;
+    return modelArg as ModelReference<any>;
   }
-  return (modelArg as ModelAction).__action.name;
+  const modelAction = modelArg as ModelAction;
+  return modelRef({
+    name: modelAction.__action.name,
+    configSchema: modelAction.__configSchema,
+    info: modelAction.__action.metadata?.model,
+  });
 }
