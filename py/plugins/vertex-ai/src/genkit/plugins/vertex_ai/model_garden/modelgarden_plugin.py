@@ -46,6 +46,7 @@ class VertexAIModelGarden(Plugin):
         project_id: str | None = None,
         location: str | None = None,
         models: list[str] | None = None,
+        model_locations: dict[str, str] | None = None,
     ) -> None:
         """Initializes the plugin and sets up its configuration.
 
@@ -58,10 +59,19 @@ class VertexAIModelGarden(Plugin):
             location: The Google Cloud region to use for services. If not provided,
                 it defaults to `DEFAULT_REGION`.
             models: An optional list of model names to register with the plugin.
+            model_locations: An optional dictionary mapping model names to their specific
+                Google Cloud regions. This overrides the default `location` for the
+                specified models.
         """
-        self.project_id = project_id if project_id is not None else os.getenv(const.GCLOUD_PROJECT)
-        self.location = location if location is not None else const.DEFAULT_REGION
+        self.project_id = project_id if project_id is not None else os.getenv(const.GCLOUD_PROJECT) or os.getenv('GOOGLE_CLOUD_PROJECT')
+        
+        if location:
+            self.location = location
+        else:
+            self.location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION') or const.DEFAULT_REGION
+            
         self.models = models
+        self.model_locations = model_locations or {}
 
     def initialize(self, ai: GenkitRegistry) -> None:
         """Handles actions for various openaicompatible models."""
@@ -70,9 +80,10 @@ class VertexAIModelGarden(Plugin):
             return
 
         for model in models:
+            location = self.model_locations.get(model, self.location)
             model_proxy = ModelGarden(
                 model=model,
-                location=self.location,
+                location=location,
                 project_id=self.project_id,
                 registry=ai,
             )
@@ -112,9 +123,23 @@ class VertexAIModelGarden(Plugin):
             name.replace(MODELGARDEN_PLUGIN_NAME + '/', '') if name.startswith(MODELGARDEN_PLUGIN_NAME) else name
         )
 
+        if clean_name.startswith('anthropic/'):
+            from .anthropic import AnthropicModelGarden as AnthropicWorker
+
+            location = self.model_locations.get(clean_name, self.location)
+            model_proxy = AnthropicWorker(
+                model=clean_name,
+                location=location,
+                project_id=self.project_id,
+                registry=ai,
+            )
+            model_proxy.define_model()
+            return
+
+        location = self.model_locations.get(clean_name, self.location)
         model_proxy = ModelGarden(
             model=clean_name,
-            location=self.location,
+            location=location,
             project_id=self.project_id,
             registry=ai,
         )

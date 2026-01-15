@@ -23,57 +23,76 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
-        VertexAIModelGarden(
-            location='us-central1',
-        ),
+        VertexAIModelGarden(),
     ],
 )
 
 
+# @ai.flow()
+# async def say_hi(name: str) -> str:
+#     """Generate a greeting for the given name.
+#
+#     Args:
+#         name: The name of the person to greet.
+#
+#     Returns:
+#         The generated greeting response.
+#     """
+#     response = await ai.generate(
+#         model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+#         config={'temperature': 1},
+#         prompt=f'hi {name}',
+#     )
+#
+#     return response.message.content[0].root.text
+
+
+# @ai.flow()
+# async def say_hi_stream(name: str) -> str:
+#     """Say hi to a name and stream the response.
+#
+#     Args:
+#         name: The name to say hi to.
+#
+#     Returns:
+#         The response from the OpenAI API.
+#     """
+#     stream, _ = ai.generate_stream(
+#         model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+#         config={'temperature': 1},
+#         prompt=f'hi {name}',
+#     )
+#     result = ''
+#     async for data in stream:
+#         for part in data.content:
+#             result += part.root.text
+#     return result
+
+
 @ai.flow()
-async def say_hi(name: str) -> str:
-    """Generate a greeting for the given name.
+async def jokes_flow(subject: str) -> str:
+    """Generate a joke about the given subject.
 
     Args:
-        name: The name of the person to greet.
+        subject: The subject of the joke.
 
     Returns:
-        The generated greeting response.
+        The generated joke.
     """
     response = await ai.generate(
-        model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
-        config={'temperature': 1},
-        prompt=f'hi {name}',
+        # Note: The model name usually includes the publisher prefix for Model Garden
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        config={'temperature': 1, 'maxOutputTokens': 1024},
+        prompt=f'Tell a short joke about {subject}',
     )
 
-    return response.message.content[0].root.text
-
-
-@ai.flow()
-async def say_hi_stream(name: str) -> str:
-    """Say hi to a name and stream the response.
-
-    Args:
-        name: The name to say hi to.
-
-    Returns:
-        The response from the OpenAI API.
-    """
-    stream, _ = ai.generate_stream(
-        model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
-        config={'temperature': 1},
-        prompt=f'hi {name}',
-    )
-    result = ''
-    async for data in stream:
-        for part in data.content:
-            result += part.root.text
-    return result
+    return response.text
 
 
 async def main() -> None:
-    await logger.ainfo(await say_hi('John Doe'))
-    await logger.ainfo(await say_hi_stream('John Doe'))
+    # await logger.ainfo(await say_hi('John Doe'))
+    # await logger.ainfo(await say_hi_stream('John Doe'))
+    await logger.ainfo(await jokes_flow('banana'))
 
 
 if __name__ == '__main__':
