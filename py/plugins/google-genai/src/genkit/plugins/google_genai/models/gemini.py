@@ -1110,8 +1110,6 @@ class GeminiModel:
                 )
             elif isinstance(request_config, GeminiConfigSchema):
                 cfg = request_config
-                if request_config.code_execution:
-                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
                 if 'image_config' in request_config:
                     cfg = GeminiImageConfigSchema(**request_config)
@@ -1121,6 +1119,9 @@ class GeminiModel:
                     cfg = GeminiConfigSchema(**request_config)
 
             if isinstance(cfg, GeminiConfigSchema):
+                if cfg.code_execution:
+                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
+
                 dumped_config = cfg.model_dump(exclude_none=True)
                 for key in ['code_execution', 'file_search', 'url_context', 'api_version']:
                     if key in dumped_config:
