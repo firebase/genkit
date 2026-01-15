@@ -572,8 +572,6 @@ async def photo_move_veo(_: Any, context: Any = None):
         raise ValueError(f'Flow failed: {e}')
 
 
-
-
 @ai.flow()
 async def gemini_media_resolution():
     """Media resolution."""

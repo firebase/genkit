@@ -21,8 +21,7 @@ and model caches this context.
 As a result, model is capable to quickly relate to the book's content and answer the follow-up questions.
 """
 
-import base64
-import mimetypes
+
 
 import httpx
 import structlog
@@ -55,11 +54,8 @@ class BookContextInputSchema(BaseModel):
 
 @ai.flow(name='text_context_flow')
 async def text_context_flow(_input: BookContextInputSchema) -> str:
-    print(f'Starting flow with file: {_input.text_file_path}')
-    mime_type, _ = mimetypes.guess_type(_input.text_file_path)
-    if not mime_type:
-        mime_type = 'text/plain'
-    print(f'Detected MIME type: {mime_type}')
+    logger.info(f'Starting flow with file: {_input.text_file_path}')
+
     if _input.text_file_path.startswith('http'):
         async with httpx.AsyncClient() as client:
             res = await client.get(_input.text_file_path)
