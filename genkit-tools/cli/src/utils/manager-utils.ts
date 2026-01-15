@@ -129,6 +129,9 @@ export async function waitForRuntime(
           resolve();
         }
       });
+      if (manager.listRuntimes().length > 0) {
+        resolve();
+      }
     });
 
     const timeoutPromise = new Promise<void>((_, reject) => {

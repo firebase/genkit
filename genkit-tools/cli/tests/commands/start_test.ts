@@ -79,10 +79,18 @@ describe('start command', () => {
   });
 
   it('should start manager only when no args are provided', async () => {
+    let resolveServerStarted: () => void;
+    const serverStartedPromise = new Promise<void>((resolve) => {
+      resolveServerStarted = resolve;
+    });
+
+    startServerSpy.mockImplementation(() => {
+      resolveServerStarted();
+    });
+
     start.parseAsync(['node', 'genkit']);
 
-    // Wait a tick for async operations
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await serverStartedPromise;
 
     expect(startManagerSpy).toHaveBeenCalledWith('/mock/root', true);
     expect(startDevProcessManagerSpy).not.toHaveBeenCalled();
@@ -90,10 +98,21 @@ describe('start command', () => {
   });
 
   it('should not start server if --noui is provided', async () => {
-    // Cannot await, same reason as above
+    let resolveManagerStarted: () => void;
+    const managerStartedPromise = new Promise<void>((resolve) => {
+      resolveManagerStarted = resolve;
+    });
+
+    startManagerSpy.mockImplementation(() => {
+      resolveManagerStarted();
+      return Promise.resolve({} as any);
+    });
+
     start.parseAsync(['node', 'genkit', '--noui']);
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await managerStartedPromise;
+    // Wait for the synchronous continuation after startManager resolves
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(startServerSpy).not.toHaveBeenCalled();
   });
