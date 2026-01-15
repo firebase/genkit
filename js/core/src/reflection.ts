@@ -391,7 +391,13 @@ export class ReflectionServer {
         `Reflection server (${process.pid}) running on http://localhost:${this.port}`
       );
       ReflectionServer.RUNNING_SERVERS.push(this);
-      await this.writeRuntimeFile();
+
+      try {
+        await this.registry.listActions();
+        await this.writeRuntimeFile();
+      } catch (e) {
+        logger.error(`Error initializing plugins: ${e}`);
+      }
     });
   }
 
