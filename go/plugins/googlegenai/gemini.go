@@ -99,15 +99,6 @@ func configToMap(config any) map[string]any {
 	return result
 }
 
-// mapToStruct unmarshals a map[string]any to the expected config api.
-func mapToStruct(m map[string]any, v any) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonData, v)
-}
-
 // configFromRequest converts any supported config type to [genai.GenerateContentConfig].
 func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
 	var result genai.GenerateContentConfig
@@ -119,7 +110,9 @@ func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, er
 		result = *config
 	case map[string]any:
 		// TODO: Log warnings if unknown parameters are found.
-		if err := mapToStruct(config, &result); err != nil {
+		var err error
+		result, err = base.MapToStruct[genai.GenerateContentConfig](config)
+		if err != nil {
 			return nil, err
 		}
 	case nil:
@@ -384,20 +377,26 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		return nil, errors.New("response schema must be set using Genkit feature: ai.WithTools() or ai.WithOuputType()")
 	}
 	if gcc.ResponseMIMEType != "" {
-		return nil, errors.New("response MIME type must be set using Genkit feature: ai.WithOuputType()")
+		return nil, errors.New("response MIME type must be set using Genkit feature: ai.WithOuputType(), ai.WithOutputSchema(), ai.WithOutputSchemaByName()")
+	}
+	if gcc.ResponseJsonSchema != nil {
+		return nil, errors.New("response JSON schema must be set using Genkit feature: ai.WithOutputSchema()")
 	}
 
-	// Set response MIME type based on output format if specified
+	// Set response MIME type and schema based on output format.
+	// Gemini supports constrained output with application/json and text/x.enum.
 	hasOutput := input.Output != nil
-	isJsonFormat := hasOutput && input.Output.Format == "json"
-	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
-	jsonMode := isJsonFormat || isJsonContentType
-	// this setting is not compatible with tools forcing controlled output generation
-	if jsonMode && len(input.Tools) == 0 {
-		gcc.ResponseMIMEType = "application/json"
+	// JSON mode is not compatible with tools
+	if hasOutput && len(input.Tools) == 0 {
+		switch {
+		case input.Output.ContentType == "application/json" || input.Output.Format == "json":
+			gcc.ResponseMIMEType = "application/json"
+		case input.Output.ContentType == "text/enum" || input.Output.Format == "enum":
+			gcc.ResponseMIMEType = "text/x.enum"
+		}
 	}
 
-	if input.Output != nil && input.Output.Constrained {
+	if input.Output != nil && input.Output.Constrained && gcc.ResponseMIMEType != "" {
 		schema, err := toGeminiSchema(input.Output.Schema, input.Output.Schema)
 		if err != nil {
 			return nil, err
@@ -476,6 +475,34 @@ func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	}
 
 	return outTools, nil
+}
+
+// toGeminiFunctionResponsePart translates a slice of [ai.Part] to a slice of [genai.FunctionResponsePart]
+func toGeminiFunctionResponsePart(parts []*ai.Part) ([]*genai.FunctionResponsePart, error) {
+	frp := []*genai.FunctionResponsePart{}
+	for _, p := range parts {
+		switch {
+		case p.IsData():
+			contentType, data, err := uri.Data(p)
+			if err != nil {
+				return nil, err
+			}
+			frp = append(frp, genai.NewFunctionResponsePartFromBytes(data, contentType))
+		case p.IsMedia():
+			if strings.HasPrefix(p.Text, "data:") {
+				contentType, data, err := uri.Data(p)
+				if err != nil {
+					return nil, err
+				}
+				frp = append(frp, genai.NewFunctionResponsePartFromBytes(data, contentType))
+				continue
+			}
+			frp = append(frp, genai.NewFunctionResponsePartFromURI(p.Text, p.ContentType))
+		default:
+			return nil, fmt.Errorf("unsupported function response part type: %d", p.Kind)
+		}
+	}
+	return frp, nil
 }
 
 // mergeTools consolidates all FunctionDeclarations into a single Tool
@@ -766,12 +793,30 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		m.FinishReason = ai.FinishReasonStop
 	case genai.FinishReasonMaxTokens:
 		m.FinishReason = ai.FinishReasonLength
-	case genai.FinishReasonSafety:
+	case genai.FinishReasonSafety,
+		genai.FinishReasonRecitation,
+		genai.FinishReasonLanguage,
+		genai.FinishReasonBlocklist,
+		genai.FinishReasonProhibitedContent,
+		genai.FinishReasonSPII,
+		genai.FinishReasonImageSafety,
+		genai.FinishReasonImageProhibitedContent,
+		genai.FinishReasonImageRecitation:
 		m.FinishReason = ai.FinishReasonBlocked
-	case genai.FinishReasonRecitation:
-		m.FinishReason = ai.FinishReasonBlocked
-	case genai.FinishReasonOther:
+	case genai.FinishReasonMalformedFunctionCall,
+		genai.FinishReasonUnexpectedToolCall,
+		genai.FinishReasonNoImage,
+		genai.FinishReasonImageOther,
+		genai.FinishReasonOther:
 		m.FinishReason = ai.FinishReasonOther
+	case "MISSING_THOUGHT_SIGNATURE":
+		// Gemini 3 returns this when thought signatures are missing from the request.
+		// The SDK may not have this constant yet, so we match on the string value.
+		m.FinishReason = ai.FinishReasonOther
+	default:
+		if cand.FinishReason != "" && cand.FinishReason != genai.FinishReasonUnspecified {
+			m.FinishReason = ai.FinishReasonUnknown
+		}
 	}
 
 	m.FinishMessage = cand.FinishMessage
@@ -801,6 +846,7 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		if part.FileData != nil {
 			partFound++
 			p = ai.NewMediaPart(part.FileData.MIMEType, part.FileData.FileURI)
+
 		}
 		if part.FunctionCall != nil {
 			partFound++
@@ -808,6 +854,14 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 				Name:  part.FunctionCall.Name,
 				Input: part.FunctionCall.Args,
 			})
+			// FunctionCall parts may contain a ThoughtSignature that must be preserved
+			// and returned in subsequent requests for the tool call to be valid.
+			if len(part.ThoughtSignature) > 0 {
+				if p.Metadata == nil {
+					p.Metadata = make(map[string]any)
+				}
+				p.Metadata["signature"] = part.ThoughtSignature
+			}
 		}
 		if part.CodeExecutionResult != nil {
 			partFound++
@@ -828,6 +882,13 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		}
 		if p == nil {
 			continue
+		}
+
+		if len(part.ThoughtSignature) > 0 {
+			if p.Metadata == nil {
+				p.Metadata = make(map[string]any)
+			}
+			p.Metadata["signature"] = part.ThoughtSignature
 		}
 
 		msg.Content = append(msg.Content, p)
@@ -886,37 +947,29 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
+	var gp *genai.Part
 	switch {
 	case p.IsReasoning():
-		// TODO: go-genai does not support genai.NewPartFromThought()
-		signature := []byte{}
-		if p.Metadata != nil {
-			if sig, ok := p.Metadata["signature"].([]byte); ok {
-				signature = sig
-			}
-		}
-		return &genai.Part{
-			Thought:          true,
-			Text:             p.Text,
-			ThoughtSignature: signature,
-		}, nil
+		gp = genai.NewPartFromText(p.Text)
+		gp.Thought = true
 	case p.IsText():
-		return genai.NewPartFromText(p.Text), nil
+		gp = genai.NewPartFromText(p.Text)
 	case p.IsMedia():
 		if strings.HasPrefix(p.Text, "data:") {
 			contentType, data, err := uri.Data(p)
 			if err != nil {
 				return nil, err
 			}
-			return genai.NewPartFromBytes(data, contentType), nil
+			gp = genai.NewPartFromBytes(data, contentType)
+		} else {
+			gp = genai.NewPartFromURI(p.Text, p.ContentType)
 		}
-		return genai.NewPartFromURI(p.Text, p.ContentType), nil
 	case p.IsData():
 		contentType, data, err := uri.Data(p)
 		if err != nil {
 			return nil, err
 		}
-		return genai.NewPartFromBytes(data, contentType), nil
+		gp = genai.NewPartFromBytes(data, contentType)
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
 		var output map[string]any
@@ -928,8 +981,22 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 				"content": toolResp.Output,
 			}
 		}
-		fr := genai.NewPartFromFunctionResponse(toolResp.Name, output)
-		return fr, nil
+		var isMultipart bool
+		if multiPart, ok := p.Metadata["multipart"].(bool); ok {
+			isMultipart = multiPart
+		}
+		if len(toolResp.Content) > 0 {
+			isMultipart = true
+		}
+		if isMultipart {
+			toolRespParts, err := toGeminiFunctionResponsePart(toolResp.Content)
+			if err != nil {
+				return nil, err
+			}
+			gp = genai.NewPartFromFunctionResponseWithParts(toolResp.Name, output, toolRespParts)
+		} else {
+			gp = genai.NewPartFromFunctionResponse(toolResp.Name, output)
+		}
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
 		var input map[string]any
@@ -941,10 +1008,24 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 			}
 		}
 		fc := genai.NewPartFromFunctionCall(toolReq.Name, input)
+		// Restore ThoughtSignature if present in metadata
+		if p.Metadata != nil {
+			if sig, ok := p.Metadata["signature"].([]byte); ok {
+				fc.ThoughtSignature = sig
+			}
+		}
 		return fc, nil
 	default:
-		panic("unknown part type in a request")
+		return nil, fmt.Errorf("unknown part in the request: %q", p.Kind)
 	}
+
+	if p.Metadata != nil {
+		if sig, ok := p.Metadata["signature"].([]byte); ok {
+			gp.ThoughtSignature = sig
+		}
+	}
+
+	return gp, nil
 }
 
 // validToolName checks whether the provided tool name matches the

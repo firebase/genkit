@@ -14,9 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import base64
 import sys
-import unittest
+import urllib.request
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 if sys.version_info < (3, 11):  # noqa
@@ -186,8 +185,8 @@ async def test_generate_media_response(mocker, version):
 
     assert content.root.media.content_type == response_mimetype
 
-    decoded_url = base64.b64decode(content.root.media.url)
-    assert decoded_url == response_byte_string
+    with urllib.request.urlopen(content.root.media.url) as response:
+        assert response.read() == response_byte_string
 
 
 def test_convert_schema_property(mocker):

@@ -162,6 +162,18 @@ class Registry:
             self._entries[kind][name] = action
         return action
 
+    def register_action_from_instance(self, action: Action) -> None:
+        """Register an existing Action instance.
+        Allows registering a pre-configured Action object, such as one created via
+        `dynamic_resource` or other factory methods.
+        Args:
+           action: The action instance to register.
+        """
+        with self._lock:
+            if action.kind not in self._entries:
+                self._entries[action.kind] = {}
+            self._entries[action.kind][action.name] = action
+
     def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
         """Look up an action by its kind and name.
 
@@ -185,6 +197,19 @@ class Registry:
                 return self._entries[kind][name]
 
             return None
+
+    def get_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
+        """Returns a dictionary of all registered actions for a specific kind.
+
+        Args:
+            kind: The type of actions to retrieve (e.g., TOOL, MODEL, RESOURCE).
+
+        Returns:
+            A dictionary mapping action names to Action instances.
+            Returns an empty dictionary if no actions of that kind are registered.
+        """
+        with self._lock:
+            return self._entries.get(kind, {}).copy()
 
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.

@@ -63,6 +63,7 @@ $HOME/go/bin/addlicense \
   -ignore '.trunk/**/*' \
   -ignore '**/*.toml' \
   -ignore '**/*.nix' \
+  -ignore '**/*.yaml' \
   "$TOP_DIR"
 
 uv run --directory "${PY_DIR}" liccheck

@@ -535,7 +535,7 @@ func (o *outputOptions) applyGenerate(genOpts *generateOptions) error {
 	return o.applyOutput(&genOpts.outputOptions)
 }
 
-// WithOutputType sets the schema and format of the output based on the value provided.
+// WithOutputType sets the output format to JSON and the schema derived from the given value.
 func WithOutputType(output any) OutputOption {
 	return &outputOptions{
 		OutputSchema: core.InferSchemaMap(output),
@@ -563,6 +563,22 @@ func WithOutputSchemaName(name string) OutputOption {
 // WithOutputFormat sets the format of the output.
 func WithOutputFormat(format string) OutputOption {
 	return &outputOptions{OutputFormat: format}
+}
+
+// WithOutputEnums sets the output format to enum and the schema based on the given values.
+// Accepts any string-based type (e.g. type MyEnum string).
+func WithOutputEnums[T ~string](values ...T) OutputOption {
+	enumStrs := make([]string, len(values))
+	for i, v := range values {
+		enumStrs[i] = string(v)
+	}
+	return &outputOptions{
+		OutputSchema: map[string]any{
+			"type": "string",
+			"enum": enumStrs,
+		},
+		OutputFormat: OutputFormatEnum,
+	}
 }
 
 // WithOutputInstructions sets custom instructions for constraining output format in the prompt.
@@ -899,12 +915,15 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 	return nil
 }
 
-// WithToolResponses sets the tool responses to return from interrupted tool calls.
+// WithToolResponses provides resolved responses for interrupted tool calls.
+// Use this when you already have the result and want to skip re-executing the tool.
 func WithToolResponses(parts ...*Part) GenerateOption {
 	return &generateOptions{RespondParts: parts}
 }
 
-// WithToolRestarts sets the tool requests to restart interrupted tools with.
+// WithToolRestarts re-executes interrupted tool calls with additional metadata.
+// Use this when the original call lacked required context (e.g., auth, user confirmation)
+// that should now allow the tool to complete successfully.
 func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
 }

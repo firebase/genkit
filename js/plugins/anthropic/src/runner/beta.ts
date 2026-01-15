@@ -44,30 +44,74 @@ import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
+import {
+  betaServerToolUseBlockToPart,
+  unsupportedServerToolError,
+} from './converters/beta.js';
+import {
+  inputJsonDeltaError,
+  redactedThinkingBlockToPart,
+  textBlockToPart,
+  textDeltaToPart,
+  thinkingBlockToPart,
+  thinkingDeltaToPart,
+  toolUseBlockToPart,
+  webSearchToolResultBlockToPart,
+} from './converters/shared.js';
 import { RunnerTypes } from './types.js';
 
-/**
- * Server-managed tool blocks emitted by the beta API that Genkit cannot yet
- * interpret. We fail fast on these so callers do not accidentally treat them as
- * locally executable tool invocations.
- */
-/**
- * Server tool types that exist in beta but are not yet supported.
- * Note: server_tool_use and web_search_tool_result ARE supported (same as stable API).
- */
-const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
-  'web_fetch_tool_result',
-  'code_execution_tool_result',
-  'bash_code_execution_tool_result',
-  'text_editor_code_execution_tool_result',
-  'mcp_tool_result',
-  'mcp_tool_use',
-  'container_upload',
-]);
+const BETA_APIS = [
+  // 'message-batches-2024-09-24',
+  // 'prompt-caching-2024-07-31',
+  // 'computer-use-2025-01-24',
+  // 'pdfs-2024-09-25',
+  // 'token-counting-2024-11-01',
+  // 'token-efficient-tools-2025-02-19',
+  // 'output-128k-2025-02-19',
+  'files-api-2025-04-14',
+  // 'mcp-client-2025-04-04',
+  // 'dev-full-thinking-2025-05-14',
+  // 'interleaved-thinking-2025-05-14',
+  // 'code-execution-2025-05-22',
+  // 'extended-cache-ttl-2025-04-11',
+  // 'context-1m-2025-08-07',
+  // 'context-management-2025-06-27',
+  // 'model-context-window-exceeded-2025-08-26',
+  // 'skills-2025-10-02',
+  'effort-2025-11-24',
+  // 'advanced-tool-use-2025-11-20',
+  'structured-outputs-2025-11-13',
+];
 
-const unsupportedServerToolError = (blockType: string): string =>
-  `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
+/**
+ * Transforms a JSON schema to be compatible with Anthropic's structured output requirements.
+ * Anthropic requires `additionalProperties: false` on all object types.
+ * @see https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs#json-schema-limitations
+ */
+function toAnthropicSchema(
+  schema: Record<string, unknown>
+): Record<string, unknown> {
+  const out = structuredClone(schema);
+
+  // Remove $schema if present
+  delete out.$schema;
+
+  // Add additionalProperties: false to objects
+  if (out.type === 'object') {
+    out.additionalProperties = false;
+  }
+
+  // Recursively process nested objects
+  for (const key in out) {
+    if (typeof out[key] === 'object' && out[key] !== null) {
+      out[key] = toAnthropicSchema(out[key] as Record<string, unknown>);
+    }
+  }
+
+  return out;
+}
 
 interface BetaRunnerTypes extends RunnerTypes {
   Message: BetaMessage;
@@ -115,7 +159,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       const signature = this.getThinkingSignature(part);
       if (!signature) {
         throw new Error(
-          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `custom.anthropicThinking.signature` value from the original response.'
+          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `metadata.thoughtSignature` value from the original response.'
         );
       }
       return {
@@ -140,6 +184,26 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
     // Media
     if (part.media) {
+      if (part.media.contentType === 'anthropic/file') {
+        return {
+          type: 'document',
+          source: {
+            type: 'file',
+            file_id: part.media.url,
+          },
+        };
+      }
+
+      if (part.media.contentType === 'anthropic/image') {
+        return {
+          type: 'image',
+          source: {
+            type: 'file',
+            file_id: part.media.url,
+          },
+        };
+      }
+
       if (part.media.contentType === 'application/pdf') {
         return {
           type: 'document',
@@ -249,45 +313,49 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         : system;
     }
 
-    const body: BetaMessageCreateParamsNonStreaming = {
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as BetaMessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
+    const body = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
-    };
+      system: betaSystem,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      output_format: this.isStructuredOutputEnabled(request)
+        ? {
+            type: 'json_schema',
+            schema: toAnthropicSchema(request.output!.schema!),
+          }
+        : undefined,
+      betas: Array.isArray(request.config?.betas)
+        ? [...(request.config?.betas ?? [])]
+        : [...BETA_APIS],
+      ...restConfig,
+    } as BetaMessageCreateParamsNonStreaming;
 
-    if (betaSystem !== undefined) body.system = betaSystem;
-    if (request.config?.stopSequences !== undefined)
-      body.stop_sequences = request.config.stopSequences;
-    if (request.config?.temperature !== undefined)
-      body.temperature = request.config.temperature;
-    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
-    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config
-        .tool_choice as BetaMessageCreateParams['tool_choice'];
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config
-        .metadata as BetaMessageCreateParams['metadata'];
-    }
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   /**
@@ -316,46 +384,50 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
             ]
           : system;
 
-    const body: BetaMessageCreateParamsStreaming = {
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as BetaMessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
+    const body = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
-    };
+      system: betaSystem,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      output_format: this.isStructuredOutputEnabled(request)
+        ? {
+            type: 'json_schema',
+            schema: toAnthropicSchema(request.output!.schema!),
+          }
+        : undefined,
+      betas: Array.isArray(request.config?.betas)
+        ? [...(request.config?.betas ?? [])]
+        : [...BETA_APIS],
+      ...restConfig,
+    } as BetaMessageCreateParamsStreaming;
 
-    if (betaSystem !== undefined) body.system = betaSystem;
-    if (request.config?.stopSequences !== undefined)
-      body.stop_sequences = request.config.stopSequences;
-    if (request.config?.temperature !== undefined)
-      body.temperature = request.config.temperature;
-    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
-    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config
-        .tool_choice as BetaMessageCreateParams['tool_choice'];
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config
-        .metadata as BetaMessageCreateParams['metadata'];
-    }
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   protected toGenkitResponse(message: BetaMessage): GenerateResponseData {
@@ -382,23 +454,19 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
   protected toGenkitPart(event: BetaRawMessageStreamEvent): Part | undefined {
     if (event.type === 'content_block_start') {
-      const blockType = (event.content_block as { type?: string }).type;
-      if (
-        blockType &&
-        BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(blockType)
-      ) {
-        throw new Error(unsupportedServerToolError(blockType));
-      }
       return this.fromBetaContentBlock(event.content_block);
     }
     if (event.type === 'content_block_delta') {
       if (event.delta.type === 'text_delta') {
-        return { text: event.delta.text };
+        return textDeltaToPart(event.delta);
       }
       if (event.delta.type === 'thinking_delta') {
-        return { reasoning: event.delta.thinking };
+        return thinkingDeltaToPart(event.delta);
       }
-      // server/client tool input_json_delta not supported yet
+      if (event.delta.type === 'input_json_delta') {
+        throw inputJsonDeltaError();
+      }
+      // signature_delta - ignore
       return undefined;
     }
     return undefined;
@@ -406,65 +474,44 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
   private fromBetaContentBlock(contentBlock: BetaContentBlock): Part {
     switch (contentBlock.type) {
-      case 'tool_use': {
-        return {
-          toolRequest: {
-            ref: contentBlock.id,
-            name: contentBlock.name ?? 'unknown_tool',
-            input: contentBlock.input,
-          },
-        };
-      }
+      case 'text':
+        return textBlockToPart(contentBlock);
 
-      case 'mcp_tool_use':
-        throw new Error(unsupportedServerToolError(contentBlock.type));
-
-      case 'server_tool_use': {
-        const baseName = contentBlock.name ?? 'unknown_tool';
-        const serverToolName =
-          'server_name' in contentBlock && contentBlock.server_name
-            ? `${contentBlock.server_name}/${baseName}`
-            : baseName;
-        return {
-          text: `[Anthropic server tool ${serverToolName}] input: ${JSON.stringify(contentBlock.input)}`,
-          custom: {
-            anthropicServerToolUse: {
-              id: contentBlock.id,
-              name: serverToolName,
-              input: contentBlock.input,
-            },
-          },
-        };
-      }
-
-      case 'web_search_tool_result':
-        return this.toWebSearchToolResultPart({
-          type: contentBlock.type,
-          toolUseId: contentBlock.tool_use_id,
-          content: contentBlock.content,
+      case 'tool_use':
+        // Beta API may have undefined name, fallback to 'unknown_tool'
+        return toolUseBlockToPart({
+          id: contentBlock.id,
+          name: contentBlock.name ?? 'unknown_tool',
+          input: contentBlock.input,
         });
 
-      case 'text':
-        return { text: contentBlock.text };
-
       case 'thinking':
-        return this.createThinkingPart(
-          contentBlock.thinking,
-          contentBlock.signature
-        );
+        return thinkingBlockToPart(contentBlock);
 
       case 'redacted_thinking':
-        return { custom: { redactedThinking: contentBlock.data } };
+        return redactedThinkingBlockToPart(contentBlock);
+
+      case 'server_tool_use':
+        return betaServerToolUseBlockToPart(contentBlock);
+
+      case 'web_search_tool_result':
+        return webSearchToolResultBlockToPart(contentBlock);
+
+      // Unsupported beta server tool types
+      case 'mcp_tool_use':
+      case 'mcp_tool_result':
+      case 'web_fetch_tool_result':
+      case 'code_execution_tool_result':
+      case 'bash_code_execution_tool_result':
+      case 'text_editor_code_execution_tool_result':
+      case 'container_upload':
+      case 'tool_search_tool_result':
+        throw new Error(unsupportedServerToolError(contentBlock.type));
 
       default: {
-        if (BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(contentBlock.type)) {
-          throw new Error(unsupportedServerToolError(contentBlock.type));
-        }
         const unknownType = (contentBlock as { type: string }).type;
         logger.warn(
-          `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(
-            contentBlock
-          )}`
+          `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
         );
         return { text: '' };
       }
@@ -490,5 +537,15 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       default:
         return 'other';
     }
+  }
+
+  private isStructuredOutputEnabled(
+    request: GenerateRequest<typeof AnthropicConfigSchema>
+  ): boolean {
+    return !!(
+      request.output?.schema &&
+      request.output.constrained &&
+      request.output.format === 'json'
+    );
   }
 }

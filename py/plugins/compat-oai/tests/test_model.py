@@ -25,6 +25,7 @@ from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
     GenerateResponse,
     GenerateResponseChunk,
+    GenerationCommonConfig,
     Message,
     Role,
     TextPart,
@@ -155,6 +156,10 @@ def test_generate(stream, sample_request):
     [
         (OpenAIConfig(model='test'), OpenAIConfig(model='test')),
         ({'model': 'test'}, OpenAIConfig(model='test')),
+        (
+            GenerationCommonConfig(temperature=0.7),
+            OpenAIConfig(temperature=0.7),
+        ),
         (
             None,
             Exception(),

@@ -1,0 +1,8 @@
+---
+model: googleai/gemini-3-flash-preview
+input:
+  schema:
+    name: string
+---
+
+Hello {{name}}!

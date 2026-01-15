@@ -42,8 +42,21 @@ import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
+import {
+  inputJsonDeltaError,
+  redactedThinkingBlockToPart,
+  textBlockToPart,
+  textDeltaToPart,
+  thinkingBlockToPart,
+  thinkingDeltaToPart,
+  toolUseBlockToPart,
+  webSearchToolResultBlockToPart,
+} from './converters/shared.js';
+import { serverToolUseBlockToPart } from './converters/stable.js';
 import { RunnerTypes as BaseRunnerTypes } from './types.js';
+
 interface RunnerTypes extends BaseRunnerTypes {
   Message: Message;
   Stream: MessageStream;
@@ -82,7 +95,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
       const signature = this.getThinkingSignature(part);
       if (!signature) {
         throw new Error(
-          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `custom.anthropicThinking.signature` value from the original response.'
+          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `metadata.thoughtSignature` value from the original response.'
         );
       }
       return {
@@ -179,6 +192,12 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsNonStreaming {
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
@@ -197,51 +216,40 @@ export class Runner extends BaseRunner<RunnerTypes> {
             ]
           : system;
 
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as MessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
     const body: MessageCreateParamsNonStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
+      system: systemValue,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      ...restConfig,
     };
 
-    if (systemValue !== undefined) {
-      body.system = systemValue;
-    }
-
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    if (request.config?.topK !== undefined) {
-      body.top_k = request.config.topK;
-    }
-    if (request.config?.topP !== undefined) {
-      body.top_p = request.config.topP;
-    }
-    if (request.config?.temperature !== undefined) {
-      body.temperature = request.config.temperature;
-    }
-    if (request.config?.stopSequences !== undefined) {
-      body.stop_sequences = request.config.stopSequences;
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config.metadata;
-    }
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config.tool_choice;
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking = thinkingConfig as MessageCreateParams['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   protected toAnthropicStreamingRequestBody(
@@ -249,6 +257,12 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsStreaming {
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
@@ -267,53 +281,41 @@ export class Runner extends BaseRunner<RunnerTypes> {
             ]
           : system;
 
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    ) as MessageCreateParams['thinking'] | undefined;
+
+    // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
+    // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
+    // Thinking is extracted separately to avoid type issues.
+    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    const {
+      topP,
+      topK,
+      apiVersion: _1,
+      thinking: _2,
+      ...restConfig
+    } = request.config ?? {};
+
     const body: MessageCreateParamsStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
+      system: systemValue,
+      stop_sequences: request.config?.stopSequences,
+      temperature: request.config?.temperature,
+      top_k: topK,
+      top_p: topP,
+      tool_choice: request.config?.tool_choice,
+      metadata: request.config?.metadata,
+      tools: request.tools?.map((tool) => this.toAnthropicTool(tool)),
+      thinking: thinkingConfig,
+      ...restConfig,
     };
 
-    if (systemValue !== undefined) {
-      body.system = systemValue;
-    }
-
-    if (request.tools) {
-      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
-    }
-    if (request.config?.topK !== undefined) {
-      body.top_k = request.config.topK;
-    }
-    if (request.config?.topP !== undefined) {
-      body.top_p = request.config.topP;
-    }
-    if (request.config?.temperature !== undefined) {
-      body.temperature = request.config.temperature;
-    }
-    if (request.config?.stopSequences !== undefined) {
-      body.stop_sequences = request.config.stopSequences;
-    }
-    if (request.config?.metadata !== undefined) {
-      body.metadata = request.config.metadata;
-    }
-    if (request.config?.tool_choice !== undefined) {
-      body.tool_choice = request.config.tool_choice;
-    }
-    const thinkingConfig = this.toAnthropicThinkingConfig(
-      request.config?.thinking
-    );
-    if (thinkingConfig) {
-      body.thinking =
-        thinkingConfig as MessageCreateParamsStreaming['thinking'];
-    }
-
-    if (request.output?.format && request.output.format !== 'text') {
-      throw new Error(
-        `Only text output format is supported for Claude models currently`
-      );
-    }
-    return body;
+    return removeUndefinedProperties(body);
   }
 
   protected async createMessage(
@@ -345,18 +347,16 @@ export class Runner extends BaseRunner<RunnerTypes> {
     if (event.type === 'content_block_delta') {
       const delta = event.delta;
 
-      if (delta.type === 'input_json_delta') {
-        throw new Error(
-          'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
-        );
-      }
-
       if (delta.type === 'text_delta') {
-        return { text: delta.text };
+        return textDeltaToPart(delta);
       }
 
       if (delta.type === 'thinking_delta') {
-        return { reasoning: delta.thinking };
+        return thinkingDeltaToPart(delta);
+      }
+
+      if (delta.type === 'input_json_delta') {
+        throw inputJsonDeltaError();
       }
 
       // signature_delta - ignore
@@ -368,42 +368,23 @@ export class Runner extends BaseRunner<RunnerTypes> {
       const block = event.content_block;
 
       switch (block.type) {
-        case 'server_tool_use':
-          return {
-            text: `[Anthropic server tool ${block.name}] input: ${JSON.stringify(block.input)}`,
-            custom: {
-              anthropicServerToolUse: {
-                id: block.id,
-                name: block.name,
-                input: block.input,
-              },
-            },
-          };
-
-        case 'web_search_tool_result':
-          return this.toWebSearchToolResultPart({
-            type: block.type,
-            toolUseId: block.tool_use_id,
-            content: block.content,
-          });
-
         case 'text':
-          return { text: block.text };
-
-        case 'thinking':
-          return this.createThinkingPart(block.thinking, block.signature);
-
-        case 'redacted_thinking':
-          return { custom: { redactedThinking: block.data } };
+          return textBlockToPart(block);
 
         case 'tool_use':
-          return {
-            toolRequest: {
-              ref: block.id,
-              name: block.name,
-              input: block.input,
-            },
-          };
+          return toolUseBlockToPart(block);
+
+        case 'thinking':
+          return thinkingBlockToPart(block);
+
+        case 'redacted_thinking':
+          return redactedThinkingBlockToPart(block);
+
+        case 'server_tool_use':
+          return serverToolUseBlockToPart(block);
+
+        case 'web_search_tool_result':
+          return webSearchToolResultBlockToPart(block);
 
         default: {
           const unknownType = (block as { type: string }).type;
@@ -421,47 +402,30 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
   protected fromAnthropicContentBlock(contentBlock: ContentBlock): Part {
     switch (contentBlock.type) {
-      case 'server_tool_use':
-        return {
-          text: `[Anthropic server tool ${contentBlock.name}] input: ${JSON.stringify(contentBlock.input)}`,
-          custom: {
-            anthropicServerToolUse: {
-              id: contentBlock.id,
-              name: contentBlock.name,
-              input: contentBlock.input,
-            },
-          },
-        };
-
-      case 'web_search_tool_result':
-        return this.toWebSearchToolResultPart({
-          type: contentBlock.type,
-          toolUseId: contentBlock.tool_use_id,
-          content: contentBlock.content,
-        });
+      case 'text':
+        return textBlockToPart(contentBlock);
 
       case 'tool_use':
-        return {
-          toolRequest: {
-            ref: contentBlock.id,
-            name: contentBlock.name,
-            input: contentBlock.input,
-          },
-        };
-
-      case 'text':
-        return { text: contentBlock.text };
+        return toolUseBlockToPart(contentBlock);
 
       case 'thinking':
-        return this.createThinkingPart(
-          contentBlock.thinking,
-          contentBlock.signature
-        );
+        return thinkingBlockToPart(contentBlock);
 
       case 'redacted_thinking':
-        return { custom: { redactedThinking: contentBlock.data } };
+        return redactedThinkingBlockToPart(contentBlock);
+
+      case 'server_tool_use':
+        return serverToolUseBlockToPart(contentBlock);
+
+      case 'web_search_tool_result':
+        return webSearchToolResultBlockToPart(contentBlock);
 
       default: {
+        // Exhaustive check (uncomment when all types are handled):
+        // const _exhaustive: never = contentBlock;
+        // throw new Error(
+        //   `Unhandled block type: ${(_exhaustive as { type: string }).type}`
+        // );
         const unknownType = (contentBlock as { type: string }).type;
         logger.warn(
           `Unexpected Anthropic content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
