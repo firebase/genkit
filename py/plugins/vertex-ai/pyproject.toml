@@ -38,6 +38,7 @@ dependencies = [
   "google-cloud-aiplatform>=1.77.0",
   "structlog>=25.2.0",
   "strenum>=0.4.15; python_version < '3.11'",
+  "anthropic>=0.40.0",
   "genkit-plugin-compat-oai",
   "google-cloud-bigquery",
   "google-cloud-firestore",
