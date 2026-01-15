@@ -232,7 +232,6 @@ export class RuntimeManager {
           `Bad request: ${(err as AxiosError).response?.data}`
         );
       }
-      console.log(JSON.stringify(err));
       this.httpErrorHandler(err as AxiosError, 'Error listing values.');
     }
   }

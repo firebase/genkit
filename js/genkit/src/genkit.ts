@@ -955,7 +955,7 @@ export class Genkit implements HasRegistry {
       this.registry.registerValue(
         'defaultModel',
         'defaultModel',
-        modelName(this.options.model)
+        toModelRef(this.options.model)
       );
     }
     if (this.options.promptDir !== null) {
@@ -1089,8 +1089,8 @@ export function __disableReflectionApi() {
   disableReflectionApi = true;
 }
 
-/** Helper method to map ModelArgument to string */
-function modelName(
+/** Helper method to map ModelArgument to ModelReference */
+function toModelRef(
   modelArg: ModelArgument<any> | undefined
 ): ModelReference<any> | undefined {
   if (modelArg === undefined) {
