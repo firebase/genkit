@@ -185,7 +185,10 @@ async def say_hi_constrained(hi_input: str) -> str:
         prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',
         output_schema=HelloSchema,
     )
-    return response.output['text']
+    output = response.output
+    if not isinstance(output, dict) or 'text' not in output:
+        raise ValueError('Received invalid output from model')
+    return output['text']
 
 
 async def main() -> None:
