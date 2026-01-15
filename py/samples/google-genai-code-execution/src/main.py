@@ -20,7 +20,7 @@ import structlog
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
-from genkit.core.typing import CustomPart, Message
+from genkit.core.typing import CustomPart, Message, TextPart
 from genkit.plugins.google_genai import GoogleAI, googleai_name
 from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema
 from genkit.plugins.google_genai.models.utils import PartConverter
@@ -76,7 +76,7 @@ def display_code_execution(message: Message):
                 else:
                     for line in output.splitlines():
                         print(f'  {line}')
-        elif hasattr(part.root, 'text') and part.root.text.strip():
+        elif isinstance(part.root, TextPart) and part.root.text.strip():
             print(f'\nExplanation:\n{part.root.text}')
     print('\n=== COMPLETE INTERNAL CODE EXECUTION ===')
 
