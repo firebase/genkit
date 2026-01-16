@@ -14,16 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import asyncio
-from pathlib import Path
 import weakref
-from typing import List, Optional
+from pathlib import Path
 
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.core.action import ActionRunContext
 from genkit.ai import Genkit
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 
 logger = structlog.get_logger(__name__)
@@ -51,8 +49,8 @@ class Ingredient(BaseModel):
 
 class Recipe(BaseModel):
     title: str = Field(..., description='recipe title')
-    ingredients: List[Ingredient]
-    steps: List[str] = Field(..., description='the steps required to complete the recipe')
+    ingredients: list[Ingredient]
+    steps: list[str] = Field(..., description='the steps required to complete the recipe')
 
 
 # Register the schema so it can be resolved by name in prompt files
@@ -63,26 +61,24 @@ if hasattr(ai.registry.dotprompt, '_schemas'):
 # Global stickiness cache for prompts to prevent premature GC
 _sticky_prompts = {}
 
-async def get_sticky_prompt(name: str, variant: Optional[str] = None):
+
+async def get_sticky_prompt(name: str, variant: str | None = None):
     """Helper to get a prompt and keep it alive."""
-    key = f"{name}:{variant}" if variant else name
+    key = f'{name}:{variant}' if variant else name
     if key in _sticky_prompts:
         return _sticky_prompts[key]
-    
+
     prompt = await ai.prompt(name, variant=variant)
     if isinstance(prompt, weakref.ReferenceType):
         ref = prompt
         prompt = ref()
         if prompt is None:
-             # Stale reference; force reload by clearing internal cache if possible
-             # or simply retry (usually a fresh call to ai.prompt triggers lookup again)
-             # But if lookup returns dead ref, we are stuck.
-             # We must invalidate the action's cache.
-             action_key = f'/prompt/dotprompt/{name}' # simplified assumption
-             # Attempt to find the action and clear property
-             # Since we can't easily guess the full key structure if namespaces vary,
-             # we rely on retrying.
-             pass
+            # Stale reference; retry loading the prompt as the comments suggest.
+            prompt = await ai.prompt(name, variant=variant)
+            if isinstance(prompt, weakref.ReferenceType):
+                prompt = prompt()
+            if prompt is None:
+                raise RuntimeError(f"Failed to load prompt '{name}' with variant '{variant}' after retry.")
 
     # Store strong ref
     _sticky_prompts[key] = prompt
@@ -95,10 +91,7 @@ class ChefInput(BaseModel):
 
 @ai.flow(name='chef_flow')
 async def chef_flow(input: ChefInput) -> Recipe:
-    await logger.ainfo(f"chef_flow called with input: {input}")
-    # Override prompt settings at runtime to ensure JSON output and use the correct model
-    # without modifying the prompt files.
-    # without modifying the prompt files.
+    await logger.ainfo(f'chef_flow called with input: {input}')
     recipe_prompt = await get_sticky_prompt('recipe')
     recipe_prompt._output_format = 'json'
     recipe_prompt._output_schema = Recipe
@@ -107,49 +100,43 @@ async def chef_flow(input: ChefInput) -> Recipe:
     response = await recipe_prompt(input={'food': input.food})
     # Ensure we return a Pydantic model as expected by the type hint and caller
     result = Recipe.model_validate(response.output)
-    await logger.ainfo(f"chef_flow result: {result}")
+    await logger.ainfo(f'chef_flow result: {result}')
     return result
 
 
 @ai.flow(name='robot_chef_flow')
 async def robot_chef_flow(input: ChefInput) -> Recipe:
-    await logger.ainfo(f"robot_chef_flow called with input: {input}")
-    # This one doesn't have a typed output schema enforced by the flow signature's return type in the JS example (it uses z.any()),
-    # but the prompt might still return structured data. Python's loose typing allows returning whatever.
-    # However, to match JS exactly which returns `output` property of the result:
-    # However, to match JS exactly which returns `output` property of the result:
+    await logger.ainfo(f'robot_chef_flow called with input: {input}')
     recipe_prompt = await get_sticky_prompt('recipe', variant='robot')
     recipe_prompt._output_format = 'json'
     recipe_prompt._output_schema = Recipe
     recipe_prompt._model = 'googleai/gemini-3-flash-preview'
-    result = (await recipe_prompt(input={'food': input.food})).output
+    result = Recipe.model_validate((await recipe_prompt(input={'food': input.food})).output)
     await logger.ainfo(f"robot_chef_flow result: {result}")
     return result
 
 
 class StoryInput(BaseModel):
     subject: str
-    personality: Optional[str] = None
+    personality: str | None = None
 
 
 @ai.flow(name='tell_story')
 async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
-    await logger.ainfo(f"tell_story called with input: {input}")
+    await logger.ainfo(f'tell_story called with input: {input}')
     story_prompt = await get_sticky_prompt('story')
     story_prompt._model = 'googleai/gemini-3-flash-preview'
     story_prompt._output_format = None
-    stream, response = story_prompt.stream(
-        input={'subject': input.subject, 'personality': input.personality}
-    )
+    stream, response = story_prompt.stream(input={'subject': input.subject, 'personality': input.personality})
 
     full_text = ''
     # We yield the chunks as they stream in
     async for chunk in stream:
         if chunk.text:
-             ctx.send_chunk(chunk.text)
-             full_text += chunk.text
-    
-    await logger.ainfo(f"tell_story completed, returning length: {len(full_text)}")
+            ctx.send_chunk(chunk.text)
+            full_text += chunk.text
+
+    await logger.ainfo(f'tell_story completed, returning length: {len(full_text)}')
     return full_text
 
 
@@ -177,21 +164,16 @@ async def main():
 
     # Tell Story Flow (Streaming)
     await logger.ainfo('--- Running Tell Story Flow ---')
-
     # To demonstrate streaming, we'll iterate over the streamer if calling directly like a flow would be consumed.
-    # Note: When calling a flow function directly in Python, if it's a generator (streaming), it returns an async generator.
-    # We can iterate it.
-
     story_stream, _ = tell_story.stream(StoryInput(subject='a brave little toaster', personality='courageous'))
-    
-    full_text = ''
+
     async for chunk in story_stream:
         print(chunk, end='', flush=True)
         # Note: The actual return value of the flow (final string) is not yielded by the generator in Python's async generator implementation easily
         # unless we wrap it or inspect the StopAsyncIteration value, but typically for streaming flows we just consume the stream.
         # BUT `tell_story` implementation above yields chunks.
 
-    print() # Newline after stream
+    print()  # Newline after stream
     await logger.ainfo('Tell Story Flow Completed')
 
 
