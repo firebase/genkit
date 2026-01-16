@@ -64,7 +64,9 @@ export function defineRuntimeTools(
           content: [
             {
               type: 'text',
-              text: 'Error creating runtime manager: ' + JSON.stringify(err),
+              text:
+                'Error creating runtime manager: ' +
+                (err instanceof Error ? err.stack : JSON.stringify(err)),
             },
           ],
           isError: true,

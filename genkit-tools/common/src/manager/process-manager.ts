@@ -92,7 +92,6 @@ export class ProcessManager {
           reject(new Error(`app process exited with code ${code}`));
         }
       });
-      resolve();
     });
   }
 

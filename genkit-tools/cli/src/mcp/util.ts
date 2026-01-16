@@ -68,7 +68,6 @@ export class McpRuntimeManager {
 
   static async getManager(projectRoot: string) {
     if (this.manager && this.currentProjectRoot === projectRoot) {
-      // console.log('manager and root matched');
       return this.manager;
     }
     if (this.manager) {
