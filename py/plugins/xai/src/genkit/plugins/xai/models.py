@@ -242,27 +242,30 @@ class XAIModel:
                         raise ValueError('xAI models require a URL for media parts.')
                     content.append(chat_pb2.Content(image_url=chat_pb2.ImageURL(url=actual_part.media.url)))
                 elif isinstance(actual_part, ToolRequestPart):
+                    # Serialize tool arguments safely
+                    try:
+                        arguments = json.dumps(actual_part.tool_request.input)
+                    except (TypeError, ValueError):
+                        arguments = str(actual_part.tool_request.input)
                     tool_calls.append(
                         chat_pb2.ToolCall(
                             id=actual_part.tool_request.ref,
-                            type=chat_pb2.ToolCallType.FUNCTION,
-                            function=chat_pb2.Function(
+                            function=chat_pb2.FunctionCall(
                                 name=actual_part.tool_request.name,
-                                arguments=actual_part.tool_request.input,
+                                arguments=arguments,
                             ),
                         )
                     )
                 elif isinstance(actual_part, ToolResponsePart):
-                    result.append(
-                        chat_pb2.Message(
-                            role=chat_pb2.MessageRole.ROLE_TOOL,
-                            tool_call_id=actual_part.tool_response.ref,
-                            content=[chat_pb2.Content(text=str(actual_part.tool_response.output))],
-                        )
-                    )
+                    # xAI doesn't support tool response messages in conversation history
                     continue
 
-            pb_message = chat_pb2.Message(role=role, content=content)
+            # Add empty content for messages that would otherwise be empty
+            if not content:
+                content.append(chat_pb2.Content(text=''))
+
+            pb_message = chat_pb2.Message(role=role)
+            pb_message.content.extend(content)
             if tool_calls:
                 pb_message.tool_calls.extend(tool_calls)
 
