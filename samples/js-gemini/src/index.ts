@@ -218,6 +218,20 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   return message;
 });
 
+// Gemini code execution.
+ai.defineFlow('code-execution', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'Calculate x^6-2x^5+x+11 for x=22',
+    model: googleAI.model('gemini-2.5-flash'),
+    config: {
+      codeExecution: true,
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
+});
+
 // Image editing with Gemini.
 ai.defineFlow('gemini-image-editing', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });

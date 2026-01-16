@@ -26,6 +26,7 @@ import { embedderRef } from 'genkit/embedder';
 import { embedder as pluginEmbedder } from 'genkit/plugin';
 import { embedContent } from './client.js';
 import {
+  ClientOptions,
   EmbedContentRequest,
   GoogleAIPluginOptions,
   Model,
@@ -132,6 +133,11 @@ export function defineEmbedder(
 ): EmbedderAction {
   checkApiKey(pluginOptions?.apiKey);
   const ref = model(name);
+  const clientOptions: ClientOptions = {
+    apiVersion: pluginOptions?.apiVersion,
+    baseUrl: pluginOptions?.baseUrl,
+    customHeaders: pluginOptions?.customHeaders,
+  };
 
   return pluginEmbedder(
     {
@@ -148,15 +154,20 @@ export function defineEmbedder(
 
       const embeddings = await Promise.all(
         request.input.map(async (doc) => {
-          const response = await embedContent(embedApiKey, embedVersion, {
-            taskType: request.options?.taskType,
-            title: request.options?.title,
-            content: {
-              role: '',
-              parts: [{ text: doc.text }],
-            },
-            outputDimensionality: request.options?.outputDimensionality,
-          } as EmbedContentRequest);
+          const response = await embedContent(
+            embedApiKey,
+            embedVersion,
+            {
+              taskType: request.options?.taskType,
+              title: request.options?.title,
+              content: {
+                role: '',
+                parts: [{ text: doc.text }],
+              },
+              outputDimensionality: request.options?.outputDimensionality,
+            } as EmbedContentRequest,
+            clientOptions
+          );
           const values = response.embedding.values;
           return { embedding: values };
         })

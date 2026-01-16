@@ -1,0 +1,4 @@
+---
+model: googleai/gemini-2.5-flash
+---
+This is a PARTIAL that says: {{my_helper "Partial content with helper"}}

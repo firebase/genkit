@@ -29,7 +29,7 @@ const ai = genkit({
  */
 ai.defineFlow('stable-pdf-base64', async () => {
   // Read PDF file from the same directory as this source file
-  const pdfPath = path.join(__dirname, 'attention-first-page.pdf');
+  const pdfPath = path.join(__dirname, '../attention-first-page.pdf');
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfBase64 = pdfBuffer.toString('base64');
 

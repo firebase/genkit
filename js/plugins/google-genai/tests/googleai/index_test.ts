@@ -588,7 +588,7 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('should return empty array if API key is missing for listActions', async () => {
+    it('should return empty list if API key is missing for listActions', async () => {
       delete process.env.GOOGLE_API_KEY;
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_GENAI_API_KEY;
@@ -600,11 +600,7 @@ describe('GoogleAI Plugin', () => {
         [],
         'Should return empty array if API key is not found'
       );
-      assert.strictEqual(
-        fetchMock.mock.callCount(),
-        0,
-        'Fetch should not be called'
-      );
+      assert.strictEqual(fetchMock.mock.callCount(), 0);
     });
 
     it('should use listActions cache', async () => {

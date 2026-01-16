@@ -102,7 +102,7 @@ export function checkApiKey(
 export function calculateApiKey(
   pluginApiKey: string | false | undefined,
   requestApiKey: string | undefined
-): string {
+): string | undefined {
   let apiKey: string | undefined;
 
   // Don't get the key from the environment if pluginApiKey is false
@@ -113,7 +113,7 @@ export function calculateApiKey(
   apiKey = requestApiKey || apiKey;
 
   if (pluginApiKey === false && !requestApiKey) {
-    throw API_KEY_FALSE_ERROR;
+    return undefined;
   }
 
   if (!apiKey) {

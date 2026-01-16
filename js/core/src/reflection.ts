@@ -51,6 +51,18 @@ export interface ReflectionServerOptions {
 }
 
 /**
+ * Checks if an error is an AbortError (from AbortController.abort()).
+ */
+function isAbortError(err: any): boolean {
+  return (
+    err?.name === 'AbortError' ||
+    (typeof DOMException !== 'undefined' &&
+      err instanceof DOMException &&
+      err.name === 'AbortError')
+  );
+}
+
+/**
  * Reflection server exposes an API for inspecting and interacting with Genkit in development.
  *
  * This is for use in development environments.
@@ -71,6 +83,14 @@ export class ReflectionServer {
   private server: Server | null = null;
   /** Path to the runtime file. Null if server is not running. */
   private runtimeFilePath: string | null = null;
+  /** Map of active actions indexed by trace ID for cancellation support. */
+  private activeActions = new Map<
+    string,
+    {
+      abortController: AbortController;
+      startTime: Date;
+    }
+  >();
 
   constructor(registry: Registry, options?: ReflectionServerOptions) {
     this.registry = registry;
@@ -168,12 +188,43 @@ export class ReflectionServer {
       const { key, input, context, telemetryLabels } = request.body;
       const { stream } = request.query;
       logger.debug(`Running action \`${key}\` with stream=${stream}...`);
+      const abortController = new AbortController();
+      let traceId: string | undefined;
       try {
         const action = await this.registry.lookupAction(key);
         if (!action) {
           response.status(404).send(`action ${key} not found`);
           return;
         }
+        // Set up onTraceStart callback to send trace ID in headers early.
+        // This fires once for the root action span, before any streaming chunks
+        // or final result are returned.
+        const onTraceStartCallback = ({
+          traceId: tid,
+          spanId,
+        }: {
+          traceId: string;
+          spanId: string;
+        }) => {
+          traceId = tid; // Update traceId for cleanup later
+          this.activeActions.set(tid, {
+            abortController,
+            startTime: new Date(),
+          });
+          response.setHeader('X-Genkit-Trace-Id', tid);
+          response.setHeader('X-Genkit-Span-Id', spanId);
+          response.setHeader('X-Genkit-Version', GENKIT_VERSION);
+          if (stream === 'true') {
+            response.setHeader('Content-Type', 'text/plain');
+            response.setHeader('Transfer-Encoding', 'chunked');
+          } else {
+            response.setHeader('Content-Type', 'application/json');
+            // Force chunked encoding so we can flush headers early
+            response.setHeader('Transfer-Encoding', 'chunked');
+          }
+          response.statusCode = 200;
+          response.flushHeaders();
+        };
         if (stream === 'true') {
           try {
             const callback = (chunk) => {
@@ -183,6 +234,8 @@ export class ReflectionServer {
               context,
               onChunk: callback,
               telemetryLabels,
+              onTraceStart: onTraceStartCallback,
+              abortSignal: abortController.signal,
             });
             await flushTracing();
             response.write(
@@ -198,8 +251,10 @@ export class ReflectionServer {
             const { message, stack } = err as Error;
             // since we're streaming, we must do special error handling here -- the headers are already sent.
             const errorResponse: Status = {
-              code: StatusCodes.INTERNAL,
-              message,
+              code: isAbortError(err)
+                ? StatusCodes.CANCELLED
+                : StatusCodes.INTERNAL,
+              message: isAbortError(err) ? 'Action was cancelled' : message,
               details: {
                 stack,
               },
@@ -215,18 +270,66 @@ export class ReflectionServer {
             response.end();
           }
         } else {
-          const result = await action.run(input, { context, telemetryLabels });
+          // Non-streaming: send JSON response
+          const result = await action.run(input, {
+            context,
+            telemetryLabels,
+            onTraceStart: onTraceStartCallback,
+            abortSignal: abortController.signal,
+          });
           await flushTracing();
-          response.send({
-            result: result.result,
-            telemetry: {
-              traceId: result.telemetry.traceId,
-            },
-          } as RunActionResponse);
+          response.end(
+            JSON.stringify({
+              result: result.result,
+              telemetry: {
+                traceId: result.telemetry.traceId,
+              },
+            } as RunActionResponse)
+          );
         }
       } catch (err) {
-        const { message, stack, traceId } = err as any;
-        next({ message, stack, traceId });
+        const { message, stack } = err as Error;
+        const errorResponse: Status = {
+          code: isAbortError(err)
+            ? StatusCodes.CANCELLED
+            : StatusCodes.INTERNAL,
+          message: isAbortError(err) ? 'Action was cancelled' : message,
+          details: { stack, traceId: (err as any).traceId || traceId },
+        };
+        if (response.headersSent) {
+          // Headers already sent via onTraceStart, must send error in response body
+          response.end(
+            JSON.stringify({ error: errorResponse } as RunActionResponse)
+          );
+        } else {
+          // Headers not sent yet, use standard error handling
+          next({ message, stack });
+        }
+      } finally {
+        if (traceId) {
+          this.activeActions.delete(traceId);
+        }
+      }
+    });
+
+    server.post('/api/cancelAction', async (request, response) => {
+      const { traceId } = request.body;
+
+      if (!traceId || typeof traceId !== 'string') {
+        response.status(400).json({ error: 'traceId is required' });
+        return;
+      }
+
+      const activeAction = this.activeActions.get(traceId);
+
+      if (activeAction) {
+        activeAction.abortController.abort();
+        this.activeActions.delete(traceId);
+        response.status(200).json({ message: 'Action cancelled' });
+      } else {
+        response.status(404).json({
+          message: 'Action not found or already completed',
+        });
       }
     });
 
@@ -274,10 +377,9 @@ export class ReflectionServer {
           stack,
         },
       };
-      if (err.traceId) {
-        errorResponse.details.traceId = err.traceId;
-      }
-      res.status(500).json(errorResponse);
+
+      // Headers may have been sent already (via onTraceStart), so check before setting status
+      res.status(200).end(JSON.stringify({ error: errorResponse }));
     });
 
     this.port = await this.findPort();
@@ -286,7 +388,13 @@ export class ReflectionServer {
         `Reflection server (${process.pid}) running on http://localhost:${this.port}`
       );
       ReflectionServer.RUNNING_SERVERS.push(this);
-      await this.writeRuntimeFile();
+
+      try {
+        await this.registry.listActions();
+        await this.writeRuntimeFile();
+      } catch (e) {
+        logger.error(`Error initializing plugins: ${e}`);
+      }
     });
   }
 

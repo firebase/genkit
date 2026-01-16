@@ -16,12 +16,15 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -154,7 +157,8 @@ func definePromptModel(reg api.Registry) Model {
 			Multiturn:  true,
 			ToolChoice: true,
 			SystemRole: true,
-		}}, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+		}},
+		func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 			toolCalled := false
 			for _, msg := range gr.Messages {
 				if msg.Content[0].IsToolResponse() {
@@ -495,6 +499,9 @@ func TestValidPrompt(t *testing.T) {
 							"type":                 string("object"),
 						},
 						OutputSchema: map[string]any{"type": string("string")},
+						Metadata: map[string]any{
+							"multipart": false,
+						},
 					},
 				},
 			},
@@ -587,6 +594,9 @@ func TestValidPrompt(t *testing.T) {
 							"type":                 string("object"),
 						},
 						OutputSchema: map[string]any{"type": string("string")},
+						Metadata: map[string]any{
+							"multipart": false,
+						},
 					},
 				},
 			},
@@ -877,70 +887,6 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 	}
 }
 
-func TestLoadPrompt(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
-
-	// Create a mock .prompt file
-	mockPromptFile := filepath.Join(tempDir, "example.prompt")
-	mockPromptContent := `---
-model: test-model
-maxTurns: 5
-description: A test prompt
-toolChoice: required
-returnToolRequests: true
-input:
-  schema:
-    type: object
-    properties:
-      name:
-        type: string
-  default:
-    name: world
-output:
-  format: text
-  schema:
-    type: string
----
-Hello, {{name}}!
-`
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
-	if err != nil {
-		t.Fatalf("Failed to create mock prompt file: %v", err)
-	}
-
-	// Initialize a mock registry
-	reg := registry.New()
-
-	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
-
-	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, "test-namespace/example")
-	if prompt == nil {
-		t.Fatalf("Prompt was not registered")
-	}
-
-	if prompt.(api.Action).Desc().InputSchema == nil {
-		t.Fatal("Input schema is nil")
-	}
-
-	if prompt.(api.Action).Desc().InputSchema["type"] != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.(api.Action).Desc().InputSchema["type"])
-	}
-
-	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
-	if !ok {
-		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.(api.Action).Desc().Metadata["prompt"])
-	}
-	if promptMetadata["model"] != "test-model" {
-		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(api.Action).Desc().Metadata["model"])
-	}
-	if promptMetadata["maxTurns"] != 5 {
-		t.Errorf("Expected maxTurns set to 5, got: %d", promptMetadata["maxTurns"])
-	}
-}
-
 func TestLoadPromptSnakeCase(t *testing.T) {
 	tempDir := t.TempDir()
 	mockPromptFile := filepath.Join(tempDir, "snake.prompt")
@@ -962,7 +908,7 @@ input:
 	}
 
 	reg := registry.New()
-	LoadPrompt(reg, tempDir, "snake.prompt", "snake-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "snake.prompt", "snake-namespace")
 
 	prompt := LookupPrompt(reg, "snake-namespace/snake")
 	if prompt == nil {
@@ -1010,8 +956,9 @@ func TestLoadPrompt_FileNotFound(t *testing.T) {
 	// Initialize a mock registry
 	reg := registry.New()
 
-	// Call loadPrompt with a non-existent file
-	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
+	// Call loadPrompt with a non-existent file in a valid temp directory
+	tempDir := t.TempDir()
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "missing.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "missing")
@@ -1036,7 +983,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	reg := registry.New()
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "invalid.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "invalid")
@@ -1067,12 +1014,68 @@ Hello, {{name}}!
 	reg := registry.New()
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
+	LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "example.variant.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "test-namespace/example.variant")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
+	}
+
+	// Verify that the metadata name does NOT include the variant
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected Metadata['prompt'] to be a map")
+	}
+	if promptMetadata["name"] != "test-namespace/example" {
+		t.Errorf("Expected metadata name 'test-namespace/example', got '%s'", promptMetadata["name"])
+	}
+	if promptMetadata["variant"] != "variant" {
+		t.Errorf("Expected variant 'variant', got '%s'", promptMetadata["variant"])
+	}
+}
+
+func TestDefinePrompt_WithVariant(t *testing.T) {
+	reg := registry.New()
+
+	DefinePrompt(reg, "example.code", WithPrompt("Hello, {{name}}!"))
+
+	prompt := LookupPrompt(reg, "example.code")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
+	}
+
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected Metadata['prompt'] to be a map")
+	}
+	if promptMetadata["name"] != "example" {
+		t.Errorf("Expected metadata name 'example', got '%s'", promptMetadata["name"])
+	}
+	if promptMetadata["variant"] != "code" {
+		t.Errorf("Expected variant 'code', got '%v'", promptMetadata["variant"])
+	}
+}
+
+func TestDefinePrompt_WithoutVariant(t *testing.T) {
+	reg := registry.New()
+
+	DefinePrompt(reg, "simple", WithPrompt("Hello, world!"))
+
+	prompt := LookupPrompt(reg, "simple")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
+	}
+
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected Metadata['prompt'] to be a map")
+	}
+	if promptMetadata["name"] != "simple" {
+		t.Errorf("Expected metadata name 'simple', got '%s'", promptMetadata["name"])
+	}
+	if _, exists := promptMetadata["variant"]; exists {
+		t.Errorf("Expected no variant for prompt without dot, got '%v'", promptMetadata["variant"])
 	}
 }
 
@@ -1122,7 +1125,7 @@ Hello, {{name}}!
 	reg := registry.New()
 
 	// Call LoadPromptFolder
-	LoadPromptDir(reg, tempDir, "test-namespace")
+	LoadPromptDirFromFS(reg, os.DirFS(tempDir), ".", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "test-namespace/example")
@@ -1137,17 +1140,234 @@ Hello, {{name}}!
 	}
 }
 
-func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
+func TestLoadPromptFolder_EmptyDirectory(t *testing.T) {
 	// Initialize a mock registry
-	reg := &registry.Registry{}
+	reg := registry.New()
 
-	// Call LoadPromptFolder with a non-existent directory
-	LoadPromptDir(reg, "", "test-namespace")
+	// Create an empty temp directory
+	tempDir := t.TempDir()
+
+	// Call LoadPromptFolder with an empty directory
+	LoadPromptDirFromFS(reg, os.DirFS(tempDir), ".", "test-namespace")
 
 	// Verify that no prompts were registered
 	if prompt := LookupPrompt(reg, "example"); prompt != nil {
-		t.Fatalf("Prompt should not have been registered for a non-existent directory")
+		t.Fatalf("Prompt should not have been registered for an empty directory")
 	}
+}
+
+func TestLoadPromptFS(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+input:
+  schema:
+    type: object
+    properties:
+      name:
+        type: string
+output:
+  format: text
+  schema:
+    type: string
+---
+
+Hello, {{name}}!
+`
+	mockPartialContent := `Welcome {{name}}!`
+
+	fsys := fstest.MapFS{
+		"prompts/example.prompt":    &fstest.MapFile{Data: []byte(mockPromptContent)},
+		"prompts/sub/nested.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+		"prompts/_greeting.prompt":  &fstest.MapFile{Data: []byte(mockPartialContent)},
+	}
+
+	reg := registry.New()
+
+	LoadPromptDirFromFS(reg, fsys, "prompts", "test-namespace")
+
+	prompt := LookupPrompt(reg, "test-namespace/example")
+	if prompt == nil {
+		t.Fatalf("Prompt 'test-namespace/example' was not registered")
+	}
+
+	nestedPrompt := LookupPrompt(reg, "test-namespace/nested")
+	if nestedPrompt == nil {
+		t.Fatalf("Nested prompt 'test-namespace/nested' was not registered")
+	}
+}
+
+func TestLoadPromptFS_WithVariant(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt with variant
+---
+
+Hello from variant!
+`
+
+	fsys := fstest.MapFS{
+		"prompts/greeting.experimental.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+	}
+
+	reg := registry.New()
+
+	LoadPromptDirFromFS(reg, fsys, "prompts", "")
+
+	prompt := LookupPrompt(reg, "greeting.experimental")
+	if prompt == nil {
+		t.Fatalf("Prompt with variant 'greeting.experimental' was not registered")
+	}
+}
+
+func TestLoadPromptFS_NilFS(t *testing.T) {
+	reg := registry.New()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic for nil filesystem")
+		}
+	}()
+
+	LoadPromptDirFromFS(reg, nil, "prompts", "test-namespace")
+}
+
+func TestLoadPromptFS_InvalidRoot(t *testing.T) {
+	fsys := fstest.MapFS{
+		"other/example.prompt": &fstest.MapFile{Data: []byte("test")},
+	}
+
+	reg := registry.New()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic for invalid root directory")
+		}
+	}()
+
+	LoadPromptDirFromFS(reg, fsys, "nonexistent", "test-namespace")
+}
+
+func TestLoadPromptFromFS(t *testing.T) {
+	mockPromptContent := `---
+model: test/chat
+description: A single prompt test
+---
+
+Test content
+`
+
+	fsys := fstest.MapFS{
+		"prompts/single.prompt": &fstest.MapFile{Data: []byte(mockPromptContent)},
+	}
+
+	reg := registry.New()
+
+	prompt := LoadPromptFromFS(reg, fsys, "prompts", "single.prompt", "ns")
+	if prompt == nil {
+		t.Fatalf("LoadPromptFromFS failed to load prompt")
+	}
+
+	lookedUp := LookupPrompt(reg, "ns/single")
+	if lookedUp == nil {
+		t.Fatalf("Prompt 'ns/single' was not registered")
+	}
+}
+
+func TestLoadPromptFromRaw(t *testing.T) {
+	t.Run("basic prompt", func(t *testing.T) {
+		reg := registry.New()
+
+		source := `---
+model: test/chat
+description: A raw prompt test
+input:
+  schema:
+    name: string
+---
+Hello, {{name}}!
+`
+		prompt, err := LoadPromptFromSource(reg, source, "rawPrompt", "test-ns")
+		if err != nil {
+			t.Fatalf("LoadPromptFromRaw failed: %v", err)
+		}
+		if prompt == nil {
+			t.Fatal("LoadPromptFromRaw returned nil prompt")
+		}
+
+		lookedUp := LookupPrompt(reg, "test-ns/rawPrompt")
+		if lookedUp == nil {
+			t.Fatal("Prompt 'test-ns/rawPrompt' was not registered")
+		}
+
+		actionOpts, err := prompt.Render(context.Background(), map[string]any{"name": "World"})
+		if err != nil {
+			t.Fatalf("Render failed: %v", err)
+		}
+		if len(actionOpts.Messages) == 0 {
+			t.Fatal("Expected messages to be rendered")
+		}
+		renderedText := actionOpts.Messages[0].Text()
+		if renderedText != "Hello, World!" {
+			t.Errorf("Expected 'Hello, World!', got %q", renderedText)
+		}
+	})
+
+	t.Run("prompt with variant", func(t *testing.T) {
+		reg := registry.New()
+
+		source := `---
+model: test/chat
+description: A variant prompt
+---
+Formal greeting
+`
+		prompt, err := LoadPromptFromSource(reg, source, "greeting.formal", "")
+		if err != nil {
+			t.Fatalf("LoadPromptFromRaw failed: %v", err)
+		}
+		if prompt == nil {
+			t.Fatal("LoadPromptFromRaw returned nil prompt")
+		}
+
+		lookedUp := LookupPrompt(reg, "greeting.formal")
+		if lookedUp == nil {
+			t.Fatal("Prompt 'greeting.formal' was not registered")
+		}
+
+		promptMetadata, ok := lookedUp.(api.Action).Desc().Metadata["prompt"].(map[string]any)
+		if !ok {
+			t.Fatal("Expected Metadata['prompt'] to be a map")
+		}
+		if promptMetadata["name"] != "greeting" {
+			t.Errorf("Expected metadata name 'greeting', got '%s'", promptMetadata["name"])
+		}
+		if promptMetadata["variant"] != "formal" {
+			t.Errorf("Expected variant 'formal', got '%v'", promptMetadata["variant"])
+		}
+	})
+
+	t.Run("prompt without namespace", func(t *testing.T) {
+		reg := registry.New()
+
+		source := `---
+model: test/chat
+---
+Simple prompt
+`
+		prompt, err := LoadPromptFromSource(reg, source, "simple", "")
+		if err != nil {
+			t.Fatalf("LoadPromptFromRaw failed: %v", err)
+		}
+		if prompt == nil {
+			t.Fatal("LoadPromptFromRaw returned nil prompt")
+		}
+
+		lookedUp := LookupPrompt(reg, "simple")
+		if lookedUp == nil {
+			t.Fatal("Prompt 'simple' was not registered")
+		}
+	})
 }
 
 // TestDefinePartialAndHelperJourney demonstrates a complete user journey for defining
@@ -1164,7 +1384,11 @@ func TestDefinePartialAndHelper(t *testing.T) {
 		return strings.ToUpper(s)
 	})
 
-	p := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+	p := DefinePrompt(
+		reg,
+		"test",
+		WithPrompt(`{{> header}} {{uppercase greeting}}`),
+		WithModel(model))
 
 	result, err := p.Execute(context.Background(), WithInput(map[string]any{
 		"name":     "User",
@@ -1206,7 +1430,7 @@ Hello!
 	ConfigureFormats(reg)
 	definePromptModel(reg)
 
-	prompt := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
+	prompt := LoadPromptFromFS(reg, os.DirFS(tempDir), ".", "example.prompt", "multi-namespace")
 
 	_, err = prompt.Execute(context.Background())
 	if err != nil {
@@ -1229,11 +1453,11 @@ You are a pirate!
 Hello!
 `
 
-	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
-	prompt := LoadPrompt(registry.New(), tempDir, "example.prompt", "multi-namespace-roles")
+	prompt := LoadPromptFromFS(registry.New(), os.DirFS(tempDir), ".", "example.prompt", "multi-namespace-roles")
 
 	actionOpts, err := prompt.Render(context.Background(), map[string]any{})
 	if err != nil {
@@ -1273,4 +1497,711 @@ Hello!
 	if strings.TrimSpace(userMsg.Content[0].Text) != "Hello!" {
 		t.Errorf("Expected user message text to be 'Hello!', got '%s'", userMsg.Content[0].Text)
 	}
+}
+
+func TestDeferredSchemaResolution(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// prompt file that references a schema "Recipe"
+	mockPromptFile := filepath.Join(tempDir, "deferred.prompt")
+	mockPromptContent := `---
+model: test-model
+output:
+  schema: Recipe
+---
+Generate a recipe for {{food}}.
+`
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		// Mock response that matches the expected schema structure
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"title": "Tacos", "ingredients": [{"name": "Tortilla", "quantity": "3"}]}`),
+			Request: req,
+		}, nil
+	})
+
+	// this should succeed and create a placeholder schema in the registry
+	prompt := LoadPrompt(reg, tempDir, "deferred.prompt", "test")
+	if prompt == nil {
+		t.Fatal("Failed to load prompt with undefined schema")
+	}
+
+	// verify the prompt is loaded with a schema reference
+	// the internal representation stores the schema with $ref for lazy resolution
+	actionDef := prompt.(api.Action).Desc()
+	outputSchema := actionDef.Metadata["prompt"].(map[string]any)["output"].(map[string]any)["schema"]
+	if outputSchema == nil {
+		t.Fatal("Output schema should not be nil")
+	}
+	schemaMap, ok := outputSchema.(map[string]any)
+	if !ok {
+		t.Fatalf("Expected output schema to be a map, got: %T", outputSchema)
+	}
+	ref, ok := schemaMap["$ref"].(string)
+	if !ok {
+		t.Fatalf("Expected output schema to have $ref, got: %v", schemaMap)
+	}
+	if ref != "genkit:Recipe" {
+		t.Fatalf("Expected output schema $ref to be 'genkit:Recipe', got: %v", ref)
+	}
+
+	// define the "Recipe" schema (deferred resolution)
+	core.DefineSchema(reg, "Recipe", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"title": map[string]any{"type": "string"},
+			"ingredients": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name":     map[string]any{"type": "string"},
+						"quantity": map[string]any{"type": "string"},
+					},
+					"required": []string{"name", "quantity"},
+				},
+			},
+		},
+		"required": []string{"title", "ingredients"},
+	})
+
+	// we should now resolve "Recipe" correctly
+	resp, err := prompt.Execute(context.Background(), WithInput(map[string]any{"food": "tacos"}))
+	if err != nil {
+		t.Fatalf("Failed to execute prompt with deferred schema: %v", err)
+	}
+
+	if resp.Request.Output.Schema == nil {
+		t.Fatal("Expected request to have a resolved output schema")
+	}
+
+	schema := resp.Request.Output.Schema
+	if ref, ok := schema["$ref"].(string); ok {
+		// Schema is a reference, resolve it from $defs
+		defs, ok := schema["$defs"].(map[string]any)
+		if !ok {
+			t.Fatalf("Schema has $ref %q but no $defs", ref)
+		}
+		// Assuming ref is like "#/$defs/Recipe"
+		parts := strings.Split(ref, "/")
+		defName := parts[len(parts)-1]
+		if def, ok := defs[defName].(map[string]any); ok {
+			schema = def
+		} else {
+			t.Fatalf("Could not resolve definition for %q", defName)
+		}
+	}
+
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("Resolved schema should have properties, got: %v", schema)
+	}
+	if _, ok := props["ingredients"]; !ok {
+		t.Error("Resolved schema should have 'ingredients' property")
+	}
+}
+
+func TestDeferredSchemaResolution_Missing(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// prompt file that references a schema "MissingRecipe"
+	mockPromptFile := filepath.Join(tempDir, "deferred_missing.prompt")
+	mockPromptContent := `---
+model: test-model
+output:
+  schema: MissingRecipe
+---
+Generate a recipe.
+`
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{}`),
+			Request: req,
+		}, nil
+	})
+
+	prompt := LoadPrompt(reg, tempDir, "deferred_missing.prompt", "test")
+	if prompt == nil {
+		t.Fatal("Failed to load prompt")
+	}
+
+	_, err := prompt.Execute(context.Background())
+	if err == nil {
+		t.Fatal("Expected error when executing prompt with missing schema")
+	}
+	// "schema \"MissingRecipe\" not found"
+	if !strings.Contains(err.Error(), "schema \"MissingRecipe\" not found") {
+		t.Errorf("Expected error 'schema \"MissingRecipe\" not found', got: %v", err)
+	}
+}
+
+func TestWithOutputSchemaName_DefinePrompt(t *testing.T) {
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"foo": "bar"}`),
+			Request: req,
+		}, nil
+	})
+
+	// Define schema
+	core.DefineSchema(reg, "FooSchema", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"foo": map[string]any{"type": "string"},
+		},
+	})
+
+	// Define prompt using WithOutputSchemaName
+	prompt := DefinePrompt(reg, "testPrompt",
+		WithModelName("test-model"),
+		WithPrompt("test"),
+		WithOutputSchemaName("FooSchema"),
+	)
+
+	resp, err := prompt.Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	if resp.Request.Output.Schema == nil {
+		t.Fatal("Expected output schema to be set")
+	}
+}
+
+func TestWithOutputSchemaName_DefinePrompt_Missing(t *testing.T) {
+	reg := registry.New()
+	ConfigureFormats(reg)
+
+	DefineModel(reg, "test-model", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{}`),
+			Request: req,
+		}, nil
+	})
+
+	// Define prompt using WithOutputSchemaName, but Schema is missing
+	prompt := DefinePrompt(reg, "testPromptMissing",
+		WithModelName("test-model"),
+		WithPrompt("test"),
+		WithOutputSchemaName("MissingSchema"),
+	)
+
+	_, err := prompt.Execute(context.Background())
+	if err == nil {
+		t.Fatal("Expected error when executing prompt with missing schema")
+	}
+	if !strings.Contains(err.Error(), "schema \"MissingSchema\" not found") {
+		t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
+	}
+}
+
+func TestDataPromptExecute(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	type GreetingInput struct {
+		Name string `json:"name"`
+	}
+
+	type GreetingOutput struct {
+		Message string `json:"message"`
+		Count   int    `json:"count"`
+	}
+
+	t.Run("typed input and output", func(t *testing.T) {
+		var capturedInput any
+
+		testModel := DefineModel(r, "test/dataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedInput = req.Messages[0].Text()
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"message":"Hello, Alice!","count":1}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, GreetingOutput](r, "greetingPrompt",
+			WithModel(testModel),
+			WithPrompt("Greet {{name}}"),
+		)
+
+		output, resp, err := dp.Execute(context.Background(), GreetingInput{Name: "Alice"})
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		if capturedInput != "Greet Alice" {
+			t.Errorf("expected input %q, got %q", "Greet Alice", capturedInput)
+		}
+
+		if output.Message != "Hello, Alice!" {
+			t.Errorf("expected message %q, got %q", "Hello, Alice!", output.Message)
+		}
+		if output.Count != 1 {
+			t.Errorf("expected count 1, got %d", output.Count)
+		}
+		if resp == nil {
+			t.Error("expected response to be returned")
+		}
+	})
+
+	t.Run("string output type", func(t *testing.T) {
+		testModel := DefineModel(r, "test/stringDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("Hello, World!"),
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, string](r, "stringOutputPrompt",
+			WithModel(testModel),
+			WithPrompt("Say hello to {{name}}"),
+		)
+
+		output, resp, err := dp.Execute(context.Background(), GreetingInput{Name: "World"})
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		if output != "Hello, World!" {
+			t.Errorf("expected output %q, got %q", "Hello, World!", output)
+		}
+		if resp == nil {
+			t.Error("expected response to be returned")
+		}
+	})
+
+	t.Run("nil prompt returns error", func(t *testing.T) {
+		var dp *DataPrompt[GreetingInput, GreetingOutput]
+
+		_, _, err := dp.Execute(context.Background(), GreetingInput{Name: "test"})
+		if err == nil {
+			t.Error("expected error for nil prompt")
+		}
+	})
+
+	t.Run("additional options passed through", func(t *testing.T) {
+		var capturedConfig any
+
+		testModel := DefineModel(r, "test/optionsDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedConfig = req.Config
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"message":"test","count":0}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, GreetingOutput](r, "optionsPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{name}}"),
+		)
+
+		_, _, err := dp.Execute(context.Background(), GreetingInput{Name: "test"},
+			WithConfig(&GenerationCommonConfig{Temperature: 0.5}),
+		)
+		if err != nil {
+			t.Fatalf("Execute failed: %v", err)
+		}
+
+		config, ok := capturedConfig.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("expected *GenerationCommonConfig, got %T", capturedConfig)
+		}
+		if config.Temperature != 0.5 {
+			t.Errorf("expected temperature 0.5, got %v", config.Temperature)
+		}
+	})
+
+	t.Run("returns error for invalid output parsing", func(t *testing.T) {
+		testModel := DefineModel(r, "test/parseFailDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("not valid json"),
+			}, nil
+		})
+
+		dp := DefineDataPrompt[GreetingInput, GreetingOutput](r, "parseFailPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{name}}"),
+		)
+
+		_, _, err := dp.Execute(context.Background(), GreetingInput{Name: "test"})
+		if err == nil {
+			t.Error("expected error for invalid JSON output")
+		}
+	})
+}
+
+func TestDataPromptExecuteStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	type StreamInput struct {
+		Topic string `json:"topic"`
+	}
+
+	type StreamOutput struct {
+		Text  string `json:"text"`
+		Index int    `json:"index"`
+	}
+
+	t.Run("typed streaming with struct output", func(t *testing.T) {
+		testModel := DefineModel(r, "test/streamDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"text":"chunk1","index":1}`)},
+				})
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"text":"final","index":99}`)},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"text":"final","index":99}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[StreamInput, StreamOutput](r, "streamPrompt",
+			WithModel(testModel),
+			WithPrompt("Stream about {{topic}}"),
+		)
+
+		var chunks []StreamOutput
+		var finalOutput StreamOutput
+		var finalResponse *ModelResponse
+
+		for val, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "testing"}) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+				finalResponse = val.Response
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) < 1 {
+			t.Errorf("expected at least 1 chunk, got %d", len(chunks))
+		}
+
+		if finalOutput.Text != "final" || finalOutput.Index != 99 {
+			t.Errorf("expected final {final, 99}, got %+v", finalOutput)
+		}
+		if finalResponse == nil {
+			t.Error("expected final response")
+		}
+	})
+
+	t.Run("string output streaming", func(t *testing.T) {
+		testModel := DefineModel(r, "test/stringStreamDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("First ")},
+				})
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("Second")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("First Second"),
+			}, nil
+		})
+
+		dp := DefineDataPrompt[StreamInput, string](r, "stringStreamPrompt",
+			WithModel(testModel),
+			WithPrompt("Generate text about {{topic}}"),
+		)
+
+		var chunks []string
+		var finalOutput string
+
+		for val, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "strings"}) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) != 2 {
+			t.Errorf("expected 2 chunks, got %d", len(chunks))
+		}
+		if chunks[0] != "First " {
+			t.Errorf("chunk 0: expected %q, got %q", "First ", chunks[0])
+		}
+		if chunks[1] != "Second" {
+			t.Errorf("chunk 1: expected %q, got %q", "Second", chunks[1])
+		}
+
+		if finalOutput != "First Second" {
+			t.Errorf("expected final %q, got %q", "First Second", finalOutput)
+		}
+	})
+
+	t.Run("nil prompt returns error", func(t *testing.T) {
+		var dp *DataPrompt[StreamInput, StreamOutput]
+
+		var receivedErr error
+		for _, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "test"}) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected error for nil prompt")
+		}
+	})
+
+	t.Run("handles options passed at execute time", func(t *testing.T) {
+		var capturedConfig any
+
+		testModel := DefineModel(r, "test/optionsStreamModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedConfig = req.Config
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"text":"chunk","index":1}`)},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"text":"done","index":2}`)},
+				},
+			}, nil
+		})
+
+		dp := DefineDataPrompt[StreamInput, StreamOutput](r, "optionsStreamPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{topic}}"),
+		)
+
+		for range dp.ExecuteStream(context.Background(), StreamInput{Topic: "options"},
+			WithConfig(&GenerationCommonConfig{Temperature: 0.7}),
+		) {
+		}
+
+		config, ok := capturedConfig.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("expected *GenerationCommonConfig, got %T", capturedConfig)
+		}
+		if config.Temperature != 0.7 {
+			t.Errorf("expected temperature 0.7, got %v", config.Temperature)
+		}
+	})
+
+	t.Run("propagates errors", func(t *testing.T) {
+		expectedErr := errors.New("stream failed")
+
+		testModel := DefineModel(r, "test/errorStreamDataPromptModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return nil, expectedErr
+		})
+
+		dp := DefineDataPrompt[StreamInput, StreamOutput](r, "errorStreamPrompt",
+			WithModel(testModel),
+			WithPrompt("Test {{topic}}"),
+		)
+
+		var receivedErr error
+		for _, err := range dp.ExecuteStream(context.Background(), StreamInput{Topic: "error"}) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected error to be propagated")
+		}
+		if !errors.Is(receivedErr, expectedErr) {
+			t.Errorf("expected error %v, got %v", expectedErr, receivedErr)
+		}
+	})
+}
+
+func TestPromptExecuteStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	t.Run("yields chunks then final response", func(t *testing.T) {
+		chunkTexts := []string{"A", "B", "C"}
+
+		testModel := DefineModel(r, "test/promptStreamModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				for _, text := range chunkTexts {
+					cb(ctx, &ModelResponseChunk{
+						Content: []*Part{NewTextPart(text)},
+					})
+				}
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("ABC"),
+			}, nil
+		})
+
+		p := DefinePrompt(r, "streamTestPrompt",
+			WithModel(testModel),
+			WithPrompt("Test"),
+		)
+
+		var chunks []*ModelResponseChunk
+		var finalResponse *ModelResponse
+
+		for val, err := range p.ExecuteStream(context.Background()) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalResponse = val.Response
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) != 3 {
+			t.Errorf("expected 3 chunks, got %d", len(chunks))
+		}
+		for i, chunk := range chunks {
+			if chunk.Text() != chunkTexts[i] {
+				t.Errorf("chunk %d: expected %q, got %q", i, chunkTexts[i], chunk.Text())
+			}
+		}
+
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.Text() != "ABC" {
+			t.Errorf("expected final text %q, got %q", "ABC", finalResponse.Text())
+		}
+	})
+
+	t.Run("nil prompt returns error", func(t *testing.T) {
+		var p *prompt
+
+		var receivedErr error
+		for _, err := range p.ExecuteStream(context.Background()) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected error for nil prompt")
+		}
+	})
+
+	t.Run("handles execution options", func(t *testing.T) {
+		var capturedConfig any
+
+		testModel := DefineModel(r, "test/optionsPromptExecModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedConfig = req.Config
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("chunk")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("done"),
+			}, nil
+		})
+
+		p := DefinePrompt(r, "execOptionsTestPrompt",
+			WithModel(testModel),
+			WithPrompt("Test"),
+		)
+
+		for range p.ExecuteStream(context.Background(),
+			WithConfig(&GenerationCommonConfig{Temperature: 0.9}),
+		) {
+		}
+
+		config, ok := capturedConfig.(*GenerationCommonConfig)
+		if !ok {
+			t.Fatalf("expected *GenerationCommonConfig, got %T", capturedConfig)
+		}
+		if config.Temperature != 0.9 {
+			t.Errorf("expected temperature 0.9, got %v", config.Temperature)
+		}
+	})
 }

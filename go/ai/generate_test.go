@@ -18,11 +18,13 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
@@ -424,6 +426,9 @@ func TestGenerate(t *testing.T) {
 					},
 					Name:         "gablorken",
 					OutputSchema: map[string]any{"type": string("number")},
+					Metadata: map[string]any{
+						"multipart": false,
+					},
 				},
 			},
 			ToolChoice: ToolChoiceAuto,
@@ -860,6 +865,67 @@ func TestGenerate(t *testing.T) {
 	})
 }
 
+func TestGenerateWithOutputSchemaName(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+
+	// Define a model that supports constrained output
+	model := DefineModel(r, "test/constrained", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		// Mock response
+		return &ModelResponse{
+			Message: NewModelTextMessage(`{"foo": "bar"}`),
+			Request: req,
+		}, nil
+	})
+
+	core.DefineSchema(r, "FooSchema", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"foo": map[string]any{"type": "string"},
+		},
+	})
+
+	t.Run("Valid Schema", func(t *testing.T) {
+		resp, err := Generate(context.Background(), r,
+			WithModel(model),
+			WithPrompt("test"),
+			WithOutputSchemaName("FooSchema"),
+		)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+
+		if resp.Request.Output.Schema == nil {
+			t.Fatal("Expected output schema to be set")
+		}
+
+		// Verify schema is resolved
+		if props, ok := resp.Request.Output.Schema["properties"].(map[string]any); ok {
+			if _, ok := props["foo"]; !ok {
+				t.Error("Expected schema to have 'foo' property")
+			}
+		} else {
+			t.Fatalf("Expected properties map in schema, got: %+v", resp.Request.Output.Schema)
+		}
+	})
+
+	t.Run("Missing Schema", func(t *testing.T) {
+		_, err := Generate(context.Background(), r,
+			WithModel(model),
+			WithPrompt("test"),
+			WithOutputSchemaName("MissingSchema"),
+		)
+		if err == nil {
+			t.Fatal("Expected error when executing generate with missing schema")
+		}
+		if !strings.Contains(err.Error(), "schema \"MissingSchema\" not found") {
+			t.Errorf("Expected error 'schema \"MissingSchema\" not found', got: %v", err)
+		}
+	})
+}
+
 func TestModelVersion(t *testing.T) {
 	t.Run("valid version", func(t *testing.T) {
 		_, err := Generate(context.Background(), r,
@@ -1269,4 +1335,765 @@ func TestResourceProcessingError(t *testing.T) {
 	if !strings.Contains(err.Error(), "no resource found for URI") {
 		t.Fatalf("wrong error: %v", err)
 	}
+}
+
+func TestModelResponseOutput(t *testing.T) {
+	t.Run("single JSON part (json format)", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart(`{"name":"Alice","age":30}`),
+				},
+			},
+		}
+
+		var result struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+		err := mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if result.Name != "Alice" || result.Age != 30 {
+			t.Errorf("Output() = %+v, want {Alice 30}", result)
+		}
+	})
+
+	t.Run("JSON array without format handler", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`[{"id":1},{"id":2},{"id":3}]`),
+				},
+			},
+		}
+
+		var result []struct {
+			ID int `json:"id"`
+		}
+		err := mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if len(result) != 3 {
+			t.Fatalf("Output() got %d items, want 3", len(result))
+		}
+		for i, item := range result {
+			if item.ID != i+1 {
+				t.Errorf("Output()[%d].ID = %d, want %d", i, item.ID, i+1)
+			}
+		}
+	})
+
+	t.Run("plain JSON text without format handler", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"value":42}`),
+				},
+			},
+		}
+
+		var result struct {
+			Value int `json:"value"`
+		}
+		err := mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if result.Value != 42 {
+			t.Errorf("Output().Value = %d, want 42", result.Value)
+		}
+	})
+
+	t.Run("no content error", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role:    RoleModel,
+				Content: []*Part{},
+			},
+		}
+
+		var result any
+		err := mr.Output(&result)
+		if err == nil {
+			t.Error("Output() expected error for empty content")
+		}
+	})
+
+	t.Run("nil message error", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: nil,
+		}
+
+		var result any
+		err := mr.Output(&result)
+		if err == nil {
+			t.Error("Output() expected error for nil message")
+		}
+	})
+
+	t.Run("no JSON found error", func(t *testing.T) {
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Just plain text with no JSON"),
+				},
+			},
+		}
+
+		var result any
+		err := mr.Output(&result)
+		if err == nil {
+			t.Error("Output() expected error when no JSON found")
+		}
+	})
+
+	t.Run("format-aware: jsonl format with handler", func(t *testing.T) {
+		schema := map[string]any{
+			"type": "array",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"line": map[string]any{"type": "integer"},
+				},
+			},
+		}
+		formatter := jsonlFormatter{}
+		handler, err := formatter.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+		streamingHandler := handler.(StreamingFormatHandler)
+
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("{\"line\":1}\n{\"line\":2}"),
+				},
+			},
+			formatHandler: streamingHandler,
+		}
+
+		var result []struct {
+			Line int `json:"line"`
+		}
+		err = mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if len(result) != 2 || result[0].Line != 1 || result[1].Line != 2 {
+			t.Errorf("Output() = %+v, want [{1} {2}]", result)
+		}
+	})
+
+	t.Run("format-aware: array format with handler", func(t *testing.T) {
+		schema := map[string]any{
+			"type": "array",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"item": map[string]any{"type": "string"},
+				},
+			},
+		}
+		formatter := arrayFormatter{}
+		handler, err := formatter.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+		streamingHandler := handler.(StreamingFormatHandler)
+
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`[{"item":"a"},{"item":"b"}]`),
+				},
+			},
+			formatHandler: streamingHandler,
+		}
+
+		var result []struct {
+			Item string `json:"item"`
+		}
+		err = mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if len(result) != 2 || result[0].Item != "a" || result[1].Item != "b" {
+			t.Errorf("Output() = %+v, want [{a} {b}]", result)
+		}
+	})
+
+	t.Run("format-aware: json format with handler", func(t *testing.T) {
+		schema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"key": map[string]any{"type": "string"},
+			},
+		}
+		formatter := jsonFormatter{}
+		handler, err := formatter.Handler(schema)
+		if err != nil {
+			t.Fatalf("Handler() error = %v", err)
+		}
+		streamingHandler := handler.(StreamingFormatHandler)
+
+		mr := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"key":"value"}`),
+				},
+			},
+			formatHandler: streamingHandler,
+		}
+
+		var result struct {
+			Key string `json:"key"`
+		}
+		err = mr.Output(&result)
+		if err != nil {
+			t.Fatalf("Output() error = %v", err)
+		}
+		if result.Key != "value" {
+			t.Errorf("Output().Key = %q, want %q", result.Key, "value")
+		}
+	})
+}
+
+func TestMultipartTools(t *testing.T) {
+	t.Run("define multipart tool registers as tool.v2 only", func(t *testing.T) {
+		r := registry.New()
+
+		DefineMultipartTool(r, "multipartTest", "a multipart tool",
+			func(ctx *ToolContext, input struct{ Query string }) (*MultipartToolResponse, error) {
+				return &MultipartToolResponse{
+					Output:  "main output",
+					Content: []*Part{NewTextPart("content part 1")},
+				}, nil
+			},
+		)
+
+		// Should be found via LookupTool
+		tool := LookupTool(r, "multipartTest")
+		if tool == nil {
+			t.Fatal("expected multipart tool to be found via LookupTool")
+		}
+
+		// Should be able to produce response with content
+		resp, err := tool.RunRawMultipart(context.Background(), struct{ Query string }{Query: "Q"})
+		if err != nil {
+			t.Fatalf("failed running multipart tool: %v", err)
+		}
+		if len(resp.Content) == 0 {
+			t.Error("expected tool response to have content")
+		}
+	})
+
+	t.Run("regular tool registers as both tool and tool.v2", func(t *testing.T) {
+		r := registry.New()
+
+		DefineTool(r, "regularTestTool", "a regular tool",
+			func(ctx *ToolContext, input struct{ Value int }) (int, error) {
+				return input.Value * 2, nil
+			},
+		)
+
+		// Should be found via LookupTool
+		tool := LookupTool(r, "regularTestTool")
+		if tool == nil {
+			t.Fatal("expected regular tool to be found via LookupTool")
+		}
+
+		// Should produce response without content by default
+		resp, err := tool.RunRawMultipart(context.Background(), struct{ Value int }{Value: 21})
+		if err != nil {
+			t.Fatalf("failed running regular tool: %v", err)
+		}
+		if len(resp.Content) > 0 {
+			t.Error("expected regular tool response to have no content")
+		}
+	})
+
+	t.Run("multipart tool returns content in response", func(t *testing.T) {
+		r := registry.New()
+		ConfigureFormats(r)
+		DefineGenerateAction(context.Background(), r)
+
+		multipartTool := DefineMultipartTool(r, "imageGenerator", "generates images",
+			func(ctx *ToolContext, input struct{ Prompt string }) (*MultipartToolResponse, error) {
+				return &MultipartToolResponse{
+					Output: map[string]any{"description": "generated image"},
+					Content: []*Part{
+						NewMediaPart("image/png", "data:image/png;base64,iVBORw0..."),
+					},
+				}, nil
+			},
+		)
+
+		// Create a model that requests the tool
+		multipartToolModel := DefineModel(r, "test/multipartToolModel", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+			// Check if we already have a tool response
+			for _, msg := range gr.Messages {
+				if msg.Role == RoleTool {
+					for _, part := range msg.Content {
+						if part.IsToolResponse() {
+							// Verify the content is present
+							if len(part.ToolResponse.Content) == 0 {
+								return nil, fmt.Errorf("expected tool response to have content")
+							}
+							return &ModelResponse{
+								Request: gr,
+								Message: NewModelTextMessage("Image generated successfully"),
+							}, nil
+						}
+					}
+				}
+			}
+
+			// First call: request the tool
+			return &ModelResponse{
+				Request: gr,
+				Message: &Message{
+					Role: RoleModel,
+					Content: []*Part{NewToolRequestPart(&ToolRequest{
+						Name:  "imageGenerator",
+						Input: map[string]any{"Prompt": "a cat"},
+						Ref:   "img1",
+					})},
+				},
+			}, nil
+		})
+
+		resp, err := Generate(context.Background(), r,
+			WithModel(multipartToolModel),
+			WithPrompt("Generate an image of a cat"),
+			WithTools(multipartTool),
+		)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+
+		if resp.Text() != "Image generated successfully" {
+			t.Errorf("expected 'Image generated successfully', got %q", resp.Text())
+		}
+	})
+
+	t.Run("RunRawMultipart returns MultipartToolResponse for regular tool", func(t *testing.T) {
+		r := registry.New()
+
+		tool := DefineTool(r, "multipartWrapperTest", "test multipart wrapper",
+			func(ctx *ToolContext, input struct{ Value int }) (int, error) {
+				return input.Value * 3, nil
+			},
+		)
+
+		resp, err := tool.RunRawMultipart(context.Background(), map[string]any{"Value": 5})
+		if err != nil {
+			t.Fatalf("RunRawMultipart failed: %v", err)
+		}
+
+		// Output should be wrapped in MultipartToolResponse
+		output, ok := resp.Output.(float64) // JSON unmarshals numbers as float64
+		if !ok {
+			t.Fatalf("expected output to be float64, got %T", resp.Output)
+		}
+		if output != 15 {
+			t.Errorf("expected output 15, got %v", output)
+		}
+
+		// Content should be nil for regular tools
+		if resp.Content != nil {
+			t.Errorf("expected nil content for regular tool, got %v", resp.Content)
+		}
+	})
+
+	t.Run("RunRawMultipart returns full response for multipart tool", func(t *testing.T) {
+		r := registry.New()
+
+		tool := DefineMultipartTool(r, "multipartFullTest", "test multipart",
+			func(ctx *ToolContext, input struct{ Query string }) (*MultipartToolResponse, error) {
+				return &MultipartToolResponse{
+					Output:  "result",
+					Content: []*Part{NewTextPart("additional content")},
+				}, nil
+			},
+		)
+
+		resp, err := tool.RunRawMultipart(context.Background(), map[string]any{"Query": "test"})
+		if err != nil {
+			t.Fatalf("RunRawMultipart failed: %v", err)
+		}
+
+		if resp.Output != "result" {
+			t.Errorf("expected output 'result', got %v", resp.Output)
+		}
+
+		if len(resp.Content) != 1 {
+			t.Fatalf("expected 1 content part, got %d", len(resp.Content))
+		}
+
+		if resp.Content[0].Text != "additional content" {
+			t.Errorf("expected content 'additional content', got %q", resp.Content[0].Text)
+		}
+	})
+}
+
+// streamingTestData holds test output structures
+type streamingTestData struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+}
+
+func TestGenerateStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	t.Run("yields chunks then final response", func(t *testing.T) {
+		chunkTexts := []string{"Hello", " ", "World"}
+		chunkIndex := 0
+
+		streamModel := DefineModel(r, "test/streamModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				for _, text := range chunkTexts {
+					cb(ctx, &ModelResponseChunk{
+						Content: []*Part{NewTextPart(text)},
+					})
+				}
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("Hello World"),
+			}, nil
+		})
+
+		var receivedChunks []*ModelResponseChunk
+		var finalResponse *ModelResponse
+
+		for val, err := range GenerateStream(context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test streaming"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalResponse = val.Response
+			} else {
+				receivedChunks = append(receivedChunks, val.Chunk)
+				chunkIndex++
+			}
+		}
+
+		if len(receivedChunks) != len(chunkTexts) {
+			t.Errorf("expected %d chunks, got %d", len(chunkTexts), len(receivedChunks))
+		}
+
+		for i, chunk := range receivedChunks {
+			if chunk.Text() != chunkTexts[i] {
+				t.Errorf("chunk %d: expected %q, got %q", i, chunkTexts[i], chunk.Text())
+			}
+		}
+
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.Text() != "Hello World" {
+			t.Errorf("expected final text %q, got %q", "Hello World", finalResponse.Text())
+		}
+	})
+
+	t.Run("handles no streaming callback gracefully", func(t *testing.T) {
+		noStreamModel := DefineModel(r, "test/noStreamModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("response without streaming"),
+			}, nil
+		})
+
+		var finalResponse *ModelResponse
+		chunkCount := 0
+
+		for val, err := range GenerateStream(context.Background(), r,
+			WithModel(noStreamModel),
+			WithPrompt("test no stream"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalResponse = val.Response
+			} else {
+				chunkCount++
+			}
+		}
+
+		if chunkCount != 0 {
+			t.Errorf("expected 0 chunks when model doesn't stream, got %d", chunkCount)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.Text() != "response without streaming" {
+			t.Errorf("expected text %q, got %q", "response without streaming", finalResponse.Text())
+		}
+	})
+
+	t.Run("propagates generation errors", func(t *testing.T) {
+		expectedErr := errors.New("generation failed")
+
+		errorModel := DefineModel(r, "test/errorModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return nil, expectedErr
+		})
+
+		var receivedErr error
+		for _, err := range GenerateStream(context.Background(), r,
+			WithModel(errorModel),
+			WithPrompt("test error"),
+		) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Fatal("expected error to be propagated")
+		}
+		if !errors.Is(receivedErr, expectedErr) {
+			t.Errorf("expected error %v, got %v", expectedErr, receivedErr)
+		}
+	})
+
+	t.Run("context cancellation stops iteration", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		streamModel := DefineModel(r, "test/cancelModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				for i := 0; i < 100; i++ {
+					err := cb(ctx, &ModelResponseChunk{
+						Content: []*Part{NewTextPart("chunk")},
+					})
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("done"),
+			}, nil
+		})
+
+		chunksReceived := 0
+		var receivedErr error
+		for val, err := range GenerateStream(ctx, r,
+			WithModel(streamModel),
+			WithPrompt("test cancel"),
+		) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+			if !val.Done {
+				chunksReceived++
+				if chunksReceived == 2 {
+					cancel()
+				}
+			}
+		}
+
+		if chunksReceived < 2 {
+			t.Errorf("expected at least 2 chunks before cancellation, got %d", chunksReceived)
+		}
+		if receivedErr == nil {
+			t.Error("expected error from cancelled context")
+		}
+	})
+}
+
+func TestGenerateDataStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	t.Run("yields typed chunks and final output", func(t *testing.T) {
+		streamModel := DefineModel(r, "test/typedStreamModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"name":"partial","value":1}`)},
+				})
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"name":"complete","value":42}`)},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"name":"final","value":42}`)},
+				},
+			}, nil
+		})
+
+		var chunks []streamingTestData
+		var finalOutput streamingTestData
+		var finalResponse *ModelResponse
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test typed streaming"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+				finalResponse = val.Response
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) < 1 {
+			t.Errorf("expected at least 1 chunk, got %d", len(chunks))
+		}
+
+		if finalOutput.Name != "final" || finalOutput.Value != 42 {
+			t.Errorf("expected final output {final, 42}, got %+v", finalOutput)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+	})
+
+	t.Run("final output is correctly typed", func(t *testing.T) {
+		streamModel := DefineModel(r, "test/finalTypedModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"name":"result","value":123}`)},
+				},
+			}, nil
+		})
+
+		var finalOutput streamingTestData
+		var gotFinal bool
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test final typed"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+				gotFinal = true
+			}
+		}
+
+		if !gotFinal {
+			t.Fatal("expected to receive final output")
+		}
+		if finalOutput.Name != "result" || finalOutput.Value != 123 {
+			t.Errorf("expected final output {result, 123}, got %+v", finalOutput)
+		}
+	})
+
+	t.Run("automatically sets output type", func(t *testing.T) {
+		var capturedRequest *ModelRequest
+
+		streamModel := DefineModel(r, "test/autoOutputModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedRequest = req
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"name":"test","value":1}`)},
+				},
+			}, nil
+		})
+
+		for range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test auto output type"),
+		) {
+		}
+
+		if capturedRequest == nil {
+			t.Fatal("expected request to be captured")
+		}
+		if capturedRequest.Output == nil || capturedRequest.Output.Schema == nil {
+			t.Error("expected output schema to be set automatically")
+		}
+	})
+
+	t.Run("propagates chunk parsing errors", func(t *testing.T) {
+		streamModel := DefineModel(r, "test/parseErrorModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("not valid json")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("done"),
+			}, nil
+		})
+
+		var receivedErr error
+		for _, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test parse error"),
+		) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected parsing error to be propagated")
+		}
+	})
 }

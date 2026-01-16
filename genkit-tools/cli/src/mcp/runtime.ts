@@ -35,8 +35,12 @@ export function defineRuntimeTools(server: McpServer, projectRoot: string) {
         {command: 'go', args: ['run', 'main.go']}
         {command: 'npm', args: ['run', 'dev']}`,
       inputSchema: getCommonSchema({
-        command: z.string(),
-        args: z.array(z.string()),
+        command: z.string().describe('The command to run'),
+        args: z
+          .array(z.string())
+          .describe(
+            'List of command line arguments. IMPORTANT: This must be an array of strings, not a single string.'
+          ),
       }),
     },
     async (opts) => {

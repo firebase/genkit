@@ -16,29 +16,76 @@
 
 """Embedding actions."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-from genkit.ai import ActionKind
+from pydantic import BaseModel, ConfigDict, Field
+
 from genkit.core.action import ActionMetadata
+from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import EmbedRequest, EmbedResponse
 
-# type EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
+
+class EmbedderSupports(BaseModel):
+    """Embedder capability support."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    input: list[str] | None = None
+    multilingual: bool | None = None
+
+
+class EmbedderOptions(BaseModel):
+    """Configuration options for an embedder."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    label: str | None = None
+    supports: EmbedderSupports | None = None
+    dimensions: int | None = None
+
+
+class EmbedderRef(BaseModel):
+    """Reference to an embedder with configuration."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    name: str
+    config: Any | None = None
+    version: str | None = None
+
+
 EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
 
 
 def embedder_action_metadata(
     name: str,
-    info: dict[str, Any] | None = None,
-    config_schema: Any | None = None,
+    options: EmbedderOptions | None = None,
 ) -> ActionMetadata:
-    """Generates an ActionMetadata for embedders."""
-    info = info if info is not None else {}
+    options = options if options is not None else EmbedderOptions()
+    embedder_metadata_dict = {'embedder': {}}
+
+    if options.label:
+        embedder_metadata_dict['embedder']['label'] = options.label
+
+    embedder_metadata_dict['embedder']['dimensions'] = options.dimensions
+
+    if options.supports:
+        embedder_metadata_dict['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+
+    embedder_metadata_dict['embedder']['customOptions'] = options.config_schema if options.config_schema else None
+
     return ActionMetadata(
         kind=ActionKind.EMBEDDER,
         name=name,
         input_json_schema=to_json_schema(EmbedRequest),
         output_json_schema=to_json_schema(EmbedResponse),
-        metadata={'embedder': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
+        metadata=embedder_metadata_dict,
     )
+
+
+def create_embedder_ref(name: str, config: dict[str, Any] | None = None, version: str | None = None) -> EmbedderRef:
+    """Creates an EmbedderRef instance."""
+    return EmbedderRef(name=name, config=config, version=version)

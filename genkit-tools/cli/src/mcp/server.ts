@@ -26,6 +26,7 @@ import { defineUsageGuideTool } from './usage';
 import { isAntigravity, McpRuntimeManager } from './util';
 
 export async function startMcpServer(projectRoot: string) {
+  logger.info(`Starting MCP server in: ${projectRoot}`);
   const server = new McpServer({
     name: 'Genkit MCP',
     version: '0.0.2',

@@ -24,10 +24,11 @@ from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, H
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
-from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import ActionMetadata
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
@@ -139,16 +140,20 @@ class GoogleAI(Plugin):
                 name=googleai_name(version),
                 fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
-                config_schema=GeminiConfigSchema,
+                # config_schema=GeminiConfigSchema,
             )
 
         for version in GeminiEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
+            embedder_info = default_embedder_info(version)
             ai.define_embedder(
                 name=googleai_name(version),
                 fn=embedder.generate,
-                metadata=default_embedder_info(version),
-                config_schema=EmbedContentConfig,
+                options=EmbedderOptions(
+                    label=embedder_info.get('label'),
+                    dimensions=embedder_info.get('dimensions'),
+                    supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+                ),
             )
 
     def resolve_action(
@@ -193,7 +198,7 @@ class GoogleAI(Plugin):
             name=googleai_name(_clean_name),
             fn=gemini_model.generate,
             metadata=gemini_model.metadata,
-            config_schema=GeminiConfigSchema,
+            # config_schema=GeminiConfigSchema,
         )
 
     def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
@@ -211,11 +216,15 @@ class GoogleAI(Plugin):
         _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
         embedder = Embedder(version=_clean_name, client=self._client)
 
+        embedder_info = default_embedder_info(_clean_name)
         ai.define_embedder(
             name=googleai_name(_clean_name),
             fn=embedder.generate,
-            metadata=default_embedder_info(_clean_name),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=embedder_info.get('label'),
+                dimensions=embedder_info.get('dimensions'),
+                supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+            ),
         )
 
     @cached_property
@@ -237,16 +246,19 @@ class GoogleAI(Plugin):
                     model_action_metadata(
                         name=googleai_name(name),
                         info=google_model_info(name).model_dump(),
-                        config_schema=GeminiConfigSchema,
                     ),
                 )
 
             if 'embedContent' in m.supported_actions:
+                embed_info = default_embedder_info(name)
                 actions_list.append(
                     embedder_action_metadata(
                         name=googleai_name(name),
-                        info=default_embedder_info(name),
-                        config_schema=EmbedContentConfig,
+                        options=EmbedderOptions(
+                            label=embed_info.get('label'),
+                            supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                            dimensions=embed_info.get('dimensions'),
+                        ),
                     )
                 )
 
@@ -318,16 +330,20 @@ class VertexAI(Plugin):
                 name=vertexai_name(version),
                 fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
-                config_schema=GeminiConfigSchema,
+                # config_schema=GeminiConfigSchema,
             )
 
         for version in VertexEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
+            embedder_info = default_embedder_info(version)
             ai.define_embedder(
                 name=vertexai_name(version),
                 fn=embedder.generate,
-                metadata=default_embedder_info(version),
-                config_schema=EmbedContentConfig,
+                options=EmbedderOptions(
+                    label=embedder_info.get('label'),
+                    dimensions=embedder_info.get('dimensions'),
+                    supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+                ),
             )
 
         for version in ImagenVersion:
@@ -336,7 +352,6 @@ class VertexAI(Plugin):
                 name=vertexai_name(version),
                 fn=imagen_model.generate,
                 metadata=imagen_model.metadata,
-                config_schema=GenerateImagesConfigOrDict,
             )
 
     def resolve_action(
@@ -377,18 +392,18 @@ class VertexAI(Plugin):
             model_ref = vertexai_image_model_info(_clean_name)
             model = ImagenModel(_clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
-            config_schema = GenerateImagesConfigOrDict
+            # config_schema = GenerateImagesConfigOrDict
         else:
             model_ref = google_model_info(_clean_name)
             model = GeminiModel(_clean_name, self._client, ai)
             SUPPORTED_MODELS[_clean_name] = model_ref
-            config_schema = GeminiConfigSchema
+            # config_schema = GeminiConfigSchema
 
         ai.define_model(
             name=vertexai_name(_clean_name),
             fn=model.generate,
             metadata=model.metadata,
-            config_schema=config_schema,
+            # config_schema=config_schema,
         )
 
     def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
@@ -406,11 +421,15 @@ class VertexAI(Plugin):
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
         embedder = Embedder(version=_clean_name, client=self._client)
 
+        embedder_info = default_embedder_info(_clean_name)
         ai.define_embedder(
             name=vertexai_name(_clean_name),
             fn=embedder.generate,
-            metadata=default_embedder_info(_clean_name),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=embedder_info.get('label'),
+                dimensions=embedder_info.get('dimensions'),
+                supports=EmbedderSupports(**embedder_info['supports']) if embedder_info.get('supports') else None,
+            ),
         )
 
     @cached_property
@@ -428,11 +447,15 @@ class VertexAI(Plugin):
         for m in self._client.models.list():
             name = m.name.replace('publishers/google/models/', '')
             if 'embed' in name.lower():
+                embed_info = default_embedder_info(name)
                 actions_list.append(
                     embedder_action_metadata(
                         name=vertexai_name(name),
-                        info=default_embedder_info(name),
-                        config_schema=EmbedContentConfig,
+                        options=EmbedderOptions(
+                            label=embed_info.get('label'),
+                            supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                            dimensions=embed_info.get('dimensions'),
+                        ),
                     )
                 )
             # List all the vertexai models for generate actions
@@ -440,7 +463,7 @@ class VertexAI(Plugin):
                 model_action_metadata(
                     name=vertexai_name(name),
                     info=google_model_info(name).model_dump(),
-                    config_schema=GeminiConfigSchema,
+                    # config_schema=GeminiConfigSchema,
                 ),
             )
 
