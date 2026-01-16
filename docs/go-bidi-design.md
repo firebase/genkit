@@ -14,7 +14,7 @@ All bidi types go in `go/core/x/` (experimental), which will move to `go/core/` 
 
 ```
 go/core/x/
-├── bidi.go           # BidiActionDef, BidiFunc, BidiConnection
+├── bidi.go           # BidiAction, BidiFunc, BidiConnection
 ├── bidi_flow.go      # BidiFlow with tracing
 ├── bidi_options.go   # Option types for bidi
 ├── session_flow.go   # SessionFlow implementation
@@ -32,13 +32,13 @@ Import as `corex "github.com/firebase/genkit/go/core/x"`.
 ### 1.1 BidiAction
 
 ```go
-// BidiActionDef represents a bidirectional streaming action.
+// BidiAction represents a bidirectional streaming action.
 // Type parameters:
 //   - In: Type of each message sent to the action
 //   - Out: Type of the final output
 //   - Init: Type of initialization data (use struct{} if not needed)
 //   - Stream: Type of each streamed output chunk
-type BidiActionDef[In, Out, Init, Stream any] struct {
+type BidiAction[In, Out, Init, Stream any] struct {
     name     string
     fn       BidiFunc[In, Out, Init, Stream]
     registry api.Registry
@@ -91,15 +91,13 @@ func (c *BidiConnection[In, Out, Stream]) Output() (Out, error)
 func (c *BidiConnection[In, Out, Stream]) Done() <-chan struct{}
 ```
 
-**Why iterators work for multi-turn:** Each call to `Stream()` returns an iterator over a new channel for that turn. When the agent finishes responding to an input (loops back to wait for the next input), the stream channel for that turn closes, causing the user's `for range` loop to exit naturally. Call `Stream()` again after sending the next input to get the next turn's response.
+**Why iterators work for multi-turn:** Each call to `Stream()` returns an iterator over a **new channel** created for that turn. When the agent finishes responding (loops back to read the next input), it closes that turn's stream channel, causing the user's `for range` loop to exit naturally. The user then calls `Send()` with the next input and `Stream()` again to get a new iterator for the next turn's responses.
 
 ### 1.3 BidiFlow
 
 ```go
-// BidiFlow wraps a BidiAction with flow semantics (tracing, monitoring).
 type BidiFlow[In, Out, Init, Stream any] struct {
-    *BidiActionDef[In, Out, Init, Stream]
-    // Uses BidiActionDef.Name() for flow name - no separate field needed
+    *BidiAction[In, Out, Init, Stream]
 }
 ```
 
@@ -108,19 +106,32 @@ type BidiFlow[In, Out, Init, Stream any] struct {
 SessionFlow adds session state management on top of BidiFlow.
 
 ```go
+// Artifact represents a named collection of parts produced during a session.
+// Examples: generated files, images, code snippets, etc.
+type Artifact struct {
+    Name  string     `json:"name"`
+    Parts []*ai.Part `json:"parts"`
+}
+
 // SessionFlowOutput wraps the output with session info for persistence.
 type SessionFlowOutput[State, Out any] struct {
-    SessionID string `json:"sessionId"`
-    Output    Out    `json:"output"`
-    State     State  `json:"state"`
+    SessionID string     `json:"sessionId"`
+    Output    Out        `json:"output"`
+    State     State      `json:"state"`
+    Artifacts []Artifact `json:"artifacts,omitempty"`
 }
 
 // SessionFlow is a bidi flow with automatic session state management.
 // Init = State: the initial state for new sessions (ignored when resuming an existing session).
 type SessionFlow[State, In, Out, Stream any] struct {
     *BidiFlow[In, SessionFlowOutput[State, Out], State, Stream]
-    store       session.Store[State]
-    persistMode PersistMode
+    store session.Store[State]
+}
+
+// SessionFlowResult is the return type for session flow functions.
+type SessionFlowResult[Out any] struct {
+    Output    Out
+    Artifacts []Artifact
 }
 
 // SessionFlowFunc is the function signature for session flows.
@@ -128,19 +139,9 @@ type SessionFlowFunc[State, In, Out, Stream any] func(
     ctx context.Context,
     inputStream <-chan In,
     sess *session.Session[State],
-    cb core.StreamCallback[Stream],
-) (Out, error)
-
-// PersistMode controls when session state is persisted.
-type PersistMode int
-
-const (
-    PersistOnClose  PersistMode = iota // Persist only when connection closes (default)
-    PersistOnUpdate                     // Persist after each input message is processed
-)
+    sendChunk core.StreamCallback[Stream],
+) (SessionFlowResult[Out], error)
 ```
-
-**Turn semantics**: The `SessionStreamCallback` includes a `turnDone` parameter. When the agent finishes responding to an input message, it calls `cb(ctx, lastChunk, true)` to signal the turn is complete. This allows clients to know when to prompt for the next user message.
 
 ---
 
@@ -155,14 +156,14 @@ const (
 func NewBidiAction[In, Out, Init, Stream any](
     name string,
     fn BidiFunc[In, Out, Init, Stream],
-) *BidiActionDef[In, Out, Init, Stream]
+) *BidiAction[In, Out, Init, Stream]
 
 // DefineBidiAction creates and registers a BidiAction.
 func DefineBidiAction[In, Out, Init, Stream any](
     r api.Registry,
     name string,
     fn BidiFunc[In, Out, Init, Stream],
-) *BidiActionDef[In, Out, Init, Stream]
+) *BidiAction[In, Out, Init, Stream]
 ```
 
 Schemas for `In`, `Out`, `Init`, and `Stream` types are automatically inferred from the type parameters using the existing JSON schema inference in `go/internal/base/json.go`.
@@ -197,7 +198,6 @@ type SessionFlowOption[State any] interface {
 }
 
 func WithSessionStore[State any](store session.Store[State]) SessionFlowOption[State]
-func WithPersistMode[State any](mode PersistMode) SessionFlowOption[State]
 ```
 
 ### 2.4 Starting Connections
@@ -206,7 +206,7 @@ All bidi types (BidiAction, BidiFlow, SessionFlow) use the same `StreamBidi` met
 
 ```go
 // BidiAction/BidiFlow
-func (a *BidiActionDef[In, Out, Init, Stream]) StreamBidi(
+func (a *BidiAction[In, Out, Init, Stream]) StreamBidi(
     ctx context.Context,
     opts ...BidiOption[Init],
 ) (*BidiConnection[In, Out, Stream], error)
@@ -292,21 +292,7 @@ sessionID := output.SessionID  // Save this to resume later
 
 ### 3.2 State Persistence
 
-Persistence mode is configurable:
-
-```go
-// Usage:
-chatAgent := genkit.DefineSessionFlow[ChatState, string, string, string](g, "chatAgent",
-    fn,
-    corex.WithSessionStore(store),
-    corex.WithPersistMode(corex.PersistOnUpdate), // or PersistOnClose (default)
-)
-```
-
-- **PersistOnClose** (default): State is persisted only when the connection closes. Better performance.
-- **PersistOnUpdate**: State is persisted after each input message is processed. More durable.
-
-**Note**: `PersistOnUpdate` persists after each input from `inputStream` is processed, not on every `sess.UpdateState()` call. This covers the main use case (persist after each conversation turn) without requiring interface changes to `session.Session`.
+State is persisted automatically when `sess.UpdateState()` is called - the existing `session.Session` implementation already persists to the configured store. No special persistence mode is needed; the user controls when to persist by calling `UpdateState()`.
 
 ---
 
@@ -316,41 +302,11 @@ chatAgent := genkit.DefineSessionFlow[ChatState, string, string, string](g, "cha
 
 BidiFlows create spans that remain open for the lifetime of the connection, enabling streaming trace visualization in the Dev UI.
 
-```go
-func (f *BidiFlow[In, Out, Init, Stream]) StreamBidi(
-    ctx context.Context,
-    opts ...BidiOption[Init],
-) (*BidiConnection[In, Out, Stream], error) {
-    // Inject flow context
-    fc := &flowContext{flowName: f.Name()}
-    ctx = flowContextKey.NewContext(ctx, fc)
-
-    // Start span (NOT RunInNewSpan - we manage lifecycle manually)
-    spanMeta := &tracing.SpanMetadata{
-        Name:    f.Name(),
-        Type:    "action",
-        Subtype: "bidiFlow",
-    }
-    ctx, span := tracing.StartSpan(ctx, spanMeta)
-
-    // Create connection, passing span for lifecycle management
-    conn, err := f.BidiActionDef.streamBidiWithSpan(ctx, span, opts...)
-    if err != nil {
-        span.End()  // End span on error
-        return nil, err
-    }
-    return conn, nil
-}
-
-// Inside BidiConnection, the span is ended when the action completes:
-func (c *BidiConnection[...]) run() {
-    defer c.span.End()  // End span when bidi flow completes
-
-    // Run the action, recording events/nested spans as needed
-    output, err := c.fn(c.ctx, c.inputCh, c.init, c.streamCallback)
-    // ...
-}
-```
+**Key behaviors:**
+- Span starts when `StreamBidi()` is called
+- Span ends when the bidi function returns (via `defer` in the connection goroutine)
+- Flow context is injected so `core.Run()` works inside the bidi function
+- Nested spans for sub-operations (e.g., each LLM call) work normally
 
 **Important**: The span stays open while the connection is active, allowing:
 - Streaming traces to the Dev UI in real-time
@@ -359,13 +315,20 @@ func (c *BidiConnection[...]) run() {
 
 ### 4.2 Action Registration
 
-Add new action type:
+Add new action type and schema fields:
 
 ```go
 // In go/core/api/action.go
 const (
     ActionTypeBidiFlow ActionType = "bidi-flow"
 )
+
+// ActionDesc gets two new optional fields
+type ActionDesc struct {
+    // ... existing fields ...
+    StreamSchema map[string]any `json:"streamSchema,omitempty"` // NEW: schema for streamed chunks
+    InitSchema   map[string]any `json:"initSchema,omitempty"`   // NEW: schema for initialization data
+}
 ```
 
 ### 4.3 Session Integration
@@ -405,11 +368,11 @@ func main() {
 
     // Define echo bidi flow (low-level, no turn semantics)
     echoFlow := genkit.DefineBidiFlow[string, string, struct{}, string](g, "echo",
-        func(ctx context.Context, inputStream <-chan string, init struct{}, cb core.StreamCallback[string]) (string, error) {
+        func(ctx context.Context, inputStream <-chan string, init struct{}, sendChunk core.StreamCallback[string]) (string, error) {
             var count int
             for input := range inputStream {
                 count++
-                if err := cb(ctx, fmt.Sprintf("echo: %s", input)); err != nil {
+                if err := sendChunk(ctx, fmt.Sprintf("echo: %s", input)); err != nil {
                     return "", err
                 }
             }
@@ -474,7 +437,7 @@ func main() {
 
     // Define a session flow for multi-turn chat
     chatAgent := genkit.DefineSessionFlow[ChatState, string, string, string](g, "chatAgent",
-        func(ctx context.Context, inputStream <-chan string, sess *session.Session[ChatState], cb core.StreamCallback[string]) (string, error) {
+        func(ctx context.Context, inputStream <-chan string, sess *session.Session[ChatState], sendChunk core.StreamCallback[string]) (corex.SessionFlowResult[string], error) {
             state := sess.State()
             messages := state.Messages
 
@@ -486,12 +449,12 @@ func main() {
                     ai.WithMessages(messages...),
                 ) {
                     if err != nil {
-                        return "", err
+                        return corex.SessionFlowResult[string]{}, err
                     }
                     if result.Done {
                         responseText = result.Response.Text()
                     }
-                    cb(ctx, result.Chunk.Text())
+                    sendChunk(ctx, result.Chunk.Text())
                 }
                 // Stream channel closes here when we loop back to wait for next input
 
@@ -499,10 +462,17 @@ func main() {
                 sess.UpdateState(ctx, ChatState{Messages: messages})
             }
 
-            return "conversation ended", nil
+            return corex.SessionFlowResult[string]{
+                Output:    "conversation ended",
+                Artifacts: []corex.Artifact{
+                    {
+                        Name:  "summary",
+                        Parts: []*ai.Part{ai.NewTextPart("...")},
+                    },
+                },
+            }, nil
         },
         corex.WithSessionStore(store),
-        corex.WithPersistMode(corex.PersistOnClose),
     )
 
     // Start new session (generates new session ID)
@@ -549,7 +519,7 @@ type ChatInit struct {
 }
 
 configuredChat := genkit.DefineBidiFlow[string, string, ChatInit, string](g, "configuredChat",
-    func(ctx context.Context, inputStream <-chan string, init ChatInit, cb core.StreamCallback[string]) (string, error) {
+    func(ctx context.Context, inputStream <-chan string, init ChatInit, sendChunk core.StreamCallback[string]) (string, error) {
         // Use init.SystemPrompt and init.Temperature
         for input := range inputStream {
             resp, _ := genkit.GenerateText(ctx, g,
@@ -557,7 +527,7 @@ configuredChat := genkit.DefineBidiFlow[string, string, ChatInit, string](g, "co
                 ai.WithConfig(&genai.GenerateContentConfig{Temperature: &init.Temperature}),
                 ai.WithPrompt(input),
             )
-            cb(ctx, resp)
+            sendChunk(ctx, resp)
         }
         return "done", nil
     },
@@ -579,7 +549,7 @@ conn, _ := configuredChat.StreamBidi(ctx,
 
 | File | Description |
 |------|-------------|
-| `go/core/x/bidi.go` | BidiActionDef, BidiFunc, BidiConnection |
+| `go/core/x/bidi.go` | BidiAction, BidiFunc, BidiConnection |
 | `go/core/x/bidi_flow.go` | BidiFlow with tracing |
 | `go/core/x/bidi_options.go` | BidiOption types |
 | `go/core/x/session_flow.go` | SessionFlow implementation |
@@ -615,7 +585,7 @@ conn, _ := configuredChat.StreamBidi(ctx,
 
 ### Channels and Backpressure
 - Both input and output channels are **unbuffered** by default (size 0)
-- This provides natural backpressure: `Send()` blocks until agent reads, `cb()` blocks until user consumes
+- This provides natural backpressure: `Send()` blocks until agent reads, `sendChunk()` blocks until user consumes
 - If needed, a `WithInputBufferSize` option could be added later for specific use cases
 
 ### Iterator Implementation and Turn Semantics
@@ -632,3 +602,36 @@ conn, _ := configuredChat.StreamBidi(ctx,
 - Nested spans work normally within the bidi function
 - Events can be recorded throughout the connection lifecycle
 - Dev UI can show traces in real-time as they stream
+- Implementation uses the existing tracer infrastructure (details left to implementation)
+
+### Shutdown Sequence
+When `Close()` is called on a BidiConnection:
+1. The input channel is closed, signaling no more inputs
+2. The bidi function's `for range inputStream` loop exits
+3. The function returns its final output
+4. The stream channel is closed
+5. The `Done()` channel is closed
+6. `Output()` unblocks and returns the result
+
+On context cancellation:
+1. Context error propagates to the bidi function
+2. All channels are closed
+3. `Output()` returns the context error
+
+### SessionFlow Internal Wrapping
+The user's `SessionFlowFunc` returns `SessionFlowResult[Out]`, but `SessionFlow.StreamBidi()` returns `SessionFlowOutput[State, Out]`. Internally, SessionFlow wraps the user function:
+
+```go
+// Simplified internal logic
+result, err := userFunc(ctx, wrappedInputStream, sess, sendChunk)
+if err != nil {
+    return SessionFlowOutput[State, Out]{}, err
+}
+return SessionFlowOutput[State, Out]{
+    SessionID: sess.ID(),
+    Output:    result.Output,
+    State:     sess.State(),
+    Artifacts: result.Artifacts,
+}, nil
+```
+
