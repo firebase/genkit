@@ -462,6 +462,32 @@ curl -X POST http://localhost:8080/tellJoke \
   -d '{"data": "programming"}'
 ```
 
+### Works with Any HTTP Framework
+
+`genkit.Handler` returns a standard `http.HandlerFunc`, so it works with any Go HTTP framework:
+
+```go
+// net/http (standard library)
+mux := http.NewServeMux()
+mux.HandleFunc("POST /joke", genkit.Handler(jokeFlow))
+log.Fatal(http.ListenAndServe(":8080", mux))
+
+// Gin
+r := gin.Default()
+r.POST("/joke", gin.WrapF(genkit.Handler(jokeFlow)))
+r.Run(":8080")
+
+// Echo
+e := echo.New()
+e.POST("/joke", echo.WrapHandler(genkit.Handler(jokeFlow)))
+e.Start(":8080")
+
+// Chi
+r := chi.NewRouter()
+r.Post("/joke", genkit.Handler(jokeFlow))
+http.ListenAndServe(":8080", r)
+```
+
 ---
 
 ## Model Providers
