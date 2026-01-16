@@ -18,11 +18,20 @@ import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { z } from 'zod';
 import { startDevProcessManager, startManager } from '../utils/manager-utils';
 
-export const isAntigravity = !!process.env.ANTIGRAVITY_ENV;
-
-export function getCommonSchema(shape: z.ZodRawShape = {}): z.ZodRawShape {
+export function getCommonSchema(
+  isAntigravity: boolean,
+  shape: z.ZodRawShape = {}
+): z.ZodRawShape {
   return !isAntigravity
-    ? shape
+    ? {
+        projectRoot: z
+          .string()
+          .describe(
+            'The path to the current project root (a.k.a workspace directory or project directory)'
+          )
+          .optional(),
+        ...shape,
+      }
     : {
         projectRoot: z
           .string()
@@ -34,6 +43,7 @@ export function getCommonSchema(shape: z.ZodRawShape = {}): z.ZodRawShape {
 }
 
 export function resolveProjectRoot(
+  isAntigravity: boolean,
   opts: {
     [x: string]: any;
   },
@@ -58,6 +68,7 @@ export class McpRuntimeManager {
 
   static async getManager(projectRoot: string) {
     if (this.manager && this.currentProjectRoot === projectRoot) {
+      // console.log('manager and root matched');
       return this.manager;
     }
     if (this.manager) {
@@ -72,11 +83,19 @@ export class McpRuntimeManager {
     projectRoot: string,
     command: string,
     args: string[]
-  ) {
+  ): Promise<RuntimeManager> {
     if (this.manager) {
       await this.manager.stop();
     }
-    const devManager = await startDevProcessManager(projectRoot, command, args);
+    const devManager = await startDevProcessManager(
+      projectRoot,
+      command,
+      args,
+      {
+        nonInteractive: true,
+        healthCheck: true,
+      }
+    );
     this.manager = devManager.manager;
     this.currentProjectRoot = projectRoot;
     return this.manager;

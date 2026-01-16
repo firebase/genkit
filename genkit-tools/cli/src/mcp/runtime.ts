@@ -24,7 +24,11 @@ import {
   resolveProjectRoot,
 } from './util.js';
 
-export function defineRuntimeTools(server: McpServer, projectRoot: string) {
+export function defineRuntimeTools(
+  server: McpServer,
+  isAntigravity: boolean,
+  projectRoot: string
+) {
   server.registerTool(
     'start_runtime',
     {
@@ -32,30 +36,48 @@ export function defineRuntimeTools(server: McpServer, projectRoot: string) {
       description: `Use this to start a Genkit runtime process (This is typically the entry point to the users app). Once started, the runtime will be picked up by the \`genkit start\` command to power the Dev UI features like model and flow playgrounds. The inputSchema for this tool matches the function prototype for \`NodeJS.child_process.spawn\`.
         
       Examples: 
-        {command: 'go', args: ['run', 'main.go']}
-        {command: 'npm', args: ['run', 'dev']}`,
-      inputSchema: getCommonSchema({
+        {command: "go", args: ["run", "main.go"]}
+        {command: "npm", args: ["run", "dev"]}
+        {command: "npm", args: ["run", "dev"], projectRoot: "path/to/project"}`,
+      inputSchema: getCommonSchema(isAntigravity, {
         command: z.string().describe('The command to run'),
         args: z
           .array(z.string())
           .describe(
-            'List of command line arguments. IMPORTANT: This must be an array of strings, not a single string.'
+            'The array of string args for the command to run. Eg: `["run", "dev"]`.'
           ),
       }),
     },
     async (opts) => {
       await record(new McpRunToolEvent('start_runtime'));
-      const rootOrError = resolveProjectRoot(opts, projectRoot);
+      const rootOrError = resolveProjectRoot(isAntigravity, opts, projectRoot);
       if (typeof rootOrError !== 'string') return rootOrError;
 
-      await McpRuntimeManager.getManagerWithDevProcess(
-        rootOrError,
-        opts.command,
-        opts.args
-      );
+      try {
+        await McpRuntimeManager.getManagerWithDevProcess(
+          rootOrError,
+          opts.command,
+          opts.args
+        );
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Error creating runtime manager: ' + JSON.stringify(err),
+            },
+          ],
+          isError: true,
+        };
+      }
 
       return {
-        content: [{ type: 'text', text: `Done.` }],
+        content: [
+          {
+            type: 'text',
+            text: `Done.`,
+          },
+        ],
       };
     }
   );
@@ -70,11 +92,15 @@ export function defineRuntimeTools(server: McpServer, projectRoot: string) {
       {
         title,
         description: `Use this to ${action} an existing runtime that was started using the \`start_runtime\` tool`,
-        inputSchema: getCommonSchema(),
+        inputSchema: getCommonSchema(isAntigravity),
       },
       async (opts) => {
         await record(new McpRunToolEvent(name));
-        const rootOrError = resolveProjectRoot(opts, projectRoot);
+        const rootOrError = resolveProjectRoot(
+          isAntigravity,
+          opts,
+          projectRoot
+        );
         if (typeof rootOrError !== 'string') return rootOrError;
 
         const runtimeManager = await McpRuntimeManager.getManager(rootOrError);

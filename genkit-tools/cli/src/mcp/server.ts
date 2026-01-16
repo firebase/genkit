@@ -23,10 +23,16 @@ import { defineInitPrompt } from './prompts/init';
 import { defineRuntimeTools } from './runtime';
 import { defineTraceTools } from './trace';
 import { defineUsageGuideTool } from './usage';
-import { isAntigravity, McpRuntimeManager } from './util';
+import { McpRuntimeManager } from './util';
 
-export async function startMcpServer(projectRoot: string) {
+export async function startMcpServer(params: {
+  projectRoot: string;
+  ide?: string;
+}) {
+  const { projectRoot, ide } = params;
+  const isAntigravity = ide === 'antigravity';
   logger.info(`Starting MCP server in: ${projectRoot}`);
+
   const server = new McpServer({
     name: 'Genkit MCP',
     version: '0.0.2',
@@ -36,13 +42,13 @@ export async function startMcpServer(projectRoot: string) {
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
 
-  defineFlowTools(server, projectRoot);
-  defineTraceTools(server, projectRoot);
+  defineFlowTools(server, isAntigravity, projectRoot);
+  defineTraceTools(server, isAntigravity, projectRoot);
   // Disable runtime tools in AGY. Something about AGY env is messing with
   // runtime discoverability.
-  if (!isAntigravity) {
-    defineRuntimeTools(server, projectRoot);
-  }
+  // if (!isAntigravity) {
+  defineRuntimeTools(server, isAntigravity, projectRoot);
+  // }
 
   return new Promise(async (resolve) => {
     const transport = new StdioServerTransport();

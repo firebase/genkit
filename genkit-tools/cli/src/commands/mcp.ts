@@ -19,23 +19,32 @@ import {
   findProjectRoot,
   forceStderr,
 } from '@genkit-ai/tools-common/utils';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { startMcpServer } from '../mcp/server';
 
 interface McpOptions {
   projectRoot?: string;
-  debug?: boolean;
+  debug?: boolean | string;
+  ide?: string;
 }
 
 /** Command to run MCP server. */
 export const mcp = new Command('mcp')
   .option('--project-root [projectRoot]', 'Project root')
-  .option('-d, --debug', 'debug to file', false)
+  .option('-d, --debug [path]', 'debug to file')
+  .addOption(
+    new Option('--ide [ide]', 'IDE environment').choices(['antigravity'])
+  )
   .description('run MCP stdio server (EXPERIMENTAL, subject to change)')
   .action(async (options: McpOptions) => {
     forceStderr();
     if (options.debug) {
-      debugToFile();
+      debugToFile(
+        typeof options.debug === 'string' ? options.debug : undefined
+      );
     }
-    await startMcpServer(options.projectRoot ?? (await findProjectRoot()));
+    await startMcpServer({
+      projectRoot: options.projectRoot ?? (await findProjectRoot()),
+      ide: options.ide,
+    });
   });

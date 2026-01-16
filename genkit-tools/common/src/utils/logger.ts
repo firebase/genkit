@@ -15,6 +15,7 @@
  */
 
 import * as clc from 'colorette';
+import * as path from 'path';
 import * as winston from 'winston';
 
 const defaultTransport = new winston.transports.Console();
@@ -29,10 +30,12 @@ export function forceStderr() {
   );
 }
 
-export function debugToFile() {
+export function debugToFile(dirPath?: string) {
   logger.add(
     new winston.transports.File({
-      filename: 'genkit-debug.log',
+      filename: dirPath
+        ? path.join(dirPath, 'genkit-debug.log')
+        : 'genkit-debug.log',
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json()

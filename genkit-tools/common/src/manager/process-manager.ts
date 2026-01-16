@@ -75,7 +75,6 @@ export class ProcessManager {
       }
 
       this.appProcess.on('error', (error): void => {
-        logger.error(`Error in app process: ${error}`);
         this.cleanup();
         reject(error);
       });
@@ -93,6 +92,7 @@ export class ProcessManager {
           reject(new Error(`app process exited with code ${code}`));
         }
       });
+      resolve();
     });
   }
 
