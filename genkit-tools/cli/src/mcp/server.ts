@@ -43,10 +43,12 @@ export async function startMcpServer(params: {
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
 
+  const manager = new McpRuntimeManager();
   const options: McpToolOptions = {
     projectRoot,
     isAntigravity,
     timeout,
+    manager,
   };
 
   defineFlowTools(server, options);
@@ -57,7 +59,7 @@ export async function startMcpServer(params: {
     const transport = new StdioServerTransport();
     const cleanup = async () => {
       try {
-        await McpRuntimeManager.kill();
+        await manager.kill();
       } catch (e) {
         // ignore
       }
@@ -66,7 +68,7 @@ export async function startMcpServer(params: {
     };
     transport.onclose = async () => {
       try {
-        await McpRuntimeManager.kill();
+        await manager.kill();
       } catch (e) {
         // ignore
       }

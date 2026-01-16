@@ -22,6 +22,7 @@ export interface McpToolOptions {
   projectRoot: string;
   isAntigravity: boolean;
   timeout?: number;
+  manager: McpRuntimeManager;
 }
 
 export function getCommonSchema(
@@ -61,10 +62,10 @@ export function resolveProjectRoot(
 /** Genkit Runtime manager specifically for the MCP server. Allows lazy
  * initialization and dev process manangement. */
 export class McpRuntimeManager {
-  private static manager: RuntimeManager | undefined;
-  private static currentProjectRoot: string | undefined;
+  private manager: RuntimeManager | undefined;
+  private currentProjectRoot: string | undefined;
 
-  static async getManager(projectRoot: string) {
+  async getManager(projectRoot: string) {
     if (this.manager && this.currentProjectRoot === projectRoot) {
       return this.manager;
     }
@@ -76,7 +77,7 @@ export class McpRuntimeManager {
     return this.manager;
   }
 
-  static async getManagerWithDevProcess(
+  async getManagerWithDevProcess(
     projectRoot: string,
     command: string,
     args: string[],
@@ -100,7 +101,7 @@ export class McpRuntimeManager {
     return this.manager;
   }
 
-  static async kill() {
+  async kill() {
     if (this.manager) {
       await this.manager.stop();
     }

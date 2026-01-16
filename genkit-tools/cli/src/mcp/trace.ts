@@ -19,7 +19,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
-  McpRuntimeManager,
   McpToolOptions,
   getCommonSchema,
   resolveProjectRoot,
@@ -50,7 +49,7 @@ export function defineTraceTools(server: McpServer, options: McpToolOptions) {
       const { traceId } = opts;
 
       try {
-        const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
+        const runtimeManager = await options.manager.getManager(rootOrError);
         const response = await runtimeManager.getTrace({ traceId });
         return {
           content: [

@@ -19,7 +19,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
-  McpRuntimeManager,
   McpToolOptions,
   getCommonSchema,
   resolveProjectRoot,
@@ -43,7 +42,7 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
       );
       if (typeof rootOrError !== 'string') return rootOrError;
 
-      const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
+      const runtimeManager = await options.manager.getManager(rootOrError);
       const actions = await runtimeManager.listActions();
 
       let flows = '';
@@ -90,7 +89,7 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
       const { flowName, input } = opts;
 
       try {
-        const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
+        const runtimeManager = await options.manager.getManager(rootOrError);
         const response = await runtimeManager.runAction({
           key: `/flow/${flowName}`,
           input: input !== undefined ? JSON.parse(input) : undefined,

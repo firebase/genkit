@@ -19,7 +19,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { z } from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
-  McpRuntimeManager,
   McpToolOptions,
   getCommonSchema,
   resolveProjectRoot,
@@ -55,7 +54,7 @@ export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
       if (typeof rootOrError !== 'string') return rootOrError;
 
       try {
-        await McpRuntimeManager.getManagerWithDevProcess(
+        await options.manager.getManagerWithDevProcess(
           rootOrError,
           opts.command,
           opts.args,
@@ -107,7 +106,7 @@ export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
         );
         if (typeof rootOrError !== 'string') return rootOrError;
 
-        const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
+        const runtimeManager = await options.manager.getManager(rootOrError);
         if (!runtimeManager.processManager) {
           return {
             isError: true,
