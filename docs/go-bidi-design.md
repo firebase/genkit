@@ -78,9 +78,10 @@ func (c *BidiConnection[In, Out, Stream]) Close() error
 // Stream returns an iterator for receiving streamed chunks.
 // Each call returns a new iterator over the same underlying channel.
 // Breaking out of the loop does NOT close the connection - you can call Stream()
-// again to continue receiving. The iterator completes when the action finishes.
-func (c *BidiConnection[In, Out, Stream]) Stream() iter.Seq2[Stream, error]
-
+// For multi-turn interactions, this should be called after each Send() to get an
+// iterator for that turn's response. Each call provides an iterator over a new
+// channel specific to that turn. The iterator completes when the agent is done
+// responding for the turn.
 // Output returns the final output after the action completes.
 // Blocks until done or context cancelled.
 func (c *BidiConnection[In, Out, Stream]) Output() (Out, error)
