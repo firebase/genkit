@@ -173,6 +173,8 @@ Schemas for `In`, `Out`, `Init`, and `Stream` types are automatically inferred f
 ```go
 // In go/core/x/bidi_flow.go
 
+// DefineBidiFlow creates a BidiFlow with tracing and registers it.
+// Use this for user-defined bidirectional streaming operations.
 func DefineBidiFlow[In, Out, Init, Stream any](
     r api.Registry,
     name string,
@@ -185,6 +187,8 @@ func DefineBidiFlow[In, Out, Init, Stream any](
 ```go
 // In go/core/x/session_flow.go
 
+// DefineSessionFlow creates a SessionFlow with automatic session management and registers it.
+// Use this for multi-turn conversational agents that need to persist state across turns.
 func DefineSessionFlow[State, In, Out, Stream any](
     r api.Registry,
     name string,
@@ -197,6 +201,8 @@ type SessionFlowOption[State any] interface {
     applySessionFlow(*sessionFlowOptions[State]) error
 }
 
+// WithSessionStore sets the session store for persisting session state.
+// If not provided, sessions exist only in memory for the connection lifetime.
 func WithSessionStore[State any](store session.Store[State]) SessionFlowOption[State]
 ```
 
@@ -211,15 +217,19 @@ func (a *BidiAction[In, Out, Init, Stream]) StreamBidi(
     opts ...BidiOption[Init],
 ) (*BidiConnection[In, Out, Stream], error)
 
-// BidiOption for streaming
+// BidiOption configures a bidi connection.
 type BidiOption[Init any] interface {
     applyBidi(*bidiOptions[Init]) error
 }
 
+// WithInit provides initialization data for the bidi action.
+// For SessionFlow, this sets the initial state for new sessions.
 func WithInit[Init any](init Init) BidiOption[Init]
 
-// SessionFlow uses the same StreamBidi, with Init = State
-// Additional option for session ID
+// WithSessionID specifies an existing session ID to resume.
+// If the session exists in the store, it is loaded (WithInit is ignored).
+// If the session doesn't exist, a new session is created with this ID.
+// If not provided, a new UUID is generated for new sessions.
 func WithSessionID[Init any](id string) BidiOption[Init]
 
 func (sf *SessionFlow[State, In, Out, Stream]) StreamBidi(
