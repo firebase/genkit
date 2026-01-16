@@ -15,13 +15,11 @@ All bidi types go in `go/core/x/` (experimental), which will move to `go/core/` 
 ```
 go/core/x/
 ├── bidi.go           # BidiAction, BidiFunc, BidiConnection
-├── bidi_flow.go      # BidiFlow with tracing
-├── bidi_options.go   # Option types for bidi
+├── bidi_flow.go      # BidiFlow
 ├── session_flow.go   # SessionFlow implementation
+├── option.go         # Options
 ├── bidi_test.go      # Tests
 ```
-
-High-level wrappers in `go/genkit/bidi.go`.
 
 Import as `corex "github.com/firebase/genkit/go/core/x"`.
 
