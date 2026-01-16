@@ -20,26 +20,27 @@ import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
   McpRuntimeManager,
+  McpToolOptions,
   getCommonSchema,
   resolveProjectRoot,
-} from './util.js';
+} from './utils.js';
 
-export function defineFlowTools(
-  server: McpServer,
-  isAntigravity: boolean,
-  projectRoot: string
-) {
+export function defineFlowTools(server: McpServer, options: McpToolOptions) {
   server.registerTool(
     'list_flows',
     {
       title: 'List Genkit Flows',
       description:
         'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
-      inputSchema: getCommonSchema(isAntigravity),
+      inputSchema: getCommonSchema(options.isAntigravity),
     },
     async (opts) => {
       await record(new McpRunToolEvent('list_flows'));
-      const rootOrError = resolveProjectRoot(isAntigravity, opts, projectRoot);
+      const rootOrError = resolveProjectRoot(
+        options.isAntigravity,
+        opts,
+        options.projectRoot
+      );
       if (typeof rootOrError !== 'string') return rootOrError;
 
       const runtimeManager = await McpRuntimeManager.getManager(rootOrError);
@@ -68,7 +69,7 @@ export function defineFlowTools(
     {
       title: 'Run Flow',
       description: 'Runs the flow with the provided input',
-      inputSchema: getCommonSchema(isAntigravity, {
+      inputSchema: getCommonSchema(options.isAntigravity, {
         flowName: z.string().describe('name of the flow'),
         input: z
           .string()
@@ -80,7 +81,11 @@ export function defineFlowTools(
     },
     async (opts) => {
       await record(new McpRunToolEvent('run_flow'));
-      const rootOrError = resolveProjectRoot(isAntigravity, opts, projectRoot);
+      const rootOrError = resolveProjectRoot(
+        options.isAntigravity,
+        opts,
+        options.projectRoot
+      );
       if (typeof rootOrError !== 'string') return rootOrError;
       const { flowName, input } = opts;
 

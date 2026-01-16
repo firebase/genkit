@@ -71,6 +71,7 @@ export interface DevProcessManagerOptions {
   disableRealtimeTelemetry?: boolean;
   nonInteractive?: boolean;
   healthCheck?: boolean;
+  timeout?: number;
 }
 
 export async function startDevProcessManager(
@@ -99,7 +100,7 @@ export async function startDevProcessManager(
   const processPromise = processManager.start({ ...options, cwd: projectRoot });
 
   if (options?.healthCheck) {
-    await waitForRuntime(manager, processPromise);
+    await waitForRuntime(manager, processPromise, options?.timeout);
   }
 
   return { manager, processPromise };
@@ -111,9 +112,9 @@ export async function startDevProcessManager(
  */
 export async function waitForRuntime(
   manager: RuntimeManager,
-  processPromise: Promise<void>
+  processPromise: Promise<void>,
+  timeoutMs: number = 30000
 ): Promise<void> {
-  const TIMEOUT_MS = 30000;
   let unsubscribe: (() => void) | undefined;
   let timeoutId: NodeJS.Timeout | undefined;
 
@@ -137,7 +138,7 @@ export async function waitForRuntime(
     const timeoutPromise = new Promise<void>((_, reject) => {
       timeoutId = setTimeout(
         () => reject(new Error('Timeout waiting for runtime to be ready')),
-        TIMEOUT_MS
+        timeoutMs
       );
     });
 

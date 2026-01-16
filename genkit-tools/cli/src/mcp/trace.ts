@@ -20,21 +20,18 @@ import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
   McpRuntimeManager,
+  McpToolOptions,
   getCommonSchema,
   resolveProjectRoot,
-} from './util.js';
+} from './utils.js';
 
-export function defineTraceTools(
-  server: McpServer,
-  isAntigravity: boolean,
-  projectRoot: string
-) {
+export function defineTraceTools(server: McpServer, options: McpToolOptions) {
   server.registerTool(
     'get_trace',
     {
       title: 'Get Genkit Trace',
       description: 'Returns the trace details',
-      inputSchema: getCommonSchema(isAntigravity, {
+      inputSchema: getCommonSchema(options.isAntigravity, {
         traceId: z
           .string()
           .describe(
@@ -44,7 +41,11 @@ export function defineTraceTools(
     },
     async (opts) => {
       await record(new McpRunToolEvent('get_trace'));
-      const rootOrError = resolveProjectRoot(isAntigravity, opts, projectRoot);
+      const rootOrError = resolveProjectRoot(
+        options.isAntigravity,
+        opts,
+        options.projectRoot
+      );
       if (typeof rootOrError !== 'string') return rootOrError;
       const { traceId } = opts;
 

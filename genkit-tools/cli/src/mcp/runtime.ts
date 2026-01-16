@@ -20,15 +20,12 @@ import { z } from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
   McpRuntimeManager,
+  McpToolOptions,
   getCommonSchema,
   resolveProjectRoot,
-} from './util.js';
+} from './utils.js';
 
-export function defineRuntimeTools(
-  server: McpServer,
-  isAntigravity: boolean,
-  projectRoot: string
-) {
+export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
   server.registerTool(
     'start_runtime',
     {
@@ -39,7 +36,7 @@ export function defineRuntimeTools(
         {command: "go", args: ["run", "main.go"]}
         {command: "npm", args: ["run", "dev"]}
         {command: "npm", args: ["run", "dev"], projectRoot: "path/to/project"}`,
-      inputSchema: getCommonSchema(isAntigravity, {
+      inputSchema: getCommonSchema(options.isAntigravity, {
         command: z.string().describe('The command to run'),
         args: z
           .array(z.string())
@@ -50,14 +47,19 @@ export function defineRuntimeTools(
     },
     async (opts) => {
       await record(new McpRunToolEvent('start_runtime'));
-      const rootOrError = resolveProjectRoot(isAntigravity, opts, projectRoot);
+      const rootOrError = resolveProjectRoot(
+        options.isAntigravity,
+        opts,
+        options.projectRoot
+      );
       if (typeof rootOrError !== 'string') return rootOrError;
 
       try {
         await McpRuntimeManager.getManagerWithDevProcess(
           rootOrError,
           opts.command,
-          opts.args
+          opts.args,
+          options.timeout
         );
       } catch (err) {
         return {
@@ -94,14 +96,14 @@ export function defineRuntimeTools(
       {
         title,
         description: `Use this to ${action} an existing runtime that was started using the \`start_runtime\` tool`,
-        inputSchema: getCommonSchema(isAntigravity),
+        inputSchema: getCommonSchema(options.isAntigravity),
       },
       async (opts) => {
         await record(new McpRunToolEvent(name));
         const rootOrError = resolveProjectRoot(
-          isAntigravity,
+          options.isAntigravity,
           opts,
-          projectRoot
+          options.projectRoot
         );
         if (typeof rootOrError !== 'string') return rootOrError;
 

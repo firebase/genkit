@@ -26,12 +26,17 @@ interface McpOptions {
   projectRoot?: string;
   debug?: boolean | string;
   ide?: string;
+  timeout?: string;
 }
 
 /** Command to run MCP server. */
 export const mcp = new Command('mcp')
   .option('--project-root [projectRoot]', 'Project root')
   .option('-d, --debug [path]', 'debug to file')
+  .option(
+    '--timeout [timeout]',
+    'Timeout for runtime to start (ms). Default 30000.'
+  )
   .addOption(
     new Option('--ide [ide]', 'IDE environment').choices(['antigravity'])
   )
@@ -46,5 +51,6 @@ export const mcp = new Command('mcp')
     await startMcpServer({
       projectRoot: options.projectRoot ?? (await findProjectRoot()),
       ide: options.ide,
+      timeout: options.timeout ? parseInt(options.timeout, 10) : undefined,
     });
   });

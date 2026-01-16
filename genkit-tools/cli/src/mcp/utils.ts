@@ -18,20 +18,18 @@ import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { z } from 'zod';
 import { startDevProcessManager, startManager } from '../utils/manager-utils';
 
+export interface McpToolOptions {
+  projectRoot: string;
+  isAntigravity: boolean;
+  timeout?: number;
+}
+
 export function getCommonSchema(
   isAntigravity: boolean,
   shape: z.ZodRawShape = {}
 ): z.ZodRawShape {
   return !isAntigravity
-    ? {
-        projectRoot: z
-          .string()
-          .describe(
-            'The path to the current project root (a.k.a workspace directory or project directory)'
-          )
-          .optional(),
-        ...shape,
-      }
+    ? shape
     : {
         projectRoot: z
           .string()
@@ -81,7 +79,8 @@ export class McpRuntimeManager {
   static async getManagerWithDevProcess(
     projectRoot: string,
     command: string,
-    args: string[]
+    args: string[],
+    timeout?: number
   ): Promise<RuntimeManager> {
     if (this.manager) {
       await this.manager.stop();
@@ -92,7 +91,8 @@ export class McpRuntimeManager {
       args,
       {
         nonInteractive: true,
-        healthCheck: true,
+        healthCheck: timeout !== 0,
+        timeout,
       }
     );
     this.manager = devManager.manager;
