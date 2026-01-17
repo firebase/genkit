@@ -53,12 +53,9 @@ class Recipe(BaseModel):
     steps: list[str] = Field(..., description='the steps required to complete the recipe')
 
 
-# Register the schema so it can be resolved by name in prompt files
-# Note: internal API usage until define_schema is exposed
 if hasattr(ai.registry.dotprompt, '_schemas'):
     ai.registry.dotprompt._schemas['Recipe'] = Recipe
 
-# Global stickiness cache for prompts to prevent premature GC
 _sticky_prompts = {}
 
 
@@ -112,7 +109,7 @@ async def robot_chef_flow(input: ChefInput) -> Recipe:
     recipe_prompt._output_schema = Recipe
     recipe_prompt._model = 'googleai/gemini-3-flash-preview'
     result = Recipe.model_validate((await recipe_prompt(input={'food': input.food})).output)
-    await logger.ainfo(f"robot_chef_flow result: {result}")
+    await logger.ainfo(f'robot_chef_flow result: {result}')
     return result
 
 
@@ -130,7 +127,6 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
     stream, response = story_prompt.stream(input={'subject': input.subject, 'personality': input.personality})
 
     full_text = ''
-    # We yield the chunks as they stream in
     async for chunk in stream:
         if chunk.text:
             ctx.send_chunk(chunk.text)
@@ -141,7 +137,7 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
 
 
 async def main():
-    # List actions to verify loading
+
     actions = ai.registry.list_serializable_actions()
 
     # Filter for prompts
@@ -169,9 +165,6 @@ async def main():
 
     async for chunk in story_stream:
         print(chunk, end='', flush=True)
-        # Note: The actual return value of the flow (final string) is not yielded by the generator in Python's async generator implementation easily
-        # unless we wrap it or inspect the StopAsyncIteration value, but typically for streaming flows we just consume the stream.
-        # BUT `tell_story` implementation above yields chunks.
 
     print()  # Newline after stream
     await logger.ainfo('Tell Story Flow Completed')
