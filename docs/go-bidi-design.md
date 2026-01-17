@@ -32,19 +32,19 @@ Import as `corex "github.com/firebase/genkit/go/core/x"`.
 ```go
 // BidiAction represents a bidirectional streaming action.
 // Type parameters:
+//   - Init: Type of initialization data (use struct{} if not needed)
 //   - In: Type of each message sent to the action
 //   - Out: Type of the final output
-//   - Init: Type of initialization data (use struct{} if not needed)
 //   - Stream: Type of each streamed output chunk
-type BidiAction[In, Out, Init, Stream any] struct {
+type BidiAction[Init, In, Out, Stream any] struct {
     name     string
-    fn       BidiFunc[In, Out, Init, Stream]
+    fn       BidiFunc[Init, In, Out, Stream]
     registry api.Registry
     desc     *api.ActionDesc
 }
 
 // BidiFunc is the function signature for bidi actions.
-type BidiFunc[In, Out, Init, Stream any] func(
+type BidiFunc[Init, In, Out, Stream any] func(
     ctx context.Context,
     inputStream <-chan In,
     init Init,
@@ -94,8 +94,8 @@ func (c *BidiConnection[In, Out, Stream]) Done() <-chan struct{}
 ### 1.3 BidiFlow
 
 ```go
-type BidiFlow[In, Out, Init, Stream any] struct {
-    *BidiAction[In, Out, Init, Stream]
+type BidiFlow[Init, In, Out, Stream any] struct {
+    *BidiAction[Init, In, Out, Stream]
 }
 ```
 
@@ -122,7 +122,7 @@ type AgentOutput[State, Out any] struct {
 // Agent is a bidi flow with automatic session state management.
 // Init = State: the initial state for new sessions (ignored when resuming an existing session).
 type Agent[State, In, Out, Stream any] struct {
-    *BidiFlow[In, AgentOutput[State, Out], State, Stream]
+    *BidiFlow[State, In, AgentOutput[State, Out], Stream]
     store session.Store[State]
 }
 
@@ -151,17 +151,17 @@ type AgentFunc[State, In, Out, Stream any] func(
 // In go/core/x/bidi.go
 
 // NewBidiAction creates a BidiAction without registering it.
-func NewBidiAction[In, Out, Init, Stream any](
+func NewBidiAction[Init, In, Out, Stream any](
     name string,
-    fn BidiFunc[In, Out, Init, Stream],
-) *BidiAction[In, Out, Init, Stream]
+    fn BidiFunc[Init, In, Out, Stream],
+) *BidiAction[Init, In, Out, Stream]
 
 // DefineBidiAction creates and registers a BidiAction.
-func DefineBidiAction[In, Out, Init, Stream any](
+func DefineBidiAction[Init, In, Out, Stream any](
     r api.Registry,
     name string,
-    fn BidiFunc[In, Out, Init, Stream],
-) *BidiAction[In, Out, Init, Stream]
+    fn BidiFunc[Init, In, Out, Stream],
+) *BidiAction[Init, In, Out, Stream]
 ```
 
 Schemas for `In`, `Out`, `Init`, and `Stream` types are automatically inferred from the type parameters using the existing JSON schema inference in `go/internal/base/json.go`.
@@ -173,11 +173,11 @@ Schemas for `In`, `Out`, `Init`, and `Stream` types are automatically inferred f
 
 // DefineBidiFlow creates a BidiFlow with tracing and registers it.
 // Use this for user-defined bidirectional streaming operations.
-func DefineBidiFlow[In, Out, Init, Stream any](
+func DefineBidiFlow[Init, In, Out, Stream any](
     r api.Registry,
     name string,
-    fn BidiFunc[In, Out, Init, Stream],
-) *BidiFlow[In, Out, Init, Stream]
+    fn BidiFunc[Init, In, Out, Stream],
+) *BidiFlow[Init, In, Out, Stream]
 ```
 
 ### 2.3 Defining Agents
@@ -210,7 +210,7 @@ All bidi types (BidiAction, BidiFlow, Agent) use the same `StreamBidi` method to
 
 ```go
 // BidiAction/BidiFlow
-func (a *BidiAction[In, Out, Init, Stream]) StreamBidi(
+func (a *BidiAction[Init, In, Out, Stream]) StreamBidi(
     ctx context.Context,
     opts ...BidiOption[Init],
 ) (*BidiConnection[In, Out, Stream], error)
@@ -241,11 +241,11 @@ func (a *Agent[State, In, Out, Stream]) StreamBidi(
 ```go
 // In go/genkit/bidi.go
 
-func DefineBidiFlow[In, Out, Init, Stream any](
+func DefineBidiFlow[Init, In, Out, Stream any](
     g *Genkit,
     name string,
-    fn corex.BidiFunc[In, Out, Init, Stream],
-) *corex.BidiFlow[In, Out, Init, Stream]
+    fn corex.BidiFunc[Init, In, Out, Stream],
+) *corex.BidiFlow[Init, In, Out, Stream]
 
 func DefineAgent[State, In, Out, Stream any](
     g *Genkit,
@@ -375,7 +375,7 @@ func main() {
     g := genkit.Init(ctx)
 
     // Define echo bidi flow (low-level, no turn semantics)
-    echoFlow := genkit.DefineBidiFlow[string, string, struct{}, string](g, "echo",
+    echoFlow := genkit.DefineBidiFlow[struct{}, string, string, string](g, "echo",
         func(ctx context.Context, inputStream <-chan string, init struct{}, sendChunk core.StreamCallback[string]) (string, error) {
             var count int
             for input := range inputStream {
@@ -526,7 +526,7 @@ type ChatInit struct {
     Temperature  float64 `json:"temperature"`
 }
 
-configuredChat := genkit.DefineBidiFlow[string, string, ChatInit, string](g, "configuredChat",
+configuredChat := genkit.DefineBidiFlow[ChatInit, string, string, string](g, "configuredChat",
     func(ctx context.Context, inputStream <-chan string, init ChatInit, sendChunk core.StreamCallback[string]) (string, error) {
         // Use init.SystemPrompt and init.Temperature
         for input := range inputStream {
