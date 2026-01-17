@@ -70,10 +70,7 @@ class VertexAIModelGarden(Plugin):
         )
 
         self.location = (
-            location
-            or os.getenv('GOOGLE_CLOUD_LOCATION')
-            or os.getenv('GOOGLE_CLOUD_REGION')
-            or const.DEFAULT_REGION
+            location or os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION') or const.DEFAULT_REGION
         )
 
         self.models = models

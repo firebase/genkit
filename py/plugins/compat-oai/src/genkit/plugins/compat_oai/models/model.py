@@ -24,7 +24,7 @@ from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.ai import ActionKind, GenkitRegistry
 from genkit.core.action._action import ActionRunContext
-from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
+from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_COMPAT_MODELS, SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import DictMessageAdapter, MessageAdapter, MessageConverter
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit.types import (
@@ -120,8 +120,8 @@ class OpenAIModel:
                     },
                 }
 
-            model = SUPPORTED_OPENAI_MODELS[self._model]
-            if SupportedOutputFormat.JSON_MODE in model.supports.output:
+            model = SUPPORTED_OPENAI_MODELS.get(self._model, SUPPORTED_OPENAI_COMPAT_MODELS.get(self._model))
+            if model and SupportedOutputFormat.JSON_MODE in model.supports.output:
                 return {'type': 'json_object'}
 
         return {'type': 'text'}

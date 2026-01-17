@@ -48,6 +48,7 @@ O1_MINI = 'o1-mini'
 
 LLAMA_3_1 = 'meta/llama-3.1-405b-instruct-maas'
 LLAMA_3_2 = 'meta/llama-3.2-90b-vision-instruct-maas'
+MISTRAL_LARGE = 'mistralai/mistral-large'
 
 SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
     GPT_3_5_TURBO: ModelInfo(
@@ -160,6 +161,16 @@ SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
         supports=Supports(
             multiturn=True,
             media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+        ),
+    ),
+    MISTRAL_LARGE: ModelInfo(
+        label='ModelGarden - Mistral - Large',
+        supports=Supports(
+            multiturn=True,
+            media=False,
             tools=True,
             systemRole=True,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
