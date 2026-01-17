@@ -6,7 +6,7 @@ This document describes the design for bidirectional streaming features in Genki
 
 1. **BidiAction** - Core primitive for bidirectional operations
 2. **BidiFlow** - BidiAction with observability, intended for user definition
-3. **SessionFlow** - Stateful, multi-turn agent interactions with automatic persistence and turn semantics
+3. **Agent** - Stateful, multi-turn agent interactions with automatic persistence and turn semantics
 
 ## Package Location
 
@@ -16,7 +16,7 @@ All bidi types go in `go/core/x/` (experimental), which will move to `go/core/` 
 go/core/x/
 ├── bidi.go           # BidiAction, BidiFunc, BidiConnection
 ├── bidi_flow.go      # BidiFlow
-├── session_flow.go   # SessionFlow implementation
+├── agent.go          # Agent implementation
 ├── option.go         # Options
 ├── bidi_test.go      # Tests
 ```
@@ -99,9 +99,9 @@ type BidiFlow[In, Out, Init, Stream any] struct {
 }
 ```
 
-### 1.4 SessionFlow
+### 1.4 Agent
 
-SessionFlow adds session state management on top of BidiFlow.
+Agent adds session state management on top of BidiFlow.
 
 ```go
 // Artifact represents a named collection of parts produced during a session.
@@ -111,34 +111,34 @@ type Artifact struct {
     Parts []*ai.Part `json:"parts"`
 }
 
-// SessionFlowOutput wraps the output with session info for persistence.
-type SessionFlowOutput[State, Out any] struct {
+// AgentOutput wraps the output with session info for persistence.
+type AgentOutput[State, Out any] struct {
     SessionID string     `json:"sessionId"`
     Output    Out        `json:"output"`
     State     State      `json:"state"`
     Artifacts []Artifact `json:"artifacts,omitempty"`
 }
 
-// SessionFlow is a bidi flow with automatic session state management.
+// Agent is a bidi flow with automatic session state management.
 // Init = State: the initial state for new sessions (ignored when resuming an existing session).
-type SessionFlow[State, In, Out, Stream any] struct {
-    *BidiFlow[In, SessionFlowOutput[State, Out], State, Stream]
+type Agent[State, In, Out, Stream any] struct {
+    *BidiFlow[In, AgentOutput[State, Out], State, Stream]
     store session.Store[State]
 }
 
-// SessionFlowResult is the return type for session flow functions.
-type SessionFlowResult[Out any] struct {
+// AgentResult is the return type for agent functions.
+type AgentResult[Out any] struct {
     Output    Out
     Artifacts []Artifact
 }
 
-// SessionFlowFunc is the function signature for session flows.
-type SessionFlowFunc[State, In, Out, Stream any] func(
+// AgentFunc is the function signature for agents.
+type AgentFunc[State, In, Out, Stream any] func(
     ctx context.Context,
     inputStream <-chan In,
     sess *session.Session[State],
     sendChunk core.StreamCallback[Stream],
-) (SessionFlowResult[Out], error)
+) (AgentResult[Out], error)
 ```
 
 ---
@@ -180,33 +180,33 @@ func DefineBidiFlow[In, Out, Init, Stream any](
 ) *BidiFlow[In, Out, Init, Stream]
 ```
 
-### 2.3 Defining Session Flows
+### 2.3 Defining Agents
 
 ```go
-// In go/core/x/session_flow.go
+// In go/core/x/agent.go
 
-// DefineSessionFlow creates a SessionFlow with automatic session management and registers it.
+// DefineAgent creates an Agent with automatic session management and registers it.
 // Use this for multi-turn conversational agents that need to persist state across turns.
-func DefineSessionFlow[State, In, Out, Stream any](
+func DefineAgent[State, In, Out, Stream any](
     r api.Registry,
     name string,
-    fn SessionFlowFunc[State, In, Out, Stream],
-    opts ...SessionFlowOption[State],
-) *SessionFlow[State, In, Out, Stream]
+    fn AgentFunc[State, In, Out, Stream],
+    opts ...AgentOption[State],
+) *Agent[State, In, Out, Stream]
 
-// SessionFlowOption configures a SessionFlow.
-type SessionFlowOption[State any] interface {
-    applySessionFlow(*sessionFlowOptions[State]) error
+// AgentOption configures an Agent.
+type AgentOption[State any] interface {
+    applyAgent(*agentOptions[State]) error
 }
 
 // WithSessionStore sets the session store for persisting session state.
 // If not provided, sessions exist only in memory for the connection lifetime.
-func WithSessionStore[State any](store session.Store[State]) SessionFlowOption[State]
+func WithSessionStore[State any](store session.Store[State]) AgentOption[State]
 ```
 
 ### 2.4 Starting Connections
 
-All bidi types (BidiAction, BidiFlow, SessionFlow) use the same `StreamBidi` method to start connections:
+All bidi types (BidiAction, BidiFlow, Agent) use the same `StreamBidi` method to start connections:
 
 ```go
 // BidiAction/BidiFlow
@@ -221,7 +221,7 @@ type BidiOption[Init any] interface {
 }
 
 // WithInit provides initialization data for the bidi action.
-// For SessionFlow, this sets the initial state for new sessions.
+// For Agent, this sets the initial state for new sessions.
 func WithInit[Init any](init Init) BidiOption[Init]
 
 // WithSessionID specifies an existing session ID to resume.
@@ -230,10 +230,10 @@ func WithInit[Init any](init Init) BidiOption[Init]
 // If not provided, a new UUID is generated for new sessions.
 func WithSessionID[Init any](id string) BidiOption[Init]
 
-func (sf *SessionFlow[State, In, Out, Stream]) StreamBidi(
+func (a *Agent[State, In, Out, Stream]) StreamBidi(
     ctx context.Context,
     opts ...BidiOption[State],
-) (*BidiConnection[In, SessionFlowOutput[State, Out], Stream], error)
+) (*BidiConnection[In, AgentOutput[State, Out], Stream], error)
 ```
 
 ### 2.5 High-Level Genkit API
@@ -247,25 +247,25 @@ func DefineBidiFlow[In, Out, Init, Stream any](
     fn corex.BidiFunc[In, Out, Init, Stream],
 ) *corex.BidiFlow[In, Out, Init, Stream]
 
-func DefineSessionFlow[State, In, Out, Stream any](
+func DefineAgent[State, In, Out, Stream any](
     g *Genkit,
     name string,
-    fn corex.SessionFlowFunc[State, In, Out, Stream],
-    opts ...corex.SessionFlowOption[State],
-) *corex.SessionFlow[State, In, Out, Stream]
+    fn corex.AgentFunc[State, In, Out, Stream],
+    opts ...corex.AgentOption[State],
+) *corex.Agent[State, In, Out, Stream]
 ```
 
 ---
 
-## 3. Session Flow Details
+## 3. Agent Details
 
-### 3.1 Using StreamBidi with SessionFlow
+### 3.1 Using StreamBidi with Agent
 
-SessionFlow uses the same `StreamBidi` method as BidiAction and BidiFlow. Session ID is a connection option, and initial state is passed via `WithInit`:
+Agent uses the same `StreamBidi` method as BidiAction and BidiFlow. Session ID is a connection option, and initial state is passed via `WithInit`:
 
 ```go
 // Define once at startup
-chatAgent := genkit.DefineSessionFlow[ChatState, string, string, string](g, "chatAgent",
+chatAgent := genkit.DefineAgent[ChatState, string, string, string](g, "chatAgent",
     myAgentFunc,
     corex.WithSessionStore(store),
 )
@@ -286,12 +286,12 @@ conn4, _ := chatAgent.StreamBidi(ctx,
 )
 ```
 
-The SessionFlow internally handles session creation/loading:
+The Agent internally handles session creation/loading:
 - If `WithSessionID` is provided and session exists in store → load existing session (WithInit ignored)
 - If `WithSessionID` is provided but session doesn't exist → create new session with that ID and initial state from WithInit
 - If no `WithSessionID` → generate new UUID and create session with initial state from WithInit
 
-The session ID is returned in `SessionFlowOutput.SessionID`, so callers can retrieve it from the final output:
+The session ID is returned in `AgentOutput.SessionID`, so callers can retrieve it from the final output:
 
 ```go
 output, _ := conn.Output()
@@ -346,8 +346,8 @@ Use existing `Session` and `Store` types from `go/core/x/session` (remains a sep
 ```go
 import "github.com/firebase/genkit/go/core/x/session"
 
-// SessionFlow holds reference to session store
-type SessionFlow[State, In, Out, Stream any] struct {
+// Agent holds reference to session store
+type Agent[State, In, Out, Stream any] struct {
     store session.Store[State]
     // ...
 }
@@ -443,9 +443,9 @@ func main() {
         genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
     )
 
-    // Define a session flow for multi-turn chat
-    chatAgent := genkit.DefineSessionFlow[ChatState, string, string, string](g, "chatAgent",
-        func(ctx context.Context, inputStream <-chan string, sess *session.Session[ChatState], sendChunk core.StreamCallback[string]) (corex.SessionFlowResult[string], error) {
+    // Define an agent for multi-turn chat
+    chatAgent := genkit.DefineAgent[ChatState, string, string, string](g, "chatAgent",
+        func(ctx context.Context, inputStream <-chan string, sess *session.Session[ChatState], sendChunk core.StreamCallback[string]) (corex.AgentResult[string], error) {
             state := sess.State()
             messages := state.Messages
 
@@ -457,7 +457,7 @@ func main() {
                     ai.WithMessages(messages...),
                 ) {
                     if err != nil {
-                        return corex.SessionFlowResult[string]{}, err
+                        return corex.AgentResult[string]{}, err
                     }
                     if result.Done {
                         responseText = result.Response.Text()
@@ -470,7 +470,7 @@ func main() {
                 sess.UpdateState(ctx, ChatState{Messages: messages})
             }
 
-            return corex.SessionFlowResult[string]{
+            return corex.AgentResult[string]{
                 Output:    "conversation ended",
                 Artifacts: []corex.Artifact{
                     {
@@ -560,7 +560,7 @@ conn, _ := configuredChat.StreamBidi(ctx,
 | `go/core/x/bidi.go` | BidiAction, BidiFunc, BidiConnection |
 | `go/core/x/bidi_flow.go` | BidiFlow with tracing |
 | `go/core/x/bidi_options.go` | BidiOption types |
-| `go/core/x/session_flow.go` | SessionFlow implementation |
+| `go/core/x/agent.go` | Agent implementation |
 | `go/core/x/bidi_test.go` | Tests |
 | `go/genkit/bidi.go` | High-level API wrappers |
 
@@ -626,16 +626,16 @@ On context cancellation:
 2. All channels are closed
 3. `Output()` returns the context error
 
-### SessionFlow Internal Wrapping
-The user's `SessionFlowFunc` returns `SessionFlowResult[Out]`, but `SessionFlow.StreamBidi()` returns `SessionFlowOutput[State, Out]`. Internally, SessionFlow wraps the user function:
+### Agent Internal Wrapping
+The user's `AgentFunc` returns `AgentResult[Out]`, but `Agent.StreamBidi()` returns `AgentOutput[State, Out]`. Internally, Agent wraps the user function:
 
 ```go
 // Simplified internal logic
 result, err := userFunc(ctx, wrappedInputStream, sess, sendChunk)
 if err != nil {
-    return SessionFlowOutput[State, Out]{}, err
+    return AgentOutput[State, Out]{}, err
 }
-return SessionFlowOutput[State, Out]{
+return AgentOutput[State, Out]{
     SessionID: sess.ID(),
     Output:    result.Output,
     State:     sess.State(),
