@@ -75,11 +75,11 @@ func (c *BidiConnection[In, Out, Stream]) Send(input In) error
 // Close signals that no more inputs will be sent.
 func (c *BidiConnection[In, Out, Stream]) Close() error
 
-// Stream returns an iterator for receiving streamed chunks.
+// Responses returns an iterator for receiving streamed response chunks.
 // For Agents, the iterator exits when the agent calls resp.EndTurn(), allowing
-// multi-turn conversations. Call Stream() again after Send() for the next turn.
+// multi-turn conversations. Call Responses() again after Send() for the next turn.
 // The iterator completes permanently when the action finishes.
-func (c *BidiConnection[In, Out, Stream]) Stream() iter.Seq2[Stream, error]
+func (c *BidiConnection[In, Out, Stream]) Responses() iter.Seq2[Stream, error]
 
 // Output returns the final output after the action completes.
 // Blocks until done or context cancelled.
@@ -413,7 +413,7 @@ func main() {
     conn.Close()
 
     // Consume stream via iterator
-    for chunk, err := range conn.Stream() {
+    for chunk, err := range conn.Responses() {
         if err != nil {
             panic(err)
         }
@@ -500,7 +500,7 @@ func main() {
 
     // First turn
     conn.Send("Hello! Tell me about Go programming.")
-    for chunk, err := range conn.Stream() {
+    for chunk, err := range conn.Responses() {
         if err != nil {
             panic(err)
         }
@@ -510,7 +510,7 @@ func main() {
 
     // Second turn
     conn.Send("What are channels used for?")
-    for chunk, err := range conn.Stream() {
+    for chunk, err := range conn.Responses() {
         if err != nil {
             panic(err)
         }
@@ -618,7 +618,7 @@ For multi-turn conversations, the consumer needs to know when the agent has fini
 2. `streamChunk` has `data T` and `endTurn bool` fields (unexported)
 3. `resp.Send(data)` sends `streamChunk{data: data}`
 4. `resp.EndTurn()` sends `streamChunk{endTurn: true}`
-5. `conn.Stream()` unwraps chunks, yielding only the data
+5. `conn.Responses()` unwraps chunks, yielding only the data
 6. When `Stream()` sees `endTurn: true`, it exits the iterator without yielding
 
 **From the agent's perspective:**
@@ -633,13 +633,13 @@ for input := range inCh {
 **From the consumer's perspective:**
 ```go
 conn.Send("question")
-for chunk, err := range conn.Stream() {
+for chunk, err := range conn.Responses() {
     fmt.Print(chunk)  // Just gets string, not streamChunk
 }
 // Loop exited because agent called EndTurn()
 
 conn.Send("follow-up")
-for chunk, err := range conn.Stream() { ... }
+for chunk, err := range conn.Responses() { ... }
 ```
 
 ### Tracing
