@@ -461,8 +461,8 @@ func main() {
             state := sess.State()
             messages := state.Messages
 
-            for userInput := range inCh {
-                messages = append(messages, ai.NewUserTextMessage(userInput))
+            for input := range inCh {
+                messages = append(messages, ai.NewUserTextMessage(input))
 
                 var respText string
                 for result, err := range genkit.GenerateStream(ctx, g,
