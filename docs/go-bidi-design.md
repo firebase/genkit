@@ -46,9 +46,9 @@ type BidiAction[Init, In, Out, Stream any] struct {
 // BidiFunc is the function signature for bidi actions.
 type BidiFunc[Init, In, Out, Stream any] func(
     ctx context.Context,
-    inputStream <-chan In,
     init Init,
-    streamCallback core.StreamCallback[Stream],
+    inCh <-chan In,
+    outCh chan<- Stream,
 ) (Out, error)
 ```
 
@@ -76,9 +76,9 @@ func (c *BidiConnection[In, Out, Stream]) Send(input In) error
 func (c *BidiConnection[In, Out, Stream]) Close() error
 
 // Stream returns an iterator for receiving streamed chunks.
-// Each call returns a new iterator over the same underlying channel.
-// Breaking out of the loop does NOT close the connection - you can call Stream()
-// again to continue receiving. The iterator completes when the action finishes.
+// For Agents, the iterator exits when the agent calls resp.EndTurn(), allowing
+// multi-turn conversations. Call Stream() again after Send() for the next turn.
+// The iterator completes permanently when the action finishes.
 func (c *BidiConnection[In, Out, Stream]) Stream() iter.Seq2[Stream, error]
 
 // Output returns the final output after the action completes.
@@ -89,8 +89,6 @@ func (c *BidiConnection[In, Out, Stream]) Output() (Out, error)
 func (c *BidiConnection[In, Out, Stream]) Done() <-chan struct{}
 ```
 
-**Why iterators work for multi-turn:** Each call to `Stream()` returns an iterator over a **new channel** created for that turn. When the agent finishes responding (loops back to read the next input), it closes that turn's stream channel, causing the user's `for range` loop to exit naturally. The user then calls `Send()` with the next input and `Stream()` again to get a new iterator for the next turn's responses.
-
 ### 1.3 BidiFlow
 
 ```go
@@ -99,9 +97,27 @@ type BidiFlow[Init, In, Out, Stream any] struct {
 }
 ```
 
-### 1.4 Agent
+### 1.4 Responder
 
-Agent adds session state management on top of BidiFlow.
+`Responder` wraps the output channel for agents, providing methods to send data and signal turn boundaries.
+
+```go
+// Responder wraps the output channel with turn signaling for multi-turn agents.
+type Responder[T any] struct {
+    ch chan<- streamChunk[T]  // internal, unexported
+}
+
+// Send sends a streamed chunk to the consumer.
+func (r *Responder[T]) Send(data T)
+
+// EndTurn signals that the agent has finished responding to the current input.
+// The consumer's Stream() iterator will exit, allowing them to send the next input.
+func (r *Responder[T]) EndTurn()
+```
+
+### 1.5 Agent
+
+Agent adds session state management on top of BidiFlow with turn semantics.
 
 ```go
 // Artifact represents a named collection of parts produced during a session.
@@ -135,9 +151,9 @@ type AgentResult[Out any] struct {
 // AgentFunc is the function signature for agents.
 type AgentFunc[State, In, Out, Stream any] func(
     ctx context.Context,
-    inputStream <-chan In,
     sess *session.Session[State],
-    sendChunk core.StreamCallback[Stream],
+    inCh <-chan In,
+    resp *Responder[Stream],
 ) (AgentResult[Out], error)
 ```
 
@@ -366,7 +382,6 @@ import (
     "context"
     "fmt"
 
-    "github.com/firebase/genkit/go/core"
     "github.com/firebase/genkit/go/genkit"
 )
 
@@ -376,13 +391,11 @@ func main() {
 
     // Define echo bidi flow (low-level, no turn semantics)
     echoFlow := genkit.DefineBidiFlow[struct{}, string, string, string](g, "echo",
-        func(ctx context.Context, inputStream <-chan string, init struct{}, sendChunk core.StreamCallback[string]) (string, error) {
+        func(ctx context.Context, init struct{}, inCh <-chan string, outCh chan<- string) (string, error) {
             var count int
-            for input := range inputStream {
+            for input := range inCh {
                 count++
-                if err := sendChunk(ctx, fmt.Sprintf("echo: %s", input)); err != nil {
-                    return "", err
-                }
+                outCh <- fmt.Sprintf("echo: %s", input)
             }
             return fmt.Sprintf("processed %d messages", count), nil
         },
@@ -423,7 +436,6 @@ import (
     "fmt"
 
     "github.com/firebase/genkit/go/ai"
-    "github.com/firebase/genkit/go/core"
     corex "github.com/firebase/genkit/go/core/x"
     "github.com/firebase/genkit/go/core/x/session"
     "github.com/firebase/genkit/go/genkit"
@@ -445,14 +457,14 @@ func main() {
 
     // Define an agent for multi-turn chat
     chatAgent := genkit.DefineAgent[ChatState, string, string, string](g, "chatAgent",
-        func(ctx context.Context, inputStream <-chan string, sess *session.Session[ChatState], sendChunk core.StreamCallback[string]) (corex.AgentResult[string], error) {
+        func(ctx context.Context, sess *session.Session[ChatState], inCh <-chan string, resp *corex.Responder[string]) (corex.AgentResult[string], error) {
             state := sess.State()
             messages := state.Messages
 
-            for userInput := range inputStream {
+            for userInput := range inCh {
                 messages = append(messages, ai.NewUserTextMessage(userInput))
 
-                var responseText string
+                var respText string
                 for result, err := range genkit.GenerateStream(ctx, g,
                     ai.WithMessages(messages...),
                 ) {
@@ -460,13 +472,13 @@ func main() {
                         return corex.AgentResult[string]{}, err
                     }
                     if result.Done {
-                        responseText = result.Response.Text()
+                        respText = result.Response.Text()
                     }
-                    sendChunk(ctx, result.Chunk.Text())
+                    resp.Send(result.Chunk.Text())
                 }
-                // Stream channel closes here when we loop back to wait for next input
+                resp.EndTurn()  // Signal turn complete, consumer's Stream() exits
 
-                messages = append(messages, ai.NewModelTextMessage(responseText))
+                messages = append(messages, ai.NewModelTextMessage(respText))
                 sess.UpdateState(ctx, ChatState{Messages: messages})
             }
 
@@ -494,9 +506,9 @@ func main() {
         }
         fmt.Print(chunk)
     }
-    // Loop exits when stream closes (agent finished responding)
+    // Loop exits when agent calls resp.EndTurn()
 
-    // Second turn - call Stream() again for next response
+    // Second turn
     conn.Send("What are channels used for?")
     for chunk, err := range conn.Stream() {
         if err != nil {
@@ -527,15 +539,15 @@ type ChatInit struct {
 }
 
 configuredChat := genkit.DefineBidiFlow[ChatInit, string, string, string](g, "configuredChat",
-    func(ctx context.Context, inputStream <-chan string, init ChatInit, sendChunk core.StreamCallback[string]) (string, error) {
+    func(ctx context.Context, init ChatInit, inCh <-chan string, outCh chan<- string) (string, error) {
         // Use init.SystemPrompt and init.Temperature
-        for input := range inputStream {
+        for input := range inCh {
             resp, _ := genkit.GenerateText(ctx, g,
                 ai.WithSystem(init.SystemPrompt),
                 ai.WithConfig(&genai.GenerateContentConfig{Temperature: &init.Temperature}),
                 ai.WithPrompt(input),
             )
-            sendChunk(ctx, resp)
+            outCh <- resp
         }
         return "done", nil
     },
@@ -593,17 +605,42 @@ conn, _ := configuredChat.StreamBidi(ctx,
 
 ### Channels and Backpressure
 - Both input and output channels are **unbuffered** by default (size 0)
-- This provides natural backpressure: `Send()` blocks until agent reads, `sendChunk()` blocks until user consumes
-- If needed, a `WithInputBufferSize` option could be added later for specific use cases
+- This provides natural backpressure: `Send()` blocks until agent reads, `resp.Send()` blocks until consumer reads
+- If needed, `WithInputBufferSize` / `WithOutputBufferSize` options could be added later for specific use cases
 
-### Iterator Implementation and Turn Semantics
-- `Stream()` returns `iter.Seq2[Stream, error]` - a Go 1.23 iterator
-- Each call to `Stream()` returns an iterator over a **new channel** for that turn
-- When the agent finishes responding (loops back to wait for next input), the stream channel closes
-- The user's `for range` loop exits naturally when the channel closes
-- Call `Stream()` again after sending the next input to get the next turn's response
-- The iterator yields `(chunk, nil)` for each streamed value
-- On error, the iterator yields `(zero, err)` and stops
+### Turn Signaling (Agents)
+
+For multi-turn conversations, the consumer needs to know when the agent has finished responding to one input and is ready for the next.
+
+**How it works internally:**
+
+1. `BidiConnection.streamCh` is actually `chan streamChunk[Stream]` (internal type)
+2. `streamChunk` has `data T` and `endTurn bool` fields (unexported)
+3. `resp.Send(data)` sends `streamChunk{data: data}`
+4. `resp.EndTurn()` sends `streamChunk{endTurn: true}`
+5. `conn.Stream()` unwraps chunks, yielding only the data
+6. When `Stream()` sees `endTurn: true`, it exits the iterator without yielding
+
+**From the agent's perspective:**
+```go
+for input := range inCh {
+    resp.Send("partial...")
+    resp.Send("more...")
+    resp.EndTurn()  // Consumer's for loop exits here
+}
+```
+
+**From the consumer's perspective:**
+```go
+conn.Send("question")
+for chunk, err := range conn.Stream() {
+    fmt.Print(chunk)  // Just gets string, not streamChunk
+}
+// Loop exited because agent called EndTurn()
+
+conn.Send("follow-up")
+for chunk, err := range conn.Stream() { ... }
+```
 
 ### Tracing
 - Span is started when connection is created, ended when action completes
@@ -631,7 +668,7 @@ The user's `AgentFunc` returns `AgentResult[Out]`, but `Agent.StreamBidi()` retu
 
 ```go
 // Simplified internal logic
-result, err := userFunc(ctx, wrappedInputStream, sess, sendChunk)
+result, err := userFunc(ctx, wrappedInCh, outCh, sess)
 if err != nil {
     return AgentOutput[State, Out]{}, err
 }
