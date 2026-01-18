@@ -281,7 +281,7 @@ Agent uses the same `StreamBidi` method as BidiAction and BidiFlow. Session ID i
 
 ```go
 // Define once at startup
-chatAgent := genkit.DefineAgent[ChatState, string, string, string](g, "chatAgent",
+chatAgent := genkit.DefineAgent(g, "chatAgent",
     myAgentFunc,
     corex.WithSessionStore(store),
 )
@@ -390,7 +390,7 @@ func main() {
     g := genkit.Init(ctx)
 
     // Define echo bidi flow (low-level, no turn semantics)
-    echoFlow := genkit.DefineBidiFlow[struct{}, string, string, string](g, "echo",
+    echoFlow := genkit.DefineBidiFlow(g, "echo",
         func(ctx context.Context, init struct{}, inCh <-chan string, outCh chan<- string) (string, error) {
             var count int
             for input := range inCh {
@@ -456,7 +456,7 @@ func main() {
     )
 
     // Define an agent for multi-turn chat
-    chatAgent := genkit.DefineAgent[ChatState, string, string, string](g, "chatAgent",
+    chatAgent := genkit.DefineAgent(g, "chatAgent",
         func(ctx context.Context, sess *session.Session[ChatState], inCh <-chan string, resp *corex.Responder[string]) (corex.AgentResult[string], error) {
             state := sess.State()
             messages := state.Messages
@@ -538,7 +538,7 @@ type ChatInit struct {
     Temperature  float64 `json:"temperature"`
 }
 
-configuredChat := genkit.DefineBidiFlow[ChatInit, string, string, string](g, "configuredChat",
+configuredChat := genkit.DefineBidiFlow(g, "configuredChat",
     func(ctx context.Context, init ChatInit, inCh <-chan string, outCh chan<- string) (string, error) {
         // Use init.SystemPrompt and init.Temperature
         for input := range inCh {
