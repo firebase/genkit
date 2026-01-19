@@ -40,7 +40,6 @@ import {
 } from '../image.js';
 import { openAICompatible, PluginOptions } from '../index.js';
 import { defineCompatOpenAIModel } from '../model.js';
-import { toModelName } from '../utils.js';
 import {
   gptImage1RequestBuilder,
   openAIImageModelRef,
@@ -79,7 +78,7 @@ function createResolver(pluginOptions: PluginOptions) {
     ) {
       const modelRef = openAIImageModelRef({ name: actionName });
       return defineCompatOpenAIImageModel({
-        name: toModelName(actionName, pluginOptions.name),
+        name: modelRef.name,
         client,
         pluginOptions,
         modelRef,
@@ -87,7 +86,7 @@ function createResolver(pluginOptions: PluginOptions) {
     } else if (actionName.includes('tts')) {
       const modelRef = openAISpeechModelRef({ name: actionName });
       return defineCompatOpenAISpeechModel({
-        name: toModelName(actionName, pluginOptions.name),
+        name: modelRef.name,
         client,
         pluginOptions,
         modelRef,
@@ -100,7 +99,7 @@ function createResolver(pluginOptions: PluginOptions) {
         name: actionName,
       });
       return defineCompatOpenAITranscriptionModel({
-        name: toModelName(actionName, pluginOptions.name),
+        name: modelRef.name,
         client,
         pluginOptions,
         modelRef,
@@ -108,7 +107,7 @@ function createResolver(pluginOptions: PluginOptions) {
     } else {
       const modelRef = openAIModelRef({ name: actionName });
       return defineCompatOpenAIModel({
-        name: toModelName(actionName, pluginOptions.name),
+        name: modelRef.name,
         client,
         pluginOptions,
         modelRef,
