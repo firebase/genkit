@@ -44,11 +44,15 @@ describe('modelName', () => {
 
   it('should handle model names with slashes', () => {
     // This reproduces the issue: stripping 'openai' from 'openai/hf.co/Menlo/Jan-nano-gguf:Q4_K_M'
-    expect(toModelName('openai/hf.co/Menlo/Jan-nano-gguf:Q4_K_M', 'openai')).toBe('hf.co/Menlo/Jan-nano-gguf:Q4_K_M');
+    expect(
+      toModelName('openai/hf.co/Menlo/Jan-nano-gguf:Q4_K_M', 'openai')
+    ).toBe('hf.co/Menlo/Jan-nano-gguf:Q4_K_M');
   });
 
   it('should not strip prefix if it appears in the middle', () => {
-    expect(toModelName('openai/hf.co/openai/another', 'openai')).toBe('hf.co/openai/another');
+    expect(toModelName('openai/hf.co/openai/another', 'openai')).toBe(
+      'hf.co/openai/another'
+    );
   });
 });
 
