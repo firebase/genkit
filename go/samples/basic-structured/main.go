@@ -12,6 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This sample demonstrates structured input/output with strongly-typed Go
+// structs. It shows GenerateStream for simple output and GenerateDataStream
+// for typed JSON output with streaming partial results.
+//
+// To run:
+//
+//	go run .
+//
+// In another terminal, test a simple joke flow:
+//
+//	curl -N -X POST http://localhost:8080/simpleJokesFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": "bananas"}'
+//
+// Test a structured joke flow (returns JSON):
+//
+//	curl -N -X POST http://localhost:8080/structuredJokesFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"topic": "bananas"}}'
+//
+// Test a recipe flow:
+//
+//	curl -N -X POST http://localhost:8080/recipeFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"dish": "tacos", "cuisine": "Mexican", "servingSize": 4}}'
 package main
 
 import (
