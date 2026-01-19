@@ -61,9 +61,10 @@ ai.defineFlow('citations-text', async () => {
   );
 
   // Extract citations from the response
-  const citations = response.message?.content
-    .filter((part) => part.metadata?.citations)
-    .flatMap((part) => part.metadata?.citations);
+  const citations =
+    response.message?.content?.flatMap(
+      (part) => part.metadata?.citations || []
+    ) ?? [];
 
   console.log('Citations:', JSON.stringify(citations, null, 2));
 

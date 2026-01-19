@@ -121,9 +121,9 @@ const response = await ai.generate({
 });
 
 // Access citations from response parts
-const citations = response.message?.content
-  .filter((part) => part.metadata?.citations)
-  .flatMap((part) => part.metadata?.citations);
+const citations = response.message?.content?.flatMap(
+  (part) => part.metadata?.citations || [],
+) ?? [];
 
 console.log("Citations:", citations);
 ```

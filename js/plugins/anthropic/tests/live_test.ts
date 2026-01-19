@@ -163,12 +163,10 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
     );
 
     // Extract citations from response parts
-    const citations = result.message?.content
-      .filter((part) => part.metadata?.citations)
-      .flatMap(
-        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
-      )
-      .filter((c): c is AnthropicCitation => c !== undefined);
+    const citations =
+      result.message?.content?.flatMap(
+        (part) => (part.metadata?.citations as AnthropicCitation[]) || []
+      ) ?? [];
 
     assert.ok(
       citations && citations.length > 0,
@@ -229,12 +227,10 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
     );
 
     // Extract citations from final response
-    const citations = result.message?.content
-      .filter((part) => part.metadata?.citations)
-      .flatMap(
-        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
-      )
-      .filter((c): c is AnthropicCitation => c !== undefined);
+    const citations =
+      result.message?.content?.flatMap(
+        (part) => (part.metadata?.citations as AnthropicCitation[]) || []
+      ) ?? [];
 
     assert.ok(
       citations && citations.length > 0,
@@ -274,12 +270,10 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
     );
 
     // Extract citations from response parts
-    const citations = result.message?.content
-      .filter((part) => part.metadata?.citations)
-      .flatMap(
-        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
-      )
-      .filter((c): c is AnthropicCitation => c !== undefined);
+    const citations =
+      result.message?.content?.flatMap(
+        (part) => (part.metadata?.citations as AnthropicCitation[]) || []
+      ) ?? [];
 
     assert.ok(
       citations && citations.length > 0,
@@ -335,12 +329,10 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
     );
 
     // Extract citations from response parts
-    const citations = result.message?.content
-      .filter((part) => part.metadata?.citations)
-      .flatMap(
-        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
-      )
-      .filter((c): c is AnthropicCitation => c !== undefined);
+    const citations =
+      result.message?.content?.flatMap(
+        (part) => (part.metadata?.citations as AnthropicCitation[]) || []
+      ) ?? [];
 
     assert.ok(
       citations && citations.length > 0,
@@ -437,12 +429,10 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
     );
 
     // Extract citations from response parts
-    const citations = result.message?.content
-      .filter((part) => part.metadata?.citations)
-      .flatMap(
-        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
-      )
-      .filter((c): c is AnthropicCitation => c !== undefined);
+    const citations =
+      result.message?.content?.flatMap(
+        (part) => (part.metadata?.citations as AnthropicCitation[]) || []
+      ) ?? [];
 
     assert.ok(
       citations && citations.length > 0,
