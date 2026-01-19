@@ -152,14 +152,15 @@ You can cache prompts by adding `cache_control` metadata to the prompt. You can 
 
 ```typescript
 const response = await ai.generate({
-  prompt: 'What is the weather in Tokyo?',
   messages: [
     {
       role: 'user',
-      content: [{ text: 'What is the main idea of the text?' }],
-      metadata: {
-        cache_control: { type: 'ephemeral', ttl: '5m' }, // TTL options of either '5m' or '1h'
-      },
+      content: [
+        { text: 'What is the main idea of the text?' },
+        metadata: {
+          cache_control: { type: 'ephemeral', ttl: '5m' }, // TTL options of either '5m' or '1h'
+        },
+      ],
     },
   ],
 });
