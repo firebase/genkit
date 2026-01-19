@@ -410,18 +410,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
         return textBlockToPart(contentBlock);
 
       case 'tool_use':
-        return {
-          toolRequest: {
-            ref: contentBlock.id,
-            name: contentBlock.name,
-            input: contentBlock.input,
-          },
-        };
-
-      case 'text':
-        return {
-          text: contentBlock.text,
-        };
+        return toolUseBlockToPart(contentBlock);
 
       case 'thinking':
         return thinkingBlockToPart(contentBlock);
