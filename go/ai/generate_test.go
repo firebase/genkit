@@ -993,13 +993,19 @@ func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 	return handler.ParseMessage(m)
 }
 
+type conditionalToolInput struct {
+	Value     string
+	Interrupt bool
+}
+
+type resumableToolInput struct {
+	Action string
+	Data   string
+}
+
 func TestToolInterruptsAndResume(t *testing.T) {
 	conditionalTool := DefineTool(r, "conditional", "tool that may interrupt based on input",
-		func(ctx *ToolContext, input struct {
-			Value     string
-			Interrupt bool
-		},
-		) (string, error) {
+		func(ctx *ToolContext, input conditionalToolInput) (string, error) {
 			if input.Interrupt {
 				return "", ctx.Interrupt(&InterruptOptions{
 					Metadata: map[string]any{
@@ -1014,11 +1020,7 @@ func TestToolInterruptsAndResume(t *testing.T) {
 	)
 
 	resumableTool := DefineTool(r, "resumable", "tool that can be resumed",
-		func(ctx *ToolContext, input struct {
-			Action string
-			Data   string
-		},
-		) (string, error) {
+		func(ctx *ToolContext, input resumableToolInput) (string, error) {
 			if ctx.Resumed != nil {
 				resumedData, ok := ctx.Resumed["data"].(string)
 				if ok {
@@ -1156,11 +1158,12 @@ func TestToolInterruptsAndResume(t *testing.T) {
 
 		interruptedPart := res.Message.Content[1]
 
+		newInput := conditionalToolInput{
+			Value:     "new_test_data",
+			Interrupt: false,
+		}
 		restartPart := conditionalTool.Restart(interruptedPart, &RestartOptions{
-			ReplaceInput: map[string]any{
-				"Value":     "new_test_data",
-				"Interrupt": false,
-			},
+			ReplaceInput: newInput,
 			ResumedMetadata: map[string]any{
 				"data":   "resumed_data",
 				"source": "restart",
@@ -1175,17 +1178,17 @@ func TestToolInterruptsAndResume(t *testing.T) {
 			t.Errorf("expected tool request name 'conditional', got %q", restartPart.ToolRequest.Name)
 		}
 
-		newInput, ok := restartPart.ToolRequest.Input.(map[string]any)
+		replacedInput, ok := restartPart.ToolRequest.Input.(conditionalToolInput)
 		if !ok {
-			t.Fatal("expected input to be map[string]any")
+			t.Fatalf("expected input to be conditionalInput, got %T", restartPart.ToolRequest.Input)
 		}
 
-		if newInput["Value"] != "new_test_data" {
-			t.Errorf("expected new input value 'new_test_data', got %v", newInput["Value"])
+		if replacedInput.Value != "new_test_data" {
+			t.Errorf("expected new input value 'new_test_data', got %v", replacedInput.Value)
 		}
 
-		if newInput["Interrupt"] != false {
-			t.Errorf("expected interrupt to be false, got %v", newInput["Interrupt"])
+		if replacedInput.Interrupt != false {
+			t.Errorf("expected interrupt to be false, got %v", replacedInput.Interrupt)
 		}
 
 		if _, hasInterrupt := restartPart.Metadata["interrupt"]; hasInterrupt {
@@ -1242,11 +1245,13 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		}
 
 		interruptedPart := res.Message.Content[1]
+
+		newInput := conditionalToolInput{
+			Value:     "restarted_data",
+			Interrupt: false,
+		}
 		restartPart := conditionalTool.Restart(interruptedPart, &RestartOptions{
-			ReplaceInput: map[string]any{
-				"Value":     "restarted_data",
-				"Interrupt": false,
-			},
+			ReplaceInput: newInput,
 			ResumedMetadata: map[string]any{
 				"data": "restart_context",
 			},

@@ -44,8 +44,17 @@ func TestToolName(t *testing.T) {
 }
 
 func TestToolInterruptError(t *testing.T) {
-	t.Run("Error returns fixed message", func(t *testing.T) {
+	t.Run("Error includes metadata when present", func(t *testing.T) {
 		err := &toolInterruptError{Metadata: map[string]any{"key": "value"}}
+		got := err.Error()
+		want := "tool execution interrupted: \n\n{\n  \"key\": \"value\"\n}"
+		if got != want {
+			t.Errorf("Error() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("Error returns simple message when no metadata", func(t *testing.T) {
+		err := &toolInterruptError{}
 		got := err.Error()
 		want := "tool execution interrupted"
 		if got != want {
@@ -653,14 +662,19 @@ func TestToolRestart(t *testing.T) {
 		})
 		reqPart.Metadata = map[string]any{"interrupt": true}
 
+		newInputVal := struct {
+			Value int `json:"value"`
+		}{Value: 20}
 		opts := &RestartOptions{
-			ReplaceInput: map[string]any{"value": 20},
+			ReplaceInput: newInputVal,
 		}
 		restart := tl.Restart(reqPart, opts)
 
-		newInput := restart.ToolRequest.Input.(map[string]any)
-		if newInput["value"] != 20 {
-			t.Errorf("new input value = %v, want 20", newInput["value"])
+		newInput := restart.ToolRequest.Input.(struct {
+			Value int `json:"value"`
+		})
+		if newInput.Value != 20 {
+			t.Errorf("new input value = %v, want 20", newInput.Value)
 		}
 		if restart.Metadata["replacedInput"] == nil {
 			t.Error("replacedInput not set in metadata")
@@ -858,9 +872,7 @@ func TestIsMultipart(t *testing.T) {
 				return "result", nil
 			})
 
-		// IsMultipart is on the internal *tool type, so we need to type assert
-		internalTool := tl.(*tool)
-		if internalTool.IsMultipart() {
+		if tl.IsMultipart() {
 			t.Error("IsMultipart() = true for standard tool, want false")
 		}
 	})
@@ -871,8 +883,7 @@ func TestIsMultipart(t *testing.T) {
 				return "result", nil
 			})
 
-		internalTool := tl.(*tool)
-		if internalTool.IsMultipart() {
+		if tl.IsMultipart() {
 			t.Error("IsMultipart() = true for NewTool, want false")
 		}
 	})
@@ -886,8 +897,7 @@ func TestIsMultipart(t *testing.T) {
 				}, nil
 			})
 
-		internalTool := tl.(*tool)
-		if !internalTool.IsMultipart() {
+		if !tl.IsMultipart() {
 			t.Error("IsMultipart() = false for multipart tool, want true")
 		}
 	})
@@ -900,9 +910,422 @@ func TestIsMultipart(t *testing.T) {
 				}, nil
 			})
 
-		internalTool := tl.(*tool)
-		if !internalTool.IsMultipart() {
+		if !tl.IsMultipart() {
 			t.Error("IsMultipart() = false for NewMultipartTool, want true")
+		}
+	})
+}
+
+func TestToolContextIsResumed(t *testing.T) {
+	t.Run("returns false when Resumed is nil", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: nil,
+		}
+
+		if tc.IsResumed() {
+			t.Error("IsResumed() = true, want false")
+		}
+	})
+
+	t.Run("returns true when Resumed is set", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: map[string]any{"step": "confirm"},
+		}
+
+		if !tc.IsResumed() {
+			t.Error("IsResumed() = false, want true")
+		}
+	})
+
+	t.Run("returns true even for empty map", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: map[string]any{},
+		}
+
+		if !tc.IsResumed() {
+			t.Error("IsResumed() = false for empty map, want true")
+		}
+	})
+}
+
+func TestResumedValue(t *testing.T) {
+	t.Run("returns value when key exists and type matches", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: map[string]any{
+				"step":  "confirmation",
+				"count": 42,
+			},
+		}
+
+		step, ok := ResumedValue[string](tc, "step")
+		if !ok {
+			t.Error("ResumedValue[string] ok = false, want true")
+		}
+		if step != "confirmation" {
+			t.Errorf("step = %q, want %q", step, "confirmation")
+		}
+
+		count, ok := ResumedValue[int](tc, "count")
+		if !ok {
+			t.Error("ResumedValue[int] ok = false, want true")
+		}
+		if count != 42 {
+			t.Errorf("count = %d, want %d", count, 42)
+		}
+	})
+
+	t.Run("returns false when key does not exist", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: map[string]any{"other": "value"},
+		}
+
+		val, ok := ResumedValue[string](tc, "missing")
+		if ok {
+			t.Error("ResumedValue ok = true for missing key, want false")
+		}
+		if val != "" {
+			t.Errorf("val = %q, want zero value", val)
+		}
+	})
+
+	t.Run("returns false when type does not match", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: map[string]any{"count": "not a number"},
+		}
+
+		val, ok := ResumedValue[int](tc, "count")
+		if ok {
+			t.Error("ResumedValue ok = true for wrong type, want false")
+		}
+		if val != 0 {
+			t.Errorf("val = %d, want zero value", val)
+		}
+	})
+
+	t.Run("returns false when Resumed is nil", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: nil,
+		}
+
+		val, ok := ResumedValue[string](tc, "anything")
+		if ok {
+			t.Error("ResumedValue ok = true for nil Resumed, want false")
+		}
+		if val != "" {
+			t.Errorf("val = %q, want zero value", val)
+		}
+	})
+
+	t.Run("works with complex types", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+			Resumed: map[string]any{
+				"options": []string{"a", "b", "c"},
+				"nested":  map[string]any{"key": "value"},
+			},
+		}
+
+		options, ok := ResumedValue[[]string](tc, "options")
+		if !ok {
+			t.Error("ResumedValue[[]string] ok = false, want true")
+		}
+		if len(options) != 3 {
+			t.Errorf("len(options) = %d, want 3", len(options))
+		}
+
+		nested, ok := ResumedValue[map[string]any](tc, "nested")
+		if !ok {
+			t.Error("ResumedValue[map[string]any] ok = false, want true")
+		}
+		if nested["key"] != "value" {
+			t.Errorf("nested[key] = %v, want %q", nested["key"], "value")
+		}
+	})
+}
+
+func TestOriginalInputAs(t *testing.T) {
+	type MyInput struct {
+		Query string `json:"query"`
+		Limit int    `json:"limit"`
+	}
+
+	t.Run("returns typed input when type matches", func(t *testing.T) {
+		original := MyInput{Query: "test", Limit: 10}
+		tc := &ToolContext{
+			Context:       context.Background(),
+			OriginalInput: original,
+		}
+
+		input, ok := OriginalInputAs[MyInput](tc)
+		if !ok {
+			t.Error("OriginalInputAs ok = false, want true")
+		}
+		if input.Query != "test" {
+			t.Errorf("input.Query = %q, want %q", input.Query, "test")
+		}
+		if input.Limit != 10 {
+			t.Errorf("input.Limit = %d, want %d", input.Limit, 10)
+		}
+	})
+
+	t.Run("returns false when OriginalInput is nil", func(t *testing.T) {
+		tc := &ToolContext{
+			Context:       context.Background(),
+			OriginalInput: nil,
+		}
+
+		input, ok := OriginalInputAs[MyInput](tc)
+		if ok {
+			t.Error("OriginalInputAs ok = true for nil, want false")
+		}
+		if input.Query != "" || input.Limit != 0 {
+			t.Errorf("input = %+v, want zero value", input)
+		}
+	})
+
+	t.Run("returns false when type does not match", func(t *testing.T) {
+		tc := &ToolContext{
+			Context:       context.Background(),
+			OriginalInput: "wrong type",
+		}
+
+		input, ok := OriginalInputAs[MyInput](tc)
+		if ok {
+			t.Error("OriginalInputAs ok = true for wrong type, want false")
+		}
+		if input.Query != "" || input.Limit != 0 {
+			t.Errorf("input = %+v, want zero value", input)
+		}
+	})
+
+	t.Run("works with map type", func(t *testing.T) {
+		original := map[string]any{"query": "test", "limit": 10}
+		tc := &ToolContext{
+			Context:       context.Background(),
+			OriginalInput: original,
+		}
+
+		input, ok := OriginalInputAs[map[string]any](tc)
+		if !ok {
+			t.Error("OriginalInputAs ok = false, want true")
+		}
+		if input["query"] != "test" {
+			t.Errorf("input[query] = %v, want %q", input["query"], "test")
+		}
+	})
+
+	t.Run("works with pointer types", func(t *testing.T) {
+		original := &MyInput{Query: "pointer", Limit: 5}
+		tc := &ToolContext{
+			Context:       context.Background(),
+			OriginalInput: original,
+		}
+
+		input, ok := OriginalInputAs[*MyInput](tc)
+		if !ok {
+			t.Error("OriginalInputAs ok = false, want true")
+		}
+		if input.Query != "pointer" {
+			t.Errorf("input.Query = %q, want %q", input.Query, "pointer")
+		}
+	})
+}
+
+func TestToolContextInterruptMethod(t *testing.T) {
+	t.Run("interrupt with nil options", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+		}
+
+		err := tc.Interrupt(nil)
+		if err == nil {
+			t.Fatal("Interrupt(nil) = nil, want error")
+		}
+
+		isInterrupt, meta := IsToolInterruptError(err)
+		if !isInterrupt {
+			t.Error("IsToolInterruptError() = false, want true")
+		}
+		if meta != nil {
+			t.Errorf("metadata = %v, want nil", meta)
+		}
+	})
+
+	t.Run("interrupt with empty options", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+		}
+
+		err := tc.Interrupt(&InterruptOptions{})
+		if err == nil {
+			t.Fatal("Interrupt() = nil, want error")
+		}
+
+		isInterrupt, meta := IsToolInterruptError(err)
+		if !isInterrupt {
+			t.Error("IsToolInterruptError() = false, want true")
+		}
+		if meta != nil {
+			t.Errorf("metadata = %v, want nil", meta)
+		}
+	})
+
+	t.Run("interrupt with metadata", func(t *testing.T) {
+		tc := &ToolContext{
+			Context: context.Background(),
+		}
+
+		err := tc.Interrupt(&InterruptOptions{
+			Metadata: map[string]any{
+				"step":    "confirm",
+				"preview": "deleting files",
+			},
+		})
+		if err == nil {
+			t.Fatal("Interrupt() = nil, want error")
+		}
+
+		isInterrupt, meta := IsToolInterruptError(err)
+		if !isInterrupt {
+			t.Error("IsToolInterruptError() = false, want true")
+		}
+		if meta["step"] != "confirm" {
+			t.Errorf("meta[step] = %v, want %q", meta["step"], "confirm")
+		}
+		if meta["preview"] != "deleting files" {
+			t.Errorf("meta[preview] = %v, want %q", meta["preview"], "deleting files")
+		}
+	})
+}
+
+func TestInterruptFor(t *testing.T) {
+	type ConfirmMeta struct {
+		Reason    string  `json:"reason"`
+		Amount    float64 `json:"amount"`
+		Recipient string  `json:"recipient"`
+	}
+
+	t.Run("creates interrupt with typed metadata", func(t *testing.T) {
+		tc := &ToolContext{Context: context.Background()}
+
+		err := InterruptWith(tc, ConfirmMeta{
+			Reason:    "new recipient",
+			Amount:    50.0,
+			Recipient: "Alice",
+		})
+
+		if err == nil {
+			t.Fatal("InterruptFor() = nil, want error")
+		}
+
+		isInterrupt, meta := IsToolInterruptError(err)
+		if !isInterrupt {
+			t.Error("IsToolInterruptError() = false, want true")
+		}
+		if meta["reason"] != "new recipient" {
+			t.Errorf("meta[reason] = %v, want %q", meta["reason"], "new recipient")
+		}
+		if meta["amount"] != 50.0 {
+			t.Errorf("meta[amount] = %v, want %v", meta["amount"], 50.0)
+		}
+		if meta["recipient"] != "Alice" {
+			t.Errorf("meta[recipient] = %v, want %q", meta["recipient"], "Alice")
+		}
+	})
+
+	t.Run("handles nested structs", func(t *testing.T) {
+		type Nested struct {
+			Inner struct {
+				Value string `json:"value"`
+			} `json:"inner"`
+		}
+
+		tc := &ToolContext{Context: context.Background()}
+		err := InterruptWith(tc, Nested{Inner: struct {
+			Value string `json:"value"`
+		}{Value: "test"}})
+
+		isInterrupt, meta := IsToolInterruptError(err)
+		if !isInterrupt {
+			t.Error("IsToolInterruptError() = false, want true")
+		}
+		inner, ok := meta["inner"].(map[string]any)
+		if !ok {
+			t.Fatal("meta[inner] is not a map")
+		}
+		if inner["value"] != "test" {
+			t.Errorf("inner[value] = %v, want %q", inner["value"], "test")
+		}
+	})
+}
+
+func TestInterruptMetadata(t *testing.T) {
+	type ConfirmMeta struct {
+		Reason    string  `json:"reason"`
+		Amount    float64 `json:"amount"`
+		Recipient string  `json:"recipient"`
+	}
+
+	t.Run("extracts typed metadata from interrupt part", func(t *testing.T) {
+		part := NewToolRequestPart(&ToolRequest{
+			Name:  "testTool",
+			Input: map[string]any{},
+		})
+		part.Metadata = map[string]any{
+			"interrupt": map[string]any{
+				"reason":    "large amount",
+				"amount":    200.0,
+				"recipient": "Bob",
+			},
+		}
+
+		meta, ok := InterruptAs[ConfirmMeta](part)
+		if !ok {
+			t.Fatal("InterruptMetadata() ok = false, want true")
+		}
+		if meta.Reason != "large amount" {
+			t.Errorf("meta.Reason = %q, want %q", meta.Reason, "large amount")
+		}
+		if meta.Amount != 200.0 {
+			t.Errorf("meta.Amount = %v, want %v", meta.Amount, 200.0)
+		}
+		if meta.Recipient != "Bob" {
+			t.Errorf("meta.Recipient = %q, want %q", meta.Recipient, "Bob")
+		}
+	})
+
+	t.Run("returns false for non-interrupt part", func(t *testing.T) {
+		part := NewTextPart("not an interrupt")
+
+		_, ok := InterruptAs[ConfirmMeta](part)
+		if ok {
+			t.Error("InterruptMetadata() ok = true for text part, want false")
+		}
+	})
+
+	t.Run("returns false for nil part", func(t *testing.T) {
+		_, ok := InterruptAs[ConfirmMeta](nil)
+		if ok {
+			t.Error("InterruptMetadata() ok = true for nil, want false")
+		}
+	})
+
+	t.Run("returns false when interrupt metadata is not a map", func(t *testing.T) {
+		part := NewToolRequestPart(&ToolRequest{Name: "test"})
+		part.Metadata = map[string]any{
+			"interrupt": true, // bool instead of map
+		}
+
+		_, ok := InterruptAs[ConfirmMeta](part)
+		if ok {
+			t.Error("InterruptMetadata() ok = true for bool interrupt, want false")
 		}
 	})
 }

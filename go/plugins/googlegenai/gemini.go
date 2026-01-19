@@ -99,15 +99,6 @@ func configToMap(config any) map[string]any {
 	return result
 }
 
-// mapToStruct unmarshals a map[string]any to the expected config api.
-func mapToStruct(m map[string]any, v any) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonData, v)
-}
-
 // configFromRequest converts any supported config type to [genai.GenerateContentConfig].
 func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
 	var result genai.GenerateContentConfig
@@ -119,7 +110,9 @@ func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, er
 		result = *config
 	case map[string]any:
 		// TODO: Log warnings if unknown parameters are found.
-		if err := mapToStruct(config, &result); err != nil {
+		var err error
+		result, err = base.MapToStruct[genai.GenerateContentConfig](config)
+		if err != nil {
 			return nil, err
 		}
 	case nil:
@@ -800,12 +793,30 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		m.FinishReason = ai.FinishReasonStop
 	case genai.FinishReasonMaxTokens:
 		m.FinishReason = ai.FinishReasonLength
-	case genai.FinishReasonSafety:
+	case genai.FinishReasonSafety,
+		genai.FinishReasonRecitation,
+		genai.FinishReasonLanguage,
+		genai.FinishReasonBlocklist,
+		genai.FinishReasonProhibitedContent,
+		genai.FinishReasonSPII,
+		genai.FinishReasonImageSafety,
+		genai.FinishReasonImageProhibitedContent,
+		genai.FinishReasonImageRecitation:
 		m.FinishReason = ai.FinishReasonBlocked
-	case genai.FinishReasonRecitation:
-		m.FinishReason = ai.FinishReasonBlocked
-	case genai.FinishReasonOther:
+	case genai.FinishReasonMalformedFunctionCall,
+		genai.FinishReasonUnexpectedToolCall,
+		genai.FinishReasonNoImage,
+		genai.FinishReasonImageOther,
+		genai.FinishReasonOther:
 		m.FinishReason = ai.FinishReasonOther
+	case "MISSING_THOUGHT_SIGNATURE":
+		// Gemini 3 returns this when thought signatures are missing from the request.
+		// The SDK may not have this constant yet, so we match on the string value.
+		m.FinishReason = ai.FinishReasonOther
+	default:
+		if cand.FinishReason != "" && cand.FinishReason != genai.FinishReasonUnspecified {
+			m.FinishReason = ai.FinishReasonUnknown
+		}
 	}
 
 	m.FinishMessage = cand.FinishMessage
@@ -982,9 +993,10 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 			if err != nil {
 				return nil, err
 			}
-			return genai.NewPartFromFunctionResponseWithParts(toolResp.Name, output, toolRespParts), nil
+			gp = genai.NewPartFromFunctionResponseWithParts(toolResp.Name, output, toolRespParts)
+		} else {
+			gp = genai.NewPartFromFunctionResponse(toolResp.Name, output)
 		}
-		return genai.NewPartFromFunctionResponse(toolResp.Name, output), nil
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
 		var input map[string]any

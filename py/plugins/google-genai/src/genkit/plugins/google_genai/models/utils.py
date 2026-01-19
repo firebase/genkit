@@ -90,6 +90,49 @@ class PartConverter:
                 thought_signature=cls._extract_thought_signature(part.root.metadata),
             )
         if isinstance(part.root, ToolResponsePart):
+            tool_output = part.root.tool_response.output
+            parts_to_return = []
+
+            # Check for multimodal content structure {content: [{media: ...}]}
+            if isinstance(tool_output, dict) and 'content' in tool_output:
+                content_list = tool_output['content']
+                if isinstance(content_list, list):
+                    # Create a copy to avoid mutating original if that matters,
+                    # but here we just want to separate content from other fields.
+                    clean_output = tool_output.copy()
+                    clean_output.pop('content')
+
+                    # Heuristic: if media found, extract it to separate parts.
+                    has_media = False
+                    for item in content_list:
+                        if isinstance(item, dict) and 'media' in item:
+                            has_media = True
+                            media_info = item['media']
+                            url = media_info.get('url')
+                            content_type = media_info.get('contentType') or media_info.get('content_type')
+
+                            if url and url.startswith(cls.DATA):
+                                _, data_str = url.split(',', 1)
+                                data = base64.b64decode(data_str)
+                                parts_to_return.append(
+                                    genai.types.Part(inline_data=genai.types.Blob(mime_type=content_type, data=data))
+                                )
+
+                    if has_media:
+                        # Append the function response part FIRST (contextually correct)
+                        parts_to_return.insert(
+                            0,
+                            genai.types.Part(
+                                function_response=genai.types.FunctionResponse(
+                                    id=part.root.tool_response.ref,
+                                    name=part.root.tool_response.name.replace('/', '__'),
+                                    response=clean_output,
+                                )
+                            ),
+                        )
+                        return parts_to_return
+
+            # Default behavior for standard tool responses
             return genai.types.Part(
                 function_response=genai.types.FunctionResponse(
                     id=part.root.tool_response.ref,
@@ -167,7 +210,7 @@ class PartConverter:
                     metadata=cls._encode_thought_signature(part.thought_signature),
                 )
             )
-        if part.text:
+        if part.text is not None:
             return Part(root=TextPart(text=part.text))
         if part.function_call:
             return Part(
