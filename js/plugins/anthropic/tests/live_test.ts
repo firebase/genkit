@@ -295,4 +295,213 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
     );
     assert.ok(citation.citedText, 'Citation should have cited text');
   });
+
+  it('should return citations from a custom content document with content_block_location', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
+    });
+
+    const result = await ai.generate({
+      model: anthropic.model('claude-sonnet-4-5'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            anthropicDocument({
+              source: {
+                type: 'content',
+                content: [
+                  { type: 'text', text: 'Fact 1: Dogs are mammals.' },
+                  { type: 'text', text: 'Fact 2: Cats are also mammals.' },
+                  { type: 'text', text: 'Fact 3: Birds have feathers.' },
+                  { type: 'text', text: 'Fact 4: Fish live in water.' },
+                ],
+              },
+              title: 'Animal Facts',
+              citations: { enabled: true },
+            }),
+            {
+              text: 'What do dogs and cats have in common? Cite your source with block references.',
+            },
+          ],
+        },
+      ],
+    });
+
+    assert.ok(result.text, 'Should have response text');
+    assert.ok(
+      result.text.toLowerCase().includes('mammal'),
+      'Response should mention mammals'
+    );
+
+    // Extract citations from response parts
+    const citations = result.message?.content
+      .filter((part) => part.metadata?.citations)
+      .flatMap(
+        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
+      )
+      .filter((c): c is AnthropicCitation => c !== undefined);
+
+    assert.ok(
+      citations && citations.length > 0,
+      'Should have at least one citation'
+    );
+
+    // Verify at least one citation is content_block_location type
+    const contentBlockCitations = citations.filter(
+      (c) => c.type === 'content_block_location'
+    );
+    assert.ok(
+      contentBlockCitations.length > 0,
+      'Should have at least one content_block_location citation'
+    );
+
+    // Verify content_block_location citation structure
+    const contentBlockCitation = contentBlockCitations[0];
+    assert.strictEqual(
+      contentBlockCitation.type,
+      'content_block_location',
+      'Should be a content_block_location citation'
+    );
+    assert.ok(
+      contentBlockCitation.citedText,
+      'Citation should have cited text'
+    );
+    assert.strictEqual(
+      contentBlockCitation.documentIndex,
+      0,
+      'Should reference first document'
+    );
+    assert.ok(
+      typeof contentBlockCitation.startBlockIndex === 'number',
+      'Citation should have startBlockIndex'
+    );
+    assert.ok(
+      typeof contentBlockCitation.endBlockIndex === 'number',
+      'Citation should have endBlockIndex'
+    );
+    assert.ok(
+      contentBlockCitation.startBlockIndex >= 0,
+      'startBlockIndex should be non-negative'
+    );
+    assert.ok(
+      contentBlockCitation.endBlockIndex >=
+        contentBlockCitation.startBlockIndex,
+      'endBlockIndex should be >= startBlockIndex'
+    );
+  });
+
+  it('should return citations from multiple documents with correct document indexing', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
+    });
+
+    const result = await ai.generate({
+      model: anthropic.model('claude-sonnet-4-5'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            anthropicDocument({
+              source: {
+                type: 'text',
+                data: 'The capital of France is Paris. The capital of Germany is Berlin.',
+              },
+              title: 'European Capitals',
+              citations: { enabled: true },
+            }),
+            anthropicDocument({
+              source: {
+                type: 'text',
+                data: 'The capital of Japan is Tokyo. The capital of China is Beijing.',
+              },
+              title: 'Asian Capitals',
+              citations: { enabled: true },
+            }),
+            {
+              text: 'What are the capitals of France and Japan? Cite your sources for each.',
+            },
+          ],
+        },
+      ],
+    });
+
+    assert.ok(result.text, 'Should have response text');
+    assert.ok(
+      result.text.toLowerCase().includes('paris'),
+      'Response should mention Paris'
+    );
+    assert.ok(
+      result.text.toLowerCase().includes('tokyo'),
+      'Response should mention Tokyo'
+    );
+
+    // Extract citations from response parts
+    const citations = result.message?.content
+      .filter((part) => part.metadata?.citations)
+      .flatMap(
+        (part) => part.metadata?.citations as AnthropicCitation[] | undefined
+      )
+      .filter((c): c is AnthropicCitation => c !== undefined);
+
+    assert.ok(
+      citations && citations.length > 0,
+      'Should have at least one citation'
+    );
+
+    // Verify citations reference different documents
+    const documentIndices = new Set(citations.map((c) => c.documentIndex));
+    assert.ok(
+      documentIndices.size >= 1,
+      'Should have citations from at least one document'
+    );
+    assert.ok(
+      documentIndices.has(0) || documentIndices.has(1),
+      'Should have citations from document 0 or 1'
+    );
+
+    // Verify citation structure for each document index
+    for (const citation of citations) {
+      assert.ok(
+        citation.documentIndex === 0 || citation.documentIndex === 1,
+        `Citation documentIndex should be 0 or 1, got ${citation.documentIndex}`
+      );
+      assert.ok(citation.citedText, 'Citation should have cited text');
+      assert.strictEqual(
+        citation.type,
+        'char_location',
+        'Text document citations should be char_location type'
+      );
+
+      // Verify char_location specific fields
+      if (citation.type === 'char_location') {
+        assert.ok(
+          typeof citation.startCharIndex === 'number',
+          'Citation should have startCharIndex'
+        );
+        assert.ok(
+          typeof citation.endCharIndex === 'number',
+          'Citation should have endCharIndex'
+        );
+        assert.ok(
+          citation.endCharIndex >= citation.startCharIndex,
+          'endCharIndex should be >= startCharIndex'
+        );
+      }
+    }
+
+    // If we have citations from both documents, verify they reference different content
+    if (documentIndices.size === 2) {
+      const doc0Citations = citations.filter((c) => c.documentIndex === 0);
+      const doc1Citations = citations.filter((c) => c.documentIndex === 1);
+      assert.ok(
+        doc0Citations.length > 0,
+        'Should have citations from document 0'
+      );
+      assert.ok(
+        doc1Citations.length > 0,
+        'Should have citations from document 1'
+      );
+    }
+  });
 });

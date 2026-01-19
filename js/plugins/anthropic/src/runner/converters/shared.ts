@@ -20,7 +20,10 @@
  */
 
 import type { Part } from 'genkit';
-import type { AnthropicCitation } from '../../types.js';
+import type {
+  AnthropicCitation,
+  AnthropicDocumentOptions,
+} from '../../types.js';
 
 /** Structural type for Anthropic citations (works with both stable and beta APIs). */
 interface AnthropicCitationInput {
@@ -213,4 +216,92 @@ export function inputJsonDeltaError(): Error {
   return new Error(
     'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
   );
+}
+
+// --- Document block converters (shared between stable and beta APIs) ---
+
+/**
+ * Document block type constraint for generics.
+ */
+type DocumentBlockBase = {
+  type: 'document';
+  source: unknown;
+  title?: string | null;
+  context?: string | null;
+  citations?: { enabled?: boolean } | null;
+};
+
+/**
+ * Converts AnthropicDocumentOptions to Anthropic's document block format.
+ * Works for both stable and beta APIs via generics.
+ */
+export function createDocumentBlock<T extends DocumentBlockBase>(
+  options: AnthropicDocumentOptions,
+  sourceConverter: (source: AnthropicDocumentOptions['source']) => T['source']
+): T {
+  return {
+    type: 'document' as const,
+    source: sourceConverter(options.source),
+    ...(options.title && { title: options.title }),
+    ...(options.context && { context: options.context }),
+    ...(options.citations && { citations: options.citations }),
+  } as T;
+}
+
+/**
+ * Converts document source options to Anthropic's source format.
+ * Works for both stable and beta APIs via a file handler callback.
+ * The file handler is called for 'file' type sources, allowing different
+ * behavior (error for stable, conversion for beta).
+ */
+export function convertDocumentSource<T>(
+  source: AnthropicDocumentOptions['source'],
+  fileHandler: (fileId: string) => T
+): T {
+  switch (source.type) {
+    case 'text':
+      return {
+        type: 'text',
+        media_type: (source.mediaType ?? 'text/plain') as 'text/plain',
+        data: source.data,
+      } as T;
+    case 'base64':
+      return {
+        type: 'base64',
+        media_type: source.mediaType as 'application/pdf',
+        data: source.data,
+      } as T;
+    case 'file':
+      return fileHandler(source.fileId);
+    case 'content':
+      return {
+        type: 'content',
+        content: source.content.map((item) => {
+          if (item.type === 'text') {
+            return item;
+          }
+          return {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: item.source.mediaType as
+                | 'image/jpeg'
+                | 'image/png'
+                | 'image/gif'
+                | 'image/webp',
+              data: item.source.data,
+            },
+          };
+        }),
+      } as T;
+    case 'url':
+      return {
+        type: 'url',
+        url: source.url,
+      } as T;
+    default:
+      throw new Error(
+        `Unsupported document source type: ${(source as { type: string }).type}`
+      );
+  }
 }
