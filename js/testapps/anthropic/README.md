@@ -72,4 +72,8 @@ Each source file defines flows that can be invoked from the Dev UI or the Genkit
 - `stable-vision-base64` – Analyze an image from a local file (base64 encoded)
 - `stable-vision-conversation` – Multi-turn conversation about an image
 
+### Tools
+- `anthropic-stable-tools` – Get the weather in a given location using a Genkit tool
+- `anthropic-stable-tools-stream` – Streaming response with Genkit tools
+
 Example: `genkit flow:run anthropic-stable-hello`

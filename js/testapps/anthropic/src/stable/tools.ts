@@ -54,3 +54,24 @@ ai.defineFlow(
     return text;
   }
 );
+
+ai.defineFlow(
+  'anthropic-stable-tools-stream',
+  async ({ place }: { place: string }, { sendChunk }) => {
+    const { stream } = ai.generateStream({
+      model: anthropic.model('claude-sonnet-4-5'),
+      tools: [getWeather],
+      prompt: `What is the weather in ${place}?`,
+    });
+
+    let response = '';
+    for await (const chunk of stream) {
+      response += chunk.text ?? '';
+      if (chunk.text) {
+        sendChunk(chunk.text);
+      }
+    }
+
+    return response;
+  }
+);

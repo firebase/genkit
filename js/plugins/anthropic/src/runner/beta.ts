@@ -51,7 +51,6 @@ import {
   unsupportedServerToolError,
 } from './converters/beta.js';
 import {
-  inputJsonDeltaError,
   redactedThinkingBlockToPart,
   textBlockToPart,
   textDeltaToPart,
@@ -464,7 +463,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         return thinkingDeltaToPart(event.delta);
       }
       if (event.delta.type === 'input_json_delta') {
-        throw inputJsonDeltaError();
+        return { data: event.delta.partial_json };
       }
       // signature_delta - ignore
       return undefined;
