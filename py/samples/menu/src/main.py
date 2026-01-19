@@ -14,17 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A stub for the sample to come."""
-
-
-def main() -> None:
-    """Main entry point for the menu sample.
-
-    This function demonstrates how to use Genkit to build an interactive
-    menu system.
-    """
-    print('Hey')
-
+# Import all of the example prompts and flows to ensure they are registered
+import case_01.prompts
+import case_02.flows
+import case_02.prompts
+import case_02.tools
+import case_03.flows
+import case_03.prompts
+import case_04.flows
+import case_04.prompts
+import case_05.flows
+import case_05.prompts
+from menu_ai import ai
 
 if __name__ == '__main__':
-    main()
+    ai.run_main()

@@ -29,7 +29,7 @@ logger = structlog.get_logger(__name__)
 current_dir = Path(__file__).resolve().parent
 prompts_path = current_dir.parent / 'prompts'
 
-ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash', prompt_dir=prompts_path)
+ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-3-flash-preview', prompt_dir=prompts_path)
 
 
 def my_helper(content, *_, **__):

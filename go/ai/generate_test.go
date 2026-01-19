@@ -18,6 +18,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -1742,6 +1743,545 @@ func TestMultipartTools(t *testing.T) {
 
 		if resp.Content[0].Text != "additional content" {
 			t.Errorf("expected content 'additional content', got %q", resp.Content[0].Text)
+		}
+	})
+}
+
+// streamingTestData holds test output structures
+type streamingTestData struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+}
+
+func TestGenerateStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	t.Run("yields chunks then final response", func(t *testing.T) {
+		chunkTexts := []string{"Hello", " ", "World"}
+		chunkIndex := 0
+
+		streamModel := DefineModel(r, "test/streamModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				for _, text := range chunkTexts {
+					cb(ctx, &ModelResponseChunk{
+						Content: []*Part{NewTextPart(text)},
+					})
+				}
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("Hello World"),
+			}, nil
+		})
+
+		var receivedChunks []*ModelResponseChunk
+		var finalResponse *ModelResponse
+
+		for val, err := range GenerateStream(context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test streaming"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalResponse = val.Response
+			} else {
+				receivedChunks = append(receivedChunks, val.Chunk)
+				chunkIndex++
+			}
+		}
+
+		if len(receivedChunks) != len(chunkTexts) {
+			t.Errorf("expected %d chunks, got %d", len(chunkTexts), len(receivedChunks))
+		}
+
+		for i, chunk := range receivedChunks {
+			if chunk.Text() != chunkTexts[i] {
+				t.Errorf("chunk %d: expected %q, got %q", i, chunkTexts[i], chunk.Text())
+			}
+		}
+
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.Text() != "Hello World" {
+			t.Errorf("expected final text %q, got %q", "Hello World", finalResponse.Text())
+		}
+	})
+
+	t.Run("handles no streaming callback gracefully", func(t *testing.T) {
+		noStreamModel := DefineModel(r, "test/noStreamModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("response without streaming"),
+			}, nil
+		})
+
+		var finalResponse *ModelResponse
+		chunkCount := 0
+
+		for val, err := range GenerateStream(context.Background(), r,
+			WithModel(noStreamModel),
+			WithPrompt("test no stream"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalResponse = val.Response
+			} else {
+				chunkCount++
+			}
+		}
+
+		if chunkCount != 0 {
+			t.Errorf("expected 0 chunks when model doesn't stream, got %d", chunkCount)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.Text() != "response without streaming" {
+			t.Errorf("expected text %q, got %q", "response without streaming", finalResponse.Text())
+		}
+	})
+
+	t.Run("propagates generation errors", func(t *testing.T) {
+		expectedErr := errors.New("generation failed")
+
+		errorModel := DefineModel(r, "test/errorModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return nil, expectedErr
+		})
+
+		var receivedErr error
+		for _, err := range GenerateStream(context.Background(), r,
+			WithModel(errorModel),
+			WithPrompt("test error"),
+		) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Fatal("expected error to be propagated")
+		}
+		if !errors.Is(receivedErr, expectedErr) {
+			t.Errorf("expected error %v, got %v", expectedErr, receivedErr)
+		}
+	})
+
+	t.Run("context cancellation stops iteration", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		streamModel := DefineModel(r, "test/cancelModel", &ModelOptions{
+			Supports: &ModelSupports{Multiturn: true},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				for i := 0; i < 100; i++ {
+					err := cb(ctx, &ModelResponseChunk{
+						Content: []*Part{NewTextPart("chunk")},
+					})
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("done"),
+			}, nil
+		})
+
+		chunksReceived := 0
+		var receivedErr error
+		for val, err := range GenerateStream(ctx, r,
+			WithModel(streamModel),
+			WithPrompt("test cancel"),
+		) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+			if !val.Done {
+				chunksReceived++
+				if chunksReceived == 2 {
+					cancel()
+				}
+			}
+		}
+
+		if chunksReceived < 2 {
+			t.Errorf("expected at least 2 chunks before cancellation, got %d", chunksReceived)
+		}
+		if receivedErr == nil {
+			t.Error("expected error from cancelled context")
+		}
+	})
+}
+
+func TestGenerateDataStream(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	t.Run("yields typed chunks and final output", func(t *testing.T) {
+		streamModel := DefineModel(r, "test/typedStreamModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"name":"partial","value":1}`)},
+				})
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewJSONPart(`{"name":"complete","value":42}`)},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"name":"final","value":42}`)},
+				},
+			}, nil
+		})
+
+		var chunks []streamingTestData
+		var finalOutput streamingTestData
+		var finalResponse *ModelResponse
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test typed streaming"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+				finalResponse = val.Response
+			} else {
+				chunks = append(chunks, val.Chunk)
+			}
+		}
+
+		if len(chunks) < 1 {
+			t.Errorf("expected at least 1 chunk, got %d", len(chunks))
+		}
+
+		if finalOutput.Name != "final" || finalOutput.Value != 42 {
+			t.Errorf("expected final output {final, 42}, got %+v", finalOutput)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+	})
+
+	t.Run("final output is correctly typed", func(t *testing.T) {
+		streamModel := DefineModel(r, "test/finalTypedModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"name":"result","value":123}`)},
+				},
+			}, nil
+		})
+
+		var finalOutput streamingTestData
+		var gotFinal bool
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test final typed"),
+		) {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if val.Done {
+				finalOutput = val.Output
+				gotFinal = true
+			}
+		}
+
+		if !gotFinal {
+			t.Fatal("expected to receive final output")
+		}
+		if finalOutput.Name != "result" || finalOutput.Value != 123 {
+			t.Errorf("expected final output {result, 123}, got %+v", finalOutput)
+		}
+	})
+
+	t.Run("automatically sets output type", func(t *testing.T) {
+		var capturedRequest *ModelRequest
+
+		streamModel := DefineModel(r, "test/autoOutputModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			capturedRequest = req
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role:    RoleModel,
+					Content: []*Part{NewJSONPart(`{"name":"test","value":1}`)},
+				},
+			}, nil
+		})
+
+		for range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test auto output type"),
+		) {
+		}
+
+		if capturedRequest == nil {
+			t.Fatal("expected request to be captured")
+		}
+		if capturedRequest.Output == nil || capturedRequest.Output.Schema == nil {
+			t.Error("expected output schema to be set automatically")
+		}
+	})
+
+	t.Run("propagates chunk parsing errors", func(t *testing.T) {
+		streamModel := DefineModel(r, "test/parseErrorModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("not valid json")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage("done"),
+			}, nil
+		})
+
+		var receivedErr error
+		for _, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("test parse error"),
+		) {
+			if err != nil {
+				receivedErr = err
+				break
+			}
+		}
+
+		if receivedErr == nil {
+			t.Error("expected parsing error to be propagated")
+		}
+	})
+}
+
+func TestGenerateText(t *testing.T) {
+	r := newTestRegistry(t)
+
+	echoModel := DefineModel(r, "test/echoTextModel", nil, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Request: req,
+			Message: NewModelTextMessage("echo: " + req.Messages[0].Content[0].Text),
+		}, nil
+	})
+
+	t.Run("returns text from model", func(t *testing.T) {
+		text, err := GenerateText(context.Background(), r,
+			WithModel(echoModel),
+			WithPrompt("hello"),
+		)
+
+		if err != nil {
+			t.Fatalf("GenerateText error: %v", err)
+		}
+		if text != "echo: hello" {
+			t.Errorf("text = %q, want %q", text, "echo: hello")
+		}
+	})
+}
+
+func TestGenerateData(t *testing.T) {
+	r := newTestRegistry(t)
+
+	type TestOutput struct {
+		Value int `json:"value"`
+	}
+
+	jsonModel := DefineModel(r, "test/jsonDataModel", &ModelOptions{
+		Supports: &ModelSupports{
+			Constrained: ConstrainedSupportAll,
+		},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{
+			Request: req,
+			Message: NewModelTextMessage(`{"value": 42}`),
+		}, nil
+	})
+
+	t.Run("returns typed data from model", func(t *testing.T) {
+		output, _, err := GenerateData[TestOutput](context.Background(), r,
+			WithModel(jsonModel),
+			WithPrompt("get value"),
+		)
+
+		if err != nil {
+			t.Fatalf("GenerateData error: %v", err)
+		}
+		if output.Value != 42 {
+			t.Errorf("output.Value = %d, want 42", output.Value)
+		}
+	})
+}
+
+func TestModelResponseReasoning(t *testing.T) {
+	t.Run("returns reasoning from response", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewReasoningPart("thinking about this...", nil),
+					NewTextPart("final answer"),
+				},
+			},
+		}
+
+		reasoning := resp.Reasoning()
+
+		if reasoning != "thinking about this..." {
+			t.Errorf("Reasoning() = %q, want %q", reasoning, "thinking about this...")
+		}
+	})
+
+	t.Run("returns empty string when no reasoning", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage("just text"),
+		}
+
+		reasoning := resp.Reasoning()
+
+		if reasoning != "" {
+			t.Errorf("Reasoning() = %q, want empty string", reasoning)
+		}
+	})
+}
+
+func TestModelResponseInterrupts(t *testing.T) {
+	t.Run("returns interrupt tool requests", func(t *testing.T) {
+		interruptPart := NewToolRequestPart(&ToolRequest{
+			Name:  "confirmAction",
+			Input: map[string]any{},
+		})
+		interruptPart.Metadata = map[string]any{"interrupt": true}
+
+		resp := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Please confirm"),
+					interruptPart,
+				},
+			},
+		}
+
+		interrupts := resp.Interrupts()
+
+		if len(interrupts) != 1 {
+			t.Fatalf("len(Interrupts()) = %d, want 1", len(interrupts))
+		}
+		if interrupts[0].ToolRequest.Name != "confirmAction" {
+			t.Errorf("interrupt name = %q, want %q", interrupts[0].ToolRequest.Name, "confirmAction")
+		}
+	})
+
+	t.Run("returns empty slice when no interrupts", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage("no interrupts here"),
+		}
+
+		interrupts := resp.Interrupts()
+
+		if len(interrupts) != 0 {
+			t.Errorf("len(Interrupts()) = %d, want 0", len(interrupts))
+		}
+	})
+}
+
+func TestModelResponseMedia(t *testing.T) {
+	t.Run("returns media URL from response", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Here's an image"),
+					NewMediaPart("image/png", "data:image/png;base64,abc123"),
+				},
+			},
+		}
+
+		media := resp.Media()
+
+		if media == "" {
+			t.Error("Media() returned empty string")
+		}
+		if media != "data:image/png;base64,abc123" {
+			t.Errorf("Media() = %q, want %q", media, "data:image/png;base64,abc123")
+		}
+	})
+
+	t.Run("returns empty string when no media", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage("just text"),
+		}
+
+		media := resp.Media()
+
+		if media != "" {
+			t.Errorf("Media() = %q, want empty string", media)
+		}
+	})
+}
+
+func TestOutputFrom(t *testing.T) {
+	type TestData struct {
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	}
+
+	t.Run("extracts typed output from response", func(t *testing.T) {
+		resp := &ModelResponse{
+			Message: NewModelTextMessage(`{"name": "test", "count": 5}`),
+		}
+
+		output := OutputFrom[TestData](resp)
+
+		if output.Name != "test" {
+			t.Errorf("output.Name = %q, want %q", output.Name, "test")
+		}
+		if output.Count != 5 {
+			t.Errorf("output.Count = %d, want 5", output.Count)
 		}
 	})
 }

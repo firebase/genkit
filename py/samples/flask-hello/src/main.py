@@ -28,7 +28,7 @@ from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_2_0_FLASH),
+    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
 )
 
 app = Flask(__name__)

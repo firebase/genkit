@@ -16,15 +16,15 @@
 from menu_ai import ai
 from menu_schemas import DataMenuQuestionInputSchema
 
-from genkit.plugins.google_genai import google_genai_name
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai import googleai_name
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 s04_ragDataMenuPrompt = ai.define_prompt(
     variant='s04_ragDataMenu',
-    model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
     input_schema=DataMenuQuestionInputSchema,
     config={'temperature': 0.3},
-    system="""
+    prompt="""
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.

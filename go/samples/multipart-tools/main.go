@@ -26,32 +26,37 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Initialize Genkit with the Google AI plugin. When you pass nil for the
-	// Config parameter, the Google AI plugin will get the API key from the
-	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
-	// practice.
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
-	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineStreamingFlow(g, "jokesFlow", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
-		type Joke struct {
-			Joke     string `json:"joke"`
-			Category string `json:"jokeCategory" description:"What is the joke about"`
-		}
+	// Define a multipart tool.
+	// This simulates a tool that takes a screenshot
+	screenshot := genkit.DefineMultipartTool(g, "screenshot", "Takes a screenshot",
+		func(ctx *ai.ToolContext, input any) (*ai.MultipartToolResponse, error) {
+			rectangle := "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHIAAABUAQMAAABk5vEVAAAABlBMVEX///8AAABVwtN+" +
+				"AAAAI0lEQVR4nGNgGHaA/z8UHIDwOWASDqP8Uf7w56On/1FAQwAAVM0exw1hqwkAAAAASUVORK5CYII="
+			return &ai.MultipartToolResponse{
+				Output: map[string]any{"success": true},
+				Content: []*ai.Part{
+					ai.NewMediaPart("image/png", rectangle),
+				},
+			}, nil
+		},
+	)
 
-		genkit.DefineSchemaFor[Joke](g)
-
+	// Define a simple flow that uses the multipart tool
+	genkit.DefineStreamingFlow(g, "cardFlow", func(ctx context.Context, input any, cb ai.ModelStreamCallback) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModelName("googleai/gemini-2.5-flash"),
+			ai.WithModelName("googleai/gemini-3-pro-preview"),
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 				ThinkingConfig: &genai.ThinkingConfig{
-					ThinkingBudget: genai.Ptr[int32](0),
+					ThinkingLevel: genai.ThinkingLevelHigh,
 				},
 			}),
+			ai.WithTools(screenshot),
 			ai.WithStreaming(cb),
-			ai.WithOutputSchemaName("Joke"),
-			ai.WithPrompt(`Tell short jokes about %s`, input))
+			ai.WithPrompt("Tell me what I'm seeing in the screen"),
+		)
 		if err != nil {
 			return "", err
 		}

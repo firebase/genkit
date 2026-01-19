@@ -209,7 +209,10 @@ func PromptWithMultiMessage(ctx context.Context, g *genkit.Genkit) {
 	}
 	resp, err := prompt.Execute(ctx,
 		ai.WithModelName("googleai/gemini-2.5-pro"),
-		ai.WithInput(map[string]any{"videoUrl": "https://www.youtube.com/watch?v=K-hY0E6cGfo video/mp4"}),
+		ai.WithInput(map[string]any{
+			"videoUrl":    "https://www.youtube.com/watch?v=K-hY0E6cGfo",
+			"contentType": "video/mp4",
+		}),
 	)
 	if err != nil {
 		log.Fatal(err)

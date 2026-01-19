@@ -24,7 +24,7 @@ if sys.version_info < (3, 11):  # noqa
 else:  # noqa
     from enum import StrEnum  # noqa
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OpenAIConfig(BaseModel):
@@ -38,6 +38,10 @@ class OpenAIConfig(BaseModel):
     stop: str | list[str] | None = None
     max_tokens: int | None = None
     stream: bool | None = None
+    frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
+    presence_penalty: float | None = Field(default=None, ge=-2, le=2)
+    logprobs: bool | None = None
+    top_logprobs: int | None = Field(default=None, ge=0, le=20)
 
 
 class SupportedOutputFormat(StrEnum):
