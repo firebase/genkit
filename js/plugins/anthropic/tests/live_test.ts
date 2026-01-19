@@ -504,4 +504,109 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
       );
     }
   });
+
+  it('should throw descriptive error for invalid image media types in document content', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
+    });
+
+    // Test that invalid media type throws descriptive error
+    await assert.rejects(
+      async () => {
+        await ai.generate({
+          model: anthropic.model('claude-sonnet-4-5'),
+          messages: [
+            {
+              role: 'user',
+              content: [
+                anthropicDocument({
+                  source: {
+                    type: 'content',
+                    content: [
+                      {
+                        type: 'image',
+                        source: {
+                          type: 'base64',
+                          mediaType: 'image/bmp', // Invalid - not supported
+                          data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                        },
+                      },
+                    ],
+                  },
+                  citations: { enabled: true },
+                }),
+                { text: 'What is in this image?' },
+              ],
+            },
+          ],
+        });
+      },
+      (error: Error) => {
+        assert.ok(
+          error.message.includes('Unsupported image media type'),
+          'Error should mention unsupported media type'
+        );
+        assert.ok(
+          error.message.includes('image/bmp'),
+          'Error should include the invalid media type'
+        );
+        assert.ok(
+          error.message.includes('image/jpeg') ||
+            error.message.includes('image/png') ||
+            error.message.includes('image/gif') ||
+            error.message.includes('image/webp'),
+          'Error should include supported types'
+        );
+        return true;
+      }
+    );
+  });
+
+  it('should handle valid image media types in document content gracefully', async () => {
+    const ai = genkit({
+      plugins: [anthropic({ apiKey: API_KEY, apiVersion: 'beta' })],
+    });
+
+    // Test that valid media types work correctly
+    // Using a minimal valid PNG (1x1 transparent pixel)
+    const validPngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+    const result = await ai.generate({
+      model: anthropic.model('claude-sonnet-4-5'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            anthropicDocument({
+              source: {
+                type: 'content',
+                content: [
+                  { type: 'text', text: 'This document contains an image.' },
+                  {
+                    type: 'image',
+                    source: {
+                      type: 'base64',
+                      mediaType: 'image/png', // Valid media type
+                      data: validPngBase64,
+                    },
+                  },
+                ],
+              },
+              title: 'Document with Image',
+              citations: { enabled: true },
+            }),
+            { text: 'What does the document say?' },
+          ],
+        },
+      ],
+    });
+
+    // Should not throw and should return a response
+    assert.ok(result.text, 'Should have response text');
+    assert.ok(
+      result.text.length > 0,
+      'Response should not be empty'
+    );
+  });
 });
