@@ -30,7 +30,7 @@ import type {
   TranscriptionCreateParams,
 } from 'openai/resources/audio/index.mjs';
 import { PluginOptions } from './index.js';
-import { maybeCreateRequestScopedOpenAIClient } from './utils.js';
+import { maybeCreateRequestScopedOpenAIClient, toModelName } from './utils.js';
 
 export type SpeechRequestBuilder = (
   req: GenerateRequest,
@@ -196,15 +196,17 @@ export function defineCompatOpenAISpeechModel<
     modelRef,
     requestBuilder,
   } = params;
-  const modelName = name.substring(name.indexOf('/') + 1);
+  const modelName = toModelName(name, pluginOptions?.name);
+  const actionName = `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
+
   return model(
     {
-      name,
+      name: actionName,
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const ttsRequest = toTTSRequest(modelName!, request, requestBuilder);
+      const ttsRequest = toTTSRequest(modelName, request, requestBuilder);
       const client = maybeCreateRequestScopedOpenAIClient(
         pluginOptions,
         request,
@@ -356,22 +358,23 @@ export function defineCompatOpenAITranscriptionModel<
   requestBuilder?: TranscriptionRequestBuilder;
 }): ModelAction {
   const {
-    name,
+    name: modelName,
     pluginOptions,
     client: defaultClient,
     modelRef,
     requestBuilder,
   } = params;
+
+  const actionName =
+    modelRef?.name ?? `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
   return model(
     {
-      name,
+      name: actionName,
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const modelName = name.substring(name.indexOf('/') + 1);
-
-      const params = toSttRequest(modelName!, request, requestBuilder);
+      const params = toSttRequest(modelName, request, requestBuilder);
       const client = maybeCreateRequestScopedOpenAIClient(
         pluginOptions,
         request,
