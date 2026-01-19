@@ -24,72 +24,17 @@ import type {
   AnthropicCitation,
   AnthropicDocumentOptions,
 } from '../../types.js';
+import { MEDIA_TYPES, MediaTypeSchema } from '../../types.js';
+import {
+  fromAnthropicCitation,
+  type AnthropicCitationInput,
+} from './citations.js';
 
-/** Structural type for Anthropic citations (works with both stable and beta APIs). */
-interface AnthropicCitationInput {
-  type: string;
-  cited_text: string;
-  // document_index is optional since web search citations don't have it
-  document_index?: number;
-  document_title?: string | null;
-  file_id?: string | null;
-  start_char_index?: number;
-  end_char_index?: number;
-  start_page_number?: number;
-  end_page_number?: number;
-  start_block_index?: number;
-  end_block_index?: number;
-}
-
-/**
- * Converts Anthropic's citation format (snake_case) to genkit format (camelCase).
- * Only handles document-based citations (char_location, page_location, content_block_location).
- * Skips web search and other citation types that don't reference documents.
- */
-export function fromAnthropicCitation(
-  citation: AnthropicCitationInput
-): AnthropicCitation | undefined {
-  // Skip citations without document_index (e.g., web search results)
-  if (citation.document_index === undefined) {
-    return undefined;
-  }
-
-  switch (citation.type) {
-    case 'char_location':
-      return {
-        type: 'char_location',
-        citedText: citation.cited_text,
-        documentIndex: citation.document_index,
-        documentTitle: citation.document_title ?? undefined,
-        fileId: citation.file_id ?? undefined,
-        startCharIndex: citation.start_char_index!,
-        endCharIndex: citation.end_char_index!,
-      };
-    case 'page_location':
-      return {
-        type: 'page_location',
-        citedText: citation.cited_text,
-        documentIndex: citation.document_index,
-        documentTitle: citation.document_title ?? undefined,
-        fileId: citation.file_id ?? undefined,
-        startPageNumber: citation.start_page_number!,
-        endPageNumber: citation.end_page_number!,
-      };
-    case 'content_block_location':
-      return {
-        type: 'content_block_location',
-        citedText: citation.cited_text,
-        documentIndex: citation.document_index,
-        documentTitle: citation.document_title ?? undefined,
-        fileId: citation.file_id ?? undefined,
-        startBlockIndex: citation.start_block_index!,
-        endBlockIndex: citation.end_block_index!,
-      };
-    default:
-      // Skip web search and other citation types - they're not from documents
-      return undefined;
-  }
-}
+// Re-export citation utilities for backward compatibility
+export {
+  fromAnthropicCitation,
+  type AnthropicCitationInput,
+} from './citations.js';
 
 /**
  * Converts a text block to a Genkit Part, including citations if present.
@@ -280,15 +225,20 @@ export function convertDocumentSource<T>(
           if (item.type === 'text') {
             return item;
           }
+          // Validate media type with Zod
+          const mediaTypeResult = MediaTypeSchema.safeParse(
+            item.source.mediaType
+          );
+          if (!mediaTypeResult.success) {
+            throw new Error(
+              `Unsupported image media type for Anthropic document content: ${item.source.mediaType}. Supported types: ${Object.values(MEDIA_TYPES).join(', ')}`
+            );
+          }
           return {
             type: 'image' as const,
             source: {
               type: 'base64' as const,
-              media_type: item.source.mediaType as
-                | 'image/jpeg'
-                | 'image/png'
-                | 'image/gif'
-                | 'image/webp',
+              media_type: mediaTypeResult.data,
               data: item.source.data,
             },
           };
