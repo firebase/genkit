@@ -45,8 +45,8 @@ export function maybeCreateRequestScopedOpenAIClient(
  * Gets the model name without certain prefixes.
  */
 export function toModelName(name: string, prefix?: string): string {
-  let pattern = '/(background-model|model|models|embedder|embedders)/';
-  const refPrefixes = new RegExp(pattern, 'g');
+  const pattern = '^/(background-model|model|models|embedder|embedders)/';
+  const refPrefixes = new RegExp(pattern);
   const maybePluginRef = name.replace(refPrefixes, '');
   if (prefix) {
     const pluginPrefix = new RegExp(`^${prefix}/`, 'g');
