@@ -477,11 +477,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         return thinkingDeltaToPart(event.delta);
       }
       if (event.delta.type === 'citations_delta') {
-        return citationsDeltaToPart(
-          event.delta as {
-            citation: Parameters<typeof citationsDeltaToPart>[0]['citation'];
-          }
-        );
+        return citationsDeltaToPart(event.delta);
       }
       if (event.delta.type === 'input_json_delta') {
         throw inputJsonDeltaError();

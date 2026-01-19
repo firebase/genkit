@@ -371,11 +371,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
       }
 
       if (delta.type === 'citations_delta') {
-        return citationsDeltaToPart(
-          delta as {
-            citation: Parameters<typeof citationsDeltaToPart>[0]['citation'];
-          }
-        );
+        return citationsDeltaToPart(delta);
       }
 
       if (delta.type === 'input_json_delta') {

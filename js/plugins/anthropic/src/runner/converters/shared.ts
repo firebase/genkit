@@ -193,6 +193,7 @@ export function thinkingDeltaToPart(delta: { thinking: string }): Part {
  * in the parts array for consumers who need to access citation metadata.
  */
 export function citationsDeltaToPart(delta: {
+  type: 'citations_delta';
   citation: AnthropicCitationInput;
 }): Part | undefined {
   const citation = fromAnthropicCitation(delta.citation);
