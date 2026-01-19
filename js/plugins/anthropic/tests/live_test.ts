@@ -604,9 +604,6 @@ describe('Live Anthropic API Tests', { skip: !API_KEY }, () => {
 
     // Should not throw and should return a response
     assert.ok(result.text, 'Should have response text');
-    assert.ok(
-      result.text.length > 0,
-      'Response should not be empty'
-    );
+    assert.ok(result.text.length > 0, 'Response should not be empty');
   });
 });
