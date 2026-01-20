@@ -17,7 +17,7 @@
 """Development API for inspecting and interacting with Genkit.
 
 This module provides a reflection API server for inspection and interaction
-during development. It exposes endpoints for health checks, action discovery,# 
+during development. It exposes endpoints for health checks, action discovery,
 and action execution.
 
 ## Caveats
