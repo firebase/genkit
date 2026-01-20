@@ -233,8 +233,7 @@ class ClassTransformer(ast.NodeTransformer):
             # For other classes, just copy the rest of the body
             new_body.extend(node.body[body_start_index:])
 
-        # PYTHON EXTENSION: Add resources field to GenerateActionOptions to match JS SDK
-        # (js/ai/src/model-types.ts line 398)
+        # PYTHON EXTENSION: Add resources field to GenerateActionOptions
         if node.name == 'GenerateActionOptions':
             self._inject_resources_field(new_body)
 
@@ -248,7 +247,7 @@ class ClassTransformer(ast.NodeTransformer):
         modifying the shared schema file. The JS SDK manually adds this field in
         model-types.ts line 398.
         """
-        # Find the position of the tools field
+
         tools_index = -1
         for i, stmt in enumerate(body):
             if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
