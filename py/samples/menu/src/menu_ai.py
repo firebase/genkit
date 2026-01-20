@@ -17,10 +17,7 @@
 
 from genkit.ai import Genkit
 from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
-from genkit.plugins.google_genai import GeminiEmbeddingModels, GoogleAI, googleai_name
-
-EMBEDDER_NAME = googleai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004)
-EMBEDDER_OPTIONS = {'taskType': 'RETRIEVAL_DOCUMENT'}
+from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(
     plugins=[

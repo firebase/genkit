@@ -28,6 +28,15 @@ from genkit.plugins.google_genai.models.embedder import (
 )
 from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema, GoogleAIGeminiVersion, VertexAIGeminiVersion
 from genkit.plugins.google_genai.models.imagen import ImagenVersion
+from genkit.plugins.google_genai.vector_search import (
+    BigQueryRetriever,
+    FirestoreRetriever,
+    RetrieverOptionsSchema,
+    VectorSearchConfig,
+    VertexAIVectorSearchOptions,
+    vertexai_retrieve_params,
+    vertexai_vector_search_name,
+)
 
 
 def package_name() -> str:
@@ -53,4 +62,11 @@ __all__ = [
     EmbeddingTaskType.__name__,
     GeminiConfigSchema.__name__,
     ImagenVersion.__name__,
+    BigQueryRetriever.__name__,
+    FirestoreRetriever.__name__,
+    RetrieverOptionsSchema.__name__,
+    VectorSearchConfig.__name__,
+    VertexAIVectorSearchOptions.__name__,
+    vertexai_retrieve_params.__name__,
+    vertexai_vector_search_name.__name__,
 ]

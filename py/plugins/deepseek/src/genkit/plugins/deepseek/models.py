@@ -98,5 +98,5 @@ class DeepSeekModel:
             A callable function (the generate method of an OpenAIModel instance)
             that can be used by Genkit.
         """
-        deepseek_model = OpenAIModel(self.name, self.client, None)
+        deepseek_model = OpenAIModel(self.name, self.client)
         return deepseek_model.generate

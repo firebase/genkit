@@ -46,12 +46,8 @@ from genkit.plugins.google_genai.models.imagen import (
     vertexai_image_model_info,
 )
 
-try:
-    from genkit.plugins.vertex_ai.vector_search.retriever import RetrieverOptionsSchema
-    from genkit.plugins.vertex_ai.vector_search.vector_search import create_vector_search_action
-except ImportError:
-    RetrieverOptionsSchema = None
-    create_vector_search_action = None
+from genkit.plugins.google_genai.vector_search.retriever import RetrieverOptionsSchema
+from genkit.plugins.google_genai.vector_search.vector_search import create_vector_search_action
 
 GOOGLEAI_PLUGIN_NAME = 'googleai'
 VERTEXAI_PLUGIN_NAME = 'vertexai'
@@ -315,8 +311,6 @@ class VertexAI(Plugin):
         """
         if not self._vector_search:
             return []
-        if create_vector_search_action is None:
-            raise ImportError('Vertex AI vector search requires the genkit-plugin-vertex-ai package.')
 
         actions: list[Action] = []
         for config in self._vector_search:

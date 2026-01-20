@@ -21,7 +21,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from genkit.ai import ActionRunContext, GenkitRegistry
+from genkit.ai import ActionRunContext
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
@@ -64,7 +64,7 @@ class OpenAIModelHandler:
 
     @classmethod
     def get_model_handler(
-        cls, model: str, client: OpenAI, registry: GenkitRegistry, source: PluginSource = PluginSource.OPENAI
+        cls, model: str, client: OpenAI, source: PluginSource = PluginSource.OPENAI
     ) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
         """Factory method to initialize the model handler for the specified OpenAI model.
 
@@ -77,7 +77,6 @@ class OpenAIModelHandler:
         Args:
             model: The OpenAI model name.
             client: OpenAI client instance.
-            registry: Genkit registry instance.
             source: Helps distinguish if model handler is called from model-garden plugin.
                     Default source is openai.
 
@@ -92,7 +91,7 @@ class OpenAIModelHandler:
         if model not in supported_models:
             raise ValueError(f"Model '{model}' is not supported.")
 
-        openai_model = OpenAIModel(model, client, registry)
+        openai_model = OpenAIModel(model, client)
         return cls(openai_model, source).generate
 
     def _validate_version(self, version: str) -> None:

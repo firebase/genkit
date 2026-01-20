@@ -22,7 +22,6 @@ from typing import Any
 from openai import OpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
-from genkit.ai import GenkitRegistry
 from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import DictMessageAdapter, MessageAdapter, MessageConverter
@@ -41,17 +40,15 @@ from genkit.types import (
 class OpenAIModel:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: str, client: OpenAI, registry: GenkitRegistry):
+    def __init__(self, model: str, client: OpenAI):
         """Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
 
         Args:
             model: The OpenAI model to use for generating responses.
             client: OpenAI client instance.
-            registry: The registry where OpenAI models will be registered.
         """
         self._model = model
         self._openai_client = client
-        self._registry = registry
 
     @property
     def name(self) -> str:

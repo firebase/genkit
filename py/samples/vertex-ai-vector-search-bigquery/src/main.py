@@ -26,7 +26,7 @@ from genkit.blocks.document import (
     Document,
 )
 from genkit.plugins.google_genai import VertexAI, VertexAIVectorSearchConfig, vertexai_name
-from genkit.plugins.vertex_ai.vector_search import (
+from genkit.plugins.google_genai.vector_search import (
     BigQueryRetriever,
     VertexAIVectorSearchOptions,
     vertexai_retrieve_params,

@@ -115,8 +115,9 @@ def _build_actions_payload(
     for meta in plugin_metas or []:
         try:
             key = f'/{meta.kind.value}/{meta.name}'
-        except Exception:
+        except Exception as exc:
             # Defensive: skip unexpected plugin metadata objects.
+            logger.warning('Skipping invalid plugin action metadata', error=str(exc))
             continue
 
         advertised = {

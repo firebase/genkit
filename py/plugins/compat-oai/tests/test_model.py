@@ -36,7 +36,7 @@ def test_get_messages(sample_request):
 
     Ensures the method correctly converts GenerateRequest messages into OpenAI-compatible ChatMessage format.
     """
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=MagicMock())
     messages = model._get_messages(sample_request.messages)
 
     assert len(messages) == 2
@@ -52,7 +52,7 @@ async def test_get_openai_config(sample_request):
 
     Ensures the method correctly constructs the OpenAI API configuration dictionary.
     """
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=MagicMock())
     openai_config = await model._get_openai_request_config(sample_request)
 
     assert isinstance(openai_config, dict)
@@ -74,7 +74,7 @@ async def test__generate(sample_request):
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = mock_response
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=mock_client)
     response = await model._generate(sample_request)
 
     mock_client.chat.completions.create.assert_called_once()
@@ -115,7 +115,7 @@ async def test__generate_stream(sample_request):
 
     mock_client.chat.completions.create.return_value = MockStream(['Hello', ', world!'])
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=mock_client)
     collected_chunks = []
 
     def callback(chunk: GenerateResponseChunk):
@@ -141,7 +141,7 @@ async def test_generate(stream, sample_request):
 
     mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='mocked')]))
 
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=MagicMock())
     model._generate_stream = AsyncMock(return_value=mock_response)
     model._generate = AsyncMock(return_value=mock_response)
     model.normalize_config = MagicMock(return_value={})

@@ -82,9 +82,9 @@ class OpenAI(Plugin):
         """Initialize plugin.
 
         Returns:
-            Empty list (using lazy loading via resolve).
+            Actions for built-in OpenAI models.
         """
-        return []
+        return [self._create_model_action(open_ai_name(name)) for name in SUPPORTED_OPENAI_MODELS.keys()]
 
     def get_model_info(self, name: str) -> dict[str, str] | None:
         """Retrieves metadata and supported features for the specified model.
@@ -138,7 +138,7 @@ class OpenAI(Plugin):
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
 
         # Create the model handler
-        openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._openai_client, None))
+        openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._openai_client))
         model_info = self.get_model_info(clean_name)
 
         return Action(

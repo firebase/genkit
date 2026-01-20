@@ -60,6 +60,7 @@ class GenkitBase(GenkitRegistry):
         super().__init__()
         self._reflection_server_spec = reflection_server_spec
         self._initialize_registry(model, plugins)
+        # Ensure the default generate action is registered for async usage.
         define_generate_action(self.registry)
 
     def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None) -> None:

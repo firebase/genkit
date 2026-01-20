@@ -24,7 +24,7 @@ from google.cloud import aiplatform, aiplatform_v1, bigquery
 
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import VertexAI, VertexAIVectorSearchConfig
-from genkit.plugins.vertex_ai.vector_search import (
+from genkit.plugins.google_genai.vector_search import (
     BigQueryRetriever,
 )
 from genkit.plugins.google_genai import vertexai_name

@@ -34,7 +34,7 @@ from google.cloud.aiplatform_v1 import (
 
 from genkit.blocks.document import Document, DocumentData
 from genkit.core.typing import EmbedResponse, Embedding
-from genkit.plugins.vertex_ai.vector_search import (
+from genkit.plugins.google_genai.vector_search import (
     BigQueryRetriever,
     FirestoreRetriever,
     VertexAIVectorSearchOptions,

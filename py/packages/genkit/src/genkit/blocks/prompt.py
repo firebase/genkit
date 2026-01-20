@@ -978,7 +978,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         file_path = path / filename
 
     # Read the prompt file
-    with open(file_path, encoding='utf-8') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         source = f.read()
 
     # Parse the prompt
@@ -1182,7 +1182,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                 if entry.name.startswith('_'):
                     # This is a partial
                     partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-                    with open(entry.path, encoding='utf-8') as f:
+                    with open(entry.path, 'r', encoding='utf-8') as f:
                         source = f.read()
 
                     # Strip frontmatter if present

@@ -30,14 +30,14 @@ from genkit.plugins.compat_oai.models.model_info import (
 def test_get_model_handler() -> None:
     """Test get_model_handler method returns a callable."""
     model_name = GPT_4
-    handler = OpenAIModelHandler.get_model_handler(model=model_name, client=MagicMock(), registry=MagicMock())
+    handler = OpenAIModelHandler.get_model_handler(model=model_name, client=MagicMock())
     assert callable(handler)
 
 
 def test_get_model_handler_invalid() -> None:
     """Test get_model_handler raises ValueError for unsupported models."""
     with pytest.raises(ValueError, match="Model 'unsupported-model' is not supported."):
-        OpenAIModelHandler.get_model_handler(model='unsupported-model', client=MagicMock(), registry=MagicMock())
+        OpenAIModelHandler.get_model_handler(model='unsupported-model', client=MagicMock())
 
 
 def test_validate_version() -> None:

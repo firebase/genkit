@@ -59,7 +59,7 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
         second_response,
     ]
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=mock_client)
 
     response = await model._generate(sample_request)
 
@@ -129,7 +129,7 @@ async def test_generate_stream_with_tool_calls(sample_request):
 
     mock_client.chat.completions.create.return_value = MockStream()
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    model = OpenAIModel(model=GPT_4, client=mock_client)
     collected_chunks = []
 
     def callback(chunk: GenerateResponseChunk):

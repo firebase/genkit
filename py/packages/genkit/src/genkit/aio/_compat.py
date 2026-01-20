@@ -26,6 +26,7 @@ See: https://docs.python.org/3/library/asyncio-task.html#asyncio.wait_for
 """
 
 import asyncio
+import sys
 from typing import TypeVar
 
 T = TypeVar('T')
@@ -55,4 +56,7 @@ async def wait_for_310(fut: asyncio.Future[T], timeout: float | None = None) -> 
         raise TimeoutError() from e
 
 
-wait_for = asyncio.wait_for
+if sys.version_info < (3, 11):
+    wait_for = wait_for_310
+else:
+    wait_for = asyncio.wait_for

@@ -84,7 +84,7 @@ class FirestoreVectorStore(Plugin):
             distance_measure: The distance measure to use when comparing vectors. Defaults to 'COSINE'.
             firestore_client: The Firestore database instance from which to query.
             metadata_fields: Optional list of metadata fields to include.
-            ai: Optional Genkit instance for retriever initialization.
+            ai: Optional Genkit instance used to embed queries in the retriever.
         """
         self.retriever_name = retriever_name
         self.firestore_client = firestore_client
