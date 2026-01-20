@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
@@ -79,14 +78,8 @@ func toOpenAIResponseParams(model string, input *ai.ModelRequest) (*responses.Re
 
 	// messages to input items
 	var inputItems []responses.ResponseInputItemUnionParam
-	var instructions []string
 
 	for _, m := range input.Messages {
-		if m.Role == ai.RoleSystem {
-			instructions = append(instructions, m.Text())
-			continue
-		}
-
 		items, err := toOpenAIInputItems(m)
 		if err != nil {
 			return nil, err
@@ -94,15 +87,11 @@ func toOpenAIResponseParams(model string, input *ai.ModelRequest) (*responses.Re
 		inputItems = append(inputItems, items...)
 	}
 
-	if len(instructions) > 0 {
-		params.Instructions = param.NewOpt(strings.Join(instructions, "\n"))
-	}
 	if len(inputItems) > 0 {
 		params.Input = responses.ResponseNewParamsInputUnion{
 			OfInputItemList: inputItems,
 		}
 	}
-
 	return params, nil
 }
 
@@ -133,6 +122,8 @@ func translateResponse(r *responses.Response) (*ai.ModelResponse, error) {
 	default:
 		resp.FinishReason = ai.FinishReasonUnknown
 	}
+
+	resp.Raw = r.JSON
 
 	for _, item := range r.Output {
 		if err := handleResponseItem(item, resp); err != nil {

@@ -81,7 +81,8 @@ func TestOpenAILive(t *testing.T) {
 		},
 	)
 
-	t.Run("model version ok", func(t *testing.T) {
+	t.Run("system messages", func(t *testing.T) {
+		instruction := "Talk to me as an evil pirate and say \"Arr\" several times. Be very short in your response."
 		m := oai.Model(g, "gpt-4o")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&responses.ResponseNewParams{
@@ -89,15 +90,31 @@ func TestOpenAILive(t *testing.T) {
 				MaxOutputTokens: openai.Int(1024),
 			}),
 			ai.WithModel(m),
-			ai.WithSystem("talk to me like an evil pirate and say \"Arr\" several times but be very short"),
+			ai.WithSystem(instruction),
 			ai.WithMessages(ai.NewUserMessage(ai.NewTextPart("I'm a fish"))),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
+		if resp.Raw == nil {
+			t.Error("expecting Raw contents to be populated, got nil")
+		}
+
+		count := 0
+		for _, m := range resp.Request.Messages {
+			count += 1
+			if m.Role == ai.RoleSystem {
+				if m.Text() != instruction {
+					t.Errorf("invalid system message found, got: %s, want: %s", m.Text(), instruction)
+				}
+			}
+		}
+		if count != 2 {
+			t.Errorf("Expecting exactly 2 messages, got: %d", count)
+		}
 
 		if !strings.Contains(resp.Text(), "Arr") {
-			t.Fatalf("not a pirate:%s", resp.Text())
+			t.Errorf("not a pirate, got: %s", resp.Text())
 		}
 	})
 
@@ -251,7 +268,7 @@ func TestOpenAILive(t *testing.T) {
 	})
 
 	t.Run("tools", func(t *testing.T) {
-		m := oai.Model(g, "gpt-5")
+		m := oai.Model(g, "gpt-4o")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&responses.ResponseNewParams{
