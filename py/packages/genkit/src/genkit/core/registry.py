@@ -209,7 +209,11 @@ class Registry:
                         if action:
                             self.register_action_from_instance(action)
                             break
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(
+                            f'Dynamic action provider {provider.name} failed for {kind}/{name}',
+                            exc_info=e,
+                        )
                         continue
 
             if kind in self._entries and name in self._entries[kind]:

@@ -418,6 +418,36 @@ def apply_transfer_preamble(next_request: GenerateActionOptions, preamble: Gener
     return next_request
 
 
+def _extract_resource_uri(resource_obj: Any) -> str | None:
+    """Extract URI from a resource object.
+
+    Handles various Pydantic wrapper structures (Resource, Resource1, RootModel, dict).
+
+    Args:
+        resource_obj: The resource object to extract URI from.
+
+    Returns:
+        The extracted URI string, or None if not found.
+    """
+    # Direct uri attribute (Resource1, ResourceInput, etc.)
+    if hasattr(resource_obj, 'uri'):
+        return resource_obj.uri
+
+    # Unwrap RootModel structures
+    if hasattr(resource_obj, 'root'):
+        return _extract_resource_uri(resource_obj.root)
+
+    # Unwrap nested resource attribute
+    if hasattr(resource_obj, 'resource'):
+        return _extract_resource_uri(resource_obj.resource)
+
+    # Handle dict representation
+    if isinstance(resource_obj, dict) and 'uri' in resource_obj:
+        return resource_obj['uri']
+
+    return None
+
+
 async def apply_resources(registry: Registry, raw_request: GenerateActionOptions) -> GenerateActionOptions:
     """Applies resources to the request messages by hydrating resource parts.
 
@@ -460,78 +490,39 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
 
             resource_obj = part.root.resource
 
-            ref_uri = None
-            target_resource = resource_obj
-
-            # Helper to extract URI from various wrapped forms
-            # We unwrap up to a few levels to handle RootModels and nested Resource structures
-            curr = resource_obj
-            for _ in range(5):  # Limit depth to avoid infinite loops
-                if not curr:
-                    break
-
-                if hasattr(curr, 'uri') and curr.uri:
-                    ref_uri = curr.uri
-                    target_resource = curr
-                    break
-
-                if hasattr(curr, 'resource') and curr.resource:
-                    curr = curr.resource
-                    continue
-
-                if hasattr(curr, 'root'):
-                    curr = curr.root
-                    continue
-
-                if isinstance(curr, dict):
-                    if 'uri' in curr:
-                        ref_uri = curr['uri']
-                        target_resource = curr  # Or wrapped?
-                        break
-                    if 'resource' in curr and curr['resource']:
-                        curr = curr['resource']
-                        continue
-
-                # If we get here and haven't continued or correctly identified uri attributes, stop
-                break
-
+            # Extract URI from the resource object
+            # The resource can be wrapped in various Pydantic structures (Resource, Resource1, etc.)
+            ref_uri = _extract_resource_uri(resource_obj)
             if not ref_uri:
+                logger.warning(
+                    f'Unable to extract URI from resource part: {type(resource_obj).__name__}. '
+                    f'Resource part will be skipped.'
+                )
                 continue
 
             # Find matching resource action
-            resource_action = None
+            if not resources:
+                raise GenkitError(
+                    status='NOT_FOUND',
+                    message=f'failed to find matching resource for {ref_uri}',
+                )
 
-            if resources:
-                from genkit.blocks.resource import find_matching_resource
+            from genkit.blocks.resource import ResourceInput, find_matching_resource
 
-                # Check if target_resource is a dict (if we unwrapped to a dict with uri)
-                if isinstance(target_resource, dict) and 'uri' in target_resource:
-
-                    class SimpleResource:
-                        def __init__(self, uri):
-                            self.uri = uri
-
-                    target_resource = SimpleResource(target_resource['uri'])
-
-                resource_action = await find_matching_resource(registry, resources, target_resource)
+            # Normalize to ResourceInput for matching
+            resource_input = ResourceInput(uri=ref_uri)
+            resource_action = await find_matching_resource(registry, resources, resource_input)
 
             if not resource_action:
-                # TODO: make this a warning or error based on config?
-                # For now, we leave it as is if not found, or maybe raise error like JS?
-                # JS throws GenkitError('failed to find matching resource...')
-                try:
-                    raise GenkitError(
-                        status='NOT_FOUND',
-                        message=f'failed to find matching resource for {ref_uri}',
-                    )
-                except Exception:
-                    # If raising fails for some reason or we want to just continue
-                    continue
+                raise GenkitError(
+                    status='NOT_FOUND',
+                    message=f'failed to find matching resource for {ref_uri}',
+                )
 
             # Execute the resource
             # Create a simple context for the resource execution
             resource_ctx = ActionRunContext(on_chunk=None, context=None)
-            response = await resource_action.arun(target_resource, resource_ctx)
+            response = await resource_action.arun(resource_input, resource_ctx)
 
             # response.response is ResourceOutput which has .content (list of Parts)
             # It usually returns a dict if coming from dynamic_resource (model_dump called)
