@@ -21,8 +21,6 @@ and model caches this context.
 As a result, model is capable to quickly relate to the book's content and answer the follow-up questions.
 """
 
-
-
 import httpx
 import structlog
 from pydantic import BaseModel, Field

@@ -106,6 +106,7 @@ class PromptConfig(BaseModel):
     use: list[ModelMiddleware] | None = None
     docs: list[DocumentData] | Callable | None = None
     tool_responses: list[Part] | None = None
+    resources: list[str] | None = None
 
 
 class ExecutablePrompt:
@@ -134,6 +135,7 @@ class ExecutablePrompt:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable | None = None,
+        resources: list[str] | None = None,
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
         _prompt_action: Action | None = None,  # reference to PROMPT action
@@ -164,6 +166,7 @@ class ExecutablePrompt:
             tool_choice: The tool choice strategy.
             use: A list of model middlewares to apply.
             docs: A list of documents to be used for grounding.
+            resources: A list of resource URIs to be used for grounding.
         """
         self._registry = registry
         self._variant = variant
@@ -186,6 +189,7 @@ class ExecutablePrompt:
         self._tool_choice = tool_choice
         self._use = use
         self._docs = docs
+        self._resources = resources
         self._cache_prompt = PromptCache()
         self._name = _name  # Store name/ns for action lookup (used by as_tool())
         self._ns = _ns
@@ -298,6 +302,7 @@ class ExecutablePrompt:
             input_schema=self._input_schema,
             metadata=self._metadata,
             docs=self._docs,
+            resources=self._resources,
         )
 
         model = options.model or self._registry.default_model

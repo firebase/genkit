@@ -29,12 +29,15 @@ from genkit.blocks.model import (
     MessageWrapper,
     ModelMiddleware,
 )
+from genkit.blocks.resource import ResourceInput, find_matching_resource, resolve_resources
 from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
+    DocumentData,
+    DocumentPart,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -100,6 +103,9 @@ async def generate_action(
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
+
+    if raw_request.resources:
+        raw_request = await apply_resources(registry, raw_request)
 
     assert_valid_tool_names(tools)
 
@@ -410,6 +416,131 @@ def apply_transfer_preamble(next_request: GenerateActionOptions, preamble: Gener
     """
     # TODO: implement me
     return next_request
+
+
+def _extract_resource_uri(resource_obj: Any) -> str | None:
+    """Extract URI from a resource object.
+
+    Handles various Pydantic wrapper structures (Resource, Resource1, RootModel, dict).
+
+    Args:
+        resource_obj: The resource object to extract URI from.
+
+    Returns:
+        The extracted URI string, or None if not found.
+    """
+    # Direct uri attribute (Resource1, ResourceInput, etc.)
+    if hasattr(resource_obj, 'uri'):
+        return resource_obj.uri
+
+    # Unwrap RootModel structures
+    if hasattr(resource_obj, 'root'):
+        return _extract_resource_uri(resource_obj.root)
+
+    # Unwrap nested resource attribute
+    if hasattr(resource_obj, 'resource'):
+        return _extract_resource_uri(resource_obj.resource)
+
+    # Handle dict representation
+    if isinstance(resource_obj, dict) and 'uri' in resource_obj:
+        return resource_obj['uri']
+
+    return None
+
+
+async def apply_resources(registry: Registry, raw_request: GenerateActionOptions) -> GenerateActionOptions:
+    """Applies resources to the request messages by hydrating resource parts.
+
+    Args:
+        registry: The registry to use for resolving resources.
+        raw_request: The generation request.
+
+    Returns:
+        The updated generation request with hydrated resources.
+    """
+    # Quick check if any message has a resource part
+    has_resource = False
+    for msg in raw_request.messages:
+        for part in msg.content:
+            if part.root.resource:
+                has_resource = True
+                break
+        if has_resource:
+            break
+
+    if not has_resource:
+        return raw_request
+
+    # Resolve all declared resources
+    resources = []
+    if raw_request.resources:
+        resources = await resolve_resources(registry, raw_request.resources)
+
+    updated_messages = []
+    for msg in raw_request.messages:
+        if not any(p.root.resource for p in msg.content):
+            updated_messages.append(msg)
+            continue
+
+        updated_content = []
+        for part in msg.content:
+            if not part.root.resource:
+                updated_content.append(part)
+                continue
+
+            resource_obj = part.root.resource
+
+            # Extract URI from the resource object
+            # The resource can be wrapped in various Pydantic structures (Resource, Resource1, etc.)
+            ref_uri = _extract_resource_uri(resource_obj)
+            if not ref_uri:
+                logger.warning(
+                    f'Unable to extract URI from resource part: {type(resource_obj).__name__}. '
+                    f'Resource part will be skipped.'
+                )
+                continue
+
+            # Find matching resource action
+            if not resources:
+                raise GenkitError(
+                    status='NOT_FOUND',
+                    message=f'failed to find matching resource for {ref_uri}',
+                )
+
+            from genkit.blocks.resource import ResourceInput, find_matching_resource
+
+            # Normalize to ResourceInput for matching
+            resource_input = ResourceInput(uri=ref_uri)
+            resource_action = await find_matching_resource(registry, resources, resource_input)
+
+            if not resource_action:
+                raise GenkitError(
+                    status='NOT_FOUND',
+                    message=f'failed to find matching resource for {ref_uri}',
+                )
+
+            # Execute the resource
+            # Create a simple context for the resource execution
+            resource_ctx = ActionRunContext(on_chunk=None, context=None)
+            response = await resource_action.arun(resource_input, resource_ctx)
+
+            # response.response is ResourceOutput which has .content (list of Parts)
+            # It usually returns a dict if coming from dynamic_resource (model_dump called)
+            output_content = None
+            if hasattr(response.response, 'content'):
+                output_content = response.response.content
+            elif isinstance(response.response, dict) and 'content' in response.response:
+                output_content = response.response['content']
+
+            if output_content:
+                updated_content.extend(output_content)
+
+        updated_messages.append(Message(role=msg.role, content=updated_content, metadata=msg.metadata))
+
+    # Return a new request with updated messages
+    new_request = raw_request.model_copy()
+    new_request.messages = updated_messages
+    return new_request
 
 
 def assert_valid_tool_names(raw_request: GenerateActionOptions):

@@ -233,8 +233,54 @@ class ClassTransformer(ast.NodeTransformer):
             # For other classes, just copy the rest of the body
             new_body.extend(node.body[body_start_index:])
 
+        # PYTHON EXTENSION: Add resources field to GenerateActionOptions
+        if node.name == 'GenerateActionOptions':
+            self._inject_resources_field(new_body)
+
         node.body = cast(list[ast.stmt], new_body)
         return node
+
+    def _inject_resources_field(self, body: list[ast.stmt | ast.Constant | ast.Assign]) -> None:
+        """Inject resources field after tools field in GenerateActionOptions.
+
+        This adds the resources field to match the JS SDK implementation without
+        modifying the shared schema file. The JS SDK manually adds this field in
+        model-types.ts line 398.
+        """
+
+        tools_index = -1
+        for i, stmt in enumerate(body):
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'tools':
+                    tools_index = i
+                    break
+
+        if tools_index == -1:
+            return  # tools field not found, skip injection
+
+        # Check if resources field already exists
+        for stmt in body:
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'resources':
+                    return  # Already exists, don't add again
+
+        # Create the resources field: resources: list[str] | None = None
+        resources_field = ast.AnnAssign(
+            target=ast.Name(id='resources', ctx=ast.Store()),
+            annotation=ast.BinOp(
+                left=ast.Subscript(
+                    value=ast.Name(id='list', ctx=ast.Load()), slice=ast.Name(id='str', ctx=ast.Load()), ctx=ast.Load()
+                ),
+                op=ast.BitOr(),
+                right=ast.Constant(value=None),
+            ),
+            value=ast.Constant(value=None),
+            simple=1,
+        )
+
+        # Insert after tools field
+        body.insert(tools_index + 1, resources_field)
+        self.modified = True
 
 
 def add_header(content: str) -> str:
