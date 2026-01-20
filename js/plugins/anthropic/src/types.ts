@@ -195,3 +195,96 @@ export function resolveBetaEnabled(
   if (pluginDefaultApiVersion === 'beta') return true;
   return false;
 }
+
+/** Plain text document source. */
+export interface AnthropicTextSource {
+  type: 'text';
+  data: string;
+  mediaType?: string;
+}
+
+/** Base64-encoded document source (e.g., PDF). */
+export interface AnthropicBase64Source {
+  type: 'base64';
+  data: string;
+  mediaType: string;
+}
+
+/** File reference source (from Files API). */
+export interface AnthropicFileSource {
+  type: 'file';
+  fileId: string;
+}
+
+/** Custom content blocks for granular citation control. */
+export interface AnthropicContentSource {
+  type: 'content';
+  content: Array<
+    | { type: 'text'; text: string }
+    | {
+        type: 'image';
+        source: { type: 'base64'; mediaType: string; data: string };
+      }
+  >;
+}
+
+/** URL source for PDFs. */
+export interface AnthropicURLSource {
+  type: 'url';
+  url: string;
+}
+
+/** Union of all document source types. */
+export type AnthropicDocumentSource =
+  | AnthropicTextSource
+  | AnthropicBase64Source
+  | AnthropicFileSource
+  | AnthropicContentSource
+  | AnthropicURLSource;
+
+/** Options for creating an Anthropic document with optional citations. */
+export interface AnthropicDocumentOptions {
+  source: AnthropicDocumentSource;
+  title?: string;
+  context?: string;
+  citations?: { enabled: boolean };
+}
+
+/** Citation from a plain text document (character indices). */
+export interface CharLocationCitation {
+  type: 'char_location';
+  citedText: string;
+  documentIndex: number;
+  documentTitle?: string;
+  fileId?: string;
+  startCharIndex: number;
+  endCharIndex: number;
+}
+
+/** Citation from a PDF document (page numbers). */
+export interface PageLocationCitation {
+  type: 'page_location';
+  citedText: string;
+  documentIndex: number;
+  documentTitle?: string;
+  fileId?: string;
+  startPageNumber: number;
+  endPageNumber: number;
+}
+
+/** Citation from a custom content document (block indices). */
+export interface ContentBlockLocationCitation {
+  type: 'content_block_location';
+  citedText: string;
+  documentIndex: number;
+  documentTitle?: string;
+  fileId?: string;
+  startBlockIndex: number;
+  endBlockIndex: number;
+}
+
+/** Union of all citation types for documents. */
+export type AnthropicCitation =
+  | CharLocationCitation
+  | PageLocationCitation
+  | ContentBlockLocationCitation;

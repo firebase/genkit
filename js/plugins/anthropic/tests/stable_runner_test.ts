@@ -33,6 +33,7 @@ import type { CandidateData, ToolDefinition } from 'genkit/model';
 import { describe, it, mock } from 'node:test';
 
 import { claudeModel, claudeRunner } from '../src/models.js';
+import { toDocumentBlock } from '../src/runner/converters/stable.js';
 import { Runner } from '../src/runner/stable.js';
 import { AnthropicConfigSchema } from '../src/types.js';
 import {
@@ -725,6 +726,40 @@ describe('fromAnthropicContentBlockChunk', () => {
       expectedOutput: { reasoning: 'Step by step...' },
     },
     {
+      should: 'should return citation part from citations_delta event',
+      event: {
+        index: 0,
+        type: 'content_block_delta',
+        delta: {
+          type: 'citations_delta',
+          citation: {
+            type: 'char_location',
+            cited_text: 'The grass is green.',
+            document_index: 0,
+            document_title: 'Basic Facts',
+            start_char_index: 0,
+            end_char_index: 19,
+          },
+        },
+      } as MessageStreamEvent,
+      expectedOutput: {
+        text: '',
+        metadata: {
+          citations: [
+            {
+              type: 'char_location',
+              citedText: 'The grass is green.',
+              documentIndex: 0,
+              documentTitle: 'Basic Facts',
+              fileId: undefined,
+              startCharIndex: 0,
+              endCharIndex: 19,
+            },
+          ],
+        },
+      },
+    },
+    {
       should: 'should return tool use requests',
       event: {
         index: 0,
@@ -902,6 +937,72 @@ describe('fromAnthropicResponse', () => {
                     name: 'tellAJoke',
                     input: { topic: 'dogs' },
                     ref: 'abc123',
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+        },
+      },
+    },
+    {
+      should: 'should work with text content containing citations',
+      message: {
+        id: 'abc123',
+        model: 'whatever',
+        type: 'message',
+        role: 'assistant',
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        content: [
+          {
+            type: 'text',
+            text: 'The grass is green.',
+            citations: [
+              {
+                type: 'char_location',
+                cited_text: 'The grass is green.',
+                document_index: 0,
+                document_title: 'Basic Facts',
+                start_char_index: 0,
+                end_char_index: 19,
+              },
+            ],
+          },
+        ],
+        usage: createUsage({
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_creation_input_tokens: null,
+          cache_read_input_tokens: null,
+        }),
+      } as Message,
+      expectedOutput: {
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text: 'The grass is green.',
+                  metadata: {
+                    citations: [
+                      {
+                        type: 'char_location',
+                        citedText: 'The grass is green.',
+                        documentIndex: 0,
+                        documentTitle: 'Basic Facts',
+                        fileId: undefined,
+                        startCharIndex: 0,
+                        endCharIndex: 19,
+                      },
+                    ],
                   },
                 },
               ],
@@ -2155,6 +2256,192 @@ describe('BaseRunner helper utilities', () => {
           error.message.includes('text:')
         );
       }
+    );
+  });
+});
+
+describe('toDocumentBlock (stable converter)', () => {
+  it('should convert text source to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'text',
+        data: 'The grass is green. The sky is blue.',
+      },
+      title: 'Basic Facts',
+      citations: { enabled: true },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'text',
+        media_type: 'text/plain',
+        data: 'The grass is green. The sky is blue.',
+      },
+      title: 'Basic Facts',
+      citations: { enabled: true },
+    });
+  });
+
+  it('should convert base64 PDF source to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'base64',
+        mediaType: 'application/pdf',
+        data: 'JVBERi0xLjQK',
+      },
+      title: 'Test PDF',
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: 'application/pdf',
+        data: 'JVBERi0xLjQK',
+      },
+      title: 'Test PDF',
+    });
+  });
+
+  it('should convert URL source to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'url',
+        url: 'https://example.com/document.pdf',
+      },
+      context: 'This is a PDF about science.',
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'url',
+        url: 'https://example.com/document.pdf',
+      },
+      context: 'This is a PDF about science.',
+    });
+  });
+
+  it('should convert content source with text blocks to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'Fact 1: Dogs are mammals.' },
+          { type: 'text', text: 'Fact 2: Cats are also mammals.' },
+        ],
+      },
+      title: 'Animal Facts',
+      citations: { enabled: true },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'Fact 1: Dogs are mammals.' },
+          { type: 'text', text: 'Fact 2: Cats are also mammals.' },
+        ],
+      },
+      title: 'Animal Facts',
+      citations: { enabled: true },
+    });
+  });
+
+  it('should convert content source with images to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'A picture of a cat:' },
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              mediaType: 'image/png',
+              data: 'iVBORw0KGgo=',
+            },
+          },
+        ],
+      },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'A picture of a cat:' },
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/png',
+              data: 'iVBORw0KGgo=',
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should throw error for file source on stable API', () => {
+    assert.throws(
+      () =>
+        toDocumentBlock({
+          source: {
+            type: 'file',
+            fileId: 'file-abc123',
+          },
+          title: 'Uploaded Document',
+        }),
+      /File-based document sources require the beta API/
+    );
+  });
+
+  it('should handle anthropicDocument custom part via toAnthropicMessageContent', () => {
+    // Test that the stable runner correctly converts anthropicDocument custom parts
+    const result = testRunner.toAnthropicMessageContent({
+      custom: {
+        anthropicDocument: {
+          source: {
+            type: 'text',
+            data: 'Hello world.',
+          },
+          title: 'Test',
+          citations: { enabled: true },
+        },
+      },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'text',
+        media_type: 'text/plain',
+        data: 'Hello world.',
+      },
+      title: 'Test',
+      citations: { enabled: true },
+    });
+  });
+
+  it('should throw for file source via toAnthropicMessageContent on stable API', () => {
+    assert.throws(
+      () =>
+        testRunner.toAnthropicMessageContent({
+          custom: {
+            anthropicDocument: {
+              source: {
+                type: 'file',
+                fileId: 'file-abc123',
+              },
+            },
+          },
+        }),
+      /File-based document sources require the beta API/
     );
   });
 });

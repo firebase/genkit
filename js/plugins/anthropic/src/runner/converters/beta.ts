@@ -18,7 +18,10 @@
  * Converters for beta API content blocks.
  */
 
+import type { BetaRequestDocumentBlock } from '@anthropic-ai/sdk/resources/beta/messages';
 import type { Part } from 'genkit';
+import type { AnthropicDocumentOptions } from '../../types.js';
+import { convertDocumentSource, createDocumentBlock } from './shared.js';
 
 /**
  * Converts a server_tool_use block to a Genkit Part.
@@ -51,4 +54,23 @@ export function betaServerToolUseBlockToPart(block: {
  */
 export function unsupportedServerToolError(blockType: string): string {
   return `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
+}
+
+/**
+ * Converts AnthropicDocumentOptions to Anthropic's beta API document block format.
+ * The beta API supports file-based sources via the Files API.
+ */
+export function toBetaDocumentBlock(
+  options: AnthropicDocumentOptions
+): BetaRequestDocumentBlock {
+  return createDocumentBlock<BetaRequestDocumentBlock>(options, (source) =>
+    convertDocumentSource<BetaRequestDocumentBlock['source']>(
+      source,
+      (fileId) =>
+        ({
+          type: 'file',
+          file_id: fileId,
+        }) as BetaRequestDocumentBlock['source']
+    )
+  );
 }

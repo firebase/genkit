@@ -41,10 +41,15 @@ import type {
 import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
-import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import {
+  AnthropicConfigSchema,
+  type AnthropicDocumentOptions,
+  type ClaudeRunnerParams,
+} from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import {
+  citationsDeltaToPart,
   inputJsonDeltaError,
   redactedThinkingBlockToPart,
   textBlockToPart,
@@ -54,7 +59,10 @@ import {
   toolUseBlockToPart,
   webSearchToolResultBlockToPart,
 } from './converters/shared.js';
-import { serverToolUseBlockToPart } from './converters/stable.js';
+import {
+  serverToolUseBlockToPart,
+  toDocumentBlock,
+} from './converters/stable.js';
 import { RunnerTypes as BaseRunnerTypes } from './types.js';
 
 interface RunnerTypes extends BaseRunnerTypes {
@@ -119,6 +127,13 @@ export class Runner extends BaseRunner<RunnerTypes> {
         text: part.text,
         citations: null,
       };
+    }
+
+    // Custom document (for citations support)
+    if (part.custom?.anthropicDocument) {
+      return toDocumentBlock(
+        part.custom.anthropicDocument as AnthropicDocumentOptions
+      );
     }
 
     if (part.media) {
@@ -353,6 +368,10 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
       if (delta.type === 'thinking_delta') {
         return thinkingDeltaToPart(delta);
+      }
+
+      if (delta.type === 'citations_delta') {
+        return citationsDeltaToPart(delta);
       }
 
       if (delta.type === 'input_json_delta') {

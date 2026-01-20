@@ -18,7 +18,10 @@
  * Converters for stable API content blocks.
  */
 
+import type { DocumentBlockParam } from '@anthropic-ai/sdk/resources/messages';
 import type { Part } from 'genkit';
+import type { AnthropicDocumentOptions } from '../../types.js';
+import { convertDocumentSource, createDocumentBlock } from './shared.js';
 
 /**
  * Converts a server_tool_use block to a Genkit Part.
@@ -39,4 +42,20 @@ export function serverToolUseBlockToPart(block: {
       },
     },
   };
+}
+
+/**
+ * Converts AnthropicDocumentOptions to Anthropic's stable API document block format.
+ * Note: The stable API does not support file-based sources (Files API).
+ */
+export function toDocumentBlock(
+  options: AnthropicDocumentOptions
+): DocumentBlockParam {
+  return createDocumentBlock<DocumentBlockParam>(options, (source) =>
+    convertDocumentSource<DocumentBlockParam['source']>(source, () => {
+      throw new Error(
+        'File-based document sources require the beta API. Set apiVersion: "beta" in your plugin config or request config.'
+      );
+    })
+  );
 }
