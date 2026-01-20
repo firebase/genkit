@@ -73,7 +73,7 @@ export const KNOWN_MODELS = {
   ),
 };
 export type KnownModels = keyof typeof KNOWN_MODELS;
-export type LlamaModelName = `claude-${string}`;
+export type LlamaModelName = `meta/llama-${string}`;
 export function isLlamaModelName(value?: string): value is LlamaModelName {
   return !!value?.startsWith('meta/llama-');
 }
