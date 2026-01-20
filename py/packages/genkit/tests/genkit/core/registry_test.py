@@ -12,9 +12,9 @@ functionality, ensuring proper registration and management of Genkit resources.
 import pytest
 
 from genkit.ai import Genkit, Plugin
+from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
-
 
 @pytest.mark.asyncio
 async def test_register_action_with_name_and_kind() -> None:
@@ -62,8 +62,6 @@ async def test_resolve_action_from_plugin():
         async def resolve(self, action_type: ActionKind, name: str):
             nonlocal resolver_calls
             resolver_calls.append([action_type, name])
-
-            from genkit.core.action import Action
 
             def model_fn():
                 pass
