@@ -37,9 +37,6 @@ class AsyncResolveOnlyPlugin(Plugin):
         if name != f'{self.name}/lazy-model':
             return None
 
-        # Simulate async derived-options / auth fetch work.
-        await asyncio.sleep(0)
-
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[TextPart(text='OK: lazy')]),
@@ -65,8 +62,6 @@ class AsyncInitPlugin(Plugin):
     name = 'async-init-plugin'
 
     async def init(self):
-        # Simulate async setup work.
-        await asyncio.sleep(0)
         action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')
         return [action]
 

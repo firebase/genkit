@@ -419,7 +419,7 @@ def create_reflection_asgi_app(
             request: The Starlette request object.
 
         Returns:
-            A JSON response containing all advertised actions from plugins.
+            A JSON response containing all serializable actions.
         """
         registered = _list_registered_actions(registry)
         metas = await registry.list_actions()
@@ -516,15 +516,11 @@ def create_reflection_asgi_app(
                     on_chunk=send_chunk,
                     context=context,
                 )
-
-                # Put final response on the queue
-                # NOTE: Final response should NOT have trailing newline so it remains
-                # in buffer when stream ends (dev UI parses remaining buffer as final result)
                 final_response = {
                     'result': dump_dict(output.response),
                     'telemetry': {'traceId': output.trace_id},
                 }
-                chunk_queue.put_nowait(json.dumps(final_response))  # No \n!
+                chunk_queue.put_nowait(json.dumps(final_response))
 
             except Exception as e:
                 error_response = get_reflection_json(e).model_dump(by_alias=True)
