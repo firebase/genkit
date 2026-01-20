@@ -77,7 +77,7 @@ async def test_generate_text_response(mocker, version):
     googleai_client_mock = mocker.AsyncMock()
     googleai_client_mock.aio.models.generate_content.return_value = resp
 
-    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
+    gemini = GeminiModel(version, googleai_client_mock)
 
     ctx = ActionRunContext()
     response = await gemini.generate(request, ctx)
@@ -117,7 +117,7 @@ async def test_generate_stream_text_response(mocker, version):
     googleai_client_mock = mocker.AsyncMock()
     googleai_client_mock.aio.models.generate_content_stream.__aiter__.side_effect = [resp]
     on_chunk_mock = mocker.MagicMock()
-    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
+    gemini = GeminiModel(version, googleai_client_mock)
 
     ctx = ActionRunContext(on_chunk=on_chunk_mock)
     response = await gemini.generate(request, ctx)
@@ -166,7 +166,7 @@ async def test_generate_media_response(mocker, version):
     googleai_client_mock = mocker.AsyncMock()
     googleai_client_mock.aio.models.generate_content.return_value = resp
 
-    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
+    gemini = GeminiModel(version, googleai_client_mock)
 
     ctx = ActionRunContext()
     response = await gemini.generate(request, ctx)
@@ -192,7 +192,7 @@ async def test_generate_media_response(mocker, version):
 def test_convert_schema_property(mocker):
     """Test _convert_schema_property."""
     googleai_client_mock = mocker.AsyncMock()
-    gemini = GeminiModel('abc', googleai_client_mock, mocker.MagicMock())
+    gemini = GeminiModel('abc', googleai_client_mock)
 
     class Simple(BaseModel):
         foo: str = Field(description='foo field')
@@ -300,7 +300,7 @@ async def test_generate_with_system_instructions(mocker):
     googleai_client_mock = mocker.AsyncMock()
     googleai_client_mock.aio.models.generate_content.return_value = resp
 
-    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
+    gemini = GeminiModel(version, googleai_client_mock)
     ctx = ActionRunContext()
 
     response = await gemini.generate(request, ctx)
@@ -348,33 +348,28 @@ def test_google_model_info(input, expected):
 @pytest.fixture
 def gemini_model_instance():
     """Common initialization of GeminiModel."""
-    mock_registry = MagicMock(spec=Genkit)
     version = 'version'
     mock_client = MagicMock(spec=genai.Client)
 
     return GeminiModel(
         version=version,
         client=mock_client,
-        registry=mock_registry,
     )
 
 
 def test_gemini_model__init__():
     """Test for init gemini model."""
-    mock_registry = MagicMock(spec=Genkit)
     version = 'version'
     mock_client = MagicMock(spec=genai.Client)
 
     model = GeminiModel(
         version=version,
         client=mock_client,
-        registry=mock_registry,
     )
 
     assert isinstance(model, GeminiModel)
     assert model._version == version
     assert model._client == mock_client
-    assert model._registry == mock_registry
 
 
 @patch('genkit.plugins.google_genai.models.gemini.GeminiModel._create_tool')
@@ -682,45 +677,6 @@ def test_gemini_model__convert_schema_property_raises_exception(input_schema, de
     """Test GeminiModel._convert_schema_property raises an exception for unresolvable schemas."""
     with pytest.raises(ValueError, match=r'Failed to resolve schema for .*'):
         gemini_model_instance._convert_schema_property(input_schema, defs)
-
-
-@pytest.mark.parametrize(
-    'tool_name, tool_response',
-    [
-        ('tool-1', 'tool 1 response'),
-        ('tool-2', {'complex_response': True}),
-    ],
-)
-@pytest.mark.asyncio
-async def test_gemini_model__call_tool(
-    tool_name,
-    tool_response,
-    gemini_model_instance,
-):
-    """Unit tests for GeminiModel._call_tool."""
-    mock_tool = MagicMock()
-    mock_tool.input_type.validate_python.return_value = []
-    mock_tool.run.return_value = ActionResponse(response=tool_response, trace_id='trace-id')
-
-    gemini_model_instance._registry = MagicMock()
-    gemini_model_instance._registry.registry.resolve_action = AsyncMock(return_value=mock_tool)
-
-    call = genai_types.FunctionCall(name=tool_name)
-    response = await gemini_model_instance._call_tool(call)
-
-    assert isinstance(response, genai_types.Content)
-    assert response.parts[0].function_response.name == tool_name
-    assert response.parts[0].function_response.response == {'content': tool_response}
-
-
-@pytest.mark.asyncio
-async def test_gemini_model__call_tool_raises_exception(gemini_model_instance):
-    """Unit tests for GeminiModel._call_tool function not found."""
-    gemini_model_instance._registry = MagicMock()
-    gemini_model_instance._registry.registry.resolve_action = AsyncMock(return_value=None)
-
-    with pytest.raises(LookupError, match=r'Tool .* not found'):
-        await gemini_model_instance._call_tool(genai_types.FunctionCall(name='tool_name'))
 
 
 @pytest.mark.asyncio

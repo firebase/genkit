@@ -160,7 +160,7 @@ class GoogleAI(Plugin):
 
         SUPPORTED_MODELS[_clean_name] = model_ref
 
-        gemini_model = GeminiModel(_clean_name, self._client, None)
+        gemini_model = GeminiModel(_clean_name, self._client)
 
         return Action(
             kind=ActionKind.MODEL,
@@ -326,7 +326,7 @@ class VertexAI(Plugin):
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
         else:
             model_ref = google_model_info(_clean_name)
-            model = GeminiModel(_clean_name, self._client, None)
+            model = GeminiModel(_clean_name, self._client)
             SUPPORTED_MODELS[_clean_name] = model_ref
 
         return Action(
