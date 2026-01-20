@@ -20,9 +20,11 @@ import os
 
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
+from genkit.core.action import Action
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
+from genkit.core.schema import to_json_schema
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.deepseek.model_info import SUPPORTED_DEEPSEEK_MODELS
 from genkit.plugins.deepseek.models import DEEPSEEK_PLUGIN_NAME, DeepSeekModel, deepseek_name
@@ -95,9 +97,6 @@ class DeepSeek(Plugin):
         Returns:
             Action object for the model.
         """
-        from genkit.core.action import Action
-        from genkit.core.schema import to_json_schema
-
         # Extract local name (remove plugin prefix)
         clean_name = name.replace(DEEPSEEK_PLUGIN_NAME + '/', '') if name.startswith(DEEPSEEK_PLUGIN_NAME) else name
 
@@ -105,7 +104,6 @@ class DeepSeek(Plugin):
         deepseek_model = DeepSeekModel(
             model=clean_name,
             api_key=self.api_key,
-            registry=None,  # We don't need registry anymore
             **self.deepseek_params,
         )
 

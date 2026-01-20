@@ -43,10 +43,10 @@ async def test_openai_plugin_resolve_action(kind, name):
     """Unit Tests for resolve method."""
     plugin = OpenAI(api_key='test-key')
 
-    action = await plugin.resolve(kind, f'openai-compat/{name}')
+    action = await plugin.resolve(kind, f'openai/{name}')
 
     assert action is not None
-    assert action.name == f'openai-compat/{name}'
+    assert action.name == f'openai/{name}'
     assert action.kind == ActionKind.MODEL
 
 
@@ -76,8 +76,8 @@ async def test_openai_plugin_list_actions() -> None:
     assert mock_client.models.list.call_count == 2
 
     assert len(actions) == len(entries)
-    assert actions[0].name == 'openai-compat/gpt-4-0613'
-    assert actions[-1].name == 'openai-compat/text-embedding-ada-002'
+    assert actions[0].name == 'openai/gpt-4-0613'
+    assert actions[-1].name == 'openai/text-embedding-ada-002'
 
 
 @pytest.mark.parametrize(
@@ -88,13 +88,13 @@ async def test_openai_plugin_list_actions() -> None:
 async def test_openai_plugin_resolve_action_not_found(kind, name):
     """Unit Tests for resolve method with non-existent model."""
     plugin = OpenAI(api_key='test-key')
-    action = await plugin.resolve(kind, f'openai-compat/{name}')
+    action = await plugin.resolve(kind, f'openai/{name}')
 
     # Should still return an action even for unknown models
     assert action is not None
-    assert action.name == f'openai-compat/{name}'
+    assert action.name == f'openai/{name}'
 
 
 def test_openai_model_function() -> None:
     """Test openai_model function."""
-    assert openai_model('gpt-4') == 'openai-compat/gpt-4'
+    assert openai_model('gpt-4') == 'openai/gpt-4'

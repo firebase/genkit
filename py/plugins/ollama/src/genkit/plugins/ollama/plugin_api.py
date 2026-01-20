@@ -24,6 +24,7 @@ import ollama as ollama_api
 from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.core.action import Action
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.plugins.ollama.constants import (
@@ -139,8 +140,6 @@ class Ollama(Plugin):
         Returns:
             Action object for the model.
         """
-        from genkit.core.action import Action
-
         # Extract local name (remove plugin prefix)
         _clean_name = name.replace(OLLAMA_PLUGIN_NAME + '/', '') if name.startswith(OLLAMA_PLUGIN_NAME) else name
 
@@ -184,8 +183,6 @@ class Ollama(Plugin):
         Returns:
             Action object for the embedder.
         """
-        from genkit.core.action import Action
-
         # Extract local name (remove plugin prefix)
         _clean_name = name.replace(OLLAMA_PLUGIN_NAME + '/', '') if name.startswith(OLLAMA_PLUGIN_NAME) else name
 

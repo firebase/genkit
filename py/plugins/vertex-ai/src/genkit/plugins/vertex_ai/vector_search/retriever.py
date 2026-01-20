@@ -24,10 +24,11 @@ from google.cloud import bigquery, firestore
 from google.cloud.aiplatform_v1 import FindNeighborsRequest, FindNeighborsResponse, IndexDatapoint
 from pydantic import BaseModel, Field, ValidationError
 
-from genkit.ai import Genkit
 from genkit.blocks.document import Document
+from genkit.blocks.retriever import require_retrieve_params
 from genkit.core.typing import Embedding
 from genkit.types import ActionRunContext, RetrieverRequest, RetrieverResponse
+from genkit.plugins.vertex_ai.vector_search.params import VertexAIVectorSearchOptions
 
 logger = structlog.get_logger(__name__)
 
@@ -43,35 +44,22 @@ class DocRetriever(ABC):
     technology used.
 
     Attributes:
-        ai: The Genkit instance.
         name: The name of this retriever instance.
         match_service_client:  The Vertex AI Matching Engine client.
-        embedder: The name of the embedder to use for generating embeddings.
-        embedder_options:  Options to pass to the embedder.
     """
 
     def __init__(
         self,
-        ai: Genkit,
         name: str,
         match_service_client_generator: Callable,
-        embedder: str,
-        embedder_options: dict[str, Any] | None = None,
     ) -> None:
         """Initializes the DocRetriever.
 
         Args:
-            ai: The Genkit application instance.
             name: The name of this retriever instance.
             match_service_client_generator: The Vertex AI Matching Engine client.
-            embedder: The name of the embedder to use for generating embeddings.
-                Already added plugin prefix.
-            embedder_options: Optional dictionary of options to pass to the embedder.
         """
-        self.ai = ai
         self.name = name
-        self.embedder = embedder
-        self.embedder_options = embedder_options or {}
         self._match_service_client_generator = match_service_client_generator
 
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
@@ -86,20 +74,26 @@ class DocRetriever(ABC):
         """
         document = Document.from_document_data(document_data=request.query)
 
-        embeddings = await self.ai.embed(
-            embedder=self.embedder,
-            documents=[document],
-            options=self.embedder_options,
+        params = require_retrieve_params(
+            request,
+            options_type=VertexAIVectorSearchOptions,
         )
 
+        embed_resp = await params.embedder.embed(
+            documents=[document],
+            options=params.embedder_options,
+        )
+        if not embed_resp.embeddings:
+            raise ValueError('Embedder returned no embeddings for query')
+
         limit_neighbors = DEFAULT_LIMIT_NEIGHBORS
-        if isinstance(request.options, dict) and request.options.get('limit') is not None:
-            limit_neighbors = request.options.get('limit')
+        if isinstance(params.options, VertexAIVectorSearchOptions) and params.options.limit is not None:
+            limit_neighbors = params.options.limit
 
         docs = await self._get_closest_documents(
             request=request,
             top_k=limit_neighbors,
-            query_embeddings=embeddings.embeddings[0],
+            query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
         )
 
         return RetrieverResponse(documents=docs)

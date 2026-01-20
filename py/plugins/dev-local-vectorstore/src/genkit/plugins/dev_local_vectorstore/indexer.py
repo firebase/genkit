@@ -20,7 +20,7 @@ import json
 from hashlib import md5
 
 from genkit.blocks.document import Document
-from genkit.blocks.retriever import IndexerRequest
+from genkit.blocks.retriever import IndexerRequest, require_index_params
 from genkit.codec import dump_json
 from genkit.types import Embedding
 
@@ -34,12 +34,21 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
     async def index(self, request: IndexerRequest) -> None:
         docs = request.documents
         data = self._load_filestore()
-        tasks = []
+        params = require_index_params(request)
 
-        for doc_data in docs:
+        embed_resp = await params.embedder.embed(
+            documents=[Document.from_document_data(document_data=doc) for doc in docs],
+            options=params.embedder_options,
+        )
+        if not embed_resp.embeddings:
+            raise ValueError('Embedder returned no embeddings for documents')
+
+        tasks = []
+        for doc_data, emb in zip(docs, embed_resp.embeddings, strict=False):
             tasks.append(
                 self.process_document(
                     document=Document.from_document_data(document_data=doc_data),
+                    embedding=Embedding(embedding=emb.embedding),
                     data=data,
                 )
             )
@@ -49,16 +58,9 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         with open(self.index_file_name, 'w', encoding='utf-8') as f:
             f.write(dump_json(self._serialize_data(data=data), indent=2))
 
-    async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
-        embeddings = await self.ai.embed(
-            embedder=self.embedder,
-            documents=[document],
-            options=self.embedder_options,
-        )
-        embedding_docs = document.get_embedding_documents(embeddings.embeddings)
-
-        for embedding, emb_doc in zip(embeddings.embeddings, embedding_docs, strict=False):
-            self._add_document(data=data, embedding=embedding, doc=emb_doc)
+    async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
+        embedding_docs = document.get_embedding_documents([embedding])
+        self._add_document(data=data, embedding=embedding, doc=embedding_docs[0])
 
     def _add_document(
         self,

@@ -25,8 +25,10 @@ from openai.types import Model
 from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.core.action import Action
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import GenerationCommonConfig
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
@@ -39,15 +41,15 @@ from genkit.plugins.compat_oai.typing import OpenAIConfig
 
 
 def open_ai_name(name: str) -> str:
-    """Create a OpenAi-Compat action name.
+    """Create an OpenAI action name.
 
     Args:
         name: Base name for the action.
 
     Returns:
-        The fully qualified OpenAi-Compat action name.
+        The fully qualified OpenAI action name.
     """
-    return f'openai-compat/{name}'
+    return f'openai/{name}'
 
 
 def default_openai_metadata(name: str) -> dict[str, Any]:
@@ -63,7 +65,7 @@ class OpenAI(Plugin):
     interaction with supported OpenAI models.
     """
 
-    name = 'openai-compat'
+    name = 'openai'
 
     def __init__(self, **openai_params: str) -> None:
         """Initializes the OpenAI plugin with the specified parameters.
@@ -132,11 +134,8 @@ class OpenAI(Plugin):
         Returns:
             Action object for the model.
         """
-        from genkit.core.action import Action
-        from genkit.core.schema import to_json_schema
-
         # Extract local name (remove plugin prefix)
-        clean_name = name.replace('openai-compat/', '') if name.startswith('openai-compat/') else name
+        clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
 
         # Create the model handler
         openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._openai_client, None))
@@ -206,7 +205,7 @@ def openai_model(name: str) -> str:
     Returns:
         A string representing the OpenAI model name to use with Genkit.
     """
-    return f'openai-compat/{name}'
+    return f'openai/{name}'
 
 
 __all__ = ['OpenAI', 'openai_model']

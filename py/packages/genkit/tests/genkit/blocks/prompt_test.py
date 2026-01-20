@@ -414,20 +414,23 @@ async def test_messages_with_explicit_override() -> None:
     """Test that explicit messages in render options are included."""
     ai, *_ = setup_test()
 
-    my_prompt = ai.define_prompt(
-        prompt='Final question',
-    )
-
-    [
+    override_messages = [
         Message(role=Role.USER, content=[TextPart(text='First message')]),
         Message(role=Role.MODEL, content=[TextPart(text='First response')]),
     ]
 
-    # The override messages should be prepended to the prompt
+    my_prompt = ai.define_prompt(
+        messages=override_messages,
+        prompt='Final question',
+    )
+
     rendered = await my_prompt.render(input=None, config=None)
 
     # Check that we have the final prompt message
     assert any('Final question' in str(msg) for msg in rendered.messages)
+    # And that the override messages appear as well
+    assert any('First message' in str(msg) for msg in rendered.messages)
+    assert any('First response' in str(msg) for msg in rendered.messages)
 
 
 @pytest.mark.asyncio

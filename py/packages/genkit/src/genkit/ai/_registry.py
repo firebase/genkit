@@ -392,7 +392,7 @@ class GenkitRegistry:
         if config_schema:
             reranker_meta['reranker']['customOptions'] = to_json_schema(config_schema)
 
-        get_func_description(fn, description)
+        reranker_description = get_func_description(fn, description)
         return define_reranker_block(
             self.registry,
             name=name,
@@ -401,6 +401,7 @@ class GenkitRegistry:
                 config_schema=reranker_meta['reranker'].get('customOptions'),
                 label=reranker_meta['reranker'].get('label'),
             ),
+            description=reranker_description,
         )
 
     async def rerank(

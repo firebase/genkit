@@ -20,7 +20,7 @@ import structlog
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
-from genkit.plugins.google_genai import GoogleAI, googleai_name
+from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI, googleai_name
 
 logger = structlog.get_logger(__name__)
 
@@ -45,7 +45,7 @@ async def execute_code(task: str) -> MessageWrapper:
     """
     response = await ai.generate(
         prompt=f'Generate and run code for the task: {task}',
-        config={'temperature': 1, 'code_execution': True},
+        config=GeminiConfigSchema(temperature=1, code_execution=True),
     )
     return response.message
 

@@ -19,8 +19,16 @@
 from typing import Any
 
 from genkit.ai import Plugin
+from genkit.blocks.retriever import (
+    IndexerOptions,
+    RetrieverOptions,
+    indexer_action_metadata,
+    retriever_action_metadata,
+)
 from genkit.core.action import Action
+from genkit.core.action import ActionMetadata
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 
 from .indexer import (
     DevLocalVectorStoreIndexer,
@@ -39,10 +47,11 @@ class DevLocalVectorStore(Plugin):
 
     name = 'devLocalVectorstore'
 
-    def __init__(self, name: str, embedder: str, embedder_options: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        name: str,
+    ):
         self.index_name = name
-        self.embedder = embedder
-        self.embedder_options = embedder_options
 
     async def init(self) -> list:
         """Initialize the plugin by creating and returning retriever and indexer actions.
@@ -50,16 +59,11 @@ class DevLocalVectorStore(Plugin):
         Returns:
             List of Action objects (retriever and indexer).
         """
-        from genkit.core.schema import to_json_schema
-
         actions = []
 
         # Create retriever action
         retriever = DevLocalVectorStoreRetriever(
-            ai=None,
             index_name=self.index_name,
-            embedder=self.embedder,
-            embedder_options=self.embedder_options,
         )
 
         actions.append(
@@ -77,10 +81,7 @@ class DevLocalVectorStore(Plugin):
 
         # Create indexer action
         indexer = DevLocalVectorStoreIndexer(
-            ai=None,
             index_name=self.index_name,
-            embedder=self.embedder,
-            embedder_options=self.embedder_options,
         )
 
         actions.append(
@@ -106,10 +107,20 @@ class DevLocalVectorStore(Plugin):
         """
         return None
 
-    async def list_actions(self) -> list:
-        """List available actions.
-
-        Returns:
-            Empty list (actions are registered via init).
-        """
-        return []
+    async def list_actions(self) -> list[ActionMetadata]:
+        """Advertise available actions for dev UI/reflection without initialization."""
+        return [
+            retriever_action_metadata(
+                name=self.index_name,
+                options=RetrieverOptions(
+                    label=self.index_name,
+                    config_schema=to_json_schema(RetrieverOptionsSchema),
+                ),
+            ),
+            indexer_action_metadata(
+                name=self.index_name,
+                options=IndexerOptions(
+                    label=self.index_name,
+                ),
+            ),
+        ]

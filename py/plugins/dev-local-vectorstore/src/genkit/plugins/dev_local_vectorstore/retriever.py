@@ -18,9 +18,11 @@
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Document
+from genkit.blocks.retriever import require_retrieve_params
 from genkit.types import Embedding, RetrieverRequest, RetrieverResponse
 
 from .local_vector_store_api import LocalVectorStoreAPI
+from .options import DevLocalVectorStoreOptions
 
 
 class ScoredDocument(BaseModel):
@@ -35,18 +37,23 @@ class RetrieverOptionsSchema(BaseModel):
 class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
         document = Document.from_document_data(document_data=request.query)
-        embeddings = await self.ai.embed(
-            embedder=self.embedder,
-            documents=[document],
-            options=self.embedder_options,
+        params = require_retrieve_params(
+            request,
+            options_type=DevLocalVectorStoreOptions,
         )
-        if self.embedder_options:
-            k = self.embedder_options.get('limit') or 3
-        else:
-            k = 3
+
+        embed_resp = await params.embedder.embed(
+            documents=[document],
+            options=params.embedder_options,
+        )
+        if not embed_resp.embeddings:
+            raise ValueError('Embedder returned no embeddings for query')
+
+        k = params.options.limit if isinstance(params.options, DevLocalVectorStoreOptions) else 3
+
         docs = self._get_closest_documents(
             k=k,
-            query_embeddings=embeddings.embeddings[0],
+            query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
         )
 
         return RetrieverResponse(documents=[d.document for d in docs])

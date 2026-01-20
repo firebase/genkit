@@ -20,8 +20,10 @@ import os
 
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
+from genkit.core.action import Action
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.vertex_ai import constants as const
@@ -94,9 +96,6 @@ class VertexAIModelGarden(Plugin):
         Returns:
             Action object for the model.
         """
-        from genkit.core.action import Action
-        from genkit.core.schema import to_json_schema
-
         # Extract local name (remove plugin prefix)
         clean_name = (
             name.replace(MODELGARDEN_PLUGIN_NAME + '/', '') if name.startswith(MODELGARDEN_PLUGIN_NAME) else name
@@ -106,7 +105,6 @@ class VertexAIModelGarden(Plugin):
             model=clean_name,
             location=self.location,
             project_id=self.project_id,
-            registry=None,
         )
 
         # Get model info and handler

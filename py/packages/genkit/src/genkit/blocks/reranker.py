@@ -298,6 +298,7 @@ def define_reranker(
     name: str,
     fn: RerankerFn,
     options: RerankerOptions | None = None,
+    description: str | None = None,
 ) -> Action:
     """Defines and registers a reranker action.
 
@@ -309,6 +310,7 @@ def define_reranker(
         name: The name of the reranker.
         fn: The reranker function that implements the reranking logic.
         options: Optional configuration options for the reranker.
+        description: Optional description for the reranker action.
 
     Returns:
         The registered Action instance.
@@ -342,6 +344,7 @@ def define_reranker(
         fn=wrapper,
         metadata=metadata.metadata,
         span_metadata=metadata.metadata,
+        description=description,
     )
 
 

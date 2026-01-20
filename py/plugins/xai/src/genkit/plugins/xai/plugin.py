@@ -21,8 +21,11 @@ import os
 from xai_sdk import Client as XAIClient
 
 from genkit.ai import Plugin
+from genkit.blocks.model import model_action_metadata
+from genkit.core.action import Action
 from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import SUPPORTED_XAI_MODELS, get_model_info
 from genkit.plugins.xai.models import XAIModel
 from genkit.types import GenerationCommonConfig
@@ -96,9 +99,6 @@ class XAI(Plugin):
         Returns:
             Action object for the model.
         """
-        from genkit.core.action import Action
-        from genkit.core.schema import to_json_schema
-
         # Extract local name (remove plugin prefix)
         clean_name = name.replace(f'{XAI_PLUGIN_NAME}/', '') if name.startswith(XAI_PLUGIN_NAME) else name
 
@@ -123,8 +123,6 @@ class XAI(Plugin):
         Returns:
             List of ActionMetadata for all supported models.
         """
-        from genkit.blocks.model import model_action_metadata
-
         actions = []
         for model_name, model_info in SUPPORTED_XAI_MODELS.items():
             actions.append(

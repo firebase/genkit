@@ -121,7 +121,6 @@ class GenkitBase(GenkitRegistry):
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    # Register plugin with the new async plugin API
                     self.registry.register_plugin(plugin)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')

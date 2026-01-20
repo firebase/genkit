@@ -22,6 +22,7 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
+from genkit.blocks.retriever import RetrieveParams
 from genkit.types import ActionRunContext, Document, GenkitError, RetrieverRequest, RetrieverResponse
 
 from .constant import MetadataTransformFn
@@ -162,8 +163,14 @@ class FirestoreRetriever:
         query_vector = Vector(query_embedding)
         collection = self.firestore_client.collection(self.collection)
 
+        options = {}
+        if isinstance(request.options, RetrieveParams):
+            options = request.options.options or {}
+        elif request.options is not None:
+            raise ValueError('FirestoreRetriever expects RetrieveParams in request.options')
+
         limit = 10
-        if isinstance(request.options, dict) and (limit_val := request.options.get('limit')) is not None:
+        if (limit_val := options.get('limit')) is not None:
             limit = int(limit_val)
 
         vector_query = collection.find_nearest(

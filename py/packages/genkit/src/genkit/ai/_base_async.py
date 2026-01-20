@@ -60,6 +60,7 @@ class GenkitBase(GenkitRegistry):
         super().__init__()
         self._reflection_server_spec = reflection_server_spec
         self._initialize_registry(model, plugins)
+        define_generate_action(self.registry)
 
     def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None) -> None:
         """Initialize the registry for the Genkit instance.
@@ -83,12 +84,9 @@ class GenkitBase(GenkitRegistry):
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    # Register plugin with the new async plugin API
                     self.registry.register_plugin(plugin)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
-
-        define_generate_action(self.registry)
 
     def run_main(self, coro: Coroutine[Any, Any, T]) -> T:
         """Run the user's main coroutine.

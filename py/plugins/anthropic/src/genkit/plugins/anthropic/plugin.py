@@ -18,7 +18,10 @@
 
 from anthropic import AsyncAnthropic
 from genkit.ai import Plugin
+from genkit.blocks.model import model_action_metadata
+from genkit.core.action import Action
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.anthropic.model_info import SUPPORTED_ANTHROPIC_MODELS, get_model_info
 from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.types import GenerationCommonConfig
@@ -95,9 +98,6 @@ class Anthropic(Plugin):
         Returns:
             Action object for the model.
         """
-        from genkit.core.action import Action
-        from genkit.core.schema import to_json_schema
-
         # Extract local name (remove plugin prefix)
         clean_name = name.replace(f'{ANTHROPIC_PLUGIN_NAME}/', '') if name.startswith(ANTHROPIC_PLUGIN_NAME) else name
 
@@ -122,8 +122,6 @@ class Anthropic(Plugin):
         Returns:
             List of ActionMetadata for all supported models.
         """
-        from genkit.blocks.model import model_action_metadata
-
         actions = []
         for model_name, model_info in SUPPORTED_ANTHROPIC_MODELS.items():
             actions.append(

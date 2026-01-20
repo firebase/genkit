@@ -25,11 +25,11 @@ from genkit.ai import Genkit
 from genkit.blocks.document import (
     Document,
 )
-from genkit.plugins.google_genai import VertexAI
+from genkit.plugins.google_genai import VertexAI, VertexAIVectorSearchConfig, vertexai_name
 from genkit.plugins.vertex_ai.vector_search import (
     BigQueryRetriever,
-    VertexAIVectorSearch,
-    vertexai_name,
+    VertexAIVectorSearchOptions,
+    vertexai_retrieve_params,
 )
 
 LOCATION = os.getenv('LOCATION')
@@ -49,20 +49,18 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
-        VertexAI(),
-        VertexAIVectorSearch(
-            retriever=BigQueryRetriever,
-            retriever_extra_args={
-                'bq_client': bq_client,
-                'dataset_id': BIGQUERY_DATASET_NAME,
-                'table_id': BIGQUERY_TABLE_NAME,
-            },
-            embedder=vertexai_name('text-embedding-004'),
-            embedder_options={
-                'task': 'RETRIEVAL_DOCUMENT',
-                'output_dimensionality': 128,
-            },
-        ),
+        VertexAI(
+            vector_search=[
+                VertexAIVectorSearchConfig(
+                    retriever=BigQueryRetriever,
+                    retriever_extra_args={
+                        'bq_client': bq_client,
+                        'dataset_id': BIGQUERY_DATASET_NAME,
+                        'table_id': BIGQUERY_TABLE_NAME,
+                    },
+                )
+            ]
+        )
     ]
 )
 
@@ -87,6 +85,7 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
     """Executes a vector search with VertexAI Vector Search."""
     start_time = time.time()
 
+    embedder = await ai.get_embedder(vertexai_name('text-embedding-004'))
     query_document = Document.from_text(text=_input.query)
     query_document.metadata = {
         'api_endpoint': VECTOR_SEARCH_API_ENDPOINT,
@@ -94,14 +93,19 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     }
 
-    options = {
-        'limit': 10,
-    }
+    options = VertexAIVectorSearchOptions(limit=10)
 
     result: list[Document] = await ai.retrieve(
-        retriever=vertexai_name('vertexAIVectorSearch'),
+        retriever='vertexai/vertexAIVectorSearch',
         query=query_document,
-        options=options,
+        params=vertexai_retrieve_params(
+            embedder=embedder,
+            embedder_options={
+                'task': 'RETRIEVAL_DOCUMENT',
+                'output_dimensionality': 128,
+            },
+            options=options,
+        ),
     )
 
     end_time = time.time()

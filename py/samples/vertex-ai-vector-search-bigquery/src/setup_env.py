@@ -23,12 +23,11 @@ import structlog
 from google.cloud import aiplatform, aiplatform_v1, bigquery
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import VertexAI
+from genkit.plugins.google_genai import VertexAI, VertexAIVectorSearchConfig
 from genkit.plugins.vertex_ai.vector_search import (
     BigQueryRetriever,
-    VertexAIVectorSearch,
-    vertexai_name,
 )
+from genkit.plugins.google_genai import vertexai_name
 from genkit.types import Document, TextPart
 
 # Environment Variables
@@ -48,17 +47,18 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
-        VertexAI(),
-        VertexAIVectorSearch(
-            retriever=BigQueryRetriever,
-            retriever_extra_args={
-                'bq_client': bq_client,
-                'dataset_id': BIGQUERY_DATASET_NAME,
-                'table_id': BIGQUERY_TABLE_NAME,
-            },
-            embedder=EMBEDDING_MODEL,
-            embedder_options={'task': 'RETRIEVAL_DOCUMENT'},
-        ),
+        VertexAI(
+            vector_search=[
+                VertexAIVectorSearchConfig(
+                    retriever=BigQueryRetriever,
+                    retriever_extra_args={
+                        'bq_client': bq_client,
+                        'dataset_id': BIGQUERY_DATASET_NAME,
+                        'table_id': BIGQUERY_TABLE_NAME,
+                    },
+                )
+            ]
+        )
     ]
 )
 

@@ -15,7 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
+from genkit.plugins.dev_local_vectorstore import (
+    DevLocalVectorStore,
+    DevLocalVectorStoreOptions,
+    dev_local_vectorstore_index_params,
+    dev_local_vectorstore_retrieve_params,
+)
 from genkit.plugins.google_genai import VertexAI
 from genkit.types import Document
 
@@ -24,7 +29,6 @@ ai = Genkit(
         VertexAI(),
         DevLocalVectorStore(
             name='films',
-            embedder='vertexai/text-embedding-004',
         ),
     ],
     model='vertexai/gemini-3-flash-preview',
@@ -46,18 +50,28 @@ films = [
 
 @ai.flow()
 async def index_documents() -> None:
-    """Indexes the film documents in Firestore."""
+    """Indexes the film documents in the local vector store."""
+    embedder = await ai.get_embedder('vertexai/text-embedding-004')
     genkit_documents = [Document.from_text(text=film) for film in films]
-    await DevLocalVectorStore.index('films', genkit_documents)
+    await ai.index(
+        indexer='films',
+        documents=genkit_documents,
+        params=dev_local_vectorstore_index_params(embedder=embedder),
+    )
 
     print('10 film documents indexed successfully')
 
 
 @ai.flow()
 async def retreive_documents():
+    embedder = await ai.get_embedder('vertexai/text-embedding-004')
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),
         retriever='films',
+        params=dev_local_vectorstore_retrieve_params(
+            embedder=embedder,
+            options=DevLocalVectorStoreOptions(limit=3),
+        ),
     )
 
 

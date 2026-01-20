@@ -259,7 +259,6 @@ def make_reflection_server(
 
                     def send_chunk(chunk):
                         chunk_json = dump_json(chunk)
-                        logger.info(f'📤 Sending chunk: {chunk_json[:200]}...')
                         self.wfile.write(
                             bytes(
                                 chunk_json,
@@ -268,7 +267,6 @@ def make_reflection_server(
                         )
                         self.wfile.write(bytes('\n', encoding))
                         self.wfile.flush()  # Flush immediately for streaming
-                        logger.info('✅ Chunk flushed')
 
                     self.send_response(200)
                     self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)

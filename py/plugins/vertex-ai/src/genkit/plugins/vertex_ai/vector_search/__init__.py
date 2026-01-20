@@ -21,9 +21,13 @@ from genkit.plugins.vertex_ai.vector_search.retriever import (
     FirestoreRetriever,
     RetrieverOptionsSchema,
 )
+from genkit.plugins.vertex_ai.vector_search.params import (
+    VertexAIVectorSearchOptions,
+    vertexai_retrieve_params,
+)
 from genkit.plugins.vertex_ai.vector_search.vector_search import (
-    VertexAIVectorSearch,
-    vertexai_name,
+    VectorSearchConfig,
+    vertexai_vector_search_name,
 )
 
 
@@ -38,8 +42,10 @@ def package_name() -> str:
 
 __all__ = [
     package_name.__name__,
-    vertexai_name.__name__,
-    VertexAIVectorSearch.__name__,
+    vertexai_vector_search_name.__name__,
+    VectorSearchConfig.__name__,
+    VertexAIVectorSearchOptions.__name__,
+    vertexai_retrieve_params.__name__,
     BigQueryRetriever.__name__,
     FirestoreRetriever.__name__,
     RetrieverOptionsSchema.__name__,

@@ -63,7 +63,6 @@ ai = Genkit(
         ]),
         DevLocalVectorStore(
             name='pdf_qa',
-            embedder='googleai/text-embedding-004',
         ),
     ]
 )

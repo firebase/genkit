@@ -14,11 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from menu_ai import ai
+from menu_ai import EMBEDDER_NAME, EMBEDDER_OPTIONS, ai
 from menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
 from pydantic import BaseModel, Field
 
 from genkit.blocks.document import Document
+from genkit.plugins.dev_local_vectorstore import (
+    DevLocalVectorStoreOptions,
+    dev_local_vectorstore_index_params,
+    dev_local_vectorstore_retrieve_params,
+)
 
 from .prompts import s04_ragDataMenuPrompt
 
@@ -36,9 +41,14 @@ async def s04_indexMenuItemsFlow(
         for item in menu_items
     ]
 
+    embedder = await ai.get_embedder(EMBEDDER_NAME)
     await ai.index(
         indexer='menu-items',
         documents=documents,
+        params=dev_local_vectorstore_index_params(
+            embedder=embedder,
+            embedder_options=EMBEDDER_OPTIONS,
+        ),
     )
     return IndexMenuItemsOutputSchema(rows=len(menu_items))
 
@@ -48,10 +58,15 @@ async def s04_ragMenuQuestionFlow(
     my_input: MenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
     # Retrieve the 3 most relevant menu items for the question
+    embedder = await ai.get_embedder(EMBEDDER_NAME)
     docs = await ai.retrieve(
         retriever='menu-items',
         query=my_input.question,
-        options={'k': 3},
+        params=dev_local_vectorstore_retrieve_params(
+            embedder=embedder,
+            embedder_options=EMBEDDER_OPTIONS,
+            options=DevLocalVectorStoreOptions(limit=3),
+        ),
     )
 
     menu_data = [doc.metadata for doc in docs.documents]

@@ -20,7 +20,9 @@ Users should import Genkit types from this module.
 """
 
 from genkit.blocks.document import Document
+from genkit.blocks.embedding import Embedder
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, MessageWrapper
+from genkit.blocks.retriever import IndexParams, RetrieveParams
 from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.typing import (
@@ -79,6 +81,7 @@ __all__ = [
     DocumentData.__name__,
     EmbedRequest.__name__,
     EmbedResponse.__name__,
+    Embedder.__name__,
     Embedding.__name__,
     EvalFnResponse.__name__,
     EvalRequest.__name__,
@@ -104,6 +107,8 @@ __all__ = [
     ReasoningPart.__name__,
     RetrieverRequest.__name__,
     RetrieverResponse.__name__,
+    RetrieveParams.__name__,
+    IndexParams.__name__,
     Role.__name__,
     Score.__name__,
     Stage.__name__,

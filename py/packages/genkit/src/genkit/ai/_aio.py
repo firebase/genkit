@@ -23,12 +23,13 @@ class while customizing it with any plugins.
 import uuid
 from asyncio import Future
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from genkit.aio import Channel
 from genkit.blocks.document import Document
-from genkit.blocks.embedding import EmbedderRef
+from genkit.blocks.embedding import Embedder, EmbedderRef
 from genkit.blocks.evaluator import EvaluatorRef
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
@@ -40,7 +41,7 @@ from genkit.blocks.model import (
     ModelMiddleware,
 )
 from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
-from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
+from genkit.blocks.retriever import IndexParams, IndexerRef, IndexerRequest, RetrieveParams, RetrieverRef
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
@@ -316,18 +317,25 @@ class Genkit(GenkitBase):
 
         return stream, stream.closed
 
+    async def get_embedder(self, name: str) -> Embedder:
+        """Resolve and return an embedder object by name."""
+        embed_action = await self.registry.resolve_action(ActionKind.EMBEDDER, name)
+        if embed_action is None:
+            raise ValueError(f'Embedder "{name}" not found')
+        return Embedder(name=name, action=embed_action)
+
     async def retrieve(
         self,
         retriever: str | RetrieverRef | None = None,
         query: str | DocumentData | None = None,
-        options: dict[str, Any] | None = None,
+        params: RetrieveParams | None = None,
     ) -> RetrieverResponse:
         """Retrieves documents based on query.
 
         Args:
             retriever: Optional retriever name or reference to use.
             query: Text query or a DocumentData containing query text.
-            options: retriever options
+            params: Optional retrieve params (embedder + options).
 
         Returns:
             The generated response with documents.
@@ -348,26 +356,38 @@ class Genkit(GenkitBase):
         if isinstance(query, str):
             query = Document.from_text(query)
 
-        final_options = {**(retriever_config or {}), **(options or {})}
+        request_options: Any | None = None
+        if params is None:
+            request_options = {**(retriever_config or {})}
+        else:
+            merged_options = {**(retriever_config or {}), **(params.options or {})}
+            request_options = replace(params, options=merged_options) if merged_options else params
 
         retrieve_action = await self.registry.resolve_action(ActionKind.RETRIEVER, retriever_name)
         if retrieve_action is None:
             raise ValueError(f'Retriever "{retriever_name}" not found')
 
-        return (await retrieve_action.arun(RetrieverRequest(query=query, options=final_options))).response
+        return (
+            await retrieve_action.arun(
+                RetrieverRequest(
+                    query=query,
+                    options=request_options,
+                )
+            )
+        ).response
 
     async def index(
         self,
         indexer: str | IndexerRef | None = None,
         documents: list[Document] | None = None,
-        options: dict[str, Any] | None = None,
+        params: IndexParams | None = None,
     ) -> None:
         """Indexes documents.
 
         Args:
             indexer: Optional indexer name or reference to use.
             documents: Documents to index.
-            options: indexer options
+            params: Optional index params (embedder + options).
         """
         indexer_name: str
         indexer_config: dict[str, Any] = {}
@@ -382,13 +402,23 @@ class Genkit(GenkitBase):
         else:
             raise ValueError('Indexer must be specified as a string name or an IndexerRef.')
 
-        final_options = {**(indexer_config or {}), **(options or {})}
+        request_options: Any | None = None
+        if params is None:
+            request_options = {**(indexer_config or {})}
+        else:
+            merged_options = {**(indexer_config or {}), **(params.options or {})}
+            request_options = replace(params, options=merged_options) if merged_options else params
 
         index_action = await self.registry.resolve_action(ActionKind.INDEXER, indexer_name)
         if index_action is None:
             raise ValueError(f'Indexer "{indexer_name}" not found')
 
-        await index_action.arun(IndexerRequest(documents=documents, options=final_options))
+        await index_action.arun(
+            IndexerRequest(
+                documents=documents,
+                options=request_options,
+            )
+        )
 
     async def embed(
         self,
