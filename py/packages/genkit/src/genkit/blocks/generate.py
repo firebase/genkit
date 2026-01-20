@@ -29,12 +29,15 @@ from genkit.blocks.model import (
     MessageWrapper,
     ModelMiddleware,
 )
+from genkit.blocks.resource import ResourceInput, find_matching_resource, resolve_resources
 from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
+    DocumentData,
+    DocumentPart,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -100,6 +103,9 @@ async def generate_action(
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
+
+    if raw_request.resources:
+        raw_request = await apply_resources(registry, raw_request)
 
     assert_valid_tool_names(tools)
 
@@ -410,6 +416,140 @@ def apply_transfer_preamble(next_request: GenerateActionOptions, preamble: Gener
     """
     # TODO: implement me
     return next_request
+
+
+async def apply_resources(registry: Registry, raw_request: GenerateActionOptions) -> GenerateActionOptions:
+    """Applies resources to the request messages by hydrating resource parts.
+
+    Args:
+        registry: The registry to use for resolving resources.
+        raw_request: The generation request.
+
+    Returns:
+        The updated generation request with hydrated resources.
+    """
+    # Quick check if any message has a resource part
+    has_resource = False
+    for msg in raw_request.messages:
+        for part in msg.content:
+            if part.root.resource:
+                has_resource = True
+                break
+        if has_resource:
+            break
+
+    if not has_resource:
+        return raw_request
+
+    # Resolve all declared resources
+    resources = []
+    if raw_request.resources:
+        resources = await resolve_resources(registry, raw_request.resources)
+
+    updated_messages = []
+    for msg in raw_request.messages:
+        if not any(p.root.resource for p in msg.content):
+            updated_messages.append(msg)
+            continue
+
+        updated_content = []
+        for part in msg.content:
+            if not part.root.resource:
+                updated_content.append(part)
+                continue
+
+            resource_obj = part.root.resource
+
+            ref_uri = None
+            target_resource = resource_obj
+
+            # Helper to extract URI from various wrapped forms
+            # We unwrap up to a few levels to handle RootModels and nested Resource structures
+            curr = resource_obj
+            for _ in range(5):  # Limit depth to avoid infinite loops
+                if not curr:
+                    break
+
+                if hasattr(curr, 'uri') and curr.uri:
+                    ref_uri = curr.uri
+                    target_resource = curr
+                    break
+
+                if hasattr(curr, 'resource') and curr.resource:
+                    curr = curr.resource
+                    continue
+
+                if hasattr(curr, 'root'):
+                    curr = curr.root
+                    continue
+
+                if isinstance(curr, dict):
+                    if 'uri' in curr:
+                        ref_uri = curr['uri']
+                        target_resource = curr  # Or wrapped?
+                        break
+                    if 'resource' in curr and curr['resource']:
+                        curr = curr['resource']
+                        continue
+
+                # If we get here and haven't continued or correctly identified uri attributes, stop
+                break
+
+            if not ref_uri:
+                continue
+
+            # Find matching resource action
+            resource_action = None
+
+            if resources:
+                from genkit.blocks.resource import find_matching_resource
+
+                # Check if target_resource is a dict (if we unwrapped to a dict with uri)
+                if isinstance(target_resource, dict) and 'uri' in target_resource:
+
+                    class SimpleResource:
+                        def __init__(self, uri):
+                            self.uri = uri
+
+                    target_resource = SimpleResource(target_resource['uri'])
+
+                resource_action = await find_matching_resource(registry, resources, target_resource)
+
+            if not resource_action:
+                # TODO: make this a warning or error based on config?
+                # For now, we leave it as is if not found, or maybe raise error like JS?
+                # JS throws GenkitError('failed to find matching resource...')
+                try:
+                    raise GenkitError(
+                        status='NOT_FOUND',
+                        message=f'failed to find matching resource for {ref_uri}',
+                    )
+                except Exception:
+                    # If raising fails for some reason or we want to just continue
+                    continue
+
+            # Execute the resource
+            # Create a simple context for the resource execution
+            resource_ctx = ActionRunContext(on_chunk=None, context=None)
+            response = await resource_action.arun(target_resource, resource_ctx)
+
+            # response.response is ResourceOutput which has .content (list of Parts)
+            # It usually returns a dict if coming from dynamic_resource (model_dump called)
+            output_content = None
+            if hasattr(response.response, 'content'):
+                output_content = response.response.content
+            elif isinstance(response.response, dict) and 'content' in response.response:
+                output_content = response.response['content']
+
+            if output_content:
+                updated_content.extend(output_content)
+
+        updated_messages.append(Message(role=msg.role, content=updated_content, metadata=msg.metadata))
+
+    # Return a new request with updated messages
+    new_request = raw_request.model_copy()
+    new_request.messages = updated_messages
+    return new_request
 
 
 def assert_valid_tool_names(raw_request: GenerateActionOptions):

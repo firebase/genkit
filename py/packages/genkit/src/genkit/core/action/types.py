@@ -49,6 +49,7 @@ class ActionKind(StrEnum):
     """
 
     CUSTOM = 'custom'
+    DYNAMIC_ACTION_PROVIDER = 'dynamic-action-provider'
     EMBEDDER = 'embedder'
     EVALUATOR = 'evaluator'
     EXECUTABLE_PROMPT = 'executable-prompt'

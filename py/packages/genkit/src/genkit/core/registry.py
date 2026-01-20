@@ -193,6 +193,25 @@ class Registry:
                 if plugin_name and plugin_name in self._action_resolvers:
                     self._action_resolvers[plugin_name](kind, name)
 
+            if (
+                (kind not in self._entries or name not in self._entries[kind])
+                and kind != ActionKind.DYNAMIC_ACTION_PROVIDER
+                and ActionKind.DYNAMIC_ACTION_PROVIDER in self._entries
+            ):
+                for provider in self._entries[ActionKind.DYNAMIC_ACTION_PROVIDER].values():
+                    try:
+                        # Construct input for the provider action
+                        input_data = {'kind': kind, 'name': name}
+                        # Execute the provider action synchronously
+                        response = provider.run(input_data)
+                        action = response.response
+
+                        if action:
+                            self.register_action_from_instance(action)
+                            break
+                    except Exception:
+                        continue
+
             if kind in self._entries and name in self._entries[kind]:
                 return self._entries[kind][name]
 

@@ -56,4 +56,8 @@ def record_output_metadata(span, output) -> None:
         output: The output data returned by the action.
     """
     span.set_attribute('genkit:state', 'success')
-    span.set_attribute('genkit:output', dump_json(output))
+    try:
+        span.set_attribute('genkit:output', dump_json(output))
+    except Exception:
+        # Fallback for non-serializable output
+        span.set_attribute('genkit:output', str(output))
