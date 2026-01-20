@@ -20,16 +20,9 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
-from genkit.plugins.firebase import add_firebase_telemetry
-from genkit.plugins.firebase.firestore import (
-    FirestoreVectorStore,
-    firestore_action_name,
-)
+from genkit.plugins.firebase import add_firebase_telemetry, defineFirestoreVectorStore
 from genkit.plugins.google_genai import VertexAI
-from genkit.types import (
-    Document,
-    TextPart,
-)
+from genkit.types import Document, TextPart
 
 # Important: use the same embedding model for indexing and retrieval.
 EMBEDDING_MODEL = 'vertexai/text-embedding-004'
@@ -39,21 +32,20 @@ add_firebase_telemetry()
 
 firestore_client = firestore.Client()
 
-# Create Genkit instance first with VertexAI plugin
+# Create Genkit instance
 ai = Genkit(plugins=[VertexAI()])
 
-# Create FirestoreVectorStore with ai reference and register it
-firestore_plugin = FirestoreVectorStore(
-    retriever_name='my_firestore_retriever',
+# Define Firestore vector store - returns the retriever name
+RETRIEVER_NAME = defineFirestoreVectorStore(
+    ai,
+    name='my_firestore_retriever',
+    embedder=EMBEDDING_MODEL,
     collection='films',
     vector_field='embedding',
     content_field='text',
-    embedder=EMBEDDING_MODEL,
-    distance_measure=DistanceMeasure.EUCLIDEAN,
     firestore_client=firestore_client,
-    ai=ai,
+    distance_measure=DistanceMeasure.EUCLIDEAN,
 )
-ai.registry.register_plugin(firestore_plugin)
 
 collection_name = 'films'
 
@@ -102,7 +94,8 @@ async def retreive_documents():
     """Retrieves the film documents from Firestore."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),
-        retriever=firestore_action_name('my_firestore_retriever'),
+        retriever=RETRIEVER_NAME,
+        options={'limit': 10},
     )
 
 

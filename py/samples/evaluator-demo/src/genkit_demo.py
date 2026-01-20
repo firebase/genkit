@@ -14,7 +14,7 @@
 
 from genkit.ai import Genkit
 from genkit.blocks.model import ModelReference
-from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
+from genkit.plugins.dev_local_vectorstore import defineDevLocalVectorStore
 from genkit.plugins.evaluators import GenkitEvaluators, GenkitMetricType, MetricConfig
 from genkit.plugins.google_genai import GoogleAI
 
@@ -61,8 +61,12 @@ ai = Genkit(
                 judge_config=PERMISSIVE_SAFETY_SETTINGS,
             ),
         ]),
-        DevLocalVectorStore(
-            name='pdf_qa',
-        ),
     ]
+)
+
+# Define dev local vector store
+defineDevLocalVectorStore(
+    ai,
+    name='pdf_qa',
+    embedder='googleai/text-embedding-004',
 )

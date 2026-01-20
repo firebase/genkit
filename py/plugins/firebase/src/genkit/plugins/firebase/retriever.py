@@ -22,7 +22,6 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
-from genkit.blocks.retriever import RetrieveParams
 from genkit.types import ActionRunContext, Document, GenkitError, RetrieverRequest, RetrieverResponse
 
 from .constant import MetadataTransformFn
@@ -32,40 +31,53 @@ class FirestoreRetriever:
     """Retrieves documents from Google Cloud Firestore using vector similarity search.
 
     Attributes:
-        ai: An instance of the Genkit AI registry.
-        params: A FirestoreRetrieverConfig object containing the configuration
-            for the retriever
+        ai: Genkit instance used to embed queries.
+        name: Name of the retriever.
+        embedder: The embedder to use for query embeddings.
+        embedder_options: Optional configuration to pass to the embedder.
         firestore_client: The initialized Firestore client from the configuration.
+        collection: The name of the Firestore collection to query.
+        vector_field: The name of the field containing the vector embeddings.
+        content_field: The name of the field containing the document content.
+        distance_measure: The distance measure to use when comparing vectors.
+        metadata_fields: Optional list of metadata fields to include.
     """
 
     def __init__(
         self,
         ai: Genkit,
         name: str,
+        embedder: str,
+        embedder_options: dict[str, Any] | None,
         firestore_client: Any,
         collection: str,
         vector_field: str,
         content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]],
-        embedder: str,
-        embedder_options: dict[str, Any] | None = None,
         distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
         metadata_fields: list[str] | MetadataTransformFn | None = None,
     ):
         """Initialize the FirestoreRetriever.
 
         Args:
-            ai: An instance of the Genkit AI registry.
-            params: A FirestoreRetrieverConfig object containing the configuration
-                for the retriever
+            ai: Genkit instance used to embed queries.
+            name: Name of the retriever.
+            embedder: The embedder to use for query embeddings.
+            embedder_options: Optional configuration to pass to the embedder.
+            firestore_client: The Firestore database instance from which to query.
+            collection: The name of the Firestore collection to query.
+            vector_field: The name of the field containing the vector embeddings.
+            content_field: The name of the field containing the document content.
+            distance_measure: The distance measure to use when comparing vectors.
+            metadata_fields: Optional list of metadata fields to include.
         """
         self.ai = ai
         self.name = name
+        self.embedder = embedder
+        self.embedder_options = embedder_options
         self.firestore_client = firestore_client
         self.collection = collection
         self.vector_field = vector_field
         self.content_field = content_field
-        self.embedder = embedder
-        self.embedder_options = embedder_options
         self.distance_measure = distance_measure
         self.metadata_fields = metadata_fields
         self._validate_config()
@@ -149,7 +161,7 @@ class FirestoreRetriever:
         Returns:
             A RetrieverResponse Object containing retrieved documents
         """
-        query = request.query
+        query = Document.from_document_data(document_data=request.query)
         query_embedding_result = await self.ai.embed(
             embedder=self.embedder,
             documents=[query],
@@ -163,14 +175,8 @@ class FirestoreRetriever:
         query_vector = Vector(query_embedding)
         collection = self.firestore_client.collection(self.collection)
 
-        options = {}
-        if isinstance(request.options, RetrieveParams):
-            options = request.options.options or {}
-        elif request.options is not None:
-            raise ValueError('FirestoreRetriever expects RetrieveParams in request.options')
-
         limit = 10
-        if (limit_val := options.get('limit')) is not None:
+        if isinstance(request.options, dict) and (limit_val := request.options.get('limit')) is not None:
             limit = int(limit_val)
 
         vector_query = collection.find_nearest(

@@ -23,13 +23,11 @@ to accomplish a task.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from genkit.blocks.document import Document
-from genkit.blocks.embedding import Embedder
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
@@ -53,29 +51,6 @@ class RetrieverRequest(BaseModel):
 
     query: DocumentData
     options: Any | None = None
-
-
-@dataclass(frozen=True)
-class RetrieveParams:
-    embedder: Embedder | None = None
-    embedder_options: dict[str, Any] | None = None
-    options: Any | None = None
-
-
-def require_retrieve_params(
-    request: RetrieverRequest,
-    *,
-    options_type: type | None = None,
-) -> RetrieveParams:
-    """Return RetrieveParams from a request or raise a clear error."""
-    params = request.options
-    if not isinstance(params, RetrieveParams):
-        raise ValueError('Retriever requires RetrieveParams in request.options')
-    if params.embedder is None:
-        raise ValueError('Retriever requires an embedder in RetrieveParams')
-    if options_type is not None and params.options is not None and not isinstance(params.options, options_type):
-        raise ValueError(f'Retriever expects {options_type.__name__} in RetrieveParams.options')
-    return params
 
 
 class RetrieverSupports(BaseModel):
@@ -154,29 +129,6 @@ class IndexerRequest(BaseModel):
 
     documents: list[DocumentData]
     options: Any | None = None
-
-
-@dataclass(frozen=True)
-class IndexParams:
-    embedder: Embedder | None = None
-    embedder_options: dict[str, Any] | None = None
-    options: Any | None = None
-
-
-def require_index_params(
-    request: IndexerRequest,
-    *,
-    options_type: type | None = None,
-) -> IndexParams:
-    """Return IndexParams from a request or raise a clear error."""
-    params = request.options
-    if not isinstance(params, IndexParams):
-        raise ValueError('Indexer requires IndexParams in request.options')
-    if params.embedder is None:
-        raise ValueError('Indexer requires an embedder in IndexParams')
-    if options_type is not None and params.options is not None and not isinstance(params.options, options_type):
-        raise ValueError(f'Indexer expects {options_type.__name__} in IndexParams.options')
-    return params
 
 
 class IndexerInfo(BaseModel):

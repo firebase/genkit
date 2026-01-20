@@ -15,14 +15,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionRunContext, Document
-from genkit.blocks.retriever import require_retrieve_params
+from genkit.ai import ActionRunContext, Document, Genkit
 from genkit.types import Embedding, RetrieverRequest, RetrieverResponse
 
 from .local_vector_store_api import LocalVectorStoreAPI
-from .options import DevLocalVectorStoreOptions
 
 
 class ScoredDocument(BaseModel):
@@ -35,21 +35,40 @@ class RetrieverOptionsSchema(BaseModel):
 
 
 class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
+    def __init__(
+        self,
+        ai: Genkit,
+        index_name: str,
+        embedder: str,
+        embedder_options: dict[str, Any] | None = None,
+    ):
+        """Initialize the DevLocalVectorStoreRetriever.
+
+        Args:
+            ai: Genkit instance used to embed queries.
+            index_name: Name of the index.
+            embedder: The embedder to use for query embeddings.
+            embedder_options: Optional configuration to pass to the embedder.
+        """
+        super().__init__(index_name=index_name)
+        self.ai = ai
+        self.embedder = embedder
+        self.embedder_options = embedder_options
+
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
         document = Document.from_document_data(document_data=request.query)
-        params = require_retrieve_params(
-            request,
-            options_type=DevLocalVectorStoreOptions,
-        )
 
-        embed_resp = await params.embedder.embed(
+        embed_resp = await self.ai.embed(
+            embedder=self.embedder,
             documents=[document],
-            options=params.embedder_options,
+            options=self.embedder_options,
         )
         if not embed_resp.embeddings:
             raise ValueError('Embedder returned no embeddings for query')
 
-        k = params.options.limit if isinstance(params.options, DevLocalVectorStoreOptions) else 3
+        k = 3
+        if isinstance(request.options, dict) and (limit_val := request.options.get('limit')) is not None:
+            k = int(limit_val)
 
         docs = self._get_closest_documents(
             k=k,

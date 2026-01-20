@@ -17,7 +17,6 @@
 from genkit.plugins.google_genai.google import (
     GoogleAI,
     VertexAI,
-    VertexAIVectorSearchConfig,
     googleai_name,
     vertexai_name,
 )
@@ -32,10 +31,8 @@ from genkit.plugins.google_genai.vector_search import (
     BigQueryRetriever,
     FirestoreRetriever,
     RetrieverOptionsSchema,
-    VectorSearchConfig,
-    VertexAIVectorSearchOptions,
-    vertexai_retrieve_params,
-    vertexai_vector_search_name,
+    defineVertexVectorSearchBigQuery,
+    defineVertexVectorSearchFirestore,
 )
 
 
@@ -52,7 +49,6 @@ __all__ = [
     package_name.__name__,
     GoogleAI.__name__,
     VertexAI.__name__,
-    VertexAIVectorSearchConfig.__name__,
     googleai_name.__name__,
     vertexai_name.__name__,
     GeminiEmbeddingModels.__name__,
@@ -65,8 +61,6 @@ __all__ = [
     BigQueryRetriever.__name__,
     FirestoreRetriever.__name__,
     RetrieverOptionsSchema.__name__,
-    VectorSearchConfig.__name__,
-    VertexAIVectorSearchOptions.__name__,
-    vertexai_retrieve_params.__name__,
-    vertexai_vector_search_name.__name__,
+    defineVertexVectorSearchBigQuery.__name__,
+    defineVertexVectorSearchFirestore.__name__,
 ]

@@ -12,7 +12,7 @@ functionality, ensuring proper registration and management of Genkit resources.
 import pytest
 
 from genkit.ai import Genkit, Plugin
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 
@@ -56,7 +56,7 @@ async def test_resolve_action_from_plugin():
     class MyPlugin(Plugin):
         name = 'myplugin'
 
-        async def init(self):
+        async def init(self) -> list[Action]:
             return []
 
         async def resolve(self, action_type: ActionKind, name: str):
@@ -68,10 +68,13 @@ async def test_resolve_action_from_plugin():
 
             return Action(name=name, fn=model_fn, kind=action_type)
 
-        async def list_actions(self):
-            return []
+        async def list_actions(self) -> list[ActionMetadata]:
+            return [ActionMetadata(kind=ActionKind.MODEL, name='foo')]
 
     ai = Genkit(plugins=[MyPlugin()])
+
+    metas = await ai.registry.list_actions()
+    assert metas == [ActionMetadata(kind=ActionKind.MODEL, name='myplugin/foo')]
 
     action = await ai.registry.resolve_action(ActionKind.MODEL, 'myplugin/foo')
 

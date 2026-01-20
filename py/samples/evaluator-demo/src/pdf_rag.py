@@ -18,11 +18,6 @@ from genkit_demo import ai
 from pypdf import PdfReader
 
 from genkit.blocks.document import Document
-from genkit.plugins.dev_local_vectorstore import (
-    DevLocalVectorStoreOptions,
-    dev_local_vectorstore_index_params,
-    dev_local_vectorstore_retrieve_params,
-)
 
 pdf_chat_retriever = 'pdf_qa'
 pdf_chat_indexer = 'pdf_qa'
@@ -40,14 +35,10 @@ Helpful Answer:"""
 # Define a simple RAG flow, we will evaluate this flow
 @ai.flow(name='pdf_qa')
 async def pdf_qa(query: str) -> str:
-    embedder = await ai.get_embedder('googleai/text-embedding-004')
     docs = await ai.retrieve(
         retriever=pdf_chat_retriever,
         query=query,
-        params=dev_local_vectorstore_retrieve_params(
-            embedder=embedder,
-            options=DevLocalVectorStoreOptions(limit=3),
-        ),
+        options={'limit': 3},
     )
 
     # Fake response to simulate malicious output
@@ -116,11 +107,9 @@ async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf')
 
     documents = [Document.from_text(text, {'filePath': file_path}) for text in chunks]
 
-    embedder = await ai.get_embedder('googleai/text-embedding-004')
     await ai.index(
         indexer=pdf_chat_indexer,
         documents=documents,
-        params=dev_local_vectorstore_index_params(embedder=embedder),
     )
 
 

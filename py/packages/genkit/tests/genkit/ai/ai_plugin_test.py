@@ -65,24 +65,28 @@ class AsyncInitPlugin(Plugin):
     name = 'async-init-plugin'
 
     async def init(self):
+        # Simulate async setup work.
+        await asyncio.sleep(0)
+        action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')
+        return [action]
+
+    async def resolve(self, action_type: ActionKind, name: str):
+        if action_type != ActionKind.MODEL:
+            return None
+        if name != f'{self.name}/init-model':
+            return None
+
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
-                message=Message(role=Role.MODEL, content=[TextPart(text='OK: init')]),
+                message=Message(role=Role.MODEL, content=[TextPart(text='OK: resolve')]),
                 finish_reason='stop',
             )
 
-        # Simulate async setup work.
-        await asyncio.sleep(0)
-        return [
-            Action(
-                kind=ActionKind.MODEL,
-                name=f'{self.name}/init-model',
-                fn=_generate,
-            )
-        ]
-
-    async def resolve(self, action_type: ActionKind, name: str):
-        return None
+        return Action(
+            kind=ActionKind.MODEL,
+            name=name,
+            fn=_generate,
+        )
 
     async def list_actions(self):
         return [
@@ -104,4 +108,4 @@ async def test_async_resolve_is_awaited_via_generate():
 async def test_async_init_is_awaited_via_generate():
     ai = Genkit(plugins=[AsyncInitPlugin()])
     resp = await ai.generate('async-init-plugin/init-model', prompt='hello')
-    assert resp.text == 'OK: init'
+    assert resp.text == 'OK: resolve'

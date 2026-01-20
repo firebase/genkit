@@ -18,27 +18,47 @@
 import asyncio
 import json
 from hashlib import md5
+from typing import Any
 
+from genkit.ai import Genkit
 from genkit.blocks.document import Document
-from genkit.blocks.retriever import IndexerRequest, require_index_params
+from genkit.blocks.retriever import IndexerRequest
 from genkit.codec import dump_json
 from genkit.types import Embedding
 
 from .constant import DbValue
-from .local_vector_store_api import (
-    LocalVectorStoreAPI,
-)
+from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
+    def __init__(
+        self,
+        ai: Genkit,
+        index_name: str,
+        embedder: str,
+        embedder_options: dict[str, Any] | None = None,
+    ):
+        """Initialize the DevLocalVectorStoreIndexer.
+
+        Args:
+            ai: Genkit instance used to embed documents.
+            index_name: Name of the index.
+            embedder: The embedder to use for document embeddings.
+            embedder_options: Optional configuration to pass to the embedder.
+        """
+        super().__init__(index_name=index_name)
+        self.ai = ai
+        self.embedder = embedder
+        self.embedder_options = embedder_options
+
     async def index(self, request: IndexerRequest) -> None:
         docs = request.documents
         data = self._load_filestore()
-        params = require_index_params(request)
 
-        embed_resp = await params.embedder.embed(
+        embed_resp = await self.ai.embed(
+            embedder=self.embedder,
             documents=[Document.from_document_data(document_data=doc) for doc in docs],
-            options=params.embedder_options,
+            options=self.embedder_options,
         )
         if not embed_resp.embeddings:
             raise ValueError('Embedder returned no embeddings for documents')

@@ -14,113 +14,81 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Local file-based vectorstore plugin that provides retriever and indexer for Genkit."""
+"""Local file-based vectorstore helper that provides retriever and indexer for Genkit."""
 
 from typing import Any
 
-from genkit.ai import Plugin
+from genkit.ai import Genkit
 from genkit.blocks.retriever import (
     IndexerOptions,
     RetrieverOptions,
     indexer_action_metadata,
     retriever_action_metadata,
 )
-from genkit.core.action import Action
-from genkit.core.action import ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 
-from .indexer import (
-    DevLocalVectorStoreIndexer,
-)
-from .retriever import (
-    DevLocalVectorStoreRetriever,
-    RetrieverOptionsSchema,
-)
+from .indexer import DevLocalVectorStoreIndexer
+from .retriever import DevLocalVectorStoreRetriever, RetrieverOptionsSchema
 
 
-class DevLocalVectorStore(Plugin):
-    """Local file-based vectorstore plugin that provides retriever and indexer.
+def defineDevLocalVectorStore(
+    ai: Genkit,
+    *,
+    name: str,
+    embedder: str,
+    embedder_options: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    """Define and register a dev local vector store retriever and indexer.
 
     NOT INTENDED FOR USE IN PRODUCTION
+
+    Args:
+        ai: The Genkit instance to register the retriever and indexer with.
+        name: Name of the retriever and indexer.
+        embedder: The embedder to use (e.g., 'vertexai/text-embedding-004').
+        embedder_options: Optional configuration to pass to the embedder.
+
+    Returns:
+        Tuple of (retriever_name, indexer_name).
     """
+    # Create and register retriever
+    retriever = DevLocalVectorStoreRetriever(
+        ai=ai,
+        index_name=name,
+        embedder=embedder,
+        embedder_options=embedder_options,
+    )
 
-    name = 'devLocalVectorstore'
-
-    def __init__(
-        self,
-        name: str,
-    ):
-        self.index_name = name
-
-    async def init(self) -> list:
-        """Initialize the plugin by creating and returning retriever and indexer actions.
-
-        Returns:
-            List of Action objects (retriever and indexer).
-        """
-        actions = []
-
-        # Create retriever action
-        retriever = DevLocalVectorStoreRetriever(
-            index_name=self.index_name,
-        )
-
-        actions.append(
-            Action(
-                kind=ActionKind.RETRIEVER,
-                name=self.index_name,
-                fn=retriever.retrieve,
-                metadata={
-                    'retriever': {
-                        'customOptions': to_json_schema(RetrieverOptionsSchema),
-                    },
-                },
-            )
-        )
-
-        # Create indexer action
-        indexer = DevLocalVectorStoreIndexer(
-            index_name=self.index_name,
-        )
-
-        actions.append(
-            Action(
-                kind=ActionKind.INDEXER,
-                name=self.index_name,
-                fn=indexer.index,
-                metadata={},
-            )
-        )
-
-        return actions
-
-    async def resolve(self, action_type: ActionKind, name: str):
-        """Resolve an action.
-
-        Args:
-            action_type: The kind of action to resolve.
-            name: The namespaced name of the action to resolve.
-
-        Returns:
-            None (all actions are returned by init).
-        """
-        return None
-
-    async def list_actions(self) -> list[ActionMetadata]:
-        """Advertise available actions for dev UI/reflection without initialization."""
-        return [
-            retriever_action_metadata(
-                name=self.index_name,
-                options=RetrieverOptions(
-                    label=self.index_name,
-                    config_schema=to_json_schema(RetrieverOptionsSchema),
-                ),
+    ai.registry.register_action(
+        kind=ActionKind.RETRIEVER,
+        name=name,
+        fn=retriever.retrieve,
+        metadata=retriever_action_metadata(
+            name=name,
+            options=RetrieverOptions(
+                label=name,
+                config_schema=to_json_schema(RetrieverOptionsSchema),
             ),
-            indexer_action_metadata(
-                name=self.index_name,
-                options=IndexerOptions(
-                    label=self.index_name,
-                ),
-            ),
-        ]
+        ).metadata,
+    )
+
+    # Create and register indexer
+    indexer = DevLocalVectorStoreIndexer(
+        ai=ai,
+        index_name=name,
+        embedder=embedder,
+        embedder_options=embedder_options,
+    )
+
+    ai.registry.register_action(
+        kind=ActionKind.INDEXER,
+        name=name,
+        fn=indexer.index,
+        metadata=indexer_action_metadata(
+            name=name,
+            options=IndexerOptions(label=name),
+        ).metadata,
+    )
+
+    return (name, name)

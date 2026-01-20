@@ -15,7 +15,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from dataclasses import dataclass
 from typing import Any
 
 from google import genai
@@ -26,11 +25,9 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
-from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     default_embedder_info,
@@ -46,21 +43,8 @@ from genkit.plugins.google_genai.models.imagen import (
     vertexai_image_model_info,
 )
 
-from genkit.plugins.google_genai.vector_search.retriever import RetrieverOptionsSchema
-from genkit.plugins.google_genai.vector_search.vector_search import create_vector_search_action
-
 GOOGLEAI_PLUGIN_NAME = 'googleai'
 VERTEXAI_PLUGIN_NAME = 'vertexai'
-
-
-@dataclass(frozen=True)
-class VertexAIVectorSearchConfig:
-    """Configuration for registering Vertex AI vector search retrievers under VertexAI."""
-
-    retriever: type
-    retriever_extra_args: dict[str, Any] | None = None
-    credentials: Credentials | None = None
-    retriever_name: str = 'vertexAIVectorSearch'
 
 
 def googleai_name(name: str) -> str:
@@ -271,9 +255,8 @@ class VertexAI(Plugin):
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
         api_key: str | None = None,
-        vector_search: list[VertexAIVectorSearchConfig] | None = None,
     ) -> None:
-        """Initializes the GoogleAI plugin.
+        """Initializes the VertexAI plugin.
 
         Args:
             credentials: Google Cloud credentials for authentication.
@@ -300,8 +283,6 @@ class VertexAI(Plugin):
             debug_config=debug_config,
             http_options=_inject_attribution_headers(http_options),
         )
-        self._credentials = credentials
-        self._vector_search = vector_search or []
 
     async def init(self) -> list:
         """Initialize the plugin.
@@ -309,22 +290,7 @@ class VertexAI(Plugin):
         Returns:
             Empty list (using lazy loading via resolve).
         """
-        if not self._vector_search:
-            return []
-
-        actions: list[Action] = []
-        for config in self._vector_search:
-            action_name = f'{VERTEXAI_PLUGIN_NAME}/{config.retriever_name}'
-            actions.append(
-                create_vector_search_action(
-                    retriever=config.retriever,
-                    retriever_name=config.retriever_name,
-                    retriever_extra_args=config.retriever_extra_args,
-                    credentials=config.credentials or self._credentials,
-                    action_name=action_name,
-                )
-            )
-        return actions
+        return []
 
     async def resolve(self, action_type: ActionKind, name: str):
         """Resolve an action by creating and returning an Action object.
@@ -431,20 +397,6 @@ class VertexAI(Plugin):
                     # config_schema=GeminiConfigSchema,
                 ),
             )
-
-        if self._vector_search:
-            if RetrieverOptionsSchema is None:
-                raise ImportError('Vertex AI vector search requires the genkit-plugin-vertex-ai package.')
-            for config in self._vector_search:
-                actions_list.append(
-                    retriever_action_metadata(
-                        name=f'{VERTEXAI_PLUGIN_NAME}/{config.retriever_name}',
-                        options=RetrieverOptions(
-                            label=config.retriever_name,
-                            config_schema=to_json_schema(RetrieverOptionsSchema),
-                        ),
-                    )
-                )
 
         return actions_list
 

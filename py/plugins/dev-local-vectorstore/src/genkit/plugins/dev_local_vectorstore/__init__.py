@@ -14,16 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from .options import (
-    DevLocalVectorStoreOptions,
-    dev_local_vectorstore_index_params,
-    dev_local_vectorstore_retrieve_params,
-)
-from .plugin_api import DevLocalVectorStore
+from .plugin_api import defineDevLocalVectorStore
 
 __all__ = [
-    DevLocalVectorStore.__name__,
-    DevLocalVectorStoreOptions.__name__,
-    dev_local_vectorstore_retrieve_params.__name__,
-    dev_local_vectorstore_index_params.__name__,
+    defineDevLocalVectorStore.__name__,
 ]
