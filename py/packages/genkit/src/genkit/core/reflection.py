@@ -419,7 +419,7 @@ def create_reflection_asgi_app(
             request: The Starlette request object.
 
         Returns:
-            A JSON response containing all advertised actions from plugins.
+            A JSON response containing all serializable actions.
         """
         registered = _list_registered_actions(registry)
         metas = await registry.list_actions()
