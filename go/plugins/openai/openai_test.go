@@ -33,13 +33,26 @@ func TestToOpenAIResponseParams_SystemMessage(t *testing.T) {
 		Messages: []*ai.Message{msg},
 	}
 
-	params, err := toOpenAIResponseParams("gpt-4o", req)
-	if err != nil {
-		t.Fatalf("toOpenAIResponseParams() error = %v", err)
+	var inputItems []responses.ResponseInputItemUnionParam
+	for _, m := range req.Messages {
+		items, err := toOpenAIInputItems(m)
+		if err != nil {
+			t.Errorf("error converting messages to input items: %v", err)
+		}
+		inputItems = append(inputItems, items...)
+	}
+	if len(inputItems) == 0 {
+		t.Errorf("expecting input items, got: 0")
 	}
 
-	if params.Instructions.Value != "system instruction" {
-		t.Errorf("Instructions = %q, want %q", params.Instructions.Value, "system instruction")
+	params := responses.ResponseNewParams{}
+	params.Input = responses.ResponseNewParamsInputUnion{
+		OfInputItemList: inputItems,
+	}
+	for _, m := range params.Input.OfInputItemList {
+		if *m.GetRole() != "developer" {
+			t.Errorf("want system role: developer, got: %s", *m.GetRole())
+		}
 	}
 }
 
