@@ -75,6 +75,7 @@ export class ProcessManager {
       }
 
       this.appProcess.on('error', (error): void => {
+        logger.error(`Error in app process: ${error}`);
         this.cleanup();
         reject(error);
       });
