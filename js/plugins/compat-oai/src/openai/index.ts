@@ -287,21 +287,18 @@ const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
     return openAIImageModelRef({
       name,
       config,
-      namespace: 'openai',
     });
   }
   if (name.includes('tts')) {
     return openAISpeechModelRef({
       name,
       config,
-      namespace: 'openai',
     });
   }
   if (name.includes('whisper') || name.includes('transcribe')) {
     return openAITranscriptionModelRef({
       name,
       config,
-      namespace: 'openai',
     });
   }
   return openAIModelRef({
