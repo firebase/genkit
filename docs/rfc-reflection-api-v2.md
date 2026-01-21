@@ -35,6 +35,7 @@ sequenceDiagram
 -   **Transport**: WebSocket
 -   **Format**: JSON-RPC 2.0
 -   **Streaming**: Extended via Notifications. Since JSON-RPC 2.0 is request/response, we use `Notification` messages to push stream chunks associated with a Request ID.
+-   **Heartbeats**: To maintain connection stability, the Manager periodically sends a `heartbeat` request.
 
 ### API Methods
 
@@ -42,6 +43,7 @@ sequenceDiagram
 
 | Method | Direction | Type | Description |
 | :--- | :--- | :--- | :--- |
+| **`heartbeat`** | Manager → Runtime | Request | Checks connection liveness. Runtime must respond. |
 | **`register`** | Runtime → Manager | Notification | Registers the runtime with the manager (ID, info). |
 | **`configure`** | Manager → Runtime | Notification | Pushes configuration (e.g., Telemetry URL) to runtime. |
 | **`listActions`** | Manager → Runtime | Request | Retrieves the list of available actions/flows. |
