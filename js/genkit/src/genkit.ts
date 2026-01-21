@@ -1105,7 +1105,5 @@ function toModelRef(
   const modelAction = modelArg as ModelAction;
   return modelRef({
     name: modelAction.__action.name,
-    configSchema: modelAction.__configSchema,
-    info: modelAction.__action.metadata?.model,
   });
 }
