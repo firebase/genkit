@@ -82,8 +82,11 @@ class Registry:
         """Initialize an empty Registry instance."""
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
+        self._schemas_by_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
-        self.dotprompt = Dotprompt()
+
+        # Initialize Dotprompt with schema_resolver to match JS SDK pattern
+        self.dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
@@ -290,6 +293,7 @@ class Registry:
         1. Cache hit: Returns immediately if action is already registered
         2. Namespaced request (e.g., "plugin/model"): Resolves via specific plugin
         3. Unprefixed request (e.g., "model"): Tries all plugins, errors on ambiguity
+        4. Dynamic action providers: Last-resort fallback for dynamic action creation
 
         Args:
             kind: The type of action to resolve.
@@ -306,63 +310,80 @@ class Registry:
             if kind in self._entries and name in self._entries[kind]:
                 return self._entries[kind][name]
 
+        action: Action | None = None
+
         # Namespaced request
         if '/' in name:
             plugin_name, local = name.split('/', 1)
             with self._lock:
                 plugin = self._plugins.get(plugin_name)
-            if plugin is None:
-                return None
 
-            await self._ensure_plugin_initialized(plugin_name)
+            if plugin is not None:
+                await self._ensure_plugin_initialized(plugin_name)
 
-            target = f'{plugin_name}/{local}'  # normalized
+                target = f'{plugin_name}/{local}'  # normalized
 
-            # Check cache again after init - init() might have registered this action
+                # Check cache again after init - init() might have registered this action
+                with self._lock:
+                    if kind in self._entries and target in self._entries[kind]:
+                        return self._entries[kind][target]
+
+                action = await plugin.resolve(kind, target)
+                if action is not None:
+                    self.register_action_instance(action, namespace=plugin_name)
+                    with self._lock:
+                        return self._entries.get(kind, {}).get(target)
+        else:
+            # Unprefixed request: try all plugins
+            successes: list[tuple[str, Action]] = []
             with self._lock:
-                if kind in self._entries and target in self._entries[kind]:
-                    return self._entries[kind][target]
+                plugins = list(self._plugins.items())
+            for plugin_name, plugin in plugins:
+                await self._ensure_plugin_initialized(plugin_name)
+                target = f'{plugin_name}/{name}'
 
-            action = await plugin.resolve(kind, target)
-            if action is None:
-                return None
+                # Check cache first - init() might have registered this action
+                with self._lock:
+                    cached_action = self._entries.get(kind, {}).get(target)
+                if cached_action is not None:
+                    successes.append((plugin_name, cached_action))
+                    continue
 
-            self.register_action_instance(action, namespace=plugin_name)
+                action = await plugin.resolve(kind, target)
+                if action is not None:
+                    successes.append((plugin_name, action))
+
+            if len(successes) > 1:
+                plugin_names = [p for p, _ in successes]
+                raise ValueError(
+                    f"Ambiguous {kind.value} action name '{name}'. Matches plugins: {plugin_names}. Use 'plugin/{name}'."
+                )
+
+            if len(successes) == 1:
+                plugin_name, action = successes[0]
+                self.register_action_instance(action, namespace=plugin_name)
+                with self._lock:
+                    return self._entries.get(kind, {}).get(f'{plugin_name}/{name}')
+
+        # Fallback: try dynamic action providers (for MCP, dynamic resources, etc.)
+        # Skip if we're looking up a dynamic action provider itself to avoid recursion
+        if kind != ActionKind.DYNAMIC_ACTION_PROVIDER:
             with self._lock:
-                return self._entries.get(kind, {}).get(target)
+                providers = list(self._entries.get(ActionKind.DYNAMIC_ACTION_PROVIDER, {}).values())
+            for provider in providers:
+                try:
+                    response = await provider.run({'kind': kind, 'name': name})
+                    if response.response:
+                        self.register_action_instance(response.response)
+                        return response.response
+                except Exception as e:
+                    logger.debug(
+                        f'Dynamic action provider {provider.name} failed for {kind}/{name}',
+                        exc_info=e,
+                    )
+                    continue
 
-        # Unprefixed request: try all plugins
-        successes: list[tuple[str, Action]] = []
-        with self._lock:
-            plugins = list(self._plugins.items())
-        for plugin_name, plugin in plugins:
-            await self._ensure_plugin_initialized(plugin_name)
-            target = f'{plugin_name}/{name}'
-
-            # Check cache first - init() might have registered this action
-            with self._lock:
-                cached_action = self._entries.get(kind, {}).get(target)
-            if cached_action is not None:
-                successes.append((plugin_name, cached_action))
-                continue
-
-            action = await plugin.resolve(kind, target)
-            if action is not None:
-                successes.append((plugin_name, action))
-
-        if not successes:
-            return None
-
-        if len(successes) > 1:
-            plugin_names = [p for p, _ in successes]
-            raise ValueError(
-                f"Ambiguous {kind.value} action name '{name}'. Matches plugins: {plugin_names}. Use 'plugin/{name}'."
-            )
-
-        plugin_name, action = successes[0]
-        self.register_action_instance(action, namespace=plugin_name)
-        with self._lock:
-            return self._entries.get(kind, {}).get(f'{plugin_name}/{name}')
+        return None
 
     async def resolve_action_by_key(self, key: str) -> Action | None:
         """Resolve an action using its combined key string.
@@ -416,3 +437,34 @@ class Registry:
                     continue
                 metas.append(meta)
         return metas
+
+    def register_schema(self, name: str, schema: dict[str, Any]) -> None:
+        """Registers a schema by name.
+
+        Schemas registered with this method can be referenced by name in
+        .prompt files using the `output.schema` field.
+
+        Args:
+            name: The name of the schema.
+            schema: The schema data (JSON schema format).
+
+        Raises:
+            ValueError: If a schema with the given name is already registered.
+        """
+        with self._lock:
+            if name in self._schemas_by_name:
+                raise ValueError(f'Schema "{name}" is already registered')
+            self._schemas_by_name[name] = schema
+            logger.debug(f'Registered schema "{name}"')
+
+    def lookup_schema(self, name: str) -> dict[str, Any] | None:
+        """Looks up a schema by name.
+
+        Args:
+            name: The name of the schema to look up.
+
+        Returns:
+            The schema data if found, None otherwise.
+        """
+        with self._lock:
+            return self._schemas_by_name.get(name)

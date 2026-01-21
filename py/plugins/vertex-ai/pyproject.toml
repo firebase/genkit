@@ -40,6 +40,7 @@ dependencies = [
   "google-cloud-firestore>=2.14.0",
   "structlog>=25.2.0",
   "strenum>=0.4.15; python_version < '3.11'",
+  "anthropic>=0.40.0",
   "genkit-plugin-compat-oai",
 ]
 description = "Genkit Google Cloud Vertex AI Plugin"

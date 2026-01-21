@@ -430,7 +430,7 @@ describe('GoogleAI Plugin', () => {
 
   describe('googleAI.embedder', () => {
     it('should return an EmbedderReference with correct schema', () => {
-      const embedderName = 'text-embedding-004';
+      const embedderName = 'gemini-embedding-001';
       const embedderRef = googleAI.embedder(embedderName);
       assert.strictEqual(embedderRef.name, `googleai/${embedderName}`);
       assert.ok(embedderRef.info, 'Should have info');
@@ -479,7 +479,7 @@ describe('GoogleAI Plugin', () => {
           supportedGenerationMethods: ['generateContent'],
         },
         {
-          name: 'models/text-embedding-004',
+          name: 'models/gemini-embedding-001',
           supportedGenerationMethods: ['embedContent'],
         },
         {
@@ -507,7 +507,7 @@ describe('GoogleAI Plugin', () => {
         [
           'googleai/gemini-2.5-pro',
           'googleai/imagen-4.0-generate-001',
-          'googleai/text-embedding-004',
+          'googleai/gemini-embedding-001',
           'googleai/veo-3.1-generate-preview',
         ].sort()
       );
@@ -518,7 +518,7 @@ describe('GoogleAI Plugin', () => {
       assert.strictEqual(modelAction?.actionType, 'model');
 
       const embedderAction = actions.find(
-        (a) => a.name === 'googleai/text-embedding-004'
+        (a) => a.name === 'googleai/gemini-embedding-001'
       );
       assert.strictEqual(embedderAction?.actionType, 'embedder');
 

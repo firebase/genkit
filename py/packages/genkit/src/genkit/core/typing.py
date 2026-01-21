@@ -993,6 +993,7 @@ class GenerateActionOptions(BaseModel):
     docs: list[DocumentData] | None = None
     messages: list[Message]
     tools: list[str] | None = None
+    resources: list[str] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     config: Any | None = None
     output: GenerateActionOutputConfig | None = None

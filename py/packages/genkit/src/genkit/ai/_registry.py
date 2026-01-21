@@ -59,6 +59,7 @@ from genkit.blocks.prompt import (
     define_helper,
     define_partial,
     define_prompt,
+    define_schema,
     lookup_prompt,
 )
 from genkit.blocks.reranker import (
@@ -206,6 +207,33 @@ class GenkitRegistry:
             source: The template source code for the partial.
         """
         define_partial(self.registry, name, source)
+
+    def define_schema(self, name: str, schema: type) -> type:
+        """Register a Pydantic schema for use in prompts.
+
+        Schemas registered with this method can be referenced by name in
+        .prompt files using the `output.schema` field.
+
+        Args:
+            name: The name to register the schema under.
+            schema: The Pydantic model class to register.
+
+        Returns:
+            The schema that was registered (for convenience).
+
+        Example:
+            ```python
+            RecipeSchema = ai.define_schema('Recipe', Recipe)
+            ```
+
+            Then in a .prompt file:
+            ```yaml
+            output:
+              schema: Recipe
+            ```
+        """
+        define_schema(self.registry, name, schema)
+        return schema
 
     def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
@@ -699,14 +727,14 @@ class GenkitRegistry:
         model: str | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         description: str | None = None,
-        input_schema: type | dict[str, Any] | None = None,
+        input_schema: type | dict[str, Any] | str | None = None,
         system: str | Part | list[Part] | Callable | None = None,
         prompt: str | Part | list[Part] | Callable | None = None,
         messages: str | list[Message] | Callable | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, Any] | None = None,
+        output_schema: type | dict[str, Any] | str | None = None,
         output_constrained: bool | None = None,
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,

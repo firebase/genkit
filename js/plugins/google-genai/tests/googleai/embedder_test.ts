@@ -65,13 +65,13 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('throws if no API key is provided in options or env', () => {
       assert.throws(() => {
-        defineEmbedder('text-embedding-004', {});
+        defineEmbedder('gemini-embedding-001', {});
       }, MISSING_API_KEY_ERROR);
     });
 
     it('uses API key from pluginOptions if provided', async () => {
       const embedder = defineEmbedder(
-        'text-embedding-004',
+        'gemini-embedding-001',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [] } });
@@ -88,7 +88,7 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('uses API key from GEMINI_API_KEY env var', async () => {
       process.env.GEMINI_API_KEY = 'gemini-key';
-      const embedder = defineEmbedder('text-embedding-004', {});
+      const embedder = defineEmbedder('gemini-embedding-001', {});
       mockFetchResponse({ embedding: { values: [] } });
       await embedder.run({
         input: [new Document({ content: [{ text: 'test' }] })],
@@ -100,7 +100,7 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('uses API key from GOOGLE_API_KEY env var', async () => {
       process.env.GOOGLE_API_KEY = 'google-key';
-      const embedder = defineEmbedder('text-embedding-004', {});
+      const embedder = defineEmbedder('gemini-embedding-001', {});
       mockFetchResponse({ embedding: { values: [] } });
       await embedder.run({
         input: [new Document({ content: [{ text: 'test' }] })],
@@ -112,7 +112,7 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('uses API key from GOOGLE_GENAI_API_KEY env var', async () => {
       process.env.GOOGLE_GENAI_API_KEY = 'google-genai-key';
-      const embedder = defineEmbedder('text-embedding-004', {});
+      const embedder = defineEmbedder('gemini-embedding-001', {});
       mockFetchResponse({ embedding: { values: [] } });
       await embedder.run({
         input: [new Document({ content: [{ text: 'test' }] })],
@@ -128,7 +128,7 @@ describe('defineGoogleAIEmbedder', () => {
     it('pluginOptions apiKey takes precedence over env vars', async () => {
       process.env.GEMINI_API_KEY = 'gemini-key';
       const embedder = defineEmbedder(
-        'text-embedding-004',
+        'gemini-embedding-001',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [] } });
@@ -145,7 +145,7 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('throws if apiKey is false in pluginOptions and not provided in call options', async () => {
       mockFetchResponse({ embedding: { values: [] } });
-      const embedder = defineEmbedder('text-embedding-004', {
+      const embedder = defineEmbedder('gemini-embedding-001', {
         apiKey: false,
       });
       assert.ok(
@@ -157,7 +157,7 @@ describe('defineGoogleAIEmbedder', () => {
     });
 
     it('uses API key from call options if apiKey is false in pluginOptions', async () => {
-      const embedder = defineEmbedder('text-embedding-004', {
+      const embedder = defineEmbedder('gemini-embedding-001', {
         apiKey: false,
       });
       mockFetchResponse({ embedding: { values: [] } });
@@ -177,7 +177,7 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('call options apiKey takes precedence over pluginOptions apiKey', async () => {
       const embedder = defineEmbedder(
-        'text-embedding-004',
+        'gemini-embedding-001',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [] } });
@@ -202,7 +202,7 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('calls embedContent for each document', async () => {
       const embedder = defineEmbedder(
-        'text-embedding-004',
+        'gemini-embedding-001',
         defaultPluginOptions
       );
 
@@ -230,7 +230,7 @@ describe('defineGoogleAIEmbedder', () => {
 
       sinon.assert.calledTwice(fetchStub);
       const expectedUrl =
-        'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent';
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
 
       // Call 1
       const fetchArgs1 = fetchStub.firstCall.args;
@@ -255,7 +255,7 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('calls embedContent with taskType, title, and outputDimensionality options', async () => {
       const embedder = defineEmbedder(
-        'text-embedding-004',
+        'gemini-embedding-001',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [0.1] } });

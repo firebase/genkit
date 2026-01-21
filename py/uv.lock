@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1801,6 +1801,7 @@ name = "genkit-plugin-vertex-ai"
 version = "0.4.0"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
+    { name = "anthropic" },
     { name = "genkit" },
     { name = "genkit-plugin-compat-oai" },
     { name = "google-cloud-aiplatform" },
@@ -1813,6 +1814,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", specifier = ">=0.40.0" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },

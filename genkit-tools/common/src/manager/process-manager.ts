@@ -25,6 +25,7 @@ export interface AppProcessStatus {
 }
 
 export interface ProcessManagerStartOptions {
+  cwd?: string;
   nonInteractive?: boolean;
 }
 
@@ -47,9 +48,11 @@ export class ProcessManager {
    * Starts the process.
    */
   start(options?: ProcessManagerStartOptions): Promise<void> {
+    logger.debug(`Starting process: ${this.command} ${this.args.join(' ')}`);
     return new Promise((resolve, reject) => {
       this._status = 'running';
       this.appProcess = spawn(this.command, this.args, {
+        cwd: options?.cwd,
         env: {
           ...process.env,
           ...this.env,
@@ -62,6 +65,13 @@ export class ProcessManager {
         this.appProcess.stderr?.pipe(process.stderr);
         this.appProcess.stdout?.pipe(process.stdout);
         process.stdin?.pipe(this.appProcess.stdin!);
+      } else {
+        this.appProcess.stderr?.on('data', (data) => {
+          logger.debug(`[ProcessManager Stderr] ${data.toString()}`);
+        });
+        this.appProcess.stdout?.on('data', (data) => {
+          logger.debug(`[ProcessManager Stdout] ${data.toString()}`);
+        });
       }
 
       this.appProcess.on('error', (error): void => {
@@ -133,8 +143,8 @@ export class ProcessManager {
       this.originalStdIn = undefined;
     }
     if (this.appProcess) {
-      this.appProcess.stdout?.unpipe(process.stdout);
-      this.appProcess.stderr?.unpipe(process.stderr);
+      this.appProcess.stdout?.removeAllListeners();
+      this.appProcess.stderr?.removeAllListeners();
     }
     this.appProcess = undefined;
     this._status = 'stopped';

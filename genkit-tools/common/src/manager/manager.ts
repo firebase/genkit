@@ -167,13 +167,23 @@ export class RuntimeManager {
    * `runtime` to which it applies.
    *
    * @param listener the callback function.
+   * @returns an unsubscriber function.
    */
   onRuntimeEvent(
     listener: (eventType: RuntimeEvent, runtime: RuntimeInfo) => void
   ) {
-    Object.values(RuntimeEvent).forEach((event) =>
-      this.eventEmitter.on(event, (rt) => listener(event, rt))
-    );
+    const listeners: Array<{ event: string; fn: (rt: RuntimeInfo) => void }> =
+      [];
+    Object.values(RuntimeEvent).forEach((event) => {
+      const fn = (rt: RuntimeInfo) => listener(event, rt);
+      this.eventEmitter.on(event, fn);
+      listeners.push({ event, fn });
+    });
+    return () => {
+      listeners.forEach(({ event, fn }) => {
+        this.eventEmitter.off(event, fn);
+      });
+    };
   }
 
   /**
@@ -189,13 +199,51 @@ export class RuntimeManager {
       throw new Error(
         input?.runtimeId
           ? `No runtime found with ID ${input.runtimeId}.`
-          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+          : 'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
     }
     const response = await axios
       .get(`${runtime.reflectionServerUrl}/api/actions`)
       .catch((err) => this.httpErrorHandler(err, 'Error listing actions.'));
     return response.data as Record<string, Action>;
+  }
+
+  /**
+   * Retrieves all valuess.
+   */
+  async listValues(
+    input: apis.ListValuesRequest
+  ): Promise<Record<string, unknown>> {
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
+    if (!runtime) {
+      throw new Error(
+        input?.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+      );
+    }
+    try {
+      const response = await axios.get(
+        `${runtime.reflectionServerUrl}/api/values`,
+        {
+          params: {
+            type: input.type,
+          },
+        }
+      );
+      return response.data as Record<string, unknown>;
+    } catch (err) {
+      if ((err as AxiosError).response?.status === 404) {
+        return {};
+      } else if ((err as AxiosError).response?.status === 400) {
+        throw new GenkitToolsError(
+          `Bad request: ${(err as AxiosError).response?.data}`
+        );
+      }
+      this.httpErrorHandler(err as AxiosError, 'Error listing values.');
+    }
   }
 
   /**
@@ -213,7 +261,7 @@ export class RuntimeManager {
       throw new Error(
         input.runtimeId
           ? `No runtime found with ID ${input.runtimeId}.`
-          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+          : 'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
     }
     if (streamingCallback) {
@@ -567,6 +615,7 @@ export class RuntimeManager {
     try {
       const runtimesDir = await findRuntimesDir(this.projectRoot);
       await fs.mkdir(runtimesDir, { recursive: true });
+      logger.debug(`Watching runtimes in ${runtimesDir}`);
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
         ignoreInitial: false,

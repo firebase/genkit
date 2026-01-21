@@ -50,7 +50,7 @@ import type {
   CompletionChoice,
 } from 'openai/resources/index.mjs';
 import { PluginOptions } from './index.js';
-import { maybeCreateRequestScopedOpenAIClient } from './utils.js';
+import { maybeCreateRequestScopedOpenAIClient, toModelName } from './utils.js';
 
 const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
@@ -666,15 +666,17 @@ export function defineCompatOpenAIModel<
   pluginOptions?: PluginOptions;
 }): ModelAction {
   const { name, client, pluginOptions, modelRef, requestBuilder } = params;
-  const modelName = name.substring(name.indexOf('/') + 1);
+  const modelName = toModelName(name, pluginOptions?.name);
+  const actionName =
+    modelRef?.name ?? `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
 
   return model(
     {
-      name,
+      name: actionName,
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(modelName!, client, requestBuilder, pluginOptions)
+    openAIModelRunner(modelName, client, requestBuilder, pluginOptions)
   );
 }
 

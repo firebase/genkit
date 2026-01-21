@@ -151,6 +151,30 @@ export class ReflectionServer {
       await this.stop();
     });
 
+    server.get('/api/values', async (req, response, next) => {
+      logger.debug('Fetching values.');
+      try {
+        const type = req.query.type;
+        if (!type) {
+          response.status(400).send('Query parameter "type" is required.');
+          return;
+        }
+        if (type !== 'defaultModel') {
+          response
+            .status(400)
+            .send(
+              `'type' ${type} is not supported. Only 'defaultModel' is supported`
+            );
+          return;
+        }
+        const values = await this.registry.listValues(type as string);
+        response.send(values);
+      } catch (err) {
+        const { message, stack } = err as Error;
+        next({ message, stack });
+      }
+    });
+
     server.get('/api/actions', async (_, response, next) => {
       logger.debug('Fetching actions.');
       try {
@@ -388,7 +412,13 @@ export class ReflectionServer {
         `Reflection server (${process.pid}) running on http://localhost:${this.port}`
       );
       ReflectionServer.RUNNING_SERVERS.push(this);
-      await this.writeRuntimeFile();
+
+      try {
+        await this.registry.listActions();
+        await this.writeRuntimeFile();
+      } catch (e) {
+        logger.error(`Error initializing plugins: ${e}`);
+      }
     });
   }
 

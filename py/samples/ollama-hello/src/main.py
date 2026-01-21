@@ -143,7 +143,7 @@ async def weather_flow(location: str):
         A GenerateRequest object with the evaluation output
     """
     response = await ai.generate(
-        prompt=f'what is the weather in {location}',
+        prompt=f'Use the get_weather tool to tell me the weather in {location}',
         model=ollama_name(MISTRAL_MODEL),
         tools=['get_weather'],
     )
@@ -161,7 +161,7 @@ async def calculate_gablorken(value: int):
         A GenerateRequest object with the evaluation output
     """
     response = await ai.generate(
-        prompt=f'what is the gablorken of {value}',
+        prompt=f'Use the gablorken_tool to calculate the gablorken of {value}',
         model=ollama_name(MISTRAL_MODEL),
         tools=['gablorken_tool'],
     )
@@ -169,20 +169,23 @@ async def calculate_gablorken(value: int):
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: str):
+async def say_hi_constrained(hi_input: str) -> str:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:
         hi_input: Input data containing user information.
 
     Returns:
-        A `HelloSchema` object with the greeting message.
+        The greeting text.
     """
     response = await ai.generate(
-        prompt='hi ' + hi_input,
+        prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',
         output_schema=HelloSchema,
     )
-    return response.output
+    output = response.output
+    if not isinstance(output, dict) or 'text' not in output:
+        raise ValueError('Received invalid output from model')
+    return output['text']
 
 
 async def main() -> None:
@@ -194,6 +197,7 @@ async def main() -> None:
     await logger.ainfo(await say_hi('John Doe'))
     await logger.ainfo(await say_hi_constrained('John Doe'))
     await logger.ainfo(await calculate_gablorken(33))
+    await logger.ainfo(await weather_flow('San Francisco'))
 
 
 if __name__ == '__main__':

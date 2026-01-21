@@ -18,6 +18,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 
+import type { Part } from 'genkit';
 import { ActionMetadata, ModelReference, z } from 'genkit';
 import { ModelAction } from 'genkit/model';
 import { ActionType } from 'genkit/registry';
@@ -31,7 +32,15 @@ import {
   claudeModel,
   claudeModelReference,
 } from './models.js';
-import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
+import {
+  InternalPluginOptions,
+  PluginOptions,
+  __testClient,
+  type AnthropicDocumentOptions,
+} from './types.js';
+
+// Re-export citation type for consumers (AnthropicDocumentOptions is inferred via anthropicDocument())
+export type { AnthropicCitation } from './types.js';
 
 const PROMPT_CACHING_BETA_HEADER_VALUE = 'prompt-caching-2024-07-31';
 
@@ -151,5 +160,39 @@ export const anthropic = anthropicPlugin as AnthropicPlugin;
 ): ModelReference<z.ZodTypeAny> => {
   return claudeModelReference(name, config);
 };
+
+/**
+ * Creates a custom part representing an Anthropic document with optional citations support.
+ *
+ * Use this to provide documents to Claude that can be cited in responses.
+ * Citations must be enabled on all or none of the documents in a request.
+ *
+ * @example
+ * ```ts
+ * import { anthropic, anthropicDocument } from '@genkit-ai/anthropic';
+ *
+ * const { text } = await ai.generate({
+ *   model: anthropic.model('claude-sonnet-4-5'),
+ *   messages: [{
+ *     role: 'user',
+ *     content: [
+ *       anthropicDocument({
+ *         source: { type: 'text', data: 'The grass is green. The sky is blue.' },
+ *         title: 'Nature Facts',
+ *         citations: { enabled: true }
+ *       }),
+ *       { text: 'What color is the grass?' }
+ *     ]
+ *   }]
+ * });
+ * ```
+ */
+export function anthropicDocument(options: AnthropicDocumentOptions): Part {
+  return {
+    custom: {
+      anthropicDocument: options,
+    },
+  };
+}
 
 export default anthropic;
