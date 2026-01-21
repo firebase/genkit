@@ -113,24 +113,29 @@ func WithSessionStore[State any](store session.Store[State]) AgentOption[State]
 
 ### 2.2 Starting Connections
 
-Agent uses the same `StreamBidi` method as BidiAction and BidiFlow. Session ID is a connection option, and initial state is passed via `WithInit`:
+Agent has its own `StreamBidi` signature with session-specific options:
 
 ```go
+// StreamBidiOption configures a StreamBidi call.
+type StreamBidiOption[State any] interface {
+    applyStreamBidi(*streamBidiOptions[State]) error
+}
+
+// WithSessionID sets the session ID for resuming or creating a session.
+// If the session exists in store, resumes that session (init ignored).
+// If the session doesn't exist, creates new session with this ID.
+// If not provided, generates a new UUID for the session.
+func WithSessionID[State any](id string) StreamBidiOption[State]
+
+// WithInit sets the initial state for new sessions.
+// Ignored when resuming an existing session.
+func WithInit[State any](init State) StreamBidiOption[State]
+
+// StreamBidi starts a new agent session or resumes an existing one.
 func (a *Agent[State, In, Out, Stream]) StreamBidi(
     ctx context.Context,
-    opts ...corex.BidiOption[State],
+    opts ...StreamBidiOption[State],
 ) (*corex.BidiConnection[In, AgentOutput[State, Out], Stream], error)
-
-// BidiOption from go/core/x - also used by Agent
-// WithInit provides initialization data for the bidi action.
-// For Agent, this sets the initial state for new sessions.
-func WithInit[Init any](init Init) BidiOption[Init]
-
-// WithSessionID specifies an existing session ID to resume.
-// If the session exists in the store, it is loaded (WithInit is ignored).
-// If the session doesn't exist, a new session is created with this ID.
-// If not provided, a new UUID is generated for new sessions.
-func WithSessionID[Init any](id string) BidiOption[Init]
 ```
 
 ### 2.3 High-Level Genkit API
@@ -153,32 +158,31 @@ func DefineAgent[State, In, Out, Stream any](
 ### 3.1 Using StreamBidi with Agent
 
 ```go
-// Define once at startup
 chatAgent := genkit.DefineAgent(g, "chatAgent",
     myAgentFunc,
     aix.WithSessionStore(store),
 )
 
-// NEW USER: Start fresh session (generates new ID, zero state)
+// New user: fresh session with generated ID and zero state
 conn1, _ := chatAgent.StreamBidi(ctx)
 
-// RETURNING USER: Resume existing session by ID
-conn2, _ := chatAgent.StreamBidi(ctx, corex.WithSessionID[ChatState]("user-123-session"))
+// Returning user: resume existing session by ID
+conn2, _ := chatAgent.StreamBidi(ctx, aix.WithSessionID[ChatState]("user-123-session"))
 
-// NEW USER WITH INITIAL STATE: Start with pre-populated state
-conn3, _ := chatAgent.StreamBidi(ctx, corex.WithInit(ChatState{Messages: preloadedHistory}))
+// New user with pre-populated state
+conn3, _ := chatAgent.StreamBidi(ctx, aix.WithInit(ChatState{Messages: preloadedHistory}))
 
-// NEW USER WITH SPECIFIC ID AND INITIAL STATE
+// New user with specific ID and initial state
 conn4, _ := chatAgent.StreamBidi(ctx,
-    corex.WithSessionID[ChatState]("custom-session-id"),
-    corex.WithInit(ChatState{Messages: preloadedHistory}),
+    aix.WithSessionID[ChatState]("custom-session-id"),
+    aix.WithInit(ChatState{Messages: preloadedHistory}),
 )
 ```
 
 The Agent internally handles session creation/loading:
-- If `WithSessionID` is provided and session exists in store → load existing session (WithInit ignored)
-- If `WithSessionID` is provided but session doesn't exist → create new session with that ID and initial state from WithInit
-- If no `WithSessionID` → generate new UUID and create session with initial state from WithInit
+- If `WithSessionID` is provided and session exists in store → load existing session (init ignored)
+- If `WithSessionID` is provided but session doesn't exist → create new session with that ID and init
+- If `WithSessionID` is not provided → generate new UUID and create session with init
 
 The session ID is returned in `AgentOutput.SessionID`, so callers can retrieve it from the final output:
 
@@ -317,10 +321,8 @@ func main() {
         aix.WithSessionStore(store),
     )
 
-    // Start new session (generates new session ID)
     conn, _ := chatAgent.StreamBidi(ctx)
 
-    // First turn
     conn.Send("Hello! Tell me about Go programming.")
     for chunk, err := range conn.Receive() {
         if err != nil {
@@ -328,9 +330,7 @@ func main() {
         }
         fmt.Print(chunk)
     }
-    // Loop exits when agent calls resp.EndTurn()
 
-    // Second turn
     conn.Send("What are channels used for?")
     for chunk, err := range conn.Receive() {
         if err != nil {
@@ -341,12 +341,10 @@ func main() {
 
     conn.Close()
 
-    // Get session ID from final output to resume later
     output, _ := conn.Output()
     sessionID := output.SessionID
 
-    // Resume session later with the saved ID
-    conn2, _ := chatAgent.StreamBidi(ctx, corex.WithSessionID[ChatState](sessionID))
+    conn2, _ := chatAgent.StreamBidi(ctx, aix.WithSessionID[ChatState](sessionID))
     conn2.Send("Continue our discussion")
     // ...
 }
@@ -402,7 +400,7 @@ codeAgent := genkit.DefineAgent(g, "codeAgent",
 | File | Description |
 |------|-------------|
 | `go/ai/x/agent.go` | Agent, AgentFunc, AgentResult, AgentOutput, Artifact, Responder |
-| `go/ai/x/agent_options.go` | AgentOption, WithSessionStore |
+| `go/ai/x/agent_options.go` | AgentOption, WithSessionStore, StreamBidiOption, WithSessionID, WithInit |
 | `go/ai/x/agent_test.go` | Tests |
 
 ### Modified Files
