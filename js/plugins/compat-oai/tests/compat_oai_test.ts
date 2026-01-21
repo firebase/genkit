@@ -171,6 +171,21 @@ describe('toOpenAiTextAndMedia', () => {
     });
   });
 
+  it('should transform image from signed URLs', () => {
+    const part: Part = {
+      media: {
+        url: 'https://storage.googleapis.com/bucket/image.png?X-Goog-Signature=fake',
+      },
+    };
+    expect(toOpenAITextAndMedia(part, 'low')).toStrictEqual({
+      type: 'image_url',
+      image_url: {
+        url: 'https://storage.googleapis.com/bucket/image.png?X-Goog-Signature=fake',
+        detail: 'low',
+      },
+    });
+  });
+
   it('should throw error for file URLs (non-base64 PDFs)', () => {
     const part: Part = {
       media: {

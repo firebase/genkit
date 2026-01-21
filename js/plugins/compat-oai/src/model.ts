@@ -187,6 +187,18 @@ export function toOpenAITextAndMedia(
       };
     }
 
+    // If no contentType is provided, preserve legacy behavior by treating the media
+    // as an image URL (e.g. signed URLs or remote images without metadata)
+    if (!contentType) {
+      return {
+        type: 'image_url',
+        image_url: {
+          url: part.media.url,
+          detail: visualDetailLevel,
+        },
+      };
+    }
+
     // For non-image types (like PDF), use the file type
     // OpenAI expects the full data URL (with data: prefix) in file_data
     if (part.media.url.startsWith('data:')) {
