@@ -2,7 +2,7 @@
 
 ## Summary
 
-Introduces `defineAgent` (renamed from `defineSessionFlow`), a high-level abstraction built on top of Bidi Actions designed to simplify the creation of stateful, multi-turn agents. It unifies state management, allowing both client-side state handling and server-side persistence via pluggable stores.
+Introduces `defineAgent`, a high-level abstraction built on top of Bidi Actions designed to simplify the creation of stateful, multi-turn agents. It unifies state management, allowing both client-side state handling and server-side persistence via pluggable stores.
 
 `defineAgent` would replace the current Chat API as there is significant overlap and Agent primitive is more flexible.
 
@@ -128,8 +128,6 @@ export const persistentAgent = ai.defineAgent(
     let messages = init?.messages ?? [];
 
     for await (const input of inputStream) {
-      if (!input) break;
-
       const response = await ai.generate({
         messages: [...messages, input],
         model: googleAI.model('gemini-2.5-flash'),
@@ -149,10 +147,75 @@ export const persistentAgent = ai.defineAgent(
 );
 ```
 
+#### Example: Streaming State Updates
+
+You can stream intermediate state updates to the client using `sendChunk`. This is useful for providing progress on long-running tasks or tool executions.
+
+```typescript
+export const toolAgent = ai.defineAgent(
+  { name: 'toolAgent' },
+  async function* ({ sendChunk, inputStream, init }) {
+    for await (const input of inputStream) {
+      // 1. Notify client that we are starting a tool
+      sendChunk({ 
+        sessionId: init?.sessionId, 
+        stateUpdate: { status: 'executing_tool', tool: 'weather' } 
+      });
+
+      // 2. Execute tool (simulated)
+      await new Promise(r => setTimeout(r, 1000));
+
+      // 3. Notify client of completion
+      sendChunk({ 
+        sessionId: init?.sessionId, 
+        stateUpdate: { status: 'tool_complete', tool: 'weather' } 
+      });
+      
+      // ... continue generation
+    }
+  }
+);
+```
+
 ### 4. Schemas
 
-The Agent primitive uses standardized schemas to ensure compatibility across tools and UI.
+The Agent primitive relies on strict Zod schemas to ensure type safety and compatibility.
 
--   **InitSchema**: `sessionId`, `messages`, `state`, `artifacts`.
--   **StreamSchema**: `chunk` (generation), `stateUpdate` (patches), `sessionId`.
--   **OutputSchema**: `sessionId`, `messages` (full history), `state`, `artifacts`.
+#### Init Schema (`AgentInitSchema`)
+```typescript
+const AgentInitSchema = z.object({
+  sessionId: z.string().optional(),
+  messages: z.array(MessageSchema).optional(),
+  state: z.any().optional(),
+  artifacts: z.array(AgentArtifactSchema).optional(),
+});
+```
+
+#### Stream Schema (`AgentStreamSchema`)
+```typescript
+const AgentStreamSchema = z.object({
+  sessionId: z.string(),
+  chunk: GenerateResponseChunkSchema.optional(), // Token generation
+  stateUpdate: z.any().optional(),               // Intermediate state patches
+  artifact: AgentArtifactSchema.optional(), // New artifacts
+});
+```
+
+#### Output Schema (`AgentResponseSchema`)
+```typescript
+const AgentResponseSchema = z.object({
+  sessionId: z.string(),
+  messages: z.array(MessageSchema).optional(),
+  state: z.any().optional(),
+  artifacts: z.array(AgentArtifactSchema).optional(),
+});
+```
+
+#### Artifact Schema (`AgentArtifactSchema`)
+```typescript
+const AgentArtifactSchema = z.object({
+  name: z.string().optional(),
+  parts: z.array(PartSchema), // Media, text, etc.
+  metadata: z.record(z.any()).optional(),
+});
+```
