@@ -270,32 +270,32 @@ func GenerateBidi(ctx context.Context, g *Genkit, opts ...ai.GenerateBidiOption)
 **Example:**
 
 ```go
-session, err := genkit.GenerateBidi(ctx, g,
+conn, err := genkit.GenerateBidi(ctx, g,
     ai.WithModel(geminiLive),
-    ai.WithConfig(&googlegenai.GenerationConfig{Temperature: ptr(0.7)}),
+    ai.WithConfig(&genai.LiveConnectConfig{Temperature: genai.Ptr[float32](0.7)}),
     ai.WithSystem("You are a helpful voice assistant"),
     ai.WithTools(weatherTool),
 )
 if err != nil {
     return err
 }
-defer session.Close()
+defer conn.Close()
 
-session.SendText("Hello!")
+conn.SendText("Hello!")
 
-for chunk, err := range session.Receive() {
+for chunk, err := range conn.Receive() {
     if err != nil {
         return err
     }
     fmt.Print(chunk.Text())
 }
 
-session.SendText("Tell me more about that.")
-for chunk, err := range session.Receive() {
+conn.SendText("Tell me more about that.")
+for chunk, err := range conn.Receive() {
     // ...
 }
 
-response, _ := session.Output()
+response, _ := conn.Output()
 fmt.Printf("Total tokens: %d\n", response.Usage.TotalTokens)
 ```
 
@@ -304,21 +304,21 @@ fmt.Printf("Total tokens: %d\n", response.Usage.TotalTokens)
 Real-time models may support tool calling. The pattern follows the standard generate flow but within the streaming context:
 
 ```go
-session, _ := genkit.GenerateBidi(ctx, g,
+conn, _ := genkit.GenerateBidi(ctx, g,
     ai.WithModel(geminiLive),
     ai.WithTools(weatherTool, calculatorTool),
 )
 
-session.SendText("What's the weather in NYC?")
+conn.SendText("What's the weather in NYC?")
 
-for chunk, err := range session.Receive() {
+for chunk, err := range conn.Receive() {
     if err != nil {
         return err
     }
 
     if toolCall := chunk.ToolCall(); toolCall != nil {
         result, _ := toolCall.Tool.Execute(ctx, toolCall.Input)
-        session.Send(ai.NewToolResultMessage(toolCall.ID, result))
+        conn.Send(ai.NewToolResponseMessage(toolCall.ID, result))
     } else {
         fmt.Print(chunk.Text())
     }
@@ -369,19 +369,7 @@ func DefineBidiFlow[Init, In, Out, Stream any](
 All bidi types (BidiAction, BidiFlow, BidiModel) use the same `StreamBidi` method to start connections:
 
 ```go
-// BidiAction/BidiFlow
-func (a *BidiAction[Init, In, Out, Stream]) StreamBidi(
-    ctx context.Context,
-    opts ...BidiOption[Init],
-) (*BidiConnection[In, Out, Stream], error)
-
-// BidiOption configures a bidi connection.
-type BidiOption[Init any] interface {
-    applyBidi(*bidiOptions[Init]) error
-}
-
-// WithInit provides initialization data for the bidi action.
-func WithInit[Init any](init Init) BidiOption[Init]
+func (ba *BidiAction[Init, In, Out, Stream]) StreamBidi(ctx context.Context, init Init) (*BidiConnection[In, Out, Stream], error)
 ```
 
 ### 3.4 High-Level Genkit API
@@ -516,34 +504,10 @@ configuredChat := genkit.DefineBidiFlow(g, "configuredChat",
     },
 )
 
-conn, _ := configuredChat.StreamBidi(ctx,
-    corex.WithInit(ChatInit{
-        SystemPrompt: "You are a helpful assistant.",
-        Temperature:  0.7,
-    }),
-)
-```
-
-### 5.3 Real-Time Voice Model Session
-
-```go
-session, _ := genkit.GenerateBidi(ctx, g,
-    ai.WithModel(geminiLive),
-    ai.WithSystem("You are a voice assistant. Keep responses brief."),
-)
-defer session.Close()
-
-go func() {
-    session.SendText("What time is it in Tokyo?")
-}()
-
-for chunk, err := range session.Receive() {
-    if err != nil {
-        log.Printf("Error: %v", err)
-        break
-    }
-    fmt.Print(chunk.Text())
-}
+conn, _ := configuredChat.StreamBidi(ctx, ChatInit{
+    SystemPrompt: "You are a helpful assistant.",
+    Temperature:  0.7,
+})
 ```
 
 ---
