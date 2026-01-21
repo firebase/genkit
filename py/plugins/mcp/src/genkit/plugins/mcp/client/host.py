@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Dict, List, Optional
 
 from genkit.ai import Genkit
 
@@ -23,9 +24,9 @@ from .client import McpClient, McpServerConfig
 class McpHost:
     """Host for managing multiple MCP clients."""
 
-    def __init__(self, clients: dict[str, McpServerConfig]):
+    def __init__(self, clients: Dict[str, McpServerConfig]):
         self.clients_config = clients
-        self.clients: dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
+        self.clients: Dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
 
     async def start(self):
         """Starts all enabled MCP clients."""
@@ -59,5 +60,33 @@ class McpHost:
             await client.close()
 
 
-def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
+    async def reconnect(self, name: str):
+        """Reconnects a specific MCP client."""
+        if name in self.clients:
+            await client.close()
+            await client.connect()
+
+    async def get_active_tools(self, ai: Genkit) -> List[str]:
+        """Returns a list of all active tool names from all clients."""
+        active_tools = []
+        for client in self.clients.values():
+            if client.session:
+                tools = await client.get_active_tools()
+                # Determine tool names as registered: server_tool
+                for tool in tools:
+                    active_tools.append(f'{client.server_name}_{tool.name}')
+        return active_tools
+
+    async def get_active_resources(self, ai: Genkit) -> List[str]:
+        """Returns a list of all active resource URIs from all clients."""
+        active_resources = []
+        for client in self.clients.values():
+            if client.session:
+                resources = await client.list_resources()
+                for resource in resources:
+                    active_resources.append(resource.uri)
+        return active_resources
+
+
+def create_mcp_host(configs: Dict[str, McpServerConfig]) -> McpHost:
     return McpHost(configs)

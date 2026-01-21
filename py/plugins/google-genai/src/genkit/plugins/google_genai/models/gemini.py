@@ -683,7 +683,7 @@ class GeminiModel:
             params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
 
         function = genai_types.FunctionDeclaration(
-            name=tool.name,
+            name=tool.name.replace('/', '__'),
             description=tool.description,
             parameters=params,
             response=self._convert_schema_property(tool.output_schema) if tool.output_schema else None,
