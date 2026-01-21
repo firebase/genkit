@@ -97,5 +97,3 @@ def define_firestore_vector_store(
     )
 
     return action_name
-
-

@@ -319,7 +319,8 @@ async def generate_character(name: str, ctx: ActionRunContext):
 async def main() -> None:
     """Main entry point for the OpenAI sample - keep alive for Dev UI."""
     import asyncio
-    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 

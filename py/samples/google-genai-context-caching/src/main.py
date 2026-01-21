@@ -137,7 +137,8 @@ async def main() -> None:
     improved performance.
     """
     import asyncio
-    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 

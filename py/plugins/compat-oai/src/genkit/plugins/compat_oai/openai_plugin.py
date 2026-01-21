@@ -87,15 +87,15 @@ class OpenAI(Plugin):
             Actions for built-in OpenAI models and embedders.
         """
         actions = []
-        
+
         # Add known models
         for name in SUPPORTED_OPENAI_MODELS.keys():
             actions.append(self._create_model_action(open_ai_name(name)))
-        
+
         # Add known embedders
         for name in SUPPORTED_EMBEDDING_MODELS.keys():
             actions.append(self._create_embedder_action(open_ai_name(name)))
-        
+
         return actions
 
     def get_model_info(self, name: str) -> dict[str, str] | None:
@@ -136,7 +136,7 @@ class OpenAI(Plugin):
             return self._create_model_action(name)
         elif action_type == ActionKind.EMBEDDER:
             return self._create_embedder_action(name)
-        
+
         return None
 
     def _create_model_action(self, name: str):
@@ -178,13 +178,16 @@ class OpenAI(Plugin):
         """
         # Extract local name (remove plugin prefix)
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
-        
+
         # Get embedder info from known models or use default
-        embedder_info = SUPPORTED_EMBEDDING_MODELS.get(clean_name, {
-            'label': f'OpenAI Embedding - {clean_name}',
-            'dimensions': 1536,
-            'supports': {'input': ['text']},
-        })
+        embedder_info = SUPPORTED_EMBEDDING_MODELS.get(
+            clean_name,
+            {
+                'label': f'OpenAI Embedding - {clean_name}',
+                'dimensions': 1536,
+                'supports': {'input': ['text']},
+            },
+        )
 
         async def embed_fn(request: EmbedRequest) -> EmbedResponse:
             """Embedder function that calls OpenAI embeddings API."""
@@ -195,7 +198,7 @@ class OpenAI(Plugin):
                 dimensions=request.options.get('dimensions') if request.options else None,
                 encoding_format=request.options.get('encodingFormat') if request.options else None,
             )
-            
+
             # Convert OpenAI response to Genkit format
             embeddings = [Embedding(embedding=item.embedding) for item in response.data]
             return EmbedResponse(embeddings=embeddings)

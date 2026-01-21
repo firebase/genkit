@@ -84,9 +84,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
 
             async def _relevancy_eval(datapoint: BaseEvalDataPoint, options: Any | None):
                 assert datapoint.output is not None, 'output is required'
-                output_string = (
-                    datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
-                )
+                output_string = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                 input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                 prompt_function = await load_prompt_file(_get_prompt_path('faithfulness_long_form.prompt'))
                 context = ' '.join(json.dumps(e) for e in datapoint.context)
@@ -115,9 +113,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
 
             async def _faithfulness_eval(datapoint: BaseEvalDataPoint, options: Any | None):
                 assert datapoint.output is not None, 'output is required'
-                output_string = (
-                    datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
-                )
+                output_string = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                 input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                 context_list = [(json.dumps(e) if not isinstance(e, str) else e) for e in (datapoint.context or [])]
 
@@ -126,9 +122,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
                         _get_prompt_path('faithfulness_long_form.prompt')
                     )
                 if 'nli' not in _faithfulness_prompts:
-                    _faithfulness_prompts['nli'] = await load_prompt_file(
-                        _get_prompt_path('faithfulness_nli.prompt')
-                    )
+                    _faithfulness_prompts['nli'] = await load_prompt_file(_get_prompt_path('faithfulness_nli.prompt'))
 
                 prompt = await render_text(
                     _faithfulness_prompts['longform'], {'question': input_string, 'answer': output_string}

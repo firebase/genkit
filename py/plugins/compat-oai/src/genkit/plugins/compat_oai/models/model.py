@@ -89,7 +89,7 @@ class OpenAIModel:
             parameters = tool_definition.input_schema or {}
             if parameters and 'additionalProperties' not in parameters:
                 parameters = {**parameters, 'additionalProperties': False}
-            
+
             # Construct the OpenAI function tool format using the schema from tool_definition
             function_call = {
                 'type': 'function',

@@ -16,6 +16,7 @@ from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 
+
 @pytest.mark.asyncio
 async def test_register_action_with_name_and_kind() -> None:
     """Ensure we can register an action with a name and kind."""

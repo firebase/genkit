@@ -18,6 +18,7 @@ import asyncio
 import random
 
 from genkit_demo import ai
+
 # Import flows so they get registered
 import pdf_rag  # noqa: F401
 import eval_in_code  # noqa: F401
@@ -51,7 +52,7 @@ ai.define_evaluator(
 
 async def main():
     """Keep alive for Dev UI."""
-    print("Genkit server running. Press Ctrl+C to stop.")
+    print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 

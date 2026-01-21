@@ -32,7 +32,7 @@ from menu_ai import ai
 
 async def main():
     """Keep alive for Dev UI."""
-    print("Genkit server running. Press Ctrl+C to stop.")
+    print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 

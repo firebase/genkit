@@ -142,7 +142,8 @@ async def calculator_flow(expression: str) -> str:
 async def main():
     """Main entry point - keep alive for Dev UI."""
     import asyncio
-    logger.info("Genkit server running. Press Ctrl+C to stop.")
+
+    logger.info('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 

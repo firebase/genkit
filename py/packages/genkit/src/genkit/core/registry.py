@@ -148,6 +148,7 @@ class Registry:
 
     def register_action_from_instance(self, action: Action) -> None:
         """Register an existing Action instance.
+
         Allows registering a pre-configured Action object, such as one created via
         `dynamic_resource` or other factory methods.
 
@@ -356,7 +357,8 @@ class Registry:
             if len(successes) > 1:
                 plugin_names = [p for p, _ in successes]
                 raise ValueError(
-                    f"Ambiguous {kind.value} action name '{name}'. Matches plugins: {plugin_names}. Use 'plugin/{name}'."
+                    f"Ambiguous {kind.value} action name '{name}'. "
+                    f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
                 )
 
             if len(successes) == 1:
@@ -372,7 +374,7 @@ class Registry:
                 providers = list(self._entries.get(ActionKind.DYNAMIC_ACTION_PROVIDER, {}).values())
             for provider in providers:
                 try:
-                    response = await provider.run({'kind': kind, 'name': name})
+                    response = await provider.arun({'kind': kind, 'name': name})
                     if response.response:
                         self.register_action_instance(response.response)
                         return response.response

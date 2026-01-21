@@ -132,7 +132,7 @@ def _build_actions_payload(
         if not existing.get('description') and advertised.get('description'):
             existing['description'] = advertised['description']
 
-        if  not existing.get('inputSchema') and advertised.get('inputSchema'):
+        if not existing.get('inputSchema') and advertised.get('inputSchema'):
             existing['inputSchema'] = advertised['inputSchema']
 
         if not existing.get('outputSchema') and advertised.get('outputSchema'):

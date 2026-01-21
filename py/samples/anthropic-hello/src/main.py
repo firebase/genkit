@@ -196,7 +196,8 @@ async def say_hi_with_config(name: str) -> str:
 async def main() -> None:
     """Main entry point for the Anthropic sample - keep alive for Dev UI."""
     import asyncio
-    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 
