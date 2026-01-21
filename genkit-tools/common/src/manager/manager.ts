@@ -167,13 +167,23 @@ export class RuntimeManager {
    * `runtime` to which it applies.
    *
    * @param listener the callback function.
+   * @returns an unsubscriber function.
    */
   onRuntimeEvent(
     listener: (eventType: RuntimeEvent, runtime: RuntimeInfo) => void
   ) {
-    Object.values(RuntimeEvent).forEach((event) =>
-      this.eventEmitter.on(event, (rt) => listener(event, rt))
-    );
+    const listeners: Array<{ event: string; fn: (rt: RuntimeInfo) => void }> =
+      [];
+    Object.values(RuntimeEvent).forEach((event) => {
+      const fn = (rt: RuntimeInfo) => listener(event, rt);
+      this.eventEmitter.on(event, fn);
+      listeners.push({ event, fn });
+    });
+    return () => {
+      listeners.forEach(({ event, fn }) => {
+        this.eventEmitter.off(event, fn);
+      });
+    };
   }
 
   /**
@@ -567,6 +577,7 @@ export class RuntimeManager {
     try {
       const runtimesDir = await findRuntimesDir(this.projectRoot);
       await fs.mkdir(runtimesDir, { recursive: true });
+      logger.debug(`Watching runtimes in ${runtimesDir}`);
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
         ignoreInitial: false,
