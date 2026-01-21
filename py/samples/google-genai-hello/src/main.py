@@ -328,8 +328,11 @@ async def generate_images(name: str, ctx):
 
 
 async def main() -> None:
-    """Main function."""
-    await logger.ainfo(await say_hi(', tell me a joke'))
+    """Main function - keep alive for Dev UI."""
+    import asyncio
+    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

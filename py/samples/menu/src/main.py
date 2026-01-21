@@ -15,7 +15,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Import all of the example prompts and flows to ensure they are registered
+import asyncio
 from menu_ai import ai
 
+
+async def main():
+    """Keep alive for Dev UI."""
+    print("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
+
+
 if __name__ == '__main__':
-    ai.run_main()
+    ai.run_main(main())

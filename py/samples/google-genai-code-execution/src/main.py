@@ -51,12 +51,15 @@ async def execute_code(task: str) -> MessageWrapper:
 
 
 async def main() -> None:
-    """Main entry point for the  Google genai code execution sample.
+    """Main entry point for the Google genai code execution sample - keep alive for Dev UI.
 
     This function demonstrates how to perform code execution using the
     Genkit framework.
     """
-    await logger.ainfo(await execute_code('What is the sum of the first 50 prime numbers?'))
+    import asyncio
+    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

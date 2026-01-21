@@ -317,19 +317,11 @@ async def generate_character(name: str, ctx: ActionRunContext):
 
 
 async def main() -> None:
-    """Main entry point for the OpenAI sample."""
-    await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
-
-    await logger.ainfo(await say_hi('John Doe'))
-    await logger.ainfo(await say_hi_constrained('John Doe'))
-    await logger.ainfo(await say_hi_stream('John Doe'))
-
-    await logger.ainfo(await calculate_gablorken(33))
-    await logger.ainfo(await get_weather_flow('London and Paris'))
-    await logger.ainfo(await get_weather_flow_stream('London and Paris'))
-
-    await logger.ainfo(await generate_character('LunaDoodle', lambda x: x))
-    await logger.ainfo(await generate_character('NoodleMan'))
+    """Main entry point for the OpenAI sample - keep alive for Dev UI."""
+    import asyncio
+    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

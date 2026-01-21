@@ -194,18 +194,11 @@ async def say_hi_with_config(name: str) -> str:
 
 
 async def main() -> None:
-    """Main entry point for the Anthropic sample."""
-    result = await say_hi('John Doe')
-    await logger.ainfo('Simple greeting', result=result)
-
-    result = await say_hi_with_config('John Doe')
-    await logger.ainfo('Custom config', result=result)
-
-    result = await weather_flow('Paris')
-    await logger.ainfo('Weather', result=result)
-
-    result = await currency_exchange(CurrencyExchangeInput(amount=100.0, from_curr='USD', to_curr='EUR'))
-    await logger.ainfo('Currency', result=result)
+    """Main entry point for the Anthropic sample - keep alive for Dev UI."""
+    import asyncio
+    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

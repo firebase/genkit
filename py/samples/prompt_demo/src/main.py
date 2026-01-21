@@ -86,43 +86,11 @@ async def three_greetings(input: str = 'Fred') -> OutputSchema:
 
 
 async def main():
-    # List actions to verify loading
-    from genkit.core.action.types import ActionKind
-
-    prompt_actions = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
-    executable_prompt_actions = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
-
-    # Combine prompt action names
-    prompts = list(prompt_actions.keys()) + list(executable_prompt_actions.keys())
-    total_actions = len(prompt_actions) + len(executable_prompt_actions)
-
-    await logger.ainfo('Registry Status', total_actions=total_actions, loaded_prompts=prompts)
-
-    if not prompts:
-        await logger.awarning('No prompts found! Check directory structure.')
-        return
-
-    # Execute the 'hello' prompt
-    hello_prompt = await ai.prompt('hello')
-    response = await hello_prompt(input={'name': 'Genkit User'})
-
-    await logger.ainfo('Prompt Execution Result', text=response.text)
-
-    res = await simple_prompt()
-    await logger.ainfo('Flow: simplePrompt', text=res.text)
-
-    res = await simple_template()
-    await logger.ainfo('Flow: simpleTemplate', text=res.text)
-
-    res = await simple_dotprompt(NameInput(name='Fred'))
-    await logger.ainfo('Flow: simpleDotprompt', text=res.text)
-
-    res = await three_greetings()
-    await logger.ainfo('Flow: threeGreetingsPrompt', output=res)
-
-    # Call one of the prompts just to validate everything is hooked up properly
-    res = await hello_dotprompt(input={'name': 'Bob'})
-    await logger.ainfo('Prompt: hello_dotprompt', text=res.text)
+    """Main entry point - keep alive for Dev UI."""
+    import asyncio
+    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

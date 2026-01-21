@@ -140,20 +140,11 @@ async def calculator_flow(expression: str) -> str:
 
 
 async def main():
-    result = await say_hi('Alice')
-    logger.info('say_hi', result=result)
-
-    result = await say_hi_stream('Bob')
-    logger.info('say_hi_stream', result=result[:150])
-
-    result = await say_hi_with_config('Charlie')
-    logger.info('say_hi_with_config', result=result)
-
-    result = await weather_flow('New York')
-    logger.info('weather_flow', result=result)
-
-    result = await calculator_flow('add_5_3')
-    logger.info('calculator_flow', result=result)
+    """Main entry point - keep alive for Dev UI."""
+    import asyncio
+    logger.info("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

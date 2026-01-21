@@ -90,13 +90,15 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
 
 
 async def main() -> None:
-    """Main entry point for the context caching sample.
+    """Main entry point for the context caching sample - keep alive for Dev UI.
 
     This function demonstrates how to use context caching in Genkit for
     improved performance.
     """
-    res = await text_context_flow(BookContextInputSchema())
-    await logger.ainfo('foo', result=res)
+    import asyncio
+    await logger.ainfo("Genkit server running. Press Ctrl+C to stop.")
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':
