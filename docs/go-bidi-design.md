@@ -4,24 +4,29 @@
 
 This document describes the design for bidirectional streaming features in Genkit Go. The implementation introduces three new primitives:
 
-1. **BidiAction** - Core primitive for bidirectional operations
-2. **BidiFlow** - BidiAction with observability, intended for user definition
-3. **Agent** - Stateful, multi-turn agent interactions with automatic persistence and turn semantics
+1. **BidiAction** - Core primitive for bidirectional operations (`go/core/x`)
+2. **BidiFlow** - BidiAction with observability, intended for user definition (`go/core/x`)
+3. **BidiModel** - Specialized bidi action for real-time LLM APIs (`go/ai/x`)
+
+For stateful multi-turn agents with session persistence, see [go-agent-design.md](go-agent-design.md).
 
 ## Package Location
-
-All bidi types go in `go/core/x/` (experimental), which will move to `go/core/` when stabilized:
 
 ```
 go/core/x/
 ├── bidi.go           # BidiAction, BidiFunc, BidiConnection
 ├── bidi_flow.go      # BidiFlow
-├── agent.go          # Agent implementation
-├── option.go         # Options
+├── bidi_options.go   # Options
 ├── bidi_test.go      # Tests
+
+go/ai/x/
+├── bidi_model.go     # BidiModel, BidiModelFunc
+├── bidi_model_test.go
 ```
 
-Import as `corex "github.com/firebase/genkit/go/core/x"`.
+Import as:
+- `corex "github.com/firebase/genkit/go/core/x"`
+- `aix "github.com/firebase/genkit/go/ai/x"`
 
 ---
 
@@ -76,9 +81,7 @@ func (c *BidiConnection[In, Out, Stream]) Send(input In) error
 func (c *BidiConnection[In, Out, Stream]) Close() error
 
 // Responses returns an iterator for receiving streamed response chunks.
-// For Agents, the iterator exits when the agent calls resp.EndTurn(), allowing
-// multi-turn conversations. Call Responses() again after Send() for the next turn.
-// The iterator completes permanently when the action finishes.
+// The iterator completes when the action finishes or signals end of turn.
 func (c *BidiConnection[In, Out, Stream]) Responses() iter.Seq2[Stream, error]
 
 // Output returns the final output after the action completes.
@@ -97,71 +100,232 @@ type BidiFlow[Init, In, Out, Stream any] struct {
 }
 ```
 
-### 1.4 Responder
+---
 
-`Responder` wraps the output channel for agents, providing methods to send data and signal turn boundaries.
+## 2. BidiModel
+
+### 2.1 Overview
+
+`BidiModel` is a specialized bidi action for real-time LLM APIs like Gemini Live and OpenAI Realtime. These APIs establish a persistent connection where configuration (temperature, system prompt, tools) must be provided upfront, and then the conversation streams bidirectionally.
+
+### 2.2 The Role of `init`
+
+For real-time sessions, the connection to the model API often requires configuration to be established *before* the first user message is received. The `init` payload fulfills this requirement:
+
+- **`init`**: `GenerateRequest` (contains config, tools, system prompt)
+- **`inputStream`**: Stream of `GenerateRequest` (contains user messages/turns)
+- **`stream`**: Stream of `GenerateResponseChunk`
+
+### 2.3 Type Definitions
 
 ```go
-// Responder wraps the output channel with turn signaling for multi-turn agents.
-type Responder[T any] struct {
-    ch chan<- streamChunk[T]  // internal, unexported
+// In go/ai/x/bidi_model.go
+
+// BidiModel represents a bidirectional streaming model for real-time LLM APIs.
+type BidiModel struct {
+    *corex.BidiAction[*ai.GenerateRequest, *ai.GenerateRequest, *ai.GenerateResponse, *ai.GenerateResponseChunk]
 }
 
-// Send sends a streamed chunk to the consumer.
-func (r *Responder[T]) Send(data T)
-
-// EndTurn signals that the agent has finished responding to the current input.
-// The consumer's Stream() iterator will exit, allowing them to send the next input.
-func (r *Responder[T]) EndTurn()
+// BidiModelFunc is the function signature for bidi model implementations.
+type BidiModelFunc func(
+    ctx context.Context,
+    init *ai.GenerateRequest,
+    inCh <-chan *ai.GenerateRequest,
+    outCh chan<- *ai.GenerateResponseChunk,
+) (*ai.GenerateResponse, error)
 ```
 
-### 1.5 Agent
-
-Agent adds session state management on top of BidiFlow with turn semantics.
+### 2.4 Defining a BidiModel
 
 ```go
-// Artifact represents a named collection of parts produced during a session.
-// Examples: generated files, images, code snippets, etc.
-type Artifact struct {
-    Name  string     `json:"name"`
-    Parts []*ai.Part `json:"parts"`
+// DefineBidiModel creates and registers a BidiModel for real-time LLM interactions.
+func DefineBidiModel(
+    r api.Registry,
+    name string,
+    fn BidiModelFunc,
+) *BidiModel
+```
+
+**Example Plugin Implementation:**
+
+```go
+// In a plugin like googlegenai
+
+func (g *GoogleAI) defineBidiModel(r api.Registry) *aix.BidiModel {
+    return aix.DefineBidiModel(r, "googleai/gemini-2.0-flash-live",
+        func(ctx context.Context, init *ai.GenerateRequest, inCh <-chan *ai.GenerateRequest, outCh chan<- *ai.GenerateResponseChunk) (*ai.GenerateResponse, error) {
+            // 1. Establish session using configuration from init
+            session, err := g.client.ConnectLive(ctx, &genai.LiveConnectConfig{
+                Model:        "gemini-2.0-flash-live",
+                SystemPrompt: extractSystemPrompt(init),
+                Tools:        convertTools(init.Tools),
+                Config:       convertConfig(init.Config),
+            })
+            if err != nil {
+                return nil, err
+            }
+            defer session.Close()
+
+            var totalUsage ai.GenerationUsage
+
+            // 2. Handle conversation stream
+            for request := range inCh {
+                // Send new user input to the upstream session
+                if err := session.SendContent(convertMessages(request.Messages)); err != nil {
+                    return nil, err
+                }
+
+                // Yield responses from the upstream session
+                for chunk := range session.Receive() {
+                    outCh <- &ai.GenerateResponseChunk{
+                        Content: []*ai.Part{ai.NewTextPart(chunk.Text)},
+                    }
+                    totalUsage.Add(chunk.Usage)
+                }
+            }
+
+            // 3. Return final result (usage stats, etc.)
+            return &ai.GenerateResponse{
+                Usage: &totalUsage,
+            }, nil
+        },
+    )
+}
+```
+
+### 2.5 Using BidiModel (`GenerateBidi`)
+
+`GenerateBidi` is the high-level API for interacting with bidi models. It provides a session-like interface for real-time conversations.
+
+```go
+// In go/genkit/generate.go or go/ai/x/generate_bidi.go
+
+// GenerateBidiSession wraps BidiConnection with model-specific convenience methods.
+type GenerateBidiSession struct {
+    conn *corex.BidiConnection[*ai.GenerateRequest, *ai.GenerateResponse, *ai.GenerateResponseChunk]
 }
 
-// AgentOutput wraps the output with session info for persistence.
-type AgentOutput[State, Out any] struct {
-    SessionID string     `json:"sessionId"`
-    Output    Out        `json:"output"`
-    State     State      `json:"state"`
-    Artifacts []Artifact `json:"artifacts,omitempty"`
+// Send sends a user message to the model.
+func (s *GenerateBidiSession) Send(messages ...*ai.Message) error {
+    return s.conn.Send(&ai.GenerateRequest{Messages: messages})
 }
 
-// Agent is a bidi flow with automatic session state management.
-// Init = State: the initial state for new sessions (ignored when resuming an existing session).
-type Agent[State, In, Out, Stream any] struct {
-    *BidiFlow[State, In, AgentOutput[State, Out], Stream]
-    store session.Store[State]
+// SendText is a convenience method for sending a text message.
+func (s *GenerateBidiSession) SendText(text string) error {
+    return s.Send(ai.NewUserTextMessage(text))
 }
 
-// AgentResult is the return type for agent functions.
-type AgentResult[Out any] struct {
-    Output    Out
-    Artifacts []Artifact
+// Stream returns an iterator for receiving response chunks.
+func (s *GenerateBidiSession) Stream() iter.Seq2[*ai.GenerateResponseChunk, error] {
+    return s.conn.Responses()
 }
 
-// AgentFunc is the function signature for agents.
-type AgentFunc[State, In, Out, Stream any] func(
-    ctx context.Context,
-    sess *session.Session[State],
-    inCh <-chan In,
-    resp *Responder[Stream],
-) (AgentResult[Out], error)
+// Close signals that the conversation is complete.
+func (s *GenerateBidiSession) Close() error {
+    return s.conn.Close()
+}
+
+// Output returns the final response after the session completes.
+func (s *GenerateBidiSession) Output() (*ai.GenerateResponse, error) {
+    return s.conn.Output()
+}
+```
+
+**Usage:**
+
+```go
+// GenerateBidi starts a bidirectional streaming session with a model.
+func GenerateBidi(ctx context.Context, g *Genkit, opts ...GenerateBidiOption) (*GenerateBidiSession, error)
+
+// GenerateBidiOption configures a bidi generation session.
+type GenerateBidiOption interface {
+    applyGenerateBidi(*generateBidiOptions) error
+}
+
+// WithBidiModel specifies the model to use.
+func WithBidiModel(model *aix.BidiModel) GenerateBidiOption
+
+// WithBidiConfig provides generation config (temperature, etc.) passed via init.
+func WithBidiConfig(config any) GenerateBidiOption
+
+// WithBidiSystem provides the system prompt passed via init.
+func WithBidiSystem(system string) GenerateBidiOption
+
+// WithBidiTools provides tools for the model passed via init.
+func WithBidiTools(tools ...ai.Tool) GenerateBidiOption
+```
+
+**Example:**
+
+```go
+// Start a real-time session
+session, err := genkit.GenerateBidi(ctx, g,
+    genkit.WithBidiModel(geminiLive),
+    genkit.WithBidiConfig(&googlegenai.GenerationConfig{Temperature: ptr(0.7)}),
+    genkit.WithBidiSystem("You are a helpful voice assistant"),
+)
+if err != nil {
+    return err
+}
+defer session.Close()
+
+// Send a message
+session.SendText("Hello!")
+
+// Listen for responses (can happen simultaneously with sends)
+for chunk, err := range session.Stream() {
+    if err != nil {
+        return err
+    }
+    fmt.Print(chunk.Text())
+}
+
+// Continue the conversation
+session.SendText("Tell me more about that.")
+for chunk, err := range session.Stream() {
+    // ...
+}
+
+// Get final usage stats
+response, _ := session.Output()
+fmt.Printf("Total tokens: %d\n", response.Usage.TotalTokens)
+```
+
+### 2.6 Tool Calling in BidiModel
+
+Real-time models may support tool calling. The pattern follows the standard generate flow but within the streaming context:
+
+```go
+session, _ := genkit.GenerateBidi(ctx, g,
+    genkit.WithBidiModel(geminiLive),
+    genkit.WithBidiTools(weatherTool, calculatorTool),
+)
+
+session.SendText("What's the weather in NYC?")
+
+for chunk, err := range session.Stream() {
+    if err != nil {
+        return err
+    }
+
+    // Check for tool calls
+    if toolCall := chunk.ToolCall(); toolCall != nil {
+        // Execute the tool
+        result, _ := toolCall.Tool.Execute(ctx, toolCall.Input)
+
+        // Send tool result back to the model
+        session.Send(ai.NewToolResultMessage(toolCall.ID, result))
+    } else {
+        fmt.Print(chunk.Text())
+    }
+}
 ```
 
 ---
 
-## 2. API Surface
+## 3. API Surface
 
-### 2.1 Defining Bidi Actions
+### 3.1 Defining Bidi Actions
 
 ```go
 // In go/core/x/bidi.go
@@ -182,7 +346,7 @@ func DefineBidiAction[Init, In, Out, Stream any](
 
 Schemas for `In`, `Out`, `Init`, and `Stream` types are automatically inferred from the type parameters using the existing JSON schema inference in `go/internal/base/json.go`.
 
-### 2.2 Defining Bidi Flows
+### 3.2 Defining Bidi Flows
 
 ```go
 // In go/core/x/bidi_flow.go
@@ -196,33 +360,9 @@ func DefineBidiFlow[Init, In, Out, Stream any](
 ) *BidiFlow[Init, In, Out, Stream]
 ```
 
-### 2.3 Defining Agents
+### 3.3 Starting Connections
 
-```go
-// In go/core/x/agent.go
-
-// DefineAgent creates an Agent with automatic session management and registers it.
-// Use this for multi-turn conversational agents that need to persist state across turns.
-func DefineAgent[State, In, Out, Stream any](
-    r api.Registry,
-    name string,
-    fn AgentFunc[State, In, Out, Stream],
-    opts ...AgentOption[State],
-) *Agent[State, In, Out, Stream]
-
-// AgentOption configures an Agent.
-type AgentOption[State any] interface {
-    applyAgent(*agentOptions[State]) error
-}
-
-// WithSessionStore sets the session store for persisting session state.
-// If not provided, sessions exist only in memory for the connection lifetime.
-func WithSessionStore[State any](store session.Store[State]) AgentOption[State]
-```
-
-### 2.4 Starting Connections
-
-All bidi types (BidiAction, BidiFlow, Agent) use the same `StreamBidi` method to start connections:
+All bidi types (BidiAction, BidiFlow, BidiModel) use the same `StreamBidi` method to start connections:
 
 ```go
 // BidiAction/BidiFlow
@@ -237,22 +377,10 @@ type BidiOption[Init any] interface {
 }
 
 // WithInit provides initialization data for the bidi action.
-// For Agent, this sets the initial state for new sessions.
 func WithInit[Init any](init Init) BidiOption[Init]
-
-// WithSessionID specifies an existing session ID to resume.
-// If the session exists in the store, it is loaded (WithInit is ignored).
-// If the session doesn't exist, a new session is created with this ID.
-// If not provided, a new UUID is generated for new sessions.
-func WithSessionID[Init any](id string) BidiOption[Init]
-
-func (a *Agent[State, In, Out, Stream]) StreamBidi(
-    ctx context.Context,
-    opts ...BidiOption[State],
-) (*BidiConnection[In, AgentOutput[State, Out], Stream], error)
 ```
 
-### 2.5 High-Level Genkit API
+### 3.4 High-Level Genkit API
 
 ```go
 // In go/genkit/bidi.go
@@ -263,60 +391,12 @@ func DefineBidiFlow[Init, In, Out, Stream any](
     fn corex.BidiFunc[Init, In, Out, Stream],
 ) *corex.BidiFlow[Init, In, Out, Stream]
 
-func DefineAgent[State, In, Out, Stream any](
+func GenerateBidi(
+    ctx context.Context,
     g *Genkit,
-    name string,
-    fn corex.AgentFunc[State, In, Out, Stream],
-    opts ...corex.AgentOption[State],
-) *corex.Agent[State, In, Out, Stream]
+    opts ...GenerateBidiOption,
+) (*GenerateBidiSession, error)
 ```
-
----
-
-## 3. Agent Details
-
-### 3.1 Using StreamBidi with Agent
-
-Agent uses the same `StreamBidi` method as BidiAction and BidiFlow. Session ID is a connection option, and initial state is passed via `WithInit`:
-
-```go
-// Define once at startup
-chatAgent := genkit.DefineAgent(g, "chatAgent",
-    myAgentFunc,
-    corex.WithSessionStore(store),
-)
-
-// NEW USER: Start fresh session (generates new ID, zero state)
-conn1, _ := chatAgent.StreamBidi(ctx)
-
-// RETURNING USER: Resume existing session by ID
-conn2, _ := chatAgent.StreamBidi(ctx, corex.WithSessionID[ChatState]("user-123-session"))
-
-// NEW USER WITH INITIAL STATE: Start with pre-populated state
-conn3, _ := chatAgent.StreamBidi(ctx, corex.WithInit(ChatState{Messages: preloadedHistory}))
-
-// NEW USER WITH SPECIFIC ID AND INITIAL STATE
-conn4, _ := chatAgent.StreamBidi(ctx,
-    corex.WithSessionID[ChatState]("custom-session-id"),
-    corex.WithInit(ChatState{Messages: preloadedHistory}),
-)
-```
-
-The Agent internally handles session creation/loading:
-- If `WithSessionID` is provided and session exists in store → load existing session (WithInit ignored)
-- If `WithSessionID` is provided but session doesn't exist → create new session with that ID and initial state from WithInit
-- If no `WithSessionID` → generate new UUID and create session with initial state from WithInit
-
-The session ID is returned in `AgentOutput.SessionID`, so callers can retrieve it from the final output:
-
-```go
-output, _ := conn.Output()
-sessionID := output.SessionID  // Save this to resume later
-```
-
-### 3.2 State Persistence
-
-State is persisted automatically when `sess.UpdateState()` is called - the existing `session.Session` implementation already persists to the configured store. No special persistence mode is needed; the user controls when to persist by calling `UpdateState()`.
 
 ---
 
@@ -339,12 +419,13 @@ BidiFlows create spans that remain open for the lifetime of the connection, enab
 
 ### 4.2 Action Registration
 
-Add new action type and schema fields:
+Add new action types and schema fields:
 
 ```go
 // In go/core/api/action.go
 const (
-    ActionTypeBidiFlow ActionType = "bidi-flow"
+    ActionTypeBidiFlow  ActionType = "bidi-flow"
+    ActionTypeBidiModel ActionType = "bidi-model"
 )
 
 // ActionDesc gets two new optional fields
@@ -352,20 +433,6 @@ type ActionDesc struct {
     // ... existing fields ...
     StreamSchema map[string]any `json:"streamSchema,omitempty"` // NEW: schema for streamed chunks
     InitSchema   map[string]any `json:"initSchema,omitempty"`   // NEW: schema for initialization data
-}
-```
-
-### 4.3 Session Integration
-
-Use existing `Session` and `Store` types from `go/core/x/session` (remains a separate subpackage):
-
-```go
-import "github.com/firebase/genkit/go/core/x/session"
-
-// Agent holds reference to session store
-type Agent[State, In, Out, Stream any] struct {
-    store session.Store[State]
-    // ...
 }
 ```
 
@@ -389,7 +456,7 @@ func main() {
     ctx := context.Background()
     g := genkit.Init(ctx)
 
-    // Define echo bidi flow (low-level, no turn semantics)
+    // Define echo bidi flow
     echoFlow := genkit.DefineBidiFlow(g, "echo",
         func(ctx context.Context, init struct{}, inCh <-chan string, outCh chan<- string) (string, error) {
             var count int
@@ -426,111 +493,7 @@ func main() {
 }
 ```
 
-### 5.2 Chat Agent with Session Persistence
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-
-    "github.com/firebase/genkit/go/ai"
-    corex "github.com/firebase/genkit/go/core/x"
-    "github.com/firebase/genkit/go/core/x/session"
-    "github.com/firebase/genkit/go/genkit"
-    "github.com/firebase/genkit/go/plugins/googlegenai"
-)
-
-type ChatState struct {
-    Messages []*ai.Message `json:"messages"`
-}
-
-func main() {
-    ctx := context.Background()
-    store := session.NewInMemoryStore[ChatState]()
-
-    g := genkit.Init(ctx,
-        genkit.WithPlugins(&googlegenai.GoogleAI{}),
-        genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
-    )
-
-    // Define an agent for multi-turn chat
-    chatAgent := genkit.DefineAgent(g, "chatAgent",
-        func(ctx context.Context, sess *session.Session[ChatState], inCh <-chan string, resp *corex.Responder[string]) (corex.AgentResult[string], error) {
-            state := sess.State()
-            messages := state.Messages
-
-            for input := range inCh {
-                messages = append(messages, ai.NewUserTextMessage(input))
-
-                var respText string
-                for result, err := range genkit.GenerateStream(ctx, g,
-                    ai.WithMessages(messages...),
-                ) {
-                    if err != nil {
-                        return corex.AgentResult[string]{}, err
-                    }
-                    if result.Done {
-                        respText = result.Response.Text()
-                    }
-                    resp.Send(result.Chunk.Text())
-                }
-                resp.EndTurn()  // Signal turn complete, consumer's Stream() exits
-
-                messages = append(messages, ai.NewModelTextMessage(respText))
-                sess.UpdateState(ctx, ChatState{Messages: messages})
-            }
-
-            return corex.AgentResult[string]{
-                Output:    "conversation ended",
-                Artifacts: []corex.Artifact{
-                    {
-                        Name:  "summary",
-                        Parts: []*ai.Part{ai.NewTextPart("...")},
-                    },
-                },
-            }, nil
-        },
-        corex.WithSessionStore(store),
-    )
-
-    // Start new session (generates new session ID)
-    conn, _ := chatAgent.StreamBidi(ctx)
-
-    // First turn
-    conn.Send("Hello! Tell me about Go programming.")
-    for chunk, err := range conn.Responses() {
-        if err != nil {
-            panic(err)
-        }
-        fmt.Print(chunk)
-    }
-    // Loop exits when agent calls resp.EndTurn()
-
-    // Second turn
-    conn.Send("What are channels used for?")
-    for chunk, err := range conn.Responses() {
-        if err != nil {
-            panic(err)
-        }
-        fmt.Print(chunk)
-    }
-
-    conn.Close()
-
-    // Get session ID from final output to resume later
-    output, _ := conn.Output()
-    sessionID := output.SessionID
-
-    // Resume session later with the saved ID
-    conn2, _ := chatAgent.StreamBidi(ctx, corex.WithSessionID[ChatState](sessionID))
-    conn2.Send("Continue our discussion")
-    // ...
-}
-```
-
-### 5.3 Bidi Flow with Initialization Data
+### 5.2 Bidi Flow with Initialization Data
 
 ```go
 type ChatInit struct {
@@ -561,6 +524,33 @@ conn, _ := configuredChat.StreamBidi(ctx,
 )
 ```
 
+### 5.3 Real-Time Voice Model Session
+
+```go
+// Using a bidi model for voice-like interactions
+session, _ := genkit.GenerateBidi(ctx, g,
+    genkit.WithBidiModel(geminiLive),
+    genkit.WithBidiSystem("You are a voice assistant. Keep responses brief."),
+)
+defer session.Close()
+
+// Simulate real-time voice input/output
+go func() {
+    // In a real app, this would be audio transcription
+    session.SendText("What time is it in Tokyo?")
+}()
+
+// Stream responses as they arrive
+for chunk, err := range session.Stream() {
+    if err != nil {
+        log.Printf("Error: %v", err)
+        break
+    }
+    // In a real app, this would go to text-to-speech
+    fmt.Print(chunk.Text())
+}
+```
+
 ---
 
 ## 6. Files to Create/Modify
@@ -572,22 +562,23 @@ conn, _ := configuredChat.StreamBidi(ctx,
 | `go/core/x/bidi.go` | BidiAction, BidiFunc, BidiConnection |
 | `go/core/x/bidi_flow.go` | BidiFlow with tracing |
 | `go/core/x/bidi_options.go` | BidiOption types |
-| `go/core/x/agent.go` | Agent implementation |
 | `go/core/x/bidi_test.go` | Tests |
+| `go/ai/x/bidi_model.go` | BidiModel, BidiModelFunc, GenerateBidiSession |
+| `go/ai/x/bidi_model_test.go` | Tests |
 | `go/genkit/bidi.go` | High-level API wrappers |
 
 ### Modified Files
 
 | File | Change |
 |------|--------|
-| `go/core/api/action.go` | Add `ActionTypeBidiFlow` constant |
+| `go/core/api/action.go` | Add `ActionTypeBidiFlow`, `ActionTypeBidiModel` constants |
 
 ---
 
 ## 7. Implementation Notes
 
 ### Error Handling
-- Errors from the bidi function propagate to both `Stream()` iterator and `Output()`
+- Errors from the bidi function propagate to both `Responses()` iterator and `Output()`
 - Context cancellation closes all channels and terminates the action
 - Send after Close returns an error
 - Errors are yielded as the second value in the `iter.Seq2[Stream, error]` iterator
@@ -601,46 +592,11 @@ conn, _ := configuredChat.StreamBidi(ctx,
 ### Thread Safety
 - BidiConnection uses mutex for state (closed flag)
 - Send is safe to call from multiple goroutines
-- Session operations are thread-safe (from existing session package)
 
 ### Channels and Backpressure
 - Both input and output channels are **unbuffered** by default (size 0)
-- This provides natural backpressure: `Send()` blocks until agent reads, `resp.Send()` blocks until consumer reads
+- This provides natural backpressure: `Send()` blocks until the action reads, output blocks until consumer reads
 - If needed, `WithInputBufferSize` / `WithOutputBufferSize` options could be added later for specific use cases
-
-### Turn Signaling (Agents)
-
-For multi-turn conversations, the consumer needs to know when the agent has finished responding to one input and is ready for the next.
-
-**How it works internally:**
-
-1. `BidiConnection.streamCh` is actually `chan streamChunk[Stream]` (internal type)
-2. `streamChunk` has `data T` and `endTurn bool` fields (unexported)
-3. `resp.Send(data)` sends `streamChunk{data: data}`
-4. `resp.EndTurn()` sends `streamChunk{endTurn: true}`
-5. `conn.Responses()` unwraps chunks, yielding only the data
-6. When `Stream()` sees `endTurn: true`, it exits the iterator without yielding
-
-**From the agent's perspective:**
-```go
-for input := range inCh {
-    resp.Send("partial...")
-    resp.Send("more...")
-    resp.EndTurn()  // Consumer's for loop exits here
-}
-```
-
-**From the consumer's perspective:**
-```go
-conn.Send("question")
-for chunk, err := range conn.Responses() {
-    fmt.Print(chunk)  // Just gets string, not streamChunk
-}
-// Loop exited because agent called EndTurn()
-
-conn.Send("follow-up")
-for chunk, err := range conn.Responses() { ... }
-```
 
 ### Tracing
 - Span is started when connection is created, ended when action completes
@@ -663,20 +619,11 @@ On context cancellation:
 2. All channels are closed
 3. `Output()` returns the context error
 
-### Agent Internal Wrapping
-The user's `AgentFunc` returns `AgentResult[Out]`, but `Agent.StreamBidi()` returns `AgentOutput[State, Out]`. Internally, Agent wraps the user function:
+---
 
-```go
-// Simplified internal logic
-result, err := userFunc(ctx, wrappedInCh, outCh, sess)
-if err != nil {
-    return AgentOutput[State, Out]{}, err
-}
-return AgentOutput[State, Out]{
-    SessionID: sess.ID(),
-    Output:    result.Output,
-    State:     sess.State(),
-    Artifacts: result.Artifacts,
-}, nil
-```
+## 8. Integration with Reflection API
 
+These features align with **Reflection API V2**, which uses WebSockets to support bidirectional streaming between the Runtime and the CLI/Manager.
+
+- `runAction` now supports an `input` stream
+- `streamChunk` notifications are bidirectional (Manager <-> Runtime)
