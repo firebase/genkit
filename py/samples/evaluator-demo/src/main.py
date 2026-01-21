@@ -17,11 +17,11 @@
 import asyncio
 import random
 
-from genkit_demo import ai
+import eval_in_code  # noqa: F401
 
 # Import flows so they get registered
 import pdf_rag  # noqa: F401
-import eval_in_code  # noqa: F401
+from genkit_demo import ai
 
 from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
 

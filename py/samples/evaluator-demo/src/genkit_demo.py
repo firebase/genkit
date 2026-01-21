@@ -15,7 +15,7 @@
 from genkit.ai import Genkit
 from genkit.blocks.model import ModelReference
 from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
-from genkit.plugins.evaluators import define_genkit_evaluators, GenkitMetricType, MetricConfig
+from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_genai import GoogleAI
 
 # Turn off safety checks for evaluation so that the LLM as an evaluator can

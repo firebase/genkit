@@ -57,7 +57,7 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
 from genkit.core.action import ActionRunContext
-from genkit.plugins.evaluators import define_genkit_evaluators, GenkitMetricType, MetricConfig
+from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,

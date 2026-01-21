@@ -25,8 +25,7 @@ from openai.types import Model
 from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
-from genkit.core.action import Action
-from genkit.core.action import ActionMetadata
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import GenerationCommonConfig
@@ -39,7 +38,7 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.types import EmbedRequest, EmbedResponse, Embedding
+from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
 def open_ai_name(name: str) -> str:

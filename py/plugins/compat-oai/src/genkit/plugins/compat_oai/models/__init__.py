@@ -27,7 +27,6 @@ from .model_info import (
     get_default_model_info,
 )
 
-
 __all__ = [
     'OpenAIModel',
     'PluginSource',

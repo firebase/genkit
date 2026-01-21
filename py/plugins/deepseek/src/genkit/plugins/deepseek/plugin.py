@@ -20,8 +20,7 @@ import os
 
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
-from genkit.core.action import Action
-from genkit.core.action import ActionMetadata
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
 from genkit.core.schema import to_json_schema
