@@ -195,8 +195,38 @@ func TestSchemaAsMapRecursive(t *testing.T) {
 	if !ok {
 		t.Fatal("expected children to have items")
 	}
-	// The recursive Node reference should have become an "any" schema
+	if items["type"] != "object" {
+		t.Errorf("expected children.items.type to be 'object', got %v", items["type"])
+	}
 	if items["additionalProperties"] != true {
 		t.Errorf("expected children.items to be 'any' schema (additionalProperties: true), got %v", items)
+	}
+}
+
+func TestInferJSONSchema_SharedType(t *testing.T) {
+	type Shared struct {
+		Amount float64 `json:"amount"`
+	}
+	type Prizes struct {
+		First  Shared `json:"first"`
+		Second Shared `json:"second"`
+	}
+
+	schema := SchemaAsMap(InferJSONSchema(Prizes{}))
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("expected properties in schema")
+	}
+
+	second, ok := properties["second"].(map[string]any)
+	if !ok {
+		t.Fatal("expected 'second' property in schema")
+	}
+
+	if second["type"] != "object" {
+		t.Errorf("expected type: object for shared type occurrence, got %v", second["type"])
+	}
+	if second["additionalProperties"] != true {
+		t.Errorf("expected additionalProperties: true for shared type occurrence, got %v", second["additionalProperties"])
 	}
 }

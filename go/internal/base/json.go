@@ -103,6 +103,7 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 			if baseType.Kind() == reflect.Struct {
 				if seen[baseType] {
 					return &jsonschema.Schema{
+						Type:                 "object",
 						AdditionalProperties: jsonschema.TrueSchema,
 					}
 				}
