@@ -43,215 +43,201 @@ mcp_host = create_mcp_host({
     'everything': McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-everything']),
 })
 
+from functools import wraps
+
+# ... (imports remain)
+
+# ... (mcp_host definition remains)
+
+def with_mcp_host(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        await mcp_host.start()
+        try:
+            return await func(*args, **kwargs)
+        finally:
+            await mcp_host.close()
+    return wrapper
+
 
 @ai.flow(name='git-commits')
+@with_mcp_host
 async def git_commits(query: str = ''):
     """Summarize recent git commits using MCP git client."""
-    await mcp_host.start()
-    try:
-        # Register tools to registry directly
-        await mcp_host.register_tools(ai)
+    # Register tools to registry directly
+    await mcp_host.register_tools(ai)
 
-        # Get active tool names for this call
-        tools = await mcp_host.get_active_tools(ai)
+    # Get active tool names for this call
+    tools = await mcp_host.get_active_tools(ai)
 
-        result = await ai.generate(prompt=f"summarize last 5 commits in '{repo_root}'", tools=tools)
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(prompt=f"summarize last 5 commits in '{repo_root}'", tools=tools)
+    return result.text
 
 
 @ai.flow(name='dynamic-git-commits')
+@with_mcp_host
 async def dynamic_git_commits(query: str = ''):
     """Summarize recent git commits using wildcard tool selection."""
-    await mcp_host.start()
-    try:
-        await mcp_host.register_tools(ai)
+    await mcp_host.register_tools(ai)
 
-        # In Python, we might not support wildcards in tools list yet,
-        # so we'll simulate by getting all tools matching the pattern.
-        # So we use the string pattern if supported.
-        # tools=['git-client_*']
+    # In Python, we might not support wildcards in tools list yet,
+    # so we'll simulate by getting all tools matching the pattern.
+    # So we use the string pattern if supported.
+    # tools=['git-client_*']
 
-        all_tools = await mcp_host.get_active_tools(ai)
-        tools = [t for t in all_tools if t.startswith('git-client_')]
+    all_tools = await mcp_host.get_active_tools(ai)
+    tools = [t for t in all_tools if t.startswith('git-client_')]
 
-        result = await ai.generate(prompt=f"summarize last 5 commits in '{repo_root}'", tools=tools)
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(prompt=f"summarize last 5 commits in '{repo_root}'", tools=tools)
+    return result.text
 
 
 @ai.flow(name='get-file')
+@with_mcp_host
 async def get_file(query: str = ''):
     """Read and summarize a file using MCP filesystem client."""
-    await mcp_host.start()
-    try:
-        await mcp_host.register_tools(ai)
-        tools = await mcp_host.get_active_tools(ai)
+    await mcp_host.register_tools(ai)
+    tools = await mcp_host.get_active_tools(ai)
 
-        result = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
+    return result.text
 
 
 @ai.flow(name='dynamic-get-file')
+@with_mcp_host
 async def dynamic_get_file(query: str = ''):
     """Read file using specific tool selection."""
-    await mcp_host.start()
-    try:
-        await mcp_host.register_tools(ai)
+    await mcp_host.register_tools(ai)
 
-        # Filter for specific tool: 'fs_read_file'
-        tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
+    # Filter for specific tool: 'fs_read_file'
+    tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
 
-        result = await ai.generate(
-            prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-        )
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(
+        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
+    )
+    return result.text
 
 
 @ai.flow(name='dynamic-prefix-tool')
+@with_mcp_host
 async def dynamic_prefix_tool(query: str = ''):
     """Read file using prefix tool selection."""
-    await mcp_host.start()
-    try:
-        await mcp_host.register_tools(ai)
+    await mcp_host.register_tools(ai)
 
-        # Filter for prefix: 'fs_read_'
-        all_tools = await mcp_host.get_active_tools(ai)
-        tools = [t for t in all_tools if t.startswith('fs_read_')]
+    # Filter for prefix: 'fs_read_'
+    all_tools = await mcp_host.get_active_tools(ai)
+    tools = [t for t in all_tools if t.startswith('fs_read_')]
 
-        result = await ai.generate(
-            prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-        )
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(
+        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
+    )
+    return result.text
 
 
 @ai.flow(name='dynamic-disable-enable')
+@with_mcp_host
 async def dynamic_disable_enable(query: str = ''):
     """Test disabling and re-enabling an MCP client."""
-    await mcp_host.start()
+    await mcp_host.register_tools(ai)
+    tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
+
+    # Run successfully
+    result1 = await ai.generate(
+        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
+    )
+    text1 = result1.text
+
+    # Disable 'fs' and try to run (should fail)
+    await mcp_host.disable('fs')
+    text2 = ''
     try:
-        await mcp_host.register_tools(ai)
-        tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
-
-        # Run successfully
-        result1 = await ai.generate(
+        # We don't re-register tools, hoping the registry or generate handles the disabled client
+        result = await ai.generate(
             prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
         )
-        text1 = result1.text
+        text2 = f'ERROR! This should have failed but succeeded: {result.text}'
+    except Exception as e:
+        text2 = str(e)
 
-        # Disable 'fs' and try to run (should fail)
-        await mcp_host.disable('fs')
-        text2 = ''
-        try:
-            # We don't re-register tools, hoping the registry or generate handles the disabled client
-            result = await ai.generate(
-                prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-            )
-            text2 = f'ERROR! This should have failed but succeeded: {result.text}'
-        except Exception as e:
-            text2 = str(e)
+    # Re-enable 'fs' and run
+    await mcp_host.enable('fs')
+    # Re-connect/re-register might be needed
+    await mcp_host.register_tools(ai)
 
-        # Re-enable 'fs' and run
-        await mcp_host.enable('fs')
-        # Re-connect/re-register might be needed
-        await mcp_host.register_tools(ai)
+    result3 = await ai.generate(
+        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
+    )
+    text3 = result3.text
 
-        result3 = await ai.generate(
-            prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-        )
-        text3 = result3.text
-
-        return f'Original: <br/>{text1}<br/>After Disable: <br/>{text2}<br/>After Enable: <br/>{text3}'
-    finally:
-        await mcp_host.close()
+    return f'Original: <br/>{text1}<br/>After Disable: <br/>{text2}<br/>After Enable: <br/>{text3}'
 
 
 @ai.flow(name='test-resource')
+@with_mcp_host
 async def test_resource(query: str = ''):
     """Test reading a resource."""
-    await mcp_host.start()
-    try:
-        # Pass resources as grounding context if supported
-        resources = await mcp_host.get_active_resources(ai)
+    # Pass resources as grounding context if supported
+    resources = await mcp_host.get_active_resources(ai)
 
-        result = await ai.generate(
-            prompt=[
-                {'text': 'analyze this: '},
-                {'resource': {'uri': 'test://static/resource/1'}}
-            ],
-            resources=resources
-        )
+    result = await ai.generate(
+        prompt=[
+            {'text': 'analyze this: '},
+            {'resource': {'uri': 'test://static/resource/1'}}
+        ],
+        resources=resources
+    )
 
-        return result.text
-    finally:
-        await mcp_host.close()
+    return result.text
 
 
 @ai.flow(name='dynamic-test-resources')
+@with_mcp_host
 async def dynamic_test_resources(query: str = ''):
     """Test reading resources with wildcard."""
-    await mcp_host.start()
-    try:
-        # Simulate wildcard resources if not natively supported
-        # resources=['resource/*']
+    # Simulate wildcard resources if not natively supported
+    # resources=['resource/*']
 
-        all_resources = await mcp_host.get_active_resources(ai)
-        resources = [r for r in all_resources if r.startswith('test://')] # simplified filter
+    all_resources = await mcp_host.get_active_resources(ai)
+    resources = [r for r in all_resources if r.startswith('test://')] # simplified filter
 
-        result = await ai.generate(
-            prompt=[
-                {'text': 'analyze this: '},
-                {'resource': {'uri': 'test://static/resource/1'}}
-            ],
-            resources=resources
-        )
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(
+        prompt=[
+            {'text': 'analyze this: '},
+            {'resource': {'uri': 'test://static/resource/1'}}
+        ],
+        resources=resources
+    )
+    return result.text
 
 
 @ai.flow(name='dynamic-test-one-resource')
+@with_mcp_host
 async def dynamic_test_one_resource(query: str = ''):
     """Test reading one specific resource."""
-    await mcp_host.start()
-    try:
-        resources = ['test://static/resource/1']
+    resources = ['test://static/resource/1']
 
-        result = await ai.generate(
-            prompt=[
-                {'text': 'analyze this: '},
-                {'resource': {'uri': 'test://static/resource/1'}}
-            ],
-            resources=resources
-        )
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(
+        prompt=[
+            {'text': 'analyze this: '},
+            {'resource': {'uri': 'test://static/resource/1'}}
+        ],
+        resources=resources
+    )
+    return result.text
 
 
 @ai.flow(name='update-file')
+@with_mcp_host
 async def update_file(query: str = ''):
     """Update a file using MCP filesystem client."""
-    await mcp_host.start()
-    try:
-        await mcp_host.register_tools(ai)
-        tools = await mcp_host.get_active_tools(ai)
+    await mcp_host.register_tools(ai)
+    tools = await mcp_host.get_active_tools(ai)
 
-        result = await ai.generate(
-            prompt=f"Improve hello-world.txt (in '{workspace_dir}') by rewriting the text, making it longer, use your imagination.",
-            tools=tools,
-        )
-        return result.text
-    finally:
-        await mcp_host.close()
+    result = await ai.generate(
+        prompt=f"Improve hello-world.txt (in '{workspace_dir}') by rewriting the text, making it longer, use your imagination.",
+        tools=tools,
+    )
+    return result.text
 
 
 class ControlMcpInput(BaseModel):
