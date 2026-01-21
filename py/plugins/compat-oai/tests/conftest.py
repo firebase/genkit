@@ -16,7 +16,6 @@
 
 import pytest
 
-from genkit.plugins.compat_oai.models.model_info import GPT_4
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
     GenerateRequest,
@@ -38,7 +37,7 @@ def sample_request():
             Message(role=Role.USER, content=[TextPart(text='Hello, world!')]),
         ],
         config=OpenAIConfig(
-            model=GPT_4,
+            model='gpt-4',
             top_p=0.9,
             temperature=0.7,
             stop=['stop'],

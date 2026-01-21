@@ -19,19 +19,21 @@
 
 from .handler import OpenAIModelHandler
 from .model import OpenAIModel
-from .model_info import SUPPORTED_OPENAI_COMPAT_MODELS, SUPPORTED_OPENAI_MODELS, PluginSource, get_default_model_info
-
-
-def package_name() -> str:
-    return 'genkit.plugins.compat_oai.models'
+from .model_info import (
+    SUPPORTED_EMBEDDING_MODELS,
+    SUPPORTED_OPENAI_COMPAT_MODELS,
+    SUPPORTED_OPENAI_MODELS,
+    PluginSource,
+    get_default_model_info,
+)
 
 
 __all__ = [
     'OpenAIModel',
     'PluginSource',
     'SUPPORTED_OPENAI_MODELS',
+    'SUPPORTED_EMBEDDING_MODELS',
     'SUPPORTED_OPENAI_COMPAT_MODELS',
     'OpenAIModelHandler',
     'get_default_model_info',
-    'package_name',
 ]

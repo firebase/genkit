@@ -90,11 +90,16 @@ class PartConverter:
                 thought_signature=cls._extract_thought_signature(part.root.metadata),
             )
         if isinstance(part.root, ToolResponsePart):
+            # FunctionResponse.response must be a dict, not a raw value
+            output = part.root.tool_response.output
+            if not isinstance(output, dict):
+                output = {'result': output}
+            
             return genai.types.Part(
                 function_response=genai.types.FunctionResponse(
                     id=part.root.tool_response.ref,
                     name=part.root.tool_response.name.replace('/', '__'),
-                    response=part.root.tool_response.output,
+                    response=output,
                 )
             )
         if isinstance(part.root, MediaPart):

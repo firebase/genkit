@@ -29,9 +29,18 @@ async def test_openai_plugin_init() -> None:
     """Test OpenAI plugin init method."""
     plugin = OpenAI(api_key='test-key')
 
-    # init() should return an empty list (using lazy loading)
+    # init() should return known models and embedders
     result = await plugin.init()
-    assert result == []
+    assert len(result) > 0, "Should initialize with known models and embedders"
+    assert all(hasattr(action, 'kind') for action in result), "All actions should have a kind"
+    assert all(hasattr(action, 'name') for action in result), "All actions should have a name"
+    assert all(action.name.startswith('openai/') for action in result), "All actions should be namespaced with 'openai/'"
+    
+    # Verify we have both models and embedders
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
+    assert len(model_actions) > 0, "Should have at least one model"
+    assert len(embedder_actions) > 0, "Should have at least one embedder"
 
 
 @pytest.mark.parametrize(

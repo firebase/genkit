@@ -84,13 +84,19 @@ class OpenAIModel:
         """
         result = []
         for tool_definition in tools:
-            # Construct the OpenAI function tool format directly
+            # Get the schema and ensure it has additionalProperties: false for strict mode
+            parameters = tool_definition.input_schema or {}
+            if parameters and 'additionalProperties' not in parameters:
+                parameters = {**parameters, 'additionalProperties': False}
+            
+            # Construct the OpenAI function tool format using the schema from tool_definition
             function_call = {
                 'type': 'function',
                 'function': {
                     'name': tool_definition.name,
                     'description': tool_definition.description or '',
-                    'parameters': tool_definition.input_schema or {},
+                    'parameters': parameters,
+                    'strict': True,
                 },
             }
             result.append(function_call)
@@ -245,10 +251,6 @@ class OpenAIModel:
         """Ensures the config is an OpenAIConfig instance."""
         if isinstance(config, OpenAIConfig):
             return config
-
-        # Convert BaseModel instances to dict
-        if hasattr(config, 'model_dump'):
-            config = config.model_dump(exclude_none=True)
 
         if isinstance(config, dict):
             if config.get('topK'):

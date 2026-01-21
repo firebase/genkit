@@ -23,7 +23,8 @@ from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
-from genkit.plugins.google_genai import VertexAI, defineVertexVectorSearchFirestore, vertexai_name
+from genkit.plugins.google_genai import VertexAI
+from genkit.plugins.vertex_ai import defineVertexVectorSearchFirestore
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
@@ -45,7 +46,7 @@ ai = Genkit(plugins=[VertexAI()])
 defineVertexVectorSearchFirestore(
     ai,
     name='my-vector-search',
-    embedder=vertexai_name('text-embedding-004'),
+    embedder='vertexai/text-embedding-004',
     embedder_options={
         'task': 'RETRIEVAL_DOCUMENT',
         'output_dimensionality': 128,

@@ -22,7 +22,7 @@ from io import BytesIO
 from PIL import Image
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import VertexAI, vertexai_name
+from genkit.plugins.google_genai import VertexAI
 
 ai = Genkit(plugins=[VertexAI(project='', location='us-central1')])
 
@@ -43,7 +43,7 @@ async def draw_image_with_imagen() -> str:
 
     return await ai.generate(
         prompt='Draw a cat in a hat',
-        model=vertexai_name('imagegeneration@006'),
+        model='vertexai/imagegeneration@006',
         # optional config; check README for available fields
         config=config,
     )

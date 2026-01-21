@@ -23,12 +23,12 @@ from genkit.ai import (
     ToolRunContext,
     tool_response,
 )
-from genkit.plugins.google_genai import GoogleAI, googleai_name
+from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models import gemini
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model=f'googleai/{gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
 )
 
 

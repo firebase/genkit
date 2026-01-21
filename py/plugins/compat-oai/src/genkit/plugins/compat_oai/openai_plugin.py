@@ -31,6 +31,7 @@ from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import GenerationCommonConfig
 from genkit.plugins.compat_oai.models import (
+    SUPPORTED_EMBEDDING_MODELS,
     SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
     OpenAIModel,
@@ -38,6 +39,7 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.types import EmbedRequest, EmbedResponse, Embedding
 
 
 def open_ai_name(name: str) -> str:
@@ -82,9 +84,19 @@ class OpenAI(Plugin):
         """Initialize plugin.
 
         Returns:
-            Actions for built-in OpenAI models.
+            Actions for built-in OpenAI models and embedders.
         """
-        return [self._create_model_action(open_ai_name(name)) for name in SUPPORTED_OPENAI_MODELS.keys()]
+        actions = []
+        
+        # Add known models
+        for name in SUPPORTED_OPENAI_MODELS.keys():
+            actions.append(self._create_model_action(open_ai_name(name)))
+        
+        # Add known embedders
+        for name in SUPPORTED_EMBEDDING_MODELS.keys():
+            actions.append(self._create_embedder_action(open_ai_name(name)))
+        
+        return actions
 
     def get_model_info(self, name: str) -> dict[str, str] | None:
         """Retrieves metadata and supported features for the specified model.
@@ -120,10 +132,12 @@ class OpenAI(Plugin):
         Returns:
             Action object if found, None otherwise.
         """
-        if action_type != ActionKind.MODEL:
-            return None
-
-        return self._create_model_action(name)
+        if action_type == ActionKind.MODEL:
+            return self._create_model_action(name)
+        elif action_type == ActionKind.EMBEDDER:
+            return self._create_embedder_action(name)
+        
+        return None
 
     def _create_model_action(self, name: str):
         """Create an Action object for an OpenAI model.
@@ -151,6 +165,53 @@ class OpenAI(Plugin):
                     'customOptions': to_json_schema(OpenAIConfig),
                 },
             },
+        )
+
+    def _create_embedder_action(self, name: str):
+        """Create an Action object for an OpenAI embedder.
+
+        Args:
+            name: The namespaced name of the embedder.
+
+        Returns:
+            Action object for the embedder.
+        """
+        # Extract local name (remove plugin prefix)
+        clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
+        
+        # Get embedder info from known models or use default
+        embedder_info = SUPPORTED_EMBEDDING_MODELS.get(clean_name, {
+            'label': f'OpenAI Embedding - {clean_name}',
+            'dimensions': 1536,
+            'supports': {'input': ['text']},
+        })
+
+        async def embed_fn(request: EmbedRequest) -> EmbedResponse:
+            """Embedder function that calls OpenAI embeddings API."""
+            # Create embeddings for each document
+            response = self._openai_client.embeddings.create(
+                model=clean_name,
+                input=[doc.text() for doc in request.input],
+                dimensions=request.options.get('dimensions') if request.options else None,
+                encoding_format=request.options.get('encodingFormat') if request.options else None,
+            )
+            
+            # Convert OpenAI response to Genkit format
+            embeddings = [Embedding(embedding=item.embedding) for item in response.data]
+            return EmbedResponse(embeddings=embeddings)
+
+        return Action(
+            kind=ActionKind.EMBEDDER,
+            name=name,
+            fn=embed_fn,
+            metadata=embedder_action_metadata(
+                name=name,
+                options=EmbedderOptions(
+                    label=embedder_info['label'],
+                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                    dimensions=embedder_info.get('dimensions'),
+                ),
+            ).metadata,
         )
 
     async def list_actions(self) -> list[ActionMetadata]:

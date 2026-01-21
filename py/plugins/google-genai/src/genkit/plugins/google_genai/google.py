@@ -30,6 +30,8 @@ from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
+    GeminiEmbeddingModels,
+    VertexEmbeddingModels,
     default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
@@ -125,9 +127,47 @@ class GoogleAI(Plugin):
         """Initialize the plugin.
 
         Returns:
-            Empty list (using lazy loading via resolve).
+            List of Action objects for known/supported models.
         """
-        return []
+        return [
+            *self._list_known_models(),
+            *self._list_known_embedders(),
+        ]
+
+    def _list_known_models(self) -> list[Action]:
+        """List known models as Action objects.
+
+        Returns:
+            List of Action objects for known Gemini models.
+        """
+        known_model_names = [
+            'gemini-3-flash-preview',
+            'gemini-3-pro-preview',
+            'gemini-2.5-pro',
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-lite',
+            'gemini-2.0-flash',
+            'gemini-2.0-flash-lite',
+        ]
+        actions = []
+        for model_name in known_model_names:
+            actions.append(self._resolve_model(googleai_name(model_name)))
+        return actions
+
+    def _list_known_embedders(self) -> list[Action]:
+        """List known embedders as Action objects.
+
+        Returns:
+            List of Action objects for known embedders.
+        """
+        known_embedders = [
+            GeminiEmbeddingModels.TEXT_EMBEDDING_004,
+            GeminiEmbeddingModels.GEMINI_EMBEDDING_001,
+        ]
+        actions = []
+        for embedder_name in known_embedders:
+            actions.append(self._resolve_embedder(googleai_name(embedder_name.value)))
+        return actions
 
     async def resolve(self, action_type: ActionKind, name: str):
         """Resolve an action by creating and returning an Action object.
@@ -188,13 +228,14 @@ class GoogleAI(Plugin):
             kind=ActionKind.EMBEDDER,
             name=name,
             fn=embedder.generate,
-            metadata={
-                'embedder': {
-                    'label': embedder_info.get('label'),
-                    'dimensions': embedder_info.get('dimensions'),
-                    'supports': embedder_info['supports'] if embedder_info.get('supports') else None,
-                },
-            },
+            metadata=embedder_action_metadata(
+                name=name,
+                options=EmbedderOptions(
+                    label=embedder_info.get('label'),
+                    supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
+                    dimensions=embedder_info.get('dimensions'),
+                ),
+            ).metadata,
         )
 
     async def list_actions(self) -> list[ActionMetadata]:
@@ -288,9 +329,50 @@ class VertexAI(Plugin):
         """Initialize the plugin.
 
         Returns:
-            Empty list (using lazy loading via resolve).
+            List of Action objects for known/supported models.
         """
-        return []
+        return [
+            *self._list_known_models(),
+            *self._list_known_embedders(),
+        ]
+
+    def _list_known_models(self) -> list[Action]:
+        """List known models as Action objects.
+
+        Returns:
+            List of Action objects for known Gemini and Imagen models.
+        """
+        known_model_names = [
+            'gemini-2.5-flash-lite',
+            'gemini-2.5-pro',
+            'gemini-2.5-flash',
+            'gemini-2.0-flash-001',
+            'gemini-2.0-flash',
+            'gemini-2.0-flash-lite',
+            'gemini-2.0-flash-lite-001',
+            'imagen-4.0-generate-001',
+        ]
+        actions = []
+        for model_name in known_model_names:
+            actions.append(self._resolve_model(vertexai_name(model_name)))
+        return actions
+
+    def _list_known_embedders(self) -> list[Action]:
+        """List known embedders as Action objects.
+
+        Returns:
+            List of Action objects for known embedders.
+        """
+        known_embedders = [
+            VertexEmbeddingModels.TEXT_EMBEDDING_005_ENG,
+            VertexEmbeddingModels.TEXT_EMBEDDING_002_MULTILINGUAL,
+            # Note: multimodalembedding@001 requires different API structure (not yet implemented)
+            VertexEmbeddingModels.GEMINI_EMBEDDING_001,
+        ]
+        actions = []
+        for embedder_name in known_embedders:
+            actions.append(self._resolve_embedder(vertexai_name(embedder_name.value)))
+        return actions
 
     async def resolve(self, action_type: ActionKind, name: str):
         """Resolve an action by creating and returning an Action object.
@@ -355,13 +437,14 @@ class VertexAI(Plugin):
             kind=ActionKind.EMBEDDER,
             name=name,
             fn=embedder.generate,
-            metadata={
-                'embedder': {
-                    'label': embedder_info.get('label'),
-                    'dimensions': embedder_info.get('dimensions'),
-                    'supports': embedder_info['supports'] if embedder_info.get('supports') else None,
-                },
-            },
+            metadata=embedder_action_metadata(
+                name=name,
+                options=EmbedderOptions(
+                    label=embedder_info.get('label'),
+                    supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
+                    dimensions=embedder_info.get('dimensions'),
+                ),
+            ).metadata,
         )
 
     async def list_actions(self) -> list[ActionMetadata]:

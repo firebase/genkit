@@ -31,7 +31,7 @@ from genkit.plugins.vertex_ai import constants as const
 from .model_garden import MODELGARDEN_PLUGIN_NAME, ModelGarden, model_garden_name
 
 
-class VertexAIModelGarden(Plugin):
+class ModelGardenPlugin(Plugin):
     """Model Garden plugin for Genkit.
 
     This plugin provides integration with Google Cloud's Vertex AI platform,

@@ -31,12 +31,8 @@ from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
 from genkit.blocks.embedding import embedder_action_metadata, EmbedderOptions, EmbedderSupports
 from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
-from genkit.plugins.google_genai import (
-    GoogleAI,
-    VertexAI,
-    googleai_name,
-    vertexai_name,
-)
+from genkit.plugins.google_genai import GoogleAI, VertexAI
+from genkit.plugins.google_genai.google import googleai_name, vertexai_name
 from genkit.plugins.google_genai.google import _inject_attribution_headers
 from genkit.plugins.google_genai.models.embedder import (
     default_embedder_info,
@@ -132,8 +128,17 @@ async def test_googleai_initialize():
 
     result = await plugin.init()
 
-    # init returns empty list for lazy loading
-    assert result == []
+    # init returns known models and embedders
+    assert len(result) > 0, "Should initialize with known models and embedders"
+    assert all(hasattr(action, 'kind') for action in result), "All actions should have a kind"
+    assert all(hasattr(action, 'name') for action in result), "All actions should have a name"
+    assert all(action.name.startswith('googleai/') for action in result), "All actions should be namespaced with 'googleai/'"
+    
+    # Verify we have both models and embedders
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
+    assert len(model_actions) > 0, "Should have at least one model"
+    assert len(embedder_actions) > 0, "Should have at least one embedder"
 
 
 @patch('genkit.plugins.google_genai.GoogleAI._resolve_model')
@@ -460,8 +465,17 @@ async def test_vertexai_initialize(vertexai_plugin_instance):
 
     result = await plugin.init()
 
-    # init returns empty list for lazy loading
-    assert result == []
+    # init returns known models and embedders
+    assert len(result) > 0, "Should initialize with known models and embedders"
+    assert all(hasattr(action, 'kind') for action in result), "All actions should have a kind"
+    assert all(hasattr(action, 'name') for action in result), "All actions should have a name"
+    assert all(action.name.startswith('vertexai/') for action in result), "All actions should be namespaced with 'vertexai/'"
+    
+    # Verify we have both models and embedders
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
+    assert len(model_actions) > 0, "Should have at least one model"
+    assert len(embedder_actions) > 0, "Should have at least one embedder"
 
 
 @patch('genkit.plugins.google_genai.VertexAI._resolve_model')

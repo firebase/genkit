@@ -27,7 +27,6 @@ from genkit.plugins.google_genai import VertexAI, VertexAIVectorSearchConfig
 from genkit.plugins.google_genai.vector_search import (
     BigQueryRetriever,
 )
-from genkit.plugins.google_genai import vertexai_name
 from genkit.types import Document, TextPart
 
 # Environment Variables
@@ -106,7 +105,7 @@ async def generate_embeddings():
     genkit_documents = [Document(content=[TextPart(text=text)]) for text in results_dict.values()]
 
     embed_response = await ai.embed(
-        embedder=vertexai_name(EMBEDDING_MODEL),
+        embedder=f'vertexai/{EMBEDDING_MODEL}',
         documents=genkit_documents,
         options={'task': 'RETRIEVAL_DOCUMENT', 'output_dimensionality': 128},
     )

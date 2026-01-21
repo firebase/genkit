@@ -20,13 +20,13 @@ import structlog
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
-from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI, googleai_name
+from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-3-flash-preview'),
+    model='googleai/gemini-3-flash-preview',
 )
 
 
