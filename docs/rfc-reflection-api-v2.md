@@ -58,7 +58,13 @@ sequenceDiagram
 
 **1. Connection & Discovery**
    - **Runtime** connects via WebSocket.
-   - **Runtime** sends `register`.
+   - **Runtime** sends `register` with:
+     - `id`: Unique runtime identifier (e.g., UUID).
+     - `pid`: Process ID.
+     - `name`: Application name.
+     - `genkitVersion`: SDK version.
+     - `labels`: array of labels, usually set by the CLI itself via an env var or other means.
+     - `reflectionApiSpecVersion`: Protocol version.
    - **Manager** sends `configure`.
    - **Manager** sends `listActions` to populate the UI.
 
