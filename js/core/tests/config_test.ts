@@ -18,8 +18,8 @@ import * as assert from 'assert';
 import { afterEach, describe, it } from 'node:test';
 import {
   getGenkitRuntimeConfig,
-  setGenkitRuntimeConfig,
   resetGenkitRuntimeConfig,
+  setGenkitRuntimeConfig,
 } from '../src/config.js';
 
 describe('config', () => {
