@@ -98,40 +98,16 @@ export function toGeminiLabels(
 export function toImagenTryOnRequest(
   request: GenerateRequest<ImagenTryOnConfigSchemaType>
 ): ImagenPredictRequest {
-  const instance: any = {};
-  if (request.config?.personImage) {
-    instance.personImage = request.config.personImage;
-  }
-  if (request.config?.productImages) {
-    instance.productImages = request.config.productImages;
-  }
+  const { personImage, productImages, ...parameters } = request.config || {};
 
-  const parameters: any = {};
-  if (request.config?.sampleCount) {
-    parameters.sampleCount = request.config.sampleCount;
-  }
-  if (request.config?.storageUri) {
-    parameters.storageUri = request.config.storageUri;
-  }
-  if (request.config?.seed) {
-    parameters.seed = request.config.seed;
-  }
-  if (request.config?.baseSteps) {
-    parameters.baseSteps = request.config.baseSteps;
-  }
-  if (request.config?.personGeneration) {
-    parameters.personGeneration = request.config.personGeneration;
-  }
-  if (request.config?.safetySetting) {
-    parameters.safetySetting = request.config.safetySetting;
-  }
-  if (request.config?.outputOptions) {
-    parameters.outputOptions = request.config.outputOptions;
-  }
+  const instance: ImagenInstance = {
+    ...(personImage && { personImage }),
+    ...(productImages && { productImages }),
+  };
 
   return {
     instances: [instance],
-    parameters: parameters,
+    parameters,
   };
 }
 

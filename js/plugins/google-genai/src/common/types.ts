@@ -1203,6 +1203,12 @@ export declare interface ImagenParameters {
   safetySetting?: string; // Vertex only
   addWatermark?: boolean; // Vertex only
   storageUri?: string; // Vertex only
+  baseSteps?: number; // Vertex Try On only
+  outputOptions?: {
+    // Vertex Try On only
+    mimeType?: string;
+    compressionQuality?: number;
+  };
 }
 
 export declare interface ImagenPredictRequest {
@@ -1220,7 +1226,15 @@ export declare interface ImagenPrediction {
 }
 
 export declare interface ImagenInstance {
-  prompt: string;
+  prompt?: string;
   image?: { bytesBase64Encoded: string };
   mask?: { image?: { bytesBase64Encoded: string } };
+  personImage?: {
+    // Vertex Try On Only
+    image: { bytesBase64Encoded?: string; gcsUri?: string };
+  };
+  productImages?: {
+    // Vertex Try On Only
+    image: { bytesBase64Encoded?: string; gcsUri?: string };
+  }[];
 }
