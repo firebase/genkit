@@ -30,7 +30,7 @@ import {
     await testReflectionApi();
   });
   // Run same tests for go test app
-  await runTestsForApp('../go/tests/test_app', 'go run main.go', async () => {
+  await runTestsForApp('../go', 'go run tests/test_app/main.go', async () => {
     await testReflectionApi();
   });
 })();

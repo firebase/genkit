@@ -22,9 +22,9 @@ import { retriable, runTestsForApp } from './utils.js';
 (async () => {
   // TODO: Add NodeJS tests
   // Run the tests for go test app
-  await runTestsForApp('../go/tests/test_app', 'go run main.go', async () => {
+  await runTestsForApp('../go', 'go run tests/test_app/main.go', async () => {
     await testFlowServer();
-    console.log('Flow server tests done! \\o/');
+    console.log('Flow server tests done! \o/');
   });
 })();
 
