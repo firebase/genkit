@@ -80,9 +80,9 @@ func (c *BidiConnection[In, Out, Stream]) Send(input In) error
 // Close signals that no more inputs will be sent.
 func (c *BidiConnection[In, Out, Stream]) Close() error
 
-// Responses returns an iterator for receiving streamed response chunks.
+// Receive returns an iterator for receiving streamed response chunks.
 // The iterator completes when the action finishes or signals end of turn.
-func (c *BidiConnection[In, Out, Stream]) Responses() iter.Seq2[Stream, error]
+func (c *BidiConnection[In, Out, Stream]) Receive() iter.Seq2[Stream, error]
 
 // Output returns the final output after the action completes.
 // Blocks until done or context cancelled.
@@ -217,7 +217,7 @@ func (s *GenerateBidiSession) SendText(text string) error {
 
 // Stream returns an iterator for receiving response chunks.
 func (s *GenerateBidiSession) Stream() iter.Seq2[*ai.GenerateResponseChunk, error] {
-    return s.conn.Responses()
+    return s.conn.Receive()
 }
 
 // Close signals that the conversation is complete.
@@ -480,7 +480,7 @@ func main() {
     conn.Close()
 
     // Consume stream via iterator
-    for chunk, err := range conn.Responses() {
+    for chunk, err := range conn.Receive() {
         if err != nil {
             panic(err)
         }
