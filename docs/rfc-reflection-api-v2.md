@@ -87,6 +87,42 @@ sequenceDiagram
     Runtime->>Manager: Response: { result: ..., telemetry: ... }
 ```
 
+### Trace & Telemetry
+
+-   **`runActionState` (Runtime -> Manager)**: Allows the Runtime to send early metadata (like `traceId`) to the Manager before execution completes. This enables real-time trace viewing in the Dev UI.
+
+### Reliability & Error Handling
+
+#### Connection Lifecycle
+- **Reconnection**: Runtimes MUST attempt to reconnect if the WebSocket connection is lost. An exponential backoff strategy is recommended (e.g., start at 500ms, cap at 30s).
+- **Re-registration**: Upon successfully re-establishing a connection, the Runtime MUST immediately send the `register` notification again. The Manager treats new connections as fresh runtimes until registered.
+- **Dangling Streams**: If a connection drops, any active `runAction` streams are considered terminated. There is no resume capability for interrupted streams in V2; the Manager will report an error to the caller, and the Runtime should abort the local execution.
+
+#### JSON-RPC Errors
+The API uses standard JSON-RPC 2.0 error codes, with additional application-specific codes where necessary.
+
+- **Parse Error (-32700)**: Invalid JSON received.
+- **Invalid Request (-32600)**: The JSON is not a valid Request object.
+- **Method Not Found (-32601)**: The method does not exist / is not available.
+- **Invalid Params (-32602)**: Invalid method parameter(s).
+- **Internal Error (-32603)**: Internal JSON-RPC error.
+- **Application Errors (-32000 to -32099)**:
+    - `-32000`: Generic Runtime Error (e.g. action threw an exception).
+    - `-32001`: Action Not Found.
+    - `-32002`: Cancellation Failed (e.g. traceId not found).
+
+**Example Error Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32001,
+    "message": "Action 'myFlow' not found"
+  },
+  "id": 1
+}
+```
+
 ## Compatibility
 
 V2 is designed to coexist with V1. The Genkit CLI will determine which mode to use (likely via flags or auto-detection). Existing V1 runtimes will continue to work, but will not support Bidi Actions or the new connection model.
