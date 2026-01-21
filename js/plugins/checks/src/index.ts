@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import type { Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import type { ModelMiddleware } from 'genkit/model';
-import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 import { GoogleAuth, type GoogleAuthOptions } from 'google-auth-library';
-import { checksEvaluators } from './evaluation.js';
+import { checksEvaluator } from './evaluation.js';
 import {
   ChecksEvaluationMetricType,
   type ChecksEvaluationMetric,
@@ -44,26 +43,52 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
 
 const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
 
+export async function getProjectId(
+  googleAuth: GoogleAuth,
+  options?: PluginOptions
+): Promise<string> {
+  const projectId = options?.projectId || (await googleAuth.getProjectId());
+
+  if (!projectId) {
+    throw new Error(
+      `Checks Plugin is missing the 'projectId' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'projectId' into Genkit config.`
+    );
+  }
+
+  return projectId;
+}
+
 /**
  * Add Google Checks evaluators.
  */
-export function checks(options?: PluginOptions): GenkitPlugin {
-  return genkitPlugin('checks', async (ai: Genkit) => {
-    const googleAuth = inititializeAuth(options?.googleAuthOptions);
+export function checks(options?: PluginOptions): GenkitPluginV2 {
+  const googleAuth = inititializeAuth(options?.googleAuthOptions);
 
-    const projectId = options?.projectId || (await googleAuth.getProjectId());
+  const metrics =
+    options?.evaluation && options.evaluation.metrics.length > 0
+      ? options.evaluation.metrics
+      : [];
 
-    if (!projectId) {
-      throw new Error(
-        `Checks Plugin is missing the 'projectId' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'projectId' into genkit config.`
-      );
-    }
-
-    const metrics =
-      options?.evaluation && options.evaluation.metrics.length > 0
-        ? options.evaluation.metrics
-        : [];
-    checksEvaluators(ai, googleAuth, metrics, projectId);
+  return genkitPluginV2({
+    name: 'checks',
+    init: async () => {
+      return [
+        checksEvaluator(
+          googleAuth,
+          metrics,
+          await getProjectId(googleAuth, options)
+        ),
+      ];
+    },
+    list: async () => {
+      return [
+        checksEvaluator(
+          googleAuth,
+          metrics,
+          await getProjectId(googleAuth, options)
+        ).__action,
+      ];
+    },
   });
 }
 
