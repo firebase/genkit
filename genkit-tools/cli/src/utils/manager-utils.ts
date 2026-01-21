@@ -71,6 +71,7 @@ export interface DevProcessManagerOptions {
   disableRealtimeTelemetry?: boolean;
   nonInteractive?: boolean;
   healthCheck?: boolean;
+  cwd?: string;
 }
 
 export async function startDevProcessManager(
@@ -96,7 +97,7 @@ export async function startDevProcessManager(
     processManager,
     disableRealtimeTelemetry,
   });
-  const processPromise = processManager.start({ ...options, cwd: projectRoot });
+  const processPromise = processManager.start({ ...options });
 
   if (options?.healthCheck) {
     await waitForRuntime(manager, processPromise);
