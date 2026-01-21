@@ -18,6 +18,7 @@
 """Genkit format package. Provides implementation for various formats like json, jsonl, etc."""
 
 from genkit.blocks.formats.json import JsonFormat
+from genkit.blocks.formats.text import TextFormat
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 
 
@@ -26,7 +27,7 @@ def package_name() -> str:
     return 'genkit.blocks.formats'
 
 
-built_in_formats = [JsonFormat()]
+built_in_formats = [JsonFormat(), TextFormat()]
 
 
 __all__ = [
@@ -34,5 +35,6 @@ __all__ = [
     Formatter.__name__,
     FormatterConfig.__name__,
     JsonFormat.__name__,
+    TextFormat.__name__,
     package_name.__name__,
 ]
