@@ -35,7 +35,10 @@ import {
 } from '../common/types.js';
 import { extractMediaArray } from '../common/utils.js';
 import { SafetySettingsSchema } from './gemini.js';
-import { ImagenConfigSchemaType } from './imagen.js';
+import {
+  ImagenConfigSchemaType,
+  ImagenTryOnConfigSchemaType,
+} from './imagen.js';
 import { LyriaConfigSchemaType } from './lyria.js';
 import {
   ClientOptions,
@@ -92,12 +95,64 @@ export function toGeminiLabels(
   return newLabels;
 }
 
-export function toImagenPredictRequest(
-  request: GenerateRequest<ImagenConfigSchemaType>
+export function toImagenTryOnRequest(
+  request: GenerateRequest<ImagenTryOnConfigSchemaType>
 ): ImagenPredictRequest {
+  const instance: any = {};
+  if (request.config?.personImage) {
+    instance.personImage = request.config.personImage;
+  }
+  if (request.config?.productImages) {
+    instance.productImages = request.config.productImages;
+  }
+
+  const parameters: any = {};
+  if (request.config?.sampleCount) {
+    parameters.sampleCount = request.config.sampleCount;
+  }
+  if (request.config?.storageUri) {
+    parameters.storageUri = request.config.storageUri;
+  }
+  if (request.config?.seed) {
+    parameters.seed = request.config.seed;
+  }
+  if (request.config?.baseSteps) {
+    parameters.baseSteps = request.config.baseSteps;
+  }
+  if (request.config?.personGeneration) {
+    parameters.personGeneration = request.config.personGeneration;
+  }
+  if (request.config?.safetySetting) {
+    parameters.safetySetting = request.config.safetySetting;
+  }
+  if (request.config?.outputOptions) {
+    parameters.outputOptions = request.config.outputOptions;
+  }
+
   return {
-    instances: toImagenInstances(request),
-    parameters: toImagenParameters(request),
+    instances: [instance],
+    parameters: parameters,
+  };
+}
+
+export function toImagenPredictRequest(
+  request: GenerateRequest<ImagenConfigSchemaType | ImagenTryOnConfigSchemaType>
+): ImagenPredictRequest {
+  if (
+    (request.config as any)?.personImage ||
+    (request.config as any)?.productImages
+  ) {
+    return toImagenTryOnRequest(
+      request as GenerateRequest<ImagenTryOnConfigSchemaType>
+    );
+  }
+  return {
+    instances: toImagenInstances(
+      request as GenerateRequest<ImagenConfigSchemaType>
+    ),
+    parameters: toImagenParameters(
+      request as GenerateRequest<ImagenConfigSchemaType>
+    ),
   };
 }
 

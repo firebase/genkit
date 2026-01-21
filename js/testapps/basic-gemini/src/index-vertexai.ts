@@ -497,6 +497,32 @@ async function waitForOperation(
   return operation;
 }
 
+// Imagen Try-on
+ai.defineFlow('imagen-try-on', async (_) => {
+  const person = fs.readFileSync('woman.png', { encoding: 'base64' });
+  const product = fs.readFileSync('coat.png', { encoding: 'base64' });
+
+  const { media } = await ai.generate({
+    model: vertexAI.model('virtual-try-on-preview-08-04'),
+    prompt: 'generate try-on image',
+    config: {
+      personImage: {
+        image: {
+          bytesBase64Encoded: person,
+        },
+      },
+      productImages: [
+        {
+          image: {
+            bytesBase64Encoded: product,
+          },
+        },
+      ],
+    },
+  });
+  return media;
+});
+
 ai.defineFlow('veo-text-prompt', async (_, { sendChunk }) => {
   let { operation } = await ai.generate({
     model: vertexAI.model('veo-3.0-generate-001'),

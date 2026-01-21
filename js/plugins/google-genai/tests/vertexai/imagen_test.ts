@@ -28,6 +28,7 @@ import {
 import {
   ImagenConfig,
   ImagenConfigSchema,
+  ImagenTryOnConfigSchema,
   TEST_ONLY,
   defineModel,
   model,
@@ -86,6 +87,13 @@ describe('Vertex AI Imagen', () => {
       const modelName = 'tunedModels/my-tuned-model';
       const ref = model(modelName);
       assert.strictEqual(ref.name, 'vertexai/tunedModels/my-tuned-model');
+    });
+
+    it('should return a ModelReference with TryOn schema', () => {
+      const modelName = 'virtual-try-on-preview-08-04';
+      const ref = model(modelName);
+      assert.strictEqual(ref.name, `vertexai/${modelName}`);
+      assert.strictEqual(ref.configSchema, ImagenTryOnConfigSchema);
     });
   });
 
