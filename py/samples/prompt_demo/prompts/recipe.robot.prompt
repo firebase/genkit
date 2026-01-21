@@ -1,12 +1,12 @@
 ---
-model: googleai/gemini-pro
+model: googleai/gemini-3-flash-preview
 input:
   schema:
     food: string
 output:
   schema:
     title: string, recipe title
-    ingredients(array): 
+    ingredients(array):
       name: string
       quantity: string
     steps(array, the steps required to complete the recipe): string

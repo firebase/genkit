@@ -84,8 +84,11 @@ class Registry:
         self._list_actions_resolvers: dict[str, Callable] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
+        self._schemas_by_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
-        self.dotprompt = Dotprompt()
+
+        # Initialize Dotprompt with schema_resolver to match JS SDK pattern
+        self.dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
@@ -334,3 +337,34 @@ class Registry:
         """
         with self._lock:
             return self._value_by_kind_and_name.get(kind, {}).get(name)
+
+    def register_schema(self, name: str, schema: dict[str, Any]) -> None:
+        """Registers a schema by name.
+
+        Schemas registered with this method can be referenced by name in
+        .prompt files using the `output.schema` field.
+
+        Args:
+            name: The name of the schema.
+            schema: The schema data (JSON schema format).
+
+        Raises:
+            ValueError: If a schema with the given name is already registered.
+        """
+        with self._lock:
+            if name in self._schemas_by_name:
+                raise ValueError(f'Schema "{name}" is already registered')
+            self._schemas_by_name[name] = schema
+            logger.debug(f'Registered schema "{name}"')
+
+    def lookup_schema(self, name: str) -> dict[str, Any] | None:
+        """Looks up a schema by name.
+
+        Args:
+            name: The name of the schema to look up.
+
+        Returns:
+            The schema data if found, None otherwise.
+        """
+        with self._lock:
+            return self._schemas_by_name.get(name)

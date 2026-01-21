@@ -53,8 +53,7 @@ class Recipe(BaseModel):
     steps: list[str] = Field(..., description='the steps required to complete the recipe')
 
 
-if hasattr(ai.registry.dotprompt, '_schemas'):
-    ai.registry.dotprompt._schemas['Recipe'] = Recipe
+ai.define_schema('Recipe', Recipe)
 
 _sticky_prompts = {}
 
@@ -90,9 +89,6 @@ class ChefInput(BaseModel):
 async def chef_flow(input: ChefInput) -> Recipe:
     await logger.ainfo(f'chef_flow called with input: {input}')
     recipe_prompt = await get_sticky_prompt('recipe')
-    recipe_prompt._output_format = 'json'
-    recipe_prompt._output_schema = Recipe
-    recipe_prompt._model = 'googleai/gemini-3-flash-preview'
 
     response = await recipe_prompt(input={'food': input.food})
     # Ensure we return a Pydantic model as expected by the type hint and caller
@@ -105,9 +101,6 @@ async def chef_flow(input: ChefInput) -> Recipe:
 async def robot_chef_flow(input: ChefInput) -> Recipe:
     await logger.ainfo(f'robot_chef_flow called with input: {input}')
     recipe_prompt = await get_sticky_prompt('recipe', variant='robot')
-    recipe_prompt._output_format = 'json'
-    recipe_prompt._output_schema = Recipe
-    recipe_prompt._model = 'googleai/gemini-3-flash-preview'
     result = Recipe.model_validate((await recipe_prompt(input={'food': input.food})).output)
     await logger.ainfo(f'robot_chef_flow result: {result}')
     return result
@@ -122,8 +115,6 @@ class StoryInput(BaseModel):
 async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
     await logger.ainfo(f'tell_story called with input: {input}')
     story_prompt = await get_sticky_prompt('story')
-    story_prompt._model = 'googleai/gemini-3-flash-preview'
-    story_prompt._output_format = None
     stream, response = story_prompt.stream(input={'subject': input.subject, 'personality': input.personality})
 
     full_text = ''
@@ -137,7 +128,6 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
 
 
 async def main():
-
     actions = ai.registry.list_serializable_actions()
 
     # Filter for prompts
