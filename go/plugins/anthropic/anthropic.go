@@ -169,8 +169,9 @@ func newModel(client anthropic.Client, name string, opts ai.ModelOptions) ai.Mod
 // configToMap converts a config struct to a map[string]any.
 func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
-		DoNotReference:             false, // Prevent $ref usage
+		DoNotReference:             true, // Prevent $ref usage
 		AllowAdditionalProperties:  false,
+		ExpandedStruct:             true,
 		RequiredFromJSONSchemaTags: true,
 	}
 	// The anthropic SDK uses a number of wrapper types for float, int, etc.
@@ -201,5 +202,6 @@ func configToMap(config any) map[string]any {
 	}
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
+
 	return result
 }

@@ -31,6 +31,7 @@ from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
+    GenerationCommonConfig,
     Message,
     OutputConfig,
     Role,
@@ -140,6 +141,11 @@ class OpenAIModel:
         }
         if request.tools:
             openai_config['tools'] = self._get_tools_definition(request.tools)
+        if any(msg.role == Role.TOOL for msg in request.messages):
+            # After a tool response, stop forcing additional tool calls.
+            openai_config['tool_choice'] = 'none'
+        elif request.tool_choice:
+            openai_config['tool_choice'] = request.tool_choice
         if request.output:
             openai_config['response_format'] = self._get_response_format(request.output)
         if request.config:
@@ -239,6 +245,14 @@ class OpenAIModel:
         """Ensures the config is an OpenAIConfig instance."""
         if isinstance(config, OpenAIConfig):
             return config
+
+        if isinstance(config, GenerationCommonConfig):
+            return OpenAIConfig(
+                temperature=config.temperature,
+                max_tokens=int(config.max_output_tokens) if config.max_output_tokens is not None else None,
+                top_p=config.top_p,
+                stop=config.stop_sequences,
+            )
 
         if isinstance(config, dict):
             if config.get('topK'):

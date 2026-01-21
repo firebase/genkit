@@ -84,8 +84,11 @@ class Registry:
         self._list_actions_resolvers: dict[str, Callable] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
+        self._schemas_by_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
-        self.dotprompt = Dotprompt()
+
+        # Initialize Dotprompt with schema_resolver to match JS SDK pattern
+        self.dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
@@ -162,6 +165,18 @@ class Registry:
             self._entries[kind][name] = action
         return action
 
+    def register_action_from_instance(self, action: Action) -> None:
+        """Register an existing Action instance.
+        Allows registering a pre-configured Action object, such as one created via
+        `dynamic_resource` or other factory methods.
+        Args:
+           action: The action instance to register.
+        """
+        with self._lock:
+            if action.kind not in self._entries:
+                self._entries[action.kind] = {}
+            self._entries[action.kind][action.name] = action
+
     def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
         """Look up an action by its kind and name.
 
@@ -181,10 +196,46 @@ class Registry:
                 if plugin_name and plugin_name in self._action_resolvers:
                     self._action_resolvers[plugin_name](kind, name)
 
+            if (
+                (kind not in self._entries or name not in self._entries[kind])
+                and kind != ActionKind.DYNAMIC_ACTION_PROVIDER
+                and ActionKind.DYNAMIC_ACTION_PROVIDER in self._entries
+            ):
+                for provider in self._entries[ActionKind.DYNAMIC_ACTION_PROVIDER].values():
+                    try:
+                        # Construct input for the provider action
+                        input_data = {'kind': kind, 'name': name}
+                        # Execute the provider action synchronously
+                        response = provider.run(input_data)
+                        action = response.response
+
+                        if action:
+                            self.register_action_from_instance(action)
+                            break
+                    except Exception as e:
+                        logger.debug(
+                            f'Dynamic action provider {provider.name} failed for {kind}/{name}',
+                            exc_info=e,
+                        )
+                        continue
+
             if kind in self._entries and name in self._entries[kind]:
                 return self._entries[kind][name]
 
             return None
+
+    def get_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
+        """Returns a dictionary of all registered actions for a specific kind.
+
+        Args:
+            kind: The type of actions to retrieve (e.g., TOOL, MODEL, RESOURCE).
+
+        Returns:
+            A dictionary mapping action names to Action instances.
+            Returns an empty dictionary if no actions of that kind are registered.
+        """
+        with self._lock:
+            return self._entries.get(kind, {}).copy()
 
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.
@@ -309,3 +360,34 @@ class Registry:
         """
         with self._lock:
             return self._value_by_kind_and_name.get(kind, {}).get(name)
+
+    def register_schema(self, name: str, schema: dict[str, Any]) -> None:
+        """Registers a schema by name.
+
+        Schemas registered with this method can be referenced by name in
+        .prompt files using the `output.schema` field.
+
+        Args:
+            name: The name of the schema.
+            schema: The schema data (JSON schema format).
+
+        Raises:
+            ValueError: If a schema with the given name is already registered.
+        """
+        with self._lock:
+            if name in self._schemas_by_name:
+                raise ValueError(f'Schema "{name}" is already registered')
+            self._schemas_by_name[name] = schema
+            logger.debug(f'Registered schema "{name}"')
+
+    def lookup_schema(self, name: str) -> dict[str, Any] | None:
+        """Looks up a schema by name.
+
+        Args:
+            name: The name of the schema to look up.
+
+        Returns:
+            The schema data if found, None otherwise.
+        """
+        with self._lock:
+            return self._schemas_by_name.get(name)

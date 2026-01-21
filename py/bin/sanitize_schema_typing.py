@@ -45,7 +45,7 @@ import sys
 from _ast import AST
 from datetime import datetime
 from pathlib import Path
-from typing import Type, cast
+from typing import Any, Type, cast
 
 
 class ClassTransformer(ast.NodeTransformer):
@@ -118,7 +118,18 @@ class ClassTransformer(ast.NodeTransformer):
                         return item
         return None
 
-    def visit_ClassDef(self, _node: ast.ClassDef) -> ast.ClassDef:  # noqa: N802
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
+        """Visit and transform annotated assignment."""
+        if isinstance(node.annotation, ast.Name) and node.annotation.id == 'Role':
+            node.annotation = ast.BinOp(
+                left=ast.Name(id='Role', ctx=ast.Load()),
+                op=ast.BitOr(),
+                right=ast.Name(id='str', ctx=ast.Load()),
+            )
+            self.modified = True
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         """Visit and transform a class definition node.
 
         Args:
@@ -128,11 +139,16 @@ class ClassTransformer(ast.NodeTransformer):
             The transformed ClassDef node.
         """
         # First apply base class transformations recursively
-        node = super().generic_visit(_node)
+        node = cast(ast.ClassDef, super().generic_visit(node))
         new_body: list[ast.stmt | ast.Constant | ast.Assign] = []
 
         # Handle Docstrings
-        if not node.body or not isinstance(node.body[0], ast.Expr) or not isinstance(node.body[0].value, ast.Constant):
+        if (
+            not node.body
+            or not isinstance(node.body[0], ast.Expr)
+            or not isinstance(node.body[0].value, ast.Constant)
+            or not isinstance(node.body[0].value.value, str)
+        ):
             # Generate a more descriptive docstring based on class type
             if self.is_rootmodel_class(node):
                 docstring = f'Root model for {node.name.lower().replace("_", " ")}.'
@@ -151,13 +167,21 @@ class ClassTransformer(ast.NodeTransformer):
 
         # Handle model_config for BaseModel and RootModel
         existing_model_config_assign = self.has_model_config(node)
+
         existing_model_config_call = None
         if existing_model_config_assign and isinstance(existing_model_config_assign.value, ast.Call):
             existing_model_config_call = existing_model_config_assign.value
 
         # Determine start index for iterating original body (skip docstring)
         body_start_index = (
-            1 if (node.body and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Str)) else 0
+            1
+            if (
+                node.body
+                and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+                and isinstance(node.body[0].value.value, str)
+            )
+            else 0
         )
 
         if self.is_rootmodel_class(node):
@@ -209,8 +233,54 @@ class ClassTransformer(ast.NodeTransformer):
             # For other classes, just copy the rest of the body
             new_body.extend(node.body[body_start_index:])
 
+        # PYTHON EXTENSION: Add resources field to GenerateActionOptions
+        if node.name == 'GenerateActionOptions':
+            self._inject_resources_field(new_body)
+
         node.body = cast(list[ast.stmt], new_body)
         return node
+
+    def _inject_resources_field(self, body: list[ast.stmt | ast.Constant | ast.Assign]) -> None:
+        """Inject resources field after tools field in GenerateActionOptions.
+
+        This adds the resources field to match the JS SDK implementation without
+        modifying the shared schema file. The JS SDK manually adds this field in
+        model-types.ts line 398.
+        """
+
+        tools_index = -1
+        for i, stmt in enumerate(body):
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'tools':
+                    tools_index = i
+                    break
+
+        if tools_index == -1:
+            return  # tools field not found, skip injection
+
+        # Check if resources field already exists
+        for stmt in body:
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'resources':
+                    return  # Already exists, don't add again
+
+        # Create the resources field: resources: list[str] | None = None
+        resources_field = ast.AnnAssign(
+            target=ast.Name(id='resources', ctx=ast.Store()),
+            annotation=ast.BinOp(
+                left=ast.Subscript(
+                    value=ast.Name(id='list', ctx=ast.Load()), slice=ast.Name(id='str', ctx=ast.Load()), ctx=ast.Load()
+                ),
+                op=ast.BitOr(),
+                right=ast.Constant(value=None),
+            ),
+            value=ast.Constant(value=None),
+            simple=1,
+        )
+
+        # Insert after tools field
+        body.insert(tools_index + 1, resources_field)
+        self.modified = True
 
 
 def add_header(content: str) -> str:

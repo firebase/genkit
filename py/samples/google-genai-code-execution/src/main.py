@@ -20,14 +20,16 @@ import structlog
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
+from genkit.core.typing import CustomPart, Message, TextPart
 from genkit.plugins.google_genai import GoogleAI, googleai_name
 from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema
+from genkit.plugins.google_genai.models.utils import PartConverter
 
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-2.5-flash'),
+    model=googleai_name('gemini-3-flash-preview'),
 )
 
 
@@ -46,9 +48,37 @@ async def execute_code(task: str) -> MessageWrapper:
     """
     response = await ai.generate(
         prompt=f'Generate and run code for the task: {task}',
-        config=GeminiConfigSchema(temperature=1, code_execution=True),
+        config=GeminiConfigSchema(temperature=1, code_execution=True).model_dump(),
     )
     return response.message
+
+
+def display_code_execution(message: Message):
+    """Display the code execution results from a message."""
+    print('\n=== INTERNAL CODE EXECUTION ===')
+    for part in message.content:
+        if isinstance(part.root, CustomPart):
+            if PartConverter.EXECUTABLE_CODE in part.root.custom:
+                code_data = part.root.custom[PartConverter.EXECUTABLE_CODE]
+                lang = code_data.get(PartConverter.LANGUAGE, 'unknown')
+                code = code_data.get(PartConverter.CODE, '')
+                print(f'Language: {lang}')
+                print(f'```{lang}\n{code}\n```')
+            elif PartConverter.CODE_EXECUTION_RESULT in part.root.custom:
+                result_data = part.root.custom[PartConverter.CODE_EXECUTION_RESULT]
+                outcome = result_data.get(PartConverter.OUTCOME, 'unknown')
+                output = result_data.get(PartConverter.OUTPUT, '')
+                print('\nExecution result:')
+                print(f'Status: {outcome}')
+                print('Output:')
+                if not output.strip():
+                    print('  <no output>')
+                else:
+                    for line in output.splitlines():
+                        print(f'  {line}')
+        elif isinstance(part.root, TextPart) and part.root.text.strip():
+            print(f'\nExplanation:\n{part.root.text}')
+    print('\n=== COMPLETE INTERNAL CODE EXECUTION ===')
 
 
 async def main() -> None:
@@ -57,7 +87,9 @@ async def main() -> None:
     This function demonstrates how to perform code execution using the
     Genkit framework.
     """
-    await logger.ainfo(await execute_code('What is the sum of the first 50 prime numbers?'))
+    response_msg = await execute_code('What is the sum of the first 50 prime numbers?')
+    display_code_execution(response_msg)
+    await logger.ainfo(response_msg.text)
 
 
 if __name__ == '__main__':

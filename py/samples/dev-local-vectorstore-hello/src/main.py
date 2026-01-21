@@ -27,7 +27,7 @@ ai = Genkit(
             embedder='vertexai/text-embedding-004',
         ),
     ],
-    model='vertexai/gemini-2.5-flash',
+    model='vertexai/gemini-3-flash-preview',
 )
 
 films = [

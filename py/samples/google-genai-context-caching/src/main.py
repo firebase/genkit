@@ -21,21 +21,22 @@ and model caches this context.
 As a result, model is capable to quickly relate to the book's content and answer the follow-up questions.
 """
 
-import requests
+import httpx
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI, googleai_name
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
-from genkit.types import GenerationCommonConfig, Message, Role, TextPart
+from genkit.types import GenerationCommonConfig, Media, MediaPart, Message, Role, TextPart
 
 logger = structlog.getLogger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_1_5_FLASH),
+    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
 )
+
 
 # Tom Sawyer is taken as a sample book here
 DEFAULT_TEXT_FILE = 'https://www.gutenberg.org/cache/epub/74/pg74.txt'
@@ -49,21 +50,27 @@ class BookContextInputSchema(BaseModel):
     )
 
 
-@ai.flow(name='textContextFlow')
+@ai.flow(name='text_context_flow')
 async def text_context_flow(_input: BookContextInputSchema) -> str:
-    if _input.text_file_path.startswith('http'):
-        res = requests.get(_input.text_file_path)
-        res.raise_for_status()
-        text_file_content = res.text
-    else:
-        with open(_input.text_file_path) as text_file:
-            text_file_content = text_file.read()
+    logger.info(f'Starting flow with file: {_input.text_file_path}')
 
+    if _input.text_file_path.startswith('http'):
+        async with httpx.AsyncClient() as client:
+            res = await client.get(_input.text_file_path)
+            res.raise_for_status()
+            content_part = TextPart(text=res.text)
+            print(f'Fetched content from URL. Length: {len(res.text)} chars')
+    else:
+        # Fallback for local text files
+        with open(_input.text_file_path, 'r', encoding='utf-8') as text_file:
+            content_part = TextPart(text=text_file.read())
+
+    print('Generating first response (with cache)...')
     llm_response = await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text=text_file_content)],
+                content=[content_part],
             ),
             Message(
                 role=Role.MODEL,
@@ -76,7 +83,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
         ],
         config=GenerationCommonConfig(
-            version='gemini-1.5-flash-001',
+            version='gemini-3-flash-preview',
             temperature=0.7,
             maxOutputTokens=1000,
             topK=50,
@@ -86,8 +93,41 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
         prompt=_input.query,
         return_tool_requests=False,
     )
+    print('First response received.')
 
-    return llm_response.text
+    messages_history = llm_response.messages
+
+    print(f'First turn response: {llm_response.text}')
+
+    print('Generating second response (pirate)...')
+    llm_response2 = await ai.generate(
+        messages=messages_history,
+        prompt=(
+            'Rewrite the previous summary as if a pirate wrote it. '
+            'Structure it exactly like this:\n'
+            '### 1. Section Name\n'
+            '*   **Key Concept:** Description...\n'
+            'Keep it concise, use pirate slang, but maintain the helpful advice.'
+        ),
+        config=GenerationCommonConfig(
+            version='gemini-3-flash-preview',
+            temperature=0.7,
+            maxOutputTokens=1000,
+            topK=50,
+            topP=0.9,
+            stopSequences=['END'],
+        ),
+    )
+    print('Second response received.')
+
+    separator = '-' * 80
+    return (
+        f'{separator}\n'
+        f'### Standard Analysis\n\n{llm_response.text}\n\n'
+        f'{separator}\n'
+        f'### Pirate Version\n\n{llm_response2.text}\n'
+        f'{separator}'
+    )
 
 
 async def main() -> None:

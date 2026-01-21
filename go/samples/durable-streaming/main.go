@@ -36,7 +36,6 @@
 //
 // The subscription will replay any buffered chunks and then continue with live updates.
 // If the stream has already completed, all chunks plus the final result are returned.
-
 package main
 
 import (
@@ -48,6 +47,7 @@ import (
 
 	"github.com/firebase/genkit/go/core/x/streaming"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/server"
 )
 
 func main() {
@@ -62,7 +62,7 @@ func main() {
 
 	// Define a streaming flow that counts down with delays.
 	countdown := genkit.DefineStreamingFlow(g, "countdown",
-		func(ctx context.Context, count int, cb func(context.Context, CountdownChunk) error) (string, error) {
+		func(ctx context.Context, count int, sendChunk func(context.Context, CountdownChunk) error) (string, error) {
 			if count <= 0 {
 				count = 5
 			}
@@ -80,10 +80,8 @@ func main() {
 					Timestamp: time.Now().Format(time.RFC3339),
 				}
 
-				if cb != nil {
-					if err := cb(ctx, chunk); err != nil {
-						return "", err
-					}
+				if err := sendChunk(ctx, chunk); err != nil {
+					return "", err
 				}
 			}
 
@@ -96,5 +94,5 @@ func main() {
 	mux.HandleFunc("POST /countdown", genkit.Handler(countdown,
 		genkit.WithStreamManager(streaming.NewInMemoryStreamManager(streaming.WithTTL(10*time.Minute))),
 	))
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080", mux))
+	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
 }

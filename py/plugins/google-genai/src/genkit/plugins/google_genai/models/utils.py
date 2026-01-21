@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import base64
+from typing import Any
 
 from google import genai
 
@@ -22,6 +23,7 @@ from genkit.types import (
     Media,
     MediaPart,
     Part,
+    ReasoningPart,
     TextPart,
     ToolRequest,
     ToolRequestPart,
@@ -71,30 +73,86 @@ class PartConverter:
             A `genai.types.Part` object representing the converted content.
         """
         if isinstance(part.root, TextPart):
-            return genai.types.Part(text=part.root.text)
+            return genai.types.Part(text=part.root.text or ' ')
         if isinstance(part.root, ToolRequestPart):
             return genai.types.Part(
                 function_call=genai.types.FunctionCall(
-                    id=part.root.tool_request.ref,
-                    name=part.root.tool_request.name,
+                    # Gemini throws on '/' in tool name
+                    name=part.root.tool_request.name.replace('/', '__'),
                     args=part.root.tool_request.input,
-                )
+                ),
+                thought_signature=cls._extract_thought_signature(part.root.metadata),
+            )
+        if isinstance(part.root, ReasoningPart):
+            return genai.types.Part(
+                thought=True,
+                text=part.root.reasoning,
+                thought_signature=cls._extract_thought_signature(part.root.metadata),
             )
         if isinstance(part.root, ToolResponsePart):
+            tool_output = part.root.tool_response.output
+            parts_to_return = []
+
+            # Check for multimodal content structure {content: [{media: ...}]}
+            if isinstance(tool_output, dict) and 'content' in tool_output:
+                content_list = tool_output['content']
+                if isinstance(content_list, list):
+                    # Create a copy to avoid mutating original if that matters,
+                    # but here we just want to separate content from other fields.
+                    clean_output = tool_output.copy()
+                    clean_output.pop('content')
+
+                    # Heuristic: if media found, extract it to separate parts.
+                    has_media = False
+                    for item in content_list:
+                        if isinstance(item, dict) and 'media' in item:
+                            has_media = True
+                            media_info = item['media']
+                            url = media_info.get('url')
+                            content_type = media_info.get('contentType') or media_info.get('content_type')
+
+                            if url and url.startswith(cls.DATA):
+                                _, data_str = url.split(',', 1)
+                                data = base64.b64decode(data_str)
+                                parts_to_return.append(
+                                    genai.types.Part(inline_data=genai.types.Blob(mime_type=content_type, data=data))
+                                )
+
+                    if has_media:
+                        # Append the function response part FIRST (contextually correct)
+                        parts_to_return.insert(
+                            0,
+                            genai.types.Part(
+                                function_response=genai.types.FunctionResponse(
+                                    id=part.root.tool_response.ref,
+                                    name=part.root.tool_response.name.replace('/', '__'),
+                                    response=clean_output,
+                                )
+                            ),
+                        )
+                        return parts_to_return
+
+            # Default behavior for standard tool responses
             return genai.types.Part(
                 function_response=genai.types.FunctionResponse(
                     id=part.root.tool_response.ref,
-                    name=part.root.tool_response.name,
-                    response={'output': part.root.tool_response.output},
+                    name=part.root.tool_response.name.replace('/', '__'),
+                    response=part.root.tool_response.output,
                 )
             )
         if isinstance(part.root, MediaPart):
             url = part.root.media.url
             if not url.startswith(cls.DATA):
                 raise ValueError(f'Unsupported media URL for inline_data: {url}')
-            data = base64.b64decode(url.split(',', 1)[1])
+
+            # Extract mime type and data from data:mime_type;base64,data
+            metadata, data_str = url.split(',', 1)
+            mime_type = part.root.media.content_type or metadata.split(':', 1)[1].split(';', 1)[0]
+            data = base64.b64decode(data_str)
+
             return genai.types.Part(
                 inline_data=genai.types.Blob(
+                    mime_type=mime_type,
                     data=data,
                 )
             )
@@ -131,7 +189,7 @@ class PartConverter:
             )
 
     @classmethod
-    def from_gemini(cls, part: genai.types.Part) -> Part:
+    def from_gemini(cls, part: genai.types.Part, ref: str | None = None) -> Part:
         """Maps a Gemini Part back to a Genkit Part.
 
         This method inspects the type of the Gemini Part and converts it into
@@ -140,26 +198,41 @@ class PartConverter:
 
         Args:
             part: The `genai.types.Part` object to convert.
+            ref: The tool call reference ID.
 
         Returns:
             A Genkit `Part` object representing the converted content.
         """
-        if part.text:
-            return Part(text=part.text)
+        if part.thought:
+            return Part(
+                root=ReasoningPart(
+                    reasoning=part.text or '',
+                    metadata=cls._encode_thought_signature(part.thought_signature),
+                )
+            )
+        if part.text is not None:
+            return Part(root=TextPart(text=part.text))
         if part.function_call:
             return Part(
-                toolRequest=ToolRequest(
-                    ref=part.function_call.id,
-                    name=part.function_call.name,
-                    input=part.function_call.args,
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(
+                        ref=ref or getattr(part.function_call, 'id', None),
+                        # restore slashes
+                        name=part.function_call.name.replace('__', '/'),
+                        input=part.function_call.args,
+                    ),
+                    metadata=cls._encode_thought_signature(part.thought_signature),
                 )
             )
         if part.function_response:
             return Part(
-                toolResponse=ToolResponse(
-                    ref=part.function_call.id,
-                    name=part.function_response.name,
-                    output=part.function_response.response,
+                root=ToolResponsePart(
+                    tool_response=ToolResponse(
+                        ref=getattr(part.function_response, 'id', None),
+                        # restore slashes
+                        name=part.function_response.name.replace('__', '/'),
+                        output=part.function_response.response,
+                    )
                 )
             )
         if part.inline_data:
@@ -188,3 +261,18 @@ class PartConverter:
                     }
                 }
             )
+
+    @classmethod
+    def _extract_thought_signature(cls, metadata: Any) -> bytes | None:
+        """Extracts and decodes the thought signature from metadata."""
+        thought_sig = metadata.root.get('thoughtSignature') if metadata else None
+        if isinstance(thought_sig, str):
+            return base64.b64decode(thought_sig)
+        return None
+
+    @classmethod
+    def _encode_thought_signature(cls, thought_signature: bytes | None) -> dict[str, str] | None:
+        """Encodes the thought signature into metadata format."""
+        if thought_signature:
+            return {'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')}
+        return None

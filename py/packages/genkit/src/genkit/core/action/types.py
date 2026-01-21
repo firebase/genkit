@@ -49,6 +49,7 @@ class ActionKind(StrEnum):
     """
 
     CUSTOM = 'custom'
+    DYNAMIC_ACTION_PROVIDER = 'dynamic-action-provider'
     EMBEDDER = 'embedder'
     EVALUATOR = 'evaluator'
     EXECUTABLE_PROMPT = 'executable-prompt'
@@ -57,6 +58,7 @@ class ActionKind(StrEnum):
     MODEL = 'model'
     PROMPT = 'prompt'
     RERANKER = 'reranker'
+    RESOURCE = 'resource'
     RETRIEVER = 'retriever'
     TOOL = 'tool'
     UTIL = 'util'

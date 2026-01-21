@@ -228,6 +228,11 @@ func runWithStreaming(ctx context.Context, w http.ResponseWriter, a api.Action, 
 
 // runWithDurableStreaming executes the action with durable streaming support.
 // Chunks are written to both the HTTP response and the stream manager for later replay.
+//
+// The flow execution is detached from the HTTP request context so that if the
+// original client disconnects, the flow continues running and writing to durable
+// storage. This allows other clients to subscribe to the stream and receive the
+// remaining chunks and final result.
 func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.Action, sm streaming.StreamManager, input json.RawMessage) error {
 	streamID := uuid.New().String()
 
@@ -239,28 +244,52 @@ func runWithDurableStreaming(ctx context.Context, w http.ResponseWriter, a api.A
 
 	w.Header().Set("X-Genkit-Stream-Id", streamID)
 
-	callback := func(ctx context.Context, msg json.RawMessage) error {
-		durableStream.Write(msg)
-		if err := writeSSEMessage(w, msg); err != nil {
-			return err
-		}
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
+	// Create a detached context for flow execution. This preserves context values
+	// (action context, tracing, logger) but won't be canceled when the HTTP client
+	// disconnects, allowing the flow to continue streaming to durable storage.
+	durableCtx := context.WithoutCancel(ctx)
+
+	// Track whether the HTTP client is still connected.
+	clientGone := ctx.Done()
+
+	callback := func(_ context.Context, msg json.RawMessage) error {
+		// Always write to durable storage regardless of client connection state.
+		durableStream.Write(durableCtx, msg)
+
+		// Only attempt HTTP writes if the client is still connected.
+		select {
+		case <-clientGone:
+			return nil
+		default:
+			if err := writeSSEMessage(w, msg); err != nil {
+				return nil
+			}
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
 		}
 		return nil
 	}
 
-	out, err := a.RunJSON(ctx, input, callback)
+	out, err := a.RunJSON(durableCtx, input, callback)
 	if err != nil {
-		durableStream.Error(err)
-		if werr := writeSSEError(w, err); werr != nil {
-			return werr
+		durableStream.Error(durableCtx, err)
+		select {
+		case <-clientGone:
+			return nil
+		default:
+			writeSSEError(w, err)
 		}
 		return nil
 	}
 
-	durableStream.Done(out)
-	return writeSSEResult(w, out)
+	durableStream.Done(durableCtx, out)
+	select {
+	case <-clientGone:
+		return nil
+	default:
+		return writeSSEResult(w, out)
+	}
 }
 
 // subscribeToStream subscribes to an existing durable stream and writes events to the HTTP response.
@@ -371,9 +400,18 @@ func writeSSEMessage(w http.ResponseWriter, msg json.RawMessage) error {
 
 // writeSSEError writes an error as a server-sent event for streaming requests.
 func writeSSEError(w http.ResponseWriter, flowErr error) error {
+	status := core.INTERNAL
+	var ufErr *core.UserFacingError
+	var gErr *core.GenkitError
+	if errors.As(flowErr, &ufErr) {
+		status = ufErr.Status
+	} else if errors.As(flowErr, &gErr) {
+		status = gErr.Status
+	}
+
 	resp := flowErrorResponse{
 		Error: &flowError{
-			Status:  core.INTERNAL,
+			Status:  status,
 			Message: "stream flow error",
 			Details: flowErr.Error(),
 		},

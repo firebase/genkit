@@ -913,7 +913,7 @@ class Message(BaseModel):
     """Model for message data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    role: Role
+    role: Role | str
     content: list[Part]
     metadata: dict[str, Any] | None = None
 
@@ -993,6 +993,7 @@ class GenerateActionOptions(BaseModel):
     docs: list[DocumentData] | None = None
     messages: list[Message]
     tools: list[str] | None = None
+    resources: list[str] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     config: Any | None = None
     output: GenerateActionOutputConfig | None = None

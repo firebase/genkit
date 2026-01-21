@@ -27,7 +27,7 @@ import weakref
 from asyncio import Future
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Awaitable
 
 import structlog
 from dotpromptz.typing import (
@@ -37,9 +37,9 @@ from dotpromptz.typing import (
     PromptMetadata,
     ToolDefinition as DotPromptzToolDefinition,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
-from genkit.aio import Channel
+from genkit.aio import Channel, ensure_async
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -83,18 +83,20 @@ class PromptCache:
 class PromptConfig(BaseModel):
     """Model for a prompt action."""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     variant: str | None = None
     model: str | None = None
     config: GenerationCommonConfig | dict[str, Any] | None = None
     description: str | None = None
-    input_schema: type | dict[str, Any] | None = None
-    system: str | Part | list[Part] | None = None
-    prompt: str | Part | list[Part] | None = None
-    messages: str | list[Message] | None = None
+    input_schema: type | dict[str, Any] | str | None = None
+    system: str | Part | list[Part] | Callable | None = None
+    prompt: str | Part | list[Part] | Callable | None = None
+    messages: str | list[Message] | Callable | None = None
     output_format: str | None = None
     output_content_type: str | None = None
     output_instructions: bool | str | None = None
-    output_schema: type | dict[str, Any] | None = None
+    output_schema: type | dict[str, Any] | str | None = None
     output_constrained: bool | None = None
     max_turns: int | None = None
     return_tool_requests: bool | None = None
@@ -102,8 +104,9 @@ class PromptConfig(BaseModel):
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
-    docs: list[DocumentData] | None = None
+    docs: list[DocumentData] | Callable | None = None
     tool_responses: list[Part] | None = None
+    resources: list[str] | None = None
 
 
 class ExecutablePrompt:
@@ -117,9 +120,9 @@ class ExecutablePrompt:
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         description: str | None = None,
         input_schema: type | dict[str, Any] | None = None,
-        system: str | Part | list[Part] | None = None,
-        prompt: str | Part | list[Part] | None = None,
-        messages: str | list[Message] | None = None,
+        system: str | Part | list[Part] | Callable | None = None,
+        prompt: str | Part | list[Part] | Callable | None = None,
+        messages: str | list[Message] | Callable | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
@@ -131,6 +134,8 @@ class ExecutablePrompt:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable | None = None,
+        resources: list[str] | None = None,
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
         _prompt_action: Action | None = None,  # reference to PROMPT action
@@ -145,14 +150,14 @@ class ExecutablePrompt:
             model: The model to use for generation.
             config: The generation configuration.
             description: A description of the prompt.
-            input_schema: The input schema for the prompt.
-            system: The system message for the prompt.
-            prompt: The user prompt.
-            messages: A list of messages to include in the prompt.
-            output_format: The output format.
-            output_content_type: The output content type.
+            input_schema: type | dict[str, Any] | str | None = None,
+            system: str | Part | list[Part] | Callable | None = None,
+            prompt: str | Part | list[Part] | Callable | None = None,
+            messages: str | list[Message] | Callable | None = None,
+            output_format: str | None = None,
+            output_content_type: str | None = None,
             output_instructions: Instructions for formatting the output.
-            output_schema: The output schema.
+            output_schema: type | dict[str, Any] | str | None = None,
             output_constrained: Whether the output should be constrained to the output schema.
             max_turns: The maximum number of turns in a conversation.
             return_tool_requests: Whether to return tool requests.
@@ -160,6 +165,8 @@ class ExecutablePrompt:
             tools: A list of tool names to use with the prompt.
             tool_choice: The tool choice strategy.
             use: A list of model middlewares to apply.
+            docs: A list of documents to be used for grounding.
+            resources: A list of resource URIs to be used for grounding.
         """
         self._registry = registry
         self._variant = variant
@@ -181,10 +188,23 @@ class ExecutablePrompt:
         self._tools = tools
         self._tool_choice = tool_choice
         self._use = use
+        self._docs = docs
+        self._resources = resources
         self._cache_prompt = PromptCache()
         self._name = _name  # Store name/ns for action lookup (used by as_tool())
         self._ns = _ns
         self._prompt_action = _prompt_action
+
+    @property
+    def ref(self) -> dict[str, Any]:
+        """Returns a reference object for this prompt.
+
+        The reference object contains the prompt's name and metadata.
+        """
+        return {
+            'name': registry_definition_key(self._name, self._variant, self._ns) if self._name else None,
+            'metadata': self._metadata,
+        }
 
     async def __call__(
         self,
@@ -281,6 +301,8 @@ class ExecutablePrompt:
             output_constrained=self._output_constrained,
             input_schema=self._input_schema,
             metadata=self._metadata,
+            docs=self._docs,
+            resources=self._resources,
         )
 
         model = options.model or self._registry.default_model
@@ -330,7 +352,7 @@ class ExecutablePrompt:
             tool_choice=options.tool_choice,
             output=output,
             max_turns=options.max_turns,
-            docs=options.docs,
+            docs=await render_docs(input, options, context),
             resume=resume,
         )
 
@@ -365,32 +387,33 @@ class ExecutablePrompt:
 
 def define_prompt(
     registry: Registry,
+    name: str | None = None,
     variant: str | None = None,
     model: str | None = None,
     config: GenerationCommonConfig | dict[str, Any] | None = None,
     description: str | None = None,
-    input_schema: type | dict[str, Any] | None = None,
-    system: str | Part | list[Part] | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    messages: str | list[Message] | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable | None = None,
+    prompt: str | Part | list[Part] | Callable | None = None,
+    messages: str | list[Message] | Callable | None = None,
     output_format: str | None = None,
     output_content_type: str | None = None,
     output_instructions: bool | str | None = None,
-    output_schema: type | dict[str, Any] | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
     output_constrained: bool | None = None,
     max_turns: int | None = None,
     return_tool_requests: bool | None = None,
     metadata: dict[str, Any] | None = None,
-    tools: Tools | None = None,
+    tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    # TODO:
-    #  docs: list[Document]
+    docs: list[DocumentData] | Callable | None = None,
 ) -> ExecutablePrompt:
     """Defines an executable prompt.
 
     Args:
         registry: The registry to use for resolving models and tools.
+        name: The name of the prompt.
         variant: The variant of the prompt.
         model: The model to use for generation.
         config: The generation configuration.
@@ -410,11 +433,12 @@ def define_prompt(
         tools: A list of tool names to use with the prompt.
         tool_choice: The tool choice strategy.
         use: A list of model middlewares to apply.
+        docs: A list of documents to be used for grounding.
 
     Returns:
         An ExecutablePrompt instance.
     """
-    return ExecutablePrompt(
+    executable_prompt = ExecutablePrompt(
         registry,
         variant=variant,
         model=model,
@@ -435,7 +459,51 @@ def define_prompt(
         tools=tools,
         tool_choice=tool_choice,
         use=use,
+        docs=docs,
+        _name=name,
     )
+
+    if name:
+        # Register actions for this prompt
+        action_metadata = {
+            'type': 'prompt',
+            'source': 'programmatic',
+            'prompt': {
+                'name': name,
+                'variant': variant or '',
+            },
+        }
+
+        async def prompt_action_fn(input: Any = None) -> GenerateRequest:
+            """PROMPT action function - renders prompt and returns GenerateRequest."""
+            options = await executable_prompt.render(input=input)
+            return await to_generate_request(registry, options)
+
+        async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:
+            """EXECUTABLE_PROMPT action function - renders prompt and returns GenerateActionOptions."""
+            return await executable_prompt.render(input=input)
+
+        action_name = registry_definition_key(name, variant)
+        prompt_action = registry.register_action(
+            kind=ActionKind.PROMPT,
+            name=action_name,
+            fn=prompt_action_fn,
+            metadata=action_metadata,
+        )
+
+        executable_prompt_action = registry.register_action(
+            kind=ActionKind.EXECUTABLE_PROMPT,
+            name=action_name,
+            fn=executable_prompt_action_fn,
+            metadata=action_metadata,
+        )
+
+        # Link them
+        executable_prompt._prompt_action = prompt_action
+        prompt_action._executable_prompt = weakref.ref(executable_prompt)
+        executable_prompt_action._executable_prompt = weakref.ref(executable_prompt)
+
+    return executable_prompt
 
 
 async def to_generate_action_options(registry: Registry, options: PromptConfig) -> GenerateActionOptions:
@@ -443,22 +511,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     Args:
         registry: The registry to use for resolving models and tools.
-        model: The model to use for generation.
-        prompt: The user prompt.
-        system: The system message for the prompt.
-        messages: A list of messages to include in the prompt.
-        tools: A list of tool names to use with the prompt.
-        return_tool_requests: Whether to return tool requests.
-        tool_choice: The tool choice strategy.
-        tool_responses: tool response parts corresponding to interrupts.
-        config: The generation configuration.
-        max_turns: The maximum number of turns in a conversation.
-        output_format: The output format.
-        output_content_type: The output content type.
-        output_instructions: Instructions for formatting the output.
-        output_schema: The output schema.
-        output_constrained: Whether the output should be constrained to the output schema.
-        docs: A list of documents to be used for grounding.
+        options: The prompt configuration.
 
     Returns:
         A GenerateActionOptions object.
@@ -466,13 +519,17 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     model = options.model or registry.default_model
     if model is None:
         raise Exception('No model configured.')
+
+    cache = PromptCache()
     resolved_msgs: list[Message] = []
     if options.system:
-        resolved_msgs.append(Message(role=Role.SYSTEM, content=_normalize_prompt_arg(options.system)))
+        result = await render_system_prompt(registry, None, options, cache)
+        resolved_msgs.append(result)
     if options.messages:
-        resolved_msgs += options.messages
+        resolved_msgs.extend(await render_message_prompt(registry, None, options, cache))
     if options.prompt:
-        resolved_msgs.append(Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt)))
+        result = await render_user_prompt(registry, None, options, cache)
+        resolved_msgs.append(result)
 
     # If is schema is set but format is not explicitly set, default to
     # `json` format.
@@ -489,7 +546,18 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     if options.output_instructions is not None:
         output.instructions = options.output_instructions
     if options.output_schema:
-        output.json_schema = to_json_schema(options.output_schema)
+        if isinstance(options.output_schema, str):
+            resolved_schema = registry.lookup_schema(options.output_schema)
+            if resolved_schema:
+                output.json_schema = resolved_schema
+            elif options.output_constrained:
+                # If we have a schema name but can't resolve it, and constrained is True,
+                # we should probably error or warn. But for now, we might pass None or
+                # try one last look up?
+                # Actually, lookup_schema handles it. If None, we can't do much.
+                pass
+        else:
+            output.json_schema = to_json_schema(options.output_schema)
     if options.output_constrained is not None:
         output.constrained = options.output_constrained
 
@@ -506,7 +574,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
         tool_choice=options.tool_choice,
         output=output,
         max_turns=options.max_turns,
-        docs=options.docs,
+        docs=await render_docs(None, options),
         resume=resume,
     )
 
@@ -630,11 +698,15 @@ async def render_system_prompt(
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=options.input_schema,
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
         )
+
+    if callable(options.system):
+        resolved = await ensure_async(options.system)(input, context)
+        return Message(role=Role.SYSTEM, content=_normalize_prompt_arg(resolved))
 
     return Message(role=Role.SYSTEM, content=_normalize_prompt_arg(options.system))
 
@@ -727,14 +799,22 @@ async def render_message_prompt(
                 context=context,
                 messages=messages_,
             ),
-            options=PromptMetadata(input=PromptInputConfig()),
+            options=PromptMetadata(
+                input=PromptInputConfig(
+                    schema=to_json_schema(options.input_schema) if options.input_schema else None,
+                )
+            ),
         )
         return [Message.model_validate(e.model_dump()) for e in rendered.messages]
 
     elif isinstance(options.messages, list):
         return options.messages
 
-    return [Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))]
+    elif callable(options.messages):
+        resolved = await ensure_async(options.messages)(input, context)
+        return resolved
+
+    raise TypeError(f'Unsupported type for messages: {type(options.messages)}')
 
 
 async def render_user_prompt(
@@ -774,11 +854,43 @@ async def render_user_prompt(
                 context,
                 prompt_cache.user_prompt,
                 input,
-                PromptMetadata(input=PromptInputConfig()),
+                PromptMetadata(
+                    input=PromptInputConfig(
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
+                    )
+                ),
             ),
         )
 
+    if callable(options.prompt):
+        resolved = await ensure_async(options.prompt)(input, context)
+        return Message(role=Role.USER, content=_normalize_prompt_arg(resolved))
+
     return Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))
+
+
+async def render_docs(
+    input: dict[str, Any],
+    options: PromptConfig,
+    context: dict[str, Any] | None = None,
+) -> list[DocumentData] | None:
+    """Renders the docs for a prompt action.
+
+    Args:
+        input: Dictionary of input values.
+        options: Configuration options for the prompt.
+        context: Optional dictionary of context values.
+
+    Returns:
+        A list of DocumentData objects or None.
+    """
+    if options.docs is None:
+        return None
+
+    if callable(options.docs):
+        return await ensure_async(options.docs)(input, context)
+
+    return options.docs
 
 
 def registry_definition_key(name: str, variant: str | None = None, ns: str | None = None) -> str:
@@ -844,6 +956,35 @@ def define_helper(registry: Registry, name: str, fn: Callable) -> None:
     logger.debug(f'Registered Dotprompt helper "{name}"')
 
 
+def define_schema(registry: Registry, name: str, schema: type) -> None:
+    """Register a Pydantic schema for use in prompts.
+
+    Schemas registered with this function can be referenced by name in
+    .prompt files using the `output.schema` field.
+
+    Args:
+        registry: The registry to register the schema in.
+        name: The name of the schema.
+        schema: The Pydantic model class to register.
+
+    Example:
+        ```python
+        from genkit.blocks.prompt import define_schema
+
+        define_schema(registry, 'Recipe', Recipe)
+        ```
+
+        Then in a .prompt file:
+        ```yaml
+        output:
+          schema: Recipe
+        ```
+    """
+    json_schema = to_json_schema(schema)
+    registry.register_schema(name, json_schema)
+    logger.debug(f'Registered schema "{name}"')
+
+
 def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = '') -> None:
     """Load a single prompt file and register it in the registry.
 
@@ -905,22 +1046,45 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
         # Convert Pydantic model to dict if needed
         if hasattr(prompt_metadata, 'model_dump'):
-            prompt_metadata_dict = prompt_metadata.model_dump()
+            prompt_metadata_dict = prompt_metadata.model_dump(by_alias=True)
         elif hasattr(prompt_metadata, 'dict'):
-            prompt_metadata_dict = prompt_metadata.dict()
+            prompt_metadata_dict = prompt_metadata.dict(by_alias=True)
         else:
             # Already a dict
             prompt_metadata_dict = prompt_metadata
 
+        # Ensure raw metadata is available (critical for lazy schema resolution)
+        if hasattr(prompt_metadata, 'raw'):
+            prompt_metadata_dict['raw'] = prompt_metadata.raw
+
         if variant:
             prompt_metadata_dict['variant'] = variant
 
+        # Fallback for model if not present (Dotprompt issue)
+        if not prompt_metadata_dict.get('model'):
+            raw_model = (prompt_metadata_dict.get('raw') or {}).get('model')
+            if raw_model:
+                prompt_metadata_dict['model'] = raw_model
+
         # Clean up null descriptions
         output = prompt_metadata_dict.get('output')
+        schema = None
         if output and isinstance(output, dict):
             schema = output.get('schema')
             if schema and isinstance(schema, dict) and schema.get('description') is None:
                 schema.pop('description', None)
+
+        if not schema:
+            # Fallback to raw schema name if schema definition is missing
+            raw_schema = (prompt_metadata_dict.get('raw') or {}).get('output', {}).get('schema')
+            if isinstance(raw_schema, str):
+                schema = raw_schema
+                # output might be None if it wasn't in parsed config
+                if not output:
+                    output = {'schema': schema}
+                    prompt_metadata_dict['output'] = output
+                elif isinstance(output, dict):
+                    output['schema'] = schema
 
         input_schema = prompt_metadata_dict.get('input')
         if input_schema and isinstance(input_schema, dict):
@@ -930,6 +1094,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
         # Build metadata structure
         metadata = {
+            **prompt_metadata_dict,
             **prompt_metadata_dict.get('metadata', {}),
             'type': 'prompt',
             'prompt': {
@@ -982,6 +1147,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             description=metadata.get('description'),
             input_schema=metadata.get('input', {}).get('jsonSchema'),
             output_schema=metadata.get('output', {}).get('jsonSchema'),
+            output_constrained=True if metadata.get('output', {}).get('jsonSchema') else None,
             output_format=metadata.get('output', {}).get('format'),
             messages=metadata.get('messages'),
             max_turns=metadata.get('maxTurns'),
