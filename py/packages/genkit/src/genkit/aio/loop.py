@@ -74,7 +74,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
             try:
                 output = await fn()
                 return output
-            except Exception as e:
+            except BaseException as e:
                 error = e
             finally:
                 lock.release()

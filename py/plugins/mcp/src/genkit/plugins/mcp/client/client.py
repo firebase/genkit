@@ -15,12 +15,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
-import uuid
-from typing import Any, Callable, Dict, List, Optional, Union
+from contextlib import AsyncExitStack
+from typing import Any
 
 import structlog
-import contextlib
-from contextlib import AsyncExitStack
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
@@ -36,17 +34,17 @@ logger = structlog.get_logger(__name__)
 
 
 class McpServerConfig(BaseModel):
-    command: Optional[str] = None
-    args: Optional[List[str]] = None
-    env: Optional[Dict[str, str]] = None
-    url: Optional[str] = None
+    command: str | None = None
+    args: list[str] | None = None
+    env: dict[str, str] | None = None
+    url: str | None = None
     disabled: bool = False
 
 
 class McpClient(Plugin):
     """Client for connecting to a single MCP server."""
 
-    def __init__(self, name: str, config: McpServerConfig, server_name: Optional[str] = None):
+    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
         self.name = name
         self.config = config
         self.server_name = server_name or name
@@ -67,6 +65,9 @@ class McpClient(Plugin):
 
     async def connect(self):
         """Connects to the MCP server."""
+        if self.session:
+            return
+
         if self.config.disabled:
             logger.info(f'MCP server {self.server_name} is disabled.')
             return
@@ -110,11 +111,11 @@ class McpClient(Plugin):
             except (Exception, asyncio.CancelledError):
                 # Ignore errors during cleanup, especially cancellation from anyio
                 pass
-        
+
         # Reset exit stack for potential reuse (reconnect)
         self._exit_stack = AsyncExitStack()
 
-    async def list_tools(self) -> List[Tool]:
+    async def list_tools(self) -> list[Tool]:
         if not self.session:
             return []
         result = await self.session.list_tools()
@@ -132,18 +133,18 @@ class McpClient(Plugin):
         texts = [c.text for c in result.content if c.type == 'text']
         return {'content': ''.join(texts)}
 
-    async def list_prompts(self) -> List[Prompt]:
+    async def list_prompts(self) -> list[Prompt]:
         if not self.session:
             return []
         result = await self.session.list_prompts()
         return result.prompts
 
-    async def get_prompt(self, name: str, arguments: Optional[dict] = None) -> Any:
+    async def get_prompt(self, name: str, arguments: dict | None = None) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
         return await self.session.get_prompt(name, arguments)
 
-    async def list_resources(self) -> List[Resource]:
+    async def list_resources(self) -> list[Resource]:
         if not self.session:
             return []
         result = await self.session.list_resources()
@@ -154,7 +155,7 @@ class McpClient(Plugin):
             raise RuntimeError('MCP client is not connected')
         return await self.session.read_resource(uri)
 
-    async def register_tools(self, ai: Optional[Genkit] = None):
+    async def register_tools(self, ai: Genkit | None = None):
         """Registers all tools from connected client to Genkit."""
         registry = ai.registry if ai else (self.ai.registry if self.ai else None)
         if not registry:
@@ -169,7 +170,7 @@ class McpClient(Plugin):
             for tool in tools:
                 # Create a wrapper function for the tool using a factory to capture tool name
                 def create_wrapper(tool_name: str):
-                    async def tool_wrapper(args: Any = None, context: Any = None):
+                    async def tool_wrapper(args: Any = None):
                         # args might be Pydantic model or dict. Genkit passes dict usually?
                         # TODO: Validate args against schema if needed
                         arguments = args
@@ -196,7 +197,7 @@ class McpClient(Plugin):
         except Exception as e:
             logger.error(f'Error registering tools for {self.server_name}: {e}')
 
-    async def get_active_tools(self) -> List[Any]:
+    async def get_active_tools(self) -> list[Any]:
         """Returns all active tools."""
         if not self.session:
             return []

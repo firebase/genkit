@@ -63,8 +63,9 @@ class McpHost:
     async def reconnect(self, name: str):
         """Reconnects a specific MCP client."""
         if name in self.clients:
-            await client.close()
-            await client.connect()
+            client_to_reconnect = self.clients[name]
+            await client_to_reconnect.close()
+            await client_to_reconnect.connect()
 
     async def get_active_tools(self, ai: Genkit) -> List[str]:
         """Returns a list of all active tool names from all clients."""
