@@ -21,7 +21,7 @@
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/mcp": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.13.0",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "express": "^5.1.0",
     "genkit": "workspace:*",
     "genkitx-langchain": "workspace:*",
