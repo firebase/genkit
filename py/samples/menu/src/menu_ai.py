@@ -16,13 +16,13 @@
 
 
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import defineDevLocalVectorStore
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(plugins=[GoogleAI()])
 
 # Define dev local vector store
-defineDevLocalVectorStore(
+define_dev_local_vector_store(
     ai,
     name='menu-items',
     embedder='googleai/text-embedding-004',

@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import defineDevLocalVectorStore
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import VertexAI
 from genkit.types import Document
 
@@ -25,7 +25,7 @@ ai = Genkit(
 )
 
 # Define dev local vector store
-defineDevLocalVectorStore(
+define_dev_local_vector_store(
     ai,
     name='films',
     embedder='vertexai/text-embedding-004',

@@ -41,7 +41,7 @@ def firestore_action_name(name: str) -> str:
     return f'firestore/{name}'
 
 
-def defineFirestoreVectorStore(
+def define_firestore_vector_store(
     ai: Genkit,
     *,
     name: str,
@@ -97,3 +97,5 @@ def defineFirestoreVectorStore(
     )
 
     return action_name
+
+

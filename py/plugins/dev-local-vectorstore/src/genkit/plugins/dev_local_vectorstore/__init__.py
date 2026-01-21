@@ -14,8 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from .plugin_api import defineDevLocalVectorStore
+from .plugin_api import define_dev_local_vector_store
 
 __all__ = [
-    defineDevLocalVectorStore.__name__,
+    define_dev_local_vector_store.__name__,
 ]

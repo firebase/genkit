@@ -1011,9 +1011,9 @@ class GeminiModel:
                 if request_config.code_execution:
                     tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
-                # Extract code_execution before creating config
-                code_exec = request_config.pop('code_execution', None)
-                cfg = genai_types.GenerateContentConfig(**request_config)
+                code_exec = request_config.get('code_execution')
+                config_kwargs = {key: value for key, value in request_config.items() if key != 'code_execution'}
+                cfg = genai_types.GenerateContentConfig(**config_kwargs)
                 if code_exec:
                     tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
 

@@ -32,7 +32,7 @@ from .indexer import DevLocalVectorStoreIndexer
 from .retriever import DevLocalVectorStoreRetriever, RetrieverOptionsSchema
 
 
-def defineDevLocalVectorStore(
+def define_dev_local_vector_store(
     ai: Genkit,
     *,
     name: str,
@@ -92,3 +92,6 @@ def defineDevLocalVectorStore(
     )
 
     return (name, name)
+
+
+defineDevLocalVectorStore = define_dev_local_vector_store

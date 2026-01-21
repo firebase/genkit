@@ -19,7 +19,7 @@
 
 from genkit.plugins.google_cloud.telemetry.tracing import add_gcp_telemetry
 
-from .firestore import defineFirestoreVectorStore
+from .firestore import define_firestore_vector_store
 
 
 def package_name() -> str:
@@ -43,5 +43,5 @@ def add_firebase_telemetry() -> None:
 __all__ = [
     'package_name',
     'add_firebase_telemetry',
-    'defineFirestoreVectorStore',
+    'define_firestore_vector_store',
 ]

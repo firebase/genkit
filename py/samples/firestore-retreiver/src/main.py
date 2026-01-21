@@ -20,7 +20,7 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
-from genkit.plugins.firebase import add_firebase_telemetry, defineFirestoreVectorStore
+from genkit.plugins.firebase import add_firebase_telemetry, define_firestore_vector_store
 from genkit.plugins.google_genai import VertexAI
 from genkit.types import Document, TextPart
 
@@ -36,7 +36,7 @@ firestore_client = firestore.Client()
 ai = Genkit(plugins=[VertexAI()])
 
 # Define Firestore vector store - returns the retriever name
-RETRIEVER_NAME = defineFirestoreVectorStore(
+RETRIEVER_NAME = define_firestore_vector_store(
     ai,
     name='my_firestore_retriever',
     embedder=EMBEDDING_MODEL,
