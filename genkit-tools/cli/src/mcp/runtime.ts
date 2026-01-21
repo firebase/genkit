@@ -35,7 +35,7 @@ export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
         {command: "go", args: ["run", "main.go"]}
         {command: "npm", args: ["run", "dev"]}
         {command: "npm", args: ["run", "dev"], projectRoot: "path/to/project"}`,
-      inputSchema: getCommonSchema(options.isAntigravity, {
+      inputSchema: getCommonSchema(options.explicitProjectRoot, {
         command: z.string().describe('The command to run'),
         args: z
           .array(z.string())
@@ -47,19 +47,20 @@ export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
     async (opts) => {
       await record(new McpRunToolEvent('start_runtime'));
       const rootOrError = resolveProjectRoot(
-        options.isAntigravity,
+        options.explicitProjectRoot,
         opts,
         options.projectRoot
       );
       if (typeof rootOrError !== 'string') return rootOrError;
 
       try {
-        await options.manager.getManagerWithDevProcess(
-          rootOrError,
-          opts.command,
-          opts.args,
-          options.timeout
-        );
+        await options.manager.getManagerWithDevProcess({
+          projectRoot: rootOrError,
+          command: opts.command,
+          args: opts.args,
+          explicitProjectRoot: options.explicitProjectRoot,
+          timeout: options.timeout,
+        });
       } catch (err) {
         return {
           content: [
@@ -95,12 +96,12 @@ export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
       {
         title,
         description: `Use this to ${action} an existing runtime that was started using the \`start_runtime\` tool`,
-        inputSchema: getCommonSchema(options.isAntigravity),
+        inputSchema: getCommonSchema(options.explicitProjectRoot),
       },
       async (opts) => {
         await record(new McpRunToolEvent(name));
         const rootOrError = resolveProjectRoot(
-          options.isAntigravity,
+          options.explicitProjectRoot,
           opts,
           options.projectRoot
         );

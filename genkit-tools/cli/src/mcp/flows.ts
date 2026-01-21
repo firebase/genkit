@@ -31,12 +31,12 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
       title: 'List Genkit Flows',
       description:
         'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
-      inputSchema: getCommonSchema(options.isAntigravity),
+      inputSchema: getCommonSchema(options.explicitProjectRoot),
     },
     async (opts) => {
       await record(new McpRunToolEvent('list_flows'));
       const rootOrError = resolveProjectRoot(
-        options.isAntigravity,
+        options.explicitProjectRoot,
         opts,
         options.projectRoot
       );
@@ -68,7 +68,7 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
     {
       title: 'Run Flow',
       description: 'Runs the flow with the provided input',
-      inputSchema: getCommonSchema(options.isAntigravity, {
+      inputSchema: getCommonSchema(options.explicitProjectRoot, {
         flowName: z.string().describe('name of the flow'),
         input: z
           .string()
@@ -81,7 +81,7 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
     async (opts) => {
       await record(new McpRunToolEvent('run_flow'));
       const rootOrError = resolveProjectRoot(
-        options.isAntigravity,
+        options.explicitProjectRoot,
         opts,
         options.projectRoot
       );

@@ -19,13 +19,13 @@ import {
   findProjectRoot,
   forceStderr,
 } from '@genkit-ai/tools-common/utils';
-import { Command, Option } from 'commander';
+import { Command } from 'commander';
 import { startMcpServer } from '../mcp/server';
 
 interface McpOptions {
   projectRoot?: string;
   debug?: boolean | string;
-  ide?: string;
+  explicitProjectRoot?: boolean;
   timeout?: string;
 }
 
@@ -37,8 +37,10 @@ export const mcp = new Command('mcp')
     '--timeout [timeout]',
     'Timeout for runtime to start (ms). Default 30000.'
   )
-  .addOption(
-    new Option('--ide [ide]', 'IDE environment').choices(['antigravity'])
+  .option(
+    '--explicitProjectRoot',
+    'Whether runtime dependent tools need projectRoot specified. Needed for use with Google Antigravity',
+    false
   )
   .description('run MCP stdio server (EXPERIMENTAL, subject to change)')
   .action(async (options: McpOptions) => {
@@ -50,7 +52,7 @@ export const mcp = new Command('mcp')
     }
     await startMcpServer({
       projectRoot: options.projectRoot ?? (await findProjectRoot()),
-      ide: options.ide,
+      explicitProjectRoot: options.explicitProjectRoot ?? false,
       timeout: options.timeout ? parseInt(options.timeout, 10) : undefined,
     });
   });

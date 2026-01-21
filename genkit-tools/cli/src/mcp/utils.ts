@@ -20,16 +20,16 @@ import { startDevProcessManager, startManager } from '../utils/manager-utils';
 
 export interface McpToolOptions {
   projectRoot: string;
-  isAntigravity: boolean;
+  explicitProjectRoot: boolean;
   timeout?: number;
   manager: McpRuntimeManager;
 }
 
 export function getCommonSchema(
-  isAntigravity: boolean,
+  explicitProjectRoot: boolean,
   shape: z.ZodRawShape = {}
 ): z.ZodRawShape {
-  return !isAntigravity
+  return !explicitProjectRoot
     ? shape
     : {
         projectRoot: z
@@ -42,13 +42,13 @@ export function getCommonSchema(
 }
 
 export function resolveProjectRoot(
-  isAntigravity: boolean,
+  explicitProjectRoot: boolean,
   opts: {
     [x: string]: any;
   },
   fallback: string
 ): string | { content: any[]; isError: boolean } {
-  if (isAntigravity && !opts?.projectRoot) {
+  if (explicitProjectRoot && !opts?.projectRoot) {
     return {
       content: [
         { type: 'text', text: 'Project root is required for this tool.' },
@@ -77,12 +77,14 @@ export class McpRuntimeManager {
     return this.manager;
   }
 
-  async getManagerWithDevProcess(
-    projectRoot: string,
-    command: string,
-    args: string[],
-    timeout?: number
-  ): Promise<RuntimeManager> {
+  async getManagerWithDevProcess(params: {
+    projectRoot: string;
+    command: string;
+    args: string[];
+    explicitProjectRoot: boolean;
+    timeout?: number;
+  }): Promise<RuntimeManager> {
+    const { projectRoot, command, args, timeout, explicitProjectRoot } = params;
     if (this.manager) {
       await this.manager.stop();
     }
@@ -94,6 +96,7 @@ export class McpRuntimeManager {
         nonInteractive: true,
         healthCheck: timeout !== 0,
         timeout,
+        cwd: explicitProjectRoot ? projectRoot : undefined,
       }
     );
     this.manager = devManager.manager;

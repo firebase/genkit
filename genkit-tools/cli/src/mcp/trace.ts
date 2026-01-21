@@ -30,7 +30,7 @@ export function defineTraceTools(server: McpServer, options: McpToolOptions) {
     {
       title: 'Get Genkit Trace',
       description: 'Returns the trace details',
-      inputSchema: getCommonSchema(options.isAntigravity, {
+      inputSchema: getCommonSchema(options.explicitProjectRoot, {
         traceId: z
           .string()
           .describe(
@@ -41,7 +41,7 @@ export function defineTraceTools(server: McpServer, options: McpToolOptions) {
     async (opts) => {
       await record(new McpRunToolEvent('get_trace'));
       const rootOrError = resolveProjectRoot(
-        options.isAntigravity,
+        options.explicitProjectRoot,
         opts,
         options.projectRoot
       );

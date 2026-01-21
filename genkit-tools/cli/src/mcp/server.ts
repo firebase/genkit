@@ -27,11 +27,10 @@ import { McpRuntimeManager, McpToolOptions } from './utils';
 
 export async function startMcpServer(params: {
   projectRoot: string;
-  ide?: string;
+  explicitProjectRoot: boolean;
   timeout?: number;
 }) {
-  const { projectRoot, ide, timeout } = params;
-  const isAntigravity = ide === 'antigravity';
+  const { projectRoot, explicitProjectRoot, timeout } = params;
   logger.info(`Starting MCP server in: ${projectRoot}`);
 
   const server = new McpServer({
@@ -46,7 +45,7 @@ export async function startMcpServer(params: {
   const manager = new McpRuntimeManager();
   const options: McpToolOptions = {
     projectRoot,
-    isAntigravity,
+    explicitProjectRoot,
     timeout,
     manager,
   };
