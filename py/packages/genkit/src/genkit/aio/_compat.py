@@ -52,7 +52,7 @@ async def wait_for_310(fut: asyncio.Future[T], timeout: float | None = None) -> 
     """
     try:
         return await asyncio.wait_for(fut, timeout)
-    except TimeoutError as e:
+    except asyncio.TimeoutError as e:
         raise TimeoutError() from e
 
 
