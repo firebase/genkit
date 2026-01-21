@@ -19,30 +19,12 @@ import Ajv, { type ErrorObject, type JSONSchemaType } from 'ajv';
 import addFormats from 'ajv-formats';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
+import { getGenkitRuntimeConfig } from './config.js';
 import { GenkitError } from './error.js';
-import { logger } from './logging.js';
+
 import type { Registry } from './registry.js';
 const ajv = new Ajv();
 addFormats(ajv);
-
-export const SCHEMA_VALIDATION_MODE = 'schemaValidationMode' as const;
-
-/**
- * Disable schema code generation in runtime. Use this if your runtime
- * environment restricts the use of `eval` or `new Function`, for e.g., in
- * CloudFlare workers.
- */
-export function disableSchemaCodeGeneration() {
-  logger.warn(
-    "It looks like you're trying to disable schema code generation. Please ensure that the '@cfworker/json-schema' package is installed: `npm i --save @cfworker/json-schema`"
-  );
-  global[SCHEMA_VALIDATION_MODE] = 'interpret';
-}
-
-/** Visible for testing */
-export function resetSchemaCodeGeneration() {
-  global[SCHEMA_VALIDATION_MODE] = undefined;
-}
 
 export { z }; // provide a consistent zod to use throughout genkit
 
@@ -150,9 +132,7 @@ export function validateSchema(
   if (!toValidate) {
     return { valid: true, schema: toValidate };
   }
-  const validationMode = (global[SCHEMA_VALIDATION_MODE] ?? 'compile') as
-    | 'compile'
-    | 'interpret';
+  const validationMode = getGenkitRuntimeConfig().jsonSchemaMode;
 
   if (validationMode === 'interpret') {
     let validator = cfWorkerValidators.get(toValidate);

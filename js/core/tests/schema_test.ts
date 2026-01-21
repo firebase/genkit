@@ -16,13 +16,12 @@
 
 import Ajv from 'ajv';
 import * as assert from 'assert';
-import { describe, it, mock } from 'node:test';
+import { afterEach, describe, it, mock } from 'node:test';
 
+import { setGenkitRuntimeConfig } from '../src/config.js';
 import {
   ValidationError,
-  disableSchemaCodeGeneration,
   parseSchema,
-  resetSchemaCodeGeneration,
   toJsonSchema,
   validateSchema,
   z,
@@ -167,8 +166,26 @@ describe('toJsonSchema', () => {
 });
 
 describe('disableSchemaCodeGeneration()', () => {
+  let compileMock: any;
+
+  function disableSchemaCodeGeneration() {
+    setGenkitRuntimeConfig({
+      jsonSchemaMode: 'interpret',
+    });
+  }
+
+  afterEach(() => {
+    setGenkitRuntimeConfig({
+      jsonSchemaMode: undefined,
+    });
+    if (compileMock) {
+      compileMock.mock.restore();
+      compileMock = undefined;
+    }
+  });
+
   it('should validate using cfworker validator', () => {
-    const compileMock = mock.method(Ajv.prototype, 'compile');
+    compileMock = mock.method(Ajv.prototype, 'compile');
 
     disableSchemaCodeGeneration();
     const result = validateSchema(
@@ -185,8 +202,6 @@ describe('disableSchemaCodeGeneration()', () => {
     const errorAtFoo = result.errors?.find((e) => e.path === 'foo');
     assert.ok(errorAtFoo, 'Should have error at foo');
     assert.strictEqual(compileMock.mock.callCount(), 0);
-    compileMock.mock.restore();
-    resetSchemaCodeGeneration();
   });
 
   it('should strip undefined values before validating', () => {
@@ -202,7 +217,6 @@ describe('disableSchemaCodeGeneration()', () => {
       }
     );
     assert.strictEqual(result.valid, true);
-    resetSchemaCodeGeneration();
   });
 
   it('should strip undefined values recursively', () => {
@@ -222,7 +236,6 @@ describe('disableSchemaCodeGeneration()', () => {
       }
     );
     assert.strictEqual(result.valid, true);
-    resetSchemaCodeGeneration();
   });
 
   it('should strip undefined values in objects inside arrays', () => {
@@ -246,6 +259,5 @@ describe('disableSchemaCodeGeneration()', () => {
       }
     );
     assert.strictEqual(result.valid, true);
-    resetSchemaCodeGeneration();
   });
 });

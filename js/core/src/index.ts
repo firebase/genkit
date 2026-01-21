@@ -43,6 +43,12 @@ export {
   type Operation,
 } from './background-action.js';
 export {
+  getGenkitRuntimeConfig,
+  resetGenkitRuntimeConfig,
+  setGenkitRuntimeConfig,
+  type GenkitRuntimeConfig,
+} from './config.js';
+export {
   apiKey,
   getContext,
   runWithContext,
@@ -77,12 +83,7 @@ export {
 } from './flow.js';
 export * from './plugin.js';
 export * from './reflection.js';
-export {
-  defineJsonSchema,
-  defineSchema,
-  disableSchemaCodeGeneration,
-  type JSONSchema,
-} from './schema.js';
+export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';
 export * from './telemetryTypes.js';
 export * from './utils.js';
 
