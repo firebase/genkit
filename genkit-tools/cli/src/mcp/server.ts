@@ -23,24 +23,36 @@ import { defineInitPrompt } from './prompts/init';
 import { defineRuntimeTools } from './runtime';
 import { defineTraceTools } from './trace';
 import { defineUsageGuideTool } from './usage';
-import { McpRuntimeManager } from './util';
+import { McpRuntimeManager, McpToolOptions } from './utils';
 
-export async function startMcpServer(projectRoot: string) {
+export async function startMcpServer(params: {
+  projectRoot: string;
+  explicitProjectRoot: boolean;
+  timeout?: number;
+}) {
+  const { projectRoot, explicitProjectRoot, timeout } = params;
   logger.info(`Starting MCP server in: ${projectRoot}`);
+
   const server = new McpServer({
     name: 'Genkit MCP',
     version: '0.0.2',
   });
 
-  const manager = new McpRuntimeManager(projectRoot);
-
   await defineDocsTool(server);
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
-  defineRuntimeTools(server, manager);
 
-  defineFlowTools(server, manager);
-  defineTraceTools(server, manager);
+  const manager = new McpRuntimeManager();
+  const options: McpToolOptions = {
+    projectRoot,
+    explicitProjectRoot,
+    timeout,
+    manager,
+  };
+
+  defineFlowTools(server, options);
+  defineTraceTools(server, options);
+  defineRuntimeTools(server, options);
 
   return new Promise(async (resolve) => {
     const transport = new StdioServerTransport();

@@ -24,18 +24,35 @@ import { startMcpServer } from '../mcp/server';
 
 interface McpOptions {
   projectRoot?: string;
-  debug?: boolean;
+  debug?: boolean | string;
+  explicitProjectRoot?: boolean;
+  timeout?: string;
 }
 
 /** Command to run MCP server. */
 export const mcp = new Command('mcp')
   .option('--project-root [projectRoot]', 'Project root')
-  .option('-d, --debug', 'debug to file', false)
+  .option('-d, --debug [path]', 'debug to file')
+  .option(
+    '--timeout [timeout]',
+    'Timeout for runtime to start (ms). Default 30000.'
+  )
+  .option(
+    '--explicitProjectRoot',
+    'Whether runtime dependent tools need projectRoot specified. Needed for use with Google Antigravity',
+    false
+  )
   .description('run MCP stdio server (EXPERIMENTAL, subject to change)')
   .action(async (options: McpOptions) => {
     forceStderr();
     if (options.debug) {
-      debugToFile();
+      debugToFile(
+        typeof options.debug === 'string' ? options.debug : undefined
+      );
     }
-    await startMcpServer(options.projectRoot ?? (await findProjectRoot()));
+    await startMcpServer({
+      projectRoot: options.projectRoot ?? (await findProjectRoot()),
+      explicitProjectRoot: options.explicitProjectRoot ?? false,
+      timeout: options.timeout ? parseInt(options.timeout, 10) : undefined,
+    });
   });
