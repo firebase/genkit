@@ -37,11 +37,13 @@ type Responder[T any] struct {
 func (r *Responder[T]) Send(data T)
 
 // EndTurn signals that the agent has finished responding to the current input.
-// The consumer's Responses() iterator will exit, allowing them to send the next input.
+// The consumer's Receive() iterator will exit, allowing them to send the next input.
 func (r *Responder[T]) EndTurn()
 ```
 
 ### 1.2 Agent Types
+
+> **Note:** The `AgentOutput`, `AgentResult`, and `Artifact` types are generated from the source of truth Zod schemas in `genkit-tools` shared between runtimes.
 
 ```go
 // Artifact represents a named collection of parts produced during a session.
@@ -215,8 +217,8 @@ For multi-turn conversations, the consumer needs to know when the agent has fini
 2. `streamChunk` has `data T` and `endTurn bool` fields (unexported)
 3. `resp.Send(data)` sends `streamChunk{data: data}`
 4. `resp.EndTurn()` sends `streamChunk{endTurn: true}`
-5. `conn.Responses()` unwraps chunks, yielding only the data
-6. When `Responses()` sees `endTurn: true`, it exits the iterator without yielding
+5. `conn.Receive()` unwraps chunks, yielding only the data
+6. When `Receive()` sees `endTurn: true`, it exits the iterator without yielding
 
 ### 4.2 From the Agent's Perspective
 
@@ -232,13 +234,13 @@ for input := range inCh {
 
 ```go
 conn.Send("question")
-for chunk, err := range conn.Responses() {
+for chunk, err := range conn.Receive() {
     fmt.Print(chunk)  // Just gets string, not streamChunk
 }
 // Loop exited because agent called EndTurn()
 
 conn.Send("follow-up")
-for chunk, err := range conn.Responses() { ... }
+for chunk, err := range conn.Receive() { ... }
 ```
 
 ---
@@ -296,7 +298,7 @@ func main() {
                     }
                     resp.Send(result.Chunk.Text())
                 }
-                resp.EndTurn()  // Signal turn complete, consumer's Responses() exits
+                resp.EndTurn()  // Signal turn complete, consumer's Receive() exits
 
                 messages = append(messages, ai.NewModelTextMessage(respText))
                 sess.UpdateState(ctx, ChatState{Messages: messages})
@@ -320,7 +322,7 @@ func main() {
 
     // First turn
     conn.Send("Hello! Tell me about Go programming.")
-    for chunk, err := range conn.Responses() {
+    for chunk, err := range conn.Receive() {
         if err != nil {
             panic(err)
         }
@@ -330,7 +332,7 @@ func main() {
 
     // Second turn
     conn.Send("What are channels used for?")
-    for chunk, err := range conn.Responses() {
+    for chunk, err := range conn.Receive() {
         if err != nil {
             panic(err)
         }
