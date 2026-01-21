@@ -153,6 +153,8 @@ Want to skip the local setup? Click below to try out Genkit using [Firebase Stud
 
 ## Connect with us
 
+- [**Follow us on X/Twitter**](https://x.com/GenkitFramework) – Get the latest
+news, updates, releases, tips and samples from the Genkit team.
 - [**Join us on Discord**](https://discord.gg/qXt5zzQKpc) – Get help, share
 ideas, and chat with other developers.
 - [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report
@@ -168,4 +170,4 @@ Contributions to Genkit are welcome and highly appreciated! See our [Contributio
 
 ## Authors
 
-Genkit is built by [Firebase](https://firebase.google.com/) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).
+Genkit is built by [Google](https://developers.google.com/) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).
