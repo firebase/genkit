@@ -31,33 +31,34 @@ import (
 	"github.com/openai/openai-go/v3/responses"
 )
 
-const (
-	openaiProvider    = "openai"
+var (
 	openaiLabelPrefix = "OpenAI"
+	openaiProvider    = "openai"
+	defaultOpenAIOpts = ai.ModelOptions{
+		Supports: &ai.ModelSupports{
+			Multiturn:   true,
+			Tools:       true,
+			ToolChoice:  true,
+			SystemRole:  true,
+			Media:       true,
+			Constrained: ai.ConstrainedSupportAll,
+		},
+		Versions: []string{},
+		Stage:    ai.ModelStageUnstable,
+	}
 )
-
-var defaultOpenAIOpts = ai.ModelOptions{
-	Supports: &ai.ModelSupports{
-		Multiturn:   true,
-		Tools:       true,
-		ToolChoice:  true,
-		SystemRole:  true,
-		Media:       true,
-		Constrained: ai.ConstrainedSupportAll,
-	},
-	Versions: []string{},
-	Stage:    ai.ModelStageUnstable,
-}
 
 var defaultEmbedOpts = ai.EmbedderOptions{}
 
 type OpenAI struct {
-	mu      sync.Mutex             // protects concurrent access to the client and init state
-	initted bool                   // tracks weter the plugin has been initialized
-	client  *openai.Client         // openAI client used for making requests
-	Opts    []option.RequestOption // request options for the OpenAI client
-	APIKey  string                 // API key to use with the desired plugin
-	BaseURL string                 // Base URL for custom endpoints
+	mu          sync.Mutex             // protects concurrent access to the client and init state
+	initted     bool                   // tracks weter the plugin has been initialized
+	client      *openai.Client         // openAI client used for making requests
+	Opts        []option.RequestOption // request options for the OpenAI client
+	APIKey      string                 // API key to use with the desired plugin
+	BaseURL     string                 // Base URL for custom endpoints
+	Provider    string                 // Provider name (defaults to "openai")
+	LabelPrefix string                 // Provider label prefix (defaults to "OpenAI")
 }
 
 func (o *OpenAI) Name() string {
@@ -88,6 +89,13 @@ func (o *OpenAI) Init(ctx context.Context) []api.Action {
 	}
 	if baseURL != "" {
 		o.Opts = append([]option.RequestOption{option.WithBaseURL(baseURL)}, o.Opts...)
+	}
+
+	if o.Provider != "" {
+		openaiProvider = o.Provider
+	}
+	if o.LabelPrefix != "" {
+		openaiLabelPrefix = o.LabelPrefix
 	}
 
 	client := openai.NewClient(o.Opts...)
