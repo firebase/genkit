@@ -195,6 +195,8 @@ func TestSchemaAsMapRecursive(t *testing.T) {
 	if !ok {
 		t.Fatal("expected children to have items")
 	}
+	// The recursive Node reference should have become an "any" schema
+	// including "type" property to prevent recursion errors for schemas for the same type
 	if items["type"] != "object" {
 		t.Errorf("expected children.items.type to be 'object', got %v", items["type"])
 	}
