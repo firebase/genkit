@@ -112,9 +112,9 @@ type BidiFlow[Init, In, Out, Stream any] struct {
 
 For real-time sessions, the connection to the model API often requires configuration to be established *before* the first user message is received. The `init` payload fulfills this requirement:
 
-- **`init`**: `GenerateRequest` (contains config, tools, system prompt)
-- **`inputStream`**: Stream of `GenerateRequest` (contains user messages/turns)
-- **`stream`**: Stream of `GenerateResponseChunk`
+- **`init`**: `ModelRequest` (contains config, tools, system prompt)
+- **`inputStream`**: Stream of `ModelRequest` (contains user messages/turns)
+- **`stream`**: Stream of `ModelResponseChunk`
 
 ### 2.3 Type Definitions
 
@@ -123,43 +123,46 @@ For real-time sessions, the connection to the model API often requires configura
 
 // BidiModel represents a bidirectional streaming model for real-time LLM APIs.
 type BidiModel struct {
-    *corex.BidiAction[*ai.GenerateRequest, *ai.GenerateRequest, *ai.GenerateResponse, *ai.GenerateResponseChunk]
+    *corex.BidiAction[*ai.ModelRequest, *ai.ModelRequest, *ai.ModelResponse, *ai.ModelResponseChunk]
 }
 
 // BidiModelFunc is the function signature for bidi model implementations.
 type BidiModelFunc func(
     ctx context.Context,
-    init *ai.GenerateRequest,
-    inCh <-chan *ai.GenerateRequest,
-    outCh chan<- *ai.GenerateResponseChunk,
-) (*ai.GenerateResponse, error)
+    init *ai.ModelRequest,
+    inCh <-chan *ai.ModelRequest,
+    outCh chan<- *ai.ModelResponseChunk,
+) (*ai.ModelResponse, error)
 ```
 
 ### 2.4 Defining a BidiModel
 
 ```go
 // DefineBidiModel creates and registers a BidiModel for real-time LLM interactions.
-func DefineBidiModel(
-    r api.Registry,
-    name string,
-    fn BidiModelFunc,
-) *BidiModel
+// The opts parameter follows the same pattern as DefineModel for consistency.
+func DefineBidiModel(r api.Registry, name string, opts *ai.ModelOptions, fn BidiModelFunc) *BidiModel
 ```
 
 **Example Plugin Implementation:**
 
 ```go
-// In a plugin like googlegenai
-
 func (g *GoogleAI) defineBidiModel(r api.Registry) *aix.BidiModel {
     return aix.DefineBidiModel(r, "googleai/gemini-2.0-flash-live",
-        func(ctx context.Context, init *ai.GenerateRequest, inCh <-chan *ai.GenerateRequest, outCh chan<- *ai.GenerateResponseChunk) (*ai.GenerateResponse, error) {
-            // 1. Establish session using configuration from init
-            session, err := g.client.ConnectLive(ctx, &genai.LiveConnectConfig{
-                Model:        "gemini-2.0-flash-live",
-                SystemPrompt: extractSystemPrompt(init),
-                Tools:        convertTools(init.Tools),
-                Config:       convertConfig(init.Config),
+        &ai.ModelOptions{
+            Label: "Gemini 2.0 Flash Live",
+            Supports: &ai.ModelSupports{
+                Multiturn:  true,
+                Tools:      true,
+                SystemRole: true,
+                Media:      true,
+            },
+        },
+        func(ctx context.Context, init *ai.ModelRequest, inCh <-chan *ai.ModelRequest, outCh chan<- *ai.ModelResponseChunk) (*ai.ModelResponse, error) {
+            session, err := g.client.Live.Connect(ctx, "gemini-2.0-flash-live", &genai.LiveConnectConfig{
+                SystemInstruction:  toContent(init.Messages),
+                Tools:              toTools(init.Tools),
+                Temperature:        toFloat32Ptr(init.Config),
+                ResponseModalities: []genai.Modality{genai.ModalityText},
             })
             if err != nil {
                 return nil, err
@@ -168,24 +171,47 @@ func (g *GoogleAI) defineBidiModel(r api.Registry) *aix.BidiModel {
 
             var totalUsage ai.GenerationUsage
 
-            // 2. Handle conversation stream
             for request := range inCh {
-                // Send new user input to the upstream session
-                if err := session.SendContent(convertMessages(request.Messages)); err != nil {
+                err := session.SendClientContent(genai.LiveClientContentInput{
+                    Turns:        toContents(request.Messages),
+                    TurnComplete: true,
+                })
+                if err != nil {
                     return nil, err
                 }
 
-                // Yield responses from the upstream session
-                for chunk := range session.Receive() {
-                    outCh <- &ai.GenerateResponseChunk{
-                        Content: []*ai.Part{ai.NewTextPart(chunk.Text)},
+                for {
+                    msg, err := session.Receive()
+                    if err != nil {
+                        return nil, err
                     }
-                    totalUsage.Add(chunk.Usage)
+
+                    if msg.ToolCall != nil {
+                        outCh <- &ai.ModelResponseChunk{
+                            Content: toToolCallParts(msg.ToolCall),
+                        }
+                        continue
+                    }
+
+                    if msg.ServerContent != nil {
+                        if msg.ServerContent.ModelTurn != nil {
+                            outCh <- &ai.ModelResponseChunk{
+                                Content: fromParts(msg.ServerContent.ModelTurn.Parts),
+                            }
+                        }
+                        if msg.ServerContent.TurnComplete {
+                            break
+                        }
+                    }
+
+                    if msg.UsageMetadata != nil {
+                        totalUsage.InputTokens += int(msg.UsageMetadata.PromptTokenCount)
+                        totalUsage.OutputTokens += int(msg.UsageMetadata.CandidatesTokenCount)
+                    }
                 }
             }
 
-            // 3. Return final result (usage stats, etc.)
-            return &ai.GenerateResponse{
+            return &ai.ModelResponse{
                 Usage: &totalUsage,
             }, nil
         },
@@ -200,93 +226,75 @@ func (g *GoogleAI) defineBidiModel(r api.Registry) *aix.BidiModel {
 ```go
 // In go/genkit/generate.go or go/ai/x/generate_bidi.go
 
-// GenerateBidiSession wraps BidiConnection with model-specific convenience methods.
-type GenerateBidiSession struct {
-    conn *corex.BidiConnection[*ai.GenerateRequest, *ai.GenerateResponse, *ai.GenerateResponseChunk]
+// ModelBidiConnection wraps BidiConnection with model-specific convenience methods.
+type ModelBidiConnection struct {
+    conn *corex.BidiConnection[*ai.ModelRequest, *ai.ModelResponse, *ai.ModelResponseChunk]
 }
 
 // Send sends a user message to the model.
-func (s *GenerateBidiSession) Send(messages ...*ai.Message) error {
-    return s.conn.Send(&ai.GenerateRequest{Messages: messages})
+func (s *ModelBidiConnection) Send(messages ...*ai.Message) error {
+    return s.conn.Send(&ai.ModelRequest{Messages: messages})
 }
 
 // SendText is a convenience method for sending a text message.
-func (s *GenerateBidiSession) SendText(text string) error {
+func (s *ModelBidiConnection) SendText(text string) error {
     return s.Send(ai.NewUserTextMessage(text))
 }
 
 // Stream returns an iterator for receiving response chunks.
-func (s *GenerateBidiSession) Stream() iter.Seq2[*ai.GenerateResponseChunk, error] {
+func (s *ModelBidiConnection) Receive() iter.Seq2[*ai.ModelResponseChunk, error] {
     return s.conn.Receive()
 }
 
 // Close signals that the conversation is complete.
-func (s *GenerateBidiSession) Close() error {
+func (s *ModelBidiConnection) Close() error {
     return s.conn.Close()
 }
 
 // Output returns the final response after the session completes.
-func (s *GenerateBidiSession) Output() (*ai.GenerateResponse, error) {
+func (s *ModelBidiConnection) Output() (*ai.ModelResponse, error) {
     return s.conn.Output()
 }
 ```
 
 **Usage:**
 
+`GenerateBidi` uses the same shared option types as regular `Generate` calls. Options like `WithModel`, `WithConfig`, `WithSystem`, and `WithTools` work the same way - they configure the initial session setup.
+
 ```go
 // GenerateBidi starts a bidirectional streaming session with a model.
-func GenerateBidi(ctx context.Context, g *Genkit, opts ...GenerateBidiOption) (*GenerateBidiSession, error)
-
-// GenerateBidiOption configures a bidi generation session.
-type GenerateBidiOption interface {
-    applyGenerateBidi(*generateBidiOptions) error
-}
-
-// WithBidiModel specifies the model to use.
-func WithBidiModel(model *aix.BidiModel) GenerateBidiOption
-
-// WithBidiConfig provides generation config (temperature, etc.) passed via init.
-func WithBidiConfig(config any) GenerateBidiOption
-
-// WithBidiSystem provides the system prompt passed via init.
-func WithBidiSystem(system string) GenerateBidiOption
-
-// WithBidiTools provides tools for the model passed via init.
-func WithBidiTools(tools ...ai.Tool) GenerateBidiOption
+// Uses the existing shared option types from ai/option.go.
+func GenerateBidi(ctx context.Context, g *Genkit, opts ...ai.GenerateBidiOption) (*ModelBidiConnection, error)
 ```
 
 **Example:**
 
 ```go
-// Start a real-time session
 session, err := genkit.GenerateBidi(ctx, g,
-    genkit.WithBidiModel(geminiLive),
-    genkit.WithBidiConfig(&googlegenai.GenerationConfig{Temperature: ptr(0.7)}),
-    genkit.WithBidiSystem("You are a helpful voice assistant"),
+    ai.WithModel(geminiLive),
+    ai.WithConfig(&googlegenai.GenerationConfig{Temperature: ptr(0.7)}),
+    ai.WithSystem("You are a helpful voice assistant"),
+    ai.WithTools(weatherTool),
 )
 if err != nil {
     return err
 }
 defer session.Close()
 
-// Send a message
 session.SendText("Hello!")
 
-// Listen for responses (can happen simultaneously with sends)
-for chunk, err := range session.Stream() {
+for chunk, err := range session.Receive() {
     if err != nil {
         return err
     }
     fmt.Print(chunk.Text())
 }
 
-// Continue the conversation
 session.SendText("Tell me more about that.")
-for chunk, err := range session.Stream() {
+for chunk, err := range session.Receive() {
     // ...
 }
 
-// Get final usage stats
 response, _ := session.Output()
 fmt.Printf("Total tokens: %d\n", response.Usage.TotalTokens)
 ```
@@ -297,23 +305,19 @@ Real-time models may support tool calling. The pattern follows the standard gene
 
 ```go
 session, _ := genkit.GenerateBidi(ctx, g,
-    genkit.WithBidiModel(geminiLive),
-    genkit.WithBidiTools(weatherTool, calculatorTool),
+    ai.WithModel(geminiLive),
+    ai.WithTools(weatherTool, calculatorTool),
 )
 
 session.SendText("What's the weather in NYC?")
 
-for chunk, err := range session.Stream() {
+for chunk, err := range session.Receive() {
     if err != nil {
         return err
     }
 
-    // Check for tool calls
     if toolCall := chunk.ToolCall(); toolCall != nil {
-        // Execute the tool
         result, _ := toolCall.Tool.Execute(ctx, toolCall.Input)
-
-        // Send tool result back to the model
         session.Send(ai.NewToolResultMessage(toolCall.ID, result))
     } else {
         fmt.Print(chunk.Text())
@@ -391,11 +395,13 @@ func DefineBidiFlow[Init, In, Out, Stream any](
     fn corex.BidiFunc[Init, In, Out, Stream],
 ) *corex.BidiFlow[Init, In, Out, Stream]
 
+// GenerateBidi uses shared options from ai/option.go
+// Options like WithModel, WithConfig, WithSystem, WithTools configure the session init.
 func GenerateBidi(
     ctx context.Context,
     g *Genkit,
-    opts ...GenerateBidiOption,
-) (*GenerateBidiSession, error)
+    opts ...ai.GenerateBidiOption,
+) (*ModelBidiConnection, error)
 ```
 
 ---
@@ -456,7 +462,6 @@ func main() {
     ctx := context.Background()
     g := genkit.Init(ctx)
 
-    // Define echo bidi flow
     echoFlow := genkit.DefineBidiFlow(g, "echo",
         func(ctx context.Context, init struct{}, inCh <-chan string, outCh chan<- string) (string, error) {
             var count int
@@ -468,28 +473,24 @@ func main() {
         },
     )
 
-    // Start streaming connection
     conn, err := echoFlow.StreamBidi(ctx)
     if err != nil {
         panic(err)
     }
 
-    // Send messages
     conn.Send("hello")
     conn.Send("world")
     conn.Close()
 
-    // Consume stream via iterator
     for chunk, err := range conn.Receive() {
         if err != nil {
             panic(err)
         }
-        fmt.Println(chunk) // "echo: hello", "echo: world"
+        fmt.Println(chunk)
     }
 
-    // Get final output
     output, _ := conn.Output()
-    fmt.Println(output) // "processed 2 messages"
+    fmt.Println(output)
 }
 ```
 
@@ -503,7 +504,6 @@ type ChatInit struct {
 
 configuredChat := genkit.DefineBidiFlow(g, "configuredChat",
     func(ctx context.Context, init ChatInit, inCh <-chan string, outCh chan<- string) (string, error) {
-        // Use init.SystemPrompt and init.Temperature
         for input := range inCh {
             resp, _ := genkit.GenerateText(ctx, g,
                 ai.WithSystem(init.SystemPrompt),
@@ -527,26 +527,21 @@ conn, _ := configuredChat.StreamBidi(ctx,
 ### 5.3 Real-Time Voice Model Session
 
 ```go
-// Using a bidi model for voice-like interactions
 session, _ := genkit.GenerateBidi(ctx, g,
-    genkit.WithBidiModel(geminiLive),
-    genkit.WithBidiSystem("You are a voice assistant. Keep responses brief."),
+    ai.WithModel(geminiLive),
+    ai.WithSystem("You are a voice assistant. Keep responses brief."),
 )
 defer session.Close()
 
-// Simulate real-time voice input/output
 go func() {
-    // In a real app, this would be audio transcription
     session.SendText("What time is it in Tokyo?")
 }()
 
-// Stream responses as they arrive
-for chunk, err := range session.Stream() {
+for chunk, err := range session.Receive() {
     if err != nil {
         log.Printf("Error: %v", err)
         break
     }
-    // In a real app, this would go to text-to-speech
     fmt.Print(chunk.Text())
 }
 ```
@@ -563,7 +558,7 @@ for chunk, err := range session.Stream() {
 | `go/core/x/bidi_flow.go` | BidiFlow with tracing |
 | `go/core/x/bidi_options.go` | BidiOption types |
 | `go/core/x/bidi_test.go` | Tests |
-| `go/ai/x/bidi_model.go` | BidiModel, BidiModelFunc, GenerateBidiSession |
+| `go/ai/x/bidi_model.go` | BidiModel, BidiModelFunc, ModelBidiConnection |
 | `go/ai/x/bidi_model_test.go` | Tests |
 | `go/genkit/bidi.go` | High-level API wrappers |
 
