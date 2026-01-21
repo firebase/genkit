@@ -230,7 +230,7 @@ Here are suggested models to use for various task types. This is NOT an exhausti
 ```
 | Plugin                                                     | Recommended Model                  | Input Modalities  |
 |------------------------------------------------------------|------------------------------------|-------------------|
-| github.com/firebase/genkit/go/plugins/googlegenai         | gemini-2.5-flash-image-preview     | Text, Image       |
+| github.com/firebase/genkit/go/plugins/googlegenai         | gemini-2.5-flash-image             | Text, Image       |
 | github.com/firebase/genkit/go/plugins/googlegenai         | imagen-4.0-generate-preview-06-06  | Text              |
 | github.com/firebase/genkit/go/plugins/compat_oai/openai   | gpt-image-1                        | Text              |
 ```
