@@ -389,7 +389,7 @@ class Genkit(GenkitBase):
         else:
             raise ValueError('Indexer must be specified as a string name or an IndexerRef.')
 
-        merged_options = {**(indexer_config or {}), **(options or {})}
+        req_options = {**(indexer_config or {}), **(options or {})}
 
         index_action = await self.registry.resolve_action(ActionKind.INDEXER, indexer_name)
         if index_action is None:
@@ -398,7 +398,7 @@ class Genkit(GenkitBase):
         await index_action.arun(
             IndexerRequest(
                 documents=documents,
-                options=merged_options if merged_options else None,
+                options=req_options if req_options else None,
             )
         )
 

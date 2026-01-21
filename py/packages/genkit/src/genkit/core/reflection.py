@@ -88,15 +88,7 @@ def _build_actions_payload(
     registered_actions: dict[str, Action],
     plugin_metas: list[Any],
 ) -> dict[str, dict[str, Any]]:
-    """Build payload for GET /api/actions.
-
-    The Dev UI expects a map: actionKey -> { key, name, type, description?, inputSchema?, outputSchema?, metadata? }.
-
-    NOTE: In Python, actions can come from:
-    - Locally registered actions (flows/tools/etc) in the registry action store.
-    - Plugin-advertised actions from the plugin API (`list_actions`), which may
-      be visible even before full plugin initialization.
-    """
+    """Build payload for GET /api/actions."""
     actions: dict[str, dict[str, Any]] = {}
 
     # 1) Registered actions (flows/tools/etc).
@@ -137,13 +129,13 @@ def _build_actions_payload(
         # Merge into the existing (registered) action entry; prefer registered data.
         existing = actions[key]
 
-        if existing.get('description') in (None, '') and advertised.get('description'):
+        if not existing.get('description') and advertised.get('description'):
             existing['description'] = advertised['description']
 
-        if existing.get('inputSchema') is None and advertised.get('inputSchema') is not None:
+        if  not existing.get('inputSchema') and advertised.get('inputSchema'):
             existing['inputSchema'] = advertised['inputSchema']
 
-        if existing.get('outputSchema') is None and advertised.get('outputSchema') is not None:
+        if not existing.get('outputSchema') and advertised.get('outputSchema'):
             existing['outputSchema'] = advertised['outputSchema']
 
         existing_meta = existing.get('metadata') or {}
