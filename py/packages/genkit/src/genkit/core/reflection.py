@@ -694,7 +694,7 @@ def create_reflection_asgi_app(
                 status_code=200,
                 headers={'x-genkit-version': version},
             )
-        except Exception as e:
+        except BaseException as e:
             error_response = get_reflection_json(e).model_dump(by_alias=True)
             logger.error('Error executing action', error=error_response)
             return JSONResponse(
