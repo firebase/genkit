@@ -18,6 +18,13 @@ import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'genkit';
 import { genkit } from 'genkit/beta';
 
+// NOTE: The chat / studio style APIs (for example `ai.chat`) are provided
+// in the beta package `genkit/beta`. If you try to use `ai.chat` while
+// importing `genkit` from the stable package, you'll run into confusing
+// type errors because the chat APIs aren't exposed there. The snippets in
+// this file use `genkit/beta` on purpose so `ai.chat` and related features
+// are available.
+
 const ai = genkit({
   plugins: [googleAI()],
 });
@@ -121,6 +128,14 @@ const PrixFixeMenuSchema = z.object({
   dessert: z.string(),
 });
 
+// IMPORTANT: This flow uses `ai.chat(...)` which is only available when
+// `genkit` is imported from `genkit/beta` (see the note above). If you
+// copied this example into your project and saw type errors around
+// `ai.chat`, make sure your import looks like:
+//
+//   import { genkit } from 'genkit/beta';
+//
+// instead of `import { genkit } from 'genkit'`.
 export const complexMenuSuggestionFlow = ai.defineFlow(
   {
     name: 'complexMenuSuggestionFlow',
