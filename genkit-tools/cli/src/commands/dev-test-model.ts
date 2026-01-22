@@ -367,22 +367,25 @@ async function runTest(
     const modelKey = model.startsWith('/') ? model : `/model/${model}`;
 
     let chunks = 0;
-    let streamedText = "";
-    const actionResponse = await manager.runAction({
-      key: modelKey,
-      input: testCase.input,
-    },
-      stream ? (chunk) => {
-        const chunkText = chunk.content?.find((p: any) => p.text)?.text;
-        if (chunkText) {
-          streamedText += chunkText;
-        }
-        chunks++;
-      } : undefined
+    let streamedText = '';
+    const actionResponse = await manager.runAction(
+      {
+        key: modelKey,
+        input: testCase.input,
+      },
+      stream
+        ? (chunk) => {
+            const chunkText = chunk.content?.find((p: any) => p.text)?.text;
+            if (chunkText) {
+              streamedText += chunkText;
+            }
+            chunks++;
+          }
+        : undefined
     );
 
     if (stream && chunks === 0) {
-      throw new Error('Streaming requested but no chunks received.')
+      throw new Error('Streaming requested but no chunks received.');
     }
     const response = GenerateResponseSchema.parse(actionResponse.result);
     if (stream && streamedText) {
@@ -405,7 +408,8 @@ async function runTest(
   } catch (e) {
     if (e instanceof GenkitToolsError) {
       logger.error(
-        `❌ Failed: ${testCase.name} - ${e.data?.stack || JSON.stringify(e.data?.details) || e
+        `❌ Failed: ${testCase.name} - ${
+          e.data?.stack || JSON.stringify(e.data?.details) || e
         }`
       );
     } else if (e instanceof Error) {
