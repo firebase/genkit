@@ -42,12 +42,17 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import urllib.parse
 from collections.abc import AsyncGenerator
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
 import structlog
+
+logger = structlog.get_logger(__name__)
+
+
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -423,6 +428,38 @@ def create_reflection_asgi_app(
             headers={'x-genkit-version': version},
         )
 
+    async def handle_list_values(request: Request) -> JSONResponse:
+        """Handle the request for listing registered values.
+
+        Args:
+             request: The Starlette request object.
+
+        Returns:
+            A JSON response containing value names.
+        """
+        kind = request.query_params.get('type')
+        if not kind:
+            return JSONResponse(content='Query parameter "type" is required.', status_code=400)
+
+        if kind != 'defaultModel':
+            return JSONResponse(
+                content=f"'type' {kind} is not supported. Only 'defaultModel' is supported", status_code=400
+            )
+
+        values = registry.list_values(kind)
+        return JSONResponse(content=values, status_code=200)
+
+    async def handle_list_envs(request: Request) -> JSONResponse:
+        """Handle the request for listing environments.
+
+        Args:
+            request: The Starlette request object.
+
+        Returns:
+             A JSON response containing environments.
+        """
+        return JSONResponse(content=['dev'], status_code=200)
+
     async def handle_notify(request: Request) -> JSONResponse:
         """Handle the notification endpoint.
 
@@ -437,6 +474,37 @@ def create_reflection_asgi_app(
             status_code=200,
             headers={'x-genkit-version': version},
         )
+
+    # Map of active actions indexed by trace ID for cancellation support.
+    active_actions: dict[str, asyncio.Task] = {}
+
+    async def handle_cancel_action(request: Request) -> JSONResponse:
+        """Handle the cancelAction endpoint.
+
+        Args:
+            request: The Starlette request object.
+
+        Returns:
+            A JSON response.
+        """
+        try:
+            payload = await request.json()
+            trace_id = payload.get('traceId')
+            if not trace_id:
+                return JSONResponse(content={'error': 'traceId is required'}, status_code=400)
+
+            task = active_actions.get(trace_id)
+            if task:
+                task.cancel()
+                return JSONResponse(content={'message': 'Action cancelled'}, status_code=200)
+            else:
+                return JSONResponse(content={'message': 'Action not found or already completed'}, status_code=404)
+        except Exception as e:
+            logger.error(f'Error cancelling action: {e}', exc_info=True)
+            return JSONResponse(
+                content={'error': 'An unexpected error occurred while cancelling the action.'},
+                status_code=500,
+            )
 
     async def handle_run_action(
         request: Request,
@@ -469,8 +537,23 @@ def create_reflection_asgi_app(
         context = payload.get('context', {})
         action_input = payload.get('input')
         stream = is_streaming_requested(request)
+
+        # Wrap execution to track the task for cancellation support
+        task = asyncio.current_task()
+
+        def on_trace_start(trace_id: str):
+            if task:
+                active_actions[trace_id] = task
+
         handler = run_streaming_action if stream else run_standard_action
-        return await handler(action, payload, action_input, context, version)
+
+        try:
+            return await handler(action, payload, action_input, context, version, on_trace_start)
+        except asyncio.CancelledError:
+            logger.info('Action execution cancelled.')
+            # Can't really send response if cancelled? Starlette/uvicorn closes connection?
+            # Just raise.
+            raise
 
     async def run_streaming_action(
         action: Action,
@@ -478,6 +561,7 @@ def create_reflection_asgi_app(
         action_input: Any,
         context: dict[str, Any],
         version: str,
+        on_trace_start: Callable[[str], None],
     ) -> StreamingResponse | JSONResponse:
         """Handle streaming action execution for Starlette.
 
@@ -486,6 +570,7 @@ def create_reflection_asgi_app(
             payload: Request payload with input data.
             context: Execution context.
             version: The Genkit version header value.
+            on_trace_start: Callback for trace start.
 
         Returns:
             A StreamingResponse with JSON chunks containing result or error
@@ -493,6 +578,14 @@ def create_reflection_asgi_app(
         """
         # Use a queue to pass chunks from the callback to the generator
         chunk_queue: asyncio.Queue[str | None] = asyncio.Queue()
+
+        # Capture trace_id from the runner task for cleanup
+        run_trace_id: str | None = None
+
+        def wrapped_on_trace_start(tid):
+            nonlocal run_trace_id
+            run_trace_id = tid
+            on_trace_start(tid)
 
         async def run_action_task():
             """Run the action and put chunks on the queue."""
@@ -507,6 +600,7 @@ def create_reflection_asgi_app(
                     raw_input=payload.get('input'),
                     on_chunk=send_chunk,
                     context=context,
+                    on_trace_start=wrapped_on_trace_start,
                 )
                 final_response = {
                     'result': dump_dict(output.response),
@@ -526,6 +620,8 @@ def create_reflection_asgi_app(
             finally:
                 # Signal end of stream
                 chunk_queue.put_nowait(None)
+                if run_trace_id:
+                    active_actions.pop(run_trace_id, None)
 
         async def stream_generator() -> AsyncGenerator[str, None]:
             """Yield chunks from the queue as they arrive."""
@@ -564,6 +660,7 @@ def create_reflection_asgi_app(
         action_input: Any,
         context: dict[str, Any],
         version: str,
+        on_trace_start: Callable[[str], None],
     ) -> JSONResponse:
         """Handle standard (non-streaming) action execution for Starlette.
 
@@ -572,12 +669,22 @@ def create_reflection_asgi_app(
             payload: Request payload with input data.
             context: Execution context.
             version: The Genkit version header value.
+            on_trace_start: Callback for trace start.
 
         Returns:
             A JSONResponse with the action result or error.
         """
+        run_trace_id: str | None = None
+
+        def wrapped_on_trace_start(tid):
+            nonlocal run_trace_id
+            run_trace_id = tid
+            on_trace_start(tid)
+
         try:
-            output = await action.arun_raw(raw_input=payload.get('input'), context=context)
+            output = await action.arun_raw(
+                raw_input=payload.get('input'), context=context, on_trace_start=wrapped_on_trace_start
+            )
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
@@ -594,14 +701,20 @@ def create_reflection_asgi_app(
                 content=error_response,
                 status_code=500,
             )
+        finally:
+            if run_trace_id:
+                active_actions.pop(run_trace_id, None)
 
-    return Starlette(
+    app = Starlette(
         routes=[
             Route('/api/__health', handle_health_check, methods=['GET']),
-            Route('/api/__quitquitquit', handle_terminate, methods=['POST']),
+            Route('/api/__quitquitquit', handle_terminate, methods=['GET', 'POST']),  # Support both for parity
             Route('/api/actions', handle_list_actions, methods=['GET']),
+            Route('/api/values', handle_list_values, methods=['GET']),
+            Route('/api/envs', handle_list_envs, methods=['GET']),
             Route('/api/notify', handle_notify, methods=['POST']),
             Route('/api/runAction', handle_run_action, methods=['POST']),
+            Route('/api/cancelAction', handle_cancel_action, methods=['POST']),
         ],
         middleware=[
             Middleware(
@@ -614,3 +727,5 @@ def create_reflection_asgi_app(
         on_startup=[on_app_startup] if on_app_startup else [],
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
     )
+    app.active_actions = active_actions
+    return app

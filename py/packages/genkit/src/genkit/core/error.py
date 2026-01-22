@@ -79,16 +79,16 @@ class GenkitError(Exception):
             detail: Optional detail information.
             source: Optional source of the error.
         """
-        source_prefix = f'{source}: ' if source else ''
-        super().__init__(f'{source_prefix}{status}: {message}')
-        self.original_message = message
-
         self.status = status
         if not self.status and isinstance(cause, GenkitError):
             self.status = cause.status
 
         if not self.status:
             self.status = 'INTERNAL'
+
+        source_prefix = f'{source}: ' if source else ''
+        super().__init__(f'{source_prefix}{self.status}: {message}')
+        self.original_message = message
 
         self.http_code = http_status_code(self.status)
 

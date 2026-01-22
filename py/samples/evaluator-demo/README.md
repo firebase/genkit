@@ -4,7 +4,20 @@ This sample demonstrates the different evaluation features using Genkit Python S
 
 Note: This sample focuses on evaluation features in Genkit, by utilizing the official Genkit Evaluators plugin. If you are interested in writing your own custom evaluator, please check the `custom/test_evaluator` defined in `src/main.py`.
 
+### How to Get Your Gemini API Key
+
+To use the Google GenAI plugin, you need a Gemini API key.
+
+1.  **Visit AI Studio**: Go to [Google AI Studio](https://aistudio.google.com/).
+2.  **Create API Key**: Click on "Get API key" and create a key in a new or existing Google Cloud project.
+
+For more details, check out the [official documentation](https://ai.google.dev/gemini-api/docs/api-key).
+
 ## Setup and start the sample
+
+```bash
+export GEMINI_API_KEY=<Your api key>
+```
 
 ```bash
 
