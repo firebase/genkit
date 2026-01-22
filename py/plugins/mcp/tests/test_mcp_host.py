@@ -60,4 +60,4 @@ class TestMcpHost(unittest.IsolatedAsyncioTestCase):
         # Verify tool registration
         ai.registry.register_action.assert_called()
         call_args = ai.registry.register_action.call_args[1]
-        self.assertIn('server1/tool1', call_args['name'])
+        self.assertIn('server1_tool1', call_args['name'])
