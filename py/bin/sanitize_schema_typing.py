@@ -65,7 +65,7 @@ class ClassTransformer(ast.NodeTransformer):
                     return True
         return False
 
-    def create_model_config(self, existing_config: ast.Call | None = None) -> ast.Assign:
+    def create_model_config(self, existing_config: ast.Call | None = None, frozen: bool = False) -> ast.Assign:
         """Create or update a model_config assignment.
 
         Ensures populate_by_name=True and extra='forbid', keeping other existing
@@ -73,6 +73,7 @@ class ClassTransformer(ast.NodeTransformer):
         """
         keywords = []
         found_populate = False
+        found_frozen = False
 
         # Preserve existing keywords if present, but override 'extra'
         if existing_config:
@@ -89,6 +90,15 @@ class ClassTransformer(ast.NodeTransformer):
                 elif kw.arg == 'extra':
                     # Skip the existing 'extra', we will enforce 'forbid'
                     continue
+                elif kw.arg == 'frozen':
+                    # Use the provided 'frozen' value
+                    keywords.append(
+                        ast.keyword(
+                            arg='frozen',
+                            value=ast.Constant(value=frozen),
+                        )
+                    )
+                    found_frozen = True
                 else:
                     keywords.append(kw)  # Keep other existing settings
 
@@ -98,6 +108,10 @@ class ClassTransformer(ast.NodeTransformer):
         # Add populate_by_name=True if it wasn't found
         if not found_populate:
             keywords.append(ast.keyword(arg='populate_by_name', value=ast.Constant(value=True)))
+
+        # Add frozen=True if it was requested and not found
+        if frozen and not found_frozen:
+            keywords.append(ast.keyword(arg='frozen', value=ast.Constant(value=True)))
 
         # Sort keywords for consistent output (optional but good practice)
         keywords.sort(key=lambda kw: kw.arg or '')
@@ -196,12 +210,13 @@ class ClassTransformer(ast.NodeTransformer):
         elif any(isinstance(base, ast.Name) and base.id == 'BaseModel' for base in node.bases):
             # Add or update model_config for BaseModel classes
             added_config = False
+            frozen = node.name == 'PathMetadata'
             for stmt in node.body[body_start_index:]:
                 if isinstance(stmt, ast.Assign) and any(
                     isinstance(target, ast.Name) and target.id == 'model_config' for target in stmt.targets
                 ):
                     # Update existing model_config
-                    updated_config = self.create_model_config(existing_model_config_call)
+                    updated_config = self.create_model_config(existing_model_config_call, frozen=frozen)
                     # Check if the config actually changed
                     if ast.dump(updated_config) != ast.dump(stmt):
                         new_body.append(updated_config)
@@ -209,6 +224,14 @@ class ClassTransformer(ast.NodeTransformer):
                     else:
                         new_body.append(stmt)  # No change needed
                     added_config = True
+                elif (
+                    isinstance(stmt, ast.Assign)
+                    and any(isinstance(target, ast.Name) and target.id == '__hash__' for target in stmt.targets)
+                    and frozen
+                ):
+                    # Skip manual __hash__ for PathMetadata
+                    self.modified = True
+                    continue
                 else:
                     new_body.append(stmt)
 
@@ -216,7 +239,7 @@ class ClassTransformer(ast.NodeTransformer):
                 # Add model_config if it wasn't present
                 # Insert after potential docstring
                 insert_pos = 1 if len(new_body) > 0 and isinstance(new_body[0], ast.Expr) else 0
-                new_body.insert(insert_pos, self.create_model_config())
+                new_body.insert(insert_pos, self.create_model_config(frozen=frozen))
                 self.modified = True
         elif any(isinstance(base, ast.Name) and base.id == 'Enum' for base in node.bases):
             # Uppercase Enum members

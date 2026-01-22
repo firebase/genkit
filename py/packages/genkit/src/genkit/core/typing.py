@@ -385,7 +385,7 @@ class InstrumentationLibrary(BaseModel):
 class PathMetadata(BaseModel):
     """Model for pathmetadata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', frozen=True, populate_by_name=True)
     path: str
     status: str
     error: str | None = None
