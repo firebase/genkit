@@ -1089,13 +1089,13 @@ class GeminiModel:
                         del dumped_config[key]
 
                 if 'image_config' in dumped_config and isinstance(dumped_config['image_config'], dict):
-                    valid_image_keys = [
+                    valid_image_keys = {
                         'aspect_ratio',
                         'image_size',
                         'person_generation',
                         'output_mime_type',
                         'output_compression_quality',
-                    ]
+                    }
                     dumped_config['image_config'] = {
                         k: v for k, v in dumped_config['image_config'].items() if k in valid_image_keys
                     }

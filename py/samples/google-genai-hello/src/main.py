@@ -45,28 +45,11 @@ Key features demonstrated in this sample:
 import argparse
 import asyncio
 import os
-import pathlib
-import sys
-
-# Allow running from source without setting PYTHONPATH
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent.parent / 'packages' / 'genkit' / 'src'))
-sys.path.append(
-    str(pathlib.Path(__file__).parent.parent.parent.parent / 'plugins' / 'google-genai' / 'src')
-)
-sys.path.append(
-    str(pathlib.Path(__file__).parent.parent.parent.parent / 'plugins' / 'google-cloud' / 'src')
-)
-# Add user site-packages where uv/pip likely installed dependencies
-sys.path.append('/Users/mengqin.shen/Library/Python/3.13/lib/python/site-packages')
-
-import os
-import sys
-from enum import Enum
+from enum import StrEnum
+from typing import Annotated
 
 import structlog
-
 from pydantic import BaseModel, Field
-from typing import Annotated
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
 from genkit.core.action import ActionRunContext
@@ -77,12 +60,10 @@ from genkit.plugins.google_genai import (
     GoogleAI,
 )
 from genkit.types import (
-    GenerateRequest,
     GenerationCommonConfig,
     Media,
     MediaPart,
     Message,
-    Part,
     Role,
     TextPart,
 )
@@ -213,9 +194,8 @@ async def say_hi(name: str):
     return resp.text
 
 
-
 @ai.flow()
-async def embed_docs(docs: Annotated[list[str], Field(default=[''], description='List of texts to embed')] = ['']):
+async def embed_docs(docs: Annotated[list[str], Field(default=[''], description='List of texts to embed')] = None):
     """Generate an embedding for the words in a list.
 
     Args:
@@ -224,6 +204,8 @@ async def embed_docs(docs: Annotated[list[str], Field(default=[''], description=
     Returns:
         The generated embedding.
     """
+    if docs is None:
+        docs = ['']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     return await ai.embed(
         embedder='googleai/text-embedding-004',
@@ -334,13 +316,7 @@ async def generate_character_unconstrained(name: str, ctx):
     return result.output
 
 
-
-
-
-
-
-
-class ThinkingLevel(str, Enum):
+class ThinkingLevel(StrEnum):
     LOW = 'LOW'
     HIGH = 'HIGH'
 
@@ -368,7 +344,7 @@ async def thinking_level_pro(level: ThinkingLevel):
     return response.text
 
 
-class ThinkingLevelFlash(str, Enum):
+class ThinkingLevelFlash(StrEnum):
     MINIMAL = 'MINIMAL'
     LOW = 'LOW'
     MEDIUM = 'MEDIUM'
@@ -439,9 +415,6 @@ async def file_search():
     return response.text
 
 
-
-
-
 @ai.flow()
 async def youtube_videos():
     """YouTube videos."""
@@ -492,8 +465,6 @@ async def tool_calling(location: Annotated[str, Field(default='Paris, France')])
 
 async def main() -> None:
     """Main function - keep alive for Dev UI."""
-    import asyncio
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()

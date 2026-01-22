@@ -16,10 +16,10 @@
 
 """Encoding/decoding functions."""
 
+import base64
 import json
 from collections.abc import Callable
 from typing import Any
-import base64
 
 from pydantic import BaseModel
 
@@ -61,7 +61,6 @@ def default_serializer(obj: Any) -> Any:
         except Exception:
             return '<bytes>'
     return str(obj)
-
 
 
 def dump_json(obj: Any, indent=None, fallback: Callable[[Any], Any] | None = None) -> str:

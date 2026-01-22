@@ -18,28 +18,19 @@
 
 import asyncio
 import base64
+import logging
 import os
 import pathlib
-import sys
+from typing import Any
 
-# Allow running from source without setting PYTHONPATH
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent.parent / 'packages' / 'genkit' / 'src'))
-sys.path.append(
-    str(pathlib.Path(__file__).parent.parent.parent.parent / 'plugins' / 'google-genai' / 'src')
-)
-sys.path.append(
-    str(pathlib.Path(__file__).parent.parent.parent.parent / 'plugins' / 'google-cloud' / 'src')
-)
-# Add user site-packages where uv/pip likely installed dependencies
-sys.path.append('/Users/mengqin.shen/Library/Python/3.13/lib/python/site-packages')
-
-from typing import Any, Annotated
+from google import genai
+from google.genai import types as genai_types
 
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import (
-    GoogleAI,
     GeminiConfigSchema,
     GeminiImageConfigSchema,
+    GoogleAI,
 )
 from genkit.types import (
     GenerationCommonConfig,
@@ -49,10 +40,6 @@ from genkit.types import (
     Role,
     TextPart,
 )
-from google import genai
-from google.genai import types as genai_types
-
-
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
@@ -130,7 +117,6 @@ async def generate_images(name: str, ctx):
     Returns:
         The generated response with a function.
     """
-
     result = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=f'tell me about {name} with photos',
@@ -246,14 +232,8 @@ async def photo_move_veo(_: Any, context: Any = None):
     # Use v1alpha for Veo
     client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
 
-    # Prompt construction
-    prompt_parts = [
-        genai_types.Part(text='make the subject in the photo move'),
-        genai_types.Part(inline_data=genai_types.Blob(mime_type='image/jpeg', data=base64.b64decode(encoded_image))),
-    ]
-
     if context:
-        context.send_chunk(f'Starting generation with veo-3.0-generate-001...')
+        context.send_chunk('Starting generation with veo-3.0-generate-001...')
 
     try:
         operation = await client.aio.models.generate_videos(
@@ -296,7 +276,7 @@ async def photo_move_veo(_: Any, context: Any = None):
         return operation
 
     except Exception as e:
-        raise ValueError(f'Flow failed: {e}')
+        raise ValueError(f'Flow failed: {e}') from e
 
 
 @ai.flow()
@@ -339,9 +319,6 @@ async def multimodal_input():
 
 async def main() -> None:
     """Main function."""
-    import asyncio
-
-    import logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info('Genkit server running. Press Ctrl+C to stop.')
