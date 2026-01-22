@@ -22,7 +22,7 @@ import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
-from genkit.ai._plugin import Plugin
+from genkit.core.plugin import Plugin
 from genkit.ai._registry import GenkitRegistry
 from genkit.core.action.types import ActionKind
 from mcp import ClientSession, StdioServerParameters
@@ -114,6 +114,7 @@ class McpClient(Plugin):
 
         # Reset exit stack for potential reuse (reconnect)
         self._exit_stack = AsyncExitStack()
+        self.session = None
 
     async def list_tools(self) -> list[Tool]:
         if not self.session:
@@ -124,14 +125,21 @@ class McpClient(Plugin):
     async def call_tool(self, tool_name: str, arguments: dict) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-        result: CallToolResult = await self.session.call_tool(tool_name, arguments)
-        # Process result similarly to JS SDK
-        if result.isError:
-            raise RuntimeError(f'Tool execution failed: {result.content}')
+        logger.debug(f'MCP {self.server_name}: calling tool {tool_name}')
+        try:
+             result: CallToolResult = await self.session.call_tool(tool_name, arguments)
+             logger.debug(f'MCP {self.server_name}: tool {tool_name} returned')
 
-        # Simple text extraction for now
-        texts = [c.text for c in result.content if c.type == 'text']
-        return {'content': ''.join(texts)}
+             # Process result similarly to JS SDK
+             if result.isError:
+                 raise RuntimeError(f'Tool execution failed: {result.content}')
+
+             # Simple text extraction for now
+             texts = [c.text for c in result.content if c.type == 'text']
+             return {'content': ''.join(texts)}
+        except Exception as e:
+             logger.error(f'MCP {self.server_name}: tool {tool_name} failed', error=str(e))
+             raise
 
     async def list_prompts(self) -> list[Prompt]:
         if not self.session:
@@ -177,6 +185,7 @@ class McpClient(Plugin):
                         if hasattr(args, 'model_dump'):
                             arguments = args.model_dump()
                         return await self.call_tool(tool_name, arguments or {})
+
                     return tool_wrapper
 
                 tool_wrapper = create_wrapper(tool.name)
