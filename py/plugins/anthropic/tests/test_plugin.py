@@ -16,7 +16,9 @@
 
 """Tests for Anthropic plugin."""
 
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import patch
+
+import pytest
 
 from genkit.core.registry import ActionKind
 from genkit.plugins.anthropic import Anthropic, anthropic_name
@@ -68,30 +70,27 @@ def test_custom_models():
     assert plugin.models == ['claude-sonnet-4']
 
 
-def test_plugin_initialize():
-    """Test plugin registry initialization."""
-    registry = MagicMock()
+@pytest.mark.asyncio
+async def test_plugin_init():
+    """Test plugin init method."""
     plugin = Anthropic(api_key='test-key', models=['claude-sonnet-4'])
 
-    plugin.initialize(registry)
-
-    assert registry.define_model.call_count == 1
-    registry.define_model.assert_called_once_with(
-        name='anthropic/claude-sonnet-4',
-        fn=ANY,
-        config_schema=ANY,
-        metadata=ANY,
-    )
+    # init() should return an empty list (using lazy loading)
+    result = await plugin.init()
+    assert result == []
 
 
-def test_resolve_action_model():
-    """Test resolve_action for model."""
-    registry = MagicMock()
+@pytest.mark.asyncio
+async def test_resolve_action_model():
+    """Test resolve method for model."""
     plugin = Anthropic(api_key='test-key')
 
-    plugin.resolve_action(registry, ActionKind.MODEL, 'claude-sonnet-4')
+    # Test resolving with unprefixed name
+    action = await plugin.resolve(ActionKind.MODEL, 'anthropic/claude-sonnet-4')
 
-    registry.define_model.assert_called_once()
+    assert action is not None
+    assert action.name == 'anthropic/claude-sonnet-4'
+    assert action.kind == ActionKind.MODEL
 
 
 def test_supported_models():

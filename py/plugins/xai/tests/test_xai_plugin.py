@@ -16,7 +16,9 @@
 
 """Tests for xAI plugin."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+import pytest
 
 from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
@@ -38,7 +40,7 @@ def test_init_without_api_key_raises():
     with patch.dict('os.environ', {}, clear=True):
         try:
             XAI()
-            assert False, 'Expected GenkitError'
+            raise AssertionError('Expected GenkitError')
         except GenkitError:
             pass
 
@@ -54,23 +56,25 @@ def test_custom_models():
     assert plugin.models == ['grok-3', 'grok-3-mini']
 
 
-def test_plugin_initialize():
-    registry = MagicMock()
+@pytest.mark.asyncio
+async def test_plugin_initialize():
     plugin = XAI(api_key='test-key')
-    plugin.initialize(registry)
-    assert registry.define_model.call_count == len(SUPPORTED_XAI_MODELS)
+    actions = await plugin.init()
+    assert len(actions) == len(SUPPORTED_XAI_MODELS)
 
 
-def test_resolve_action_model():
-    registry = MagicMock()
+@pytest.mark.asyncio
+async def test_resolve_action_model():
     plugin = XAI(api_key='test-key')
-    plugin.resolve_action(registry, ActionKind.MODEL, 'xai/grok-3')
-    registry.define_model.assert_called_once()
+    action = await plugin.resolve(ActionKind.MODEL, 'xai/grok-3')
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
+    assert action.name == 'xai/grok-3'
 
 
 def test_supported_models():
     assert len(SUPPORTED_XAI_MODELS) >= 4
-    for name, info in SUPPORTED_XAI_MODELS.items():
+    for _name, info in SUPPORTED_XAI_MODELS.items():
         assert info.label.startswith('xAI - ')
         assert len(info.versions) > 0
         assert info.supports.tools

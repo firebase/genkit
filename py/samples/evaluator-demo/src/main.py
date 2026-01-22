@@ -14,12 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import asyncio
 import random
 
-from eval_in_code import dog_facts_eval_flow
+import eval_in_code  # noqa: F401
+
+# Import flows so they get registered
+import pdf_rag  # noqa: F401
 from genkit_demo import ai
-from pdf_rag import index_pdf, pdf_qa, simple_echo, simple_structured
-from setup import setup
 
 from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
 
@@ -47,5 +49,13 @@ ai.define_evaluator(
     fn=random_eval,
 )
 
+
+async def main():
+    """Keep alive for Dev UI."""
+    print('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
+
+
 if __name__ == '__main__':
-    ai.run_main()
+    ai.run_main(main())

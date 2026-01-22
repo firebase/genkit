@@ -16,12 +16,11 @@
 from menu_ai import ai
 from menu_schemas import ReadMenuImagePromptSchema, TextMenuQuestionInputSchema
 
-from genkit.plugins.google_genai import googleai_name
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 s05_readMenuPrompt = ai.define_prompt(
     variant='s05_readMenu',
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=ReadMenuImagePromptSchema,
     config={'temperature': 0.1},
     prompt="""
@@ -34,7 +33,7 @@ from the following image of a restaurant menu.
 
 s05_textMenuPrompt = ai.define_prompt(
     variant='s05_textMenu',
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=TextMenuQuestionInputSchema,
     config={'temperature': 0.3},
     prompt="""

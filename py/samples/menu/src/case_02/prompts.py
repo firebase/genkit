@@ -16,12 +16,11 @@
 from menu_ai import ai
 from menu_schemas import MenuQuestionInputSchema
 
-from genkit.plugins.google_genai import googleai_name
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 s02_dataMenuPrompt = ai.define_prompt(
     variant='s02_dataMenu',
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=MenuQuestionInputSchema,
     tools=['todaysMenu'],
     prompt="""You are acting as a helpful AI assistant named Walt that can answer

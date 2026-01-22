@@ -16,7 +16,6 @@
 
 """Tests for xAI models."""
 
-import asyncio
 from unittest.mock import MagicMock
 
 import pytest

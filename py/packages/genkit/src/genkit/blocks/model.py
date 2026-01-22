@@ -453,10 +453,7 @@ def model_action_metadata(
 
 
 def model_ref(name: str, namespace: str | None = None, **options: Any) -> ModelReference:
-    """
-    The factory function equivalent to export function modelRef(...)
-    """
-
+    """The factory function equivalent to export function modelRef(...)."""
     # Logic: if (options.namespace && !name.startsWith(options.namespace + '/'))
     if namespace and not name.startswith(f'{namespace}/'):
         final_name = f'{namespace}/{name}'

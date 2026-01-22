@@ -19,15 +19,13 @@
 
 """MCP Server implementation for exposing Genkit actions via Model Context Protocol."""
 
-import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.resource import matches_uri_template
-from genkit.core.action._key import parse_action_key
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
 from genkit.core.schema import to_json_schema
@@ -92,7 +90,7 @@ class McpServer:
         """
         self.ai = ai
         self.options = options
-        self.server: Optional[Server] = None
+        self.server: Server | None = None
         self.actions_resolved = False
         self.tool_actions: list[Any] = []
         self.prompt_actions: list[Any] = []
@@ -155,10 +153,10 @@ class McpServer:
 
         # Also get actions from plugins that might not be in _entries yet
         # (though most plugins register them in _entries during initialization)
-        plugin_actions = self.ai.registry.list_actions()
-        for key in plugin_actions:
-            kind, name = parse_action_key(key)
-            action = self.ai.registry.lookup_action(kind, name)
+        plugin_action_metadata = await self.ai.registry.list_actions()
+        for action_meta in plugin_action_metadata:
+            kind, name = action_meta.kind, action_meta.name
+            action = await self.ai.registry.resolve_action(kind, name)
             if action:
                 if kind == ActionKind.TOOL and action not in self.tool_actions:
                     self.tool_actions.append(action)
@@ -178,7 +176,7 @@ class McpServer:
         self.actions_resolved = True
 
         logger.info(
-            f'MCP Server initialized',
+            'MCP Server initialized',
             tools=len(self.tool_actions),
             prompts=len(self.prompt_actions),
             resources=len(self.resource_actions),

@@ -131,9 +131,9 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
         ValueError: If the resource cannot be found.
     """
     resource = (
-        registry.lookup_action(ActionKind.RESOURCE, name)
-        or registry.lookup_action(ActionKind.RESOURCE, f'/resource/{name}')
-        or registry.lookup_action(ActionKind.RESOURCE, f'/dynamic-action-provider/{name}')
+        await registry.resolve_action(ActionKind.RESOURCE, name)
+        or await registry.resolve_action(ActionKind.RESOURCE, f'/resource/{name}')
+        or await registry.resolve_action(ActionKind.RESOURCE, f'/dynamic-action-provider/{name}')
     )
     if not resource:
         raise ValueError(f'Resource {name} not found')
@@ -380,7 +380,7 @@ async def find_matching_resource(
                 return action
 
     # Try exact match in registry
-    resource = registry.lookup_action(ActionKind.RESOURCE, input_data.uri)
+    resource = await registry.resolve_action(ActionKind.RESOURCE, input_data.uri)
     if resource:
         return resource
 

@@ -14,14 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Message utilities for MCP plugin.
+"""Message utilities for MCP plugin.
 
 This module contains helper functions for converting between MCP message
 formats and Genkit message formats.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
@@ -37,9 +36,8 @@ ROLE_MAP = {
 }
 
 
-def from_mcp_prompt_message(message: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convert MCP PromptMessage to Genkit MessageData format.
+def from_mcp_prompt_message(message: dict[str, Any]) -> dict[str, Any]:
+    """Convert MCP PromptMessage to Genkit MessageData format.
 
     This involves mapping MCP roles (user, assistant) to Genkit roles (user, model)
     and transforming the MCP content part into a Genkit Part.
@@ -56,9 +54,8 @@ def from_mcp_prompt_message(message: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def from_mcp_part(part: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convert MCP message content part to Genkit Part.
+def from_mcp_part(part: dict[str, Any]) -> dict[str, Any]:
+    """Convert MCP message content part to Genkit Part.
 
     Handles different content types:
     - Text parts are directly mapped
@@ -97,7 +94,7 @@ def from_mcp_part(part: Dict[str, Any]) -> Dict[str, Any]:
     return {}
 
 
-def _get_part_data(part: Any) -> Dict[str, Any]:
+def _get_part_data(part: Any) -> dict[str, Any]:
     """Extract data from a Part, handling potential 'root' nesting."""
     if isinstance(part, str):
         return {'text': part}
@@ -107,7 +104,7 @@ def _get_part_data(part: Any) -> Dict[str, Any]:
     return part_dict
 
 
-def _parse_media_part(media: Dict[str, Any]) -> ImageContent:
+def _parse_media_part(media: dict[str, Any]) -> ImageContent:
     """Extract MIME type and base64 data from a media part."""
     url = media.get('url', '')
     content_type = media.get('contentType', '')

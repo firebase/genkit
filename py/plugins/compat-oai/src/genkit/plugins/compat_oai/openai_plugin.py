@@ -17,20 +17,20 @@
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
 
-from functools import cached_property
-from typing import Any, Callable
+from typing import Any
 
 from openai import OpenAI as OpenAIClient
-from openai.types import Embedding, Model
+from openai.types import Model
 
-from genkit.ai._plugin import Plugin
-from genkit.ai._registry import GenkitRegistry
+from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
-from genkit.core.action import ActionMetadata
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import GenerationCommonConfig
 from genkit.plugins.compat_oai.models import (
+    SUPPORTED_EMBEDDING_MODELS,
     SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
     OpenAIModel,
@@ -38,16 +38,17 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
 def open_ai_name(name: str) -> str:
-    """Create a OpenAi-Compat action name.
+    """Create an OpenAI action name.
 
     Args:
         name: Base name for the action.
 
     Returns:
-        The fully qualified OpenAi-Compat action name.
+        The fully qualified OpenAI action name.
     """
     return f'openai/{name}'
 
@@ -65,7 +66,7 @@ class OpenAI(Plugin):
     interaction with supported OpenAI models.
     """
 
-    name = 'openai-compat'
+    name = 'openai'
 
     def __init__(self, **openai_params: str) -> None:
         """Initializes the OpenAI plugin with the specified parameters.
@@ -78,26 +79,23 @@ class OpenAI(Plugin):
         self._openai_params = openai_params
         self._openai_client = OpenAIClient(**openai_params)
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Registers supported OpenAI models in the given registry.
+    async def init(self) -> list:
+        """Initialize plugin.
 
-        Args:
-            ai: The registry where OpenAI models will be registered.
+        Returns:
+            Actions for built-in OpenAI models and embedders.
         """
-        for model_name, model_info in SUPPORTED_OPENAI_MODELS.items():
-            handler = OpenAIModelHandler.get_model_handler(model=model_name, client=self._openai_client, registry=ai)
+        actions = []
 
-            ai.define_model(
-                name=f'openai/{model_name}',
-                fn=handler,
-                config_schema=OpenAIConfig,
-                metadata={
-                    'model': {
-                        'label': model_info.label,
-                        'supports': {'multiturn': model_info.supports.multiturn} if model_info.supports else {},
-                    },
-                },
-            )
+        # Add known models
+        for name in SUPPORTED_OPENAI_MODELS.keys():
+            actions.append(self._create_model_action(open_ai_name(name)))
+
+        # Add known embedders
+        for name in SUPPORTED_EMBEDDING_MODELS.keys():
+            actions.append(self._create_embedder_action(open_ai_name(name)))
+
+        return actions
 
     def get_model_info(self, name: str) -> dict[str, str] | None:
         """Retrieves metadata and supported features for the specified model.
@@ -111,7 +109,6 @@ class OpenAI(Plugin):
             is provided). The 'supports' key contains a dictionary representing
             the model's capabilities (e.g., tools, streaming).
         """
-
         if model_supported := SUPPORTED_OPENAI_MODELS.get(name):
             return {
                 'label': model_supported.label,
@@ -124,53 +121,102 @@ class OpenAI(Plugin):
             'supports': model_info.supports.model_dump(exclude_none=True),
         }
 
-    def resolve_action(  # noqa: B027
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        if kind is not ActionKind.MODEL:
-            return None
-
-        self._define_openai_model(ai, name)
-        return None
-
-    def to_openai_compatible_model(self, name: str, ai: GenkitRegistry) -> Callable:
-        """Converts a OpenAi model into an OpenAI-compatible Genkit model function.
-
-        Returns:
-            A callable function (specifically, the `generate` method of an
-            `OpenAIModel` instance) that can be used by Genkit.
-        """
-
-        openai_model = OpenAIModelHandler(OpenAIModel(name, self._openai_client, ai))
-        return openai_model.generate
-
-    def _define_openai_model(self, ai: GenkitRegistry, name: str) -> None:
-        """Defines and registers an OpenAI model with Genkit.
-
-        Cleans the model name, instantiates an OpenAI, and registers it
-        with the provided Genkit AI registry, including metadata about its capabilities.
+    async def resolve(self, action_type: ActionKind, name: str):
+        """Resolve an action by creating and returning an Action object.
 
         Args:
-            ai: The Genkit AI registry instance.
-            name: The name of the model to be registered.
-        """
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
 
-        handler = self.to_openai_compatible_model(name, ai)
-        model_info = self.get_model_info(name)
-        ai.define_model(
-            name=open_ai_name(name),
-            fn=handler,
-            config_schema=OpenAIConfig,
+        Returns:
+            Action object if found, None otherwise.
+        """
+        if action_type == ActionKind.MODEL:
+            return self._create_model_action(name)
+        elif action_type == ActionKind.EMBEDDER:
+            return self._create_embedder_action(name)
+
+        return None
+
+    def _create_model_action(self, name: str):
+        """Create an Action object for an OpenAI model.
+
+        Args:
+            name: The namespaced name of the model.
+
+        Returns:
+            Action object for the model.
+        """
+        # Extract local name (remove plugin prefix)
+        clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
+
+        # Create the model handler
+        openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._openai_client))
+        model_info = self.get_model_info(clean_name)
+
+        return Action(
+            kind=ActionKind.MODEL,
+            name=name,
+            fn=openai_model.generate,
             metadata={
-                'model': model_info,
+                'model': {
+                    **model_info,
+                    'customOptions': to_json_schema(OpenAIConfig),
+                },
             },
         )
 
-    @cached_property
-    def list_actions(self) -> list[ActionMetadata]:
+    def _create_embedder_action(self, name: str):
+        """Create an Action object for an OpenAI embedder.
+
+        Args:
+            name: The namespaced name of the embedder.
+
+        Returns:
+            Action object for the embedder.
+        """
+        # Extract local name (remove plugin prefix)
+        clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
+
+        # Get embedder info from known models or use default
+        embedder_info = SUPPORTED_EMBEDDING_MODELS.get(
+            clean_name,
+            {
+                'label': f'OpenAI Embedding - {clean_name}',
+                'dimensions': 1536,
+                'supports': {'input': ['text']},
+            },
+        )
+
+        async def embed_fn(request: EmbedRequest) -> EmbedResponse:
+            """Embedder function that calls OpenAI embeddings API."""
+            # Create embeddings for each document
+            response = self._openai_client.embeddings.create(
+                model=clean_name,
+                input=[doc.text() for doc in request.input],
+                dimensions=request.options.get('dimensions') if request.options else None,
+                encoding_format=request.options.get('encodingFormat') if request.options else None,
+            )
+
+            # Convert OpenAI response to Genkit format
+            embeddings = [Embedding(embedding=item.embedding) for item in response.data]
+            return EmbedResponse(embeddings=embeddings)
+
+        return Action(
+            kind=ActionKind.EMBEDDER,
+            name=name,
+            fn=embed_fn,
+            metadata=embedder_action_metadata(
+                name=name,
+                options=EmbedderOptions(
+                    label=embedder_info['label'],
+                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                    dimensions=embedder_info.get('dimensions'),
+                ),
+            ).metadata,
+        )
+
+    async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
@@ -180,7 +226,6 @@ class OpenAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
-
         actions = []
         models_ = self._openai_client.models.list()
         models: list[Model] = models_.data

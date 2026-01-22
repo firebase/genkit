@@ -94,8 +94,8 @@ async def say_hi(name: str) -> str:
         The response from the OpenAI API.
     """
     response = await ai.generate(
-        model=openai_model('gpt-4'),
-        config={'model': 'gpt-4-0613', 'temperature': 1},
+        model=openai_model('gpt-4o'),
+        config={'temperature': 1},
         prompt=f'hi {name}',
     )
     return response.message.content[0].root.text
@@ -212,7 +212,7 @@ async def get_weather_flow_stream(location: str) -> str:
 
 
 class Skills(BaseModel):
-    """A set of core character skills for an RPG character"""
+    """A set of core character skills for an RPG character."""
 
     strength: int = Field(description='strength (0-100)')
     charisma: int = Field(description='charisma (0-100)')
@@ -317,19 +317,12 @@ async def generate_character(name: str, ctx: ActionRunContext):
 
 
 async def main() -> None:
-    """Main entry point for the OpenAI sample."""
-    await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
+    """Main entry point for the OpenAI sample - keep alive for Dev UI."""
+    import asyncio
 
-    await logger.ainfo(await say_hi('John Doe'))
-    await logger.ainfo(await say_hi_constrained('John Doe'))
-    await logger.ainfo(await say_hi_stream('John Doe'))
-
-    await logger.ainfo(await calculate_gablorken(33))
-    await logger.ainfo(await get_weather_flow('London and Paris'))
-    await logger.ainfo(await get_weather_flow_stream('London and Paris'))
-
-    await logger.ainfo(await generate_character('LunaDoodle', lambda x: x))
-    await logger.ainfo(await generate_character('NoodleMan'))
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

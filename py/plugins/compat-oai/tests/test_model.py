@@ -14,13 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models import OpenAIModel
-from genkit.plugins.compat_oai.models.model_info import GPT_4
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
     GenerateResponse,
@@ -37,7 +36,7 @@ def test_get_messages(sample_request):
 
     Ensures the method correctly converts GenerateRequest messages into OpenAI-compatible ChatMessage format.
     """
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
+    model = OpenAIModel(model='gpt-4', client=MagicMock())
     messages = model._get_messages(sample_request.messages)
 
     assert len(messages) == 2
@@ -47,21 +46,23 @@ def test_get_messages(sample_request):
     assert messages[1]['content'] == 'Hello, world!'
 
 
-def test_get_openai_config(sample_request):
+@pytest.mark.asyncio
+async def test_get_openai_config(sample_request):
     """Test _get_openai_request_config method.
 
     Ensures the method correctly constructs the OpenAI API configuration dictionary.
     """
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
-    openai_config = model._get_openai_request_config(sample_request)
+    model = OpenAIModel(model='gpt-4', client=MagicMock())
+    openai_config = await model._get_openai_request_config(sample_request)
 
     assert isinstance(openai_config, dict)
-    assert openai_config['model'] == GPT_4
+    assert openai_config['model'] == 'gpt-4'
     assert 'messages' in openai_config
     assert isinstance(openai_config['messages'], list)
 
 
-def test__generate(sample_request):
+@pytest.mark.asyncio
+async def test__generate(sample_request):
     """Test generate method calls OpenAI API and returns GenerateResponse."""
     mock_message = MagicMock()
     mock_message.content = 'Hello, user!'
@@ -73,8 +74,8 @@ def test__generate(sample_request):
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = mock_response
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
-    response = model._generate(sample_request)
+    model = OpenAIModel(model='gpt-4', client=mock_client)
+    response = await model._generate(sample_request)
 
     mock_client.chat.completions.create.assert_called_once()
     assert isinstance(response, GenerateResponse)
@@ -82,7 +83,8 @@ def test__generate(sample_request):
     assert response.message.content[0].root.text == 'Hello, user!'
 
 
-def test__generate_stream(sample_request):
+@pytest.mark.asyncio
+async def test__generate_stream(sample_request):
     """Test generate_stream method ensures it processes streamed responses correctly."""
     mock_client = MagicMock()
 
@@ -113,13 +115,13 @@ def test__generate_stream(sample_request):
 
     mock_client.chat.completions.create.return_value = MockStream(['Hello', ', world!'])
 
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
 
     def callback(chunk: GenerateResponseChunk):
         collected_chunks.append(chunk.content[0].root.text)
 
-    model._generate_stream(sample_request, callback)
+    await model._generate_stream(sample_request, callback)
 
     assert collected_chunks == ['Hello', ', world!']
 
@@ -131,18 +133,19 @@ def test__generate_stream(sample_request):
         False,
     ],
 )
-def test_generate(stream, sample_request):
+@pytest.mark.asyncio
+async def test_generate(stream, sample_request):
     """Tests for generate."""
     ctx_mock = MagicMock(spec=ActionRunContext)
     ctx_mock.is_streaming = stream
 
     mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='mocked')]))
 
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
-    model._generate_stream = MagicMock(return_value=mock_response)
-    model._generate = MagicMock(return_value=mock_response)
+    model = OpenAIModel(model='gpt-4', client=MagicMock())
+    model._generate_stream = AsyncMock(return_value=mock_response)
+    model._generate = AsyncMock(return_value=mock_response)
     model.normalize_config = MagicMock(return_value={})
-    response = model.generate(sample_request, ctx_mock)
+    response = await model.generate(sample_request, ctx_mock)
 
     assert response == mock_response
     if stream:

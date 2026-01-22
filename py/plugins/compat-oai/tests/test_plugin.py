@@ -14,69 +14,55 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from openai.types import Model
 
-from genkit.ai._aio import Genkit
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
-from genkit.plugins.compat_oai import OpenAIConfig
-from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 
 
-def test_openai_plugin_initialize() -> None:
-    """Test OpenAI plugin registry initialization."""
-    registry = MagicMock(spec=Genkit)
+@pytest.mark.asyncio
+async def test_openai_plugin_init() -> None:
+    """Test OpenAI plugin init method."""
     plugin = OpenAI(api_key='test-key')
 
-    with patch('genkit.plugins.compat_oai.models.OpenAIModelHandler.get_model_handler') as mock_get_handler:
-        mock_handler = MagicMock()
-        mock_get_handler.return_value = mock_handler
+    # init() should return known models and embedders
+    result = await plugin.init()
+    assert len(result) > 0, 'Should initialize with known models and embedders'
+    assert all(hasattr(action, 'kind') for action in result), 'All actions should have a kind'
+    assert all(hasattr(action, 'name') for action in result), 'All actions should have a name'
+    assert all(action.name.startswith('openai/') for action in result), (
+        "All actions should be namespaced with 'openai/'"
+    )
 
-        plugin.initialize(registry)
-
-        assert mock_get_handler.call_count == len(SUPPORTED_OPENAI_MODELS)
-        assert registry.define_model.call_count == len(SUPPORTED_OPENAI_MODELS)
+    # Verify we have both models and embedders
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
+    assert len(model_actions) > 0, 'Should have at least one model'
+    assert len(embedder_actions) > 0, 'Should have at least one embedder'
 
 
 @pytest.mark.parametrize(
     'kind, name',
     [(ActionKind.MODEL, 'gpt-3.5-turbo')],
 )
-def test_openai_plugin_resolve_action(kind, name):
-    """Unit Tests for resolve action method."""
+@pytest.mark.asyncio
+async def test_openai_plugin_resolve_action(kind, name):
+    """Unit Tests for resolve method."""
     plugin = OpenAI(api_key='test-key')
-    registry = MagicMock(spec=Genkit)
-    plugin.resolve_action(registry, kind, name)
 
-    model_info = SUPPORTED_OPENAI_MODELS[name]
+    action = await plugin.resolve(kind, f'openai/{name}')
 
-    registry.define_model.assert_called_once_with(
-        name=f'openai/{name}',
-        fn=ANY,
-        config_schema=OpenAIConfig,
-        metadata={
-            'model': {
-                'label': model_info.label,
-                'supports': {
-                    'media': False,
-                    'multiturn': True,
-                    'output': [
-                        'json_mode',
-                        'text',
-                    ],
-                    'system_role': True,
-                    'tools': True,
-                },
-            },
-        },
-    )
+    assert action is not None
+    assert action.name == f'openai/{name}'
+    assert action.kind == ActionKind.MODEL
 
 
-def test_openai_plugin_list_actions() -> None:
+@pytest.mark.asyncio
+async def test_openai_plugin_list_actions() -> None:
     entries = [
         Model(id='gpt-4-0613', created=1686588896, object='model', owned_by='openai'),
         Model(id='gpt-4', created=1687882411, object='model', owned_by='openai'),
@@ -94,10 +80,11 @@ def test_openai_plugin_list_actions() -> None:
 
     plugin._openai_client = mock_client
 
-    actions: list[ActionMetadata] = plugin.list_actions
+    actions: list[ActionMetadata] = await plugin.list_actions()
     mock_client.models.list.assert_called_once()
-    _ = plugin.list_actions
-    mock_client.models.list.assert_called_once()
+    _ = await plugin.list_actions()
+    # Should be called twice now since it's not cached anymore
+    assert mock_client.models.list.call_count == 2
 
     assert len(actions) == len(entries)
     assert actions[0].name == 'openai/gpt-4-0613'
@@ -108,14 +95,15 @@ def test_openai_plugin_list_actions() -> None:
     'kind, name',
     [(ActionKind.MODEL, 'model_doesnt_exist')],
 )
-def test_openai_plugin_resolve_action_not_found(kind, name):
-    """Unit Tests for resolve action method."""
-
+@pytest.mark.asyncio
+async def test_openai_plugin_resolve_action_not_found(kind, name):
+    """Unit Tests for resolve method with non-existent model."""
     plugin = OpenAI(api_key='test-key')
-    registry = MagicMock(spec=Genkit)
-    plugin.resolve_action(registry, kind, name)
+    action = await plugin.resolve(kind, f'openai/{name}')
 
-    registry.define_model.assert_called_once()
+    # Should still return an action even for unknown models
+    assert action is not None
+    assert action.name == f'openai/{name}'
 
 
 def test_openai_model_function() -> None:

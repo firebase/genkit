@@ -17,13 +17,13 @@
 """DeepSeek Plugin for Genkit."""
 
 import os
-from functools import cached_property
 
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
-from genkit.core.action import ActionMetadata
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
+from genkit.core.schema import to_json_schema
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.deepseek.model_info import SUPPORTED_DEEPSEEK_MODELS
 from genkit.plugins.deepseek.models import DEEPSEEK_PLUGIN_NAME, DeepSeekModel, deepseek_name
@@ -64,65 +64,64 @@ class DeepSeek(Plugin):
         self.models = models
         self.deepseek_params = deepseek_params
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize the plugin by registering specified models.
+    async def init(self) -> list:
+        """Initialize the plugin.
+
+        Returns:
+            Empty list (using lazy loading via resolve).
+        """
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str):
+        """Resolve an action by creating and returning an Action object.
 
         Args:
-            ai: The Genkit registry where models will be registered.
+            action_type: The kind of action to resolve.
+            name: The namespaced name of the action to resolve.
+
+        Returns:
+            Action object if found, None otherwise.
         """
-        models = self.models
-        if models is None:
-            models = list(SUPPORTED_DEEPSEEK_MODELS.keys())
+        if action_type != ActionKind.MODEL:
+            return None
 
-        for model in models:
-            deepseek_model = DeepSeekModel(
-                model=model,
-                api_key=self.api_key,
-                registry=ai,
-                **self.deepseek_params,
-            )
-            deepseek_model.define_model()
+        return self._create_model_action(name)
 
-    def resolve_action(
-        self,
-        ai: GenkitRegistry,
-        kind: ActionKind,
-        name: str,
-    ) -> None:
-        """Resolve and register an action dynamically.
+    def _create_model_action(self, name: str):
+        """Create an Action object for a DeepSeek model.
 
         Args:
-            ai: The Genkit registry.
-            kind: The kind of action to resolve.
-            name: The name of the action to resolve.
+            name: The namespaced name of the model.
+
+        Returns:
+            Action object for the model.
         """
-        if kind == ActionKind.MODEL:
-            self._resolve_model(ai=ai, name=name)
-
-    def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
-        """Resolve and define a DeepSeek model within the Genkit registry.
-
-        This internal method handles the logic for registering DeepSeek models
-        dynamically based on the provided name. It extracts a clean name,
-        instantiates the DeepSeek class, and registers it with the registry.
-
-        Args:
-            ai: The Genkit AI registry instance to define the model in.
-            name: The name of the model to resolve. This name might include a
-                prefix indicating it's from the DeepSeek plugin.
-        """
+        # Extract local name (remove plugin prefix)
         clean_name = name.replace(DEEPSEEK_PLUGIN_NAME + '/', '') if name.startswith(DEEPSEEK_PLUGIN_NAME) else name
 
+        # Create the DeepSeek model instance
         deepseek_model = DeepSeekModel(
             model=clean_name,
             api_key=self.api_key,
-            registry=ai,
             **self.deepseek_params,
         )
-        deepseek_model.define_model()
 
-    @cached_property
-    def list_actions(self) -> list[ActionMetadata]:
+        model_info = deepseek_model.get_model_info()
+        generate_fn = deepseek_model.to_deepseek_model()
+
+        return Action(
+            kind=ActionKind.MODEL,
+            name=name,
+            fn=generate_fn,
+            metadata={
+                'model': {
+                    **model_info,
+                    'customOptions': to_json_schema(OpenAIConfig),
+                },
+            },
+        )
+
+    async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available DeepSeek models.
 
         Returns:

@@ -16,7 +16,6 @@
 
 """This sample demonstrates how to use Gemini to describe and draw images."""
 
-import asyncio
 import base64
 import os
 from io import BytesIO
@@ -24,7 +23,7 @@ from io import BytesIO
 from PIL import Image
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleAI, googleai_name
+from genkit.plugins.google_genai import GoogleAI
 from genkit.types import Media, MediaPart, Message, Role, TextPart
 
 ai = Genkit(plugins=[GoogleAI()])
@@ -46,7 +45,7 @@ async def draw_image_with_gemini(prompt: str = '') -> str:
     return await ai.generate(
         prompt=prompt,
         config={'response_modalities': ['Text', 'Image']},
-        model=googleai_name('gemini-2.5-flash-image'),
+        model='googleai/gemini-2.5-flash-image',
     )
 
 
@@ -84,7 +83,7 @@ async def describe_image_with_gemini(data: str = '') -> str:
                 ],
             ),
         ],
-        model=googleai_name('gemini-3-flash-preview'),
+        model='googleai/gemini-3-flash-preview',
     )
     return result.text
 

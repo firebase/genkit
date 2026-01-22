@@ -28,10 +28,9 @@ import unittest
 from unittest.mock import patch
 
 from genkit.ai import Genkit
-from genkit.core.action.types import ActionKind
 
 # Now import plugin
-from genkit.plugins.mcp import McpClient, McpHost, McpServerConfig, create_mcp_host
+from genkit.plugins.mcp import McpServerConfig, create_mcp_host
 
 
 class TestMcpHost(unittest.IsolatedAsyncioTestCase):

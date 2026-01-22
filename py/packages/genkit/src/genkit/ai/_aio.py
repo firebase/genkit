@@ -43,9 +43,9 @@ from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_a
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
+from genkit.core.plugin import Plugin
 from genkit.core.typing import (
     BaseDataPoint,
-    BaseEvalDataPoint,
     EmbedRequest,
     EmbedResponse,
     EvalRequest,
@@ -61,8 +61,7 @@ from genkit.types import (
     ToolChoice,
 )
 
-from ._base import GenkitBase
-from ._plugin import Plugin
+from ._base_async import GenkitBase
 from ._server import ServerSpec
 
 
@@ -328,7 +327,7 @@ class Genkit(GenkitBase):
         Args:
             retriever: Optional retriever name or reference to use.
             query: Text query or a DocumentData containing query text.
-            options: retriever options
+            options: Optional retriever-specific options.
 
         Returns:
             The generated response with documents.
@@ -349,11 +348,20 @@ class Genkit(GenkitBase):
         if isinstance(query, str):
             query = Document.from_text(query)
 
-        final_options = {**(retriever_config or {}), **(options or {})}
+        request_options = {**(retriever_config or {}), **(options or {})}
 
-        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever_name)
+        retrieve_action = await self.registry.resolve_action(ActionKind.RETRIEVER, retriever_name)
+        if retrieve_action is None:
+            raise ValueError(f'Retriever "{retriever_name}" not found')
 
-        return (await retrieve_action.arun(RetrieverRequest(query=query, options=final_options))).response
+        return (
+            await retrieve_action.arun(
+                RetrieverRequest(
+                    query=query,
+                    options=request_options if request_options else None,
+                )
+            )
+        ).response
 
     async def index(
         self,
@@ -366,7 +374,7 @@ class Genkit(GenkitBase):
         Args:
             indexer: Optional indexer name or reference to use.
             documents: Documents to index.
-            options: indexer options
+            options: Optional indexer-specific options.
         """
         indexer_name: str
         indexer_config: dict[str, Any] = {}
@@ -381,11 +389,18 @@ class Genkit(GenkitBase):
         else:
             raise ValueError('Indexer must be specified as a string name or an IndexerRef.')
 
-        final_options = {**(indexer_config or {}), **(options or {})}
+        req_options = {**(indexer_config or {}), **(options or {})}
 
-        index_action = self.registry.lookup_action(ActionKind.INDEXER, indexer_name)
+        index_action = await self.registry.resolve_action(ActionKind.INDEXER, indexer_name)
+        if index_action is None:
+            raise ValueError(f'Indexer "{indexer_name}" not found')
 
-        await index_action.arun(IndexerRequest(documents=documents, options=final_options))
+        await index_action.arun(
+            IndexerRequest(
+                documents=documents,
+                options=req_options if req_options else None,
+            )
+        )
 
     async def embed(
         self,
@@ -410,7 +425,9 @@ class Genkit(GenkitBase):
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}
 
-        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder_name)
+        embed_action = await self.registry.resolve_action(ActionKind.EMBEDDER, embedder_name)
+        if embed_action is None:
+            raise ValueError(f'Embedder "{embedder_name}" not found')
 
         return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
 
@@ -445,7 +462,9 @@ class Genkit(GenkitBase):
 
         final_options = {**(evaluator_config or {}), **(options or {})}
 
-        eval_action = self.registry.lookup_action(ActionKind.EVALUATOR, evaluator_name)
+        eval_action = await self.registry.resolve_action(ActionKind.EVALUATOR, evaluator_name)
+        if eval_action is None:
+            raise ValueError(f'Evaluator "{evaluator_name}" not found')
 
         if not eval_run_id:
             eval_run_id = str(uuid.uuid4())

@@ -33,7 +33,7 @@ from genkit.blocks.resource import ResourceInput, find_matching_resource, resolv
 from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
-from genkit.core.error import GenkitError, StatusName
+from genkit.core.error import GenkitError
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
     DocumentData,
@@ -100,7 +100,7 @@ async def generate_action(
     Returns:
         The generated response.
     """
-    model, tools, format_def = resolve_parameters(registry, raw_request)
+    model, tools, format_def = await resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
 
@@ -556,7 +556,7 @@ def assert_valid_tool_names(raw_request: GenerateActionOptions):
     pass
 
 
-def resolve_parameters(
+async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
 ) -> tuple[Action, list[Action], FormatDef | None]:
     """Resolve parameters for the generate action.
@@ -573,14 +573,14 @@ def resolve_parameters(
     if not model:
         raise Exception('No model configured.')
 
-    model_action = registry.lookup_action(ActionKind.MODEL, model)
+    model_action = await registry.resolve_action(ActionKind.MODEL, model)
     if model_action is None:
         raise Exception(f'Failed to to resolve model {model}')
 
     tools: list[Action] = []
     if request.tools:
         for tool_name in request.tools:
-            tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
+            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
                 raise Exception(f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
@@ -634,23 +634,17 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
 
     Returns:
         The converted tool definition.
+
+    Note:
+        Tool names may contain '/' characters (e.g., 'plugin/action').
+        The full name is preserved here; model plugins are responsible for
+        escaping names if the provider API doesn't support certain characters.
     """
-    original_name: str = tool.name
-    name: str = original_name
-
-    if '/' in original_name:
-        name = original_name[original_name.rfind('/') + 1 :]
-
-    metadata = None
-    if original_name != name:
-        metadata = {'originalName': original_name}
-
     tdef = ToolDefinition(
-        name=name,
+        name=tool.name,
         description=tool.description,
         inputSchema=tool.input_schema,
         outputSchema=tool.output_schema,
-        metadata=metadata,
     )
     return tdef
 
@@ -672,7 +666,7 @@ async def resolve_tool_requests(
     # TODO: prompt transfer
     tool_dict: dict[str, Action] = {}
     for tool_name in request.tools:
-        tool_dict[tool_name] = resolve_tool(registry, tool_name)
+        tool_dict[tool_name] = await resolve_tool(registry, tool_name)
 
     revised_model_message = message._original_message.model_copy(deep=True)
 
@@ -781,7 +775,7 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-def resolve_tool(registry: Registry, tool_name: str):
+async def resolve_tool(registry: Registry, tool_name: str):
     """Resolve a tool by name from the registry.
 
     Args:
@@ -794,7 +788,7 @@ def resolve_tool(registry: Registry, tool_name: str):
     Raises:
         ValueError: If the tool could not be resolved.
     """
-    return registry.lookup_action(kind=ActionKind.TOOL, name=tool_name)
+    return await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
 
 
 async def _resolve_resume_options(

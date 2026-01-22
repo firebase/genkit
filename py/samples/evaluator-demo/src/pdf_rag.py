@@ -38,7 +38,7 @@ async def pdf_qa(query: str) -> str:
     docs = await ai.retrieve(
         retriever=pdf_chat_retriever,
         query=query,
-        options={'k': 3},
+        options={'limit': 3},
     )
 
     # Fake response to simulate malicious output

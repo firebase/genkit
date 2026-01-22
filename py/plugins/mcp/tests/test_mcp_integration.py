@@ -16,7 +16,6 @@
 
 """Integration tests for MCP client-server communication."""
 
-import asyncio
 import os
 import sys
 import unittest
@@ -31,7 +30,7 @@ mock_mcp_modules()
 import pytest
 
 from genkit.ai import Genkit
-from genkit.plugins.mcp import McpClient, McpHost, McpServerConfig, create_mcp_host, create_mcp_server
+from genkit.plugins.mcp import McpClient, McpServerConfig, create_mcp_host, create_mcp_server
 
 
 @pytest.mark.asyncio

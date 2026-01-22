@@ -24,9 +24,10 @@ of these resources during runtime.
 Example:
     >>> registry = Registry()
     >>> registry.register_action('<action kind>', 'my_action', ...)
-    >>> action = registry.lookup_action('<action kind>', 'my_action')
+    >>> action = await registry.resolve_action('<action kind>', 'my_action')
 """
 
+import asyncio
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -37,11 +38,10 @@ from dotpromptz.dotprompt import Dotprompt
 from genkit.core.action import (
     Action,
     ActionMetadata,
-    create_action_key,
     parse_action_key,
-    parse_plugin_name_from_action_name,
 )
-from genkit.core.action.types import ActionKind, ActionName, ActionResolver
+from genkit.core.action.types import ActionKind, ActionName
+from genkit.core.plugin import Plugin
 
 logger = structlog.get_logger(__name__)
 
@@ -80,8 +80,6 @@ class Registry:
 
     def __init__(self):
         """Initialize an empty Registry instance."""
-        self._action_resolvers: dict[str, ActionResolver] = {}
-        self._list_actions_resolvers: dict[str, Callable] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
         self._schemas_by_name: dict[str, dict[str, Any]] = {}
@@ -92,35 +90,18 @@ class Registry:
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
-    def register_action_resolver(self, plugin_name: str, resolver: ActionResolver) -> None:
-        """Registers an ActionResolver function for a given plugin.
-
-        Args:
-            plugin_name: The name of the plugin.
-            resolver: The ActionResolver instance to register.
-
-        Raises:
-            ValueError: If a resolver is already registered for the plugin.
-        """
-        with self._lock:
-            if plugin_name in self._action_resolvers:
-                raise ValueError(f'Plugin {plugin_name} already registered')
-            self._action_resolvers[plugin_name] = resolver
-
-    def register_list_actions_resolver(self, plugin_name: str, resolver: Callable) -> None:
-        """Registers an Callable function to list available actions or models.
-
-        Args:
-            plugin_name: The name of the plugin.
-            resolver: The Callable function to list models.
-
-        Raises:
-            ValueError: If a resolver is already registered for the plugin.
-        """
-        with self._lock:
-            if plugin_name in self._list_actions_resolvers:
-                raise ValueError(f'Plugin {plugin_name} already registered')
-            self._list_actions_resolvers[plugin_name] = resolver
+        # Plugin infrastructure
+        #
+        # Notes on concurrency:
+        # - Registry state is protected by the thread lock (`_lock`) because the dev
+        #   reflection server runs in a separate OS thread and inspects the same
+        #   registry instance.
+        # - Plugin initialization is lazy and "init-once" via an in-flight task
+        #   cache (`_plugin_init_tasks`). This assumes a single asyncio event loop
+        #   drives plugin initialization for a given registry instance. (The dev
+        #   reflection server schedules coroutines onto that loop.)
+        self._plugins: dict[str, Plugin] = {}
+        self._plugin_init_tasks: dict[str, asyncio.Task[None]] = {}
 
     def register_action(
         self,
@@ -167,8 +148,10 @@ class Registry:
 
     def register_action_from_instance(self, action: Action) -> None:
         """Register an existing Action instance.
+
         Allows registering a pre-configured Action object, such as one created via
         `dynamic_resource` or other factory methods.
+
         Args:
            action: The action instance to register.
         """
@@ -176,53 +159,6 @@ class Registry:
             if action.kind not in self._entries:
                 self._entries[action.kind] = {}
             self._entries[action.kind][action.name] = action
-
-    def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
-        """Look up an action by its kind and name.
-
-        Args:
-            kind: The type of action to look up.
-            name: The name of the action to look up.
-
-        Returns:
-            The Action instance if found, None otherwise.
-        """
-        with self._lock:
-            # If the entry does not exist, we fist try to call the action
-            # resolver for the plugin to give it a chance to dynamically add the
-            # action.
-            if kind not in self._entries or name not in self._entries[kind]:
-                plugin_name = parse_plugin_name_from_action_name(name)
-                if plugin_name and plugin_name in self._action_resolvers:
-                    self._action_resolvers[plugin_name](kind, name)
-
-            if (
-                (kind not in self._entries or name not in self._entries[kind])
-                and kind != ActionKind.DYNAMIC_ACTION_PROVIDER
-                and ActionKind.DYNAMIC_ACTION_PROVIDER in self._entries
-            ):
-                for provider in self._entries[ActionKind.DYNAMIC_ACTION_PROVIDER].values():
-                    try:
-                        # Construct input for the provider action
-                        input_data = {'kind': kind, 'name': name}
-                        # Execute the provider action synchronously
-                        response = provider.run(input_data)
-                        action = response.response
-
-                        if action:
-                            self.register_action_from_instance(action)
-                            break
-                    except Exception as e:
-                        logger.debug(
-                            f'Dynamic action provider {provider.name} failed for {kind}/{name}',
-                            exc_info=e,
-                        )
-                        continue
-
-            if kind in self._entries and name in self._entries[kind]:
-                return self._entries[kind][name]
-
-            return None
 
     def get_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
         """Returns a dictionary of all registered actions for a specific kind.
@@ -236,91 +172,6 @@ class Registry:
         """
         with self._lock:
             return self._entries.get(kind, {}).copy()
-
-    def lookup_action_by_key(self, key: str) -> Action | None:
-        """Look up an action using its combined key string.
-
-        The key format is `<kind>/<name>`, where kind must be a valid
-        `ActionKind` and name must be a registered action name within that kind.
-
-        Args:
-            key: The action key in the format `<kind>/<name>`.
-
-        Returns:
-            The `Action` instance if found, None otherwise.
-
-        Raises:
-            ValueError: If the key format is invalid or the kind is not a valid
-                `ActionKind`.
-        """
-        kind, name = parse_action_key(key)
-        return self.lookup_action(kind, name)
-
-    def list_serializable_actions(self, allowed_kinds: set[ActionKind] | None = None) -> dict[str, Action] | None:
-        """Enlist all the actions into a dictionary.
-
-        Args:
-            allowed_kinds: The types of actions to list. If None, all actions
-            are listed.
-
-        Returns:
-            A dictionary of serializable Actions.
-        """
-        with self._lock:
-            actions = {}
-            for kind in self._entries:
-                if allowed_kinds is not None and kind not in allowed_kinds:
-                    continue
-                for name in self._entries[kind]:
-                    action = self.lookup_action(kind, name)
-                    if action is not None:
-                        key = create_action_key(kind, name)
-                        # TODO: Serialize the Action instance
-                        actions[key] = {
-                            'key': key,
-                            'name': action.name,
-                            'inputSchema': action.input_schema,
-                            'outputSchema': action.output_schema,
-                            'metadata': action.metadata,
-                        }
-            return actions
-
-    def list_actions(
-        self,
-        actions: dict[str, Action] | None = None,
-        allowed_kinds: set[ActionKind] | None = None,
-    ) -> dict[str, Action] | None:
-        """Add actions or models.
-
-        Args:
-            actions: dictionary of serializable actions.
-            allowed_kinds: The types of actions to list. If None, all actions
-            are listed.
-
-        Returns:
-            A dictionary of serializable Actions updated.
-        """
-        if actions is None:
-            actions = {}
-
-        for plugin_name in self._list_actions_resolvers:
-            actions_list = self._list_actions_resolvers[plugin_name]()
-
-            for _action in actions_list:
-                kind = _action.kind
-                if allowed_kinds is not None and kind not in allowed_kinds:
-                    continue
-                key = create_action_key(kind, _action.name)
-
-                if key not in actions:
-                    actions[key] = {
-                        'key': key,
-                        'name': _action.name,
-                        'inputSchema': _action.input_json_schema,
-                        'outputSchema': _action.output_json_schema,
-                        'metadata': _action.metadata,
-                    }
-        return actions
 
     def register_value(self, kind: str, name: str, value: Any):
         """Registers a value with a given kind and name.
@@ -360,6 +211,234 @@ class Registry:
         """
         with self._lock:
             return self._value_by_kind_and_name.get(kind, {}).get(name)
+
+    def register_plugin(self, plugin: Plugin) -> None:
+        """Register a plugin with the registry.
+
+        Args:
+            plugin: The plugin to register.
+
+        Raises:
+            ValueError: If a plugin with the same name is already registered.
+        """
+        # Guard plugin registry mutations: in dev mode the reflection server may
+        # list actions while the main thread is still registering plugins.
+        with self._lock:
+            if plugin.name in self._plugins:
+                raise ValueError(f'Plugin {plugin.name} already registered')
+            self._plugins[plugin.name] = plugin
+
+    async def _ensure_plugin_initialized(self, plugin_name: str) -> None:
+        """Ensure a plugin is initialized exactly once.
+
+        This method implements lazy, once-only initialization using an in-flight
+        task pattern. Multiple concurrent calls will await the same task.
+
+        Args:
+            plugin_name: The name of the plugin to initialize.
+
+        Raises:
+            KeyError: If the plugin is not registered.
+        """
+        # IMPORTANT: Do not hold `_lock` across any `await`. The critical section
+        # below is sync-only (dict access + task creation), so it is safe to use
+        # `_lock` to make the init-once behavior atomic across threads/tasks.
+        with self._lock:
+            task = self._plugin_init_tasks.get(plugin_name)
+            if task is None:
+                plugin = self._plugins.get(plugin_name)
+                if plugin is None:
+                    raise KeyError(f'Plugin not registered: {plugin_name}')
+
+                async def run_init() -> None:
+                    actions = await plugin.init()
+                    for action in actions or []:
+                        self.register_action_instance(action, namespace=plugin_name)
+
+                task = asyncio.create_task(run_init())
+                self._plugin_init_tasks[plugin_name] = task
+
+        await task
+
+    def register_action_instance(self, action: Action, *, namespace: str | None = None) -> None:
+        """Register an existing Action instance with optional namespace normalization.
+
+        If a namespace is provided, the action name will be normalized to ensure
+        it has the correct plugin prefix.
+
+        Args:
+            action: The action instance to register.
+            namespace: Optional plugin namespace to prefix the action name.
+        """
+        name = action.name
+        if namespace:
+            if '/' in name:
+                # Name already has a namespace, replace it
+                _, local = name.split('/', 1)
+                name = f'{namespace}/{local}'
+            else:
+                # Name is local, prefix with namespace
+                name = f'{namespace}/{name}'
+            # Update the action's name
+            action._name = name
+
+        with self._lock:
+            if action.kind not in self._entries:
+                self._entries[action.kind] = {}
+            self._entries[action.kind][name] = action
+
+    async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
+        """Resolve an action by kind and name, supporting both prefixed and unprefixed names.
+
+        This method supports:
+        1. Cache hit: Returns immediately if action is already registered
+        2. Namespaced request (e.g., "plugin/model"): Resolves via specific plugin
+        3. Unprefixed request (e.g., "model"): Tries all plugins, errors on ambiguity
+        4. Dynamic action providers: Last-resort fallback for dynamic action creation
+
+        Args:
+            kind: The type of action to resolve.
+            name: The name of the action (may be prefixed with "plugin/" or unprefixed).
+
+        Returns:
+            The Action instance if found, None otherwise.
+
+        Raises:
+            ValueError: If an unprefixed name matches multiple plugins (ambiguous).
+        """
+        # Cache hit
+        with self._lock:
+            if kind in self._entries and name in self._entries[kind]:
+                return self._entries[kind][name]
+
+        action: Action | None = None
+
+        # Namespaced request
+        if '/' in name:
+            plugin_name, local = name.split('/', 1)
+            with self._lock:
+                plugin = self._plugins.get(plugin_name)
+
+            if plugin is not None:
+                await self._ensure_plugin_initialized(plugin_name)
+
+                target = f'{plugin_name}/{local}'  # normalized
+
+                # Check cache again after init - init() might have registered this action
+                with self._lock:
+                    if kind in self._entries and target in self._entries[kind]:
+                        return self._entries[kind][target]
+
+                action = await plugin.resolve(kind, target)
+                if action is not None:
+                    self.register_action_instance(action, namespace=plugin_name)
+                    with self._lock:
+                        return self._entries.get(kind, {}).get(target)
+        else:
+            # Unprefixed request: try all plugins
+            successes: list[tuple[str, Action]] = []
+            with self._lock:
+                plugins = list(self._plugins.items())
+            for plugin_name, plugin in plugins:
+                await self._ensure_plugin_initialized(plugin_name)
+                target = f'{plugin_name}/{name}'
+
+                # Check cache first - init() might have registered this action
+                with self._lock:
+                    cached_action = self._entries.get(kind, {}).get(target)
+                if cached_action is not None:
+                    successes.append((plugin_name, cached_action))
+                    continue
+
+                action = await plugin.resolve(kind, target)
+                if action is not None:
+                    successes.append((plugin_name, action))
+
+            if len(successes) > 1:
+                plugin_names = [p for p, _ in successes]
+                raise ValueError(
+                    f"Ambiguous {kind.value} action name '{name}'. "
+                    f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
+                )
+
+            if len(successes) == 1:
+                plugin_name, action = successes[0]
+                self.register_action_instance(action, namespace=plugin_name)
+                with self._lock:
+                    return self._entries.get(kind, {}).get(f'{plugin_name}/{name}')
+
+        # Fallback: try dynamic action providers (for MCP, dynamic resources, etc.)
+        # Skip if we're looking up a dynamic action provider itself to avoid recursion
+        if kind != ActionKind.DYNAMIC_ACTION_PROVIDER:
+            with self._lock:
+                providers = list(self._entries.get(ActionKind.DYNAMIC_ACTION_PROVIDER, {}).values())
+            for provider in providers:
+                try:
+                    response = await provider.arun({'kind': kind, 'name': name})
+                    if response.response:
+                        self.register_action_instance(response.response)
+                        return response.response
+                except Exception as e:
+                    logger.debug(
+                        f'Dynamic action provider {provider.name} failed for {kind}/{name}',
+                        exc_info=e,
+                    )
+                    continue
+
+        return None
+
+    async def resolve_action_by_key(self, key: str) -> Action | None:
+        """Resolve an action using its combined key string.
+
+        The key format is `<kind>/<name>`, where kind must be a valid
+        `ActionKind` and name may be prefixed with plugin namespace or unprefixed.
+
+        Args:
+            key: The action key in the format `<kind>/<name>`.
+
+        Returns:
+            The `Action` instance if found, None otherwise.
+
+        Raises:
+            ValueError: If the key format is invalid, the kind is not a valid
+                `ActionKind`, or an unprefixed name is ambiguous.
+        """
+        kind, name = parse_action_key(key)
+        return await self.resolve_action(kind, name)
+
+    async def list_actions(self, allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
+        """List all actions advertised by plugins.
+
+        This method returns the advertised set of actions from all registered
+        plugins. It does NOT trigger plugin initialization and does NOT consult
+        the registry's internal action store.
+
+        Args:
+            allowed_kinds: Optional list of action kinds to filter by.
+
+        Returns:
+            A list of ActionMetadata objects describing available actions.
+
+        Raises:
+            ValueError: If a plugin returns invalid ActionMetadata.
+        """
+        metas: list[ActionMetadata] = []
+        with self._lock:
+            plugins = list(self._plugins.items())
+        for plugin_name, plugin in plugins:
+            plugin_metas = await plugin.list_actions()
+            for meta in plugin_metas or []:
+                if not meta.name:
+                    raise ValueError(f'Invalid ActionMetadata from {plugin_name}: name required')
+
+                # Normalize metadata name
+                if '/' not in meta.name:
+                    meta = meta.model_copy(update={'name': f'{plugin_name}/{meta.name}'})
+
+                if allowed_kinds and meta.kind not in allowed_kinds:
+                    continue
+                metas.append(meta)
+        return metas
 
     def register_schema(self, name: str, schema: dict[str, Any]) -> None:
         """Registers a schema by name.

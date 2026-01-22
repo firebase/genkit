@@ -14,7 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict, List, Optional
 
 from genkit.ai import Genkit
 
@@ -24,9 +23,9 @@ from .client import McpClient, McpServerConfig
 class McpHost:
     """Host for managing multiple MCP clients."""
 
-    def __init__(self, clients: Dict[str, McpServerConfig]):
+    def __init__(self, clients: dict[str, McpServerConfig]):
         self.clients_config = clients
-        self.clients: Dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
+        self.clients: dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
 
     async def start(self):
         """Starts all enabled MCP clients."""
@@ -60,5 +59,5 @@ class McpHost:
             await client.close()
 
 
-def create_mcp_host(configs: Dict[str, McpServerConfig]) -> McpHost:
+def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
     return McpHost(configs)

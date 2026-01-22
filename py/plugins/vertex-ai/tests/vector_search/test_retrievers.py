@@ -24,7 +24,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from google.cloud import bigquery
 from google.cloud.aiplatform_v1 import (
     FindNeighborsRequest,
     FindNeighborsResponse,
@@ -33,29 +32,25 @@ from google.cloud.aiplatform_v1 import (
     types,
 )
 
-from genkit.ai import Genkit
 from genkit.blocks.document import Document, DocumentData
-from genkit.core.typing import Embedding
-from genkit.plugins.vertex_ai.vector_search.retriever import (
-    BigQueryRetriever,
-    FirestoreRetriever,
-)
-from genkit.types import (
-    ActionRunContext,
-    RetrieverRequest,
-    TextPart,
-)
+from genkit.core.typing import Embedding, EmbedResponse
+from genkit.plugins.vertex_ai.vector_search import BigQueryRetriever, FirestoreRetriever
+from genkit.types import ActionRunContext, RetrieverRequest, TextPart
+
+
+class FakeAI:
+    async def embed(self, embedder, documents, options=None):
+        return EmbedResponse(embeddings=[Embedding(embedding=[0.1, 0.2, 0.3])])
 
 
 @pytest.fixture
 def bq_retriever_instance():
     """Common initialization of bq retriever."""
     return BigQueryRetriever(
-        ai=MagicMock(),
+        ai=FakeAI(),
         name='test',
+        embedder='test/embedder',
         match_service_client_generator=MagicMock(),
-        embedder='embedder',
-        embedder_options=None,
         bq_client=MagicMock(),
         dataset_id='dataset_id',
         table_id='table_id',
@@ -93,19 +88,6 @@ async def test_bigquery_retriever_retrieve(
     top_k,
 ):
     """Test retrieve method bq retriever."""
-    # Mock query embedder
-    mock_embedding = MagicMock()
-    mock_embedding.embeddings = [
-        Embedding(
-            embedding=[0.1, 0.2, 0.3],
-        ),
-    ]
-
-    mock_genkit = MagicMock(spec=Genkit)
-    mock_genkit.embed.return_value = mock_embedding
-
-    bq_retriever_instance.ai = mock_genkit
-
     # Mock _get_closest_documents
     mock__get_closest_documents_result = [
         Document.from_text(
@@ -123,40 +105,22 @@ async def test_bigquery_retriever_retrieve(
     )
 
     # Executes
-    await bq_retriever_instance.retrieve(
-        RetrieverRequest(
-            query=DocumentData(
-                content=[
-                    TextPart(text='test-1'),
-                ],
-            ),
-            options=options,
+    request = RetrieverRequest(
+        query=DocumentData(
+            content=[
+                TextPart(text='test-1'),
+            ],
         ),
+        options=options,
+    )
+    await bq_retriever_instance.retrieve(
+        request,
         MagicMock(spec=ActionRunContext),
     )
 
     # Assert mocks
-    bq_retriever_instance.ai.embed.assert_called_once_with(
-        embedder='embedder',
-        documents=[
-            Document(
-                content=[
-                    TextPart(text='test-1'),
-                ],
-            ),
-        ],
-        options={},
-    )
-
     bq_retriever_instance._get_closest_documents.assert_awaited_once_with(
-        request=RetrieverRequest(
-            query=DocumentData(
-                content=[
-                    TextPart(text='test-1'),
-                ],
-            ),
-            options=options,
-        ),
+        request=request,
         top_k=top_k,
         query_embeddings=Embedding(
             embedding=[0.1, 0.2, 0.3],
@@ -375,13 +339,12 @@ async def test_bigquery_retrieve_neighbors_data_from_db_fail(
 
 @pytest.fixture
 def fs_retriever_instance():
-    """Common initialization of bq retriever."""
+    """Common initialization of firestore retriever."""
     return FirestoreRetriever(
-        ai=MagicMock(),
+        ai=FakeAI(),
         name='test',
+        embedder='test/embedder',
         match_service_client_generator=MagicMock(),
-        embedder='embedder',
-        embedder_options=None,
         firestore_client=MagicMock(),
         collection_name='collection_name',
     )

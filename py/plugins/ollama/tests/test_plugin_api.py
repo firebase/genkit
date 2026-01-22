@@ -17,19 +17,15 @@
 """Unit tests for Ollama Plugin."""
 
 import unittest
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
-import ollama as ollama_api
 import pytest
 from pydantic import BaseModel
 
-from genkit.ai import ActionKind, Genkit
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports
-from genkit.core.schema import to_json_schema
+from genkit.ai import ActionKind
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition
-from genkit.types import GenerationCommonConfig
 
 
 class TestOllamaInit(unittest.TestCase):
@@ -69,74 +65,24 @@ class TestOllamaInit(unittest.TestCase):
         assert plugin.request_headers == headers
 
 
-def test_initialize(ollama_plugin_instance):
-    """Test initialize method of Ollama plugin."""
-    ai_mock = MagicMock(spec=Genkit)
+@pytest.mark.asyncio
+async def test_initialize(ollama_plugin_instance):
+    """Test init method of Ollama plugin."""
     model_ref = ModelDefinition(name='test_model')
     embedder_ref = EmbeddingDefinition(name='test_embedder')
     ollama_plugin_instance.models = [model_ref]
     ollama_plugin_instance.embedders = [embedder_ref]
 
-    init_models = MagicMock()
-    init_embedders = MagicMock()
+    result = await ollama_plugin_instance.init()
 
-    ollama_plugin_instance._initialize_models = init_models
-    ollama_plugin_instance._initialize_embedders = init_embedders
-
-    ollama_plugin_instance.initialize(ai_mock)
-
-    init_models.assert_called_once_with(ai=ai_mock)
-    init_embedders.assert_called_once_with(ai=ai_mock)
+    # init returns actions for pre-configured models and embedders
+    assert len(result) == 2
+    assert result[0].kind == ActionKind.MODEL
+    assert result[1].kind == ActionKind.EMBEDDER
 
 
-def test__initialize_models(ollama_plugin_instance):
-    """Test _initialize_models method of Ollama plugin."""
-    ai_mock = MagicMock(spec=Genkit)
-    name = 'test_model'
-
-    plugin = ollama_plugin_instance
-    plugin.models = [ModelDefinition(name=name)]
-    plugin._initialize_models(ai_mock)
-
-    ai_mock.define_model.assert_called_once_with(
-        name=ollama_name(name),
-        fn=ANY,
-        config_schema=GenerationCommonConfig,
-        metadata={
-            'label': f'Ollama - {name}',
-            'multiturn': True,
-            'system_role': True,
-            'tools': False,
-        },
-    )
-
-
-def test__initialize_embedders(ollama_plugin_instance):
-    """Test _initialize_embedders method of Ollama plugin."""
-    ai_mock = MagicMock(spec=Genkit)
-    name = 'test_embedder'
-
-    plugin = ollama_plugin_instance
-    plugin.embedders = [
-        EmbeddingDefinition(
-            name=name,
-            dimensions=1024,
-        )
-    ]
-    plugin._initialize_embedders(ai_mock)
-
-    ai_mock.define_embedder.assert_called_once_with(
-        name=ollama_name(name),
-        fn=ANY,
-        options=EmbedderOptions(
-            config_schema=to_json_schema(ollama_api.Options),
-            label=f'Ollama Embedding - {name}',
-            dimensions=1024,
-            supports=EmbedderSupports(
-                input=['text'],
-            ),
-        ),
-    )
+# _initialize_models and _initialize_embedders methods no longer exist in new plugin architecture
+# Models and embedders are now created lazily via the resolve() method
 
 
 @pytest.mark.parametrize(
@@ -146,92 +92,30 @@ def test__initialize_embedders(ollama_plugin_instance):
         (ActionKind.EMBEDDER, 'test_embedder'),
     ],
 )
-def test_resolve_action(kind, name, ollama_plugin_instance):
+@pytest.mark.asyncio
+async def test_resolve_action(kind, name, ollama_plugin_instance):
     """Unit Tests for resolve action method."""
-    ai_mock = MagicMock(spec=Genkit)
-    ollama_plugin_instance.resolve_action(ai_mock, kind, name)
+    action = await ollama_plugin_instance.resolve(kind, ollama_name(name))
+
+    assert action is not None
+    assert action.kind == kind
+    assert action.name == ollama_name(name)
 
     if kind == ActionKind.MODEL:
-        ai_mock.define_model.assert_called_once_with(
-            name=ollama_name(name),
-            fn=ANY,
-            config_schema=GenerationCommonConfig,
-            metadata={
-                'label': f'Ollama - {name}',
-                'multiturn': True,
-                'system_role': True,
-                'tools': False,
-            },
-        )
+        assert action.metadata['model']['label'] == f'Ollama - {name}'
+        assert action.metadata['model']['multiturn']
+        assert action.metadata['model']['system_role']
     else:
-        ai_mock.define_embedder.assert_called_once_with(
-            name=ollama_name(name),
-            fn=ANY,
-            options=EmbedderOptions(
-                config_schema=to_json_schema(ollama_api.Options),
-                label=f'Ollama Embedding - {name}',
-                dimensions=None,
-                supports=EmbedderSupports(
-                    input=['text'],
-                ),
-            ),
-        )
+        assert action.metadata['embedder']['label'] == f'Ollama Embedding - {name}'
+        assert action.metadata['embedder']['supports'] == {'input': ['text']}
 
 
-@pytest.mark.parametrize(
-    'name, expected_name, clean_name',
-    [
-        ('mistral', 'ollama/mistral', 'mistral'),
-        ('ollama/mistral', 'ollama/mistral', 'mistral'),
-    ],
-)
-def test_define_ollama_model(name, expected_name, clean_name, ollama_plugin_instance):
-    """Unit tests for _define_ollama_model method."""
-    ai_mock = MagicMock(spec=Genkit)
-
-    ollama_plugin_instance._define_ollama_model(ai_mock, ModelDefinition(name=name))
-
-    ai_mock.define_model.assert_called_once_with(
-        name=expected_name,
-        fn=ANY,
-        config_schema=GenerationCommonConfig,
-        metadata={
-            'label': f'Ollama - {clean_name}',
-            'multiturn': True,
-            'system_role': True,
-            'tools': False,
-        },
-    )
+# _define_ollama_model and _define_ollama_embedder methods no longer exist in new plugin architecture
+# Actions are now created via _create_model_action and _create_embedder_action methods
 
 
-@pytest.mark.parametrize(
-    'name, expected_name, clean_name',
-    [
-        ('mistral', 'ollama/mistral', 'mistral'),
-        ('ollama/mistral', 'ollama/mistral', 'mistral'),
-    ],
-)
-def test_define_ollama_embedder(name, expected_name, clean_name, ollama_plugin_instance):
-    """Unit tests for _define_ollama_embedder method."""
-    ai_mock = MagicMock(spec=Genkit)
-
-    ollama_plugin_instance._define_ollama_embedder(ai_mock, EmbeddingDefinition(name=name, dimensions=1024))
-
-    ai_mock.define_embedder.assert_called_once_with(
-        name=expected_name,
-        fn=ANY,
-        options=EmbedderOptions(
-            config_schema=to_json_schema(ollama_api.Options),
-            label=f'Ollama Embedding - {clean_name}',
-            dimensions=1024,
-            supports=EmbedderSupports(
-                input=['text'],
-            ),
-        ),
-    )
-
-
-def test_list_actions(ollama_plugin_instance):
+@pytest.mark.asyncio
+async def test_list_actions(ollama_plugin_instance):
     """Unit tests for list_actions method."""
 
     class MockModelResponse(BaseModel):
@@ -247,7 +131,7 @@ def test_list_actions(ollama_plugin_instance):
     list_method_mock.return_value = MockListResponse(
         models=[
             MockModelResponse(model='test_model'),
-            MockModelResponse(model='test_embedder'),
+            MockModelResponse(model='test_embed'),
         ]
     )
 
@@ -256,13 +140,13 @@ def test_list_actions(ollama_plugin_instance):
 
     ollama_plugin_instance.client = mock_client
 
-    actions = ollama_plugin_instance.list_actions
+    actions = await ollama_plugin_instance.list_actions()
 
     assert len(actions) == 2
 
     has_model = False
     for action in actions:
-        if action.kind == ActionKind.MODEL:
+        if hasattr(action, 'name') and 'test_model' in action.name:
             has_model = True
             break
 
@@ -270,7 +154,7 @@ def test_list_actions(ollama_plugin_instance):
 
     has_embedder = False
     for action in actions:
-        if action.kind == ActionKind.EMBEDDER:
+        if hasattr(action, 'name') and 'test_embed' in action.name:
             has_embedder = True
             break
 

@@ -21,7 +21,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from genkit.ai import ActionRunContext, GenkitRegistry
+from genkit.ai import ActionRunContext
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
@@ -51,6 +51,7 @@ class OpenAIModelHandler:
     @staticmethod
     def _get_supported_models(source: PluginSource) -> dict[str, Any]:
         """Returns the supported models based on the plugin source.
+
         Args:
             source: Helps distinguish if model handler is called from model-garden plugin.
                     Default source is openai.
@@ -59,12 +60,11 @@ class OpenAIModelHandler:
             Openai models if source is openai. Merges supported openai models with openai-compat models if source is model-garden.
 
         """
-
         return SUPPORTED_OPENAI_COMPAT_MODELS if source == PluginSource.MODEL_GARDEN else SUPPORTED_OPENAI_MODELS
 
     @classmethod
     def get_model_handler(
-        cls, model: str, client: OpenAI, registry: GenkitRegistry, source: PluginSource = PluginSource.OPENAI
+        cls, model: str, client: OpenAI, source: PluginSource = PluginSource.OPENAI
     ) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
         """Factory method to initialize the model handler for the specified OpenAI model.
 
@@ -77,7 +77,6 @@ class OpenAIModelHandler:
         Args:
             model: The OpenAI model name.
             client: OpenAI client instance.
-            registry: Genkit registry instance.
             source: Helps distinguish if model handler is called from model-garden plugin.
                     Default source is openai.
 
@@ -92,7 +91,7 @@ class OpenAIModelHandler:
         if model not in supported_models:
             raise ValueError(f"Model '{model}' is not supported.")
 
-        openai_model = OpenAIModel(model, client, registry)
+        openai_model = OpenAIModel(model, client)
         return cls(openai_model, source).generate
 
     def _validate_version(self, version: str) -> None:
@@ -109,7 +108,7 @@ class OpenAIModelHandler:
         if version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
-    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:
@@ -127,4 +126,4 @@ class OpenAIModelHandler:
         if request.config.model:
             self._validate_version(request.config.model)
 
-        return self._model.generate(request, ctx)
+        return await self._model.generate(request, ctx)

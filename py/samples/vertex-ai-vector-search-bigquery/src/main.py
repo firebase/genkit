@@ -22,15 +22,9 @@ from google.cloud import aiplatform, bigquery
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
-from genkit.blocks.document import (
-    Document,
-)
+from genkit.blocks.document import Document
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai.vector_search import (
-    BigQueryRetriever,
-    VertexAIVectorSearch,
-    vertexai_name,
-)
+from genkit.plugins.vertex_ai import defineVertexVectorSearchBigQuery
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
@@ -47,23 +41,20 @@ aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
 logger = structlog.get_logger(__name__)
 
-ai = Genkit(
-    plugins=[
-        VertexAI(),
-        VertexAIVectorSearch(
-            retriever=BigQueryRetriever,
-            retriever_extra_args={
-                'bq_client': bq_client,
-                'dataset_id': BIGQUERY_DATASET_NAME,
-                'table_id': BIGQUERY_TABLE_NAME,
-            },
-            embedder=vertexai_name('text-embedding-004'),
-            embedder_options={
-                'task': 'RETRIEVAL_DOCUMENT',
-                'output_dimensionality': 128,
-            },
-        ),
-    ]
+ai = Genkit(plugins=[VertexAI()])
+
+# Define Vertex AI Vector Search with BigQuery
+defineVertexVectorSearchBigQuery(
+    ai,
+    name='my-vector-search',
+    embedder='vertexai/text-embedding-004',
+    embedder_options={
+        'task': 'RETRIEVAL_DOCUMENT',
+        'output_dimensionality': 128,
+    },
+    bq_client=bq_client,
+    dataset_id=BIGQUERY_DATASET_NAME,
+    table_id=BIGQUERY_TABLE_NAME,
 )
 
 
@@ -94,14 +85,10 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     }
 
-    options = {
-        'limit': 10,
-    }
-
     result: list[Document] = await ai.retrieve(
-        retriever=vertexai_name('vertexAIVectorSearch'),
+        retriever='my-vector-search',
         query=query_document,
-        options=options,
+        options={'limit': 10},
     )
 
     end_time = time.time()

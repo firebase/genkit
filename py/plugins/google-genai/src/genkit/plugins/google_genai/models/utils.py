@@ -133,11 +133,16 @@ class PartConverter:
                         return parts_to_return
 
             # Default behavior for standard tool responses
+            # FunctionResponse.response must be a dict, not a raw value
+            output = tool_output
+            if not isinstance(output, dict):
+                output = {'result': output}
+
             return genai.types.Part(
                 function_response=genai.types.FunctionResponse(
                     id=part.root.tool_response.ref,
                     name=part.root.tool_response.name.replace('/', '__'),
-                    response=part.root.tool_response.output,
+                    response=output,
                 )
             )
         if isinstance(part.root, MediaPart):

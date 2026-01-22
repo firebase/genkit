@@ -149,9 +149,7 @@ from google import genai
 from google.genai import types as genai_types  # type: ignore
 
 from genkit.ai import (
-    ActionKind,
     ActionRunContext,
-    GenkitRegistry,
 )
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
@@ -643,18 +641,15 @@ class GeminiModel:
         self,
         version: str | GoogleAIGeminiVersion | VertexAIGeminiVersion,
         client: genai.Client,
-        registry: GenkitRegistry,
     ):
         """Initialize Gemini model.
 
         Args:
             version: Gemini version
             client: Google AI client
-            registry: Genkit registry
         """
         self._version = version
         self._client = client
-        self._registry = registry
 
     def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
@@ -756,32 +751,6 @@ class GeminiModel:
                     schema.properties[key] = nested_schema
 
         return schema
-
-    def _call_tool(self, call: genai_types.FunctionCall) -> genai_types.Content:
-        """Calls tool's function from the registry.
-
-        Args:
-            call: FunctionCall from Gemini response
-
-        Returns:
-            Gemini message content to add to the message
-        """
-        tool_function = self._registry.registry.lookup_action(ActionKind.TOOL, call.name)
-        if tool_function is None:
-            raise LookupError(f'Tool {call.name} not found')
-
-        args = tool_function.input_type.validate_python(call.args)
-        tool_answer = tool_function.run(args)
-        return genai_types.Content(
-            parts=[
-                genai_types.Part.from_function_response(
-                    name=call.name,
-                    response={
-                        'content': tool_answer.response,
-                    },
-                )
-            ]
-        )
 
     async def _retrieve_cached_content(
         self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
@@ -1019,14 +988,6 @@ class GeminiModel:
                 'supports': supports,
             }
         }
-
-    def is_multimode(self):
-        """Check if the model supports media.
-
-        Returns:
-            True if the model supports media, False otherwise.
-        """
-        return SUPPORTED_MODELS[self._version].supports.media
 
     async def _build_messages(
         self, request: GenerateRequest, model_name: str

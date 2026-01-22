@@ -43,7 +43,7 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Type
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from genkit.blocks.resource import ResourceFn, ResourceOptions
@@ -429,6 +429,7 @@ class GenkitRegistry:
                 config_schema=reranker_meta['reranker'].get('customOptions'),
                 label=reranker_meta['reranker'].get('label'),
             ),
+            description=reranker_description,
         )
 
     async def rerank(
@@ -636,7 +637,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
-        config_schema: Type[BaseModel] | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
@@ -820,7 +821,6 @@ class GenkitRegistry:
         Raises:
             GenkitError: If the prompt is not found.
         """
-
         return await lookup_prompt(
             registry=self.registry,
             name=name,

@@ -25,7 +25,6 @@ from genkit.ai._aio import Genkit
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import (
     EmbedderOptions,
-    EmbedderRef,
     EmbedderSupports,
     create_embedder_ref,
     embedder_action_metadata,
@@ -153,7 +152,8 @@ class MockGenkitRegistry:
         self.actions[(kind, name)] = mock_action
         return mock_action
 
-    def lookup_action(self, kind, name):
+    async def resolve_action(self, kind, name):
+        """Async action resolution for new plugin API."""
         return self.actions.get((kind, name))
 
 
@@ -197,7 +197,7 @@ async def test_embed_with_embedder_ref(mock_genkit_instance):
 
     assert response.embeddings[0].embedding == [1.0, 2.0, 3.0]
 
-    embed_action = registry.lookup_action('embedder', 'my-plugin/my-embedder')
+    embed_action = await registry.resolve_action('embedder', 'my-plugin/my-embedder')
     assert embed_action is not None
     embed_action.arun.assert_called_once()
 
@@ -232,7 +232,7 @@ async def test_embed_with_string_name_and_options(mock_genkit_instance):
     )
 
     assert response.embeddings[0].embedding == [4.0, 5.0, 6.0]
-    embed_action = registry.lookup_action('embedder', 'another-embedder')
+    embed_action = await registry.resolve_action('embedder', 'another-embedder')
     called_request = embed_action.arun.call_args[0][0]
     assert called_request.options == {'custom_setting': 'high'}
 

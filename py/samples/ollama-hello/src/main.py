@@ -33,9 +33,6 @@ Key features demonstrated in this sample:
 
 """
 
-import asyncio
-import json
-
 import structlog
 from pydantic import BaseModel, Field
 

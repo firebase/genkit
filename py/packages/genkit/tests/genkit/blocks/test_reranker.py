@@ -22,12 +22,10 @@ RankedDocument, define_reranker, and rerank functions.
 
 import pytest
 
-from genkit.blocks.document import Document
 from genkit.blocks.reranker import (
     RankedDocument,
     RerankerInfo,
     RerankerOptions,
-    RerankerRef,
     create_reranker_ref,
     define_reranker,
     rerank,
@@ -159,7 +157,7 @@ class TestDefineReranker:
         action = define_reranker(registry, 'test-reranker', simple_reranker)
 
         # Verify action was registered
-        lookup = registry.lookup_action(ActionKind.RERANKER, 'test-reranker')
+        lookup = await registry.resolve_action(ActionKind.RERANKER, 'test-reranker')
         assert lookup is not None
         assert action.name == 'test-reranker'
 
@@ -430,7 +428,6 @@ class TestCustomRerankers:
         1. Stage 1: Retrieve a broad set of candidates
         2. Stage 2: Rerank to find most relevant documents
         """
-
         # Simulate stage 1 retrieval results (unranked)
         retrieved_documents = [
             DocumentData(content=[DocumentPart(text='Machine learning is a subset of AI')]),

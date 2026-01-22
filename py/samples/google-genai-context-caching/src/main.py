@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample that demonstrates caching of generation context in Genkit
+"""Sample that demonstrates caching of generation context in Genkit.
 
 In this sample user actor supplies "Tom Sawyer" book content from Gutenberg library archive
 and model caches this context.
@@ -26,7 +26,7 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleAI, googleai_name
+from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 from genkit.types import GenerationCommonConfig, Media, MediaPart, Message, Role, TextPart
 
@@ -34,7 +34,7 @@ logger = structlog.getLogger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model='googleai/gemini-2.0-flash-001',
 )
 
 
@@ -74,7 +74,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
             Message(
                 role=Role.MODEL,
-                content=[TextPart(text=f'Here is some analysis based on the text provided.')],
+                content=[TextPart(text='Here is some analysis based on the text provided.')],
                 metadata={
                     'cache': {
                         'ttl_seconds': 300,
@@ -83,7 +83,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
         ],
         config=GenerationCommonConfig(
-            version='gemini-3-flash-preview',
+            version='gemini-2.0-flash-001',
             temperature=0.7,
             maxOutputTokens=1000,
             topK=50,
@@ -131,13 +131,16 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
 
 
 async def main() -> None:
-    """Main entry point for the context caching sample.
+    """Main entry point for the context caching sample - keep alive for Dev UI.
 
     This function demonstrates how to use context caching in Genkit for
     improved performance.
     """
-    res = await text_context_flow(BookContextInputSchema())
-    await logger.ainfo('foo', result=res)
+    import asyncio
+
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

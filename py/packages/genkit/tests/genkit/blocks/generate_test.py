@@ -347,7 +347,7 @@ async def test_generate_action_spec(spec) -> None:
                 converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
             pm.chunks.append(converted)
 
-    action = ai.registry.lookup_action(kind=ActionKind.UTIL, name='generate')
+    action = await ai.registry.resolve_action(kind=ActionKind.UTIL, name='generate')
 
     response = None
     chunks = None

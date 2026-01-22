@@ -23,7 +23,6 @@ from menu_ai import ai
 from menu_schemas import (
     AnswerOutputSchema,
     MenuQuestionInputSchema,
-    ReadMenuPromptOutputSchema,
     TextMenuQuestionInputSchema,
 )
 

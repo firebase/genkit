@@ -57,12 +57,7 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
 from genkit.core.action import ActionRunContext
-from genkit.plugins.evaluators import (
-    GenkitEvaluators,
-    GenkitMetricType,
-    MetricConfig,
-    PluginOptions,
-)
+from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
@@ -85,17 +80,17 @@ logger = structlog.get_logger(__name__)
 
 
 ai = Genkit(
-    plugins=[
-        GoogleAI(),
-        GenkitEvaluators(
-            PluginOptions([
-                MetricConfig(metric_type=GenkitMetricType.REGEX),
-                MetricConfig(metric_type=GenkitMetricType.DEEP_EQUAL),
-                MetricConfig(metric_type=GenkitMetricType.JSONATA),
-            ])
-        ),
+    plugins=[GoogleAI()],
+    model='googleai/gemini-3-flash-preview',
+)
+
+define_genkit_evaluators(
+    ai,
+    [
+        MetricConfig(metric_type=GenkitMetricType.REGEX),
+        MetricConfig(metric_type=GenkitMetricType.DEEP_EQUAL),
+        MetricConfig(metric_type=GenkitMetricType.JSONATA),
     ],
-    model='googleai/gemini-flash-latest',
 )
 
 
@@ -700,8 +695,12 @@ async def tool_calling(location: Annotated[str, Field(default='Paris, France')])
 
 
 async def main() -> None:
-    """Main function."""
-    await logger.ainfo(await say_hi(', tell me a joke'))
+    """Main function - keep alive for Dev UI."""
+    import asyncio
+
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

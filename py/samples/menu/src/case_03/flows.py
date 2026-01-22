@@ -26,7 +26,6 @@ from case_03.chats import (
 from menu_ai import ai
 
 from genkit.core.typing import Message, Role, TextPart
-from genkit.plugins.google_genai import googleai_name
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion as GeminiVersion
 
 menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
@@ -69,7 +68,7 @@ async def s03_multiTurnChatFlow(
     history = chat_history_store.read(my_input.session_id)
 
     llm_response = await ai.generate(
-        model=googleai_name(GeminiVersion.GEMINI_3_FLASH_PREVIEW),
+        model=f'googleai/{GeminiVersion.GEMINI_3_FLASH_PREVIEW}',
         messages=history,
         prompt=[TextPart(text=my_input.question)],
     )

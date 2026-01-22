@@ -55,7 +55,6 @@ from genkit.plugins.google_genai import (
     GeminiConfigSchema,
     GeminiEmbeddingModels,
     GoogleAI,
-    googleai_name,
 )
 from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
@@ -69,7 +68,7 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-3-flash-preview'),
+    model='googleai/gemini-3-flash-preview',
 )
 
 
@@ -103,7 +102,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
         The generated response with a function.
     """
     response = await ai.generate(
-        model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+        model=f'googleai/{gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
         messages=[
             Message(
                 role=Role.USER,
@@ -140,7 +139,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         The generated response with a function.
     """
     response1 = await ai.generate(
-        model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+        model=f'googleai/{gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
         messages=[
             Message(
                 role=Role.USER,
@@ -155,7 +154,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.interrupts[0], 178)
     response = await ai.generate(
-        model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+        model=f'googleai/{gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -191,7 +190,7 @@ async def embed_docs(docs: list[str]):
     """
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     return await ai.embed(
-        embedder=googleai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004),
+        embedder=f'googleai/{GeminiEmbeddingModels.TEXT_EMBEDDING_004}',
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )

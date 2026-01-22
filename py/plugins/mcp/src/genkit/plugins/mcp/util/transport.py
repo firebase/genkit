@@ -14,14 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Transport utilities for MCP plugin.
+"""Transport utilities for MCP plugin.
 
 This module contains helper functions for creating and managing
 MCP transport connections (stdio, SSE, custom).
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import structlog
 
@@ -31,10 +30,9 @@ logger = structlog.get_logger(__name__)
 
 
 def create_stdio_params(
-    command: str, args: Optional[list] = None, env: Optional[Dict[str, str]] = None
+    command: str, args: list | None = None, env: dict[str, str] | None = None
 ) -> StdioServerParameters:
-    """
-    Create StdioServerParameters for MCP connection.
+    """Create StdioServerParameters for MCP connection.
 
     Args:
         command: Command to execute
@@ -47,9 +45,8 @@ def create_stdio_params(
     return StdioServerParameters(command=command, args=args or [], env=env)
 
 
-async def transport_from(config: Dict[str, Any], session_id: Optional[str] = None) -> Tuple[Any, str]:
-    """
-    Create an MCP transport instance based on the provided server configuration.
+async def transport_from(config: dict[str, Any], session_id: str | None = None) -> tuple[Any, str]:
+    """Create an MCP transport instance based on the provided server configuration.
 
     Supports creating SSE, Stdio, or using a pre-configured custom transport.
 

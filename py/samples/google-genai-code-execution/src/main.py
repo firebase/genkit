@@ -21,15 +21,14 @@ import structlog
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
 from genkit.core.typing import CustomPart, Message, TextPart
-from genkit.plugins.google_genai import GoogleAI, googleai_name
-from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema
+from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 from genkit.plugins.google_genai.models.utils import PartConverter
 
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-3-flash-preview'),
+    model='googleai/gemini-3-flash-preview',
 )
 
 
@@ -82,7 +81,7 @@ def display_code_execution(message: Message):
 
 
 async def main() -> None:
-    """Main entry point for the  Google genai code execution sample.
+    """Main entry point for the Google genai code execution sample - keep alive for Dev UI.
 
     This function demonstrates how to perform code execution using the
     Genkit framework.

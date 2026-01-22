@@ -51,7 +51,7 @@ async def s04_ragMenuQuestionFlow(
     docs = await ai.retrieve(
         retriever='menu-items',
         query=my_input.question,
-        options={'k': 3},
+        options={'limit': 3},
     )
 
     menu_data = [doc.metadata for doc in docs.documents]

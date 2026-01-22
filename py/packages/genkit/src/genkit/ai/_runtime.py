@@ -28,6 +28,8 @@ from types import TracebackType
 
 import structlog
 
+from genkit.core.constants import DEFAULT_GENKIT_VERSION
+
 from ._server import ServerSpec
 
 logger = structlog.get_logger(__name__)
@@ -87,15 +89,24 @@ def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
         The Path object of the created file.
     """
     current_datetime = datetime.now()
-    runtime_file_name = f'{current_datetime.isoformat()}.json'
+    timestamp_ms = int(current_datetime.timestamp() * 1000)
+    pid = os.getpid()
+
+    # Build a unique runtime ID from the process ID and port
+    port = spec.port if spec.port else ''
+    runtime_id = f'{pid}-{port}' if port else f'{pid}'
+
+    # Include timestamp in filename to avoid collisions across restarts
+    runtime_file_name = f'{runtime_id}-{timestamp_ms}.json'
     runtime_file_path = runtime_dir / runtime_file_name
 
     metadata = json.dumps({
         'reflectionApiSpecVersion': 1,
-        'id': f'{os.getpid()}',
-        'pid': os.getpid(),
+        'id': runtime_id,
+        'pid': pid,
+        'genkitVersion': 'py/' + DEFAULT_GENKIT_VERSION,
         'reflectionServerUrl': spec.url,
-        'timestamp': f'{current_datetime.isoformat()}',
+        'timestamp': current_datetime.isoformat(),
     })
 
     logger.debug(f'Writing runtime file: {runtime_file_path}')
@@ -156,8 +167,8 @@ class RuntimeManager:
         try:
             await logger.adebug(f'Ensuring runtime directory exists: {self._runtime_dir}')
             self._runtime_dir.mkdir(parents=True, exist_ok=True)
-            runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
-            _register_atexit_cleanup_handler(runtime_file_path)
+            self._runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
+            _register_atexit_cleanup_handler(self._runtime_file_path)
 
         except Exception as e:
             logger.error(f'Failed to initialize runtime file: {e}', exc_info=True)

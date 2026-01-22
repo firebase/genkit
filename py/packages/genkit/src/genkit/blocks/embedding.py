@@ -16,12 +16,13 @@
 
 """Embedding actions."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from genkit.core.action import ActionMetadata
+from genkit.blocks.document import Document
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import EmbedRequest, EmbedResponse
@@ -55,6 +56,21 @@ class EmbedderRef(BaseModel):
     name: str
     config: Any | None = None
     version: str | None = None
+
+
+class Embedder:
+    """Runtime embedder wrapper around an embedder Action."""
+
+    def __init__(self, name: str, action: Action) -> None:
+        self.name = name
+        self._action = action
+
+    async def embed(
+        self,
+        documents: list[Document],
+        options: dict[str, Any] | None = None,
+    ) -> EmbedResponse:
+        return (await self._action.arun(EmbedRequest(input=documents, options=options))).response
 
 
 EmbedderFn = Callable[[EmbedRequest], EmbedResponse]

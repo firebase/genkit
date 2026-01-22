@@ -14,6 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Vertex AI Vector Search integration for Genkit.
+
+This module provides retrievers for Vertex AI Vector Search with BigQuery and Firestore backends.
+"""
+
 import json
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -21,11 +26,19 @@ from typing import Any
 
 import structlog
 from google.cloud import bigquery, firestore
-from google.cloud.aiplatform_v1 import FindNeighborsRequest, FindNeighborsResponse, IndexDatapoint
+from google.cloud.aiplatform_v1 import (
+    FindNeighborsRequest,
+    FindNeighborsResponse,
+    IndexDatapoint,
+    MatchServiceAsyncClient,
+)
 from pydantic import BaseModel, Field, ValidationError
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
+from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import Embedding
 from genkit.types import ActionRunContext, RetrieverRequest, RetrieverResponse
 
@@ -34,44 +47,51 @@ logger = structlog.get_logger(__name__)
 DEFAULT_LIMIT_NEIGHBORS: int = 3
 
 
+class RetrieverOptionsSchema(BaseModel):
+    """Schema for retriever options.
+
+    Attributes:
+        limit: Number of documents to retrieve.
+    """
+
+    limit: int | None = Field(title='Number of documents to retrieve', default=None)
+
+
 class DocRetriever(ABC):
     """Abstract base class for Vertex AI Vector Search document retrieval.
 
     This class outlines the core workflow for retrieving relevant documents.
-    It is not intended to be instantiated directly. Subclasses must implement
-    the abstract methods to provide concrete retrieval logic depending of the
-    technology used.
+    Subclasses must implement the abstract methods to provide concrete retrieval logic.
 
     Attributes:
-        ai: The Genkit instance.
+        ai: The Genkit instance used for embeddings.
         name: The name of this retriever instance.
-        match_service_client:  The Vertex AI Matching Engine client.
-        embedder: The name of the embedder to use for generating embeddings.
-        embedder_options:  Options to pass to the embedder.
+        embedder: The embedder to use for query embeddings.
+        embedder_options: Optional configuration to pass to the embedder.
+        match_service_client_generator: Generator function for the Vertex AI client.
     """
 
     def __init__(
         self,
         ai: Genkit,
         name: str,
-        match_service_client_generator: Callable,
         embedder: str,
+        match_service_client_generator: Callable,
         embedder_options: dict[str, Any] | None = None,
     ) -> None:
         """Initializes the DocRetriever.
 
         Args:
-            ai: The Genkit application instance.
+            ai: The Genkit instance used for embeddings.
             name: The name of this retriever instance.
-            match_service_client_generator: The Vertex AI Matching Engine client.
-            embedder: The name of the embedder to use for generating embeddings.
-                Already added plugin prefix.
-            embedder_options: Optional dictionary of options to pass to the embedder.
+            embedder: The embedder to use for query embeddings.
+            match_service_client_generator: Generator function for the Vertex AI client.
+            embedder_options: Optional configuration to pass to the embedder.
         """
         self.ai = ai
         self.name = name
         self.embedder = embedder
-        self.embedder_options = embedder_options or {}
+        self.embedder_options = embedder_options
         self._match_service_client_generator = match_service_client_generator
 
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
@@ -86,20 +106,24 @@ class DocRetriever(ABC):
         """
         document = Document.from_document_data(document_data=request.query)
 
-        embeddings = await self.ai.embed(
+        # Get query embedding
+        embed_resp = await self.ai.embed(
             embedder=self.embedder,
             documents=[document],
             options=self.embedder_options,
         )
+        if not embed_resp.embeddings:
+            raise ValueError('Embedder returned no embeddings for query')
 
+        # Get limit from options
         limit_neighbors = DEFAULT_LIMIT_NEIGHBORS
-        if isinstance(request.options, dict) and request.options.get('limit') is not None:
-            limit_neighbors = request.options.get('limit')
+        if isinstance(request.options, dict) and (limit_val := request.options.get('limit')) is not None:
+            limit_neighbors = int(limit_val)
 
         docs = await self._get_closest_documents(
             request=request,
             top_k=limit_neighbors,
-            query_embeddings=embeddings.embeddings[0],
+            query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
         )
 
         return RetrieverResponse(documents=docs)
@@ -107,7 +131,7 @@ class DocRetriever(ABC):
     async def _get_closest_documents(
         self, request: RetrieverRequest, top_k: int, query_embeddings: Embedding
     ) -> list[Document]:
-        """Retrieves the closest documents from the vector search index based on query embeddings.
+        """Retrieves the closest documents from the vector search index.
 
         Args:
             request: The retrieval request containing the query and metadata.
@@ -118,8 +142,7 @@ class DocRetriever(ABC):
             A list of Document objects representing the closest documents.
 
         Raises:
-            AttributeError: If the request does not contain the necessary
-            index endpoint path in its metadata.
+            AttributeError: If the request does not contain the necessary metadata.
         """
         metadata = request.query.metadata
 
@@ -161,12 +184,10 @@ class DocRetriever(ABC):
     async def _retrieve_neighbors_data_from_db(self, neighbors: list[FindNeighborsResponse.Neighbor]) -> list[Document]:
         """Retrieves document data from the database based on neighbor information.
 
-        This method must be implemented by subclasses to define how document
-        data is fetched from the database using the provided neighbor information.
+        This method must be implemented by subclasses.
 
         Args:
-            neighbors: A list of Neighbor objects representing the nearest neighbors
-                found in the vector search index.
+            neighbors: A list of Neighbor objects from the vector search index.
 
         Returns:
             A list of Document objects containing the data for the retrieved documents.
@@ -178,8 +199,7 @@ class BigQueryRetriever(DocRetriever):
     """Retrieves documents from a BigQuery table.
 
     This class extends DocRetriever to fetch document data from a specified BigQuery
-    dataset and table. It constructs a query to retrieve documents based on the IDs
-    obtained from nearest neighbor search results.
+    dataset and table based on nearest neighbor search results.
 
     Attributes:
         bq_client: The BigQuery client to use for querying.
@@ -212,18 +232,11 @@ class BigQueryRetriever(DocRetriever):
     async def _retrieve_neighbors_data_from_db(self, neighbors: list[FindNeighborsResponse.Neighbor]) -> list[Document]:
         """Retrieves document data from the BigQuery table for the given neighbors.
 
-        Constructs and executes a BigQuery query to fetch document data based on
-        the IDs obtained. Handles potential errors during query execution and
-        document parsing.
-
         Args:
             neighbors: A list of Neighbor objects representing the nearest neighbors.
-                        Each neighbor should contain a datapoint with a datapoint_id.
 
         Returns:
             A list of Document objects containing the retrieved document data.
-            Returns an empty list if no IDs are found in the neighbors or if the
-            query fails.
         """
         ids = [n.datapoint.datapoint_id for n in neighbors if n.datapoint and n.datapoint.datapoint_id]
 
@@ -275,8 +288,7 @@ class FirestoreRetriever(DocRetriever):
     """Retrieves documents from a Firestore collection.
 
     This class extends DocRetriever to fetch document data from a specified Firestore
-    collection. It retrieves documents based on IDs obtained from nearest neighbor
-    search results.
+    collection based on nearest neighbor search results.
 
     Attributes:
         db: The Firestore client.
@@ -305,16 +317,11 @@ class FirestoreRetriever(DocRetriever):
     async def _retrieve_neighbors_data_from_db(self, neighbors: list[FindNeighborsResponse.Neighbor]) -> list[Document]:
         """Retrieves document data from the Firestore collection for the given neighbors.
 
-        Fetches document data from Firestore based on the IDs of the nearest neighbors.
-        Handles potential errors during document retrieval and data parsing.
-
         Args:
             neighbors: A list of Neighbor objects representing the nearest neighbors.
-                        Each neighbor should contain a datapoint with a datapoint_id.
 
         Returns:
             A list of Document objects containing the retrieved document data.
-            Returns an empty list if no documents are found for the given IDs.
         """
         documents: list[Document] = []
 
@@ -349,11 +356,124 @@ class FirestoreRetriever(DocRetriever):
         return documents
 
 
-class RetrieverOptionsSchema(BaseModel):
-    """Schema for retriver options.
+def vertexai_vector_search_name(name: str) -> str:
+    """Create a vertex AI vector search action name.
 
-    Attributes:
-        limit: Number of documents to retrieve.
+    Args:
+        name: Base name for the action
+
+    Returns:
+        str: Vertex AI vector search action name.
     """
+    return f'vertexai/{name}'
 
-    limit: int | None = Field(title='Number of documents to retrieve', default=None)
+
+def defineVertexVectorSearchBigQuery(
+    ai: Genkit,
+    *,
+    name: str,
+    embedder: str,
+    embedder_options: dict[str, Any] | None = None,
+    bq_client: bigquery.Client,
+    dataset_id: str,
+    table_id: str,
+    match_service_client_generator: Callable | None = None,
+) -> str:
+    """Define and register a Vertex AI Vector Search retriever with BigQuery backend.
+
+    Args:
+        ai: The Genkit instance to register the retriever with.
+        name: Name of the retriever.
+        embedder: The embedder to use (e.g., 'vertexai/text-embedding-004').
+        embedder_options: Optional configuration to pass to the embedder.
+        bq_client: The BigQuery client to use for querying.
+        dataset_id: The ID of the BigQuery dataset.
+        table_id: The ID of the BigQuery table.
+        match_service_client_generator: Optional generator for the Vertex AI client.
+            Defaults to MatchServiceAsyncClient.
+
+    Returns:
+        The registered retriever name.
+    """
+    if match_service_client_generator is None:
+        match_service_client_generator = MatchServiceAsyncClient
+
+    retriever = BigQueryRetriever(
+        ai=ai,
+        name=name,
+        embedder=embedder,
+        embedder_options=embedder_options,
+        match_service_client_generator=match_service_client_generator,
+        bq_client=bq_client,
+        dataset_id=dataset_id,
+        table_id=table_id,
+    )
+
+    ai.registry.register_action(
+        kind=ActionKind.RETRIEVER,
+        name=name,
+        fn=retriever.retrieve,
+        metadata=retriever_action_metadata(
+            name=name,
+            options=RetrieverOptions(
+                label=name,
+                config_schema=to_json_schema(RetrieverOptionsSchema),
+            ),
+        ).metadata,
+    )
+
+    return name
+
+
+def defineVertexVectorSearchFirestore(
+    ai: Genkit,
+    *,
+    name: str,
+    embedder: str,
+    embedder_options: dict[str, Any] | None = None,
+    firestore_client: firestore.AsyncClient,
+    collection_name: str,
+    match_service_client_generator: Callable | None = None,
+) -> str:
+    """Define and register a Vertex AI Vector Search retriever with Firestore backend.
+
+    Args:
+        ai: The Genkit instance to register the retriever with.
+        name: Name of the retriever.
+        embedder: The embedder to use (e.g., 'vertexai/text-embedding-004').
+        embedder_options: Optional configuration to pass to the embedder.
+        firestore_client: The Firestore client to use for querying.
+        collection_name: The name of the Firestore collection.
+        match_service_client_generator: Optional generator for the Vertex AI client.
+            Defaults to MatchServiceAsyncClient.
+
+    Returns:
+        The registered retriever name.
+    """
+    if match_service_client_generator is None:
+        match_service_client_generator = MatchServiceAsyncClient
+
+    retriever = FirestoreRetriever(
+        ai=ai,
+        name=name,
+        embedder=embedder,
+        embedder_options=embedder_options,
+        match_service_client_generator=match_service_client_generator,
+        firestore_client=firestore_client,
+        collection_name=collection_name,
+    )
+
+    ai.registry.register_action(
+        kind=ActionKind.RETRIEVER,
+        name=name,
+        fn=retriever.retrieve,
+        metadata=retriever_action_metadata(
+            name=name,
+            options=RetrieverOptions(
+                label=name,
+                config_schema=to_json_schema(RetrieverOptionsSchema),
+            ),
+        ).metadata,
+    )
+
+    return name

@@ -19,38 +19,31 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.ai import ActionRunContext
 from genkit.plugins.compat_oai.models import OpenAIModelHandler
-from genkit.plugins.compat_oai.models.model import OpenAIModel
-from genkit.plugins.compat_oai.models.model_info import (
-    GPT_3_5_TURBO,
-    GPT_4,
-    SUPPORTED_OPENAI_MODELS,
-)
-from genkit.types import GenerateRequest, GenerateResponse, Message, Role, TextPart
+from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 
 
 def test_get_model_handler() -> None:
     """Test get_model_handler method returns a callable."""
-    model_name = GPT_4
-    handler = OpenAIModelHandler.get_model_handler(model=model_name, client=MagicMock(), registry=MagicMock())
+    model_name = 'gpt-4'
+    handler = OpenAIModelHandler.get_model_handler(model=model_name, client=MagicMock())
     assert callable(handler)
 
 
 def test_get_model_handler_invalid() -> None:
     """Test get_model_handler raises ValueError for unsupported models."""
     with pytest.raises(ValueError, match="Model 'unsupported-model' is not supported."):
-        OpenAIModelHandler.get_model_handler(model='unsupported-model', client=MagicMock(), registry=MagicMock())
+        OpenAIModelHandler.get_model_handler(model='unsupported-model', client=MagicMock())
 
 
 def test_validate_version() -> None:
     """Test validate_version method validates supported versions."""
     model = MagicMock()
-    model.name = GPT_4
-    SUPPORTED_OPENAI_MODELS[GPT_4] = MagicMock(versions=[GPT_4, GPT_3_5_TURBO])
+    model.name = 'gpt-4'
+    SUPPORTED_OPENAI_MODELS['gpt-4'] = MagicMock(versions=['gpt-4', 'gpt-3.5-turbo'])
     handler = OpenAIModelHandler(model)
 
-    handler._validate_version(GPT_4)  # Should not raise an error
+    handler._validate_version('gpt-4')  # Should not raise an error
 
     with pytest.raises(ValueError, match="Model version 'invalid-version' is not supported."):
         handler._validate_version('invalid-version')

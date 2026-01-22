@@ -14,25 +14,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Prompt utilities for MCP plugin.
+"""Prompt utilities for MCP plugin.
 
 This module contains helper functions for converting between MCP prompts
 and Genkit prompts, including schema and message conversion.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
 
-from mcp.types import GetPromptResult, Prompt
+from mcp.types import GetPromptResult
 
 logger = structlog.get_logger(__name__)
 
 
-def to_schema(arguments: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
-    """
-    Convert MCP prompt arguments to JSON schema format.
+def to_schema(arguments: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """Convert MCP prompt arguments to JSON schema format.
 
     Args:
         arguments: List of MCP prompt argument definitions with 'name',
@@ -44,7 +42,7 @@ def to_schema(arguments: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
     if not arguments:
         return {}
 
-    schema: Dict[str, Any] = {'type': 'object', 'properties': {}, 'required': []}
+    schema: dict[str, Any] = {'type': 'object', 'properties': {}, 'required': []}
 
     for arg in arguments:
         arg_name = arg.get('name', '')
@@ -58,9 +56,8 @@ def to_schema(arguments: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
     return schema
 
 
-def convert_prompt_arguments_to_schema(arguments: List[Any]) -> Dict[str, Any]:
-    """
-    Convert MCP prompt arguments to JSON schema format.
+def convert_prompt_arguments_to_schema(arguments: list[Any]) -> dict[str, Any]:
+    """Convert MCP prompt arguments to JSON schema format.
 
     This is an alias for to_schema() for backwards compatibility.
 
@@ -73,9 +70,8 @@ def convert_prompt_arguments_to_schema(arguments: List[Any]) -> Dict[str, Any]:
     return to_schema(arguments)
 
 
-def convert_mcp_prompt_messages(prompt_result: GetPromptResult) -> List[Dict[str, Any]]:
-    """
-    Convert MCP prompt messages to Genkit message format.
+def convert_mcp_prompt_messages(prompt_result: GetPromptResult) -> list[dict[str, Any]]:
+    """Convert MCP prompt messages to Genkit message format.
 
     Args:
         prompt_result: The GetPromptResult from MCP server containing messages

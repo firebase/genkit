@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
-from genkit.types import Message, Part, Role, TextPart, ToolResponse
+from genkit.types import Message, Role, TextPart
 
 logger = structlog.get_logger(__name__)
 
@@ -112,7 +112,6 @@ async def streaming_flow(topic: str, ctx: ActionRunContext) -> str:
 @ai.flow()
 async def weather_flow(location: str) -> str:
     """Get weather using compat-oai auto tool calling."""
-
     response = await ai.generate(
         model=deepseek_name('deepseek-chat'),
         prompt=f'What is the weather in {location}?',
@@ -244,35 +243,12 @@ async def chat_flow() -> str:
 
 
 async def main() -> None:
-    """Main entry point for the DeepSeek sample."""
-    # Simple greeting
-    result = await say_hi('World')
-    await logger.ainfo('say_hi', result=result)
+    """Main entry point for the DeepSeek sample - keep alive for Dev UI."""
+    import asyncio
 
-    # Streaming response
-    result = await streaming_flow('apple')
-    await logger.ainfo('streaming_flow', result=result)
-
-    # Weather with tools
-    result = await weather_flow('Seattle, WA')
-    await logger.ainfo('weather_flow', result=result)
-
-    # Reasoning model
-    result = await reasoning_flow()
-    await logger.ainfo('reasoning_flow', result=result)
-
-    # Custom config - demonstrate different configurations
-    await logger.ainfo('Testing creative config...')
-    result = await custom_config_flow('creative')
-    await logger.ainfo('custom_config_flow (creative)', result=result)
-
-    await logger.ainfo('Testing precise config...')
-    result = await custom_config_flow('precise')
-    await logger.ainfo('custom_config_flow (precise)', result=result)
-
-    # Multi-turn chat
-    result = await chat_flow()
-    await logger.ainfo('chat_flow', result=result)
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

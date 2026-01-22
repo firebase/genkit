@@ -20,15 +20,12 @@ from flask import Flask
 
 from genkit.ai import Genkit
 from genkit.plugins.flask import genkit_flask_handler
-from genkit.plugins.google_genai import (
-    GoogleAI,
-    googleai_name,
-)
+from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
 )
 
 app = Flask(__name__)

@@ -16,16 +16,14 @@
 
 
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
-from genkit.plugins.google_genai import GeminiEmbeddingModels, GoogleAI, googleai_name
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
+from genkit.plugins.google_genai import GoogleAI
 
-ai = Genkit(
-    plugins=[
-        GoogleAI(),
-        DevLocalVectorStore(
-            name='menu-items',
-            embedder=googleai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004),
-            embedder_options={'taskType': 'RETRIEVAL_DOCUMENT'},
-        ),
-    ]
+ai = Genkit(plugins=[GoogleAI()])
+
+# Define dev local vector store
+define_dev_local_vector_store(
+    ai,
+    name='menu-items',
+    embedder='googleai/text-embedding-004',
 )

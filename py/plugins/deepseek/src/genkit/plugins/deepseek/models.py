@@ -19,7 +19,6 @@
 from collections.abc import Callable
 from typing import Any
 
-from genkit.ai import GenkitRegistry
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.deepseek.client import DeepSeekClient
@@ -58,7 +57,6 @@ class DeepSeekModel:
         self,
         model: str,
         api_key: str,
-        registry: GenkitRegistry,
         **deepseek_params,
     ) -> None:
         """Initialize the DeepSeek instance.
@@ -66,11 +64,9 @@ class DeepSeekModel:
         Args:
             model: The name of the specific DeepSeek model (e.g., 'deepseek-chat').
             api_key: DeepSeek API key for authentication.
-            registry: An instance of GenkitRegistry to register the model.
             **deepseek_params: Additional parameters for the DeepSeek client.
         """
         self.name = model
-        self.ai = registry
         client_params = {'api_key': api_key, **deepseek_params}
         self.client = DeepSeekClient(**client_params)
 
@@ -102,23 +98,5 @@ class DeepSeekModel:
             A callable function (the generate method of an OpenAIModel instance)
             that can be used by Genkit.
         """
-        deepseek_model = OpenAIModel(self.name, self.client, self.ai)
+        deepseek_model = OpenAIModel(self.name, self.client)
         return deepseek_model.generate
-
-    def define_model(self) -> None:
-        """Define and register the DeepSeek model with the Genkit registry.
-
-        This method orchestrates the retrieval of model metadata and the
-        creation of the generation function, then registers this model
-        within the Genkit framework using self.ai.define_model.
-        """
-        model_info = self.get_model_info()
-        generate_fn = self.to_deepseek_model()
-        self.ai.define_model(
-            name=deepseek_name(self.name),
-            fn=generate_fn,
-            config_schema=OpenAIConfig,
-            metadata={
-                'model': model_info,
-            },
-        )
