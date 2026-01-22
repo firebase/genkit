@@ -16,6 +16,7 @@
 
 """Encoding/decoding functions."""
 
+import base64
 import json
 from collections.abc import Callable
 from typing import Any
@@ -45,6 +46,23 @@ def dump_dict(obj: Any, fallback: Callable[[Any], Any] | None = None):
         return obj
 
 
+def default_serializer(obj: Any) -> Any:
+    """Default serializer for objects not handled by json.dumps.
+
+    Args:
+        obj: The object to serialize.
+
+    Returns:
+        A serializable representation of the object.
+    """
+    if isinstance(obj, bytes):
+        try:
+            return base64.b64encode(obj).decode('utf-8')
+        except Exception:
+            return '<bytes>'
+    return str(obj)
+
+
 def dump_json(obj: Any, indent=None, fallback: Callable[[Any], Any] | None = None) -> str:
     """Dumps an object to a JSON string.
 
@@ -63,4 +81,4 @@ def dump_json(obj: Any, indent=None, fallback: Callable[[Any], Any] | None = Non
     if isinstance(obj, BaseModel):
         return obj.model_dump_json(by_alias=True, exclude_none=True, indent=indent, fallback=fallback)
     else:
-        return json.dumps(obj, indent=indent, default=fallback)
+        return json.dumps(obj, indent=indent, default=fallback or default_serializer)

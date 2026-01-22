@@ -38,6 +38,8 @@ class VertexEmbeddingModels(StrEnum):
     TEXT_EMBEDDING_005_ENG = 'text-embedding-005'
     GECKO_MULTILINGUAL = 'textembedding-gecko-multilingual@001'
     TEXT_EMBEDDING_002_MULTILINGUAL = 'text-multilingual-embedding-002'
+    MULTIMODAL_EMBEDDING_001 = 'multimodalembedding@001'
+    GEMINI_EMBEDDING_001 = 'gemini-embedding-001'
 
 
 class GeminiEmbeddingModels(StrEnum):
@@ -45,7 +47,7 @@ class GeminiEmbeddingModels(StrEnum):
 
     GEMINI_EMBEDDING_EXP_03_07 = 'gemini-embedding-exp-03-07'
     TEXT_EMBEDDING_004 = 'text-embedding-004'
-    EMBEDDING_001 = 'embedding-001'
+    GEMINI_EMBEDDING_001 = 'gemini-embedding-001'
 
 
 class EmbeddingTaskType(StrEnum):

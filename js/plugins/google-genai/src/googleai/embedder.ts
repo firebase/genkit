@@ -20,12 +20,13 @@ import {
   embedderActionMetadata,
   EmbedderInfo,
   EmbedderReference,
-  Genkit,
   z,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
+import { embedder as pluginEmbedder } from 'genkit/plugin';
 import { embedContent } from './client.js';
 import {
+  ClientOptions,
   EmbedContentRequest,
   GoogleAIPluginOptions,
   Model,
@@ -52,7 +53,7 @@ export const EmbeddingConfigSchema = z
     /**
      * The `outputDimensionality` parameter allows you to specify the dimensionality of the embedding output.
      * By default, the model generates embeddings with 768 dimensions. Models such as
-     * `text-embedding-004`, `text-embedding-005`, and `text-multilingual-embedding-002`
+     * `text-embedding-005`, and `text-multilingual-embedding-002`
      * allow the output dimensionality to be adjusted between 1 and 768.
      * By selecting a smaller output dimensionality, users can save memory and storage space, leading to more efficient computations.
      **/
@@ -85,7 +86,6 @@ function commonRef(
 const GENERIC_MODEL = commonRef('embedder');
 
 const KNOWN_MODELS = {
-  'text-embedding-004': commonRef('text-embedding-004'),
   'gemini-embedding-001': commonRef('gemini-embedding-001'),
 };
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
@@ -122,44 +122,51 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineEmbedder(ai, name, options);
-  }
+export function listKnownModels(options?: GoogleAIPluginOptions) {
+  return Object.keys(KNOWN_MODELS).map((name) => defineEmbedder(name, options));
 }
 
 export function defineEmbedder(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): EmbedderAction {
   checkApiKey(pluginOptions?.apiKey);
   const ref = model(name);
+  const clientOptions: ClientOptions = {
+    apiVersion: pluginOptions?.apiVersion,
+    baseUrl: pluginOptions?.baseUrl,
+    customHeaders: pluginOptions?.customHeaders,
+  };
 
-  return ai.defineEmbedder(
+  return pluginEmbedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,
       info: ref.info,
     },
-    async (input, reqOptions) => {
+    async (request, _) => {
       const embedApiKey = calculateApiKey(
         pluginOptions?.apiKey,
-        reqOptions?.apiKey
+        request.options?.apiKey
       );
-      const embedVersion = reqOptions?.version || extractVersion(ref);
+      const embedVersion = request.options?.version || extractVersion(ref);
 
       const embeddings = await Promise.all(
-        input.map(async (doc) => {
-          const response = await embedContent(embedApiKey, embedVersion, {
-            taskType: reqOptions?.taskType,
-            title: reqOptions?.title,
-            content: {
-              role: '',
-              parts: [{ text: doc.text }],
-            },
-            outputDimensionality: reqOptions?.outputDimensionality,
-          } as EmbedContentRequest);
+        request.input.map(async (doc) => {
+          const response = await embedContent(
+            embedApiKey,
+            embedVersion,
+            {
+              taskType: request.options?.taskType,
+              title: request.options?.title,
+              content: {
+                role: '',
+                parts: [{ text: doc.text }],
+              },
+              outputDimensionality: request.options?.outputDimensionality,
+            } as EmbedContentRequest,
+            clientOptions
+          );
           const values = response.embedding.values;
           return { embedding: values };
         })

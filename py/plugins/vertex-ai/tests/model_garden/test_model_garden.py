@@ -20,7 +20,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from genkit.ai import GenkitRegistry
 from genkit.plugins.vertex_ai.model_garden.model_garden import ModelGarden
 
 
@@ -28,9 +27,7 @@ from genkit.plugins.vertex_ai.model_garden.model_garden import ModelGarden
 @patch('genkit.plugins.vertex_ai.model_garden.model_garden.OpenAIClient')
 def model_garden_instance(client):
     """Model Garden fixture."""
-    return ModelGarden(
-        model='test', location='us-central1', project_id='project', registry=MagicMock(spec=GenkitRegistry)
-    )
+    return ModelGarden(model='test', location='us-central1', project_id='project')
 
 
 @pytest.mark.parametrize(
@@ -44,6 +41,7 @@ def model_garden_instance(client):
                     'constrained': None,
                     'content_type': None,
                     'context': None,
+                    'long_running': False,
                     'multiturn': True,
                     'media': False,
                     'tools': True,
@@ -64,6 +62,7 @@ def model_garden_instance(client):
                     'constrained': None,
                     'content_type': None,
                     'context': None,
+                    'long_running': None,
                     'multiturn': True,
                     'media': True,
                     'tools': True,

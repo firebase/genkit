@@ -14,13 +14,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from genkit.plugins.google_genai.google import GoogleAI, VertexAI, googleai_name, vertexai_name
+from genkit.plugins.google_genai.google import (
+    GoogleAI,
+    VertexAI,
+)
 from genkit.plugins.google_genai.models.embedder import (
     EmbeddingTaskType,
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
 )
-from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema, GoogleAIGeminiVersion, VertexAIGeminiVersion
+from genkit.plugins.google_genai.models.gemini import (
+    GeminiConfigSchema,
+    GeminiImageConfigSchema,
+    GoogleAIGeminiVersion,
+    VertexAIGeminiVersion,
+)
 from genkit.plugins.google_genai.models.imagen import ImagenVersion
 
 
@@ -37,13 +45,12 @@ __all__ = [
     package_name.__name__,
     GoogleAI.__name__,
     VertexAI.__name__,
-    googleai_name.__name__,
-    vertexai_name.__name__,
     GeminiEmbeddingModels.__name__,
     VertexEmbeddingModels.__name__,
     GoogleAIGeminiVersion.__name__,
     VertexAIGeminiVersion.__name__,
     EmbeddingTaskType.__name__,
     GeminiConfigSchema.__name__,
+    GeminiImageConfigSchema.__name__,
     ImagenVersion.__name__,
 ]

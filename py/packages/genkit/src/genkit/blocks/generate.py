@@ -29,12 +29,15 @@ from genkit.blocks.model import (
     MessageWrapper,
     ModelMiddleware,
 )
+from genkit.blocks.resource import ResourceInput, find_matching_resource, resolve_resources
 from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
-from genkit.core.error import GenkitError, StatusName
+from genkit.core.error import GenkitError
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
+    DocumentData,
+    DocumentPart,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -97,9 +100,12 @@ async def generate_action(
     Returns:
         The generated response.
     """
-    model, tools, format_def = resolve_parameters(registry, raw_request)
+    model, tools, format_def = await resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
+
+    if raw_request.resources:
+        raw_request = await apply_resources(registry, raw_request)
 
     assert_valid_tool_names(tools)
 
@@ -412,6 +418,131 @@ def apply_transfer_preamble(next_request: GenerateActionOptions, preamble: Gener
     return next_request
 
 
+def _extract_resource_uri(resource_obj: Any) -> str | None:
+    """Extract URI from a resource object.
+
+    Handles various Pydantic wrapper structures (Resource, Resource1, RootModel, dict).
+
+    Args:
+        resource_obj: The resource object to extract URI from.
+
+    Returns:
+        The extracted URI string, or None if not found.
+    """
+    # Direct uri attribute (Resource1, ResourceInput, etc.)
+    if hasattr(resource_obj, 'uri'):
+        return resource_obj.uri
+
+    # Unwrap RootModel structures
+    if hasattr(resource_obj, 'root'):
+        return _extract_resource_uri(resource_obj.root)
+
+    # Unwrap nested resource attribute
+    if hasattr(resource_obj, 'resource'):
+        return _extract_resource_uri(resource_obj.resource)
+
+    # Handle dict representation
+    if isinstance(resource_obj, dict) and 'uri' in resource_obj:
+        return resource_obj['uri']
+
+    return None
+
+
+async def apply_resources(registry: Registry, raw_request: GenerateActionOptions) -> GenerateActionOptions:
+    """Applies resources to the request messages by hydrating resource parts.
+
+    Args:
+        registry: The registry to use for resolving resources.
+        raw_request: The generation request.
+
+    Returns:
+        The updated generation request with hydrated resources.
+    """
+    # Quick check if any message has a resource part
+    has_resource = False
+    for msg in raw_request.messages:
+        for part in msg.content:
+            if part.root.resource:
+                has_resource = True
+                break
+        if has_resource:
+            break
+
+    if not has_resource:
+        return raw_request
+
+    # Resolve all declared resources
+    resources = []
+    if raw_request.resources:
+        resources = await resolve_resources(registry, raw_request.resources)
+
+    updated_messages = []
+    for msg in raw_request.messages:
+        if not any(p.root.resource for p in msg.content):
+            updated_messages.append(msg)
+            continue
+
+        updated_content = []
+        for part in msg.content:
+            if not part.root.resource:
+                updated_content.append(part)
+                continue
+
+            resource_obj = part.root.resource
+
+            # Extract URI from the resource object
+            # The resource can be wrapped in various Pydantic structures (Resource, Resource1, etc.)
+            ref_uri = _extract_resource_uri(resource_obj)
+            if not ref_uri:
+                logger.warning(
+                    f'Unable to extract URI from resource part: {type(resource_obj).__name__}. '
+                    f'Resource part will be skipped.'
+                )
+                continue
+
+            # Find matching resource action
+            if not resources:
+                raise GenkitError(
+                    status='NOT_FOUND',
+                    message=f'failed to find matching resource for {ref_uri}',
+                )
+
+            from genkit.blocks.resource import ResourceInput, find_matching_resource
+
+            # Normalize to ResourceInput for matching
+            resource_input = ResourceInput(uri=ref_uri)
+            resource_action = await find_matching_resource(registry, resources, resource_input)
+
+            if not resource_action:
+                raise GenkitError(
+                    status='NOT_FOUND',
+                    message=f'failed to find matching resource for {ref_uri}',
+                )
+
+            # Execute the resource
+            # Create a simple context for the resource execution
+            resource_ctx = ActionRunContext(on_chunk=None, context=None)
+            response = await resource_action.arun(resource_input, resource_ctx)
+
+            # response.response is ResourceOutput which has .content (list of Parts)
+            # It usually returns a dict if coming from dynamic_resource (model_dump called)
+            output_content = None
+            if hasattr(response.response, 'content'):
+                output_content = response.response.content
+            elif isinstance(response.response, dict) and 'content' in response.response:
+                output_content = response.response['content']
+
+            if output_content:
+                updated_content.extend(output_content)
+
+        updated_messages.append(Message(role=msg.role, content=updated_content, metadata=msg.metadata))
+
+    # Return a new request with updated messages
+    new_request = raw_request.model_copy()
+    new_request.messages = updated_messages
+    return new_request
+
+
 def assert_valid_tool_names(raw_request: GenerateActionOptions):
     """Assert that tool names in the request are valid.
 
@@ -425,7 +556,7 @@ def assert_valid_tool_names(raw_request: GenerateActionOptions):
     pass
 
 
-def resolve_parameters(
+async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
 ) -> tuple[Action, list[Action], FormatDef | None]:
     """Resolve parameters for the generate action.
@@ -442,14 +573,14 @@ def resolve_parameters(
     if not model:
         raise Exception('No model configured.')
 
-    model_action = registry.lookup_action(ActionKind.MODEL, model)
+    model_action = await registry.resolve_action(ActionKind.MODEL, model)
     if model_action is None:
         raise Exception(f'Failed to to resolve model {model}')
 
     tools: list[Action] = []
     if request.tools:
         for tool_name in request.tools:
-            tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
+            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
                 raise Exception(f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
@@ -503,23 +634,17 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
 
     Returns:
         The converted tool definition.
+
+    Note:
+        Tool names may contain '/' characters (e.g., 'plugin/action').
+        The full name is preserved here; model plugins are responsible for
+        escaping names if the provider API doesn't support certain characters.
     """
-    original_name: str = tool.name
-    name: str = original_name
-
-    if '/' in original_name:
-        name = original_name[original_name.rfind('/') + 1 :]
-
-    metadata = None
-    if original_name != name:
-        metadata = {'originalName': original_name}
-
     tdef = ToolDefinition(
-        name=name,
+        name=tool.name,
         description=tool.description,
         inputSchema=tool.input_schema,
         outputSchema=tool.output_schema,
-        metadata=metadata,
     )
     return tdef
 
@@ -541,7 +666,7 @@ async def resolve_tool_requests(
     # TODO: prompt transfer
     tool_dict: dict[str, Action] = {}
     for tool_name in request.tools:
-        tool_dict[tool_name] = resolve_tool(registry, tool_name)
+        tool_dict[tool_name] = await resolve_tool(registry, tool_name)
 
     revised_model_message = message._original_message.model_copy(deep=True)
 
@@ -637,7 +762,11 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
                 Part(
                     tool_request=tool_request_part.tool_request,
                     metadata={
-                        **(tool_request_part.metadata if tool_request_part.metadata else {}),
+                        **(
+                            tool_request_part.metadata.root
+                            if isinstance(tool_request_part.metadata, Metadata)
+                            else (tool_request_part.metadata or {})
+                        ),
                         'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
                     },
                 ),
@@ -646,7 +775,7 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-def resolve_tool(registry: Registry, tool_name: str):
+async def resolve_tool(registry: Registry, tool_name: str):
     """Resolve a tool by name from the registry.
 
     Args:
@@ -659,7 +788,7 @@ def resolve_tool(registry: Registry, tool_name: str):
     Raises:
         ValueError: If the tool could not be resolved.
     """
-    return registry.lookup_action(kind=ActionKind.TOOL, name=tool_name)
+    return await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
 
 
 async def _resolve_resume_options(
@@ -815,7 +944,7 @@ def _find_corresponding_tool_response(responses: list[ToolResponsePart], request
     """
     for p in responses:
         if p.tool_response.name == request.tool_request.name and p.tool_response.ref == request.tool_request.ref:
-            return p
+            return Part(root=p)
     return None
 
 

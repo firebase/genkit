@@ -17,15 +17,16 @@
 import axios, { type AxiosError } from 'axios';
 import chokidar from 'chokidar';
 import EventEmitter from 'events';
+import * as fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
+import { GenkitError } from '../types';
 import {
   RunActionResponseSchema,
   type Action,
   type RunActionResponse,
 } from '../types/action';
 import * as apis from '../types/apis';
-import type { GenkitError } from '../types/error';
 import type { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
@@ -38,6 +39,7 @@ import {
   retriable,
   type DevToolsInfo,
 } from '../utils/utils';
+import { ProcessManager } from './process-manager';
 import {
   GenkitToolsError,
   RuntimeEvent,
@@ -56,19 +58,32 @@ interface RuntimeManagerOptions {
   manageHealth?: boolean;
   /** Project root dir. If not provided will be inferred from CWD. */
   projectRoot: string;
+  /** An optional process manager for the main application process. */
+  processManager?: ProcessManager;
+  /** Whether to disable realtime telemetry streaming. Defaults to false. */
+  disableRealtimeTelemetry?: boolean;
 }
 
 export class RuntimeManager {
+  readonly processManager?: ProcessManager;
+  readonly disableRealtimeTelemetry: boolean;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
   private eventEmitter = new EventEmitter();
+  private watchers: chokidar.FSWatcher[] = [];
+  private healthCheckInterval?: NodeJS.Timeout;
 
   private constructor(
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
-    readonly projectRoot: string
-  ) {}
+    readonly projectRoot: string,
+    processManager?: ProcessManager,
+    disableRealtimeTelemetry?: boolean
+  ) {
+    this.processManager = processManager;
+    this.disableRealtimeTelemetry = disableRealtimeTelemetry ?? false;
+  }
 
   /**
    * Creates a new runtime manager.
@@ -77,17 +92,32 @@ export class RuntimeManager {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
       options.manageHealth ?? true,
-      options.projectRoot
+      options.projectRoot,
+      options.processManager,
+      options.disableRealtimeTelemetry
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
     if (manager.manageHealth) {
-      setInterval(
+      manager.healthCheckInterval = setInterval(
         async () => await manager.performHealthChecks(),
         HEALTH_CHECK_INTERVAL
       );
     }
     return manager;
+  }
+
+  /**
+   * Stops the runtime manager and cleans up resources.
+   */
+  async stop() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+    await Promise.all(this.watchers.map((watcher) => watcher.close()));
+    if (this.processManager) {
+      await this.processManager.kill();
+    }
   }
 
   /**
@@ -137,13 +167,23 @@ export class RuntimeManager {
    * `runtime` to which it applies.
    *
    * @param listener the callback function.
+   * @returns an unsubscriber function.
    */
   onRuntimeEvent(
     listener: (eventType: RuntimeEvent, runtime: RuntimeInfo) => void
   ) {
-    Object.values(RuntimeEvent).forEach((event) =>
-      this.eventEmitter.on(event, (rt) => listener(event, rt))
-    );
+    const listeners: Array<{ event: string; fn: (rt: RuntimeInfo) => void }> =
+      [];
+    Object.values(RuntimeEvent).forEach((event) => {
+      const fn = (rt: RuntimeInfo) => listener(event, rt);
+      this.eventEmitter.on(event, fn);
+      listeners.push({ event, fn });
+    });
+    return () => {
+      listeners.forEach(({ event, fn }) => {
+        this.eventEmitter.off(event, fn);
+      });
+    };
   }
 
   /**
@@ -159,7 +199,7 @@ export class RuntimeManager {
       throw new Error(
         input?.runtimeId
           ? `No runtime found with ID ${input.runtimeId}.`
-          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+          : 'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
     }
     const response = await axios
@@ -169,11 +209,50 @@ export class RuntimeManager {
   }
 
   /**
+   * Retrieves all valuess.
+   */
+  async listValues(
+    input: apis.ListValuesRequest
+  ): Promise<Record<string, unknown>> {
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
+    if (!runtime) {
+      throw new Error(
+        input?.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+      );
+    }
+    try {
+      const response = await axios.get(
+        `${runtime.reflectionServerUrl}/api/values`,
+        {
+          params: {
+            type: input.type,
+          },
+        }
+      );
+      return response.data as Record<string, unknown>;
+    } catch (err) {
+      if ((err as AxiosError).response?.status === 404) {
+        return {};
+      } else if ((err as AxiosError).response?.status === 400) {
+        throw new GenkitToolsError(
+          `Bad request: ${(err as AxiosError).response?.data}`
+        );
+      }
+      this.httpErrorHandler(err as AxiosError, 'Error listing values.');
+    }
+  }
+
+  /**
    * Runs an action.
    */
   async runAction(
     input: apis.RunActionRequest,
-    streamingCallback?: StreamingCallback<any>
+    streamingCallback?: StreamingCallback<any>,
+    onTraceId?: (traceId: string) => void
   ): Promise<RunActionResponse> {
     const runtime = input.runtimeId
       ? this.getRuntimeById(input.runtimeId)
@@ -182,7 +261,7 @@ export class RuntimeManager {
       throw new Error(
         input.runtimeId
           ? `No runtime found with ID ${input.runtimeId}.`
-          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+          : 'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
     }
     if (streamingCallback) {
@@ -197,11 +276,22 @@ export class RuntimeManager {
             responseType: 'stream',
           }
         )
-        .catch(this.httpErrorHandler);
+        .catch((err) =>
+          this.handleStreamError(
+            err,
+            `Error running action key='${input.key}'.`
+          )
+        );
       let genkitVersion: string;
       if (response.headers['x-genkit-version']) {
         genkitVersion = response.headers['x-genkit-version'];
       }
+
+      const traceId = response.headers['x-genkit-trace-id'];
+      if (traceId && onTraceId) {
+        onTraceId(traceId);
+      }
+
       const stream = response.data;
 
       let buffer = '';
@@ -256,20 +346,118 @@ export class RuntimeManager {
       });
       return promise;
     } else {
+      // runAction should use chunked JSON streaming to send early headers
       const response = await axios
         .post(`${runtime.reflectionServerUrl}/api/runAction`, input, {
           headers: {
             'Content-Type': 'application/json',
           },
+          responseType: 'stream', // Use stream to get early headers
         })
         .catch((err) =>
-          this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
+          this.handleStreamError(
+            err,
+            `Error running action key='${input.key}'.`
+          )
         );
-      const resp = RunActionResponseSchema.parse(response.data);
-      if (response.headers['x-genkit-version']) {
-        resp.genkitVersion = response.headers['x-genkit-version'];
+
+      const traceId = response.headers['x-genkit-trace-id'];
+      if (traceId && onTraceId) {
+        onTraceId(traceId);
       }
-      return resp;
+
+      return new Promise<RunActionResponse>((resolve, reject) => {
+        let buffer = '';
+
+        response.data.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString();
+        });
+
+        response.data.on('end', () => {
+          try {
+            const responseData = JSON.parse(buffer);
+
+            if (responseData.error) {
+              const err = new GenkitToolsError(
+                `Error running action key='${input.key}'.`
+              );
+              // massage the error into a shape dev ui expects
+              err.data = {
+                ...responseData.error,
+                stack: (responseData.error?.details as any).stack,
+                data: {
+                  genkitErrorMessage: responseData.error?.message,
+                  genkitErrorDetails: responseData.error?.details,
+                },
+              };
+              reject(err);
+              return;
+            }
+
+            // Handle backward compatibility - add trace ID from header if not in body
+            if (!responseData.telemetry && traceId) {
+              responseData.telemetry = { traceId: traceId };
+            }
+
+            const parsed = RunActionResponseSchema.parse(responseData);
+            if (response.headers['x-genkit-version']) {
+              parsed.genkitVersion = response.headers['x-genkit-version'];
+            }
+            resolve(parsed);
+          } catch (err) {
+            reject(new GenkitToolsError(`Failed to parse response: ${err}`));
+          }
+        });
+
+        response.data.on('error', (err: Error) => {
+          reject(err);
+        });
+      });
+    }
+  }
+
+  /**
+   * Cancels an in-flight action by trace ID
+   */
+  async cancelAction(input: {
+    traceId: string;
+    runtimeId?: string;
+  }): Promise<{ message: string }> {
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
+    if (!runtime) {
+      throw new Error(
+        input.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running.'
+      );
+    }
+
+    try {
+      const response = await axios.post(
+        `${runtime.reflectionServerUrl}/api/cancelAction`,
+        { traceId: input.traceId },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (err) {
+      const axiosError = err as AxiosError;
+      if (axiosError.response?.status === 404) {
+        const error = new GenkitToolsError(
+          'Action not found or already completed'
+        );
+        error.data = {
+          message: 'Action not found or already completed',
+        } as any;
+        (error.data as any).statusCode = 404;
+        throw error;
+      }
+      throw this.httpErrorHandler(axiosError);
     }
   }
 
@@ -324,6 +512,89 @@ export class RuntimeManager {
   }
 
   /**
+   * Streams trace updates in real-time from the telemetry server.
+   * Connects to the telemetry server's SSE endpoint and forwards updates via callback.
+   */
+  async streamTrace(
+    input: apis.StreamTraceRequest,
+    streamingCallback: StreamingCallback<any>
+  ): Promise<void> {
+    const { traceId } = input;
+
+    if (!this.telemetryServerUrl) {
+      throw new Error(
+        'Telemetry server URL not configured. Cannot stream trace updates.'
+      );
+    }
+
+    const response = await axios
+      .get(`${this.telemetryServerUrl}/api/traces/${traceId}/stream`, {
+        headers: {
+          Accept: 'text/event-stream',
+        },
+        responseType: 'stream',
+      })
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error streaming trace for traceId='${traceId}'`
+        )
+      );
+
+    const stream = response.data;
+    let buffer = '';
+
+    // Return a promise that resolves when the stream ends
+    return new Promise<void>((resolve, reject) => {
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+
+        // Process complete messages (ending with \n\n)
+        while (buffer.includes('\n\n')) {
+          const messageEnd = buffer.indexOf('\n\n');
+          const message = buffer.substring(0, messageEnd).trim();
+          buffer = buffer.substring(messageEnd + 2);
+
+          // Skip empty messages
+          if (!message) {
+            continue;
+          }
+          // Parse SSE data line - strip "data: " prefix
+          try {
+            const jsonData = message.startsWith('data: ')
+              ? message.slice(6)
+              : message;
+            const parsed = JSON.parse(jsonData);
+            streamingCallback(parsed);
+          } catch (err) {
+            logger.error(`Error parsing stream data: ${err}`);
+          }
+        }
+      });
+
+      stream.on('end', () => {
+        resolve();
+      });
+
+      stream.on('error', (err: Error) => {
+        logger.error(`Stream error for traceId='${traceId}': ${err}`);
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Adds a trace to the trace store
+   */
+  async addTrace(input: TraceData): Promise<void> {
+    await axios
+      .post(`${this.telemetryServerUrl}/api/traces/`, input)
+      .catch((err) =>
+        this.httpErrorHandler(err, 'Error writing trace to store.')
+      );
+  }
+
+  /**
    * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
   private async notifyRuntime(runtime: RuntimeInfo) {
@@ -344,10 +615,12 @@ export class RuntimeManager {
     try {
       const runtimesDir = await findRuntimesDir(this.projectRoot);
       await fs.mkdir(runtimesDir, { recursive: true });
+      logger.debug(`Watching runtimes in ${runtimesDir}`);
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
         ignoreInitial: false,
       });
+      this.watchers.push(watcher);
       watcher.on('add', (filePath) => this.handleNewRuntime(filePath));
       if (this.manageHealth) {
         watcher.on('unlink', (filePath) => this.handleRemovedRuntime(filePath));
@@ -372,6 +645,7 @@ export class RuntimeManager {
         persistent: true,
         ignoreInitial: false,
       });
+      this.watchers.push(watcher);
       watcher.on('add', (filePath) => this.handleNewDevUi(filePath));
       if (this.manageHealth) {
         watcher.on('unlink', (filePath) => this.handleRemovedDevUi(filePath));
@@ -390,6 +664,10 @@ export class RuntimeManager {
    */
   private async handleNewDevUi(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, toolsInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -433,6 +711,10 @@ export class RuntimeManager {
    */
   private async handleNewRuntime(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, runtimeInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -448,7 +730,12 @@ export class RuntimeManager {
           runtimeInfo.name = runtimeInfo.id;
         }
         const fileName = path.basename(filePath);
-        if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
+        if (
+          await checkServerHealth(
+            runtimeInfo.reflectionServerUrl,
+            runtimeInfo.id
+          )
+        ) {
           if (
             runtimeInfo.reflectionApiSpecVersion !=
             GENKIT_REFLECTION_API_SPEC_VERSION
@@ -505,15 +792,23 @@ export class RuntimeManager {
   /**
    * Handles an HTTP error.
    */
-  private httpErrorHandler(error: AxiosError, message?: string): any {
+  private httpErrorHandler(error: AxiosError, message?: string): never {
     const newError = new GenkitToolsError(message || 'Internal Error');
 
     if (error.response) {
-      if ((error.response?.data as any).message) {
-        newError.message = (error.response?.data as any).message;
-      }
       // we got a non-200 response; copy the payload and rethrow
       newError.data = error.response.data as GenkitError;
+      newError.stack = (error.response?.data as any).message;
+      if ((error.response?.data as any).message) {
+        newError.data.data = {
+          ...newError.data.data,
+          genkitErrorMessage: message,
+          genkitErrorDetails: {
+            stack: (error.response?.data as any).message,
+            traceId: (error.response?.data as any).traceId,
+          },
+        };
+      }
       throw newError;
     }
 
@@ -524,12 +819,65 @@ export class RuntimeManager {
   }
 
   /**
+   * Handles a stream error by reading the stream and then calling httpErrorHandler.
+   */
+  private async handleStreamError(
+    error: AxiosError,
+    message: string
+  ): Promise<never> {
+    if (
+      error.response &&
+      error.config?.responseType === 'stream' &&
+      (error.response.data as any).on
+    ) {
+      try {
+        const body = await this.streamToString(error.response.data);
+        try {
+          error.response.data = JSON.parse(body);
+        } catch (e) {
+          error.response.data = {
+            message: body || 'Unknown error',
+          };
+        }
+      } catch (e) {
+        // If stream reading fails, we must replace the stream object with a safe error object
+        // to prevent circular structure errors during JSON serialization.
+        error.response.data = {
+          message: 'Failed to read error response stream',
+          details: String(e),
+        };
+      }
+    }
+    this.httpErrorHandler(error, message);
+  }
+
+  /**
+   * Helper to convert a stream to string.
+   */
+  private streamToString(stream: any): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let buffer = '';
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+      });
+      stream.on('end', () => {
+        resolve(buffer);
+      });
+      stream.on('error', (err: Error) => {
+        reject(err);
+      });
+    });
+  }
+
+  /**
    * Performs health checks on all runtimes.
    */
   private async performHealthChecks() {
     const healthCheckPromises = Object.entries(this.filenameToRuntimeMap).map(
       async ([fileName, runtime]) => {
-        if (!(await checkServerHealth(runtime.reflectionServerUrl))) {
+        if (
+          !(await checkServerHealth(runtime.reflectionServerUrl, runtime.id))
+        ) {
           await this.removeRuntime(fileName);
         }
       }
@@ -541,19 +889,14 @@ export class RuntimeManager {
    * Removes the runtime file which will trigger the removal watcher.
    */
   private async removeRuntime(fileName: string) {
-    const runtime = this.filenameToRuntimeMap[fileName];
-    if (runtime) {
-      try {
-        const runtimesDir = await findRuntimesDir(this.projectRoot);
-        const runtimeFilePath = path.join(runtimesDir, fileName);
-        await fs.unlink(runtimeFilePath);
-      } catch (error) {
-        logger.debug(`Failed to delete runtime file: ${error}`);
-      }
-      logger.debug(
-        `Removed unhealthy runtime with ID ${runtime.id} from manager.`
-      );
+    try {
+      const runtimesDir = await findRuntimesDir(this.projectRoot);
+      const runtimeFilePath = path.join(runtimesDir, fileName);
+      await fs.unlink(runtimeFilePath);
+    } catch (error) {
+      logger.debug(`Failed to delete runtime file: ${error}`);
     }
+    logger.debug(`Removed unhealthy runtime ${fileName} from manager.`);
   }
 }
 

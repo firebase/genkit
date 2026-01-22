@@ -17,6 +17,8 @@
 
 """Google Cloud Plugin for Genkit."""
 
+from .telemetry import add_gcp_telemetry
+
 
 def package_name() -> str:
     """Get the package name for the Google Cloud plugin.
@@ -27,4 +29,4 @@ def package_name() -> str:
     return 'genkit.plugins.google_cloud'
 
 
-__all__ = ['package_name']
+__all__ = ['package_name', 'add_gcp_telemetry']

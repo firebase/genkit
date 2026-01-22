@@ -61,6 +61,12 @@ export const GetTraceRequestSchema = z.object({
 
 export type GetTraceRequest = z.infer<typeof GetTraceRequestSchema>;
 
+export const StreamTraceRequestSchema = z.object({
+  traceId: z.string().describe('ID of the trace to stream.'),
+});
+
+export type StreamTraceRequest = z.infer<typeof StreamTraceRequestSchema>;
+
 export const ListActionsRequestSchema = z
   .object({
     runtimeId: z
@@ -73,6 +79,22 @@ export const ListActionsRequestSchema = z
   .optional();
 
 export type ListActionsRequest = z.infer<typeof ListActionsRequestSchema>;
+
+export const ListValuesRequestSchema = z.object({
+  runtimeId: z
+    .string()
+    .optional()
+    .describe(
+      'ID of the Genkit runtime to run the action on. Typically $pid-$port.'
+    ),
+  type: z
+    .string()
+    .describe(
+      "The type of values to fetch. Currently only supports 'defaultModel'"
+    ),
+});
+
+export type ListValuesRequest = z.infer<typeof ListValuesRequestSchema>;
 
 export const RunActionRequestSchema = z.object({
   runtimeId: z
@@ -99,6 +121,18 @@ export const RunActionRequestSchema = z.object({
 });
 
 export type RunActionRequest = z.infer<typeof RunActionRequestSchema>;
+
+export const CancelActionRequestSchema = z.object({
+  traceId: z
+    .string()
+    .describe('ID of the trace associated with the action to cancel.'),
+  runtimeId: z
+    .string()
+    .optional()
+    .describe('ID of the Genkit runtime where the action is running.'),
+});
+
+export type CancelActionRequest = z.infer<typeof CancelActionRequestSchema>;
 
 export const CreatePromptRequestSchema = z.object({
   model: z.string(),

@@ -17,6 +17,7 @@
 """Base/shared implementation for Genkit user-facing API."""
 
 import asyncio
+import os
 import threading
 from collections.abc import Coroutine
 from http.server import HTTPServer
@@ -28,16 +29,19 @@ from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
 from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
+from genkit.core.plugin import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.web.manager import find_free_port_sync
 
-from ._plugin import Plugin
 from ._registry import GenkitRegistry
 from ._server import ServerSpec, init_default_runtime
 
 logger = structlog.get_logger(__name__)
 
 T = TypeVar('T')
+
+_instance_count = -1
+_instance_lock = threading.Lock()
 
 
 class GenkitBase(GenkitRegistry):
@@ -58,6 +62,11 @@ class GenkitBase(GenkitRegistry):
                 server.
         """
         super().__init__()
+        global _instance_count
+        global _instance_lock
+        with _instance_lock:
+            _instance_count += 1
+            self.id = f'{os.getpid()}-{_instance_count}'
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
         define_generate_action(self.registry)
@@ -112,19 +121,7 @@ class GenkitBase(GenkitRegistry):
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    plugin.initialize(ai=self)
-
-                    def resolver(kind, name, plugin=plugin):
-                        return plugin.resolve_action(self, kind, name)
-
-                    def action_resolver(plugin=plugin):
-                        if isinstance(plugin.list_actions, list):
-                            return plugin.list_actions
-                        else:
-                            return plugin.list_actions()
-
-                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
-                    self.registry.register_list_actions_resolver(plugin.plugin_name(), action_resolver)
+                    self.registry.register_plugin(plugin)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 
@@ -165,10 +162,10 @@ class GenkitBase(GenkitRegistry):
         """
         httpd = HTTPServer(
             (spec.host, spec.port),
-            make_reflection_server(registry=self.registry, loop=loop),
+            make_reflection_server(registry=self.registry, loop=loop, id=self.id),
         )
         # We need to write the runtime file closest to the point of starting up
         # the server to avoid race conditions with the manager's runtime
         # handler.
-        init_default_runtime(spec)
+        init_default_runtime(spec, self.id)
         httpd.serve_forever()

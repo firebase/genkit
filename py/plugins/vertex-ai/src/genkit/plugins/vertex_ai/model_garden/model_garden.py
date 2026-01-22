@@ -16,16 +16,13 @@
 
 from collections.abc import Callable
 
-from genkit.ai import GenkitRegistry
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
     get_default_model_info,
 )
 from genkit.plugins.compat_oai.models.model import OpenAIModel
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
 
-OPENAI_COMPAT = 'openai-compat'
 MODELGARDEN_PLUGIN_NAME = 'modelgarden'
 
 
@@ -56,7 +53,6 @@ class ModelGarden:
         model: str,
         location: str,
         project_id: str,
-        registry: GenkitRegistry,
     ) -> None:
         """Initializes the ModelGarden instance.
 
@@ -67,11 +63,8 @@ class ModelGarden:
                 is hosted (e.g., 'us-central1').
             project_id: The Google Cloud project ID where the Model Garden
                 model is deployed.
-            registry: An instance of `GenkitRegistry` to register the
-                OpenAI-compatible model with Genkit.
         """
         self.name = model
-        self.ai = registry
         openai_params = {'location': location, 'project_id': project_id}
         self.client = OpenAIClient(**openai_params)
 
@@ -104,23 +97,5 @@ class ModelGarden:
             A callable function (specifically, the `generate` method of an
             `OpenAIModel` instance) that can be used by Genkit.
         """
-        openai_model = OpenAIModel(self.name, self.client, self.ai)
+        openai_model = OpenAIModel(self.name, self.client)
         return openai_model.generate
-
-    def define_model(self) -> None:
-        """Defines and registers the Model Garden model with the Genkit registry.
-
-        This method orchestrates the retrieval of model metadata and the creation
-        of the OpenAI-compatible generation function, then registers this model
-        within the Genkit framework using `self.ai.define_model`.
-        """
-        model_info = self.get_model_info()
-        generate_fn = self.to_openai_compatible_model()
-        self.ai.define_model(
-            name=model_garden_name(self.name),
-            fn=generate_fn,
-            config_schema=OpenAIConfig,
-            metadata={
-                'model': model_info,
-            },
-        )

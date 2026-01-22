@@ -22,13 +22,24 @@ import { getContext, runWithContext, type ActionContext } from './context.js';
 import type { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
+  type ActionStreamInput,
+  type ActionStreamSubscriber,
+  type StreamManager,
+} from './streaming.js';
+import {
   SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttributes,
 } from './tracing.js';
 
 export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
-export type { JSONSchema7 };
+export { InMemoryStreamManager, StreamNotFoundError } from './streaming.js';
+export type {
+  ActionStreamInput,
+  ActionStreamSubscriber,
+  JSONSchema7,
+  StreamManager,
+};
 
 const makeNoopAbortSignal = () => new AbortController().signal;
 
@@ -85,6 +96,14 @@ export interface ActionRunOptions<S> {
    * Abort signal for the action request.
    */
   abortSignal?: AbortSignal;
+
+  /**
+   * Callback that fires immediately when the root span is created for the action,
+   * providing early access to telemetry data (trace ID, span ID).
+   * This is useful for scenarios where telemetry needs to be available before the action completes.
+   * Note: This only fires once for the root action span, not for nested spans.
+   */
+  onTraceStart?: (traceInfo: { traceId: string; spanId: string }) => void;
 }
 
 /**
@@ -341,6 +360,9 @@ export function action<
 
         traceId = span.spanContext().traceId;
         spanId = span.spanContext().spanId;
+        if (options?.onTraceStart) {
+          options.onTraceStart({ traceId, spanId });
+        }
         metadata.name = actionName;
         metadata.input = input;
 

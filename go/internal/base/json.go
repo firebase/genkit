@@ -77,6 +77,8 @@ func ReadJSONFile(filename string, pvalue any) error {
 
 // InferJSONSchema infers a JSON schema from a Go value.
 func InferJSONSchema(x any) (s *jsonschema.Schema) {
+	seen := make(map[reflect.Type]bool)
+
 	r := jsonschema.Reflector{
 		DoNotReference: true,
 		Mapper: func(t reflect.Type) *jsonschema.Schema {
@@ -90,6 +92,23 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 					},
 				}
 			}
+
+			// Handle recursive types: track struct types we've seen.
+			// The first encounter is reflected normally; subsequent encounters
+			// (including self-references) return an "any" schema to break recursion.
+			baseType := t
+			if t.Kind() == reflect.Ptr {
+				baseType = t.Elem()
+			}
+			if baseType.Kind() == reflect.Struct {
+				if seen[baseType] {
+					return &jsonschema.Schema{
+						AdditionalProperties: jsonschema.TrueSchema,
+					}
+				}
+				seen[baseType] = true
+			}
+
 			return nil // Return nil to use default schema generation for other types
 		},
 	}
@@ -97,6 +116,32 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	s.Version = ""
 	s.ID = ""
 	return s
+}
+
+// MapToStruct converts a map[string]any to a struct of type T via JSON round-trip.
+func MapToStruct[T any](m map[string]any) (T, error) {
+	var result T
+	data, err := json.Marshal(m)
+	if err != nil {
+		return result, err
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+// StructToMap converts a struct to map[string]any via JSON round-trip.
+func StructToMap[T any](v T) (map[string]any, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // SchemaAsMap converts json schema struct to a map (JSON representation).
@@ -119,22 +164,34 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	return m
 }
 
-var jsonMarkdownRegex = regexp.MustCompile("```(json)?((\n|.)*?)```")
+// jsonMarkdownRegex matches fenced code blocks with "json" language identifier (case-insensitive).
+var jsonMarkdownRegex = regexp.MustCompile("(?si)```json\\s*(.*?)```")
+
+// plainMarkdownRegex matches fenced code blocks without any language identifier.
+var plainMarkdownRegex = regexp.MustCompile("(?s)```\\s*\\n(.*?)```")
 
 // ExtractJSONFromMarkdown returns the contents of the first fenced code block in
-// the markdown text md. If there is none, it returns md.
+// the markdown text md. It matches code blocks with "json" identifier (case-insensitive)
+// or code blocks without any language identifier. If there is no matching block, it returns md.
 func ExtractJSONFromMarkdown(md string) string {
-	// TODO: improve this
+	// First try to match explicit json code blocks
 	matches := jsonMarkdownRegex.FindStringSubmatch(md)
-	if matches == nil {
-		return md
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
 	}
-	return matches[2]
+
+	// Fall back to plain code blocks (no language identifier)
+	matches = plainMarkdownRegex.FindStringSubmatch(md)
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
+	}
+
+	return md
 }
 
-// GetJsonObjectLines splits a string by newlines, trims whitespace from each line,
+// GetJSONObjectLines splits a string by newlines, trims whitespace from each line,
 // and returns a slice containing only the lines that start with '{'.
-func GetJsonObjectLines(text string) []string {
+func GetJSONObjectLines(text string) []string {
 	jsonText := ExtractJSONFromMarkdown(text)
 
 	// Handle both actual "\n" newline strings, as well as newline bytes

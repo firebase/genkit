@@ -15,17 +15,17 @@
  */
 
 import { OperationSchema, z } from '@genkit-ai/core';
+import { DocumentDataSchema } from './document.js';
 import {
   CustomPartSchema,
   DataPartSchema,
-  DocumentDataSchema,
   MediaPartSchema,
   ReasoningPartSchema,
   ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
-} from './document.js';
+} from './parts.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -199,6 +199,12 @@ export const GenerationCommonConfigSchema = z
       .max(5)
       .describe(
         'Set of character sequences (up to 5) that will stop output generation.'
+      )
+      .optional(),
+    apiKey: z
+      .string()
+      .describe(
+        'API Key to use for the model call, overrides API key provided in plugin config.'
       )
       .optional(),
   })
@@ -381,13 +387,15 @@ export const GenerateActionOutputConfig = z.object({
 
 export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
-  model: z.string(),
+  model: z.string().optional(),
   /** Retrieved documents to be used as context for this generation. */
   docs: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
   messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.string()).optional(),
+  /** List of registered resource names for this generation if supported by the underlying model. */
+  resources: z.array(z.string()).optional(),
   /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
   toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   /** Configuration for the generation request. */

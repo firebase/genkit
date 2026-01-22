@@ -13,7 +13,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.20.0-rc.1",
+  "version": "1.28.0",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -31,12 +31,14 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "google-auth-library": "^9.14.2"
+    "google-auth-library": "^9.14.2",
+    "jsonpath-plus": "^10.3.0"
   },
   "peerDependencies": {
     "genkit": "workspace:^"
   },
   "devDependencies": {
+    "@types/jsonpath-plus": "^5.0.5",
     "@types/node": "^20.11.16",
     "@types/sinon": "^17.0.4",
     "npm-run-all": "^4.1.5",

@@ -35,9 +35,9 @@ from genkit.blocks.tools import ToolRunContext, tool_response
 from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
+from genkit.core.plugin import Plugin
 
 from ._aio import Genkit
-from ._plugin import Plugin
 from ._registry import FlowWrapper, GenkitRegistry
 
 __all__ = [

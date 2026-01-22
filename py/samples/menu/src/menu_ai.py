@@ -15,18 +15,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
-from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai import EmbeddingModels
+import os
 
-ai = Genkit(
-    plugins=[
-        VertexAI(),
-        DevLocalVectorStore(
-            index_name='menu-items',
-            embedder=EmbeddingModels.TEXT_EMBEDDING_004_ENG,
-            embedder_options={'taskType': 'RETRIEVAL_DOCUMENT'},
-        ),
-    ]
+from genkit.ai import Genkit
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
+from genkit.plugins.google_genai import GoogleAI
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+
+ai = Genkit(plugins=[GoogleAI()])
+
+# Define dev local vector store
+define_dev_local_vector_store(
+    ai,
+    name='menu-items',
+    embedder='googleai/text-embedding-004',
 )

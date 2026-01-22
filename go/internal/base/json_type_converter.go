@@ -17,7 +17,9 @@
 package base
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 // NormalizeInput recursively traverses a data structure and performs normalization:
@@ -42,6 +44,9 @@ func NormalizeInput(data any, schema map[string]any) (any, error) {
 
 // convertFloat64 converts a float64 to an int64 or float64 based on the schema's "type" property.
 func convertFloat64(f float64, schema map[string]any) (any, error) {
+	if schema == nil {
+		return f, nil // No schema specified, leave as float64
+	}
 	schemaType, ok := schema["type"].(string)
 	if !ok {
 		return f, nil // No type specified, leave as float64
@@ -135,4 +140,57 @@ func normalizeArrayInput(arr []any, schema map[string]any) ([]any, error) {
 		newArr[i] = normalized
 	}
 	return newArr, nil
+}
+
+// UnmarshalAndNormalize unmarshals JSON input, normalizes it according to the schema,
+// validates it, and converts it to the target type T.
+// For 'any' types, it preserves the actual types from the normalized data.
+// For structured types, it marshals and unmarshals to properly populate the fields.
+func UnmarshalAndNormalize[T any](input json.RawMessage, schema map[string]any) (T, error) {
+	var zero T
+
+	if len(input) == 0 {
+		return zero, nil
+	}
+
+	var rawData any
+	if err := json.Unmarshal(input, &rawData); err != nil {
+		return zero, fmt.Errorf("failed to unmarshal input: %w", err)
+	}
+
+	normalized, err := NormalizeInput(rawData, schema)
+	if err != nil {
+		return zero, fmt.Errorf("invalid input: %w", err)
+	}
+
+	if err := ValidateValue(normalized, schema); err != nil {
+		return zero, err
+	}
+
+	// Check if T is 'any' type by comparing with a typed nil interface
+	if reflect.TypeOf(zero) == nil || reflect.TypeOf(zero).Kind() == reflect.Interface && reflect.TypeOf(zero).NumMethod() == 0 {
+		// Type T is 'any', use normalized value directly to preserve types
+		// Handle nil specially since it can't be type-asserted
+		if normalized == nil {
+			return zero, nil
+		}
+		result, ok := normalized.(T)
+		if !ok {
+			return zero, fmt.Errorf("failed to convert normalized input to target type")
+		}
+		return result, nil
+	}
+
+	// For structured types, marshal/unmarshal to properly populate fields
+	normalizedBytes, err := json.Marshal(normalized)
+	if err != nil {
+		return zero, fmt.Errorf("failed to marshal normalized input: %w", err)
+	}
+
+	var result T
+	if err := json.Unmarshal(normalizedBytes, &result); err != nil {
+		return zero, fmt.Errorf("failed to unmarshal normalized input: %w", err)
+	}
+
+	return result, nil
 }

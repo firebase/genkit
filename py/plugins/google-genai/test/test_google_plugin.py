@@ -24,37 +24,27 @@ from unittest.mock import MagicMock, patch, ANY
 
 from google.auth.credentials import Credentials
 from pydantic import BaseModel
-from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, HttpOptions
+from google.genai.types import HttpOptions
 
 import pytest
 from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
-from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.embedding import embedder_action_metadata, EmbedderOptions, EmbedderSupports
 from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
-from genkit.plugins.google_genai import (
-    GoogleAI,
-    VertexAI,
-    googleai_name,
-    vertexai_name,
-)
+from genkit.plugins.google_genai import GoogleAI, VertexAI
+from genkit.plugins.google_genai.google import googleai_name, vertexai_name
 from genkit.plugins.google_genai.google import _inject_attribution_headers
 from genkit.plugins.google_genai.models.embedder import (
-    GeminiEmbeddingModels,
-    VertexEmbeddingModels,
     default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
-    GeminiConfigSchema,
     SUPPORTED_MODELS,
-    GoogleAIGeminiVersion,
-    VertexAIGeminiVersion,
     google_model_info,
 )
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
     DEFAULT_IMAGE_SUPPORT,
-    ImagenVersion,
 )
 from genkit.types import (
     ModelInfo,
@@ -130,52 +120,47 @@ class TestGoogleAIInit(unittest.TestCase):
                 GoogleAI()
 
 
-def test_googleai_initialize():
-    """Unit tests for GoogleAI.initialize method."""
+@pytest.mark.asyncio
+async def test_googleai_initialize():
+    """Unit tests for GoogleAI.init method."""
     api_key = 'test_api_key'
     plugin = GoogleAI(api_key=api_key)
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin.initialize(ai_mock)
+    result = await plugin.init()
 
-    assert ai_mock.define_model.call_count == len(GoogleAIGeminiVersion)
-    assert ai_mock.define_embedder.call_count == len(GeminiEmbeddingModels)
+    # init returns known models and embedders
+    assert len(result) > 0, 'Should initialize with known models and embedders'
+    assert all(hasattr(action, 'kind') for action in result), 'All actions should have a kind'
+    assert all(hasattr(action, 'name') for action in result), 'All actions should have a name'
+    assert all(action.name.startswith('googleai/') for action in result), (
+        "All actions should be namespaced with 'googleai/'"
+    )
 
-    for version in GoogleAIGeminiVersion:
-        ai_mock.define_model.assert_any_call(
-            name=googleai_name(version),
-            fn=ANY,
-            metadata=ANY,
-            config_schema=GeminiConfigSchema,
-        )
-
-    for version in GeminiEmbeddingModels:
-        ai_mock.define_embedder.assert_any_call(
-            name=googleai_name(version),
-            fn=ANY,
-            metadata=ANY,
-            config_schema=EmbedContentConfig,
-        )
+    # Verify we have both models and embedders
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
+    assert len(model_actions) > 0, 'Should have at least one model'
+    assert len(embedder_actions) > 0, 'Should have at least one embedder'
 
 
 @patch('genkit.plugins.google_genai.GoogleAI._resolve_model')
-def test_googleai_resolve_action_model(mock_resolve_action, googleai_plugin_instance):
+@pytest.mark.asyncio
+async def test_googleai_resolve_action_model(mock_resolve_action, googleai_plugin_instance):
     """Test resolve action for model."""
     plugin = googleai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, kind=ActionKind.MODEL, name='lazaro-model')
-    mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
+    await plugin.resolve(action_type=ActionKind.MODEL, name='lazaro-model')
+    mock_resolve_action.assert_called_once_with('lazaro-model')
 
 
 @patch('genkit.plugins.google_genai.GoogleAI._resolve_embedder')
-def test_googleai_resolve_action_embedder(mock_resolve_action, googleai_plugin_instance):
+@pytest.mark.asyncio
+async def test_googleai_resolve_action_embedder(mock_resolve_action, googleai_plugin_instance):
     """Test resolve action for embedder."""
     plugin = googleai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, kind=ActionKind.EMBEDDER, name='lazaro-model')
-    mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
+    await plugin.resolve(action_type=ActionKind.EMBEDDER, name='lazaro-model')
+    mock_resolve_action.assert_called_once_with('lazaro-model')
 
 
 @patch('genkit.plugins.google_genai.models.gemini.google_model_info')
@@ -203,24 +188,17 @@ def test_googleai__resolve_model(
 ):
     """Tests for GoogleAI._resolve_model method."""
     plugin = googleai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
     mock_google_model_info.return_value = ModelInfo(
         label=f'Google AI - {model_name}',
         supports=DEFAULT_SUPPORTS_MODEL,
     )
 
-    plugin._resolve_model(
-        ai=ai_mock,
-        name=model_name,
-    )
+    action = plugin._resolve_model(name=expected_model_name)
 
-    ai_mock.define_model.assert_called_once_with(
-        name=expected_model_name,
-        fn=ANY,
-        metadata=ANY,
-        config_schema=GeminiConfigSchema,
-    )
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
+    assert action.name == expected_model_name
     assert key in SUPPORTED_MODELS
 
 
@@ -239,19 +217,16 @@ def test_googleai__resolve_embedder(
 ):
     """Tests for GoogleAI._resolve_embedder method."""
     plugin = googleai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin._resolve_embedder(
-        ai=ai_mock,
-        name=model_name,
-    )
+    action = plugin._resolve_embedder(name=expected_model_name)
 
-    ai_mock.define_embedder.assert_called_once_with(
-        name=expected_model_name, fn=ANY, config_schema=EmbedContentConfig, metadata=default_embedder_info(clean_name)
-    )
+    assert action is not None
+    assert action.kind == ActionKind.EMBEDDER
+    assert action.name == expected_model_name
 
 
-def test_googleai_list_actions(googleai_plugin_instance):
+@pytest.mark.asyncio
+async def test_googleai_list_actions(googleai_plugin_instance):
     """Unit test for list actions."""
 
     class MockModel(BaseModel):
@@ -270,27 +245,31 @@ def test_googleai_list_actions(googleai_plugin_instance):
     mock_client.models.list.return_value = models_return_value
     googleai_plugin_instance._client = mock_client
 
-    result = googleai_plugin_instance.list_actions
+    result = await googleai_plugin_instance.list_actions()
     assert result == [
         model_action_metadata(
             name=googleai_name('model1'),
             info=google_model_info('model1').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=googleai_name('model2'),
-            info=default_embedder_info('model2'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model2').get('label'),
+                supports=EmbedderSupports(input=default_embedder_info('model2').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model2').get('dimensions'),
+            ),
         ),
         model_action_metadata(
             name=googleai_name('model3'),
             info=google_model_info('model3').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=googleai_name('model3'),
-            info=default_embedder_info('model3'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model3').get('label'),
+                supports=EmbedderSupports(input=default_embedder_info('model3').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model3').get('dimensions'),
+            ),
         ),
     ]
 
@@ -481,56 +460,46 @@ def vertexai_plugin_instance(client):
     return VertexAI()
 
 
-def test_vertexai_initialize(vertexai_plugin_instance):
-    """Unit tests for VertexAI.initialize method."""
+@pytest.mark.asyncio
+async def test_vertexai_initialize(vertexai_plugin_instance):
+    """Unit tests for VertexAI.init method."""
     plugin = vertexai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin.initialize(ai_mock)
+    result = await plugin.init()
 
-    assert ai_mock.define_model.call_count == len(VertexAIGeminiVersion) + len(ImagenVersion)
-    assert ai_mock.define_embedder.call_count == len(VertexEmbeddingModels)
+    # init returns known models and embedders
+    assert len(result) > 0, 'Should initialize with known models and embedders'
+    assert all(hasattr(action, 'kind') for action in result), 'All actions should have a kind'
+    assert all(hasattr(action, 'name') for action in result), 'All actions should have a name'
+    assert all(action.name.startswith('vertexai/') for action in result), (
+        "All actions should be namespaced with 'vertexai/'"
+    )
 
-    for version in VertexAIGeminiVersion:
-        ai_mock.define_model.assert_any_call(
-            name=vertexai_name(version),
-            fn=ANY,
-            metadata=ANY,
-            config_schema=GeminiConfigSchema,
-        )
-
-    for version in ImagenVersion:
-        ai_mock.define_model.assert_any_call(
-            name=vertexai_name(version), fn=ANY, metadata=ANY, config_schema=GenerateImagesConfigOrDict
-        )
-
-    for version in VertexEmbeddingModels:
-        ai_mock.define_embedder.assert_any_call(
-            name=vertexai_name(version),
-            fn=ANY,
-            metadata=ANY,
-            config_schema=EmbedContentConfig,
-        )
+    # Verify we have both models and embedders
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
+    assert len(model_actions) > 0, 'Should have at least one model'
+    assert len(embedder_actions) > 0, 'Should have at least one embedder'
 
 
 @patch('genkit.plugins.google_genai.VertexAI._resolve_model')
-def test_vertexai_resolve_action_model(mock_resolve_action, vertexai_plugin_instance):
+@pytest.mark.asyncio
+async def test_vertexai_resolve_action_model(mock_resolve_action, vertexai_plugin_instance):
     """Test resolve action for model."""
     plugin = vertexai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, kind=ActionKind.MODEL, name='lazaro-model')
-    mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
+    await plugin.resolve(action_type=ActionKind.MODEL, name='lazaro-model')
+    mock_resolve_action.assert_called_once_with('lazaro-model')
 
 
 @patch('genkit.plugins.google_genai.VertexAI._resolve_embedder')
-def test_vertexai_resolve_action_embedder(mock_resolve_action, vertexai_plugin_instance):
+@pytest.mark.asyncio
+async def test_vertexai_resolve_action_embedder(mock_resolve_action, vertexai_plugin_instance):
     """Test resolve action for embedder."""
     plugin = vertexai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, kind=ActionKind.EMBEDDER, name='lazaro-model')
-    mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
+    await plugin.resolve(action_type=ActionKind.EMBEDDER, name='lazaro-model')
+    mock_resolve_action.assert_called_once_with('lazaro-model')
 
 
 @patch(
@@ -587,7 +556,7 @@ def test_vertexai__resolve_model(
 ):
     """Tests for VertexAI._resolve_model method."""
     plugin = vertexai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
+    MagicMock(spec=Genkit)
 
     mock_google_model_info.return_value = ModelInfo(
         label=f'Google AI - {model_name}',
@@ -599,26 +568,15 @@ def test_vertexai__resolve_model(
         supports=DEFAULT_IMAGE_SUPPORT,
     )
 
-    plugin._resolve_model(
-        ai=ai_mock,
-        name=model_name,
-    )
+    action = plugin._resolve_model(name=expected_model_name)
+
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
+    assert action.name == expected_model_name
 
     if image:
-        ai_mock.define_model.assert_called_once_with(
-            name=expected_model_name,
-            fn=ANY,
-            metadata=ANY,
-            config_schema=GenerateImagesConfigOrDict,
-        )
         assert key in IMAGE_SUPPORTED_MODELS
     else:
-        ai_mock.define_model.assert_called_once_with(
-            name=expected_model_name,
-            fn=ANY,
-            metadata=ANY,
-            config_schema=GeminiConfigSchema,
-        )
         assert key in SUPPORTED_MODELS
 
 
@@ -645,19 +603,16 @@ def test_vertexai__resolve_embedder(
 ):
     """Tests for VertexAI._resolve_embedder method."""
     plugin = vertexai_plugin_instance
-    ai_mock = MagicMock(spec=Genkit)
 
-    plugin._resolve_embedder(
-        ai=ai_mock,
-        name=model_name,
-    )
+    action = plugin._resolve_embedder(name=expected_model_name)
 
-    ai_mock.define_embedder.assert_called_once_with(
-        name=expected_model_name, fn=ANY, config_schema=EmbedContentConfig, metadata=default_embedder_info(clean_name)
-    )
+    assert action is not None
+    assert action.kind == ActionKind.EMBEDDER
+    assert action.name == expected_model_name
 
 
-def test_vertexai_list_actions(vertexai_plugin_instance):
+@pytest.mark.asyncio
+async def test_vertexai_list_actions(vertexai_plugin_instance):
     """Unit test for list actions."""
 
     class MockModel(BaseModel):
@@ -675,31 +630,38 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
     mock_client.models.list.return_value = models_return_value
     vertexai_plugin_instance._client = mock_client
 
-    result = vertexai_plugin_instance.list_actions
+    result = await vertexai_plugin_instance.list_actions()
     assert result == [
         model_action_metadata(
             name=vertexai_name('model1'),
             info=google_model_info('model1').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=vertexai_name('model2_embeddings'),
-            info=default_embedder_info('model2_embeddings'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model2_embeddings').get('label'),
+                supports=EmbedderSupports(
+                    input=default_embedder_info('model2_embeddings').get('supports', {}).get('input')
+                ),
+                dimensions=default_embedder_info('model2_embeddings').get('dimensions'),
+            ),
         ),
         model_action_metadata(
             name=vertexai_name('model2_embeddings'),
             info=google_model_info('model2_embeddings').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=vertexai_name('model3_embedder'),
-            info=default_embedder_info('model3_embedder'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model3_embedder').get('label'),
+                supports=EmbedderSupports(
+                    input=default_embedder_info('model3_embedder').get('supports', {}).get('input')
+                ),
+                dimensions=default_embedder_info('model3_embedder').get('dimensions'),
+            ),
         ),
         model_action_metadata(
             name=vertexai_name('model3_embedder'),
             info=google_model_info('model3_embedder').model_dump(),
-            config_schema=GeminiConfigSchema,
         ),
     ]

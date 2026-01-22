@@ -22,19 +22,17 @@ from abc import ABC
 from functools import cached_property
 from typing import Any
 
-from genkit.ai import Genkit
-
 from .constant import DbValue
 
 
 class LocalVectorStoreAPI(ABC):
     _LOCAL_FILESTORE_TEMPLATE = '__db_{index_name}.json'
 
-    def __init__(self, ai: Genkit, index_name: str, embedder: str, embedder_options: dict[str, Any] | None = None):
-        self.ai = ai
+    def __init__(
+        self,
+        index_name: str,
+    ):
         self.index_name = index_name
-        self.embedder = embedder
-        self.embedder_options = embedder_options
 
     @cached_property
     def index_file_name(self):

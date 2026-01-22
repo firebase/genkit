@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ else:  # noqa
     from enum import StrEnum  # noqa
 
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -42,54 +42,6 @@ class Model(RootModel[Any]):
     """Root model for model."""
 
     root: Any
-
-
-class CustomPart(BaseModel):
-    """Model for custompart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Any | None = None
-    media: Any | None = None
-    tool_request: Any | None = Field(None, alias='toolRequest')
-    tool_response: Any | None = Field(None, alias='toolResponse')
-    data: Any | None = None
-    metadata: dict[str, Any] | None = None
-    custom: dict[str, Any]
-    reasoning: Any | None = None
-    resource: Any | None = None
-
-
-class Media(BaseModel):
-    """Model for media data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    content_type: str | None = Field(None, alias='contentType')
-    url: str
-
-
-class Resource1(BaseModel):
-    """Model for resource1 data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    uri: str
-
-
-class ToolRequest(BaseModel):
-    """Model for toolrequest data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    ref: str | None = None
-    name: str
-    input: Any | None = None
-
-
-class ToolResponse(BaseModel):
-    """Model for toolresponse data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    ref: str | None = None
-    name: str
-    output: Any | None = None
 
 
 class Embedding(BaseModel):
@@ -106,7 +58,7 @@ class BaseDataPoint(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     input: Any | None = None
     output: Any | None = None
-    context: list | None = None
+    context: list[Any] | None = None
     reference: Any | None = None
     test_case_id: str | None = Field(None, alias='testCaseId')
     trace_ids: list[str] | None = Field(None, alias='traceIds')
@@ -122,7 +74,7 @@ class EvalRequest(BaseModel):
 
 
 class EvalStatusEnum(StrEnum):
-    """Enumeration of evalstatusenum values."""
+    """EvalStatusEnum data type class."""
 
     UNKNOWN = 'UNKNOWN'
     PASS_ = 'PASS'
@@ -155,8 +107,8 @@ class GenkitErrorDetails(BaseModel):
     trace_id: str = Field(..., alias='traceId')
 
 
-class Data1(BaseModel):
-    """Model for data1 data."""
+class Data(BaseModel):
+    """Model for data data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     genkit_error_message: str | None = Field(None, alias='genkitErrorMessage')
@@ -170,11 +122,11 @@ class GenkitError(BaseModel):
     message: str
     stack: str | None = None
     details: Any | None = None
-    data: Data1 | None = None
+    data: Data | None = None
 
 
 class Code(StrEnum):
-    """Enumeration of code values."""
+    """Code data type class."""
 
     BLOCKED = 'blocked'
     OTHER = 'other'
@@ -190,8 +142,23 @@ class CandidateError(BaseModel):
     message: str | None = None
 
 
+class CustomPart(BaseModel):
+    """Model for custompart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Any | None = None
+    media: Any | None = None
+    tool_request: Any | None = Field(None, alias='toolRequest')
+    tool_response: Any | None = Field(None, alias='toolResponse')
+    data: Any | None = None
+    metadata: dict[str, Any] | None = None
+    custom: dict[str, Any]
+    reasoning: Any | None = None
+    resource: Any | None = None
+
+
 class FinishReason(StrEnum):
-    """Enumeration of finishreason values."""
+    """FinishReason data type class."""
 
     STOP = 'stop'
     LENGTH = 'length'
@@ -202,7 +169,7 @@ class FinishReason(StrEnum):
 
 
 class ToolChoice(StrEnum):
-    """Enumeration of toolchoice values."""
+    """ToolChoice data type class."""
 
     AUTO = 'auto'
     REQUIRED = 'required'
@@ -253,7 +220,7 @@ class GenerationUsage(BaseModel):
 
 
 class Constrained(StrEnum):
-    """Enumeration of constrained values."""
+    """Constrained data type class."""
 
     NONE = 'none'
     ALL = 'all'
@@ -273,10 +240,11 @@ class Supports(BaseModel):
     context: bool | None = None
     constrained: Constrained | None = None
     tool_choice: bool | None = Field(None, alias='toolChoice')
+    long_running: bool | None = Field(None, alias='longRunning')
 
 
 class Stage(StrEnum):
-    """Enumeration of stage values."""
+    """Stage data type class."""
 
     FEATURED = 'featured'
     STABLE = 'stable'
@@ -325,8 +293,15 @@ class OutputConfig(BaseModel):
     content_type: str | None = Field(None, alias='contentType')
 
 
+class Resource1(BaseModel):
+    """Model for resource1 data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    uri: str
+
+
 class Role(StrEnum):
-    """Enumeration of role values."""
+    """Role data type class."""
 
     SYSTEM = 'system'
     USER = 'user'
@@ -347,6 +322,34 @@ class ToolDefinition(BaseModel):
         None, alias='outputSchema', description='Valid JSON Schema describing the output of the tool.'
     )
     metadata: dict[str, Any] | None = Field(None, description='additional metadata for this tool definition')
+
+
+class Media(BaseModel):
+    """Model for media data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    content_type: str | None = Field(None, alias='contentType')
+    url: str
+
+
+class ToolRequest(BaseModel):
+    """Model for toolrequest data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    ref: str | None = None
+    name: str
+    input: Any | None = None
+    partial: bool | None = None
+
+
+class ToolResponse(BaseModel):
+    """Model for toolresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    ref: str | None = None
+    name: str
+    output: Any | None = None
+    content: list[Any] | None = None
 
 
 class CommonRerankerOptions(BaseModel):
@@ -382,7 +385,7 @@ class InstrumentationLibrary(BaseModel):
 class PathMetadata(BaseModel):
     """Model for pathmetadata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', frozen=True, populate_by_name=True)
     path: str
     status: str
     error: str | None = None
@@ -407,7 +410,7 @@ class SameProcessAsParentSpan(BaseModel):
 
 
 class State(StrEnum):
-    """Enumeration of state values."""
+    """State data type class."""
 
     SUCCESS = 'success'
     ERROR = 'error'
@@ -459,10 +462,10 @@ class TraceMetadata(BaseModel):
     timestamp: float
 
 
-class Context(RootModel[list]):
+class Context(RootModel[list[Any]]):
     """Root model for context."""
 
-    root: list
+    root: list[Any]
 
 
 class Input(RootModel[Any]):
@@ -489,8 +492,8 @@ class TraceIds(RootModel[list[str]]):
     root: list[str]
 
 
-class Data(RootModel[Any]):
-    """Root model for data."""
+class DataModel(RootModel[Any]):
+    """Root model for datamodel."""
 
     root: Any
 
@@ -501,10 +504,10 @@ class MediaModel(RootModel[Any]):
     root: Any
 
 
-class Metadata(RootModel[dict[str, Any] | None]):
+class Metadata(RootModel[dict[str, Any]]):
     """Root model for metadata."""
 
-    root: dict[str, Any] | None = None
+    root: dict[str, Any]
 
 
 class Reasoning(RootModel[Any]):
@@ -537,10 +540,10 @@ class ToolResponseModel(RootModel[Any]):
     root: Any
 
 
-class Custom(RootModel[dict[str, Any] | None]):
+class Custom(RootModel[dict[str, Any]]):
     """Root model for custom."""
 
-    root: dict[str, Any] | None = None
+    root: dict[str, Any]
 
 
 class Config(RootModel[Any]):
@@ -603,109 +606,10 @@ class Index(RootModel[float]):
     root: float
 
 
-class DataPart(BaseModel):
-    """Model for datapart data."""
+class TraceId(RootModel[str]):
+    """Root model for traceid."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
-    media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
-    data: Any | None = None
-    metadata: Metadata | None = None
-    custom: dict[str, Any] | None = None
-    reasoning: Reasoning | None = None
-    resource: Resource | None = None
-
-
-class MediaPart(BaseModel):
-    """Model for mediapart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
-    media: Media
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
-    data: Data | None = None
-    metadata: Metadata | None = None
-    custom: Custom | None = None
-    reasoning: Reasoning | None = None
-    resource: Resource | None = None
-
-
-class ReasoningPart(BaseModel):
-    """Model for reasoningpart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
-    media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
-    data: Data | None = None
-    metadata: Metadata | None = None
-    custom: Custom | None = None
-    reasoning: str
-    resource: Resource | None = None
-
-
-class ResourcePart(BaseModel):
-    """Model for resourcepart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
-    media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
-    data: Data | None = None
-    metadata: Metadata | None = None
-    custom: Custom | None = None
-    reasoning: Reasoning | None = None
-    resource: Resource1
-
-
-class TextPart(BaseModel):
-    """Model for textpart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: str
-    media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
-    data: Data | None = None
-    metadata: Metadata | None = None
-    custom: Custom | None = None
-    reasoning: Reasoning | None = None
-    resource: Resource | None = None
-
-
-class ToolRequestPart(BaseModel):
-    """Model for toolrequestpart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
-    media: MediaModel | None = None
-    tool_request: ToolRequest = Field(..., alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
-    data: Data | None = None
-    metadata: Metadata | None = None
-    custom: Custom | None = None
-    reasoning: Reasoning | None = None
-    resource: Resource | None = None
-
-
-class ToolResponsePart(BaseModel):
-    """Model for toolresponsepart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
-    media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponse = Field(..., alias='toolResponse')
-    data: Data | None = None
-    metadata: Metadata | None = None
-    custom: Custom | None = None
-    reasoning: Reasoning | None = None
-    resource: Resource | None = None
+    root: str
 
 
 class EmbedResponse(BaseModel):
@@ -744,25 +648,109 @@ class EvalResponse(RootModel[list[EvalFnResponse]]):
     root: list[EvalFnResponse]
 
 
-class Resume(BaseModel):
-    """Model for resume data."""
+class DataPart(BaseModel):
+    """Model for datapart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    respond: list[ToolResponsePart] | None = None
-    restart: list[ToolRequestPart] | None = None
-    metadata: dict[str, Any] | None = None
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: Any | None = None
+    metadata: Metadata | None = None
+    custom: dict[str, Any] | None = None
+    reasoning: Reasoning | None = None
+    resource: Resource | None = None
 
 
-class Part(
-    RootModel[
-        TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart | ResourcePart
-    ]
-):
-    """Root model for part."""
+class MediaPart(BaseModel):
+    """Model for mediapart data."""
 
-    root: (
-        TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart | ResourcePart
-    )
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: Media
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: DataModel | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: Reasoning | None = None
+    resource: Resource | None = None
+
+
+class ReasoningPart(BaseModel):
+    """Model for reasoningpart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: DataModel | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: str
+    resource: Resource | None = None
+
+
+class ResourcePart(BaseModel):
+    """Model for resourcepart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: DataModel | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: Reasoning | None = None
+    resource: Resource1
+
+
+class TextPart(BaseModel):
+    """Model for textpart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: str
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: DataModel | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: Reasoning | None = None
+    resource: Resource | None = None
+
+
+class ToolRequestPart(BaseModel):
+    """Model for toolrequestpart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequest = Field(..., alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: DataModel | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: Reasoning | None = None
+    resource: Resource | None = None
+
+
+class ToolResponsePart(BaseModel):
+    """Model for toolresponsepart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponse = Field(..., alias='toolResponse')
+    data: DataModel | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: Reasoning | None = None
+    resource: Resource | None = None
 
 
 class Link(BaseModel):
@@ -801,6 +789,32 @@ class SpanData(BaseModel):
     truncated: bool | None = None
 
 
+class SpanEndEvent(BaseModel):
+    """Model for spanendevent data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: str = Field(..., alias='traceId')
+    span: SpanData
+    type: Literal['span_end']
+
+
+class SpanStartEvent(BaseModel):
+    """Model for spanstartevent data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
+    span: SpanData
+    type: Literal['span_start']
+
+
+class SpantEventBase(BaseModel):
+    """Model for spanteventbase data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(..., alias='traceId')
+    span: SpanData
+
+
 class TraceData(BaseModel):
     """Model for tracedata data."""
 
@@ -814,10 +828,10 @@ class TraceData(BaseModel):
     spans: dict[str, SpanData]
 
 
-class Content(RootModel[list[Part]]):
-    """Root model for content."""
+class TraceEvent(RootModel[SpanStartEvent | SpanEndEvent]):
+    """Root model for traceevent."""
 
-    root: list[Part]
+    root: SpanStartEvent | SpanEndEvent
 
 
 class DocumentPart(RootModel[TextPart | MediaPart]):
@@ -826,35 +840,25 @@ class DocumentPart(RootModel[TextPart | MediaPart]):
     root: TextPart | MediaPart
 
 
-class GenerateResponseChunk(BaseModel):
-    """Model for generateresponsechunk data."""
+class Resume(BaseModel):
+    """Model for resume data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    role: Role | None = None
-    index: float | None = None
-    content: list[Part]
-    custom: Any | None = None
-    aggregated: bool | None = None
-
-
-class Message(BaseModel):
-    """Model for message data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    role: Role
-    content: list[Part]
+    respond: list[ToolResponsePart] | None = None
+    restart: list[ToolRequestPart] | None = None
     metadata: dict[str, Any] | None = None
 
 
-class ModelResponseChunk(BaseModel):
-    """Model for modelresponsechunk data."""
+class Part(
+    RootModel[
+        TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart | ResourcePart
+    ]
+):
+    """Root model for part."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    role: Role | None = None
-    index: Index | None = None
-    content: Content
-    custom: CustomModel | None = None
-    aggregated: Aggregated | None = None
+    root: (
+        TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart | ResourcePart
+    )
 
 
 class RankedDocumentData(BaseModel):
@@ -872,10 +876,10 @@ class RerankerResponse(BaseModel):
     documents: list[RankedDocumentData]
 
 
-class Messages(RootModel[list[Message]]):
-    """Root model for messages."""
+class Content(RootModel[list[Part]]):
+    """Root model for content."""
 
-    root: list[Message]
+    root: list[Part]
 
 
 class DocumentData(BaseModel):
@@ -894,6 +898,81 @@ class EmbedRequest(BaseModel):
     options: Any | None = None
 
 
+class GenerateResponseChunk(BaseModel):
+    """Model for generateresponsechunk data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    role: Role | None = None
+    index: float | None = None
+    content: list[Part]
+    custom: Any | None = None
+    aggregated: bool | None = None
+
+
+class Message(BaseModel):
+    """Model for message data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    role: Role | str
+    content: list[Part]
+    metadata: dict[str, Any] | None = None
+
+
+class ModelResponseChunk(BaseModel):
+    """Model for modelresponsechunk data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    role: Role | None = None
+    index: Index | None = None
+    content: Content
+    custom: CustomModel | None = None
+    aggregated: Aggregated | None = None
+
+
+class MultipartToolResponse(BaseModel):
+    """Model for multiparttoolresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    output: Any | None = None
+    content: list[Part] | None = None
+
+
+class RerankerRequest(BaseModel):
+    """Model for rerankerrequest data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    query: DocumentData
+    documents: list[DocumentData]
+    options: Any | None = None
+
+
+class RetrieverRequest(BaseModel):
+    """Model for retrieverrequest data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    query: DocumentData
+    options: Any | None = None
+
+
+class RetrieverResponse(BaseModel):
+    """Model for retrieverresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    documents: list[DocumentData]
+
+
+class Docs(RootModel[list[DocumentData]]):
+    """Root model for docs."""
+
+    root: list[DocumentData]
+
+
+class Messages(RootModel[list[Message]]):
+    """Root model for messages."""
+
+    root: list[Message]
+
+
 class Candidate(BaseModel):
     """Model for candidate data."""
 
@@ -910,10 +989,11 @@ class GenerateActionOptions(BaseModel):
     """Model for generateactionoptions data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    model: str
+    model: str | None = None
     docs: list[DocumentData] | None = None
     messages: list[Message]
     tools: list[str] | None = None
+    resources: list[str] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     config: Any | None = None
     output: GenerateActionOutputConfig | None = None
@@ -952,42 +1032,6 @@ class GenerateResponse(BaseModel):
     candidates: list[Candidate] | None = None
 
 
-class RerankerRequest(BaseModel):
-    """Model for rerankerrequest data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    query: DocumentData
-    documents: list[DocumentData]
-    options: Any | None = None
-
-
-class RetrieverRequest(BaseModel):
-    """Model for retrieverrequest data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    query: DocumentData
-    options: Any | None = None
-
-
-class RetrieverResponse(BaseModel):
-    """Model for retrieverresponse data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    documents: list[DocumentData]
-
-
-class Docs(RootModel[list[DocumentData]]):
-    """Root model for docs."""
-
-    root: list[DocumentData]
-
-
-class Request(RootModel[GenerateRequest]):
-    """Root model for request."""
-
-    root: GenerateRequest
-
-
 class ModelRequest(BaseModel):
     """Model for modelrequest data."""
 
@@ -998,6 +1042,12 @@ class ModelRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputModel | None = None
     docs: Docs | None = None
+
+
+class Request(RootModel[GenerateRequest]):
+    """Root model for request."""
+
+    root: GenerateRequest
 
 
 class ModelResponse(BaseModel):

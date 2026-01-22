@@ -25,6 +25,8 @@ import {
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
+  GoogleMaps,
+  GoogleMapsTool,
   GoogleSearchRetrieval,
   GoogleSearchRetrievalTool,
   GroundingMetadata,
@@ -42,6 +44,7 @@ import {
   ToolConfig,
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
+  isGoogleMapsTool,
   isGoogleSearchRetrievalTool,
   isObject,
   isRetrievalTool,
@@ -55,6 +58,7 @@ export {
   TaskTypeSchema,
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
+  isGoogleMapsTool,
   isGoogleSearchRetrievalTool,
   isObject,
   isRetrievalTool,
@@ -66,6 +70,8 @@ export {
   type GenerateContentRequest,
   type GenerateContentResponse,
   type GenerateContentStreamResult,
+  type GoogleMaps,
+  type GoogleMapsTool,
   type GoogleSearchRetrieval,
   type GoogleSearchRetrievalTool,
   type GroundingMetadata,
@@ -91,6 +97,8 @@ export interface VertexPluginOptions {
   googleAuth?: GoogleAuthOptions;
   /** Enables additional debug traces (e.g. raw model API call details). */
   experimental_debugTraces?: boolean;
+  /** Use `responseSchema` field instead of `responseJsonSchema`. */
+  legacyResponseSchema?: boolean;
 }
 
 interface BaseClientOptions {
@@ -300,11 +308,21 @@ export declare interface VeoMedia {
   mimeType?: string;
 }
 
+export declare interface VeoReferenceImage {
+  image: VeoMedia;
+  referenceType: string;
+}
+
+export declare interface VeoMask extends VeoMedia {
+  mask: string;
+}
+
 export declare interface VeoInstance {
   prompt: string;
   image?: VeoMedia;
   lastFrame?: VeoMedia;
   video?: VeoMedia;
+  referenceImages?: VeoReferenceImage[];
 }
 
 export declare interface VeoParameters {
@@ -333,6 +351,7 @@ export declare interface Operation {
     message: string;
     details?: unknown;
   };
+  clientOptions?: ClientOptions; // Added so we can call check with the same ones
 }
 
 export declare interface VeoOperation extends Operation {

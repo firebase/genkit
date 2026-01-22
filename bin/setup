@@ -35,7 +35,7 @@ fi
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 
-PNPM_VERSION="10.2.0"
+PNPM_VERSION="10.11.0"
 NODE_VERSION="23"
 NVM_VERSION="0.40.1"
 GOLANGCI_LINT_VERSION="2.0.2"
@@ -222,7 +222,7 @@ function genkit::install_go_cli_tools_ci() {
 # Install all the required tools that have been written in Go.
 function genkit::install_go_cli_tools_eng() {
   go install github.com/Gelio/go-global-update@latest
-  go install github.com/captainhook-go/captainhook/cmd/captainhook@latest
+  go install github.com/captainhook-git/captainhook-bin/cmd/captainhook@latest
   go install github.com/google/addlicense@latest
   go install github.com/google/go-licenses@latest
   go install github.com/jesseduffield/lazygit@latest

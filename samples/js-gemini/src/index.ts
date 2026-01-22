@@ -16,7 +16,7 @@
 
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { genkit, MediaPart, z } from 'genkit';
+import { MediaPart, genkit, z } from 'genkit';
 import { Readable } from 'stream';
 import wav from 'wav';
 
@@ -211,6 +211,20 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
         thinkingBudget: 1024,
         includeThoughts: true,
       },
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
+});
+
+// Gemini code execution.
+ai.defineFlow('code-execution', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'Calculate x^6-2x^5+x+11 for x=22',
+    model: googleAI.model('gemini-2.5-flash'),
+    config: {
+      codeExecution: true,
     },
     onChunk: sendChunk,
   });

@@ -41,7 +41,12 @@ func TestExtractJSONFromMarkdown(t *testing.T) {
 		{
 			desc: "simple markdown",
 			in:   "```foo bar```",
-			want: "foo bar",
+			want: "```foo bar```",
+		},
+		{
+			desc: "empty markdown",
+			in:   "``` ```",
+			want: "``` ```",
 		},
 		{
 			desc: "json markdown",
@@ -49,14 +54,54 @@ func TestExtractJSONFromMarkdown(t *testing.T) {
 			want: "{\"a\":1}",
 		},
 		{
-			desc: "json multipline markdown",
+			desc: "json multiple line markdown",
 			in:   "```json\n{\"a\": 1}\n```",
-			want: "\n{\"a\": 1}\n",
+			want: "{\"a\": 1}",
 		},
 		{
 			desc: "returns first of multiple blocks",
 			in:   "```json{\"a\":\n1}```\n```json\n{\"b\":\n1}```",
 			want: "{\"a\":\n1}",
+		},
+		{
+			desc: "yaml markdown",
+			in:   "```yaml\nkey: 1\nanother-key: 2```",
+			want: "```yaml\nkey: 1\nanother-key: 2```",
+		},
+		{
+			desc: "yaml + json markdown",
+			in:   "```yaml\nkey: 1\nanother-key: 2``` ```json\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "json + yaml markdown",
+			in:   "```json\n{\"a\": 1}\n``` ```yaml\nkey: 1\nanother-key: 2```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "uppercase JSON identifier",
+			in:   "```JSON\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "mixed case Json identifier",
+			in:   "```Json\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "plain code block without identifier",
+			in:   "```\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "plain code block with text before",
+			in:   "Here is the result:\n\n```\n{\"title\": \"Pizza\"}\n```",
+			want: "{\"title\": \"Pizza\"}",
+		},
+		{
+			desc: "json block preferred over plain block",
+			in:   "```\n{\"plain\": true}\n``` then ```json\n{\"json\": true}\n```",
+			want: "{\"json\": true}",
 		},
 	}
 	for _, tc := range tests {
@@ -97,5 +142,61 @@ func TestSchemaAsMap(t *testing.T) {
 	got := SchemaAsMap(InferJSONSchema(Foo{}))
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("SchemaAsMap diff (+got -want):\n%s", diff)
+	}
+}
+
+func TestSchemaAsMapRecursive(t *testing.T) {
+	type Node struct {
+		Value    string  `json:"value,omitempty"`
+		Children []*Node `json:"children,omitempty"`
+	}
+
+	schema := SchemaAsMap(InferJSONSchema(Node{}))
+
+	// With DoNotReference and recursion limiting, the schema should be flat
+	// and recursive references should become "any" schema.
+	if _, ok := schema["$defs"]; ok {
+		t.Error("expected no $defs with DoNotReference: true")
+	}
+
+	if _, ok := schema["$ref"]; ok {
+		t.Error("expected no $ref with DoNotReference: true")
+	}
+
+	// Check top-level structure
+	if schema["type"] != "object" {
+		t.Errorf("expected type to be object, got %v", schema["type"])
+	}
+
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("expected properties in schema")
+	}
+
+	// Check value field
+	valueField, ok := props["value"].(map[string]any)
+	if !ok {
+		t.Fatal("expected value field in properties")
+	}
+	if valueField["type"] != "string" {
+		t.Errorf("expected value.type to be string, got %v", valueField["type"])
+	}
+
+	// Check children field - recursive reference should be "any" schema
+	childrenField, ok := props["children"].(map[string]any)
+	if !ok {
+		t.Fatal("expected children field in properties")
+	}
+	if childrenField["type"] != "array" {
+		t.Errorf("expected children.type to be array, got %v", childrenField["type"])
+	}
+
+	items, ok := childrenField["items"].(map[string]any)
+	if !ok {
+		t.Fatal("expected children to have items")
+	}
+	// The recursive Node reference should have become an "any" schema
+	if items["additionalProperties"] != true {
+		t.Errorf("expected children.items to be 'any' schema (additionalProperties: true), got %v", items)
 	}
 }

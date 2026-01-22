@@ -86,7 +86,7 @@ test_cases_extract_items = [
     ids=[tc[0] for tc in test_cases_extract_items],
 )
 def test_extract_items(name: str, steps: list[dict[str, Any]]) -> None:
-    """Test extraction of incomplete json that can be fixed"""
+    """Test extraction of incomplete json that can be fixed."""
     text = ''
     cursor = 0
     for step in steps:
@@ -141,7 +141,7 @@ test_cases_extract_json = [
     ids=[tc[0] for tc in test_cases_extract_json],
 )
 def test_extract_json(name: str, input_data: dict[str, Any], expected_data: dict[str, Any]) -> None:
-    """Test if input is unfixable raise the correct exception or return the proper error response"""
+    """Test if input is unfixable raise the correct exception or return the proper error response."""
     if expected_data.get('throws'):
         with pytest.raises(Exception):
             extract_json(input_data['text'], throw_on_bad_json=True)
@@ -186,6 +186,6 @@ test_cases_parse_partial_json = [
     ids=[tc[0] for tc in test_cases_parse_partial_json],
 )
 def test_parse_partial_json(name: str, input_str: str, expected_data: dict[str, Any]) -> None:
-    """Test if it fixes simple malformed json string"""
+    """Test if it fixes simple malformed json string."""
     result = parse_partial_json(input_str)
     assert result == expected_data['expected']

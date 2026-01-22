@@ -1,3 +1,19 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 [project]
 authors = [{ name = "Google" }]
 classifiers = [
@@ -6,13 +22,13 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
@@ -30,11 +46,12 @@ dependencies = [
   "sse-starlette>=2.2.1",
   "pillow",
   "strenum>=0.4.15; python_version < '3.11'",
+  "dotpromptz>=0.1.4",
   "uvicorn>=0.34.0",
   "anyio>=4.9.0",
 ]
 description = "Genkit AI Framework"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "genkit"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -43,10 +60,10 @@ version = "0.4.0"
 [project.optional-dependencies]
 dev-local-vectorstore = ["genkit-plugin-dev-local-vectorstore"]
 flask                 = ["genkit-plugin-flask"]
+google-cloud          = ["genkit-plugin-google-cloud"]
 google-genai          = ["genkit-plugin-google-genai"]
 ollama                = ["genkit-plugin-ollama"]
 openai                = ["genkit-plugin-compat-oai"]
-google-cloud          = ["genkit-plugin-google-cloud"]
 vertex-ai             = ["genkit-plugin-vertex-ai"]
 
 [build-system]

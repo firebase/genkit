@@ -124,6 +124,7 @@ class ActionRunContext:
         self,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, Any] | None = None,
+        on_trace_start: Callable[[str], None] | None = None,
     ):
         """Initializes an ActionRunContext instance.
 
@@ -136,9 +137,12 @@ class ActionRunContext:
             context: An optional dictionary containing context data to be made
                      available within the action execution. Defaults to an empty
                      dictionary.
+            on_trace_start: A callable to be invoked with the trace ID when
+                            the trace is started.
         """
         self._on_chunk = on_chunk if on_chunk is not None else noop_streaming_callback
         self._context = context if context is not None else {}
+        self._on_trace_start = on_trace_start if on_trace_start else lambda _: None
 
     @property
     def context(self) -> dict[str, Any]:
@@ -302,6 +306,7 @@ class Action:
         input: Any = None,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, Any] | None = None,
+        on_trace_start: Callable[[str], None] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ) -> ActionResponse:
         """Executes the action asynchronously with the given input.
@@ -331,7 +336,7 @@ class Action:
 
         return await self._afn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None)),
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None), on_trace_start=on_trace_start),
         )
 
     async def arun_raw(
@@ -339,6 +344,7 @@ class Action:
         raw_input: Any,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, Any] | None = None,
+        on_trace_start: Callable[[str], None] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ):
         """Executes the action asynchronously with raw, unvalidated input.
@@ -367,6 +373,7 @@ class Action:
             input=input_action,
             on_chunk=on_chunk,
             context=context,
+            on_trace_start=on_trace_start,
             telemetry_labels=telemetry_labels,
         )
 
@@ -501,6 +508,7 @@ def _make_tracing_wrappers(
         afn = ensure_async(fn)
         with tracer.start_as_current_span(name) as span:
             trace_id = str(span.get_span_context().trace_id)
+            ctx._on_trace_start(trace_id)
             record_input_metadata(
                 span=span,
                 kind=kind,
@@ -541,6 +549,7 @@ def _make_tracing_wrappers(
         """
         with tracer.start_as_current_span(name) as span:
             trace_id = str(span.get_span_context().trace_id)
+            ctx._on_trace_start(trace_id)
             record_input_metadata(
                 span=span,
                 kind=kind,

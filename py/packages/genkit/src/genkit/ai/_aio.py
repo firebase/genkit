@@ -20,13 +20,16 @@ To use Genkit in your application, construct an instance of the `Genkit`
 class while customizing it with any plugins.
 """
 
+import uuid
 from asyncio import Future
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 from genkit.aio import Channel
 from genkit.blocks.document import Document
-from genkit.blocks.embedding import EmbedRequest, EmbedResponse
+from genkit.blocks.embedding import EmbedderRef
+from genkit.blocks.evaluator import EvaluatorRef
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -36,21 +39,30 @@ from genkit.blocks.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.blocks.prompt import to_generate_action_options
+from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
+from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
+from genkit.core.plugin import Plugin
+from genkit.core.typing import (
+    BaseDataPoint,
+    EmbedRequest,
+    EmbedResponse,
+    EvalRequest,
+    EvalResponse,
+)
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
     Message,
+    OutputConfig,
     Part,
     RetrieverRequest,
     RetrieverResponse,
     ToolChoice,
 )
 
-from ._base import GenkitBase
-from ._plugin import Plugin
+from ._base_async import GenkitBase
 from ._server import ServerSpec
 
 
@@ -61,6 +73,7 @@ class Genkit(GenkitBase):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
+        prompt_dir: str | Path | None = None,
         reflection_server_spec: ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
@@ -68,10 +81,21 @@ class Genkit(GenkitBase):
         Args:
             plugins: List of plugins to initialize.
             model: Model name to use.
+            prompt_dir: Directory to automatically load prompts from.
+                If not provided, defaults to loading from './prompts' if it exists.
             reflection_server_spec: Server spec for the reflection
                 server.
         """
         super().__init__(plugins=plugins, model=model, reflection_server_spec=reflection_server_spec)
+
+        load_path = prompt_dir
+        if load_path is None:
+            default_prompts_path = Path('./prompts')
+            if default_prompts_path.is_dir():
+                load_path = default_prompts_path
+
+        if load_path:
+            load_prompt_folder(self.registry, dir_path=load_path)
 
     async def generate(
         self,
@@ -92,6 +116,7 @@ class Genkit(GenkitBase):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        output: OutputConfig | dict[str, Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
     ) -> GenerateResponseWrapper:
@@ -142,6 +167,8 @@ class Genkit(GenkitBase):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            output: Optional. An `OutputConfig` object or dictionary containing
+                output configuration. This groups output-related parameters.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -159,26 +186,59 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
+        # Unpack output config if provided
+        if output:
+            if isinstance(output, dict):
+                # Handle dict input - extract values directly
+                if output_format is None:
+                    output_format = output.get('format')
+                if output_content_type is None:
+                    output_content_type = output.get('content_type')
+                if output_instructions is None:
+                    output_instructions = output.get('instructions')
+                if output_schema is None:
+                    output_schema = output.get('schema')
+                if output_constrained is None:
+                    output_constrained = output.get('constrained')
+            else:
+                # Handle OutputConfig object - use getattr for safety since
+                # OutputConfig is auto-generated and may not have all fields.
+                # Note: schema_ is the Python attribute name in OutputConfig because
+                # 'schema' is a reserved attribute in Pydantic BaseModel. The field
+                # uses Field(alias='schema') for JSON serialization.
+                if output_format is None:
+                    output_format = getattr(output, 'format', None)
+                if output_content_type is None:
+                    output_content_type = getattr(output, 'content_type', None)
+                if output_instructions is None:
+                    output_instructions = getattr(output, 'instructions', None)
+                if output_schema is None:
+                    output_schema = getattr(output, 'schema_', None)
+                if output_constrained is None:
+                    output_constrained = getattr(output, 'constrained', None)
+
         return await generate_action(
             self.registry,
-            to_generate_action_options(
-                registry=self.registry,
-                model=model,
-                prompt=prompt,
-                system=system,
-                messages=messages,
-                tools=tools,
-                return_tool_requests=return_tool_requests,
-                tool_choice=tool_choice,
-                tool_responses=tool_responses,
-                config=config,
-                max_turns=max_turns,
-                output_format=output_format,
-                output_content_type=output_content_type,
-                output_instructions=output_instructions,
-                output_schema=output_schema,
-                output_constrained=output_constrained,
-                docs=docs,
+            await to_generate_action_options(
+                self.registry,
+                PromptConfig(
+                    model=model,
+                    prompt=prompt,
+                    system=system,
+                    messages=messages,
+                    tools=tools,
+                    return_tool_requests=return_tool_requests,
+                    tool_choice=tool_choice,
+                    tool_responses=tool_responses,
+                    config=config,
+                    max_turns=max_turns,
+                    output_format=output_format,
+                    output_content_type=output_content_type,
+                    output_instructions=output_instructions,
+                    output_schema=output_schema,
+                    output_constrained=output_constrained,
+                    docs=docs,
+                ),
             ),
             on_chunk=on_chunk,
             middleware=use,
@@ -202,6 +262,7 @@ class Genkit(GenkitBase):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        output: OutputConfig | dict[str, Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
         timeout: float | None = None,
@@ -248,6 +309,8 @@ class Genkit(GenkitBase):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            output: Optional. An `OutputConfig` object or dictionary containing
+                output configuration. This groups output-related parameters.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -283,53 +346,174 @@ class Genkit(GenkitBase):
             output_instructions=output_instructions,
             output_schema=output_schema,
             output_constrained=output_constrained,
+            output=output,
             docs=docs,
             use=use,
             on_chunk=lambda c: stream.send(c),
         )
         stream.set_close_future(resp)
 
-        return (stream, stream.closed)
-
-    async def embed(
-        self,
-        embedder: str | None = None,
-        documents: list[Document] | None = None,
-        options: dict[str, Any] | None = None,
-    ) -> EmbedResponse:
-        """Calculates embeddings for documents.
-
-        Args:
-            embedder: Optional embedder model name to use.
-            documents: Texts to embed.
-            options: embedding options
-
-        Returns:
-            The generated response with embeddings.
-        """
-        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder)
-
-        return (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
+        return stream, stream.closed
 
     async def retrieve(
         self,
-        retriever: str | None = None,
+        retriever: str | RetrieverRef | None = None,
         query: str | DocumentData | None = None,
         options: dict[str, Any] | None = None,
     ) -> RetrieverResponse:
         """Retrieves documents based on query.
 
         Args:
-            retriever: Optional retriever name to use.
+            retriever: Optional retriever name or reference to use.
             query: Text query or a DocumentData containing query text.
-            options: retriever options
+            options: Optional retriever-specific options.
 
         Returns:
-            The generated response with embeddings.
+            The generated response with documents.
         """
+        retriever_name: str
+        retriever_config: dict[str, Any] = {}
+
+        if isinstance(retriever, RetrieverRef):
+            retriever_name = retriever.name
+            retriever_config = retriever.config or {}
+            if retriever.version:
+                retriever_config['version'] = retriever.version
+        elif isinstance(retriever, str):
+            retriever_name = retriever
+        else:
+            raise ValueError('Retriever must be specified as a string name or a RetrieverRef.')
+
         if isinstance(query, str):
             query = Document.from_text(query)
 
-        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever)
+        request_options = {**(retriever_config or {}), **(options or {})}
 
-        return (await retrieve_action.arun(RetrieverRequest(query=query, options=options))).response
+        retrieve_action = await self.registry.resolve_action(ActionKind.RETRIEVER, retriever_name)
+        if retrieve_action is None:
+            raise ValueError(f'Retriever "{retriever_name}" not found')
+
+        return (
+            await retrieve_action.arun(
+                RetrieverRequest(
+                    query=query,
+                    options=request_options if request_options else None,
+                )
+            )
+        ).response
+
+    async def index(
+        self,
+        indexer: str | IndexerRef | None = None,
+        documents: list[Document] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> None:
+        """Indexes documents.
+
+        Args:
+            indexer: Optional indexer name or reference to use.
+            documents: Documents to index.
+            options: Optional indexer-specific options.
+        """
+        indexer_name: str
+        indexer_config: dict[str, Any] = {}
+
+        if isinstance(indexer, IndexerRef):
+            indexer_name = indexer.name
+            indexer_config = indexer.config or {}
+            if indexer.version:
+                indexer_config['version'] = indexer.version
+        elif isinstance(indexer, str):
+            indexer_name = indexer
+        else:
+            raise ValueError('Indexer must be specified as a string name or an IndexerRef.')
+
+        req_options = {**(indexer_config or {}), **(options or {})}
+
+        index_action = await self.registry.resolve_action(ActionKind.INDEXER, indexer_name)
+        if index_action is None:
+            raise ValueError(f'Indexer "{indexer_name}" not found')
+
+        await index_action.arun(
+            IndexerRequest(
+                documents=documents,
+                options=req_options if req_options else None,
+            )
+        )
+
+    async def embed(
+        self,
+        embedder: str | EmbedderRef | None = None,
+        documents: list[Document] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> EmbedResponse:
+        embedder_name: str
+        embedder_config: dict[str, Any] = {}
+
+        if isinstance(embedder, EmbedderRef):
+            embedder_name = embedder.name
+            embedder_config = embedder.config or {}
+            if embedder.version:
+                embedder_config['version'] = embedder.version  # Handle version from ref
+        elif isinstance(embedder, str):
+            embedder_name = embedder
+        else:
+            # Handle case where embedder is None
+            raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
+
+        # Merge options passed to embed() with config from EmbedderRef
+        final_options = {**(embedder_config or {}), **(options or {})}
+
+        embed_action = await self.registry.resolve_action(ActionKind.EMBEDDER, embedder_name)
+        if embed_action is None:
+            raise ValueError(f'Embedder "{embedder_name}" not found')
+
+        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
+
+    async def evaluate(
+        self,
+        evaluator: str | EvaluatorRef | None = None,
+        dataset: list[BaseDataPoint] | None = None,
+        options: Any | None = None,
+        eval_run_id: str | None = None,
+    ) -> EvalResponse:
+        """Evaluates a dataset using an evaluator.
+
+        Args:
+            evaluator: Name or reference of the evaluator to use.
+            dataset: Dataset to evaluate.
+            options: Evaluation options.
+            eval_run_id: Optional ID for the evaluation run.
+
+        Returns:
+            The evaluation results.
+        """
+        evaluator_name: str = ''
+        evaluator_config: dict[str, Any] = {}
+
+        if isinstance(evaluator, EvaluatorRef):
+            evaluator_name = evaluator.name
+            evaluator_config = evaluator.config_schema or {}
+        elif isinstance(evaluator, str):
+            evaluator_name = evaluator
+        else:
+            raise ValueError('Evaluator must be specified as a string name or an EvaluatorRef.')
+
+        final_options = {**(evaluator_config or {}), **(options or {})}
+
+        eval_action = await self.registry.resolve_action(ActionKind.EVALUATOR, evaluator_name)
+        if eval_action is None:
+            raise ValueError(f'Evaluator "{evaluator_name}" not found')
+
+        if not eval_run_id:
+            eval_run_id = str(uuid.uuid4())
+
+        return (
+            await eval_action.arun(
+                EvalRequest(
+                    dataset=dataset,
+                    options=final_options,
+                    eval_run_id=eval_run_id,
+                )
+            )
+        ).response

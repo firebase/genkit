@@ -21,15 +21,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
+	"github.com/google/uuid"
 )
 
 // Model represents a model that can generate content based on a request.
@@ -99,27 +100,24 @@ type resumedToolRequestOutput struct {
 
 // ModelOptions represents the configuration options for a model.
 type ModelOptions struct {
-	// ConfigSchema is the JSON schema for the model's config.
-	ConfigSchema map[string]any `json:"configSchema,omitempty"`
-	// Label is a user-friendly name for the model.
-	Label string `json:"label,omitempty"`
-	// Stage indicates the maturity stage of the model.
-	Stage ModelStage `json:"stage,omitempty"`
-	// Supports defines the capabilities of the model.
-	Supports *ModelSupports `json:"supports,omitempty"`
-	// Versions lists the available versions of the model.
-	Versions []string `json:"versions,omitempty"`
+	ConfigSchema map[string]any // JSON schema for the model's config.
+	Label        string         // User-friendly name for the model.
+	Stage        ModelStage     // Indicates the maturity stage of the model.
+	Supports     *ModelSupports // Capabilities of the model.
+	Versions     []string       // Available versions of the model.
 }
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r api.Registry) *generateAction {
 	return (*generateAction)(core.DefineStreamingAction(r, "generate", api.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
+			actionOptsBytes, _ := json.Marshal(actionOpts)
 			logger.FromContext(ctx).Debug("GenerateAction",
-				"input", fmt.Sprintf("%#v", actionOpts))
+				"input", actionOptsBytes)
 			defer func() {
+				respBytes, _ := json.Marshal(resp)
 				logger.FromContext(ctx).Debug("GenerateAction",
-					"output", fmt.Sprintf("%#v", resp),
+					"output", respBytes,
 					"err", err)
 			}()
 
@@ -156,6 +154,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 				"constrained": opts.Supports.Constrained,
 				"output":      opts.Supports.Output,
 				"contentType": opts.Supports.ContentType,
+				"longRunning": opts.Supports.LongRunning,
 			},
 			"versions":      opts.Versions,
 			"stage":         opts.Stage,
@@ -178,9 +177,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return &model{
-		ActionDef: *core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn),
-	}
+	return &model{*core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn)}
 }
 
 // DefineModel creates a new [Model] and registers it.
@@ -215,7 +212,8 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	}
 
 	m := LookupModel(r, opts.Model)
-	if m == nil {
+	bm := LookupBackgroundModel(r, opts.Model)
+	if m == nil && bm == nil {
 		return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: model %q not found", opts.Model)
 	}
 
@@ -235,6 +233,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		err := cb(ctx, &ModelResponseChunk{
 			Content: resumeOutput.toolMessage.Content,
 			Role:    RoleTool,
+			Index:   0,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
@@ -285,7 +284,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && outputCfg.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -314,12 +313,19 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		Output:     &outputCfg,
 	}
 
-	fn := core.ChainMiddleware(mw...)(m.Generate)
+	fn := m.Generate
+	if bm != nil {
+		if cb != nil {
+			logger.FromContext(ctx).Warn("background model does not support streaming", "model", bm.Name())
+		}
+		fn = backgroundModelToModelFn(bm.Start)
+	}
+	fn = core.ChainMiddleware(mw...)(fn)
 
 	// Inline recursive helper function that captures variables from parent scope.
-	var generate func(context.Context, *ModelRequest, int) (*ModelResponse, error)
+	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 
-	generate = func(ctx context.Context, req *ModelRequest, currentTurn int) (*ModelResponse, error) {
+	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
 		spanMetadata := &tracing.SpanMetadata{
 			Name:    "generate",
 			Type:    "util",
@@ -327,12 +333,46 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		}
 
 		return tracing.RunInNewSpan(ctx, spanMetadata, req, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
-			resp, err := fn(ctx, req, cb)
+			var wrappedCb ModelStreamCallback
+			currentRole := RoleModel
+			currentIndex := messageIndex
+
+			var streamingHandler StreamingFormatHandler
+			if sfh, ok := formatHandler.(StreamingFormatHandler); ok {
+				streamingHandler = sfh
+			}
+
+			if cb != nil {
+				wrappedCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
+					if chunk.Role != currentRole && chunk.Role != "" {
+						currentIndex++
+						currentRole = chunk.Role
+					}
+					chunk.Index = currentIndex
+					if chunk.Role == "" {
+						chunk.Role = RoleModel
+					}
+					chunk.formatHandler = streamingHandler
+					return cb(ctx, chunk)
+				}
+			}
+
+			resp, err := fn(ctx, req, wrappedCb)
 			if err != nil {
 				return nil, err
 			}
 
+			// Ensure all tool requests have unique refs for matching during resume.
+			ensureToolRequestRefs(resp.Message)
+
+			// If this is a long-running operation response, return it immediately without further processing
+			if bm != nil && resp.Operation != nil {
+				return resp, nil
+			}
+
 			if formatHandler != nil {
+				resp.formatHandler = streamingHandler
+				// This is legacy behavior. New format handlers should implement ParseMessage as a passthrough.
 				resp.Message, err = formatHandler.ParseMessage(resp.Message)
 				if err != nil {
 					logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
@@ -348,7 +388,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
 			}
 
-			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
+			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, wrappedCb, currentIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -362,11 +402,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return resp, nil
 			}
 
-			return generate(ctx, newReq, currentTurn+1)
+			return generate(ctx, newReq, currentTurn+1, currentIndex+1)
 		})
 	}
 
-	return generate(ctx, req, 0)
+	return generate(ctx, req, 0, 0)
 }
 
 // Generate generates a model response based on the provided options.
@@ -375,6 +415,17 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	for _, opt := range opts {
 		if err := opt.applyGenerate(genOpts); err != nil {
 			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: error applying options: %v", err)
+		}
+	}
+
+	if genOpts.OutputSchema != nil {
+		resolved, err := core.ResolveSchema(r, genOpts.OutputSchema)
+		if err != nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: invalid output schema: %v", err)
+		}
+		genOpts.OutputSchema = resolved
+		if genOpts.OutputFormat == "" {
+			genOpts.OutputFormat = OutputFormatJSON
 		}
 	}
 
@@ -402,7 +453,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 			r = r.NewChild()
 		}
 		for _, res := range genOpts.Resources {
-			res.(*resource).Register(r)
+			res.Register(r)
 		}
 	}
 
@@ -504,8 +555,10 @@ func GenerateText(ctx context.Context, r api.Registry, opts ...GenerateOption) (
 	return res.Text(), nil
 }
 
-// Generate run generate request for this model. Returns ModelResponse struct.
-// TODO: Stream GenerateData with partial JSON
+// GenerateData runs a generate request and returns strongly-typed output.
+// If the response doesn't contain text output (e.g., contains tool requests
+// or interrupts instead), the output will be nil and no error is returned.
+// Check resp.Interrupts() or resp.ToolRequests() to handle these cases.
 func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
 	var value Out
 	opts = append(opts, WithOutputType(value))
@@ -515,12 +568,121 @@ func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...Generate
 		return nil, nil, err
 	}
 
+	// If there's no text content to parse (e.g., the response contains tool
+	// requests or interrupts), return nil output. The caller should check
+	// resp.Interrupts() or resp.ToolRequests() to handle these cases.
+	if resp.Text() == "" {
+		return nil, resp, nil
+	}
+
 	err = resp.Output(&value)
 	if err != nil {
-		return nil, nil, err
+		return nil, resp, err
 	}
 
 	return &value, resp, nil
+}
+
+// StreamValue is either a streamed chunk or the final response of a generate request.
+type StreamValue[Out, Stream any] struct {
+	Done     bool
+	Chunk    Stream         // valid if Done is false
+	Output   Out            // valid if Done is true
+	Response *ModelResponse // valid if Done is true
+}
+
+// ModelStreamValue is a stream value for a model response.
+// Out is never set because the output is already available in the Response field.
+type ModelStreamValue = StreamValue[struct{}, *ModelResponseChunk]
+
+// errGenerateStop is a sentinel error used to signal early termination of streaming.
+var errGenerateStop = errors.New("stop")
+
+// GenerateStream generates a model response and streams the output.
+// It returns an iterator that yields streaming results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [ModelStreamValue] argument has Done == true, the value's
+// Response field contains the final response; the yield function will not be called
+// again.
+//
+// Otherwise the Chunk field of the passed [ModelStreamValue] holds a streamed chunk.
+func GenerateStream(ctx context.Context, r api.Registry, opts ...GenerateOption) iter.Seq2[*ModelStreamValue, error] {
+	return func(yield func(*ModelStreamValue, error) bool) {
+		cb := func(ctx context.Context, chunk *ModelResponseChunk) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if !yield(&ModelStreamValue{Chunk: chunk}, nil) {
+				return errGenerateStop
+			}
+			return nil
+		}
+
+		allOpts := append(slices.Clone(opts), WithStreaming(cb))
+
+		resp, err := Generate(ctx, r, allOpts...)
+		if err != nil {
+			yield(nil, err)
+		} else {
+			yield(&ModelStreamValue{Done: true, Response: resp}, nil)
+		}
+	}
+}
+
+// GenerateDataStream generates a model response with streaming and returns strongly-typed output.
+// It returns an iterator that yields streaming results.
+//
+// If the yield function is passed a non-nil error, generation has failed with that
+// error; the yield function will not be called again.
+//
+// If the yield function's [StreamValue] argument has Done == true, the value's
+// Output and Response fields contain the final typed output and response; the yield function
+// will not be called again.
+//
+// Otherwise the Chunk field of the passed [StreamValue] holds a streamed chunk.
+func GenerateDataStream[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) iter.Seq2[*StreamValue[Out, Out], error] {
+	return func(yield func(*StreamValue[Out, Out], error) bool) {
+		cb := func(ctx context.Context, chunk *ModelResponseChunk) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			var streamValue Out
+			if err := chunk.Output(&streamValue); err != nil {
+				yield(nil, err)
+				return err
+			}
+			// Skip yielding if there's no parseable output yet (e.g., incomplete JSON during streaming).
+			if base.IsNil(streamValue) {
+				return nil
+			}
+			if !yield(&StreamValue[Out, Out]{Chunk: streamValue}, nil) {
+				return errGenerateStop
+			}
+			return nil
+		}
+
+		// Prepend WithOutputType so the user can override the output format.
+		var value Out
+		allOpts := append([]GenerateOption{WithOutputType(value)}, opts...)
+		allOpts = append(allOpts, WithStreaming(cb))
+
+		resp, err := Generate(ctx, r, allOpts...)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+
+		output, err := extractTypedOutput[Out](resp)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+
+		yield(&StreamValue[Out, Out]{Done: true, Output: output, Response: resp}, nil)
+	}
 }
 
 // Generate applies the [Action] to provided request.
@@ -567,6 +729,20 @@ func (m *model) supportsConstrained(hasTools bool) bool {
 	return true
 }
 
+// ensureToolRequestRefs assigns unique refs to tool request parts that don't have one.
+// This ensures that when there are multiple calls to the same tool, each can be
+// individually matched when resuming with Restart or Respond directives.
+func ensureToolRequestRefs(msg *Message) {
+	if msg == nil {
+		return
+	}
+	for _, part := range msg.Content {
+		if part.IsToolRequest() && part.ToolRequest.Ref == "" {
+			part.ToolRequest.Ref = uuid.New().String()
+		}
+	}
+}
+
 // clone creates a deep copy of the provided object using JSON marshaling and unmarshaling.
 func clone[T any](obj *T) *T {
 	if obj == nil {
@@ -589,21 +765,13 @@ func clone[T any](obj *T) *T {
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
-func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
-	toolCount := 0
-	if resp.Message != nil {
-		for _, part := range resp.Message.Content {
-			if part.IsToolRequest() {
-				toolCount++
-			}
-		}
-	}
-
+func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int) (*ModelRequest, *Message, error) {
+	toolCount := len(resp.ToolRequests())
 	if toolCount == 0 {
 		return nil, nil, nil
 	}
 
-	resultChan := make(chan result[any])
+	resultChan := make(chan result[*MultipartToolResponse])
 	toolMsg := &Message{Role: RoleTool}
 	revisedMsg := clone(resp.Message)
 
@@ -616,11 +784,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 			toolReq := p.ToolRequest
 			tool := LookupTool(r, p.ToolRequest.Name)
 			if tool == nil {
-				resultChan <- result[any]{idx, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
+				resultChan <- result[*MultipartToolResponse]{index: idx, err: core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
 				return
 			}
 
-			output, err := tool.RunRaw(ctx, toolReq.Input)
+			multipartResp, err := tool.RunRawMultipart(ctx, toolReq.Input)
 			if err != nil {
 				var tie *toolInterruptError
 				if errors.As(err, &tie) {
@@ -638,11 +806,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 					revisedMsg.Content[idx] = newPart
 
-					resultChan <- result[any]{idx, nil, tie}
+					resultChan <- result[*MultipartToolResponse]{index: idx, err: tie}
 					return
 				}
 
-				resultChan <- result[any]{idx, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
+				resultChan <- result[*MultipartToolResponse]{index: idx, err: core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
 				return
 			}
 
@@ -650,10 +818,10 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 			if newPart.Metadata == nil {
 				newPart.Metadata = make(map[string]any)
 			}
-			newPart.Metadata["pendingOutput"] = output
+			newPart.Metadata["pendingOutput"] = multipartResp.Output
 			revisedMsg.Content[idx] = newPart
 
-			resultChan <- result[any]{idx, output, nil}
+			resultChan <- result[*MultipartToolResponse]{index: idx, value: multipartResp}
 		}(i, part)
 	}
 
@@ -673,9 +841,10 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 		toolReq := revisedMsg.Content[res.index].ToolRequest
 		toolResps = append(toolResps, NewToolResponsePart(&ToolResponse{
-			Name:   toolReq.Name,
-			Ref:    toolReq.Ref,
-			Output: res.value,
+			Name:    toolReq.Name,
+			Ref:     toolReq.Ref,
+			Output:  res.value.Output,
+			Content: res.value.Content,
 		}))
 	}
 
@@ -689,6 +858,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 		err := cb(ctx, &ModelResponseChunk{
 			Content: toolMsg.Content,
 			Role:    RoleTool,
+			Index:   messageIndex + 1,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("streaming callback failed: %w", err)
@@ -704,17 +874,17 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 // Text returns the contents of the first candidate in a
 // [ModelResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
-func (gr *ModelResponse) Text() string {
-	if gr.Message == nil {
+func (mr *ModelResponse) Text() string {
+	if mr == nil || mr.Message == nil {
 		return ""
 	}
-	return gr.Message.Text()
+	return mr.Message.Text()
 }
 
 // History returns messages from the request combined with the response message
 // to represent the conversation history.
 func (mr *ModelResponse) History() []*Message {
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return mr.Request.Messages
 	}
 	return append(mr.Request.Messages, mr.Message)
@@ -723,7 +893,7 @@ func (mr *ModelResponse) History() []*Message {
 // Reasoning concatenates all reasoning parts present in the message
 func (mr *ModelResponse) Reasoning() string {
 	var sb strings.Builder
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return ""
 	}
 
@@ -736,20 +906,38 @@ func (mr *ModelResponse) Reasoning() string {
 	return sb.String()
 }
 
-// Output unmarshals structured JSON output into the provided
-// struct pointer.
+// Output parses the structured output from the response and unmarshals it into v.
+// If a format handler is set, it uses the handler's ParseOutput method.
+// Otherwise, it falls back to parsing the response text as JSON.
 func (mr *ModelResponse) Output(v any) error {
-	j := base.ExtractJSONFromMarkdown(mr.Text())
-	if j == "" {
-		return errors.New("unable to parse JSON from response text")
+	if mr.Message == nil || len(mr.Message.Content) == 0 {
+		return errors.New("no content in response")
 	}
-	return json.Unmarshal([]byte(j), v)
+
+	if mr.formatHandler == nil {
+		// For backward compatibility, extract JSON from the response text.
+		return json.Unmarshal([]byte(base.ExtractJSONFromMarkdown(mr.Message.Text())), v)
+	}
+
+	output, err := mr.formatHandler.ParseOutput(mr.Message)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal output: %w", err)
+	}
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
 }
 
 // ToolRequests returns the tool requests from the response.
 func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 	toolReqs := []*ToolRequest{}
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return toolReqs
 	}
 	for _, part := range mr.Message.Content {
@@ -763,7 +951,7 @@ func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 // Interrupts returns the interrupted tool request parts from the response.
 func (mr *ModelResponse) Interrupts() []*Part {
 	parts := []*Part{}
-	if mr.Message == nil {
+	if mr == nil || mr.Message == nil {
 		return parts
 	}
 	for _, part := range mr.Message.Content {
@@ -774,9 +962,22 @@ func (mr *ModelResponse) Interrupts() []*Part {
 	return parts
 }
 
-// Text returns the text content of the [ModelResponseChunk]
-// as a string. It returns an error if there is no Content
-// in the response chunk.
+// Media returns the media content of the [ModelResponse] as a string.
+func (mr *ModelResponse) Media() string {
+	if mr == nil || mr.Message == nil {
+		return ""
+	}
+	for _, part := range mr.Message.Content {
+		if part.IsMedia() {
+			return part.Text
+		}
+	}
+	return ""
+}
+
+// Text returns the text content of the ModelResponseChunk as a string.
+// It returns an empty string if there is no Content in the response chunk.
+// For the parsed structured output, use [ModelResponseChunk.Output] instead.
 func (c *ModelResponseChunk) Text() string {
 	if len(c.Content) == 0 {
 		return ""
@@ -791,6 +992,82 @@ func (c *ModelResponseChunk) Text() string {
 		}
 	}
 	return sb.String()
+}
+
+// Reasoning returns the reasoning content of the ModelResponseChunk as a string.
+// It returns an empty string if there is no Content in the response chunk.
+func (c *ModelResponseChunk) Reasoning() string {
+	if len(c.Content) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, p := range c.Content {
+		if p.IsReasoning() {
+			sb.WriteString(p.Text)
+		}
+	}
+	return sb.String()
+}
+
+// Output parses the chunk using the format handler and unmarshals the result into v.
+// Returns an error if the format handler is not set or does not support parsing chunks.
+func (c *ModelResponseChunk) Output(v any) error {
+	if c.formatHandler == nil {
+		return errors.New("output format chosen does not support parsing chunks")
+	}
+
+	output, err := c.formatHandler.ParseChunk(c)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal chunk output: %w", err)
+	}
+	if err := json.Unmarshal(b, v); err != nil {
+		return fmt.Errorf("failed to unmarshal output: %w", err)
+	}
+	return nil
+}
+
+// outputer is an interface for types that can unmarshal structured output.
+type outputer interface {
+	// Text returns the contents of the output as a string.
+	Text() string
+	// Output parses the structured output from the response and unmarshals it into value.
+	Output(value any) error
+}
+
+// OutputFrom is a convenience function that parses structured output from a
+// [ModelResponse] or [ModelResponseChunk] and returns it as a typed value.
+// This is equivalent to calling Output() but returns the value directly instead
+// of requiring a pointer argument. If you need to handle the error, use Output() instead.
+func OutputFrom[Out any](src outputer) Out {
+	output, err := extractTypedOutput[Out](src)
+	if err != nil {
+		return base.Zero[Out]()
+	}
+	return output
+}
+
+// extractTypedOutput extracts the typed output from a model response.
+// It supports string output by calling Text() and returning the result.
+func extractTypedOutput[Out any](o outputer) (Out, error) {
+	var output Out
+
+	switch any(output).(type) {
+	case string:
+		text := o.Text()
+		// Type assertion to convert string to Out (which we know is string).
+		result := any(text).(Out)
+		return result, nil
+	default:
+		if err := o.Output(&output); err != nil {
+			return base.Zero[Out](), fmt.Errorf("failed to parse output: %w", err)
+		}
+		return output, nil
+	}
 }
 
 // Text returns the contents of a [Message] as a string. It
@@ -917,7 +1194,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 						}
 					}
 				}
-				if originalInputVal, ok := restartPart.Metadata["originalInput"]; ok {
+				if originalInputVal, ok := restartPart.Metadata["replacedInput"]; ok {
 					resumedCtx = origInputCtxKey.NewContext(resumedCtx, originalInputVal)
 				}
 
@@ -1075,127 +1352,6 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 		},
 		toolMessage: toolMessage,
 	}, nil
-}
-
-// addAutomaticTelemetry creates middleware that automatically measures latency and calculates character and media counts.
-func addAutomaticTelemetry() ModelMiddleware {
-	return func(fn ModelFunc) ModelFunc {
-		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-			startTime := time.Now()
-
-			// Call the underlying model function
-			resp, err := fn(ctx, req, cb)
-			if err != nil {
-				return nil, err
-			}
-
-			// Calculate latency
-			latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
-			if resp.LatencyMs == 0 {
-				resp.LatencyMs = latencyMs
-			}
-
-			if resp.Usage == nil {
-				resp.Usage = &GenerationUsage{}
-			}
-			if resp.Usage.InputCharacters == 0 {
-				resp.Usage.InputCharacters = countInputCharacters(req)
-			}
-			if resp.Usage.OutputCharacters == 0 {
-				resp.Usage.OutputCharacters = countOutputCharacters(resp)
-			}
-			if resp.Usage.InputImages == 0 {
-				resp.Usage.InputImages = countInputParts(req, func(part *Part) bool { return part.IsImage() })
-			}
-			if resp.Usage.OutputImages == 0 {
-				resp.Usage.OutputImages = countOutputParts(resp, func(part *Part) bool { return part.IsImage() })
-			}
-			if resp.Usage.InputVideos == 0 {
-				resp.Usage.InputVideos = countInputParts(req, func(part *Part) bool { return part.IsVideo() })
-			}
-			if resp.Usage.OutputVideos == 0 {
-				resp.Usage.OutputVideos = countOutputParts(resp, func(part *Part) bool { return part.IsVideo() })
-			}
-			if resp.Usage.InputAudioFiles == 0 {
-				resp.Usage.InputAudioFiles = countInputParts(req, func(part *Part) bool { return part.IsAudio() })
-			}
-			if resp.Usage.OutputAudioFiles == 0 {
-				resp.Usage.OutputAudioFiles = countOutputParts(resp, func(part *Part) bool { return part.IsAudio() })
-			}
-
-			return resp, nil
-		}
-	}
-}
-
-// countInputParts counts parts in the input request that match the given predicate.
-func countInputParts(req *ModelRequest, predicate func(*Part) bool) int {
-	if req == nil {
-		return 0
-	}
-
-	count := 0
-	for _, msg := range req.Messages {
-		if msg == nil {
-			continue
-		}
-		for _, part := range msg.Content {
-			if part != nil && predicate(part) {
-				count++
-			}
-		}
-	}
-	return count
-}
-
-// countInputCharacters counts the total characters in the input request.
-func countInputCharacters(req *ModelRequest) int {
-	if req == nil {
-		return 0
-	}
-
-	total := 0
-	for _, msg := range req.Messages {
-		if msg == nil {
-			continue
-		}
-		for _, part := range msg.Content {
-			if part != nil && part.Text != "" {
-				total += len(part.Text)
-			}
-		}
-	}
-	return total
-}
-
-// countOutputParts counts parts in the output response that match the given predicate.
-func countOutputParts(resp *ModelResponse, predicate func(*Part) bool) int {
-	if resp == nil || resp.Message == nil {
-		return 0
-	}
-
-	count := 0
-	for _, part := range resp.Message.Content {
-		if part != nil && predicate(part) {
-			count++
-		}
-	}
-	return count
-}
-
-// countOutputCharacters counts the total characters in the output response.
-func countOutputCharacters(resp *ModelResponse) int {
-	if resp == nil || resp.Message == nil {
-		return 0
-	}
-
-	total := 0
-	for _, part := range resp.Message.Content {
-		if part != nil && part.Text != "" {
-			total += len(part.Text)
-		}
-	}
-	return total
 }
 
 // processResources processes messages to replace resource parts with actual content.

@@ -43,6 +43,12 @@ export {
   type Operation,
 } from './background-action.js';
 export {
+  getGenkitRuntimeConfig,
+  resetGenkitRuntimeConfig,
+  setGenkitRuntimeConfig,
+  type GenkitRuntimeConfig,
+} from './config.js';
+export {
   apiKey,
   getContext,
   runWithContext,
@@ -51,6 +57,12 @@ export {
   type ContextProvider,
   type RequestData,
 } from './context.js';
+export {
+  defineDynamicActionProvider,
+  type DapConfig,
+  type DapFn,
+  type DynamicActionProviderAction,
+} from './dynamic-action-provider.js';
 export {
   GenkitError,
   UnstableApiError,

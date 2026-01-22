@@ -16,7 +16,6 @@
 
 """Convenience functionality to determine the running environment."""
 
-import enum
 import os
 import sys
 

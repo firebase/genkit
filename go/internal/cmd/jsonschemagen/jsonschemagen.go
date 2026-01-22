@@ -42,6 +42,14 @@ var (
 	outputDir  = flag.String("outdir", "", "directory to write to, or '-' for stdout")
 	noFormat   = flag.Bool("nofmt", false, "do not format output")
 	configFile = flag.String("config", "", "config filename")
+
+	// fieldOmitEmptyTag maps schemas (e.g., "ModelResponseChunk") to fields (e.g., "index")
+	// that should not receive the `omitempty` JSON tag.
+	fieldOmitEmptyTag = map[string]map[string]struct{}{
+		"ModelResponseChunk": {
+			"index": {}, // fields should be as defined in core/schemas.config
+		},
+	}
 )
 
 func main() {
@@ -241,7 +249,6 @@ func nameAnonymousTypes(schemas map[string]*Schema) {
 				nameFields(prefix+fname, fs.Properties)
 			}
 		}
-
 	}
 	for typeName, ts := range schemas {
 		nameFields(typeName, ts.Properties)
@@ -407,11 +414,29 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 			}
 		}
 		g.generateDoc(fs, fcfg)
+
 		jsonTag := fmt.Sprintf(`json:"%s,omitempty"`, field)
+		if skipOmitEmpty(goName, field) {
+			jsonTag = fmt.Sprintf(`json:"%s"`, field)
+		}
 		g.pr(fmt.Sprintf("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag))
+	}
+	for _, f := range tcfg.fields {
+		g.pr(fmt.Sprintf("  %s %s\n", f.name, f.typeExpr))
 	}
 	g.pr("}\n\n")
 	return nil
+}
+
+// skipOmitEmpty determines whether a schema field should include the
+// `omitempty` JSON tag
+func skipOmitEmpty(schema, field string) bool {
+	fields, ok := fieldOmitEmptyTag[schema]
+	if !ok {
+		return false
+	}
+	_, ok = fields[field]
+	return ok
 }
 
 func (g *generator) generateStringEnum(name string, s *Schema, tcfg *itemConfig) error {
@@ -454,6 +479,9 @@ func (g *generator) generateDoc(s *Schema, ic *itemConfig) {
 // typeExpr returns a Go type expression denoting the type represented by the schema.
 func (g *generator) typeExpr(s *Schema) (string, error) {
 	// A reference to another type refers to that type by name. Use the name.
+	if s == nil {
+		return "any", nil
+	}
 	if s.Ref != "" {
 		name, ok := strings.CutPrefix(s.Ref, refPrefix)
 		if !ok {
@@ -580,6 +608,13 @@ type itemConfig struct {
 	pkgPath  string
 	typeExpr string
 	docLines []string
+	fields   []extraField
+}
+
+// extraField represents an additional unexported field to add to a struct.
+type extraField struct {
+	name     string
+	typeExpr string
 }
 
 // parseConfigFile parses the config file.
@@ -602,6 +637,8 @@ type itemConfig struct {
 //	    package path, relative to outdir (last component is package name)
 //	import
 //	    path of package to import (for packages only)
+//	field NAME TYPE
+//	    add an unexported field to the struct (for types only)
 func parseConfigFile(filename string) (config, error) {
 	c := config{
 		itemConfigs: map[string]*itemConfig{},
@@ -667,6 +704,11 @@ func parseConfigFile(filename string) (config, error) {
 				return errf("need NAME import PATH")
 			}
 			ic.pkgPath = words[2]
+		case "field":
+			if len(words) < 4 {
+				return errf("need NAME field FIELDNAME TYPE")
+			}
+			ic.fields = append(ic.fields, extraField{name: words[2], typeExpr: words[3]})
 		default:
 			return errf("unknown directive %q", words[1])
 		}

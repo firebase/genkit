@@ -23,11 +23,9 @@ import structlog
 from google.cloud import aiplatform, aiplatform_v1, bigquery
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai.vector_search import (
+from genkit.plugins.google_genai import VertexAI, VertexAIVectorSearchConfig
+from genkit.plugins.google_genai.vector_search import (
     BigQueryRetriever,
-    VertexAIVectorSearch,
-    vertexai_name,
 )
 from genkit.types import Document, TextPart
 
@@ -48,17 +46,18 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
-        VertexAI(),
-        VertexAIVectorSearch(
-            retriever=BigQueryRetriever,
-            retriever_extra_args={
-                'bq_client': bq_client,
-                'dataset_id': BIGQUERY_DATASET_NAME,
-                'table_id': BIGQUERY_TABLE_NAME,
-            },
-            embedder=EMBEDDING_MODEL,
-            embedder_options={'task': 'RETRIEVAL_DOCUMENT'},
-        ),
+        VertexAI(
+            vector_search=[
+                VertexAIVectorSearchConfig(
+                    retriever=BigQueryRetriever,
+                    retriever_extra_args={
+                        'bq_client': bq_client,
+                        'dataset_id': BIGQUERY_DATASET_NAME,
+                        'table_id': BIGQUERY_TABLE_NAME,
+                    },
+                )
+            ]
+        )
     ]
 )
 
@@ -106,7 +105,7 @@ async def generate_embeddings():
     genkit_documents = [Document(content=[TextPart(text=text)]) for text in results_dict.values()]
 
     embed_response = await ai.embed(
-        embedder=vertexai_name(EMBEDDING_MODEL),
+        embedder=f'vertexai/{EMBEDDING_MODEL}',
         documents=genkit_documents,
         options={'task': 'RETRIEVAL_DOCUMENT', 'output_dimensionality': 128},
     )

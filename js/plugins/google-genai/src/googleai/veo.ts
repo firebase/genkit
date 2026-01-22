@@ -20,7 +20,6 @@ import {
   Operation,
   modelActionMetadata,
   z,
-  type Genkit,
 } from 'genkit';
 import {
   BackgroundModelAction,
@@ -29,6 +28,7 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
+import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
 import { veoCheckOperation, veoPredict } from './client.js';
 import {
   ClientOptions,
@@ -43,6 +43,7 @@ import {
   checkModelName,
   extractText,
   extractVeoImage,
+  extractVeoVideo,
   extractVersion,
   modelName,
 } from './utils.js';
@@ -110,8 +111,10 @@ function commonRef(
 const GENERIC_MODEL = commonRef('veo');
 
 const KNOWN_MODELS = {
-  'veo-3.0-generate-preview': commonRef('veo-3.0-generate-preview'),
-  'veo-3.0-fast-generate-preview': commonRef('veo-3.0-fast-generate-preview'),
+  'veo-3.1-generate-preview': commonRef('veo-3.1-generate-preview'),
+  'veo-3.1-fast-generate-preview': commonRef('veo-3.1-fast-generate-preview'),
+  'veo-3.0-generate-001': commonRef('veo-3.0-generate-001'),
+  'veo-3.0-fast-generate-001': commonRef('veo-3.0-fast-generate-001'),
   'veo-2.0-generate-001': commonRef('veo-2.0-generate-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
@@ -156,17 +159,16 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, options);
-  }
+export function listKnownModels(options?: GoogleAIPluginOptions) {
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, options)
+  );
 }
 
 /**
  * Defines a new GoogleAI Veo model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
@@ -174,9 +176,10 @@ export function defineModel(
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,
+    customHeaders: pluginOptions?.customHeaders,
   };
 
-  return ai.defineBackgroundModel({
+  return pluginBackgroundModel({
     name: ref.name,
     ...ref.info,
     configSchema: ref.configSchema,
@@ -187,6 +190,7 @@ export function defineModel(
           {
             prompt: extractText(request),
             image: extractVeoImage(request),
+            video: extractVeoVideo(request),
           },
         ],
         parameters: toVeoParameters(request),

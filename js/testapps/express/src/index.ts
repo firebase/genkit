@@ -15,8 +15,7 @@
  */
 
 import { expressHandler } from '@genkit-ai/express';
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { googleAI, vertexAI } from '@genkit-ai/google-genai';
 import express, { type Request, type Response } from 'express';
 import { UserFacingError, genkit, z } from 'genkit';
 import type { ContextProvider, RequestData } from 'genkit/context';
@@ -39,8 +38,6 @@ const ai = genkit({
   ],
 });
 
-const selectedModel = gemini15Flash;
-
 export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject, { context, sendChunk }) => {
@@ -50,7 +47,7 @@ export const jokeFlow = ai.defineFlow(
     return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         prompt: `tell me long joke about ${subject}`,
-        model: selectedModel,
+        model: googleAI.model('gemini-2.5-flash'),
         config: {
           temperature: 1,
         },
@@ -131,7 +128,7 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
   });
   await ai.generate({
     prompt: `Tell me a long joke about ${subject}`,
-    model: selectedModel,
+    model: googleAI.model('gemini-2.5-flash'),
     config: {
       temperature: 1,
     },

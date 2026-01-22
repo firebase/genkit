@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ActionMetadata, Genkit, modelActionMetadata, z } from 'genkit';
+import { ActionMetadata, modelActionMetadata, z } from 'genkit';
 import {
   GenerationCommonConfigSchema,
   ModelAction,
@@ -22,10 +22,16 @@ import {
   ModelReference,
   modelRef,
 } from 'genkit/model';
+import { model as pluginModel } from 'genkit/plugin';
 import { imagenPredict } from './client.js';
 import { fromImagenResponse, toImagenPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
-import { checkModelName, extractVersion, modelName } from './utils.js';
+import {
+  calculateRequestOptions,
+  checkModelName,
+  extractVersion,
+  modelName,
+} from './utils.js';
 
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.
@@ -124,6 +130,7 @@ export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
             'needing to provide one. Consequently, when you provide ' +
             'this parameter you can omit a mask object.'
         )
+        .passthrough()
         .optional(),
       maskDilation: z
         .number()
@@ -157,13 +164,56 @@ export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
         .describe('The factor to upscale the image.'),
     })
     .describe('Configuration for upscaling.')
+    .passthrough()
     .optional(),
 }).passthrough();
 export type ImagenConfigSchemaType = typeof ImagenConfigSchema;
 export type ImagenConfig = z.infer<ImagenConfigSchemaType>;
 
-// for commonRef
-type ConfigSchemaType = ImagenConfigSchemaType;
+export const ImagenTryOnConfigSchema = z
+  .object({
+    sampleCount: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('Number of images to generate.'),
+    seed: z
+      .number()
+      .int()
+      .optional()
+      .describe('Random seed for the image generation.'),
+    baseSteps: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe('Number of denoising steps.'),
+    personGeneration: z
+      .enum(['dont_allow', 'allow_adult', 'allow_all'])
+      .optional(),
+    safetySetting: z
+      .enum(['block_most', 'block_some', 'block_few', 'block_fewest'])
+      .optional(),
+    storageUri: z
+      .string()
+      .optional()
+      .describe('Cloud Storage URI to store the generated images.'),
+    outputOptions: z
+      .object({
+        mimeType: z.string().optional(),
+        compressionQuality: z.number().int().optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+export type ImagenTryOnConfigSchemaType = typeof ImagenTryOnConfigSchema;
+export type ImagenTryOnConfig = z.infer<ImagenTryOnConfigSchemaType>;
+
+export type ConfigSchemaType =
+  | ImagenConfigSchemaType
+  | ImagenTryOnConfigSchemaType;
 
 function commonRef(
   name: string,
@@ -208,11 +258,32 @@ export const KNOWN_MODELS = {
   'imagen-4.0-ultra-generate-preview-06-06': commonRef(
     'imagen-4.0-ultra-generate-preview-06-06'
   ),
+  'virtual-try-on-preview-08-04': commonRef(
+    'virtual-try-on-preview-08-04',
+    {
+      supports: {
+        media: true,
+        multiturn: false,
+        tools: false,
+        systemRole: true,
+        output: ['media'],
+      },
+    },
+    ImagenTryOnConfigSchema
+  ),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS;
-export type ImagenModelName = `imagen=${string}`;
+export type ImagenModelName =
+  | KnownModels
+  | `imagen-${string}`
+  | `virtual-try-on-${string}`;
 export function isImagenModelName(value?: string): value is ImagenModelName {
-  return !!value?.startsWith('imagen-');
+  return (
+    !!value &&
+    (value.startsWith('imagen-') ||
+      value.startsWith('virtual-try-on-') ||
+      value in KNOWN_MODELS)
+  );
 }
 
 export function model(
@@ -246,33 +317,34 @@ export function listActions(models: Model[]): ActionMetadata[] {
     });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
   const ref = model(name);
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
     },
     async (request, { abortSignal }) => {
-      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
+
       const imagenPredictRequest = toImagenPredictRequest(request);
 
       const response = await imagenPredict(

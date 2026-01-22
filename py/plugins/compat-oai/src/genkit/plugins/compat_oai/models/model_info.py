@@ -39,108 +39,109 @@ class PluginSource(StrEnum):
     MODEL_GARDEN = 'model-garden'
 
 
-GPT_3_5_TURBO = 'gpt-3.5-turbo'
-GPT_4 = 'gpt-4'
-GPT_4_TURBO = 'gpt-4-turbo'
-GPT_4O = 'gpt-4o'
-GPT_4O_MINI = 'gpt-4o-mini'
-O1_MINI = 'o1-mini'
+MULTIMODAL_MODEL_SUPPORTS = Supports(
+    multiturn=True,
+    media=True,
+    tools=True,
+    systemRole=True,
+    output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.STRUCTURED_OUTPUTS, SupportedOutputFormat.TEXT],
+)
+
+GPT_4_MODEL_SUPPORTS = Supports(
+    multiturn=True,
+    media=False,
+    tools=True,
+    systemRole=True,
+    output=[SupportedOutputFormat.TEXT],
+)
+
+GPT_35_MODEL_SUPPORTS = Supports(
+    multiturn=True,
+    media=False,
+    tools=True,
+    systemRole=True,
+    output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+)
+
+O_SERIES_MODEL_SUPPORTS = Supports(
+    multiturn=True,
+    media=True,
+    tools=True,
+    systemRole=False,
+    output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+)
+
+GPT_5_MODEL_SUPPORTS = Supports(
+    multiturn=True,
+    media=True,
+    tools=True,
+    systemRole=True,
+    output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+)
 
 LLAMA_3_1 = 'meta/llama-3.1-405b-instruct-maas'
 LLAMA_3_2 = 'meta/llama-3.2-90b-vision-instruct-maas'
 
 SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
-    GPT_3_5_TURBO: ModelInfo(
-        label='OpenAI - gpt-3.5-turbo',
-        versions=[
-            'gpt-3.5-turbo-1106',
-            'gpt-3.5-turbo-0125',
-        ],
+    'gpt-4o': ModelInfo(label='OpenAI - gpt-4o', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4o-2024-05-13': ModelInfo(label='OpenAI - gpt-4o-2024-05-13', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'o1': ModelInfo(label='OpenAI - o1', supports=O_SERIES_MODEL_SUPPORTS),
+    'o3': ModelInfo(label='OpenAI - o3', supports=O_SERIES_MODEL_SUPPORTS),
+    'o3-mini': ModelInfo(
+        label='OpenAI - o3-mini',
         supports=Supports(
             multiturn=True,
             media=False,
             tools=True,
-            systemRole=True,
+            systemRole=False,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
-    GPT_4O: ModelInfo(
-        label='OpenAI - gpt-4o',
-        versions=[
-            'gpt-4o-2024-11-20',
-            'gpt-4o-2024-08-06',
-            'gpt-4o-2024-05-13',
-        ],
+    'o4-mini': ModelInfo(label='OpenAI - o4-mini', supports=O_SERIES_MODEL_SUPPORTS),
+    'gpt-4o-mini': ModelInfo(label='OpenAI - gpt-4o-mini', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4o-mini-2024-07-18': ModelInfo(label='OpenAI - gpt-4o-mini-2024-07-18', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4-turbo': ModelInfo(label='OpenAI - gpt-4-turbo', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4-turbo-2024-04-09': ModelInfo(label='OpenAI - gpt-4-turbo-2024-04-09', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4-turbo-preview': ModelInfo(label='OpenAI - gpt-4-turbo-preview', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4-0125-preview': ModelInfo(label='OpenAI - gpt-4-0125-preview', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4-1106-preview': ModelInfo(label='OpenAI - gpt-4-1106-preview', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4': ModelInfo(label='OpenAI - gpt-4', supports=GPT_4_MODEL_SUPPORTS),
+    'gpt-4-0613': ModelInfo(label='OpenAI - gpt-4-0613', supports=GPT_4_MODEL_SUPPORTS),
+    'gpt-3.5-turbo': ModelInfo(label='OpenAI - gpt-3.5-turbo', supports=GPT_35_MODEL_SUPPORTS),
+    'gpt-3.5-turbo-0125': ModelInfo(label='OpenAI - gpt-3.5-turbo-0125', supports=GPT_35_MODEL_SUPPORTS),
+    'gpt-3.5-turbo-1106': ModelInfo(label='OpenAI - gpt-3.5-turbo-1106', supports=GPT_35_MODEL_SUPPORTS),
+    'gpt-5': ModelInfo(label='OpenAI - gpt-5', supports=GPT_5_MODEL_SUPPORTS),
+    'gpt-5-mini': ModelInfo(label='OpenAI - gpt-5-mini', supports=GPT_5_MODEL_SUPPORTS),
+    'gpt-5-nano': ModelInfo(label='OpenAI - gpt-5-nano', supports=GPT_5_MODEL_SUPPORTS),
+    'gpt-5-chat-latest': ModelInfo(
+        label='OpenAI - gpt-5-chat-latest',
         supports=Supports(
             multiturn=True,
-            media=False,
-            tools=True,
+            media=True,
+            tools=False,
             systemRole=True,
-            output=[
-                SupportedOutputFormat.JSON_MODE,
-                SupportedOutputFormat.STRUCTURED_OUTPUTS,
-                SupportedOutputFormat.TEXT,
-            ],
+            output=[SupportedOutputFormat.TEXT],
         ),
     ),
-    GPT_4O_MINI: ModelInfo(
-        label='OpenAI - gpt-4o-mini',
-        versions=[
-            'gpt-4o-mini-2024-07-18',
-        ],
-        supports=Supports(
-            multiturn=True,
-            media=False,
-            tools=True,
-            systemRole=True,
-            output=[
-                SupportedOutputFormat.JSON_MODE,
-                SupportedOutputFormat.STRUCTURED_OUTPUTS,
-                SupportedOutputFormat.TEXT,
-            ],
-        ),
-    ),
-    O1_MINI: ModelInfo(
-        label='OpenAI - o1-mini',
-        versions=[
-            'o1-mini-2024-09-12',
-        ],
-        supports=Supports(
-            multiturn=True,
-            media=False,
-            tools=True,
-            systemRole=True,
-            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
-        ),
-    ),
-    GPT_4: ModelInfo(
-        label='OpenAI - GPT-4',
-        versions=[
-            'gpt-4-0613',
-            'gpt-4-1106-preview',
-        ],
-        supports=Supports(
-            multiturn=True,
-            media=False,
-            tools=True,
-            systemRole=True,
-            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
-        ),
-    ),
-    GPT_4_TURBO: ModelInfo(
-        label='OpenAI - GPT-4 Turbo',
-        versions=[
-            'gpt-4-turbo-2024-04-09',
-            'gpt-4-turbo-preview',
-        ],
-        supports=Supports(
-            multiturn=True,
-            media=False,
-            tools=True,
-            systemRole=True,
-            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
-        ),
-    ),
+    'gpt-5.1': ModelInfo(label='OpenAI - gpt-5.1', supports=GPT_5_MODEL_SUPPORTS),
+}
+
+SUPPORTED_EMBEDDING_MODELS: dict[str, dict] = {
+    'text-embedding-3-small': {
+        'label': 'OpenAI - text-embedding-3-small',
+        'dimensions': 1536,
+        'supports': {'input': ['text']},
+    },
+    'text-embedding-3-large': {
+        'label': 'OpenAI - text-embedding-3-large',
+        'dimensions': 3072,
+        'supports': {'input': ['text']},
+    },
+    'text-embedding-ada-002': {
+        'label': 'OpenAI - text-embedding-ada-002',
+        'dimensions': 1536,
+        'supports': {'input': ['text']},
+    },
 }
 
 SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
@@ -151,6 +152,7 @@ SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            longRunning=False,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),

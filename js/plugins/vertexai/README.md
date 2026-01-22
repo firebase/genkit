@@ -10,11 +10,11 @@ npm i --save @genkit-ai/vertexai
 
 ```ts
 import { genkit } from 'genkit';
-import { vertexAI, gemini, gemini15Flash } from '@genkit-ai/vertexai';
+import { vertexAI } from '@genkit-ai/vertexai';
 
 const ai = genkit({
   plugins: [vertexAI()],
-  model: gemini15Flash,
+  model: vertexAI.model('gemini-2.5-flash'),
 });
 
 async () => {

@@ -22,6 +22,7 @@ import { beforeEach, describe, it } from 'node:test';
 import {
   generate,
   generateStream,
+  toGenerateActionOptions,
   toGenerateRequest,
   type GenerateOptions,
 } from '../../src/generate.js';
@@ -29,6 +30,7 @@ import {
   defineModel,
   type ModelAction,
   type ModelMiddleware,
+  type ModelMiddlewareWithOptions,
 } from '../../src/model.js';
 import { defineResource } from '../../src/resource.js';
 import { defineTool } from '../../src/tool.js';
@@ -82,6 +84,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -100,6 +103,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -132,6 +136,7 @@ describe('toGenerateRequest', () => {
         messages: [{ role: 'user', content: [{ text: 'Add 10 and 5.' }] }],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             description: 'add two numbers together',
@@ -167,6 +172,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -219,6 +225,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -241,6 +248,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -258,6 +266,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: [{ content: [{ text: 'context here' }] }],
+        resources: [],
         tools: [],
         output: {},
       },
@@ -303,6 +312,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {
           constrained: true,
@@ -329,6 +339,21 @@ describe('toGenerateRequest', () => {
       }
     });
   }
+});
+
+describe('toGenerateActionOptions', () => {
+  const registry = new Registry();
+
+  it('should return action options with undefined model', async () => {
+    const options: GenerateOptions = {
+      prompt: 'hello',
+    };
+    const actionOptions = await toGenerateActionOptions(registry, options);
+    assert.strictEqual(actionOptions.model, undefined);
+    assert.deepStrictEqual(actionOptions.messages, [
+      { role: 'user', content: [{ text: 'hello' }] },
+    ]);
+  });
 });
 
 describe('generate', () => {
@@ -434,7 +459,7 @@ describe('generate', () => {
     );
   });
 
-  it('applies resources', async () => {
+  it('applies resources in the registry', async () => {
     defineResource(
       registry,
       { name: 'testResource', template: 'test://resource/{param}' },
@@ -593,5 +618,346 @@ describe('generate', () => {
       response.messages.map((m) => m.content[0].text),
       ['Testing default step name', 'Testing default step name']
     );
+  });
+
+  it('handles multipart tool responses', async () => {
+    defineTool(
+      registry,
+      {
+        name: 'multiTool',
+        description: 'a tool with multiple parts',
+        multipart: true,
+      },
+      async () => {
+        return {
+          output: 'main output',
+          content: [{ text: 'part 1' }],
+        };
+      }
+    );
+
+    let requestCount = 0;
+    defineModel(
+      registry,
+      { name: 'multi-tool-model', supports: { tools: true } },
+      async (input) => {
+        requestCount++;
+        return {
+          message: {
+            role: 'model',
+            content: [
+              requestCount == 1
+                ? {
+                    toolRequest: {
+                      name: 'multiTool',
+                      input: {},
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const response = await generate(registry, {
+      model: 'multi-tool-model',
+      prompt: 'go',
+      tools: ['multiTool'],
+    });
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'go',
+          },
+        ],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            toolRequest: {
+              name: 'multiTool',
+              input: {},
+            },
+          },
+        ],
+      },
+      {
+        role: 'tool',
+        content: [
+          {
+            toolResponse: {
+              name: 'multiTool',
+              output: 'main output',
+              content: [
+                {
+                  text: 'part 1',
+                },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            text: 'done',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('handles fallback tool responses', async () => {
+    defineTool(
+      registry,
+      {
+        name: 'fallbackTool',
+        description: 'a tool with fallback output',
+        multipart: true,
+      },
+      async () => {
+        return {
+          output: 'fallback output',
+          content: [{ text: 'part 1' }],
+        };
+      }
+    );
+
+    let requestCount = 0;
+    defineModel(
+      registry,
+      { name: 'fallback-tool-model', supports: { tools: true } },
+      async (input) => {
+        requestCount++;
+        return {
+          message: {
+            role: 'model',
+            content: [
+              requestCount == 1
+                ? {
+                    toolRequest: {
+                      name: 'fallbackTool',
+                      input: {},
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const response = await generate(registry, {
+      model: 'fallback-tool-model',
+      prompt: 'go',
+      tools: ['fallbackTool'],
+    });
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'go',
+          },
+        ],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            toolRequest: {
+              name: 'fallbackTool',
+              input: {},
+            },
+          },
+        ],
+      },
+      {
+        role: 'tool',
+        content: [
+          {
+            toolResponse: {
+              name: 'fallbackTool',
+              output: 'fallback output',
+              content: [
+                {
+                  text: 'part 1',
+                },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            text: 'done',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('middleware can intercept streaming callback', async () => {
+    const registry = new Registry();
+    const echoModel = defineModel(
+      registry,
+      {
+        apiVersion: 'v2',
+        name: 'echoModel',
+        supports: { tools: true },
+      },
+      async (_, { sendChunk }) => {
+        if (sendChunk) {
+          sendChunk({ content: [{ text: 'chunk1' }] });
+          sendChunk({ content: [{ text: 'chunk2' }] });
+        }
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: 'done' }],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const interceptMiddleware: ModelMiddlewareWithOptions = async (
+      req,
+      opts,
+      next
+    ) => {
+      const originalOnChunk = opts!.onChunk;
+      return next(req, {
+        ...opts,
+        onChunk: (chunk) => {
+          if (originalOnChunk) {
+            const text = chunk.content?.[0]?.text;
+            originalOnChunk({
+              ...chunk,
+              content: [{ text: `intercepted: ${text}` }],
+            });
+          }
+        },
+      });
+    };
+
+    const { response, stream } = generateStream(registry, {
+      model: echoModel,
+      prompt: 'test',
+      use: [interceptMiddleware],
+    });
+
+    const streamed: any[] = [];
+    for await (const chunk of stream) {
+      streamed.push(chunk.content[0].text);
+    }
+
+    assert.deepStrictEqual(streamed, [
+      'intercepted: chunk1',
+      'intercepted: chunk2',
+    ]);
+    await response;
+  });
+
+  it('middleware can modify context', async () => {
+    const registry = new Registry();
+    const checkContextModel = defineModel(
+      registry,
+      {
+        apiVersion: 'v2',
+        name: 'checkContextModel',
+        supports: { context: true },
+      },
+      async (request, { context }) => {
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: `Context: ${context?.myValue}` }],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const contextMiddleware: ModelMiddlewareWithOptions = async (
+      req,
+      opts,
+      next
+    ) => {
+      return next(req, {
+        ...opts,
+        context: {
+          ...opts?.context,
+          myValue: 'foo',
+        },
+      });
+    };
+
+    const response = await generate(registry, {
+      model: checkContextModel,
+      prompt: 'test',
+      use: [contextMiddleware],
+    });
+
+    assert.strictEqual(response.text, 'Context: foo');
+  });
+
+  it('middleware can chain option modifications', async () => {
+    const registry = new Registry();
+    const checkContextModel = defineModel(
+      registry,
+      {
+        apiVersion: 'v2',
+        name: 'checkContextModel',
+        supports: { context: true },
+      },
+      async (request, { context }) => {
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: `Context: ${JSON.stringify(context)}` }],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const middleware1: ModelMiddlewareWithOptions = async (req, opts, next) => {
+      return next(req, {
+        ...opts,
+        context: {
+          ...opts?.context,
+          val: [...(opts?.context?.val ?? []), 'A'],
+        },
+      });
+    };
+
+    const middleware2: ModelMiddlewareWithOptions = async (req, opts, next) => {
+      return next(req, {
+        ...opts,
+        context: {
+          ...opts?.context,
+          val: [...(opts?.context?.val ?? []), 'B'],
+        },
+      });
+    };
+
+    const response = await generate(registry, {
+      model: checkContextModel,
+      prompt: 'test',
+      use: [middleware1, middleware2],
+    });
+
+    const context = JSON.parse(response.text.substring('Context: '.length));
+    assert.deepStrictEqual(context.val, ['A', 'B']);
   });
 });

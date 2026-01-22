@@ -62,7 +62,7 @@ def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = 
     ```
 
     """
-    loop = ai._loop if ai._loop else create_loop()
+    loop = create_loop()
 
     def decorator(flow: Callable) -> Callable:
         if not isinstance(flow, FlowWrapper):
