@@ -418,6 +418,7 @@ export class ReflectionServer {
         await this.writeRuntimeFile();
       } catch (e) {
         logger.error(`Error initializing plugins: ${e}`);
+        process.exit(1);
       }
     });
   }
