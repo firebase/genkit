@@ -21,6 +21,8 @@ and model caches this context.
 As a result, model is capable to quickly relate to the book's content and answer the follow-up questions.
 """
 
+import os
+
 import httpx
 import structlog
 from pydantic import BaseModel, Field
@@ -29,6 +31,9 @@ from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 from genkit.types import GenerationCommonConfig, Media, MediaPart, Message, Role, TextPart
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 logger = structlog.getLogger(__name__)
 

@@ -15,4 +15,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+if [ ! -f "__db_pdf_qa.json" ]; then
+  echo "First run detected, indexing documents..."
+  uv run src/main.py --setup
+fi
+
 genkit start -- uv run src/main.py "$@"

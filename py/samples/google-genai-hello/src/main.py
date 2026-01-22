@@ -79,6 +79,10 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+
+
 ai = Genkit(
     plugins=[GoogleAI()],
     model='googleai/gemini-3-flash-preview',

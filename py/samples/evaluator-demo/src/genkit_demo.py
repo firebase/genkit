@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 from genkit.ai import Genkit
 from genkit.blocks.model import ModelReference
 from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
@@ -40,6 +42,9 @@ PERMISSIVE_SAFETY_SETTINGS = {
         },
     ],
 }
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(plugins=[GoogleAI()])
 

@@ -24,12 +24,17 @@ Demonstrates:
 - Generation with configuration
 """
 
+import os
+
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.plugins.xai import XAI, xai_name
 from genkit.types import ActionRunContext
+
+if 'XAI_API_KEY' not in os.environ:
+    os.environ['XAI_API_KEY'] = input('Please enter your XAI_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 

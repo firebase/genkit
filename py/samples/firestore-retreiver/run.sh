@@ -15,4 +15,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Check for GCP project
+if [ -z "$GCLOUD_PROJECT" ] && [ -z "$GOOGLE_CLOUD_PROJECT" ]; then
+  PROJECT=$(gcloud config get-value project 2>/dev/null)
+  if [ -z "$PROJECT" ]; then
+    echo "ERROR: No GCP project configured."
+    echo "Please set GCLOUD_PROJECT or run: gcloud config set project <your-project>"
+    exit 1
+  fi
+  export GCLOUD_PROJECT="$PROJECT"
+fi
+
+# Check for gcloud ADC
+if ! gcloud auth application-default print-access-token &>/dev/null; then
+  echo "WARNING: gcloud ADC not configured."
+  echo "Run: gcloud auth application-default login"
+fi
+
+echo "NOTE: Ensure Firestore index is created. See README.md for details."
+
 genkit start -- uv run src/main.py "$@"

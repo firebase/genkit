@@ -17,6 +17,7 @@
 """This sample demonstrates how to use Gemini VertexAI to describe and draw images."""
 
 import base64
+import os
 from io import BytesIO
 
 from PIL import Image
@@ -24,7 +25,10 @@ from PIL import Image
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import VertexAI
 
-ai = Genkit(plugins=[VertexAI(project='', location='us-central1')])
+if 'GCLOUD_PROJECT' not in os.environ:
+    os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
+
+ai = Genkit(plugins=[VertexAI()])
 
 
 @ai.flow()

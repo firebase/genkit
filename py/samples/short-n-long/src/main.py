@@ -43,6 +43,7 @@ Key features demonstrated in this sample:
 
 import argparse
 import asyncio
+import os
 
 import structlog
 import uvicorn
@@ -65,6 +66,9 @@ from genkit.types import (
 )
 
 logger = structlog.get_logger(__name__)
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(
     plugins=[GoogleAI()],

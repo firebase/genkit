@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import weakref
 from pathlib import Path
 
@@ -23,6 +24,9 @@ from pydantic import BaseModel, Field
 from genkit.ai import ActionKind, Genkit
 from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 
