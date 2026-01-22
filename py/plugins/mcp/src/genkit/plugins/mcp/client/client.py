@@ -22,9 +22,9 @@ import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
-from genkit.core.plugin import Plugin
 from genkit.ai._registry import GenkitRegistry
 from genkit.core.action.types import ActionKind
+from genkit.core.plugin import Plugin
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
@@ -127,19 +127,19 @@ class McpClient:
             raise RuntimeError('MCP client is not connected')
         logger.debug(f'MCP {self.server_name}: calling tool {tool_name}', arguments=arguments)
         try:
-             result: CallToolResult = await self.session.call_tool(tool_name, arguments)
-             logger.debug(f'MCP {self.server_name}: tool {tool_name} returned')
+            result: CallToolResult = await self.session.call_tool(tool_name, arguments)
+            logger.debug(f'MCP {self.server_name}: tool {tool_name} returned')
 
-             # Process result similarly to JS SDK
-             if result.isError:
-                 raise RuntimeError(f'Tool execution failed: {result.content}')
+            # Process result similarly to JS SDK
+            if result.isError:
+                raise RuntimeError(f'Tool execution failed: {result.content}')
 
-             # Simple text extraction for now
-             texts = [c.text for c in result.content if c.type == 'text']
-             return {'content': ''.join(texts)}
+            # Simple text extraction for now
+            texts = [c.text for c in result.content if c.type == 'text']
+            return {'content': ''.join(texts)}
         except Exception as e:
-             logger.error(f'MCP {self.server_name}: tool {tool_name} failed', error=str(e))
-             raise
+            logger.error(f'MCP {self.server_name}: tool {tool_name} failed', error=str(e))
+            raise
 
     async def list_prompts(self) -> list[Prompt]:
         if not self.session:
@@ -201,7 +201,7 @@ class McpClient:
                     description=tool.description,
                     metadata=metadata,
                 )
-                
+
                 # Patch input schema from MCP tool definition
                 if tool.inputSchema:
                     action._input_schema = tool.inputSchema

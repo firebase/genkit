@@ -90,7 +90,10 @@ async def dynamic_git_commits(query: str = ''):
     all_tools = await mcp_host.get_active_tools(ai)
     tools = [t for t in all_tools if t.startswith('git-client_')]
 
-    result = await ai.generate(prompt=f"summarize last 5 commits. You must use the argument key 'repo_path' set to '{repo_root}'. Do not use 'path'.", tools=tools)
+    result = await ai.generate(
+        prompt=f"summarize last 5 commits. You must use the argument key 'repo_path' set to '{repo_root}'. Do not use 'path'.",
+        tools=tools,
+    )
     return result.text
 
 
