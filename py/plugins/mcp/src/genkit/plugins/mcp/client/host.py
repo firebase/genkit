@@ -59,7 +59,6 @@ class McpHost:
             client.config.disabled = True
             await client.close()
 
-
     async def reconnect(self, name: str):
         """Reconnects a specific MCP client."""
         if name in self.clients:
@@ -72,10 +71,15 @@ class McpHost:
         active_tools = []
         for client in self.clients.values():
             if client.session:
-                tools = await client.get_active_tools()
-                # Determine tool names as registered: server_tool
-                for tool in tools:
-                    active_tools.append(f'{client.server_name}_{tool.name}')
+                try:
+                    tools = await client.get_active_tools()
+                    # Determine tool names as registered: server_tool
+                    for tool in tools:
+                        active_tools.append(f'{client.server_name}_{tool.name}')
+                except Exception as e:
+                    # Log error but continue with other clients
+                    # Use print or logger if available. Ideally structlog.
+                    pass
         return active_tools
 
     async def get_active_resources(self, ai: Genkit) -> List[str]:

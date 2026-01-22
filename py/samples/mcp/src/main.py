@@ -49,6 +49,7 @@ from functools import wraps
 
 # ... (mcp_host definition remains)
 
+
 def with_mcp_host(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -57,6 +58,7 @@ def with_mcp_host(func):
             return await func(*args, **kwargs)
         finally:
             await mcp_host.close()
+
     return wrapper
 
 
@@ -112,9 +114,7 @@ async def dynamic_get_file(query: str = ''):
     # Filter for specific tool: 'fs_read_file'
     tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
 
-    result = await ai.generate(
-        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-    )
+    result = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
     return result.text
 
 
@@ -128,9 +128,7 @@ async def dynamic_prefix_tool(query: str = ''):
     all_tools = await mcp_host.get_active_tools(ai)
     tools = [t for t in all_tools if t.startswith('fs_read_')]
 
-    result = await ai.generate(
-        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-    )
+    result = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
     return result.text
 
 
@@ -142,9 +140,7 @@ async def dynamic_disable_enable(query: str = ''):
     tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
 
     # Run successfully
-    result1 = await ai.generate(
-        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-    )
+    result1 = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
     text1 = result1.text
 
     # Disable 'fs' and try to run (should fail)
@@ -152,9 +148,7 @@ async def dynamic_disable_enable(query: str = ''):
     text2 = ''
     try:
         # We don't re-register tools, hoping the registry or generate handles the disabled client
-        result = await ai.generate(
-            prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-        )
+        result = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
         text2 = f'ERROR! This should have failed but succeeded: {result.text}'
     except Exception as e:
         text2 = str(e)
@@ -164,9 +158,7 @@ async def dynamic_disable_enable(query: str = ''):
     # Re-connect/re-register might be needed
     await mcp_host.register_tools(ai)
 
-    result3 = await ai.generate(
-        prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools
-    )
+    result3 = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
     text3 = result3.text
 
     return f'Original: <br/>{text1}<br/>After Disable: <br/>{text2}<br/>After Enable: <br/>{text3}'
@@ -180,11 +172,7 @@ async def test_resource(query: str = ''):
     resources = await mcp_host.get_active_resources(ai)
 
     result = await ai.generate(
-        prompt=[
-            {'text': 'analyze this: '},
-            {'resource': {'uri': 'test://static/resource/1'}}
-        ],
-        resources=resources
+        prompt=[{'text': 'analyze this: '}, {'resource': {'uri': 'test://static/resource/1'}}], resources=resources
     )
 
     return result.text
@@ -198,14 +186,10 @@ async def dynamic_test_resources(query: str = ''):
     # resources=['resource/*']
 
     all_resources = await mcp_host.get_active_resources(ai)
-    resources = [r for r in all_resources if r.startswith('test://')] # simplified filter
+    resources = [r for r in all_resources if r.startswith('test://')]  # simplified filter
 
     result = await ai.generate(
-        prompt=[
-            {'text': 'analyze this: '},
-            {'resource': {'uri': 'test://static/resource/1'}}
-        ],
-        resources=resources
+        prompt=[{'text': 'analyze this: '}, {'resource': {'uri': 'test://static/resource/1'}}], resources=resources
     )
     return result.text
 
@@ -217,11 +201,7 @@ async def dynamic_test_one_resource(query: str = ''):
     resources = ['test://static/resource/1']
 
     result = await ai.generate(
-        prompt=[
-            {'text': 'analyze this: '},
-            {'resource': {'uri': 'test://static/resource/1'}}
-        ],
-        resources=resources
+        prompt=[{'text': 'analyze this: '}, {'resource': {'uri': 'test://static/resource/1'}}], resources=resources
     )
     return result.text
 

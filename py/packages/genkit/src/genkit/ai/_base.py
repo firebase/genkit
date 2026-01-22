@@ -153,16 +153,16 @@ class GenkitBase(GenkitRegistry):
         if is_dev_environment() and self._thread:
             if self._loop:
                 if not self._loop.is_running():
-                    logger.info("Starting main thread event loop to handle background tasks")
+                    logger.info('Starting main thread event loop to handle background tasks')
                     try:
                         self._loop.run_forever()
                     except KeyboardInterrupt:
-                        logger.info("Main thread event loop interrupted")
+                        logger.info('Main thread event loop interrupted')
                     finally:
                         if self._loop.is_running():
                             self._loop.stop()
                 else:
-                    logger.warning("Event loop already running in _join, falling back to thread join")
+                    logger.warning('Event loop already running in _join, falling back to thread join')
                     self._thread.join()
             else:
                 self._thread.join()

@@ -913,14 +913,15 @@ class GeminiModel:
             client = client or self._client
             try:
                 import structlog
+
                 logger = structlog.get_logger()
-                logger.debug("Gemini: calling generate_content", model=model_name)
+                logger.debug('Gemini: calling generate_content', model=model_name)
                 response = await client.aio.models.generate_content(
                     model=model_name, contents=request_contents, config=request_cfg
                 )
-                logger.debug("Gemini: received response")
+                logger.debug('Gemini: received response')
             except Exception as e:
-                logger.error("Gemini: generate_content failed", error=str(e))
+                logger.error('Gemini: generate_content failed', error=str(e))
                 raise
             span.set_attribute('genkit:output', dump_json(response))
 
