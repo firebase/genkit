@@ -29,6 +29,7 @@ dependencies = [
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
+  "genkit-plugins-mcp",
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
@@ -72,6 +73,7 @@ dev = [
   "tox-uv>=1.25.0",
   "nox>=2025.2.9",
   "nox-uv>=0.2.2",
+  "structlog>=25.2.0",
 ]
 
 lint = [

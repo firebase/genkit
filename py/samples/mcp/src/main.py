@@ -251,6 +251,9 @@ async def control_mcp(input: ControlMcpInput):
 async def main():
     """Run sample flows."""
     logger.info('Starting MCP sample application')
+    from genkit.core.action.types import ActionKind
+    flows = ai.registry.get_actions_by_kind(ActionKind.FLOW)
+    logger.info(f"DEBUG: Registered flows: {list(flows.keys())}")
 
     # Test git commits flow
     logger.info('Testing git-commits flow...')
