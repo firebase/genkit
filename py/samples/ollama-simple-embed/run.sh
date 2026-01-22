@@ -15,4 +15,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Check if ollama is installed
+if ! command -v ollama &> /dev/null; then
+  echo "Ollama not found. Installing..."
+  curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+# Check if ollama server is running
+if ! curl -s http://localhost:11434/api/tags &> /dev/null; then
+  echo "Ollama server not running. Starting..."
+  ollama serve &
+  # Wait for server to be ready
+  until curl -s http://localhost:11434/api/tags &> /dev/null; do
+    sleep 1
+  done
+fi
+
+ollama pull nomic-embed-text
+ollama pull phi4:latest
+
 genkit start -- uv run src/main.py "$@"

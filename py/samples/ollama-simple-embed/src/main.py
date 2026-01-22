@@ -22,6 +22,7 @@ Pokemon using the Ollama plugin.
 
 import asyncio
 from math import sqrt
+from typing import cast
 
 import structlog
 from pydantic import BaseModel
@@ -37,7 +38,7 @@ logger = structlog.get_logger(__name__)
 
 EMBEDDER_MODEL = 'nomic-embed-text'
 EMBEDDER_DIMENSIONS = 768
-GENERATE_MODEL = 'phi3.5:latest'
+GENERATE_MODEL = 'phi4:latest'
 
 ai = Genkit(
     plugins=[
@@ -45,7 +46,7 @@ ai = Genkit(
             models=[
                 ModelDefinition(
                     name=GENERATE_MODEL,
-                    api_type=OllamaAPITypes.GENERATE,
+                    api_type=cast(OllamaAPITypes, OllamaAPITypes.GENERATE),
                 )
             ],
             embedders=[
@@ -192,6 +193,8 @@ async def pokemon_flow(question: str):
     """
     await embed_pokemons()
     response = await generate_response(question=question)
+    if not response.message or not response.message.content:
+        raise ValueError('No message content returned from model')
     return response.message.content[0].root.text
 
 

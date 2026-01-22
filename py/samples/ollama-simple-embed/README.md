@@ -4,32 +4,29 @@
 
 - **Ollama** - a local AI model server, which is used to handle embeddings and generate responses.
 
-### Step 1: Install Ollama
+### Quick Start
 
-1. Go to the [Ollama website](https://ollama.com/download) to download and install Ollama for your operating system.
-2. Once installed, start the Ollama server by running:
-
-```bash
-ollama serve
-```
-
-The server will run at http://localhost:11434 by default.
-
-### Step 2: Pull the Required Models
-
-In this example, we use two models with Ollama:
-
-An embedding model (nomic-embed-text)
-A generation model (phi3.5:latest)
-Run the following commands in your terminal to pull these models:
+The simplest way to run this sample is using the included `run.sh` script, which handles installation, server startup, and model pulling automatically:
 
 ```bash
-ollama pull nomic-embed-text
-ollama pull phi3.5:latest
+./run.sh
 ```
 
-### Step 3: Execute Sample
+### Manual Setup
 
-```bash
-genkit start -- uv run src/main.py
-```
+If you prefer to set up manually:
+
+1. **Install Ollama**: Download from [ollama.com](https://ollama.com/download).
+2. **Start the server**:
+   ```bash
+   ollama serve
+   ```
+3. **Pull models**:
+   ```bash
+   ollama pull nomic-embed-text
+   ollama pull phi4:latest
+   ```
+4. **Run the sample**:
+   ```bash
+   genkit start -- uv run src/main.py
+   ```
