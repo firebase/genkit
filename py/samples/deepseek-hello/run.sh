@@ -15,4 +15,4 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-exec genkit start -- uv run src/main.py "$@"
+genkit start -- uv run src/main.py "$@"
