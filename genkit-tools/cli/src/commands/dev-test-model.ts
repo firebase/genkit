@@ -366,6 +366,17 @@ async function runTest(
     // Adjust model name if needed (e.g. /model/ prefix)
     const modelKey = model.startsWith('/') ? model : `/model/${model}`;
 
+    // Media output models usually do not support streaming
+    const isMediaOutput = testCase.validators.some((v) =>
+      v.startsWith('valid-media')
+    );
+    const shouldStream = stream && !isMediaOutput;
+    if (stream && isMediaOutput) {
+      logger.info(
+        `(Note: Media output tests do not support streaming. Falling back to non-streaming request.)`
+      );
+    }
+
     let chunks = 0;
     let streamedText = '';
     const actionResponse = await manager.runAction(
@@ -373,7 +384,7 @@ async function runTest(
         key: modelKey,
         input: testCase.input,
       },
-      stream
+      shouldStream
         ? (chunk) => {
             const chunkText = chunk.content?.find((p: any) => p.text)?.text;
             if (chunkText) {
@@ -384,14 +395,17 @@ async function runTest(
         : undefined
     );
 
-    if (stream && chunks === 0) {
+    if (shouldStream && chunks === 0) {
       throw new Error('Streaming requested but no chunks received.');
     }
     const response = GenerateResponseSchema.parse(actionResponse.result);
-    if (stream && streamedText) {
+    if (shouldStream && streamedText) {
       const message = response.message || response.candidates?.[0]?.message;
-      if (message && message.content?.[0]) {
-        message.content[0].text = streamedText;
+      if (message?.content) {
+        const textPart = message.content.find((p) => 'text' in p);
+        if (textPart) {
+          (textPart as { text: string }).text = streamedText;
+        }
       }
     }
 
