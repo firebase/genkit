@@ -1101,7 +1101,10 @@ class GeminiModel:
                     }
 
                 # Check if image_config is actually supported by the installed SDK version
-                if 'image_config' in dumped_config and 'image_config' not in genai_types.GenerateContentConfig.model_fields:
+                if (
+                    'image_config' in dumped_config
+                    and 'image_config' not in genai_types.GenerateContentConfig.model_fields
+                ):
                     del dumped_config['image_config']
 
                 cfg = genai_types.GenerateContentConfig(**dumped_config)

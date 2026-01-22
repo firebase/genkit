@@ -159,7 +159,7 @@ class PartConverter:
                         data=data,
                     )
                 )
-            
+
             return genai.types.Part(
                 file_data=genai.types.FileData(
                     mime_type=part.root.media.content_type,

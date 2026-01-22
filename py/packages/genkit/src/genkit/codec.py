@@ -57,7 +57,7 @@ def default_serializer(obj: Any) -> Any:
     """
     if isinstance(obj, bytes):
         try:
-             return base64.b64encode(obj).decode('utf-8')
+            return base64.b64encode(obj).decode('utf-8')
         except Exception:
             return '<bytes>'
     return str(obj)
