@@ -31,6 +31,7 @@ import {
   ImagenTryOnConfigSchema,
   TEST_ONLY,
   defineModel,
+  isImagenModelName,
   model,
 } from '../../src/vertexai/imagen.js';
 import {
@@ -319,5 +320,34 @@ describe('Vertex AI Imagen', () => {
 
     // ExpressClientOptions does not support Imagen
     // We have 'does not support' tests elsewhere
+  });
+
+  describe('ImagenTryOnConfigSchema', () => {
+    it('should validate valid config', () => {
+      const validConfig = {
+        sampleCount: 1,
+        storageUri: 'gs://bucket',
+      };
+      const result = ImagenTryOnConfigSchema.safeParse(validConfig);
+      assert.ok(result.success);
+    });
+  });
+
+  describe('isImagenModelName', () => {
+    it('should return true for known models', () => {
+      assert.ok(isImagenModelName('imagen-3.0-generate-002'));
+    });
+
+    it('should return true for imagen-* models', () => {
+      assert.ok(isImagenModelName('imagen-future-model'));
+    });
+
+    it('should return true for virtual-try-on-* models', () => {
+      assert.ok(isImagenModelName('virtual-try-on-future-model'));
+    });
+
+    it('should return false for other models', () => {
+      assert.ok(!isImagenModelName('not-imagen-model'));
+    });
   });
 });

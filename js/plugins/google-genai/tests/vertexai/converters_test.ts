@@ -236,16 +236,28 @@ describe('Vertex AI Converters', () => {
 
     it('should handle TryOn config', () => {
       const request: GenerateRequest<typeof ImagenTryOnConfigSchema> = {
-        messages: [{ role: 'user', content: [] }],
-        config: {
-          personImage: {
-            image: { bytesBase64Encoded: 'PERSON_IMAGE' },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                media: {
+                  url: 'data:image/jpeg;base64,PERSON_IMAGE',
+                  contentType: 'image/jpeg',
+                },
+                metadata: { type: 'personImage' },
+              },
+              {
+                media: {
+                  url: 'gs://bucket/product.png',
+                  contentType: 'image/png',
+                },
+                metadata: { type: 'productImage' },
+              },
+            ],
           },
-          productImages: [
-            {
-              image: { gcsUri: 'gs://bucket/product.png' },
-            },
-          ],
+        ],
+        config: {
           sampleCount: 2,
           storageUri: 'gs://bucket',
           seed: 123,

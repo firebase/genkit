@@ -95,15 +95,55 @@ export function toGeminiLabels(
   return newLabels;
 }
 
+export function toImagenMedia(media: MediaPart['media']): {
+  bytesBase64Encoded?: string;
+  gcsUri?: string;
+} {
+  if (media.url.startsWith('data:')) {
+    return {
+      bytesBase64Encoded: media.url?.split(',')[1],
+    };
+  } else if (media.url.startsWith('gs://')) {
+    return {
+      gcsUri: media.url,
+    };
+  } else if (media.url.startsWith('http')) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'Imagen does not support http(s) URIs. Please specify a Cloud Storage URI.',
+    });
+  } else {
+    // Assume it's a non-prefixed data url
+    return {
+      bytesBase64Encoded: media.url,
+    };
+  }
+}
+
 export function toImagenTryOnRequest(
   request: GenerateRequest<ImagenTryOnConfigSchemaType>
 ): ImagenPredictRequest {
-  const { personImage, productImages, ...parameters } = request.config || {};
+  const { ...parameters } = request.config || {};
 
-  const instance: ImagenInstance = {
-    ...(personImage && { personImage }),
-    ...(productImages && { productImages }),
-  };
+  const instance: ImagenInstance = {};
+  const personImageMedia = extractMedia(request, {
+    metadataType: 'personImage',
+  });
+  if (personImageMedia) {
+    instance.personImage = {
+      image: toImagenMedia(personImageMedia),
+    };
+  }
+
+  const productImagesMedia = extractMediaArray(request, {
+    metadataType: 'productImage',
+  });
+  if (productImagesMedia) {
+    instance.productImages = productImagesMedia.map((media) => ({
+      image: toImagenMedia(media.media),
+    }));
+  }
 
   return {
     instances: [instance],
@@ -114,10 +154,15 @@ export function toImagenTryOnRequest(
 export function toImagenPredictRequest(
   request: GenerateRequest<ImagenConfigSchemaType | ImagenTryOnConfigSchemaType>
 ): ImagenPredictRequest {
-  if (
-    (request.config as any)?.personImage ||
-    (request.config as any)?.productImages
-  ) {
+  const hasTryOnMedia = request.messages.some((m) =>
+    m.content.some(
+      (p) =>
+        p.metadata &&
+        (p.metadata.type === 'personImage' ||
+          p.metadata.type === 'productImage')
+    )
+  );
+  if (hasTryOnMedia) {
     return toImagenTryOnRequest(
       request as GenerateRequest<ImagenTryOnConfigSchemaType>
     );

@@ -134,7 +134,7 @@ export type VertexAIPlugin = {
   model(
     name: imagen.KnownModels | (imagen.ImagenModelName & {}),
     config?: imagen.ImagenConfig
-  ): ModelReference<imagen.ImagenConfigSchemaType>;
+  ): ModelReference<imagen.ConfigSchemaType>;
   model(
     name: lyria.KnownModels | (lyria.LyriaModelName & {}),
     config: lyria.LyriaConfig

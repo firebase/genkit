@@ -499,26 +499,31 @@ async function waitForOperation(
 
 // Imagen Try-on
 ai.defineFlow('imagen-try-on', async (_) => {
-  const person = fs.readFileSync('woman.png', { encoding: 'base64' });
-  const product = fs.readFileSync('coat.png', { encoding: 'base64' });
+  const person = await fs.promises.readFile('woman.png', {
+    encoding: 'base64',
+  });
+  const product = await fs.promises.readFile('coat.png', {
+    encoding: 'base64',
+  });
 
   const { media } = await ai.generate({
     model: vertexAI.model('virtual-try-on-preview-08-04'),
-    prompt: 'generate try-on image',
-    config: {
-      personImage: {
-        image: {
-          bytesBase64Encoded: person,
+    prompt: [
+      {
+        media: {
+          url: `data:image/png;base64,${person}`,
+          contentType: 'image/png',
         },
+        metadata: { type: 'personImage' },
       },
-      productImages: [
-        {
-          image: {
-            bytesBase64Encoded: product,
-          },
+      {
+        media: {
+          url: `data:image/png;base64,${product}`,
+          contentType: 'image/png',
         },
-      ],
-    },
+        metadata: { type: 'productImage' },
+      },
+    ],
   });
   return media;
 });

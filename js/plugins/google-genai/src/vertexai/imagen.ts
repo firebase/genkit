@@ -172,23 +172,6 @@ export type ImagenConfig = z.infer<ImagenConfigSchemaType>;
 
 export const ImagenTryOnConfigSchema = z
   .object({
-    personImage: z.object({
-      image: z.object({
-        bytesBase64Encoded: z.string().optional(),
-        gcsUri: z.string().optional(),
-      }),
-    }),
-
-    productImages: z
-      .array(
-        z.object({
-          image: z.object({
-            bytesBase64Encoded: z.string().optional(),
-            gcsUri: z.string().optional(),
-          }),
-        })
-      )
-      .describe('The product images to try on.'),
     sampleCount: z
       .number()
       .int()
@@ -228,8 +211,9 @@ export const ImagenTryOnConfigSchema = z
 export type ImagenTryOnConfigSchemaType = typeof ImagenTryOnConfigSchema;
 export type ImagenTryOnConfig = z.infer<ImagenTryOnConfigSchemaType>;
 
-// for commonRef
-type ConfigSchemaType = ImagenConfigSchemaType | ImagenTryOnConfigSchemaType;
+export type ConfigSchemaType =
+  | ImagenConfigSchemaType
+  | ImagenTryOnConfigSchemaType;
 
 function commonRef(
   name: string,
@@ -289,9 +273,17 @@ export const KNOWN_MODELS = {
   ),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS;
-export type ImagenModelName = KnownModels | `imagen-${string}`;
+export type ImagenModelName =
+  | KnownModels
+  | `imagen-${string}`
+  | `virtual-try-on-${string}`;
 export function isImagenModelName(value?: string): value is ImagenModelName {
-  return !!value && (value.startsWith('imagen-') || value in KNOWN_MODELS);
+  return (
+    !!value &&
+    (value.startsWith('imagen-') ||
+      value.startsWith('virtual-try-on-') ||
+      value in KNOWN_MODELS)
+  );
 }
 
 export function model(
