@@ -1,11 +1,11 @@
-# Firebase Genkit + Anthropic AI
+# Genkit + Anthropic AI
 
-<h1 align="center">Firebase Genkit <> Anthropic AI Plugin</h1>
+<h1 align="center">Genkit <> Anthropic AI Plugin</h1>
 
-<h4 align="center">Anthropic AI plugin for Google Firebase Genkit</h4>
+<h4 align="center">Anthropic AI plugin for Google Genkit</h4>
 
 `@genkit-ai/anthropic` is the official Anthropic plugin for
-[Firebase Genkit](https://github.com/firebase/genkit). It supersedes the earlier
+[Genkit](https://github.com/firebase/genkit). It supersedes the earlier
 community package `genkitx-anthropic` and is now maintained by Google.
 
 ## Supported models
@@ -243,24 +243,8 @@ This plugin builds on the community work published as
 by Bloom Labs Inc. Their Apache 2.0–licensed implementation provided the
 foundation for this maintained package.
 
-## Contributing
-
-Want to contribute to the project? That's awesome! Head over to our
-[Contribution Guidelines](CONTRIBUTING.md).
-
-## Need support?
-
-> [!NOTE]
-> This repository depends on Google's Firebase Genkit. For issues and questions
-> related to Genkit, please refer to instructions available in
-> [Genkit's repository](https://github.com/firebase/genkit).
 
 ## Credits
 
 This plugin is maintained by Google with acknowledgement to the community
 contributions from [Bloom Labs Inc](https://github.com/BloomLabsInc).
-
-## License
-
-This project is licensed under the
-[Apache 2.0 License](https://github.com/BloomLabsInc/genkit-plugins/blob/main/LICENSE).
