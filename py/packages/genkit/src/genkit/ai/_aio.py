@@ -55,6 +55,7 @@ from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
     Message,
+    OutputConfig,
     Part,
     RetrieverRequest,
     RetrieverResponse,
@@ -115,6 +116,7 @@ class Genkit(GenkitBase):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        output: OutputConfig | dict[str, Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
     ) -> GenerateResponseWrapper:
@@ -165,6 +167,8 @@ class Genkit(GenkitBase):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            output: Optional. An `OutputConfig` object or dictionary containing
+                output configuration. This groups output-related parameters.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -182,6 +186,37 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
+        # Unpack output config if provided
+        if output:
+            if isinstance(output, dict):
+                # Handle dict input - extract values directly
+                if output_format is None:
+                    output_format = output.get('format')
+                if output_content_type is None:
+                    output_content_type = output.get('content_type')
+                if output_instructions is None:
+                    output_instructions = output.get('instructions')
+                if output_schema is None:
+                    output_schema = output.get('schema')
+                if output_constrained is None:
+                    output_constrained = output.get('constrained')
+            else:
+                # Handle OutputConfig object - use getattr for safety since
+                # OutputConfig is auto-generated and may not have all fields.
+                # Note: schema_ is the Python attribute name in OutputConfig because
+                # 'schema' is a reserved attribute in Pydantic BaseModel. The field
+                # uses Field(alias='schema') for JSON serialization.
+                if output_format is None:
+                    output_format = getattr(output, 'format', None)
+                if output_content_type is None:
+                    output_content_type = getattr(output, 'content_type', None)
+                if output_instructions is None:
+                    output_instructions = getattr(output, 'instructions', None)
+                if output_schema is None:
+                    output_schema = getattr(output, 'schema_', None)
+                if output_constrained is None:
+                    output_constrained = getattr(output, 'constrained', None)
+
         return await generate_action(
             self.registry,
             await to_generate_action_options(
@@ -227,6 +262,7 @@ class Genkit(GenkitBase):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        output: OutputConfig | dict[str, Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
         timeout: float | None = None,
@@ -273,6 +309,8 @@ class Genkit(GenkitBase):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            output: Optional. An `OutputConfig` object or dictionary containing
+                output configuration. This groups output-related parameters.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -308,6 +346,7 @@ class Genkit(GenkitBase):
             output_instructions=output_instructions,
             output_schema=output_schema,
             output_constrained=output_constrained,
+            output=output,
             docs=docs,
             use=use,
             on_chunk=lambda c: stream.send(c),

@@ -10,22 +10,149 @@ from genkit.blocks.model import GenerateResponseChunkWrapper, MessageWrapper
 from genkit.core.typing import GenerateResponseChunk, Message, TextPart
 
 
-def test_json_format() -> None:
-    json = JsonFormat()
+class TestJsonFormatStreaming:
+    """Test streaming chunk parsing."""
 
-    json_format = json.handle({
-        'properties': {
-            'value': {
-                'description': 'value field',
-                'type': 'string',
-            }
-        },
-        'type': 'object',
-    })
+    def test_parses_complete_json_object(self) -> None:
+        """Test parsing a complete JSON object in one chunk."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
 
-    assert (
-        json_format.instructions
-        == """Output should be in JSON format and conform to the following schema:
+        chunk = GenerateResponseChunk(content=[TextPart(text='{"id": 1, "name": "test"}')])
+        result = fmt.parse_chunk(GenerateResponseChunkWrapper(chunk, index=0, previous_chunks=[]))
+        assert result == {'id': 1, 'name': 'test'}
+
+    def test_handles_partial_json(self) -> None:
+        """Test parsing partial JSON across multiple chunks."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
+
+        # Chunk 1: partial object
+        chunk1 = GenerateResponseChunk(content=[TextPart(text='{"id": 1')])
+        result1 = fmt.parse_chunk(GenerateResponseChunkWrapper(chunk1, index=0, previous_chunks=[]))
+        assert result1 == {'id': 1}
+
+        # Chunk 2: complete object
+        chunk2 = GenerateResponseChunk(content=[TextPart(text=', "name": "test"}')])
+        result2 = fmt.parse_chunk(GenerateResponseChunkWrapper(chunk2, index=0, previous_chunks=[chunk1]))
+        assert result2 == {'id': 1, 'name': 'test'}
+
+    def test_handles_preamble_with_code_fence(self) -> None:
+        """Test parsing JSON with preamble text and code fence."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
+
+        # Chunk 1: preamble
+        chunk1 = GenerateResponseChunk(content=[TextPart(text='Here is the JSON:\n\n```json\n')])
+        result1 = fmt.parse_chunk(GenerateResponseChunkWrapper(chunk1, index=0, previous_chunks=[]))
+        assert result1 is None
+
+        # Chunk 2: actual data
+        chunk2 = GenerateResponseChunk(content=[TextPart(text='{"id": 1}\n```')])
+        result2 = fmt.parse_chunk(GenerateResponseChunkWrapper(chunk2, index=0, previous_chunks=[chunk1]))
+        assert result2 == {'id': 1}
+
+
+class TestJsonFormatMessage:
+    """Test complete message parsing."""
+
+    def test_parses_complete_json_response(self) -> None:
+        """Test parsing a complete JSON response."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
+
+        result = fmt.parse_message(
+            MessageWrapper(Message(role='model', content=[TextPart(text='{"id": 1, "name": "test"}')]))
+        )
+        assert result == {'id': 1, 'name': 'test'}
+
+    def test_handles_empty_response(self) -> None:
+        """Test parsing an empty response."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
+
+        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[TextPart(text='')])))
+        assert result is None
+
+    def test_parses_json_with_preamble_and_code_fence(self) -> None:
+        """Test parsing JSON with preamble and code fence."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
+
+        result = fmt.parse_message(
+            MessageWrapper(
+                Message(role='model', content=[TextPart(text='Here is the JSON:\n\n```json\n{"id": 1}\n```')])
+            )
+        )
+        assert result == {'id': 1}
+
+    def test_parses_partial_json_message(self) -> None:
+        """Test parsing a message with partial/incomplete JSON."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
+
+        result = fmt.parse_message(MessageWrapper(Message(role='user', content=[TextPart(text='{"foo": "bar"')])))
+        assert result == {'foo': 'bar'}
+
+    def test_parses_complex_nested_json(self) -> None:
+        """Test parsing complex nested JSON across multiple parts."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({'type': 'object'})
+
+        result = fmt.parse_chunk(
+            GenerateResponseChunkWrapper(
+                GenerateResponseChunk(content=[TextPart(text='", "baz": [1,2')]),
+                index=0,
+                previous_chunks=[
+                    GenerateResponseChunk(content=[TextPart(text='{"bar":'), TextPart(text='"ba')]),
+                    GenerateResponseChunk(content=[TextPart(text='z')]),
+                ],
+            )
+        )
+        assert result == {'bar': 'baz', 'baz': [1, 2]}
+
+
+class TestJsonFormatInstructions:
+    """Test instruction generation."""
+
+    def test_generates_instructions_with_schema(self) -> None:
+        """Test that instructions include the schema."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({
+            'type': 'object',
+            'properties': {
+                'value': {
+                    'description': 'value field',
+                    'type': 'string',
+                }
+            },
+        })
+
+        assert fmt.instructions is not None
+        assert 'Output should be in JSON format' in fmt.instructions
+        assert 'value' in fmt.instructions
+
+    def test_no_instructions_without_schema(self) -> None:
+        """Test that no instructions are generated without schema."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle(None)
+
+        assert fmt.instructions is None
+
+    def test_instructions_format_matches_expected(self) -> None:
+        """Test that instructions format matches expected structure."""
+        json_fmt = JsonFormat()
+        fmt = json_fmt.handle({
+            'properties': {
+                'value': {
+                    'description': 'value field',
+                    'type': 'string',
+                }
+            },
+            'type': 'object',
+        })
+
+        expected = """Output should be in JSON format and conform to the following schema:
 
 ```
 {
@@ -39,19 +166,4 @@ def test_json_format() -> None:
 }
 ```
 """
-    )
-
-    assert json_format.parse_message(MessageWrapper(Message(role='user', content=[TextPart(text='{"foo": "bar')]))) == {
-        'foo': 'bar'
-    }
-
-    assert json_format.parse_chunk(
-        GenerateResponseChunkWrapper(
-            GenerateResponseChunk(content=[TextPart(text='", "baz": [1,2')]),
-            index=0,
-            previous_chunks=[
-                GenerateResponseChunk(content=[TextPart(text='{"bar":'), TextPart(text='"ba')]),
-                GenerateResponseChunk(content=[TextPart(text='z')]),
-            ],
-        )
-    ) == {'bar': 'baz', 'baz': [1, 2]}
+        assert fmt.instructions == expected
