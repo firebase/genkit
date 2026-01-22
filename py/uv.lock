@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -6036,6 +6036,7 @@ dependencies = [
     { name = "genkit-plugin-xai" },
     { name = "pydantic" },
     { name = "structlog" },
+    { name = "uvloop" },
 ]
 
 [package.metadata]
@@ -6044,6 +6045,7 @@ requires-dist = [
     { name = "genkit-plugin-xai", editable = "plugins/xai" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "structlog", specifier = ">=24.0.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
 ]
 
 [[package]]

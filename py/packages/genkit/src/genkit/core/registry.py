@@ -212,6 +212,18 @@ class Registry:
         with self._lock:
             return self._value_by_kind_and_name.get(kind, {}).get(name)
 
+    def list_values(self, kind: str) -> list[str]:
+        """List all values registered for a specific kind.
+
+        Args:
+            kind: The kind of values to list (e.g., "defaultModel").
+
+        Returns:
+            A list of registered value names.
+        """
+        with self._lock:
+            return list(self._value_by_kind_and_name.get(kind, {}).keys())
+
     def register_plugin(self, plugin: Plugin) -> None:
         """Register a plugin with the registry.
 

@@ -36,7 +36,7 @@ each endpoint's behavior.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest  # type: ignore
 import pytest_asyncio  # type: ignore
@@ -146,7 +146,7 @@ async def test_run_action_standard(asgi_client, mock_registry):
     assert 'result' in response_data
     assert 'telemetry' in response_data
     assert response_data['telemetry']['traceId'] == 'test_trace_id'
-    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={})
+    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={}, on_trace_start=ANY)
 
 
 @pytest.mark.asyncio
@@ -173,7 +173,11 @@ async def test_run_action_with_context(asgi_client, mock_registry):
     )
 
     assert response.status_code == 200
-    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={'user': 'test_user'})
+    mock_action.arun_raw.assert_called_once_with(
+        raw_input={'data': 'test'},
+        context={'user': 'test_user'},
+        on_trace_start=ANY,
+    )
 
 
 @pytest.mark.asyncio

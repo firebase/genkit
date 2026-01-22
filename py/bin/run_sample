@@ -53,10 +53,39 @@ elif command -v go &> /dev/null; then
     fi
 fi
 
+# Check if fzf is available or install it
+FZF_CMD=""
+if command -v fzf &> /dev/null; then
+    FZF_CMD="fzf"
+else
+    read -p "fzf not found. Would you like to install it for a better experience (includes preview)? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if command -v brew &> /dev/null; then
+           echo "Installing fzf via brew..."
+           brew install fzf
+           FZF_CMD="fzf"
+        elif command -v go &> /dev/null; then
+            echo "Installing fzf via go..."
+            if go install github.com/junegunn/fzf@latest; then
+                FZF_CMD="$HOME/go/bin/fzf"
+            fi
+        else
+            echo "Neither brew nor go found. Skipping fzf installation."
+        fi
+    fi
+fi
+
 if [[ $# -lt 1 ]]; then
     SAMPLES=$(list_samples)
     
-    if [[ -n "$GUM_CMD" ]]; then
+    if [[ -n "$FZF_CMD" ]]; then
+        # Use fzf with preview window if available
+        SAMPLE_NAME=$(echo "$SAMPLES" | $FZF_CMD --preview "if [ -f $SAMPLES_DIR/{}/README.md ]; then cat $SAMPLES_DIR/{}/README.md; else echo 'No README found.'; fi" --preview-window=right:60%:wrap --height=100% --reverse --header="Select a sample to run")
+        if [[ -z "$SAMPLE_NAME" ]]; then
+            exit 0
+        fi
+    elif [[ -n "$GUM_CMD" ]]; then
         SAMPLE_NAME=$($GUM_CMD filter --placeholder "Select a sample to run..." <<< "$SAMPLES")
         if [[ -z "$SAMPLE_NAME" ]]; then
             exit 0
@@ -84,6 +113,15 @@ if [[ ! -d "$SAMPLE_DIR" ]]; then
 fi
 
 cd "$SAMPLE_DIR"
+
+if [[ -f "./README.md" ]]; then
+    if [[ -n "$GUM_CMD" ]]; then
+        $GUM_CMD format -t markdown < ./README.md
+    else
+        cat ./README.md
+    fi
+    echo ""
+fi
 
 if [[ -f "./run.sh" ]]; then
     exec ./run.sh "$@"
