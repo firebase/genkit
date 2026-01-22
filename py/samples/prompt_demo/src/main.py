@@ -20,7 +20,7 @@ from pathlib import Path
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, ActionKind
 from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 
@@ -128,11 +128,11 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
 
 
 async def main():
-    actions = ai.registry.list_serializable_actions()
+    prompts = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
+    executable_prompts = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
+    all_prompts = list(prompts.keys()) + list(executable_prompts.keys())
 
-    # Filter for prompts
-    prompts = [key for key in actions.keys() if key.startswith(('/prompt/', '/executable-prompt/'))]
-    await logger.ainfo('Registry Status', total_actions=len(actions), loaded_prompts=prompts)
+    await logger.ainfo('Registry Status', loaded_prompts=all_prompts)
 
     if not prompts:
         await logger.awarning('No prompts found! Check directory structure.')
