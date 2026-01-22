@@ -17,6 +17,7 @@ members = [
     "eval-demo",
     "firestore-retreiver",
     "flask-hello",
+    "format-demo",
     "genkit",
     "genkit-plugin-anthropic",
     "genkit-plugin-compat-oai",
@@ -1409,6 +1410,25 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+]
+
+[[package]]
+name = "format-demo"
+version = "0.1.0"
+source = { virtual = "samples/format-demo" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
 ]
 
 [[package]]

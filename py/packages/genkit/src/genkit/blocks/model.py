@@ -300,13 +300,12 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         Returns:
             str: The combined text content from all chunks seen so far.
         """
-        if not self.previous_chunks:
-            return ''
         atext = ''
-        for chunk in self.previous_chunks:
-            for p in chunk.content:
-                if p.root.text:
-                    atext += p.root.text
+        if self.previous_chunks:
+            for chunk in self.previous_chunks:
+                for p in chunk.content:
+                    if p.root.text:
+                        atext += p.root.text
         return atext + self.text
 
     @cached_property
