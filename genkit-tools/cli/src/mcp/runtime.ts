@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GenkitToolsError } from '@genkit-ai/tools-common/manager';
 import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { z } from 'zod';
@@ -62,16 +63,18 @@ export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
           timeout: options.timeout,
         });
       } catch (err) {
+        const errStr =
+          err instanceof GenkitToolsError
+            ? err.formatError()
+            : JSON.stringify(err);
         return {
+          isError: true,
           content: [
             {
               type: 'text',
-              text:
-                'Error creating runtime manager: ' +
-                (err instanceof Error ? err.stack : JSON.stringify(err)),
+              text: `Error: ${errStr}`,
             },
           ],
-          isError: true,
         };
       }
 
