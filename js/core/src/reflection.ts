@@ -423,7 +423,6 @@ export class ReflectionServer {
         } catch (err) {
           logger.error(`Failed to stop server gracefully: ${err}`);
         }
-        process.exit(1);
       }
     });
   }
