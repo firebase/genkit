@@ -450,6 +450,24 @@ class Registry:
                 if allowed_kinds and meta.kind not in allowed_kinds:
                     continue
                 metas.append(meta)
+
+        # Include actions registered directly in the registry
+        with self._lock:
+            for kind, kind_map in self._entries.items():
+                if allowed_kinds and kind not in allowed_kinds:
+                    continue
+                for action in kind_map.values():
+                    metas.append(
+                        ActionMetadata(
+                            kind=action.kind,
+                            name=action.name,
+                            description=action.description,
+                            input_json_schema=action.input_schema,
+                            output_json_schema=action.output_schema,
+                            metadata=action.metadata,
+                        )
+                    )
+
         return metas
 
     def register_schema(self, name: str, schema: dict[str, Any]) -> None:
