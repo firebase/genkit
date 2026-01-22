@@ -270,7 +270,7 @@ describe('Vertex AI Converters', () => {
           },
         },
       };
-      const result = toImagenPredictRequest(request as any);
+      const result = toImagenPredictRequest(request);
       assert.deepStrictEqual(result, {
         instances: [
           {
