@@ -20,7 +20,7 @@ from pathlib import Path
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, ActionKind
+from genkit.ai import ActionKind, Genkit
 from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 
@@ -134,7 +134,7 @@ async def main():
 
     await logger.ainfo('Registry Status', loaded_prompts=all_prompts)
 
-    if not prompts:
+    if not all_prompts:
         await logger.awarning('No prompts found! Check directory structure.')
         return
 
