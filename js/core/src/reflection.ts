@@ -418,6 +418,11 @@ export class ReflectionServer {
         await this.writeRuntimeFile();
       } catch (e) {
         logger.error(`Error initializing plugins: ${e}`);
+        try {
+          await this.stop();
+        } catch (err) {
+          logger.error(`Failed to stop server gracefully: ${err}`);
+        }
         process.exit(1);
       }
     });
