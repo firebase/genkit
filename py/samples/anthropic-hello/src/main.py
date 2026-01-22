@@ -31,12 +31,17 @@ Key features demonstrated in this sample:
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
 """
 
+import os
+
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from genkit.types import ActionRunContext, GenerationCommonConfig
+
+if 'ANTHROPIC_API_KEY' not in os.environ:
+    os.environ['ANTHROPIC_API_KEY'] = input('Please enter your ANTHROPIC_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 

@@ -33,6 +33,8 @@ Key features demonstrated in this sample:
 | Multi-turn Chat                         | `chat_flow`                             |
 """
 
+import os
+
 import structlog
 from pydantic import BaseModel, Field
 
@@ -40,6 +42,9 @@ from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
 from genkit.types import Message, Role, TextPart
+
+if 'DEEPSEEK_API_KEY' not in os.environ:
+    os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 

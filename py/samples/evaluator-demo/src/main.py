@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import argparse
 import asyncio
 import random
 
@@ -21,6 +22,7 @@ import eval_in_code  # noqa: F401
 
 # Import flows so they get registered
 import pdf_rag  # noqa: F401
+import setup  # noqa: F401
 from genkit_demo import ai
 
 from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
@@ -58,4 +60,13 @@ async def main():
 
 
 if __name__ == '__main__':
-    ai.run_main(main())
+    parser = argparse.ArgumentParser(description='Evaluator Demo')
+    parser.add_argument('--setup', action='store_true', help='Perform initial setup (indexing docs)')
+    args = parser.parse_args()
+
+    if args.setup:
+        from setup import setup as run_setup
+
+        ai.run_main(run_setup())
+    else:
+        ai.run_main(main())

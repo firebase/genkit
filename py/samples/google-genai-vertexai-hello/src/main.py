@@ -41,6 +41,8 @@ Key features demonstrated in this sample:
 
 """
 
+import os
+
 import structlog
 from pydantic import BaseModel, Field
 
@@ -57,6 +59,9 @@ from genkit.types import (
 )
 
 logger = structlog.get_logger(__name__)
+
+if 'GCLOUD_PROJECT' not in os.environ:
+    os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
 
 ai = Genkit(
     plugins=[VertexAI()],

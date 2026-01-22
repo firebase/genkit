@@ -37,6 +37,7 @@ Key features demonstrated in this sample:
 
 """
 
+import os
 from decimal import Decimal
 
 import httpx
@@ -45,6 +46,9 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Genkit
 from genkit.plugins.compat_oai import OpenAI, openai_model
+
+if 'OPENAI_API_KEY' not in os.environ:
+    os.environ['OPENAI_API_KEY'] = input('Please enter your OPENAI_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 

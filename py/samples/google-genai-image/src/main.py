@@ -26,6 +26,9 @@ from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from genkit.types import Media, MediaPart, Message, Role, TextPart
 
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+
 ai = Genkit(plugins=[GoogleAI()])
 
 

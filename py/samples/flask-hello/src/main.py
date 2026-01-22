@@ -16,12 +16,17 @@
 
 """A simple flow served via a flask server."""
 
+import os
+
 from flask import Flask
 
 from genkit.ai import Genkit
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(
     plugins=[GoogleAI()],
