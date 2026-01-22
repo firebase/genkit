@@ -87,7 +87,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         result = await client.call_tool('add', {'a': 5, 'b': 3})
 
         # Verify
-        self.assertEqual(result, '8')
+        self.assertEqual(result, {'content': '8'})
         mock_session.call_tool.assert_called_once_with('add', {'a': 5, 'b': 3})
 
     async def test_client_can_list_server_resources(self):
