@@ -41,7 +41,7 @@ class McpServerConfig(BaseModel):
     disabled: bool = False
 
 
-class McpClient(Plugin):
+class McpClient:
     """Client for connecting to a single MCP server."""
 
     def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
@@ -125,7 +125,7 @@ class McpClient(Plugin):
     async def call_tool(self, tool_name: str, arguments: dict) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-        logger.debug(f'MCP {self.server_name}: calling tool {tool_name}')
+        logger.debug(f'MCP {self.server_name}: calling tool {tool_name}', arguments=arguments)
         try:
              result: CallToolResult = await self.session.call_tool(tool_name, arguments)
              logger.debug(f'MCP {self.server_name}: tool {tool_name} returned')
@@ -194,14 +194,19 @@ class McpClient(Plugin):
                 metadata = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
 
                 # Define the tool in Genkit registry
-                registry.register_action(
+                action = registry.register_action(
                     kind=ActionKind.TOOL,
                     name=f'{self.server_name}_{tool.name}',
                     fn=tool_wrapper,
                     description=tool.description,
                     metadata=metadata,
-                    # TODO: json_schema conversion from tool.inputSchema
                 )
+                
+                # Patch input schema from MCP tool definition
+                if tool.inputSchema:
+                    action._input_schema = tool.inputSchema
+                    action._metadata['inputSchema'] = tool.inputSchema
+
                 logger.debug(f'Registered MCP tool: {self.server_name}_{tool.name}')
         except Exception as e:
             logger.error(f'Error registering tools for {self.server_name}: {e}')
