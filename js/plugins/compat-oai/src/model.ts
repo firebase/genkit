@@ -177,19 +177,9 @@ export function toOpenAITextAndMedia(
     }
 
     // Check if this is an image type
-    if (isImageContentType(contentType)) {
-      return {
-        type: 'image_url',
-        image_url: {
-          url: part.media.url,
-          detail: visualDetailLevel,
-        },
-      };
-    }
-
     // If no contentType is provided, preserve legacy behavior by treating the media
     // as an image URL (e.g. signed URLs or remote images without metadata)
-    if (!contentType) {
+    if (!contentType || isImageContentType(contentType)) {
       return {
         type: 'image_url',
         image_url: {
