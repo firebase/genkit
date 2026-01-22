@@ -1087,6 +1087,23 @@ class GeminiModel:
                 for key in ['code_execution', 'file_search', 'url_context', 'api_version']:
                     if key in dumped_config:
                         del dumped_config[key]
+
+                if 'image_config' in dumped_config and isinstance(dumped_config['image_config'], dict):
+                    valid_image_keys = [
+                        'aspect_ratio',
+                        'image_size',
+                        'person_generation',
+                        'output_mime_type',
+                        'output_compression_quality',
+                    ]
+                    dumped_config['image_config'] = {
+                        k: v for k, v in dumped_config['image_config'].items() if k in valid_image_keys
+                    }
+
+                # Check if image_config is actually supported by the installed SDK version
+                if 'image_config' in dumped_config and 'image_config' not in genai_types.GenerateContentConfig.model_fields:
+                    del dumped_config['image_config']
+
                 cfg = genai_types.GenerateContentConfig(**dumped_config)
 
         if request.output:
