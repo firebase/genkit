@@ -248,6 +248,9 @@ authorized_licenses = [
   "python software foundation license",
   "simplified bsd",
   "the unlicense (unlicense)",          # TODO: verify.
+  "bsd-2-clause",
+  "apache license 2.0",
+  "apache-2.0 and mit",
 ]
 dependencies = true
 unauthorized_licenses = [
@@ -259,8 +262,11 @@ unauthorized_licenses = [
 ]
 
 [tool.liccheck.authorized_packages]
-aiohappyeyeballs = "2.6.1"     # Python Software Foundation (transitive dep of xai-sdk)
-aiohttp          = "3.13.2"    # Apache-2.0 AND MIT (transitive dep of xai-sdk)
-certifi          = "2025.4.26" # TODO: Verify.
+aiohappyeyeballs = "2.6.1"    # Python Software Foundation (transitive dep of xai-sdk)
+aiohttp          = "3.13.3"   # Apache-2.0 AND MIT (transitive dep of xai-sdk)
+certifi          = "2026.1.4" # TODO: Verify.
 dependencies     = true
-ollama           = "0.5.1"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
+google-crc32c    = "1.8.0"    # Apache-2.0
+multidict        = "6.7.0"    # Apache-2.0
+ollama           = "0.5.1"    # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
+pyasn1           = "0.6.2"    # BSD-2-Clause
