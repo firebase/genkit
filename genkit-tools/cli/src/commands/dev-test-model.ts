@@ -40,6 +40,7 @@ type TestCase = {
   name: string;
   input: GenerateRequestData;
   validators: string[];
+  stream?: boolean;
 };
 
 type TestSuite = {
@@ -357,18 +358,39 @@ async function waitForRuntime(manager: RuntimeManager) {
 async function runTest(
   manager: RuntimeManager,
   model: string,
-  testCase: TestCase
+  testCase: TestCase,
+  stream: boolean
 ): Promise<boolean> {
-  logger.info(`Running test: ${testCase.name}...`);
+  logger.info(`Running test: ${testCase.name} (streaming: ${stream})...`);
   try {
     // Adjust model name if needed (e.g. /model/ prefix)
     const modelKey = model.startsWith('/') ? model : `/model/${model}`;
+
+    let chunks = 0;
+    let streamedText = "";
     const actionResponse = await manager.runAction({
       key: modelKey,
       input: testCase.input,
-    });
+    },
+      stream ? (chunk) => {
+        const chunkText = chunk.content?.find((p: any) => p.text)?.text;
+        if (chunkText) {
+          streamedText += chunkText;
+        }
+        chunks++;
+      } : undefined
+    );
 
+    if (stream && chunks === 0) {
+      throw new Error('Streaming requested but no chunks received.')
+    }
     const response = GenerateResponseSchema.parse(actionResponse.result);
+    if (stream && streamedText) {
+      const message = response.message || response.candidates?.[0]?.message;
+      if (message && message.content?.[0]) {
+        message.content[0].text = streamedText;
+      }
+    }
 
     for (const v of testCase.validators) {
       const [valName, ...args] = v.split(':');
@@ -383,8 +405,7 @@ async function runTest(
   } catch (e) {
     if (e instanceof GenkitToolsError) {
       logger.error(
-        `❌ Failed: ${testCase.name} - ${
-          e.data?.stack || JSON.stringify(e.data?.details) || e
+        `❌ Failed: ${testCase.name} - ${e.data?.stack || JSON.stringify(e.data?.details) || e
         }`
       );
     } else if (e instanceof Error) {
@@ -399,7 +420,8 @@ async function runTest(
 async function runTestSuite(
   manager: RuntimeManager,
   suite: TestSuite,
-  defaultSupports: string[]
+  defaultSupports: string[],
+  stream: boolean
 ): Promise<{ passed: number; failed: number }> {
   const supports = suite.supports || (suite.tests ? [] : defaultSupports);
 
@@ -411,7 +433,7 @@ async function runTestSuite(
   for (const support of supports) {
     const testCase = TEST_CASES[support];
     if (testCase) {
-      promises.push(runTest(manager, suite.model, testCase));
+      promises.push(runTest(manager, suite.model, testCase, stream));
     } else {
       logger.warn(`Unknown capability: ${support}`);
     }
@@ -425,7 +447,7 @@ async function runTestSuite(
         input: test.input,
         validators: test.validators || [],
       };
-      promises.push(runTest(manager, suite.model, customTestCase));
+      promises.push(runTest(manager, suite.model, customTestCase, stream));
     }
   }
 
@@ -446,11 +468,12 @@ export const devTestModel = new Command('dev:test-model')
     'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url'
   )
   .option('--from-file <file>', 'Path to a file containing test payloads')
+  .option('--stream', 'Run tests using streaming API')
   .action(
     async (
       modelOrCmd: string | undefined,
       args: string[] | undefined,
-      options: TestOptions
+      options: TestOptions & { stream?: boolean }
     ) => {
       const projectRoot = await findProjectRoot();
 
@@ -519,7 +542,8 @@ export const devTestModel = new Command('dev:test-model')
           const { passed, failed } = await runTestSuite(
             manager,
             suite,
-            defaultSupports
+            defaultSupports,
+            !!options.stream
           );
           totalPassed += passed;
           totalFailed += failed;
