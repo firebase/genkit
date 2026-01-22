@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+import { Validator } from '@cfworker/json-schema';
 import Ajv, { type ErrorObject, type JSONSchemaType } from 'ajv';
 import addFormats from 'ajv-formats';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
+import { getGenkitRuntimeConfig } from './config.js';
 import { GenkitError } from './error.js';
+
 import type { Registry } from './registry.js';
 const ajv = new Ajv();
 addFormats(ajv);
@@ -32,6 +35,7 @@ export type JSONSchema = JSONSchemaType<any> | any;
 
 const jsonSchemas = new WeakMap<z.ZodTypeAny, JSONSchema>();
 const validators = new WeakMap<JSONSchema, ReturnType<typeof ajv.compile>>();
+const cfWorkerValidators = new WeakMap<JSONSchema, Validator>();
 
 /**
  * Wrapper object for various ways schema can be provided.
@@ -97,6 +101,19 @@ function toErrorDetail(error: ErrorObject): ValidationErrorDetail {
   };
 }
 
+function cfWorkerErrorToValidationErrorDetail(error: {
+  instanceLocation: string;
+  error: string;
+}): ValidationErrorDetail {
+  const path = error.instanceLocation.startsWith('#/')
+    ? error.instanceLocation.substring(2)
+    : '';
+  return {
+    path: path.replace(/\//g, '.') || '(root)',
+    message: error.error,
+  };
+}
+
 /**
  * Validation response.
  */
@@ -115,6 +132,22 @@ export function validateSchema(
   if (!toValidate) {
     return { valid: true, schema: toValidate };
   }
+  const validationMode = getGenkitRuntimeConfig().jsonSchemaMode;
+
+  if (validationMode === 'interpret') {
+    let validator = cfWorkerValidators.get(toValidate);
+    if (!validator) {
+      validator = new Validator(toValidate);
+      cfWorkerValidators.set(toValidate, validator);
+    }
+    const result = validator.validate(sanitizeForJsonSchema(data));
+    return {
+      valid: result.valid,
+      errors: result.errors?.map(cfWorkerErrorToValidationErrorDetail),
+      schema: toValidate,
+    };
+  }
+
   const validator = validators.get(toValidate) || ajv.compile(toValidate);
   const valid = validator(data) as boolean;
   const errors = validator.errors?.map((e) => e);
@@ -161,4 +194,19 @@ export function defineJsonSchema(
 ) {
   registry.registerSchema(name, { jsonSchema });
   return jsonSchema;
+}
+
+function sanitizeForJsonSchema(data: any): any {
+  if (Array.isArray(data)) {
+    return data.map(sanitizeForJsonSchema);
+  } else if (data !== null && typeof data === 'object') {
+    const out: any = {};
+    for (const key in data) {
+      if (data[key] !== undefined) {
+        out[key] = sanitizeForJsonSchema(data[key]);
+      }
+    }
+    return out;
+  }
+  return data;
 }

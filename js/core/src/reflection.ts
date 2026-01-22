@@ -21,6 +21,7 @@ import type { Server } from 'http';
 import path from 'path';
 import * as z from 'zod';
 import { StatusCodes, type Status } from './action.js';
+import { getGenkitRuntimeConfig } from './config.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import type { Registry } from './registry.js';
@@ -128,6 +129,13 @@ export class ReflectionServer {
    * The server will be registered to be shut down on process exit.
    */
   async start() {
+    if (getGenkitRuntimeConfig().sandboxedRuntime) {
+      logger.debug(
+        'Skipping ReflectionServer start: not supported in sandboxed runtime.'
+      );
+      return;
+    }
+
     const server = express();
 
     server.use(express.json({ limit: this.options.bodyLimit }));
