@@ -16,8 +16,11 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
+import type { CacheControlEphemeral } from '@anthropic-ai/sdk/resources/messages';
 import { z } from 'genkit';
 import { GenerationCommonConfigSchema } from 'genkit/model';
+
+export type { CacheControlEphemeral as AnthropicCacheControl };
 
 /**
  * Internal symbol for dependency injection in tests.
@@ -31,7 +34,6 @@ export const __testClient = Symbol('testClient');
  */
 export interface PluginOptions {
   apiKey?: string;
-  cacheSystemPrompt?: boolean;
   /** Default API surface for all requests unless overridden per-request. */
   apiVersion?: 'stable' | 'beta';
 }
@@ -50,7 +52,6 @@ export interface InternalPluginOptions extends PluginOptions {
 interface ClaudeHelperParamsBase {
   name: string;
   client: Anthropic;
-  cacheSystemPrompt?: boolean;
   defaultApiVersion?: 'stable' | 'beta';
 }
 
