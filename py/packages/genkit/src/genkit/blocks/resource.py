@@ -25,7 +25,7 @@ and return content (`ResourceOutput`) containing `Part`s.
 import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Protocol, TypedDict
+from typing import Any, Protocol, TypedDict, cast
 
 from pydantic import BaseModel
 
@@ -88,6 +88,12 @@ class ResourceFn(Protocol):
         ...
 
 
+class MatchableAction(Protocol):
+    """Protocol for actions that have a matches method."""
+
+    matches: Callable[[ResourceInput], bool]
+
+
 ResourceArgument = Action | str
 
 
@@ -136,9 +142,9 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
         ValueError: If the resource cannot be found.
     """
     resource = (
-        await registry.resolve_action(ActionKind.RESOURCE, name)
-        or await registry.resolve_action(ActionKind.RESOURCE, f'/resource/{name}')
-        or await registry.resolve_action(ActionKind.RESOURCE, f'/dynamic-action-provider/{name}')
+        await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), name)
+        or await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), f'/resource/{name}')
+        or await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), f'/dynamic-action-provider/{name}')
     )
     if not resource:
         raise ValueError(f'Resource {name} not found')
@@ -161,7 +167,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
     """
     action = dynamic_resource(opts, fn)
 
-    action.matches = create_matcher(opts.get('uri'), opts.get('template'))
+    cast(MatchableAction, action).matches = create_matcher(opts.get('uri'), opts.get('template'))
 
     # Mark as not dynamic since it's being registered
     action.metadata['dynamic'] = False
@@ -279,7 +285,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
 
     act = Action(
         name=name,
-        kind=ActionKind.RESOURCE,
+        kind=cast(ActionKind, ActionKind.RESOURCE),
         fn=wrapped_fn,
         metadata={
             'resource': {
@@ -291,7 +297,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
         description=opts.get('description'),
         span_metadata={'genkit:metadata:resource:uri': uri},
     )
-    act.matches = matcher
+    cast(MatchableAction, act).matches = matcher
     return act
 
 
@@ -385,23 +391,27 @@ async def find_matching_resource(
     """
     if dynamic_resources:
         for action in dynamic_resources:
-            if hasattr(action, 'matches') and action.matches(input_data):
+            if hasattr(action, 'matches') and cast(MatchableAction, action).matches(input_data):
                 return action
 
     # Try exact match in registry
-    resource = await registry.resolve_action(ActionKind.RESOURCE, input_data.uri)
+    resource = await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), input_data.uri)
     if resource:
         return resource
 
     # Iterate all resources to check for matches (e.g. templates)
     # This is less efficient but necessary for template matching if not optimized
-    resources = registry.get_actions_by_kind(ActionKind.RESOURCE) if hasattr(registry, 'get_actions_by_kind') else {}
+    resources = (
+        registry.get_actions_by_kind(cast(ActionKind, ActionKind.RESOURCE))
+        if hasattr(registry, 'get_actions_by_kind')
+        else {}
+    )
     if not resources and hasattr(registry, '_entries'):
         # Fallback for compatibility if registry instance is old (unlikely in this context)
-        resources = registry._entries.get(ActionKind.RESOURCE, {})
+        resources = registry._entries.get(cast(ActionKind, ActionKind.RESOURCE), {})
 
     for action in resources.values():
-        if hasattr(action, 'matches') and action.matches(input_data):
+        if hasattr(action, 'matches') and cast(MatchableAction, action).matches(input_data):
             return action
 
     return None
