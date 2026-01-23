@@ -75,7 +75,9 @@ async def test_resolve_action_from_plugin():
     ai = Genkit(plugins=[MyPlugin()])
 
     metas = await ai.registry.list_actions()
-    assert metas == [ActionMetadata(kind=ActionKind.MODEL, name='myplugin/foo')]
+    # Filter for the specific plugin action we expect, ignoring system actions like 'generate'
+    target_meta = next((m for m in metas if m.name == 'myplugin/foo'), None)
+    assert target_meta == ActionMetadata(kind=ActionKind.MODEL, name='myplugin/foo')
 
     action = await ai.registry.resolve_action(ActionKind.MODEL, 'myplugin/foo')
 
