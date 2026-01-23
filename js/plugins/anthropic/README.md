@@ -1,16 +1,11 @@
-# Genkit + Anthropic AI
+# Genkit Anthropic AI Plugin
 
-<h1 align="center">Genkit <> Anthropic AI Plugin</h1>
-
-<h4 align="center">Anthropic AI plugin for Google Genkit</h4>
-
-`@genkit-ai/anthropic` is the official Anthropic plugin for
-[Genkit](https://github.com/firebase/genkit). It supersedes the earlier
-community package `genkitx-anthropic` and is now maintained by Google.
+`@genkit-ai/anthropic` is Anthropic plugin for [Genkit](https://github.com/firebase/genkit).
+It supersedes the earlier community package `genkitx-anthropic` and is now maintained by Google.
 
 ## Supported models
 
-The plugin supports the most recent Anthropic models: **Claude Haiku 4.5**,
+The plugin supports the most recent Anthropic models like **Claude Haiku 4.5**,
 **Claude Sonnet 4.5**, and **Claude Opus 4.5**. Additionally, the plugin
 supports all of the
 [non-retired older models](https://platform.claude.com/docs/en/about-claude/model-deprecations#model-status).
