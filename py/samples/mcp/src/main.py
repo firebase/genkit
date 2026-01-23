@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -250,6 +251,16 @@ async def control_mcp(input: ControlMcpInput):
 
 async def main():
     """Run sample flows."""
+    import os
+    
+    # Only run test flows if not in dev mode (Dev UI)
+    if os.getenv('GENKIT_ENV') == 'dev':
+        logger.info('Running in dev mode - flows available in Dev UI')
+        logger.info('Genkit server running. Press Ctrl+C to stop.')
+        # Keep the process alive for Dev UI
+        await asyncio.Event().wait()
+        return
+    
     logger.info('Starting MCP sample application')
     from genkit.core.action.types import ActionKind
     flows = ai.registry.get_actions_by_kind(ActionKind.FLOW)
@@ -273,4 +284,11 @@ async def main():
 
 
 if __name__ == '__main__':
-    ai.run_main(main())
+    import sys
+    # If running directly (not via genkit start), execute the test flows
+    if len(sys.argv) == 1:
+        ai.run_main(main())
+    # Otherwise, just keep the server running for Dev UI
+    else:
+        # This allows genkit start to work properly
+        pass
