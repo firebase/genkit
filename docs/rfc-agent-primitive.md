@@ -154,12 +154,11 @@ You can stream intermediate state updates to the client using `sendChunk`. This 
 ```typescript
 export const toolAgent = ai.defineAgent(
   { name: 'toolAgent' },
-  async function* ({ sendChunk, inputStream, init }) {
+  async function* ({ sendChunk, inputStream, init, session }) {
     for await (const input of inputStream) {
       // 1. Notify client that we are starting a tool
       sendChunk({ 
-        sessionId: init?.sessionId, 
-        stateUpdate: { status: 'executing_tool', tool: 'weather' } 
+        statusUpdate: { status: 'executing_tool', tool: 'weather' } 
       });
 
       // 2. Execute tool (simulated)
@@ -167,11 +166,11 @@ export const toolAgent = ai.defineAgent(
 
       // 3. Notify client of completion
       sendChunk({ 
-        sessionId: init?.sessionId, 
-        stateUpdate: { status: 'tool_complete', tool: 'weather' } 
+        statusUpdate: { status: 'tool_complete', tool: 'weather' } 
       });
       
       // ... continue generation
+      await session.createSnapshot();
     }
   }
 );
@@ -183,31 +182,36 @@ The Agent primitive relies on strict Zod schemas to ensure type safety and compa
 
 #### Init Schema (`AgentInitSchema`)
 ```typescript
-const AgentInitSchema = z.object({
-  sessionId: z.string().optional(),
+
+const AgentSnapshotSchema = z.object({
+  // oneof {
+  snapshotId: z.string().optional(),
+  // {
   messages: z.array(MessageSchema).optional(),
   state: z.any().optional(),
   artifacts: z.array(AgentArtifactSchema).optional(),
+  // }
+});
+
+const AgentInitSchema = z.object({
+  snapshot: AgentSnapshotSchema.optional(),
 });
 ```
 
 #### Stream Schema (`AgentStreamSchema`)
 ```typescript
 const AgentStreamSchema = z.object({
-  sessionId: z.string(),
   chunk: GenerateResponseChunkSchema.optional(), // Token generation
-  stateUpdate: z.any().optional(),               // Intermediate state patches
+  statusUpdate: z.any().optional(),
   artifact: AgentArtifactSchema.optional(), // New artifacts
+  snapshotCreated: z.string().optional(),
 });
 ```
 
 #### Output Schema (`AgentResponseSchema`)
 ```typescript
 const AgentResponseSchema = z.object({
-  sessionId: z.string(),
-  messages: z.array(MessageSchema).optional(),
-  state: z.any().optional(),
-  artifacts: z.array(AgentArtifactSchema).optional(),
+  snapshot: AgentSnapshotSchema,
 });
 ```
 
