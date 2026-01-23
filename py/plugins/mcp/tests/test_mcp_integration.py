@@ -28,9 +28,14 @@ from fakes import mock_mcp_modules
 mock_mcp_modules()
 
 import pytest
+from mcp.types import ListResourcesRequest, ListResourceTemplatesRequest
 
 from genkit.ai import Genkit
-from genkit.plugins.mcp import McpClient, McpServerConfig, create_mcp_host, create_mcp_server
+from genkit.blocks.resource import ResourceInput, ResourceOutput
+from genkit.core.action import ActionRunContext
+from genkit.core.error import GenkitError
+from genkit.core.typing import Part, TextPart
+from genkit.plugins.mcp import McpClient, McpServerConfig, McpServerOptions, create_mcp_host, create_mcp_server
 
 
 @pytest.mark.asyncio
@@ -189,16 +194,17 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Mock the client
         client = host.clients['test']
         client.session = AsyncMock()
-        client.close = AsyncMock()
-        client.connect = AsyncMock()
+        # Mock the client methods using patch.object to avoid type errors
+        with patch.object(client, 'close', new_callable=AsyncMock) as mock_close, \
+             patch.object(client, 'connect', new_callable=AsyncMock) as mock_connect:
+            
+            # Disable
+            await host.disable('test')
+            self.assertTrue(client.config.disabled)
 
-        # Disable
-        await host.disable('test')
-        self.assertTrue(client.config.disabled)
-
-        # Enable
-        await host.enable('test')
-        self.assertFalse(client.config.disabled)
+            # Enable
+            await host.enable('test')
+            self.assertFalse(client.config.disabled)
 
 
 @pytest.mark.asyncio
@@ -212,54 +218,59 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
 
         # 1. Server side: Define resource
         server_ai = Genkit()
-        server_ai.define_resource(
-            name='config', uri='app://config', fn=lambda req: {'content': [{'text': 'config data'}]}
-        )
+
+        async def resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='config data'))])
+
+        server_ai.define_resource(name='config', uri='app://config', fn=resource_handler)
 
         # 2. Create MCP server
-        from genkit.plugins.mcp import McpServerOptions
-
         server = create_mcp_server(server_ai, McpServerOptions(name='test-server'))
         await server.setup()
 
         # 3. Verify server can list resources
-        resources_result = await server.list_resources({})
+        resources_result = await server.list_resources(ListResourcesRequest())
         self.assertEqual(len(resources_result.resources), 1)
         self.assertEqual(resources_result.resources[0].uri, 'app://config')
 
         # 4. Verify server can read resource
+        from typing import cast
+
+        from mcp.types import TextResourceContents
+        
         request = MagicMock()
         request.params.uri = 'app://config'
         read_result = await server.read_resource(request)
-        self.assertEqual(read_result.contents[0].text, 'config data')
+        self.assertEqual(cast(TextResourceContents, read_result.contents[0]).text, 'config data')
 
     async def test_template_resource_matching(self):
         """Test that template resources match correctly."""
         server_ai = Genkit()
 
-        def file_resource(req):
-            uri = req.uri
-            return {'content': [{'text': f'Contents of {uri}'}]}
+        async def file_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            uri = input.uri
+            return ResourceOutput(content=[Part(root=TextPart(text=f'Contents of {uri}'))])
 
         server_ai.define_resource(name='file', template='file://{+path}', fn=file_resource)
 
         # Create server
-        from genkit.plugins.mcp import McpServerOptions
-
         server = create_mcp_server(server_ai, McpServerOptions(name='test-server'))
         await server.setup()
 
         # List templates
-        templates_result = await server.list_resource_templates({})
+        templates_result = await server.list_resource_templates(ListResourceTemplatesRequest())
         self.assertEqual(len(templates_result.resourceTemplates), 1)
         self.assertEqual(templates_result.resourceTemplates[0].uriTemplate, 'file://{+path}')
 
         # Read with different URIs
+        from typing import cast
+
+        from mcp.types import TextResourceContents
         for test_uri in ['file:///path/to/file.txt', 'file:///another/file.md', 'file:///deep/nested/path/doc.pdf']:
             request = MagicMock()
             request.params.uri = test_uri
             result = await server.read_resource(request)
-            self.assertIn(test_uri, result.contents[0].text)
+            self.assertIn(test_uri, cast(TextResourceContents, result.contents[0]).text)
 
 
 @pytest.mark.asyncio
@@ -274,8 +285,6 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         def existing_tool(x: int) -> int:
             return x
 
-        from genkit.plugins.mcp import McpServerOptions
-
         server = create_mcp_server(server_ai, McpServerOptions(name='test-server'))
         await server.setup()
 
@@ -283,8 +292,6 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         request = MagicMock()
         request.params.name = 'nonexistent_tool'
         request.params.arguments = {}
-
-        from genkit.core.error import GenkitError
 
         with self.assertRaises(GenkitError) as context:
             await server.call_tool(request)

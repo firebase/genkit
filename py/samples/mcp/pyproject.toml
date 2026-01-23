@@ -36,8 +36,11 @@ dependencies = [
   "genkit",
   "genkit-plugin-google-genai",
   "genkit-plugins-mcp",
+  "mcp>=1.25.0",
   "pydantic>=2.10.5",
+  "starlette>=0.52.1",
   "structlog>=25.2.0",
+  "uvicorn>=0.40.0",
 ]
 description = "MCP Sample"
 license = "Apache-2.0"
