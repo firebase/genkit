@@ -20,9 +20,10 @@ This module contains helper functions for handling MCP resources,
 including reading and converting resource content.
 """
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
+from pydantic import AnyUrl
 
 from genkit.core.typing import Part
 from mcp.types import BlobResourceContents, ReadResourceResult, Resource, TextResourceContents
@@ -74,7 +75,7 @@ def process_resource_content(resource_result: ReadResourceResult) -> Any:
     if not hasattr(resource_result, 'contents') or not resource_result.contents:
         return []
 
-    return [from_mcp_resource_part(content) for content in resource_result.contents]
+    return [from_mcp_resource_part(content.model_dump()) for content in resource_result.contents]
 
 
 def convert_resource_to_genkit_part(resource: Resource) -> dict[str, Any]:
@@ -114,7 +115,7 @@ def to_mcp_resource_contents(uri: str, parts: list[Part]) -> list[TextResourceCo
     for part in parts:
         if isinstance(part, dict):
             # Handle media/image content
-            if 'media' in part:
+            if 'media' in part and part['media']:
                 media = part['media']
                 url = media.get('url', '')
                 content_type = media.get('contentType', '')
@@ -129,17 +130,17 @@ def to_mcp_resource_contents(uri: str, parts: list[Part]) -> list[TextResourceCo
                 except ValueError as e:
                     raise ValueError(f'Invalid data URL format: {url}') from e
 
-                contents.append(BlobResourceContents(uri=uri, mimeType=mime_type, blob=blob_data))
+                contents.append(BlobResourceContents(uri=cast(AnyUrl, uri), mimeType=mime_type, blob=blob_data))
 
             # Handle text content
             elif 'text' in part:
-                contents.append(TextResourceContents(uri=uri, text=part['text']))
+                contents.append(TextResourceContents(uri=cast(AnyUrl, uri), text=part['text']))
             else:
                 raise ValueError(
                     f'MCP resource messages only support media and text parts. '
                     f'Unsupported part type: {list(part.keys())}'
                 )
         elif isinstance(part, str):
-            contents.append(TextResourceContents(uri=uri, text=part))
+            contents.append(TextResourceContents(uri=cast(AnyUrl, uri), text=part))
 
     return contents

@@ -319,7 +319,7 @@ async def control_mcp(input: ControlMcpInput):
 
     if action == 'DISABLE':
         if not client_id:
-             raise ValueError('client_id is required for DISABLE action')
+            raise ValueError('client_id is required for DISABLE action')
         await mcp_host.disable(client_id)
     elif action == 'DISCONNECT':
         # Assuming disconnect is equivalent to close for a specific client
@@ -327,11 +327,11 @@ async def control_mcp(input: ControlMcpInput):
             await mcp_host.clients[client_id].close()
     elif action == 'RECONNECT':
         if not client_id:
-             raise ValueError('client_id is required for RECONNECT action')
+            raise ValueError('client_id is required for RECONNECT action')
         await mcp_host.reconnect(client_id)
     elif action == 'ENABLE':
         if not client_id:
-             raise ValueError('client_id is required for ENABLE action')
+            raise ValueError('client_id is required for ENABLE action')
         await mcp_host.enable(client_id)
 
     return f'Action {action} completed for {client_id}'
