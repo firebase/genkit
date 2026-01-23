@@ -49,13 +49,16 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_resources_with_fixed_uri(self):
         """Test listing resources with fixed URIs."""
+
         # Define resources
         async def config_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='config'))])
+            return ResourceOutput(content=[Part(root=TextPart(text='config'))])
+
         self.ai.define_resource(name='config', uri='app://config', fn=config_handler)
 
         async def data_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+            return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+
         self.ai.define_resource(name='data', uri='app://data', fn=data_handler)
 
         # Create server
@@ -77,18 +80,17 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_resource_templates(self):
         """Test listing resources with URI templates."""
+
         # Define template resources
         async def file_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='file content'))])
-        self.ai.define_resource(
-            name='file', template='file://{+path}', fn=file_handler
-        )
+            return ResourceOutput(content=[Part(root=TextPart(text='file content'))])
+
+        self.ai.define_resource(name='file', template='file://{+path}', fn=file_handler)
 
         async def user_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='user profile'))])
-        self.ai.define_resource(
-            name='user', template='user://{id}/profile', fn=user_handler
-        )
+            return ResourceOutput(content=[Part(root=TextPart(text='user profile'))])
+
+        self.ai.define_resource(name='user', template='user://{id}/profile', fn=user_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
@@ -109,16 +111,17 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_resources_excludes_templates(self):
         """Test that list_resources excludes template resources."""
+
         # Define mixed resources
         async def fixed_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+            return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+
         self.ai.define_resource(name='fixed', uri='app://fixed', fn=fixed_handler)
 
         async def template_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='template'))])
-        self.ai.define_resource(
-            name='template', template='app://{id}', fn=template_handler
-        )
+            return ResourceOutput(content=[Part(root=TextPart(text='template'))])
+
+        self.ai.define_resource(name='template', template='app://{id}', fn=template_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
@@ -132,16 +135,17 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_resource_templates_excludes_fixed(self):
         """Test that list_resource_templates excludes fixed URI resources."""
+
         # Define mixed resources
         async def fixed_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+            return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+
         self.ai.define_resource(name='fixed', uri='app://fixed', fn=fixed_handler)
 
         async def template_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='template'))])
-        self.ai.define_resource(
-            name='template', template='app://{id}', fn=template_handler
-        )
+            return ResourceOutput(content=[Part(root=TextPart(text='template'))])
+
+        self.ai.define_resource(name='template', template='app://{id}', fn=template_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
@@ -175,6 +179,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         # Verify
         self.assertEqual(len(result.contents), 1)
         from mcp.types import TextResourceContents
+
         self.assertEqual(cast(TextResourceContents, result.contents[0]).text, 'Configuration data')
 
     async def test_read_resource_with_template(self):
@@ -201,12 +206,15 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         # Verify
         self.assertEqual(len(result.contents), 1)
         from mcp.types import TextResourceContents
+
         self.assertIn('/home/user/document.txt', cast(TextResourceContents, result.contents[0]).text)
 
     async def test_read_resource_not_found(self):
         """Test reading a non-existent resource."""
+
         async def existing_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+            return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+
         self.ai.define_resource(name='existing', uri='app://existing', fn=existing_handler)
 
         # Create server
@@ -228,11 +236,13 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         """Test reading a resource that returns multiple content parts."""
 
         async def multi_part_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-            return ResourceOutput(content=[
-                Part(root=TextPart(text='Part 1')),
-                Part(root=TextPart(text='Part 2')),
-                Part(root=TextPart(text='Part 3'))
-            ])
+            return ResourceOutput(
+                content=[
+                    Part(root=TextPart(text='Part 1')),
+                    Part(root=TextPart(text='Part 2')),
+                    Part(root=TextPart(text='Part 3')),
+                ]
+            )
 
         self.ai.define_resource(name='multi', uri='app://multi', fn=multi_part_resource)
 
@@ -250,6 +260,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         # Verify result content
         self.assertEqual(len(result.contents), 3)
         from mcp.types import TextResourceContents
+
         self.assertEqual(cast(TextResourceContents, result.contents[0]).text, 'Part 1')
         self.assertEqual(cast(TextResourceContents, result.contents[1]).text, 'Part 2')
         self.assertEqual(cast(TextResourceContents, result.contents[2]).text, 'Part 3')
@@ -309,8 +320,8 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(result.content), 1)
         # Cast content to TextContent to access text attribute safely
         from mcp.types import TextContent
-        self.assertEqual(cast(TextContent, result.content[0]).text, '8')
 
+        self.assertEqual(cast(TextContent, result.content[0]).text, '8')
 
     async def test_list_prompts(self):
         """Test listing prompts."""
@@ -349,7 +360,8 @@ class TestMcpServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Define resource
         async def resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-             return ResourceOutput(content=[Part(root=TextPart(text='test'))])
+            return ResourceOutput(content=[Part(root=TextPart(text='test'))])
+
         ai.define_resource(name='test_resource', uri='test://resource', fn=resource_handler)
 
         # Create server
