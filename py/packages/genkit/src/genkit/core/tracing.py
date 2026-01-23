@@ -70,7 +70,7 @@ def init_provider() -> TracerProvider:
     return tracer_provider
 
 
-def add_custom_exporter(exporter: SpanExporter, name: str = 'last') -> None:
+def add_custom_exporter(exporter: SpanExporter | None, name: str = 'last') -> None:
     """Adds custom span exporter to current tracer provider.
 
     Args:

@@ -21,7 +21,7 @@ from collections.abc import Callable
 from typing import Any
 
 if sys.version_info < (3, 11):
-    from strenum import StrEnum
+    from strenum import StrEnum  # type: ignore
 else:
     from enum import StrEnum
 

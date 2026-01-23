@@ -83,5 +83,5 @@ else:
     Send = atyping.ASGISendCallable
 
 # Type aliases for the web framework.
-# type LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]
-LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]
+# type LifespanHandler = Callable[[], Awaitable[None]]
+LifespanHandler = Callable[[], Awaitable[None]]

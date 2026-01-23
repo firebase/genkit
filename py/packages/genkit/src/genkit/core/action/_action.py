@@ -89,7 +89,7 @@ import inspect
 from collections.abc import AsyncIterator, Callable
 from contextvars import ContextVar
 from functools import cached_property
-from typing import Any
+from typing import Any, Awaitable
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -228,7 +228,7 @@ class Action:
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
         action_args, arg_types = extract_action_args_and_types(input_spec)
         n_action_args = len(action_args)
-        self._fn, self._afn = _make_tracing_wrappers(name, kind, span_metadata, n_action_args, fn)
+        self._fn, self._afn = _make_tracing_wrappers(name, kind, span_metadata or {}, n_action_args, fn)
         self._initialize_io_schemas(action_args, arg_types, input_spec)
 
     @property
@@ -248,7 +248,7 @@ class Action:
         return self._metadata
 
     @cached_property
-    def input_type(self) -> type | None:
+    def input_type(self) -> TypeAdapter[Any] | None:
         return self._input_type
 
     @cached_property
@@ -418,7 +418,7 @@ class Action:
             telemetry_labels=telemetry_labels,
             on_chunk=lambda c: stream.send(c),
         )
-        stream.set_close_future(resp)
+        stream.set_close_future(asyncio.create_task(resp))
 
         result_future: asyncio.Future[ActionResponse] = asyncio.Future()
         stream.closed.add_done_callback(lambda _: result_future.set_result(stream.closed.result().response))
@@ -483,7 +483,7 @@ class ActionMetadata(BaseModel):
 
 
 _SyncTracingWrapper = Callable[[Any | None, ActionRunContext], ActionResponse]
-_AsyncTracingWrapper = Callable[[Any | None, ActionRunContext], ActionResponse]
+_AsyncTracingWrapper = Callable[[Any | None, ActionRunContext], Awaitable[ActionResponse]]
 
 
 def _make_tracing_wrappers(
@@ -539,7 +539,7 @@ def _make_tracing_wrappers(
                 ) from e
 
             record_output_metadata(span, output=output)
-            return ActionResponse(response=output, trace_id=trace_id)
+            return ActionResponse(response=output, traceId=trace_id)
 
     def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
         """Wrap the function in a sync tracing wrapper.
@@ -580,6 +580,6 @@ def _make_tracing_wrappers(
                 ) from e
 
             record_output_metadata(span, output=output)
-            return ActionResponse(response=output, trace_id=trace_id)
+            return ActionResponse(response=output, traceId=trace_id)
 
     return sync_tracing_wrapper, async_tracing_wrapper

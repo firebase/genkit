@@ -330,7 +330,7 @@ def create_flows_asgi_app(
         routes=routes,
         middleware=[
             Middleware(
-                CORSMiddleware,
+                CORSMiddleware,  # type: ignore[arg-type]
                 allow_origins=['*'],
                 allow_methods=['*'],
                 allow_headers=['*'],
