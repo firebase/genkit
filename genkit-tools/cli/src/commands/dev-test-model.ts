@@ -364,17 +364,11 @@ const TEST_CASES: Record<string, TestCase> = {
           role: 'user',
           content: [
             {
-              text: 'A banana farmer harverst 10 bananas but eats 3 and sells 4 of them, how many bananas are remaining?',
+              text: 'A banana farmer harvest 10 bananas but eats 3 and sells 4 of them, how many bananas are remaining?',
             },
           ],
         },
       ],
-      config: {
-        thinkingConfig: {
-          thinkingBudget: 1024,
-          includeThoughts: true,
-        },
-      },
     },
     validators: ['reasoning'],
   },
