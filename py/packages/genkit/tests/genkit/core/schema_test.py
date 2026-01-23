@@ -16,6 +16,7 @@
 
 """Tests for the schema module."""
 
+import pytest
 from pydantic import BaseModel, Field
 
 from genkit.core.schema import to_json_schema
@@ -70,3 +71,133 @@ def test_to_json_schema_already_schema():
     }
 
     assert to_json_schema(json_schema) == json_schema
+
+
+# =============================================================================
+# JSON Schema Specification-based Tests
+# See: https://json-schema.org/understanding-json-schema/reference/type
+# =============================================================================
+
+
+class TestNullType:
+    """Tests for null type as per JSON Schema spec.
+
+    See: https://json-schema.org/understanding-json-schema/reference/null
+    """
+
+    def test_none_produces_null_type(self):
+        """Python None should produce JSON Schema null type."""
+        assert to_json_schema(None) == {'type': 'null'}
+
+
+class TestStringType:
+    """Tests for string type as per JSON Schema spec.
+
+    See: https://json-schema.org/understanding-json-schema/reference/string
+    """
+
+    def test_str_type(self):
+        """Python str type should produce JSON Schema string type."""
+        assert to_json_schema(str) == {'type': 'string'}
+
+
+class TestNumericTypes:
+    """Tests for numeric types as per JSON Schema spec.
+
+    See: https://json-schema.org/understanding-json-schema/reference/numeric
+    Note: JSON Schema has 'integer' and 'number' (floating point).
+    """
+
+    @pytest.mark.parametrize(
+        'py_type, json_type_name',
+        [
+            (int, 'integer'),
+            (float, 'number'),
+        ],
+    )
+    def test_numeric_types(self, py_type, json_type_name):
+        """Python numeric types should produce correct JSON Schema numeric types."""
+        assert to_json_schema(py_type) == {'type': json_type_name}
+
+
+class TestBooleanType:
+    """Tests for boolean type as per JSON Schema spec.
+
+    See: https://json-schema.org/understanding-json-schema/reference/boolean
+    """
+
+    def test_bool_type(self):
+        """Python bool type should produce JSON Schema boolean type."""
+        assert to_json_schema(bool) == {'type': 'boolean'}
+
+
+class TestArrayType:
+    """Tests for array type as per JSON Schema spec.
+
+    See: https://json-schema.org/understanding-json-schema/reference/array
+    """
+
+    @pytest.mark.parametrize(
+        'list_type, item_schema',
+        [
+            (list[str], {'type': 'string'}),
+            (list[int], {'type': 'integer'}),
+        ],
+    )
+    def test_list_types(self, list_type, item_schema):
+        """Python list types should produce array schema with correct item types."""
+        result = to_json_schema(list_type)
+        assert result['type'] == 'array'
+        assert result['items'] == item_schema
+
+
+class TestObjectType:
+    """Tests for object type as per JSON Schema spec.
+
+    See: https://json-schema.org/understanding-json-schema/reference/object
+    """
+
+    def test_dict_type(self):
+        """Python dict should produce object schema."""
+        result = to_json_schema(dict)
+        assert result['type'] == 'object'
+
+    def test_pydantic_model(self):
+        """Pydantic BaseModel should produce object schema with properties."""
+
+        class Person(BaseModel):
+            name: str
+            age: int
+
+        result = to_json_schema(Person)
+        assert result['type'] == 'object'
+        assert 'properties' in result
+        assert result['properties']['name']['type'] == 'string'
+        assert result['properties']['age']['type'] == 'integer'
+        assert result['required'] == ['name', 'age']
+
+
+class TestPassthroughBehavior:
+    """Tests for passthrough behavior when input is already a JSON Schema dict."""
+
+    @pytest.mark.parametrize(
+        'schema',
+        [
+            {'type': 'string', 'minLength': 1},
+            {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                    'items': {
+                        'type': 'array',
+                        'items': {'type': 'integer'},
+                    },
+                },
+                'required': ['name'],
+            },
+        ],
+        ids=['simple_schema', 'complex_schema'],
+    )
+    def test_passthrough_behavior(self, schema):
+        """A dict representing a JSON Schema should be returned as-is."""
+        assert to_json_schema(schema) == schema
