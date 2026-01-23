@@ -30,7 +30,7 @@ Example:
 import asyncio
 import threading
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from dotpromptz.dotprompt import Dotprompt
@@ -383,7 +383,11 @@ class Registry:
         # Skip if we're looking up a dynamic action provider itself to avoid recursion
         if kind != ActionKind.DYNAMIC_ACTION_PROVIDER:
             with self._lock:
-                providers = list(self._entries.get(ActionKind.DYNAMIC_ACTION_PROVIDER, {}).values())
+                if ActionKind.DYNAMIC_ACTION_PROVIDER in self._entries:
+                    providers_dict = self._entries[ActionKind.DYNAMIC_ACTION_PROVIDER]
+                else:
+                    providers_dict = {}
+                providers = list(providers_dict.values())
             for provider in providers:
                 try:
                     response = await provider.arun({'kind': kind, 'name': name})

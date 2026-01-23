@@ -340,7 +340,7 @@ actions, tools, and configuration options.
 import sys # noqa
 
 if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
+    from strenum import StrEnum  # type: ignore # noqa
 else: # noqa
     from enum import StrEnum  # noqa
 """

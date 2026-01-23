@@ -17,7 +17,7 @@
 """Base error classes and utilities for Genkit."""
 
 import traceback
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -61,6 +61,8 @@ class HttpErrorWireFormat(BaseModel):
 class GenkitError(Exception):
     """Base error class for Genkit errors."""
 
+    status: StatusName
+
     def __init__(
         self,
         *,
@@ -81,12 +83,13 @@ class GenkitError(Exception):
             trace_id: A unique identifier for tracing the action execution.
             source: Optional source of the error.
         """
-        self.status = status
-        if not self.status and isinstance(cause, GenkitError):
-            self.status = cause.status
-
-        if not self.status:
-            self.status = 'INTERNAL'
+        if status:
+            temp_status: StatusName = status
+        elif isinstance(cause, GenkitError):
+            temp_status = cause.status
+        else:
+            temp_status = 'INTERNAL'
+        self.status = temp_status
 
         source_prefix = f'{source}: ' if source else ''
         super().__init__(f'{source_prefix}{self.status}: {message}')
@@ -129,7 +132,7 @@ class GenkitError(Exception):
         # This error type is used by 3P authors with the field "details",
         # but the actual Callable protocol value is "details"
         return GenkitReflectionApiErrorWireFormat(
-            details=self.details,
+            details=GenkitReflectionApiDetailsWireFormat(**self.details) if self.details else None,
             code=StatusCodes[self.status].value,
             message=repr(self.cause) if self.cause else self.original_message,
         )
@@ -201,7 +204,7 @@ def get_reflection_json(error: Any) -> GenkitReflectionApiErrorWireFormat:
     return GenkitReflectionApiErrorWireFormat(
         message=str(error),
         code=StatusCodes.INTERNAL.value,
-        details={'stack': get_error_stack(error)},
+        details=GenkitReflectionApiDetailsWireFormat(stack=get_error_stack(error)),
     )
 
 

@@ -45,7 +45,7 @@ import json
 import urllib.parse
 from collections.abc import AsyncGenerator, Callable
 from http.server import BaseHTTPRequestHandler
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from starlette.applications import Starlette
@@ -58,7 +58,7 @@ from starlette.routing import Route
 from genkit.aio.loop import run_async
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import Action
-from genkit.core.action.types import ActionKind
+from genkit.core.action.types import ActionKind, ActionResponse
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_reflection_json
 from genkit.core.registry import Registry
@@ -77,7 +77,7 @@ logger = structlog.get_logger(__name__)
 def _list_registered_actions(registry: Registry) -> dict[str, Action]:
     """Return all locally registered actions keyed as `/<kind>/<name>`."""
     registered: dict[str, Action] = {}
-    for kind in ActionKind:
+    for kind in ActionKind.__members__.values():
         for name, action in registry.get_actions_by_kind(kind).items():
             registered[f'/{kind.value}/{name}'] = action
     return registered
@@ -179,7 +179,7 @@ def make_reflection_server(
                 message = format % args
                 address = self.address_string()
                 timestamp = self.log_date_time_string()
-                control_chars = self._control_char_table
+                control_chars = getattr(self, '_control_char_table', {})
                 logger.debug(f'{address} - - [{timestamp}] {message.translate(control_chars)}')
 
         def do_GET(self) -> None:  # noqa: N802
@@ -246,6 +246,10 @@ def make_reflection_server(
                     return await registry.resolve_action_by_key(payload['key'])
 
                 action = run_async(loop, get_action)
+                if not action:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
                 payload.get('input')
                 context = payload['context'] if 'context' in payload else {}
 
@@ -281,7 +285,7 @@ def make_reflection_server(
                                 context=context,
                             )
 
-                        output = run_async(loop, run_fn)
+                        output = cast(ActionResponse, run_async(loop, run_fn))
 
                         self.wfile.write(
                             bytes(
@@ -309,7 +313,7 @@ def make_reflection_server(
                         async def run_fn():
                             return await action.arun_raw(raw_input=payload.get('input'), context=context)
 
-                        output = run_async(loop, run_fn)
+                        output = cast(ActionResponse, run_async(loop, run_fn))
 
                         self.send_response(200)
                         self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
@@ -719,7 +723,7 @@ def create_reflection_asgi_app(
         ],
         middleware=[
             Middleware(
-                CORSMiddleware,
+                CORSMiddleware,  # type: ignore[arg-type]
                 allow_origins=['*'],
                 allow_methods=['*'],
                 allow_headers=['*'],
@@ -728,5 +732,5 @@ def create_reflection_asgi_app(
         on_startup=[on_app_startup] if on_app_startup else [],
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
     )
-    app.active_actions = active_actions
+    setattr(app, 'active_actions', active_actions)
     return app
