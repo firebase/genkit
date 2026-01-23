@@ -21,7 +21,7 @@ from typing import Any
 from pydantic import TypeAdapter
 
 
-def to_json_schema(schema: type | dict[str, Any] | None) -> dict[str, Any]:
+def to_json_schema(schema: type | dict[str, Any] | str | None) -> dict[str, Any]:
     """Converts a Python type to a JSON schema.
 
     If the input `schema` is already a dictionary (assumed json schema), it is
@@ -60,6 +60,8 @@ def to_json_schema(schema: type | dict[str, Any] | None) -> dict[str, Any]:
         >>> print(result)
         {'type': 'string'}
     """
+    if schema is None:
+        return {'type': 'null'}
     if isinstance(schema, dict):
         return schema
     type_adapter = TypeAdapter(schema)
