@@ -14,6 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tool-specific types and utilities for the Genkit framework.
+
+Genkit tools are actions that can be called by models during a generation
+process. This module provides context and error types for tool execution,
+allowing for controlled interruptions and specific response formatting.
+"""
+
 from typing import Any
 
 from genkit.core.action import ActionRunContext

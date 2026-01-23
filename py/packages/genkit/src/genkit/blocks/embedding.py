@@ -62,6 +62,12 @@ class Embedder:
     """Runtime embedder wrapper around an embedder Action."""
 
     def __init__(self, name: str, action: Action) -> None:
+        """Initialize the Embedder.
+
+        Args:
+            name: The name of the embedder.
+            action: The underlying action to execute.
+        """
         self.name = name
         self._action = action
 
@@ -70,6 +76,15 @@ class Embedder:
         documents: list[Document],
         options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
+        """Embed a list of documents.
+
+        Args:
+            documents: The documents to embed.
+            options: Optional configuration for the embedding request.
+
+        Returns:
+            The generated embedding response.
+        """
         return (await self._action.arun(EmbedRequest(input=documents, options=options))).response
 
 
@@ -80,6 +95,15 @@ def embedder_action_metadata(
     name: str,
     options: EmbedderOptions | None = None,
 ) -> ActionMetadata:
+    """Creates metadata for an embedder action.
+
+    Args:
+        name: The name of the embedder.
+        options: Configuration options for the embedder.
+
+    Returns:
+        The action metadata for the embedder.
+    """
     options = options if options is not None else EmbedderOptions()
     embedder_metadata_dict = {'embedder': {}}
 

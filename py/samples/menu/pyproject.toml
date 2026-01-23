@@ -60,8 +60,7 @@ packages = ["src"]
 genkit                              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
-genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
+genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
-

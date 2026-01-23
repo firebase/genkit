@@ -55,12 +55,12 @@ import structlog
 
 from genkit.web.typing import Application
 
-logger = structlog.get_logger(__name__)
-
 if sys.version_info < (3, 11):
     from strenum import StrEnum
 else:
     from enum import StrEnum
+
+logger = structlog.get_logger(__name__)
 
 
 class ServerType(StrEnum):

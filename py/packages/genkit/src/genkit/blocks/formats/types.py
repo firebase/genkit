@@ -45,36 +45,36 @@ class FormatterConfig(OutputConfig):
     default_instructions: bool | None = None
 
 
-O = TypeVar('O')
-CO = TypeVar('CO')
+OutputT = TypeVar('OutputT')
+ChunkT = TypeVar('ChunkT')
 
 
-class Formatter(Generic[O, CO]):
+class Formatter(Generic[OutputT, ChunkT]):
     """Base class representing a formatter for model outputs.
 
     Formatters are responsible for parsing raw model messages and chunks
-    into structured data (types O and CO respectively) and potentially
+    into structured data (types OutputT and ChunkT respectively) and potentially
     providing instructions to the model on how to format its output.
     """
 
     def __init__(
         self,
-        message_parser: MessageParser[O],
-        chunk_parser: ChunkParser[CO],
+        message_parser: MessageParser[OutputT],
+        chunk_parser: ChunkParser[ChunkT],
         instructions: str | None,
     ):
         """Initializes a Formatter.
 
         Args:
-            message_parser: A callable that parses a Message into type O.
-            chunk_parser: A callable that parses a GenerateResponseChunkWrapper into type CO.
+            message_parser: A callable that parses a Message into type OutputT.
+            chunk_parser: A callable that parses a GenerateResponseChunkWrapper into type ChunkT.
             instructions: Optional instructions for the formatter.
         """
         self.instructions = instructions
         self.__message_parser = message_parser
         self.__chunk_parser = chunk_parser
 
-    def parse_message(self, message: MessageWrapper) -> O:
+    def parse_message(self, message: MessageWrapper) -> OutputT:
         """Parses a message.
 
         Args:
@@ -85,7 +85,7 @@ class Formatter(Generic[O, CO]):
         """
         return self.__message_parser(message)
 
-    def parse_chunk(self, chunk: GenerateResponseChunkWrapper) -> O:
+    def parse_chunk(self, chunk: GenerateResponseChunkWrapper) -> ChunkT:
         """Parses a chunk.
 
         Args:

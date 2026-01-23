@@ -77,6 +77,8 @@ ModelMiddleware = Callable[
 
 
 class ModelReference(BaseModel):
+    """Reference to a model with configuration."""
+
     name: str
     config_schema: Any | None = None
     info: ModelInfo | None = None

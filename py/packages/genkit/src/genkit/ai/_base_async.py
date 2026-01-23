@@ -17,7 +17,6 @@
 """Asynchronous server gateway interface implementation for Genkit."""
 
 import signal
-import urllib.error
 import urllib.request
 from collections.abc import Coroutine
 from typing import Any, TypeVar
@@ -151,7 +150,7 @@ class GenkitBase(GenkitRegistry):
             # Since anyio/asyncio handles SIGINT well, let's add a task to catch SIGTERM
             async def handle_sigterm(tg_to_cancel):
                 with anyio.open_signal_receiver(signal.SIGTERM) as signals:
-                    async for signum in signals:
+                    async for _signum in signals:
                         logger.info('Received SIGTERM, cancelling tasks...')
                         tg_to_cancel.cancel_scope.cancel()
                         return
@@ -180,7 +179,7 @@ class GenkitBase(GenkitRegistry):
                         # Simple polling loop
 
                         max_retries = 20  # 2 seconds total roughly
-                        for i in range(max_retries):
+                        for _i in range(max_retries):
                             try:
                                 # TODO: Use async http client if available to avoid blocking loop?
                                 # But we are in dev mode, so maybe okay.

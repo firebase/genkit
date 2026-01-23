@@ -42,6 +42,7 @@ from genkit.aio import Channel, ensure_async
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
+    to_tool_definition,
 )
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -276,6 +277,7 @@ class ExecutablePrompt:
         Args:
             input: The input to the prompt.
             config: The generation configuration.
+            context: The action run context.
 
         Returns:
             The rendered prompt as a GenerateActionOptions object.
@@ -367,7 +369,9 @@ class ExecutablePrompt:
         if self._name is None:
             raise GenkitError(
                 status='FAILED_PRECONDITION',
-                message='Prompt name not available. This prompt was not created via define_prompt_async() or load_prompt().',
+                message=(
+                    'Prompt name not available. This prompt was not created via define_prompt_async() or load_prompt().'
+                ),
             )
 
         lookup_key = registry_lookup_key(self._name, self._variant, self._ns)
@@ -819,17 +823,18 @@ async def render_user_prompt(
     prompt_cache: PromptCache,
     context: dict[str, Any] | None = None,
 ) -> Message:
-    """Asynchronously renders a user prompt based on the given input, context, and options,
-    utilizing a pre-compiled or dynamically compiled dotprompt template.
+    """Asynchronously renders a user prompt based on the given input, context, and options.
+
+    Utilizes a pre-compiled or dynamically compiled dotprompt template.
 
     Arguments:
-        registry (Registry): The registry instance used to compile dotprompt templates.
-        Input (dict[str, Any]): The input data used to populate the prompt.
-        Options (PromptConfig): The configuration for rendering the prompt, including
+        registry: The registry instance used to compile dotprompt templates.
+        input: The input data used to populate the prompt.
+        options: The configuration for rendering the prompt, including
             the template type and associated metadata.
-        Prompt_cache (PromptCache): A cache that stores pre-compiled prompt templates to
+        prompt_cache: A cache that stores pre-compiled prompt templates to
             optimize rendering.
-        Context (dict[str, Any] | None): Optional dynamic context data to override or
+        context: Optional dynamic context data to override or
             supplement in the rendering process.
 
     Returns:
@@ -1023,7 +1028,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         file_path = path / filename
 
     # Read the prompt file
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding='utf-8') as f:
         source = f.read()
 
     # Parse the prompt
@@ -1252,7 +1257,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                 if entry.name.startswith('_'):
                     # This is a partial
                     partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-                    with open(entry.path, 'r', encoding='utf-8') as f:
+                    with open(entry.path, encoding='utf-8') as f:
                         source = f.read()
 
                     # Strip frontmatter if present
