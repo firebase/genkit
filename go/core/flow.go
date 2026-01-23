@@ -154,6 +154,10 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(
 			return nil
 		}
 		output, err := (*ActionDef[In, Out, Stream])(f).Run(ctx, input, cb)
+		if errors.Is(err, errStop) {
+			// Consumer broke out of the loop; don't yield again.
+			return
+		}
 		if err != nil {
 			yield(nil, err)
 		} else {
