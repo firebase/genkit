@@ -321,6 +321,8 @@ class Action:
                    input schema.
             on_chunk: An optional callback function to receive streaming output chunks.
             context: An optional dictionary containing context data for the execution.
+            on_trace_start: An optional callback to be invoked with the trace ID
+                            when the trace is started.
             telemetry_labels: Optional labels for telemetry.
 
         Returns:
@@ -360,6 +362,8 @@ class Action:
             raw_input: The raw input data to pass directly to the action function.
             on_chunk: An optional callback function to receive streaming output chunks.
             context: An optional dictionary containing context data for the execution.
+            on_trace_start: An optional callback to be invoked with the trace ID
+                            when the trace is started.
             telemetry_labels: Optional labels for telemetry.
 
         Returns:

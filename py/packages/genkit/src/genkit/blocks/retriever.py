@@ -39,14 +39,23 @@ RetrieverFn = Callable[[Document, T], RetrieverResponse]
 
 
 class Retriever(Generic[T]):
+    """Base class for retrievers in the Genkit framework."""
+
     def __init__(
         self,
         retriever_fn: RetrieverFn[T],
     ):
+        """Initialize a Retriever.
+
+        Args:
+            retriever_fn: The function that performs the retrieval.
+        """
         self.retriever_fn = retriever_fn
 
 
 class RetrieverRequest(BaseModel):
+    """Request model for a retriever execution."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     query: DocumentData
@@ -62,6 +71,8 @@ class RetrieverSupports(BaseModel):
 
 
 class RetrieverInfo(BaseModel):
+    """Information about a retriever."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     label: str | None = None
@@ -125,6 +136,8 @@ def create_retriever_ref(
 
 
 class IndexerRequest(BaseModel):
+    """Request model for an indexer execution."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     documents: list[DocumentData]
@@ -132,6 +145,8 @@ class IndexerRequest(BaseModel):
 
 
 class IndexerInfo(BaseModel):
+    """Information about an indexer."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     label: str | None = None
@@ -139,6 +154,8 @@ class IndexerInfo(BaseModel):
 
 
 class IndexerOptions(BaseModel):
+    """Configuration options for an indexer."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     config_schema: dict[str, Any] | None = Field(None, alias='configSchema')

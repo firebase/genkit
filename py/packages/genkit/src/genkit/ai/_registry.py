@@ -685,7 +685,7 @@ class GenkitRegistry:
         Args:
             name: Name of the model.
             fn: Function implementing the embedder behavior.
-            config_schema: Optional schema for embedder configuration.
+            options: Optional options for the embedder.
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
@@ -875,7 +875,11 @@ class GenkitRegistry:
 
 
 class FlowWrapper:
-    """A wapper for flow functions to add `stream` method."""
+    """A wapper for flow functions to add `stream` method.
+
+    This class wraps a flow function and provides a `stream` method for
+    asynchronous execution.
+    """
 
     def __init__(self, fn: Callable, action: Action):
         """Initialize the FlowWrapper.

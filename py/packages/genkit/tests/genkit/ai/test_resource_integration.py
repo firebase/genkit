@@ -19,7 +19,7 @@ import pytest
 from genkit.blocks.generate import generate_action
 from genkit.blocks.resource import ResourceInput, ResourceOutput, define_resource
 from genkit.core.registry import ActionKind, Registry
-from genkit.core.typing import DocumentData, GenerateActionOptions, GenerateResponse, Message, Part, Role, TextPart
+from genkit.core.typing import GenerateActionOptions, GenerateResponse, Message, Part, Role
 
 
 @pytest.mark.asyncio

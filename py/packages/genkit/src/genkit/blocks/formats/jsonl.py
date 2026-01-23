@@ -83,7 +83,9 @@ class JsonlFormat(FormatDef):
         if schema and (schema.get('type') != 'array' or schema.get('items', {}).get('type') != 'object'):
             raise GenkitError(
                 status='INVALID_ARGUMENT',
-                message="Must supply an 'array' schema type containing 'object' items when using the 'jsonl' parser format.",
+                message=(
+                    "Must supply an 'array' schema type containing 'object' items when using the 'jsonl' parser format."
+                ),
             )
 
         def message_parser(msg: MessageWrapper):
@@ -127,12 +129,12 @@ class JsonlFormat(FormatDef):
 
         instructions = None
         if schema and schema.get('items'):
-            instructions = f"""Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline `\\n` character. Each line should be a JSON object conforming to the following schema:
-
-```
-{dump_json(schema['items'], indent=2)}
-```
-"""
+            instructions = (
+                'Output should be JSONL format, a sequence of JSON objects (one per line) '
+                'separated by a newline `\\n` character. Each line should be a JSON object '
+                'conforming to the following schema:\n\n'
+                f'```\n{dump_json(schema["items"], indent=2)}\n```\n'
+            )
         return Formatter(
             chunk_parser=chunk_parser,
             message_parser=message_parser,

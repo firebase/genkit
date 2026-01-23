@@ -95,7 +95,11 @@ class EnumFormat(FormatDef):
         instructions = None
         if schema and schema.get('enum'):
             enum_values = '\n'.join([str(v) for v in schema['enum']])
-            instructions = f'Output should be ONLY one of the following enum values. Do not output any additional information or add quotes.\n\n{enum_values}'
+            instructions = (
+                'Output should be ONLY one of the following enum values. '
+                'Do not output any additional information or add quotes.\n\n'
+                f'{enum_values}'
+            )
 
         return Formatter(
             chunk_parser=chunk_parser,
