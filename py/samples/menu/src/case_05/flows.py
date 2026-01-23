@@ -19,6 +19,7 @@ import base64
 import os
 
 from case_05.prompts import s05_readMenuPrompt, s05_textMenuPrompt
+from constants import DEFAULT_MENU_QUESTION
 from menu_ai import ai
 from menu_schemas import (
     AnswerOutputSchema,
@@ -49,8 +50,8 @@ async def s05_visionMenuQuestionFlow(
     my_input: MenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
     # If empty question provided (e.g., from Dev UI default), use the default question
-    question = my_input.question if my_input.question else 'What kind of burger buns do you have?'
-    
+    question = my_input.question if my_input.question else DEFAULT_MENU_QUESTION
+
     menu_text = await s05_readMenuFlow()
     return await s05_textMenuQuestionFlow(
         TextMenuQuestionInputSchema(

@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from constants import DEFAULT_MENU_QUESTION, DEFAULT_MENU_TEXT
 from pydantic import BaseModel, Field
 
 
@@ -29,7 +30,7 @@ class MenuItemSchema(BaseModel):
 class MenuQuestionInputSchema(BaseModel):
     """Input schema for the menu question prompt."""
 
-    question: str = Field(default='What kind of burger buns do you have?', description='A question about the menu')
+    question: str = Field(default=DEFAULT_MENU_QUESTION, description='A question about the menu')
 
 
 class AnswerOutputSchema(BaseModel):
@@ -49,24 +50,11 @@ class TextMenuQuestionInputSchema(BaseModel):
     """Input schema for the text menu question prompt."""
 
     menu_text: str = Field(
-        default="""APPETIZERS
-- Mozzarella Sticks $8 - Crispy fried mozzarella sticks served with marinara sauce
-- Chicken Wings $10 - Crispy fried chicken wings tossed in your choice of sauce
-- Nachos $12 - Crispy tortilla chips topped with melted cheese, chili, sour cream, and salsa
-
-BURGERS & SANDWICHES
-- Classic Cheeseburger $12 - A juicy beef patty topped with melted American cheese, lettuce, tomato, and onion on a toasted bun
-- Bacon Cheeseburger $14 - A classic cheeseburger with the addition of crispy bacon
-- Mushroom Swiss Burger $15 - A beef patty topped with sautéed mushrooms, melted Swiss cheese, and a creamy horseradish sauce
-- Chicken Sandwich $13 - A crispy chicken breast on a toasted bun with lettuce, tomato, and your choice of sauce
-
-SALADS
-- House Salad $8 - Mixed greens with your choice of dressing
-- Caesar Salad $9 - Romaine lettuce with croutons, Parmesan cheese, and Caesar dressing""",
+        default=DEFAULT_MENU_TEXT,
         description='The menu text content',
         alias='menuText',
     )
-    question: str = Field(default='What kind of burger buns do you have?', description='A question about the menu')
+    question: str = Field(default=DEFAULT_MENU_QUESTION, description='A question about the menu')
 
 
 class MenuToolOutputSchema(BaseModel):

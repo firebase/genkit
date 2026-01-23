@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import json
+import os
+
 from menu_ai import ai
 from menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
 from pydantic import BaseModel, Field
@@ -31,49 +34,12 @@ class IndexMenuItemsOutputSchema(BaseModel):
 async def s04_indexMenuItemsFlow(
     menu_items: list[MenuItemSchema],
 ) -> IndexMenuItemsOutputSchema:
-    # If empty list provided (e.g., from Dev UI default), use the default menu items
+    # If empty list provided (e.g., from Dev UI default), load from example file
     if not menu_items:
-        menu_items = [
-            MenuItemSchema(
-                title='White Meat Crispy Chicken Wings',
-                description="All-white meat chicken wings tossed in your choice of wing sauce. Choose from classic buffalo, honey bbq, garlic parmesan, or sweet & sour",
-                price=12.0,
-            ),
-            MenuItemSchema(title='Cheese Fries', description='Fresh fries covered with melted cheddar cheese and bacon', price=8.0),
-            MenuItemSchema(
-                title='Reuben',
-                description='Classic Reuben sandwich with corned beef, sauerkraut, Swiss cheese, and Thousand Island dressing on grilled rye bread.',
-                price=12.0,
-            ),
-            MenuItemSchema(
-                title='Grilled Chicken Club Wrap',
-                description='Grilled chicken, bacon, lettuce, tomato, pickles, and cheddar cheese wrapped in a spinach tortilla, served with your choice of dressing',
-                price=12.0,
-            ),
-            MenuItemSchema(
-                title='Buffalo Chicken Sandwich',
-                description='Fried chicken breast coated in your choice of wing sauce, topped with lettuce, tomato, onion, and pickles on a toasted brioche roll.',
-                price=12.0,
-            ),
-            MenuItemSchema(
-                title='Half Cuban Sandwich',
-                description='Slow roasted pork butt, ham, Swiss, and yellow mustard on a toasted baguette',
-                price=12.0,
-            ),
-            MenuItemSchema(
-                title='The Albie Burger',
-                description='Classic burger topped with bacon, provolone, banana peppers, and chipotle mayo',
-                price=13.0,
-            ),
-            MenuItemSchema(title='57 Chevy Burger', description='Heaven burger with your choice of cheese', price=14.0),
-            MenuItemSchema(
-                title='Chicken Caesar Wrap',
-                description='Tender grilled chicken, romaine lettuce, croutons, and Parmesan cheese tossed in a creamy Caesar dressing and wrapped in a spinach tortilla',
-                price=10.0,
-            ),
-            MenuItemSchema(title='Kids Hot Dog', description='Kids under 12', price=5.0),
-            MenuItemSchema(title='Chicken Fingers', description='Tender chicken strips, grilled or fried', price=8.0),
-        ]
+        example_file = os.path.join(os.path.dirname(__file__), 'example.indexMenuItems.json')
+        with open(example_file, 'r') as f:
+            menu_data = json.load(f)
+        menu_items = [MenuItemSchema(**item) for item in menu_data]
 
     documents = [
         Document.from_text(f'{item.title} {item.price} \n {item.description}', metadata=item.model_dump())

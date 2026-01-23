@@ -22,9 +22,12 @@ from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import GoogleAI
 
 if 'GEMINI_API_KEY' not in os.environ:
-    print('GEMINI_API_KEY not set. Some features may not work.')
-    print('To run full examples, set GEMINI_API_KEY environment variable.')
-    os.environ['GEMINI_API_KEY'] = 'placeholder_key_for_dev_ui'
+    raise ValueError(
+        'GEMINI_API_KEY environment variable is required to run this sample.\n'
+        'Please set it before starting the application:\n'
+        '  export GEMINI_API_KEY=your_api_key_here\n'
+        'You can get an API key from https://aistudio.google.com/'
+    )
 
 
 ai = Genkit(plugins=[GoogleAI()])
