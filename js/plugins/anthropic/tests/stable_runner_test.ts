@@ -1047,6 +1047,12 @@ describe('fromAnthropicResponse', () => {
         usage: {
           inputTokens: 10,
           outputTokens: 20,
+          custom: {
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+          },
         },
       },
     },

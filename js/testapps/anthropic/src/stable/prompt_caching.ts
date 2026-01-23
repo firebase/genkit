@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { anthropic } from '@genkit-ai/anthropic';
+import { anthropic, cacheControl } from '@genkit-ai/anthropic';
 import { promises as fs } from 'fs';
 import { genkit } from 'genkit';
 import path from 'path';
@@ -37,12 +37,7 @@ ai.defineFlow('caching system prompt', async () => {
     system: {
       text: `You are a friendly Claude assistant. Greet the user briefly. You will be given a long text to read and answer questions about it.
       ${longText}`,
-      metadata: {
-        cache_control: {
-          type: 'ephemeral',
-          ttl: '5m',
-        },
-      },
+      metadata: { ...cacheControl({ ttl: '5m' }) },
     },
     messages: [
       {
@@ -73,12 +68,7 @@ ai.defineFlow('caching user prompt', async () => {
         content: [
           {
             text: longText,
-            metadata: {
-              cache_control: {
-                type: 'ephemeral',
-                ttl: '5m',
-              },
-            },
+            metadata: { ...cacheControl() }, // uses default ephemeral type
           },
         ],
       },

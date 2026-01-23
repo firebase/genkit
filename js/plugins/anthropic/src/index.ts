@@ -39,8 +39,9 @@ import {
   type AnthropicDocumentOptions,
 } from './types.js';
 
-// Re-export citation type for consumers (AnthropicDocumentOptions is inferred via anthropicDocument())
-export type { AnthropicCitation } from './types.js';
+// Re-export types and utilities for consumers
+export type { AnthropicCacheControl, AnthropicCitation } from './types.js';
+export { cacheControl } from './utils.js';
 
 /**
  * Gets or creates an Anthropic client instance.

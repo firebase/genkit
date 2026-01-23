@@ -148,25 +148,38 @@ numbers, or block indices depending on the source type).
 
 ### Prompt Caching
 
-You can cache prompts by adding `cache_control` metadata to the prompt. You can define this for system messages, user messages, tools, and media.
+You can cache prompts by adding `cache_control` metadata to the prompt. Use the
+`cacheControl()` helper for type-safe cache configuration. You can cache system
+messages, user messages, tools, and media.
 
 ```typescript
+import { anthropic, cacheControl } from "@genkit-ai/anthropic";
+
 const response = await ai.generate({
+  model: anthropic.model("claude-sonnet-4-5"),
+  system: {
+    text: longSystemPrompt,
+    metadata: { ...cacheControl() }, // default: ephemeral
+  },
   messages: [
     {
-      role: 'user',
-      content: [
-        { text: 'What is the main idea of the text?' },
-        metadata: {
-          cache_control: { type: 'ephemeral', ttl: '5m' }, // TTL options of either '5m' or '1h'
-        },
-      ],
+      role: "user",
+      content: [{ text: "What is the main idea of the text?" }],
     },
   ],
 });
+
+// Or with explicit TTL:
+metadata: { ...cacheControl({ ttl: '1h' }) }
+
+// Or using the type directly:
+import { type AnthropicCacheControl } from "@genkit-ai/anthropic";
+metadata: { cache_control: { type: 'ephemeral', ttl: '5m' } as AnthropicCacheControl }
 ```
 
-Note: Caching is only used when the prompt exceeds a certain token length. This token length is documented in the [Anthropic API documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching).
+Note: Caching is only used when the prompt exceeds a certain token length. This
+token length is documented in the
+[Anthropic API documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching).
 
 ### Beta API Limitations
 

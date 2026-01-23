@@ -16,8 +16,11 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
+import type { CacheControlEphemeral } from '@anthropic-ai/sdk/resources/messages';
 import { z } from 'genkit';
 import { GenerationCommonConfigSchema } from 'genkit/model';
+
+export type { CacheControlEphemeral as AnthropicCacheControl };
 
 /**
  * Internal symbol for dependency injection in tests.
