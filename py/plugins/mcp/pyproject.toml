@@ -32,7 +32,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["genkit", "mcp"]
+dependencies = ["genkit", "mcp", "structlog"]
 description = "Genkit MCP Plugin"
 license = "Apache-2.0"
 name = "genkit-plugins-mcp"

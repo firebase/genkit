@@ -16,19 +16,18 @@
 
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Any
+from typing import Any, cast
 
 import structlog
-from pydantic import BaseModel
+from pydantic import AnyUrl, BaseModel
 
 from genkit.ai import Genkit
 from genkit.ai._registry import GenkitRegistry
 from genkit.core.action.types import ActionKind
-from genkit.core.plugin import Plugin
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import CallToolResult, Prompt, Resource, Tool
+from mcp.types import CallToolResult, Prompt, Resource, TextContent, Tool
 
 logger = structlog.get_logger(__name__)
 
@@ -92,8 +91,11 @@ class McpClient:
 
                 session_context = ClientSession(read, write)
                 self.session = await self._exit_stack.enter_async_context(session_context)
+            else:
+                raise ValueError(f"MCP client {self.name} configuration requires either 'command' or 'url'.")
 
-            await self.session.initialize()
+            if self.session:
+                await self.session.initialize()
             logger.info(f'Connected to MCP server: {self.server_name}')
 
         except Exception as e:
@@ -135,7 +137,7 @@ class McpClient:
                 raise RuntimeError(f'Tool execution failed: {result.content}')
 
             # Simple text extraction for now
-            texts = [c.text for c in result.content if c.type == 'text']
+            texts = [c.text for c in result.content if c.type == 'text' and isinstance(c, TextContent)]
             return {'content': ''.join(texts)}
         except Exception as e:
             logger.error(f'MCP {self.server_name}: tool {tool_name} failed', error=str(e))
@@ -161,7 +163,7 @@ class McpClient:
     async def read_resource(self, uri: str) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-        return await self.session.read_resource(uri)
+        return await self.session.read_resource(cast(AnyUrl, uri))
 
     async def register_tools(self, ai: Genkit | None = None):
         """Registers all tools from connected client to Genkit."""
@@ -195,7 +197,7 @@ class McpClient:
 
                 # Define the tool in Genkit registry
                 action = registry.register_action(
-                    kind=ActionKind.TOOL,
+                    kind=cast(ActionKind, ActionKind.TOOL),
                     name=f'{self.server_name}_{tool.name}',
                     fn=tool_wrapper,
                     description=tool.description,
