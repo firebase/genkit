@@ -93,16 +93,26 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_list_resources_with_fixed_uri(self) -> None:
         """Test listing resources with fixed URIs."""
         # Define resources
-        self.ai.define_resource(name='config', uri='app://config', fn=lambda req: {'content': [{'text': 'config'}]})
+        async def config_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='config'))])
+        self.ai.define_resource(name='config', uri='app://config', fn=config_handler)
 
-        self.ai.define_resource(name='data', uri='app://data', fn=lambda req: {'content': [{'text': 'data'}]})
+        async def data_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+        self.ai.define_resource(name='data', uri='app://data', fn=data_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
         await server.setup()
 
         # List resources
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         result = await server.list_resources(ListResourcesRequest(method='resources/list'))
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resources({})
+=======
+        result = await server.list_resources(ListResourcesRequest())
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         # Verify
         self.assertEqual(len(result.resources), 2)
@@ -117,12 +127,16 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_list_resource_templates(self) -> None:
         """Test listing resources with URI templates."""
         # Define template resources
+        async def file_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='file content'))])
         self.ai.define_resource(
-            name='file', template='file://{+path}', fn=lambda req: {'content': [{'text': 'file content'}]}
+            name='file', template='file://{+path}', fn=file_handler
         )
 
+        async def user_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='user profile'))])
         self.ai.define_resource(
-            name='user', template='user://{id}/profile', fn=lambda req: {'content': [{'text': 'user profile'}]}
+            name='user', template='user://{id}/profile', fn=user_handler
         )
 
         # Create server
@@ -130,7 +144,13 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resource templates
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resource_templates({})
+=======
+        result = await server.list_resource_templates(ListResourceTemplatesRequest())
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         # Verify
         self.assertEqual(len(result.resourceTemplates), 2)
@@ -145,10 +165,14 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_list_resources_excludes_templates(self) -> None:
         """Test that list_resources excludes template resources."""
         # Define mixed resources
-        self.ai.define_resource(name='fixed', uri='app://fixed', fn=lambda req: {'content': [{'text': 'fixed'}]})
+        async def fixed_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+        self.ai.define_resource(name='fixed', uri='app://fixed', fn=fixed_handler)
 
+        async def template_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='template'))])
         self.ai.define_resource(
-            name='template', template='app://{id}', fn=lambda req: {'content': [{'text': 'template'}]}
+            name='template', template='app://{id}', fn=template_handler
         )
 
         # Create server
@@ -156,7 +180,13 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resources (should only include fixed URI)
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         result = await server.list_resources(ListResourcesRequest(method='resources/list'))
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resources({})
+=======
+        result = await server.list_resources(ListResourcesRequest())
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         self.assertEqual(len(result.resources), 1)
         self.assertEqual(result.resources[0].name, 'fixed')
@@ -164,10 +194,14 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_list_resource_templates_excludes_fixed(self) -> None:
         """Test that list_resource_templates excludes fixed URI resources."""
         # Define mixed resources
-        self.ai.define_resource(name='fixed', uri='app://fixed', fn=lambda req: {'content': [{'text': 'fixed'}]})
+        async def fixed_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+        self.ai.define_resource(name='fixed', uri='app://fixed', fn=fixed_handler)
 
+        async def template_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='template'))])
         self.ai.define_resource(
-            name='template', template='app://{id}', fn=lambda req: {'content': [{'text': 'template'}]}
+            name='template', template='app://{id}', fn=template_handler
         )
 
         # Create server
@@ -175,7 +209,13 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List templates (should only include template)
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resource_templates({})
+=======
+        result = await server.list_resource_templates(ListResourceTemplatesRequest())
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         self.assertEqual(len(result.resourceTemplates), 1)
         self.assertEqual(result.resourceTemplates[0].name, 'template')
@@ -183,8 +223,16 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_fixed_uri(self) -> None:
         """Test reading a resource with fixed URI."""
 
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         def config_resource(req: object) -> dict[str, list[dict[str, str]]]:
             return {'content': [{'text': 'Configuration data'}]}
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        def config_resource(req):
+            return {'content': [{'text': 'Configuration data'}]}
+=======
+        async def config_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='Configuration data'))])
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         self.ai.define_resource(name='config', uri='app://config', fn=config_resource)
 
@@ -201,17 +249,32 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         assert isinstance(result.contents[0], TextResourceContents)
         self.assertEqual(result.contents[0].text, 'Configuration data')
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertEqual(result.contents[0].text, 'Configuration data')
+=======
+        from mcp.types import TextResourceContents
+        self.assertEqual(cast(TextResourceContents, result.contents[0]).text, 'Configuration data')
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
     async def test_read_resource_with_template(self) -> None:
         """Test reading a resource with URI template."""
 
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         def file_resource(req: object) -> dict[str, list[dict[str, str]]]:
             uri = getattr(req, 'uri', '')
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        def file_resource(req):
+            uri = req.uri
+=======
+        async def file_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            uri = input.uri
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
             # Extract path from URI
             path = uri.replace('file://', '')
-            return {'content': [{'text': f'Contents of {path}'}]}
+            return ResourceOutput(content=[Part(root=TextPart(text=f'Contents of {path}'))])
 
         self.ai.define_resource(name='file', template='file://{+path}', fn=file_resource)
 
@@ -227,12 +290,21 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         assert isinstance(result.contents[0], TextResourceContents)
         self.assertIn('/home/user/document.txt', result.contents[0].text)
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertIn('/home/user/document.txt', result.contents[0].text)
+=======
+        from mcp.types import TextResourceContents
+        self.assertIn('/home/user/document.txt', cast(TextResourceContents, result.contents[0]).text)
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
     async def test_read_resource_not_found(self) -> None:
         """Test reading a non-existent resource."""
-        self.ai.define_resource(name='existing', uri='app://existing', fn=lambda req: {'content': [{'text': 'data'}]})
+        async def existing_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+        self.ai.define_resource(name='existing', uri='app://existing', fn=existing_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
@@ -250,8 +322,20 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_multiple_content_parts(self) -> None:
         """Test reading a resource that returns multiple content parts."""
 
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         def multi_part_resource(req: object) -> dict[str, list[dict[str, str]]]:
             return {'content': [{'text': 'Part 1'}, {'text': 'Part 2'}, {'text': 'Part 3'}]}
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        def multi_part_resource(req):
+            return {'content': [{'text': 'Part 1'}, {'text': 'Part 2'}, {'text': 'Part 3'}]}
+=======
+        async def multi_part_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[
+                Part(root=TextPart(text='Part 1')),
+                Part(root=TextPart(text='Part 2')),
+                Part(root=TextPart(text='Part 3'))
+            ])
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         self.ai.define_resource(name='multi', uri='app://multi', fn=multi_part_resource)
 
@@ -266,13 +350,25 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         result = await server.read_resource(request)
 
         # Verify
+        # Verify result content
         self.assertEqual(len(result.contents), 3)
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         assert isinstance(result.contents[0], TextResourceContents)
         self.assertEqual(result.contents[0].text, 'Part 1')
         assert isinstance(result.contents[1], TextResourceContents)
         self.assertEqual(result.contents[1].text, 'Part 2')
         assert isinstance(result.contents[2], TextResourceContents)
         self.assertEqual(result.contents[2].text, 'Part 3')
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertEqual(result.contents[0].text, 'Part 1')
+        self.assertEqual(result.contents[1].text, 'Part 2')
+        self.assertEqual(result.contents[2].text, 'Part 3')
+=======
+        from mcp.types import TextResourceContents
+        self.assertEqual(cast(TextResourceContents, result.contents[0]).text, 'Part 1')
+        self.assertEqual(cast(TextResourceContents, result.contents[1]).text, 'Part 2')
+        self.assertEqual(cast(TextResourceContents, result.contents[2]).text, 'Part 3')
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
 
 @pytest.mark.asyncio
@@ -300,7 +396,13 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List tools
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         result = await server.list_tools(ListToolsRequest(method='tools/list'))
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_tools({})
+=======
+        result = await server.list_tools(ListToolsRequest())
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         # Verify
         self.assertEqual(len(result.tools), 2)
@@ -328,8 +430,17 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.content), 1)
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         assert isinstance(result.content[0], TextContent)
         self.assertEqual(result.content[0].text, '8')
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertEqual(result.content[0].text, '8')
+=======
+        # Cast content to TextContent to access text attribute safely
+        from mcp.types import TextContent
+        self.assertEqual(cast(TextContent, result.content[0]).text, '8')
+
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
     async def test_list_prompts(self) -> None:
         """Test listing prompts."""
@@ -342,7 +453,13 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List prompts
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
         result = await server.list_prompts(ListPromptsRequest(method='prompts/list'))
+||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_prompts({})
+=======
+        result = await server.list_prompts(ListPromptsRequest())
+>>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         # Verify
         self.assertGreaterEqual(len(result.prompts), 2)
@@ -368,7 +485,9 @@ class TestMcpServerIntegration(unittest.IsolatedAsyncioTestCase):
         ai.define_prompt(name='test', prompt='Test prompt')
 
         # Define resource
-        ai.define_resource(name='test_resource', uri='test://resource', fn=lambda req: {'content': [{'text': 'test'}]})
+        async def resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+             return ResourceOutput(content=[Part(root=TextPart(text='test'))])
+        ai.define_resource(name='test_resource', uri='test://resource', fn=resource_handler)
 
         # Create server
         server = create_mcp_server(ai, McpServerOptions(name='integration-test'))

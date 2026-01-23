@@ -26,7 +26,9 @@ import asyncio
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleAI
+from genkit.blocks.resource import ResourceInput, ResourceOutput
+from genkit.core.action import ActionRunContext
+from genkit.core.typing import Part, TextPart
 from genkit.plugins.mcp import McpServerOptions, create_mcp_server
 
 # Initialize Genkit
@@ -53,16 +55,16 @@ happy_prompt = ai.define_prompt(
 
 
 # Define resources
-def my_resource_handler(inp):
-    return {'content': [{'text': 'my resource'}]}
+async def my_resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+    return ResourceOutput(content=[Part(root=TextPart(text='my resource'))])
 
 
 ai.define_resource(name='my resources', uri='test://static/resource/1', fn=my_resource_handler)
 
 
-def file_resource_handler(inp):
-    uri = inp.uri
-    return {'content': [{'text': f'file contents for {uri}'}]}
+async def file_resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+    uri = input.uri
+    return ResourceOutput(content=[Part(root=TextPart(text=f'file contents for {uri}'))])
 
 
 ai.define_resource(name='file', template='file://{path}', fn=file_resource_handler)

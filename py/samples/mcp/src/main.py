@@ -16,12 +16,15 @@
 
 
 import asyncio
+from functools import wraps
 from pathlib import Path
+from typing import cast
 
 import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
+from genkit.core.action.types import ActionKind
 from genkit.core.typing import Part, Resource1, ResourcePart, TextPart
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.mcp import McpServerConfig, create_mcp_host
@@ -52,12 +55,6 @@ mcp_host = create_mcp_host({
     'everything': McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-everything']),
 })
 
-from functools import wraps
-
-# ... (imports remain)
-
-# ... (mcp_host definition remains)
-
 
 def with_mcp_host(func):
     @wraps(func)
@@ -79,7 +76,6 @@ async def read_resource_from_host(host, uri: str) -> str:
             continue
         try:
             # client.read_resource returns ReadResourceResult
-            # We assume it has a 'contents' list
             res = await client.read_resource(uri)
             # Combine text content
             text = ''
@@ -322,14 +318,20 @@ async def control_mcp(input: ControlMcpInput):
     action = input.action.upper()
 
     if action == 'DISABLE':
+        if not client_id:
+             raise ValueError('client_id is required for DISABLE action')
         await mcp_host.disable(client_id)
     elif action == 'DISCONNECT':
         # Assuming disconnect is equivalent to close for a specific client
-        if client_id in mcp_host.clients:
+        if client_id and client_id in mcp_host.clients:
             await mcp_host.clients[client_id].close()
     elif action == 'RECONNECT':
+        if not client_id:
+             raise ValueError('client_id is required for RECONNECT action')
         await mcp_host.reconnect(client_id)
     elif action == 'ENABLE':
+        if not client_id:
+             raise ValueError('client_id is required for ENABLE action')
         await mcp_host.enable(client_id)
 
     return f'Action {action} completed for {client_id}'
@@ -348,9 +350,8 @@ async def main():
         return
 
     logger.info('Starting MCP sample application')
-    from genkit.core.action.types import ActionKind
 
-    flows = ai.registry.get_actions_by_kind(ActionKind.FLOW)
+    flows = ai.registry.get_actions_by_kind(cast(ActionKind, ActionKind.FLOW))
     logger.info(f'DEBUG: Registered flows: {list(flows.keys())}')
 
     # Test git commits flow

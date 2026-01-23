@@ -34,7 +34,7 @@ classifiers = [
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
 ]
-dependencies = ["genkit", "mcp"]
+dependencies = ["genkit", "mcp", "structlog"]
 description = "Genkit MCP Plugin"
 license = "Apache-2.0"
 keywords = [
