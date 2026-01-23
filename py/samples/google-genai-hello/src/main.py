@@ -45,7 +45,13 @@ Key features demonstrated in this sample:
 import argparse
 import asyncio
 import os
-from enum import StrEnum
+import sys
+from enum import Enum
+
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 from typing import Annotated
 
 import structlog

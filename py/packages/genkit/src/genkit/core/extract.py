@@ -126,10 +126,10 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
         try:
             # Parse the incomplete JSON structure using partial-json for lenient parsing
             return parse_partial_json(text[start_pos:])
-        except:
+        except Exception as e:
             # If parsing fails, throw an error
             if throw_on_bad_json:
-                raise ValueError(f'Invalid JSON extracted from model output: {text}')
+                raise ValueError(f'Invalid JSON extracted from model output: {text}') from e
             return None
 
     if throw_on_bad_json:
@@ -147,6 +147,12 @@ class ExtractItemsResult:
     """
 
     def __init__(self, items: list[Any], cursor: int):
+        """Initialize an ExtractItemsResult.
+
+        Args:
+            items: A list of the extracted JSON objects.
+            cursor: The updated cursor position.
+        """
         self.items = items
         self.cursor = cursor
 
@@ -246,7 +252,7 @@ def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:
                     items.append(obj)
                     current_cursor = i + 1
                     object_start = -1
-                except:
+                except Exception:
                     # If parsing fails, continue
                     pass
         elif char == ']' and brace_count == 0:

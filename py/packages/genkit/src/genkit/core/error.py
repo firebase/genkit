@@ -74,9 +74,11 @@ class GenkitError(Exception):
         """Initialize a GenkitError.
 
         Args:
-            status: The status name for this error.
             message: The error message.
-            detail: Optional detail information.
+            status: The status name for this error.
+            cause: The underlying exception that caused this error.
+            details: Optional detail information.
+            trace_id: A unique identifier for tracing the action execution.
             source: Optional source of the error.
         """
         self.status = status

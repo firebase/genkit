@@ -122,7 +122,7 @@ You can define custom rerankers for specific use cases:
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -349,7 +349,7 @@ def define_reranker(
 
 
 # Type for reranker argument (can be action, reference, or string name)
-RerankerArgument = Union[Action, RerankerRef, str]
+RerankerArgument = Action | RerankerRef | str
 
 
 class RerankerParams(BaseModel):

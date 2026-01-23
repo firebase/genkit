@@ -160,7 +160,7 @@ exclude = [
 indent-width = 4
 line-length = 120
 preview = true
-target-version = "py311" # NOTE: Keep this at 3.11 not 3.10. We use backported libs for enums.
+target-version = "py310"
 unsafe-fixes = true
 
 

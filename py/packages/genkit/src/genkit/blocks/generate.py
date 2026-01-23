@@ -20,6 +20,8 @@ import copy
 from collections.abc import Callable
 from typing import Any
 
+import structlog
+
 from genkit.blocks.formats import FormatDef, Formatter
 from genkit.blocks.messages import inject_instructions
 from genkit.blocks.middleware import augment_with_context
@@ -36,8 +38,6 @@ from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
-    DocumentData,
-    DocumentPart,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -57,6 +57,8 @@ from genkit.core.typing import (
 StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 
 DEFAULT_MAX_TURNS = 5
+
+logger = structlog.get_logger(__name__)
 
 
 def define_generate_action(registry: Registry):
@@ -174,6 +176,7 @@ async def generate_action(
         This function prepares model response chunks for the stream callback.
 
         Args:
+            role: The role to use for the wrapped chunks (default: MODEL).
             chunk: The original model response chunk.
 
         Returns:
@@ -356,11 +359,7 @@ def apply_format(
         raw_request.output.instructions if raw_request.output else None,
     )
 
-    if (
-        format_def.config.default_instructions != False or raw_request.output.instructions
-        if raw_request.output
-        else False
-    ):
+    if format_def.config.default_instructions or raw_request.output.instructions if raw_request.output else False:
         out_request.messages = inject_instructions(out_request.messages, instructions)
 
     if format_def.config.constrained is not None:
@@ -390,7 +389,7 @@ def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | No
     if isinstance(instructions_opt, str):
         # user provided instructions
         return instructions_opt
-    if instructions_opt == False:
+    if not instructions_opt:
         # user says no instructions
         return None
     if not formatter:
@@ -506,8 +505,6 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
                     status='NOT_FOUND',
                     message=f'failed to find matching resource for {ref_uri}',
                 )
-
-            from genkit.blocks.resource import ResourceInput, find_matching_resource
 
             # Normalize to ResourceInput for matching
             resource_input = ResourceInput(uri=ref_uri)
@@ -828,11 +825,16 @@ async def _resolve_resume_options(
     if not last_message or last_message.role != Role.MODEL or len(tool_requests) == 0:
         raise GenkitError(
             status='FAILED_PRECONDITION',
-            message="Cannot 'resume' generation unless the previous message is a model message with at least one tool request.",
+            message=(
+                "Cannot 'resume' generation unless the previous message is a model "
+                'message with at least one tool request.'
+            ),
         )
 
     i = 0
     tool_responses = []
+    # Create a new list for content to avoid mutation during iteration
+    updated_content = list(last_message.content)
     for part in last_message.content:
         if not isinstance(part.root, ToolRequestPart):
             i += 1
@@ -840,8 +842,9 @@ async def _resolve_resume_options(
 
         resumed_request, resumed_response = _resolve_resumed_tool_request(raw_request, part)
         tool_responses.append(resumed_response)
-        last_message.content[i] = resumed_request
+        updated_content[i] = resumed_request
         i += 1
+    last_message.content = updated_content
 
     if len(tool_responses) != len(tool_requests):
         raise GenkitError(

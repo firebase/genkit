@@ -46,7 +46,12 @@ def to_json_schema(schema: type | dict[str, Any]) -> dict[str, Any]:
 
         >>> schema = to_json_schema(MyModel)
         >>> print(schema)
-        {'properties': {'id': {'title': 'Id', 'type': 'integer'}, 'name': {'title': 'Name', 'type': 'string'}}, 'required': ['id', 'name'], 'title': 'MyModel', 'type': 'object'}
+        {
+            'properties': {'id': {'title': 'Id', 'type': 'integer'}, 'name': {'title': 'Name', 'type': 'string'}},
+            'required': ['id', 'name'],
+            'title': 'MyModel',
+            'type': 'object',
+        }
 
         If you pass in a dictionary:
 

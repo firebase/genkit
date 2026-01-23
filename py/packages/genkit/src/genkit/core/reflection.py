@@ -42,17 +42,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 import urllib.parse
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
 import structlog
-
-logger = structlog.get_logger(__name__)
-
-
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -163,7 +158,10 @@ def make_reflection_server(
 
     Args:
         registry: The registry to use for the reflection server.
+        loop: The event loop to run async functions in.
+        id: The unique identifier for this reflection server.
         encoding: The text encoding to use; default 'utf-8'.
+        quiet: Whether to suppress log messages.
 
     Returns:
         A ReflectionServer class configured with the given registry.
@@ -179,9 +177,10 @@ def make_reflection_server(
         def log_message(self, format, *args):
             if not quiet:
                 message = format % args
-                logger.debug(
-                    f'{self.address_string()} - - [{self.log_date_time_string()}] {message.translate(self._control_char_table)}'
-                )
+                address = self.address_string()
+                timestamp = self.log_date_time_string()
+                control_chars = self._control_char_table
+                logger.debug(f'{address} - - [{timestamp}] {message.translate(control_chars)}')
 
         def do_GET(self) -> None:  # noqa: N802
             """Handle GET requests to the reflection API.
@@ -568,6 +567,7 @@ def create_reflection_asgi_app(
         Args:
             action: The action to execute.
             payload: Request payload with input data.
+            action_input: The input for the action.
             context: Execution context.
             version: The Genkit version header value.
             on_trace_start: Callback for trace start.
@@ -667,6 +667,7 @@ def create_reflection_asgi_app(
         Args:
             action: The action to execute.
             payload: Request payload with input data.
+            action_input: The input for the action.
             context: Execution context.
             version: The Genkit version header value.
             on_trace_start: Callback for trace start.

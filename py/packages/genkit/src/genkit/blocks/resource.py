@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Resource module for defining and managing resources.
+
 Resources in Genkit represent addressable content or data processing units containing
 unstructured data (Post, PDF, etc.) that can be retrieved or generated. They are
 identified by URIs (e.g. `file://`, `http://`, `gs://`) and can be static (fixed URI)
@@ -77,11 +78,14 @@ class ResourceOutput(BaseModel):
 
 class ResourceFn(Protocol):
     """A function that returns parts for a given resource.
+
     The function receives the resolved input (including the URI) and context,
     and should return a `ResourceOutput` containing the content parts.
     """
 
-    def __call__(self, input: ResourceInput, ctx: ActionRunContext) -> Awaitable[ResourceOutput]: ...
+    def __call__(self, input: ResourceInput, ctx: ActionRunContext) -> Awaitable[ResourceOutput]:
+        """Call the resource function."""
+        ...
 
 
 ResourceArgument = Action | str
@@ -117,6 +121,7 @@ async def resolve_resources(registry: Registry, resources: list[ResourceArgument
 
 async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
     """Looks up a resource action by name in the registry.
+
     Tries to resolve the name directly, or with common prefixes like `/resource/`
     or `/dynamic-action-provider/`.
 
@@ -142,6 +147,7 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
 
 def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -> Action:
     """Defines a resource and registers it with the given registry.
+
     This creates a resource action that can handle requests for a specific URI
     or URI template.
 
@@ -167,6 +173,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
 
 def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     """Defines a dynamic resource action without immediate registration.
+
     This is an alias for `dynamic_resource`. Useful for defining resources that
     might be registered later or used as standalone actions.
 
@@ -182,6 +189,7 @@ def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
 
 def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     """Defines a dynamic resource action.
+
     Creates an `Action` of kind `RESOURCE` that wraps the provided function.
     The wrapper handles:
     1. Input validation and matching against the URI/Template.
@@ -364,6 +372,7 @@ async def find_matching_resource(
     registry: Registry, dynamic_resources: list[Action] | None, input_data: ResourceInput
 ) -> Action | None:
     """Finds a matching resource action.
+
     Checks dynamic resources first, then the registry.
 
     Args:
