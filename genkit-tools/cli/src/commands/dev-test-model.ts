@@ -185,6 +185,18 @@ const VALIDATORS: Record<
       }
     }
   },
+  reasoning: (response) => {
+    const content = getMessageContent(response);
+
+    if (!content || !Array.isArray(content)) {
+      throw new Error(`Response is missing message content`);
+    }
+
+    const hasReasoning = content.some((p: any) => !!p.reasoning);
+    if (!hasReasoning) {
+      throw new Error(`reasoning content not found`);
+    }
+  },
 };
 
 const TEST_CASES: Record<string, TestCase> = {
@@ -344,6 +356,28 @@ const TEST_CASES: Record<string, TestCase> = {
     },
     validators: ['valid-media:image'],
   },
+  reasoning: {
+    name: 'Reasoning Conformance',
+    input: {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              text: 'A banana farmer harverst 10 bananas but eats 3 and sells 4 of them, how many bananas are remaining?',
+            },
+          ],
+        },
+      ],
+      config: {
+        thinkingConfig: {
+          thinkingBudget: 1024,
+          includeThoughts: true,
+        },
+      },
+    },
+    validators: ['reasoning'],
+  },
 };
 
 async function waitForRuntime(manager: RuntimeManager) {
@@ -482,7 +516,7 @@ export const devTestModel = new Command('dev:test-model')
   .argument('[args...]', 'Command arguments')
   .option(
     '--supports <list>',
-    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image)',
+    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image, streaming, reasoning)',
     'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url'
   )
   .option('--from-file <file>', 'Path to a file containing test payloads')
