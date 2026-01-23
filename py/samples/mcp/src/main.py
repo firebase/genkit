@@ -25,6 +25,11 @@ from pydantic import BaseModel
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.mcp import McpServerConfig, create_mcp_host
+from genkit.core.typing import Part, ResourcePart, Resource1, TextPart
+try:
+    from mcp import McpError
+except ImportError:
+    class McpError(Exception): pass
 
 logger = structlog.get_logger(__name__)
 
@@ -41,7 +46,7 @@ ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
 mcp_host = create_mcp_host({
     'git-client': McpServerConfig(command='uvx', args=['mcp-server-git']),
     'fs': McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-filesystem', str(workspace_dir)]),
-    'everything': McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-everything']),
+    # 'everything': McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-everything']),
 })
 
 from functools import wraps
@@ -61,6 +66,49 @@ def with_mcp_host(func):
             await mcp_host.close()
 
     return wrapper
+
+
+async def read_resource_from_host(host, uri: str) -> str:
+    """Try to read a resource from any connected MCP client."""
+    errors = []
+    for client in host.clients.values():
+        if not client.session:
+            continue
+        try:
+            # client.read_resource returns ReadResourceResult
+            # We assume it has a 'contents' list
+            res = await client.read_resource(uri)
+            # Combine text content
+            text = ""
+            if hasattr(res, 'contents'):
+                for c in res.contents:
+                    if hasattr(c, 'text') and c.text:
+                        text += c.text + "\n"
+                    elif hasattr(c, 'blob'):
+                        text += f"[Blob data type={getattr(c, 'mimeType', '?')}]\n"
+            return text
+        except Exception as e:
+            errors.append(f"{client.name}: {e}")
+            
+    if not errors:
+        return "No connected clients found."
+    raise RuntimeError(f"Could not read resource {uri}. Errors: {errors}")
+
+
+async def resolve_prompt_resources(prompt: list[Part], host) -> list[Part]:
+    """Manually resolve ResourceParts in the prompt to TextParts."""
+    new_prompt = []
+    for part in prompt:
+        if isinstance(part.root, ResourcePart):
+            uri = part.root.resource.uri
+            try:
+                content = await read_resource_from_host(host, uri)
+                new_prompt.append(Part(root=TextPart(text=f"Resource {uri} Content:\n{content}")))
+            except Exception as e:
+                new_prompt.append(Part(root=TextPart(text=f"Failed to load resource {uri}: {e}")))
+        else:
+            new_prompt.append(part)
+    return new_prompt
 
 
 @ai.flow(name='git-commits')
@@ -169,49 +217,82 @@ async def dynamic_prefix_tool(query: str = ''):
     # return f'Original: <br/>{text1}<br/>After Disable: <br/>{text2}<br/>After Enable: <br/>{text3}'
 
 
-# @ai.flow(name='test-resource')
-# @with_mcp_host
-# async def test_resource(query: str = ''):
-#     """Test reading a resource."""
-#     # Pass resources as grounding context if supported
-#     resources = await mcp_host.get_active_resources(ai)
-#
-#     result = await ai.generate(
-#         prompt=[{'text': 'analyze this: '}, {'resource': {'uri': 'test://static/resource/1'}}],
-#         context={'resources': resources}
-#     )
-#
-#     return result.text
-#
-#
-# @ai.flow(name='dynamic-test-resources')
-# @with_mcp_host
-# async def dynamic_test_resources(query: str = ''):
-#     """Test reading resources with wildcard."""
-#     # Simulate wildcard resources if not natively supported
-#     # resources=['resource/*']
-#
-#     all_resources = await mcp_host.get_active_resources(ai)
-#     resources = [r for r in all_resources if r.startswith('test://')]  # simplified filter
-#
-#     result = await ai.generate(
-#         prompt=[{'text': 'analyze this: '}, {'resource': {'uri': 'test://static/resource/1'}}],
-#         context={'resources': resources}
-#     )
-#     return result.text
-#
-#
-# @ai.flow(name='dynamic-test-one-resource')
-# @with_mcp_host
-# async def dynamic_test_one_resource(query: str = ''):
-#     """Test reading one specific resource."""
-#     resources = ['test://static/resource/1']
-#
-#     result = await ai.generate(
-#         prompt=[{'text': 'analyze this: '}, {'resource': {'uri': 'test://static/resource/1'}}],
-#         context={'resources': resources}
-#     )
-#     return result.text
+@ai.flow(name='test-resource')
+@with_mcp_host
+async def test_resource(query: str = ''):
+    """Test reading a resource."""
+    try:
+        # Pass resources as grounding context if supported
+        resources = await mcp_host.get_active_resources(ai)
+    
+        # Manually resolve resources because the plugin might not support ResourcePart
+        raw_prompt = [
+            Part(root=TextPart(text='analyze this: ')), 
+            Part(root=ResourcePart(resource=Resource1(uri='test://static/resource/1')))
+        ]
+        resolved_prompt = await resolve_prompt_resources(raw_prompt, mcp_host)
+
+        result = await ai.generate(
+            prompt=resolved_prompt,
+            context={'resources': resources}
+        )
+        return result.text
+    except McpError as e:
+        return f"MCP Error (Server likely doesn't support reading this resource): {e}"
+    except Exception as e:
+        return f"Flow failed: {e}"
+
+
+@ai.flow(name='dynamic-test-resources')
+@with_mcp_host
+async def dynamic_test_resources(query: str = ''):
+    """Test reading resources with wildcard."""
+    # Simulate wildcard resources if not natively supported
+    # resources=['resource/*']
+
+    try:
+        all_resources = await mcp_host.get_active_resources(ai)
+        resources = [r for r in all_resources if r.startswith('test://')]  # simplified filter
+
+        raw_prompt = [
+            Part(root=TextPart(text='analyze this: ')), 
+            Part(root=ResourcePart(resource=Resource1(uri='test://static/resource/1')))
+        ]
+        resolved_prompt = await resolve_prompt_resources(raw_prompt, mcp_host)
+
+        result = await ai.generate(
+            prompt=resolved_prompt,
+            context={'resources': resources}
+        )
+        return result.text
+    except McpError as e:
+        return f"MCP Error: {e}"
+    except Exception as e:
+        return f"Flow failed: {e}"
+
+
+@ai.flow(name='dynamic-test-one-resource')
+@with_mcp_host
+async def dynamic_test_one_resource(query: str = ''):
+    """Test reading one specific resource."""
+    resources = ['test://static/resource/1']
+
+    try:
+        raw_prompt = [
+            Part(root=TextPart(text='analyze this: ')), 
+            Part(root=ResourcePart(resource=Resource1(uri='test://static/resource/1')))
+        ]
+        resolved_prompt = await resolve_prompt_resources(raw_prompt, mcp_host)
+
+        result = await ai.generate(
+            prompt=resolved_prompt,
+            context={'resources': resources}
+        )
+        return result.text
+    except McpError as e:
+        return f"MCP Error: {e}"
+    except Exception as e:
+        return f"Flow failed: {e}"
 
 
 @ai.flow(name='update-file')
