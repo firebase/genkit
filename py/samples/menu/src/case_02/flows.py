@@ -21,7 +21,7 @@ from menu_schemas import AnswerOutputSchema, MenuQuestionInputSchema
 from .prompts import s02_dataMenuPrompt
 
 
-@ai.flow(name='s02_menuQuestion')
+@ai.flow(name='s02_menu_question')
 async def s02_menuQuestionFlow(
     my_input: MenuQuestionInputSchema,
 ) -> AnswerOutputSchema:

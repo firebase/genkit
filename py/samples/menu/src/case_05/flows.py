@@ -19,6 +19,7 @@ import base64
 import os
 
 from case_05.prompts import s05_readMenuPrompt, s05_textMenuPrompt
+from constants import DEFAULT_MENU_QUESTION
 from menu_ai import ai
 from menu_schemas import (
     AnswerOutputSchema,
@@ -27,32 +28,35 @@ from menu_schemas import (
 )
 
 
-@ai.flow(name='s05_readMenu')
+@ai.flow(name='s05_read_menu')
 async def s05_readMenuFlow(_: None = None) -> str:
     image_data_url = inline_data_url('menu.jpeg', 'image/jpeg')
     response = await s05_readMenuPrompt({'imageUrl': image_data_url})
     return response.text
 
 
-@ai.flow(name='s05_textMenuQuestion')
+@ai.flow(name='s05_text_menu_question')
 async def s05_textMenuQuestionFlow(
     my_input: TextMenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
-    response = await s05_textMenuPrompt({'menuText': my_input.menuText, 'question': my_input.question})
+    response = await s05_textMenuPrompt({'menuText': my_input.menu_text, 'question': my_input.question})
     return AnswerOutputSchema(
         answer=response.text,
     )
 
 
-@ai.flow(name='s05_visionMenuQuestion')
+@ai.flow(name='s05_vision_menu_question')
 async def s05_visionMenuQuestionFlow(
     my_input: MenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
+    # If empty question provided (e.g., from Dev UI default), use the default question
+    question = my_input.question if my_input.question else DEFAULT_MENU_QUESTION
+
     menu_text = await s05_readMenuFlow()
     return await s05_textMenuQuestionFlow(
         TextMenuQuestionInputSchema(
-            question=my_input.question,
-            menuText=menu_text,
+            question=question,
+            menu_text=menu_text,
         )
     )
 
