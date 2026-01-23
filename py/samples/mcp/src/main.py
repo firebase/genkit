@@ -17,19 +17,22 @@
 
 import asyncio
 from pathlib import Path
-from typing import Optional
 
 import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
+from genkit.core.typing import Part, Resource1, ResourcePart, TextPart
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.mcp import McpServerConfig, create_mcp_host
-from genkit.core.typing import Part, ResourcePart, Resource1, TextPart
+
 try:
     from mcp import McpError
 except ImportError:
-    class McpError(Exception): pass
+
+    class McpError(Exception):
+        pass
+
 
 logger = structlog.get_logger(__name__)
 
@@ -79,20 +82,20 @@ async def read_resource_from_host(host, uri: str) -> str:
             # We assume it has a 'contents' list
             res = await client.read_resource(uri)
             # Combine text content
-            text = ""
+            text = ''
             if hasattr(res, 'contents'):
                 for c in res.contents:
                     if hasattr(c, 'text') and c.text:
-                        text += c.text + "\n"
+                        text += c.text + '\n'
                     elif hasattr(c, 'blob'):
-                        text += f"[Blob data type={getattr(c, 'mimeType', '?')}]\n"
+                        text += f'[Blob data type={getattr(c, "mimeType", "?")}]\n'
             return text
         except Exception as e:
-            errors.append(f"{client.name}: {e}")
+            errors.append(f'{client.name}: {e}')
 
     if not errors:
-        return "No connected clients found."
-    raise RuntimeError(f"Could not read resource {uri}. Errors: {errors}")
+        return 'No connected clients found.'
+    raise RuntimeError(f'Could not read resource {uri}. Errors: {errors}')
 
 
 async def resolve_prompt_resources(prompt: list[Part], host) -> list[Part]:
@@ -103,9 +106,9 @@ async def resolve_prompt_resources(prompt: list[Part], host) -> list[Part]:
             uri = part.root.resource.uri
             try:
                 content = await read_resource_from_host(host, uri)
-                new_prompt.append(Part(root=TextPart(text=f"Resource {uri} Content:\n{content}")))
+                new_prompt.append(Part(root=TextPart(text=f'Resource {uri} Content:\n{content}')))
             except Exception as e:
-                new_prompt.append(Part(root=TextPart(text=f"Failed to load resource {uri}: {e}")))
+                new_prompt.append(Part(root=TextPart(text=f'Failed to load resource {uri}: {e}')))
         else:
             new_prompt.append(part)
     return new_prompt
@@ -190,32 +193,32 @@ async def dynamic_prefix_tool(query: str = ''):
 # async def dynamic_disable_enable(query: str = ''):
 #     """Test disabling and re-enabling an MCP client."""
 #     return "Skipped dynamic-disable-enable flow due to hang issues."
-    # await mcp_host.register_tools(ai)
-    # tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
+# await mcp_host.register_tools(ai)
+# tools = [t for t in await mcp_host.get_active_tools(ai) if t == 'fs_read_file']
 
-    # # Run successfully
-    # result1 = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
-    # text1 = result1.text
+# # Run successfully
+# result1 = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
+# text1 = result1.text
 
-    # # Disable 'fs' and try to run (should fail)
-    # await mcp_host.disable('fs')
-    # text2 = ''
-    # try:
-    #     # We don't re-register tools, hoping the registry or generate handles the disabled client
-    #     result = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
-    #     text2 = f'ERROR! This should have failed but succeeded: {result.text}'
-    # except Exception as e:
-    #     text2 = str(e)
+# # Disable 'fs' and try to run (should fail)
+# await mcp_host.disable('fs')
+# text2 = ''
+# try:
+#     # We don't re-register tools, hoping the registry or generate handles the disabled client
+#     result = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
+#     text2 = f'ERROR! This should have failed but succeeded: {result.text}'
+# except Exception as e:
+#     text2 = str(e)
 
-    # # Re-enable 'fs' and run
-    # await mcp_host.enable('fs')
-    # # Re-connect/re-register might be needed
-    # await mcp_host.register_tools(ai)
+# # Re-enable 'fs' and run
+# await mcp_host.enable('fs')
+# # Re-connect/re-register might be needed
+# await mcp_host.register_tools(ai)
 
-    # result3 = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
-    # text3 = result3.text
+# result3 = await ai.generate(prompt=f"summarize contents of hello-world.txt (in '{workspace_dir}')", tools=tools)
+# text3 = result3.text
 
-    # return f'Original: <br/>{text1}<br/>After Disable: <br/>{text2}<br/>After Enable: <br/>{text3}'
+# return f'Original: <br/>{text1}<br/>After Disable: <br/>{text2}<br/>After Enable: <br/>{text3}'
 
 
 # @ai.flow(name='test-resource')
@@ -281,19 +284,16 @@ async def dynamic_test_one_resource(query: str = ''):
     try:
         raw_prompt = [
             Part(root=TextPart(text='analyze this: ')),
-            Part(root=ResourcePart(resource=Resource1(uri='test://static/resource/1')))
+            Part(root=ResourcePart(resource=Resource1(uri='test://static/resource/1'))),
         ]
         resolved_prompt = await resolve_prompt_resources(raw_prompt, mcp_host)
 
-        result = await ai.generate(
-            prompt=resolved_prompt,
-            context={'resources': resources}
-        )
+        result = await ai.generate(prompt=resolved_prompt, context={'resources': resources})
         return result.text
     except McpError as e:
-        return f"MCP Error: {e}"
+        return f'MCP Error: {e}'
     except Exception as e:
-        return f"Flow failed: {e}"
+        return f'Flow failed: {e}'
 
 
 @ai.flow(name='update-file')
@@ -312,7 +312,7 @@ async def update_file(query: str = ''):
 
 class ControlMcpInput(BaseModel):
     action: str  # 'RECONNECT', 'ENABLE', 'DISABLE', 'DISCONNECT'
-    client_id: Optional[str] = 'git-client'
+    client_id: str | None = 'git-client'
 
 
 @ai.flow(name='control_mcp')
@@ -349,8 +349,9 @@ async def main():
 
     logger.info('Starting MCP sample application')
     from genkit.core.action.types import ActionKind
+
     flows = ai.registry.get_actions_by_kind(ActionKind.FLOW)
-    logger.info(f"DEBUG: Registered flows: {list(flows.keys())}")
+    logger.info(f'DEBUG: Registered flows: {list(flows.keys())}')
 
     # Test git commits flow
     logger.info('Testing git-commits flow...')
@@ -371,6 +372,7 @@ async def main():
 
 if __name__ == '__main__':
     import sys
+
     # If running directly (not via genkit start), execute the test flows
     if len(sys.argv) == 1:
         ai.run_main(main())
