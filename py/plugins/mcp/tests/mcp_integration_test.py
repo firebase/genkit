@@ -142,8 +142,25 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Mock the session
         mock_session = AsyncMock()
+<<<<<<< HEAD:py/plugins/mcp/tests/mcp_integration_test.py
         mock_content = TextContent(type='text', text='8')
         mock_result = CallToolResult(content=[mock_content])
+||||||| parent of a6fffc3c1 (fix(py): fixed nox and serial test):py/plugins/mcp/tests/test_mcp_integration.py
+        mock_result = MagicMock()
+        mock_result.isError = False
+        mock_content = MagicMock()
+        mock_content.type = 'text'
+        mock_content.text = '8'
+        mock_result.content = [mock_content]
+=======
+        mock_result = MagicMock()
+        mock_result.isError = False
+        mock_result.isError = False
+        from mcp.types import TextContent
+
+        mock_content = TextContent(type='text', text='8')
+        mock_result.content = [mock_content]
+>>>>>>> a6fffc3c1 (fix(py): fixed nox and serial test):py/plugins/mcp/tests/test_mcp_integration.py
 
         mock_session.call_tool.return_value = mock_result
         client.session = mock_session
@@ -252,9 +269,10 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         client = host.clients['test']
         client.session = AsyncMock()
         # Mock the client methods using patch.object to avoid type errors
-        with patch.object(client, 'close', new_callable=AsyncMock) as mock_close, \
-             patch.object(client, 'connect', new_callable=AsyncMock) as mock_connect:
-            
+        with (
+            patch.object(client, 'close', new_callable=AsyncMock) as mock_close,
+            patch.object(client, 'connect', new_callable=AsyncMock) as mock_connect,
+        ):
             # Disable
             await host.disable('test')
             self.assertTrue(client.config.disabled)
@@ -321,7 +339,7 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         from typing import cast
 
         from mcp.types import TextResourceContents
-        
+
         request = MagicMock()
         request.params.uri = 'app://config'
 >>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_integration.py
@@ -385,6 +403,7 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         from typing import cast
 
         from mcp.types import TextResourceContents
+
         for test_uri in ['file:///path/to/file.txt', 'file:///another/file.md', 'file:///deep/nested/path/doc.pdf']:
             request = ReadResourceRequest(
                 method='resources/read', params=ReadResourceRequestParams(uri=AnyUrl(test_uri))
