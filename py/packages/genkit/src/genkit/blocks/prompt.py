@@ -22,9 +22,9 @@ used with AI models in the Genkit framework. It enables consistent prompt
 generation and management across different parts of the application.
 """
 
+import asyncio
 import os
 import weakref
-from asyncio import Future
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
@@ -240,7 +240,7 @@ class ExecutablePrompt:
         timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
-        Future[GenerateResponseWrapper],
+        asyncio.Future[GenerateResponseWrapper],
     ]:
         """Streams the prompt with the given input and configuration.
 
@@ -262,7 +262,7 @@ class ExecutablePrompt:
             context=context,
             on_chunk=lambda c: stream.send(c),
         )
-        stream.set_close_future(resp)
+        stream.set_close_future(asyncio.create_task(resp))
 
         return (stream, stream.closed)
 

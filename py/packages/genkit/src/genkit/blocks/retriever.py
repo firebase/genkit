@@ -22,8 +22,9 @@ query. These documents can then be used to provide additional context to models
 to accomplish a task.
 """
 
+import inspect
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar
+from typing import Any, Awaitable, Generic, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,8 +35,8 @@ from genkit.core.schema import to_json_schema
 from genkit.core.typing import DocumentData, RetrieverResponse
 
 T = TypeVar('T')
-# type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
-RetrieverFn = Callable[[Document, T], RetrieverResponse]
+# type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse | Awaitable[RetrieverResponse]]
+RetrieverFn = Callable[[Document, T], RetrieverResponse | Awaitable[RetrieverResponse]]
 
 
 class Retriever(Generic[T]):
@@ -115,9 +116,8 @@ def retriever_action_metadata(
         retriever_metadata_dict['retriever']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
 
     retriever_metadata_dict['retriever']['customOptions'] = options.config_schema if options.config_schema else None
-
     return ActionMetadata(
-        kind=ActionKind.RETRIEVER,
+        kind=cast(ActionKind, ActionKind.RETRIEVER),
         name=name,
         input_json_schema=to_json_schema(RetrieverRequest),
         output_json_schema=to_json_schema(RetrieverResponse),
@@ -191,7 +191,7 @@ def indexer_action_metadata(
     indexer_metadata_dict['indexer']['customOptions'] = options.config_schema if options.config_schema else None
 
     return ActionMetadata(
-        kind=ActionKind.INDEXER,
+        kind=cast(ActionKind, ActionKind.INDEXER),
         name=name,
         input_json_schema=to_json_schema(IndexerRequest),
         output_json_schema=to_json_schema(None),
@@ -222,10 +222,12 @@ def define_retriever(
         request: RetrieverRequest,
         ctx: Any,
     ) -> RetrieverResponse:
-        return await fn(request.query, request.options)
+        query = Document.from_document_data(request.query)
+        res = fn(query, request.options)
+        return await res if inspect.isawaitable(res) else res
 
     registry.register_action(
-        kind=ActionKind.RETRIEVER,
+        kind=cast(ActionKind, ActionKind.RETRIEVER),
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
@@ -233,7 +235,7 @@ def define_retriever(
     )
 
 
-IndexerFn = Callable[[list[Document], T], None]
+IndexerFn = Callable[[list[Document], T], None | Awaitable[None]]
 
 
 def define_indexer(
@@ -249,11 +251,13 @@ def define_indexer(
         request: IndexerRequest,
         ctx: Any,
     ) -> None:
-        docs = [Document.from_data(d) for d in request.documents]
-        await fn(docs, request.options)
+        docs = [Document.from_document_data(d) for d in request.documents]
+        res = fn(docs, request.options)
+        if inspect.isawaitable(res):
+            await res
 
     registry.register_action(
-        kind=ActionKind.INDEXER,
+        kind=cast(ActionKind, ActionKind.INDEXER),
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
