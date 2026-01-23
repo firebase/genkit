@@ -54,4 +54,14 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/menu"]
+packages = ["src"]
+
+[tool.uv.sources]
+genkit                              = { workspace = true }
+genkit-plugin-dev-local-vectorstore = { workspace = true }
+genkit-plugin-firebase              = { workspace = true }
+genkit-plugin-google-genai          = { workspace = true }
+genkit-plugin-google-cloud          = { workspace = true }
+genkit-plugin-ollama                = { workspace = true }
+genkit-plugin-vertex-ai             = { workspace = true }
+

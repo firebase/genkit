@@ -61,7 +61,7 @@ chat_history_store = ChatHistoryStore(
 )
 
 
-@ai.flow(name='s03_multiTurnChat')
+@ai.flow(name='s03_multi_turn_chat')
 async def s03_multiTurnChatFlow(
     my_input: ChatSessionInputSchema,
 ) -> ChatSessionOutputSchema:
