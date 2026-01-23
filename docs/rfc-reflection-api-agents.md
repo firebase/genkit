@@ -153,30 +153,34 @@ Retrieves complete session data including messages, state, and artifacts.
   "createdAt": 1705968000000,
   "updatedAt": 1705968300000,
   "status": "active",
-  "messages": [
-    {
-      "role": "user",
-      "content": [{"text": "Hello!"}]
-    },
-    {
-      "role": "model",
-      "content": [{"text": "Hi! How can I help you?"}]
-    }
-  ],
   "state": {
     "currentTopic": "greeting",
-    "userPreferences": {}
+    "userPreferences": {},
+    "artifacts": [
+      {
+        "name": "summary",
+        "parts": [{"text": "Conversation summary..."}],
+        "metadata": {"generatedAt": 1705968200000}
+      }
+    ]
   },
-  "artifacts": [
-    {
-      "name": "summary",
-      "parts": [{"text": "Conversation summary..."}],
-      "metadata": {"generatedAt": 1705968200000}
-    }
-  ],
+  "threads": {
+    "main": [
+      {
+        "role": "user",
+        "content": [{"text": "Hello!"}]
+      },
+      {
+        "role": "model",
+        "content": [{"text": "Hi! How can I help you?"}]
+      }
+    ]
+  },
   "metadata": {}
 }
 ```
+
+**Note**: Messages are stored in `threads` (typically `"main"` for the primary conversation). The `state` field contains custom session state including agent-specific data like artifacts.
 
 #### E. Start Agent Conversation
 
@@ -270,11 +274,27 @@ The Genkit runtime needs to maintain a registry of defined agents, similar to ho
 
 #### B. Store Abstraction
 
-For agents with server-side stores:
+For agents with server-side stores, Genkit already provides a `SessionStore` interface:
 
-- The Reflection API should delegate to the agent's configured store for session operations
-- Stores must implement a common interface:
-  - `listSessions(agentName, options)`: List sessions with pagination
-  - `getSession(sessionId)`: Retrieve full session data
-  - `deleteSession(sessionId)`: Remove session and state
-  - `saveSession(sessionId, data)`: Update session state
+```typescript
+// From js/ai/src/session.ts
+export interface SessionStore<S = any> {
+  get(sessionId: string): Promise<SessionData<S> | undefined>;
+  save(sessionId: string, data: Omit<SessionData<S>, 'id'>): Promise<void>;
+}
+
+export interface SessionData<S = any> {
+  id: string;
+  state?: S;
+  threads?: Record<string, MessageData[]>;
+}
+```
+
+**Reflection API Integration**:
+
+- The Reflection API should leverage the existing `SessionStore` interface
+- For listing sessions, the Reflection API may need to extend the interface with:
+  - `list(options)`: List sessions with pagination (optional extension)
+  - `delete(sessionId)`: Remove session and state (optional extension)
+- Stores can implement these additional methods if they support bulk operations
+- The API will work with the core `get`/`save` methods for individual session operations
