@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 from genkit.ai import Genkit
 
@@ -24,9 +24,9 @@ from .client import McpClient, McpServerConfig
 class McpHost:
     """Host for managing multiple MCP clients."""
 
-    def __init__(self, clients: Dict[str, McpServerConfig]):
+    def __init__(self, clients: dict[str, McpServerConfig]):
         self.clients_config = clients
-        self.clients: Dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
+        self.clients: dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
 
     async def start(self):
         """Starts all enabled MCP clients."""
@@ -66,7 +66,7 @@ class McpHost:
             await client_to_reconnect.close()
             await client_to_reconnect.connect()
 
-    async def get_active_tools(self, ai: Genkit) -> List[str]:
+    async def get_active_tools(self, ai: Genkit) -> list[str]:
         """Returns a list of all active tool names from all clients."""
         active_tools = []
         for client in self.clients.values():
@@ -82,16 +82,20 @@ class McpHost:
                     pass
         return active_tools
 
-    async def get_active_resources(self, ai: Genkit) -> List[str]:
+    async def get_active_resources(self, ai: Genkit) -> list[str]:
         """Returns a list of all active resource URIs from all clients."""
         active_resources = []
         for client in self.clients.values():
             if client.session:
-                resources = await client.list_resources()
-                for resource in resources:
-                    active_resources.append(resource.uri)
+                try:
+                    resources = await client.list_resources()
+                    for resource in resources:
+                        active_resources.append(resource.uri)
+                except Exception:
+                    # Log error but continue with other clients
+                    pass
         return active_resources
 
 
-def create_mcp_host(configs: Dict[str, McpServerConfig]) -> McpHost:
+def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
     return McpHost(configs)
