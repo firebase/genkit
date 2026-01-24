@@ -115,9 +115,36 @@ class ModelGardenPlugin(Plugin):
         )
 
         if clean_name.startswith('anthropic/'):
-            from .anthropic import AnthropicModelGarden as AnthropicWorker
+            from anthropic import AsyncAnthropicVertex
+
+            from genkit.plugins.anthropic.models import AnthropicModel
+            from genkit.types import GenerationCommonConfig, ModelInfo
 
             location = self.model_locations.get(clean_name, self.location)
+            client = AsyncAnthropicVertex(region=location, project_id=self.project_id)
+
+            # Strip 'anthropic/' prefix for the model passed to Anthropic SDK
+            anthropic_model_name = clean_name.removeprefix('anthropic/')
+            anthropic_model = AnthropicModel(model_name=anthropic_model_name, client=client)
+
+            return Action(
+                kind=ActionKind.MODEL,
+                name=name,
+                fn=anthropic_model.generate,
+                metadata={
+                    'model': ModelInfo(
+                        label=f'ModelGarden - {clean_name}',
+                        supports={
+                            'multiturn': True,
+                            'media': True,
+                            'tools': True,
+                            'systemRole': True,
+                            'output': ['text', 'json'],
+                        },
+                    ).model_dump(),
+                    'customOptions': to_json_schema(GenerationCommonConfig),
+                },
+            )
             if not self.project_id:
                 raise ValueError('project_id must be provided')
             model_proxy = AnthropicWorker(
