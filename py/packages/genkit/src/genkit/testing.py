@@ -13,6 +13,7 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -111,14 +112,16 @@ class EchoModel:
             echo_resp += f' tool_choice={request.tool_choice}'
         if request.output and dump_json(request.output) != '{}':
             echo_resp += f' output={dump_json(request.output)}'
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text=echo_resp)]))
+        # NOTE: Part is a RootModel requiring root=TextPart(...) syntax.
+        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=echo_resp))]))
 
 
 def define_echo_model(ai: Genkit, name: str = 'echoModel'):
     """Defines a simple echo model that echos requests."""
     echo = EchoModel()
 
-    def model_fn(request: GenerateRequest):
+    # NOTE: model_fn requires ctx parameter to match ModelFn signature.
+    def model_fn(request: GenerateRequest, ctx: ActionRunContext):
         return echo.model_fn(request)
 
     action = ai.define_model(name=name, fn=model_fn)

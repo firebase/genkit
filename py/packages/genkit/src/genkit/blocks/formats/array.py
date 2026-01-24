@@ -66,7 +66,8 @@ class ArrayFormat(FormatDef):
         super().__init__(
             'array',
             FormatterConfig(
-                content_type='application/json',
+                # NOTE: Using camelCase alias for ty type checker compatibility.
+                contentType='application/json',
                 constrained=True,
             ),
         )
