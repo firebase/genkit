@@ -31,6 +31,7 @@ from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
 from genkit.core.plugin import Plugin
 from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.registry import Registry
 from genkit.web.manager import find_free_port_sync
 
 from ._registry import GenkitRegistry
@@ -196,7 +197,7 @@ class GenkitBase(GenkitRegistry):
                                     with urllib.request.urlopen(f'{spec.url}/api/__health', timeout=0.5) as response:
                                         return response.status == 200
 
-                                is_healthy = await anyio.to_thread.run_sync(check_health)
+                                is_healthy = await anyio.to_thread.run_sync(check_health)  # type: ignore[attr-defined]
                                 if is_healthy:
                                     break
                             except Exception:
@@ -233,7 +234,7 @@ class GenkitBase(GenkitRegistry):
         return anyio.run(dev_runner)
 
 
-def _make_reflection_server(registry: GenkitRegistry, spec: ServerSpec) -> uvicorn.Server:
+def _make_reflection_server(registry: Registry, spec: ServerSpec) -> uvicorn.Server:
     """Make a reflection server for the given registry and spec.
 
     This is a helper function to make it easier to test the reflection server

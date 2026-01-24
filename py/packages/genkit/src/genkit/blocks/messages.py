@@ -16,6 +16,8 @@
 
 """Utilities for working with messages."""
 
+from typing import Any
+
 from genkit.core.typing import (
     Message,
     Metadata,
@@ -23,6 +25,43 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
+
+
+def _get_metadata_dict(metadata: Metadata | dict[str, Any] | None) -> dict[str, Any]:
+    """Safely extracts the dict from a Metadata RootModel or returns the dict directly.
+
+    Args:
+        metadata: The metadata, which can be a Metadata RootModel, a dict, or None.
+
+    Returns:
+        The underlying dict, or an empty dict if metadata is None.
+    """
+    if metadata is None:
+        return {}
+    if isinstance(metadata, Metadata):
+        return metadata.root
+    return metadata
+
+
+def _is_output_part(part: Part, require_pending: bool = False, require_non_pending: bool = False) -> bool:
+    """Check if a part has output purpose metadata.
+
+    Args:
+        part: The part to check.
+        require_pending: If True, only match pending output parts.
+        require_non_pending: If True, only match non-pending output parts.
+
+    Returns:
+        True if the part matches the criteria.
+    """
+    metadata_dict = _get_metadata_dict(part.root.metadata)
+    if metadata_dict.get('purpose') != 'output':
+        return False
+    if require_pending:
+        return metadata_dict.get('pending', False) is True
+    if require_non_pending:
+        return not metadata_dict.get('pending', False)
+    return True
 
 
 def inject_instructions(messages: list[Message], instructions: str) -> list[Message]:
@@ -56,35 +95,17 @@ def inject_instructions(messages: list[Message], instructions: str) -> list[Mess
         return messages
 
     # bail out if a non-pending output part is already present
-    if any(
-        any(
-            part.root.metadata
-            and 'purpose' in part.root.metadata.root
-            and part.root.metadata.root['purpose'] == 'output'
-            and ('pending' not in part.root.metadata.root or not part.root.metadata.root['pending'])
-            for part in message.content
-        )
-        for message in messages
-    ):
+    if any(any(_is_output_part(part, require_non_pending=True) for part in message.content) for message in messages):
         return messages
 
     new_part = Part(TextPart(text=instructions, metadata=Metadata({'purpose': 'output'})))
 
-    # find first message with purpose=output
+    # find first message with purpose=output and pending=True
     target_index = next(
         (
             i
             for i, message in enumerate(messages)
-            if any(
-                (
-                    part.root.metadata
-                    and 'purpose' in part.root.metadata.root
-                    and part.root.metadata.root['purpose'] == 'output'
-                    and 'pending' in part.root.metadata.root
-                    and part.root.metadata.root['pending']
-                )
-                for part in message.content
-            )
+            if any(_is_output_part(part, require_pending=True) for part in message.content)
         ),
         -1,  # Default to -1 if not found
     )
@@ -109,15 +130,7 @@ def inject_instructions(messages: list[Message], instructions: str) -> list[Mess
     )
 
     part_index = next(
-        (
-            i
-            for i, part in enumerate(m.content)
-            if part.root.metadata
-            and 'purpose' in part.root.metadata.root
-            and part.root.metadata.root['purpose'] == 'output'
-            and 'pending' in part.root.metadata.root
-            and part.root.metadata.root['pending']
-        ),
+        (i for i, part in enumerate(m.content) if _is_output_part(part, require_pending=True)),
         -1,  # Default to -1 if not found
     )
     if part_index >= 0:

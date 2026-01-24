@@ -30,9 +30,9 @@ Example:
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from functools import cached_property
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, Field
 
@@ -47,9 +47,14 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
+    Media,
+    MediaModel,
+    MediaPart,
     Message,
     ModelInfo,
     Part,
+    Text,
+    TextPart,
     ToolRequestPart,
 )
 
@@ -146,8 +151,10 @@ class GenerateResponseWrapper(GenerateResponse):
     `assert_valid_schema`). It also handles optional message/chunk parsing.
     """
 
-    message_parser: MessageParser | None = Field(exclude=True)
-    message: MessageWrapper = None
+    # Field(exclude=True) means this field is not included in serialization
+    message_parser: MessageParser | None = Field(None, exclude=True)
+    # Override the parent's message field with our wrapper type
+    message: MessageWrapper | None = None
 
     def __init__(
         self,
@@ -162,19 +169,30 @@ class GenerateResponseWrapper(GenerateResponse):
             request: The GenerateRequest object associated with the response.
             message_parser: An optional function to parse the output from the message.
         """
+        # Wrap the message if it's not already a MessageWrapper
+        wrapped_message: MessageWrapper | None = None
+        if response.message is not None:
+            wrapped_message = (
+                MessageWrapper(response.message)
+                if not isinstance(response.message, MessageWrapper)
+                else response.message
+            )
+
+        # GenerateResponse uses camelCase aliases. Due to extra='forbid', we must
+        # use the alias names for ty type checker compatibility. The model has
+        # populate_by_name=True, so both aliases and Python names work at runtime.
         super().__init__(
-            message=MessageWrapper(response.message)
-            if not isinstance(response.message, MessageWrapper)
-            else response.message,
-            finish_reason=response.finish_reason,
-            finish_message=response.finish_message,
-            latency_ms=response.latency_ms,
+            message=wrapped_message,
+            finishReason=response.finish_reason,
+            finishMessage=response.finish_message,
+            latencyMs=response.latency_ms,
             usage=response.usage if response.usage is not None else GenerationUsage(),
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
-            message_parser=message_parser,
         )
+        # Set subclass-specific field after parent initialization
+        self.message_parser = message_parser
 
     def assert_valid(self):
         """Validates the basic structure of the response.
@@ -205,6 +223,8 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             str: The combined text content from the response.
         """
+        if self.message is None:
+            return ''
         return self.message.text
 
     @cached_property
@@ -225,6 +245,8 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             list[Message]: list of messages.
         """
+        if self.message is None:
+            return list(self.request.messages) if self.request else []
         return [
             *(self.request.messages if self.request else []),
             self.message._original_message,
@@ -237,6 +259,8 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             list[ToolRequestPart]: list of tool requests present in this response.
         """
+        if self.message is None:
+            return []
         return self.message.tool_requests
 
     @cached_property
@@ -246,6 +270,8 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             list[ToolRequestPart]: list of interrupted tool requests.
         """
+        if self.message is None:
+            return []
         return self.message.interrupts
 
 
@@ -258,8 +284,9 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
     output from the accumulated text (`output`). It also stores previous chunks.
     """
 
-    previous_chunks: list[GenerateResponseChunk] = Field(exclude=True)
-    chunk_parser: ChunkParser | None = Field(exclude=True)
+    # Field(exclude=True) means these fields are not included in serialization
+    previous_chunks: list[GenerateResponseChunk] = Field(default_factory=list, exclude=True)
+    chunk_parser: ChunkParser | None = Field(None, exclude=True)
 
     def __init__(
         self,
@@ -282,9 +309,10 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
             content=chunk.content,
             custom=chunk.custom,
             aggregated=chunk.aggregated,
-            previous_chunks=previous_chunks,
-            chunk_parser=chunk_parser,
         )
+        # Set subclass-specific fields after parent initialization
+        self.previous_chunks = previous_chunks
+        self.chunk_parser = chunk_parser
 
     @cached_property
     def text(self) -> str:
@@ -293,7 +321,16 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         Returns:
             str: The combined text content from the current chunk.
         """
-        return ''.join(p.root.text if p.root.text is not None else '' for p in self.content)
+        parts: list[str] = []
+        for p in self.content:
+            text_val = p.root.text
+            if text_val is not None:
+                # Handle Text RootModel (access .root) or plain str
+                if isinstance(text_val, Text):
+                    parts.append(str(text_val.root) if text_val.root is not None else '')
+                else:
+                    parts.append(str(text_val))
+        return ''.join(parts)
 
     @cached_property
     def accumulated_text(self) -> str:
@@ -302,13 +339,18 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         Returns:
             str: The combined text content from all chunks seen so far.
         """
-        atext = ''
+        parts: list[str] = []
         if self.previous_chunks:
             for chunk in self.previous_chunks:
                 for p in chunk.content:
-                    if p.root.text:
-                        atext += p.root.text
-        return atext + self.text
+                    text_val = p.root.text
+                    if text_val:
+                        # Handle Text RootModel (access .root) or plain str
+                        if isinstance(text_val, Text):
+                            parts.append(str(text_val.root) if text_val.root is not None else '')
+                        else:
+                            parts.append(str(text_val))
+        return ''.join(parts) + self.text
 
     @cached_property
     def output(self) -> Any:
@@ -350,19 +392,16 @@ def text_from_message(msg: Message) -> str:
     return text_from_content(msg.content)
 
 
-def text_from_content(content: list[Part]) -> str:
-    """Extracts and concatenates text content from a list of Parts.
+def text_from_content(content: Sequence[Part | DocumentPart]) -> str:
+    """Extracts and concatenates text content from a list of Parts or DocumentParts.
 
     Args:
-        content: A list of Part objects.
+        content: A sequence of Part or DocumentPart objects.
 
     Returns:
         A single string containing all text found in the parts.
     """
-    return ''.join(
-        p.root.text if (isinstance(p, Part) or isinstance(p, DocumentPart)) and p.root.text is not None else ''
-        for p in content
-    )
+    return ''.join(str(p.root.text) for p in content if hasattr(p.root, 'text') and p.root.text is not None)
 
 
 def get_basic_usage_stats(input_: list[Message], response: Message | list[Candidate]) -> GenerationUsage:
@@ -392,15 +431,18 @@ def get_basic_usage_stats(input_: list[Message], response: Message | list[Candid
     input_counts = get_part_counts(parts=request_parts)
     output_counts = get_part_counts(parts=response_parts)
 
+    # GenerationUsage uses camelCase aliases. Due to extra='forbid', we must
+    # use the alias names for ty type checker compatibility. The model has
+    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerationUsage(
-        input_characters=input_counts.characters,
-        input_images=input_counts.images,
-        input_videos=input_counts.videos,
-        input_audio_files=input_counts.audio,
-        output_characters=output_counts.characters,
-        output_images=output_counts.images,
-        output_videos=output_counts.videos,
-        output_audio_files=output_counts.audio,
+        inputCharacters=input_counts.characters,
+        inputImages=input_counts.images,
+        inputVideos=input_counts.videos,
+        inputAudioFiles=input_counts.audio,
+        outputCharacters=output_counts.characters,
+        outputImages=output_counts.images,
+        outputVideos=output_counts.videos,
+        outputAudioFiles=output_counts.audio,
     )
 
 
@@ -419,13 +461,27 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
     part_counts = PartCounts()
 
     for part in parts:
-        part_counts.characters += len(part.root.text) if part.root.text else 0
+        text_val = part.root.text
+        if text_val:
+            # Handle Text RootModel (access .root) or plain str
+            if isinstance(text_val, Text):
+                part_counts.characters += len(str(text_val.root)) if text_val.root else 0
+            else:
+                part_counts.characters += len(str(text_val))
 
         media = part.root.media
 
         if media:
-            content_type = media.content_type or ''
-            url = media.url or ''
+            # Handle Media BaseModel vs MediaModel RootModel
+            if isinstance(media, Media):
+                content_type = media.content_type or ''
+                url = media.url or ''
+            elif isinstance(media, MediaModel) and hasattr(media.root, 'content_type'):
+                content_type = getattr(media.root, 'content_type', '') or ''
+                url = getattr(media.root, 'url', '') or ''
+            else:
+                content_type = ''
+                url = ''
             is_image = content_type.startswith('image') or url.startswith('data:image')
             is_video = content_type.startswith('video') or url.startswith('data:video')
             is_audio = content_type.startswith('audio') or url.startswith('data:audio')
@@ -445,7 +501,7 @@ def model_action_metadata(
     """Generates an ActionMetadata for models."""
     info = info if info is not None else {}
     return ActionMetadata(
-        kind=ActionKind.MODEL,
+        kind=cast(ActionKind, ActionKind.MODEL),
         name=name,
         input_json_schema=to_json_schema(GenerateRequest),
         output_json_schema=to_json_schema(GenerateResponse),

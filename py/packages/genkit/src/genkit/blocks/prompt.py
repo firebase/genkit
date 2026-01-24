@@ -27,7 +27,7 @@ import os
 import weakref
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from dotpromptz.typing import (
@@ -65,7 +65,9 @@ from genkit.core.typing import (
     Part,
     Resume,
     Role,
+    TextPart,
     ToolChoice,
+    ToolResponsePart,
 )
 
 logger = structlog.get_logger(__name__)
@@ -118,14 +120,14 @@ class ExecutablePrompt:
         model: str | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         description: str | None = None,
-        input_schema: type | dict[str, Any] | None = None,
+        input_schema: type | dict[str, Any] | str | None = None,
         system: str | Part | list[Part] | Callable | None = None,
         prompt: str | Part | list[Part] | Callable | None = None,
         messages: str | list[Message] | Callable | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, Any] | None = None,
+        output_schema: type | dict[str, Any] | str | None = None,
         output_constrained: bool | None = None,
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
@@ -309,15 +311,17 @@ class ExecutablePrompt:
         if model is None:
             raise Exception('No model configured.')
         resolved_msgs: list[Message] = []
+        # Use input or {} to convert None to empty dict for render functions
+        render_input = input or {}
         if options.system:
-            result = await render_system_prompt(self._registry, input, options, self._cache_prompt, context)
+            result = await render_system_prompt(self._registry, render_input, options, self._cache_prompt, context)
             resolved_msgs.append(result)
         if options.messages:
             resolved_msgs.extend(
-                await render_message_prompt(self._registry, input, options, self._cache_prompt, context)
+                await render_message_prompt(self._registry, render_input, options, self._cache_prompt, context)
             )
         if options.prompt:
-            result = await render_user_prompt(self._registry, input, options, self._cache_prompt, context)
+            result = await render_user_prompt(self._registry, render_input, options, self._cache_prompt, context)
             resolved_msgs.append(result)
 
         # If is schema is set but format is not explicitly set, default to
@@ -341,18 +345,27 @@ class ExecutablePrompt:
 
         resume = None
         if options.tool_responses:
-            resume = Resume(respond=[r.root for r in options.tool_responses])
+            # Filter for only ToolResponsePart instances
+            tool_response_parts = [
+                r.root for r in options.tool_responses
+                if isinstance(r.root, ToolResponsePart)
+            ]
+            if tool_response_parts:
+                resume = Resume(respond=tool_response_parts)
 
+        # GenerateActionOptions uses camelCase aliases. Due to extra='forbid', we must
+        # use the alias names for ty type checker compatibility. The models have
+        # populate_by_name=True, so both aliases and Python names work at runtime.
         return GenerateActionOptions(
             model=model,
             messages=resolved_msgs,
             config=options.config,
             tools=options.tools,
-            return_tool_requests=options.return_tool_requests,
-            tool_choice=options.tool_choice,
+            returnToolRequests=options.return_tool_requests,
+            toolChoice=options.tool_choice,
             output=output,
-            max_turns=options.max_turns,
-            docs=await render_docs(input, options, context),
+            maxTurns=options.max_turns,
+            docs=await render_docs(render_input, options, context),
             resume=resume,
         )
 
@@ -487,14 +500,14 @@ def define_prompt(
 
         action_name = registry_definition_key(name, variant)
         prompt_action = registry.register_action(
-            kind=ActionKind.PROMPT,
+            kind=cast(ActionKind, ActionKind.PROMPT),
             name=action_name,
             fn=prompt_action_fn,
             metadata=action_metadata,
         )
 
         executable_prompt_action = registry.register_action(
-            kind=ActionKind.EXECUTABLE_PROMPT,
+            kind=cast(ActionKind, ActionKind.EXECUTABLE_PROMPT),
             name=action_name,
             fn=executable_prompt_action_fn,
             metadata=action_metadata,
@@ -502,8 +515,9 @@ def define_prompt(
 
         # Link them
         executable_prompt._prompt_action = prompt_action
-        prompt_action._executable_prompt = weakref.ref(executable_prompt)
-        executable_prompt_action._executable_prompt = weakref.ref(executable_prompt)
+        # Dynamic attributes set at runtime - type: ignore for Action objects
+        prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
+        executable_prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
 
     return executable_prompt
 
@@ -524,13 +538,15 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     cache = PromptCache()
     resolved_msgs: list[Message] = []
+    # Use empty dict instead of None for render functions
+    render_input: dict[str, Any] = {}
     if options.system:
-        result = await render_system_prompt(registry, None, options, cache)
+        result = await render_system_prompt(registry, render_input, options, cache)
         resolved_msgs.append(result)
     if options.messages:
-        resolved_msgs.extend(await render_message_prompt(registry, None, options, cache))
+        resolved_msgs.extend(await render_message_prompt(registry, render_input, options, cache))
     if options.prompt:
-        result = await render_user_prompt(registry, None, options, cache)
+        result = await render_user_prompt(registry, render_input, options, cache)
         resolved_msgs.append(result)
 
     # If is schema is set but format is not explicitly set, default to
@@ -565,18 +581,27 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     resume = None
     if options.tool_responses:
-        resume = Resume(respond=[r.root for r in options.tool_responses])
+        # Filter for only ToolResponsePart instances
+        tool_response_parts = [
+            r.root for r in options.tool_responses
+            if isinstance(r.root, ToolResponsePart)
+        ]
+        if tool_response_parts:
+            resume = Resume(respond=tool_response_parts)
 
+    # GenerateActionOptions uses camelCase aliases. Due to extra='forbid', we must
+    # use the alias names for ty type checker compatibility. The models have
+    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerateActionOptions(
         model=model,
         messages=resolved_msgs,
         config=options.config,
         tools=options.tools,
-        return_tool_requests=options.return_tool_requests,
-        tool_choice=options.tool_choice,
+        returnToolRequests=options.return_tool_requests,
+        toolChoice=options.tool_choice,
         output=output,
-        max_turns=options.max_turns,
-        docs=await render_docs(None, options),
+        maxTurns=options.max_turns,
+        docs=await render_docs(render_input, options),
         resume=resume,
     )
 
@@ -605,7 +630,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
     tools: list[Action] = []
     if options.tools:
         for tool_name in options.tools:
-            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
+            tool_action = await registry.resolve_action(cast(ActionKind, ActionKind.TOOL), tool_name)
             if tool_action is None:
                 raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
@@ -618,16 +643,19 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
             message='at least one message is required in generate request',
         )
 
+    # GenerateRequest and OutputConfig use camelCase aliases. Due to extra='forbid', we must
+    # use the alias names for ty type checker compatibility. The models have
+    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerateRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
         docs=options.docs,
         tools=tool_defs,
-        tool_choice=options.tool_choice,
+        toolChoice=options.tool_choice,
         output=OutputConfig(
-            content_type=options.output.content_type if options.output else None,
+            contentType=options.output.content_type if options.output else None,
             format=options.output.format if options.output else None,
-            schema_=options.output.json_schema if options.output else None,
+            schema=options.output.json_schema if options.output else None,
             constrained=options.output.constrained if options.output else None,
         ),
     )
@@ -635,7 +663,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
 
 def _normalize_prompt_arg(
     prompt: str | Part | list[Part] | None,
-) -> list[Part] | None:
+) -> list[Part]:
     """Normalizes different prompt input types into a list of Parts.
 
     Ensures that the prompt content, whether provided as a string, a single Part,
@@ -646,17 +674,20 @@ def _normalize_prompt_arg(
             or None.
 
     Returns:
-        A list containing the normalized Part(s), or None if the input `prompt`
-        was None.
+        A list containing the normalized Part(s). Returns empty list if input is None
+        or empty.
     """
     if not prompt:
-        return None
+        return []
     if isinstance(prompt, str):
-        return [Part(text=prompt)]
-    elif hasattr(prompt, '__len__'):
+        # Part is a RootModel, so we pass content via 'root' parameter
+        return [Part(root=TextPart(text=prompt))]
+    elif isinstance(prompt, list):
         return prompt
-    else:
+    elif isinstance(prompt, Part):
         return [prompt]
+    else:
+        return []
 
 
 async def render_system_prompt(
@@ -693,12 +724,15 @@ async def render_system_prompt(
         return Message(
             role=Role.SYSTEM,
             content=await render_dotprompt_to_parts(
-                context,
+                context or {},
                 prompt_cache.system,
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
+                        # NOTE: dotpromptz PromptInputConfig uses schema_ with alias='schema'.
+                        # The type checker doesn't recognize 'schema=' as valid, but it works
+                        # at runtime due to Pydantic's populate_by_name=True.
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
                     )
                 ),
             ),
@@ -800,18 +834,21 @@ async def render_message_prompt(
             ),
             options=PromptMetadata(
                 input=PromptInputConfig(
-                    schema=to_json_schema(options.input_schema) if options.input_schema else None,
+                    # NOTE: dotpromptz PromptInputConfig uses schema_ with alias='schema'.
+                    # The type checker doesn't recognize 'schema=' as valid, but it works
+                    # at runtime due to Pydantic's populate_by_name=True.
+                    schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
                 )
             ),
         )
         return [Message.model_validate(e.model_dump()) for e in rendered.messages]
 
     elif isinstance(options.messages, list):
-        return options.messages
+        return cast(list[Message], options.messages)
 
     elif callable(options.messages):
         resolved = await ensure_async(options.messages)(input, context)
-        return resolved
+        return list(resolved) if resolved else []
 
     raise TypeError(f'Unsupported type for messages: {type(options.messages)}')
 
@@ -850,12 +887,15 @@ async def render_user_prompt(
         return Message(
             role=Role.USER,
             content=await render_dotprompt_to_parts(
-                context,
+                context or {},
                 prompt_cache.user_prompt,
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
+                        # NOTE: dotpromptz PromptInputConfig uses schema_ with alias='schema'.
+                        # The type checker doesn't recognize 'schema=' as valid, but it works
+                        # at runtime due to Pydantic's populate_by_name=True.
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
                     )
                 ),
             ),
@@ -1166,7 +1206,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             executable_prompt._prompt_action = prompt_action
             # Also store ExecutablePrompt reference on the action
             # prompt_action._executable_prompt = executable_prompt
-            prompt_action._executable_prompt = weakref.ref(executable_prompt)
+            prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
 
         return executable_prompt
 
@@ -1211,7 +1251,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     # not the full lookup key (e.g., "/prompt/dotprompt/testPrompt")
     action_name = registry_definition_key(name, variant, ns)
     prompt_action = registry.register_action(
-        kind=ActionKind.PROMPT,
+        kind=cast(ActionKind, ActionKind.PROMPT),
         name=action_name,
         fn=prompt_action_fn,
         metadata=action_metadata,
@@ -1219,15 +1259,15 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Register the EXECUTABLE_PROMPT action
     executable_prompt_action = registry.register_action(
-        kind=ActionKind.EXECUTABLE_PROMPT,
+        kind=cast(ActionKind, ActionKind.EXECUTABLE_PROMPT),
         name=action_name,
         fn=executable_prompt_action_fn,
         metadata=action_metadata,
     )
 
     # Store the factory function on both actions for easy access
-    prompt_action._async_factory = create_prompt_from_file
-    executable_prompt_action._async_factory = create_prompt_from_file
+    prompt_action._async_factory = create_prompt_from_file  # type: ignore[attr-defined]
+    executable_prompt_action._async_factory = create_prompt_from_file  # type: ignore[attr-defined]
 
     # Store ExecutablePrompt reference on actions
     # This will be set when the prompt is first accessed (lazy loading)
@@ -1324,27 +1364,31 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
     # Try without namespace first (for programmatic prompts)
     # Use create_action_key to build the full key: "/prompt/<definition_key>"
     definition_key = registry_definition_key(name, variant, None)
-    lookup_key = create_action_key(ActionKind.PROMPT, definition_key)
+    lookup_key = create_action_key(cast(ActionKind, ActionKind.PROMPT), definition_key)
     action = await registry.resolve_action_by_key(lookup_key)
 
     # If not found and no namespace was specified, try with default 'dotprompt' namespace
     # (for file-based prompts)
     if not action:
         definition_key = registry_definition_key(name, variant, 'dotprompt')
-        lookup_key = create_action_key(ActionKind.PROMPT, definition_key)
+        lookup_key = create_action_key(cast(ActionKind, ActionKind.PROMPT), definition_key)
         action = await registry.resolve_action_by_key(lookup_key)
 
     if action:
         # First check if we've stored the ExecutablePrompt directly
         if hasattr(action, '_executable_prompt') and action._executable_prompt is not None:
-            return action._executable_prompt
+            ref = action._executable_prompt
+            # If it's a weakref, dereference it
+            if hasattr(ref, '__call__') and callable(ref):
+                return ref()  # type: ignore[no-any-return]
+            return ref  # type: ignore[no-any-return]
         elif hasattr(action, '_async_factory'):
             # Otherwise, create it from the factory (lazy loading)
             # This will also set _executable_prompt on the action for future lookups
-            executable_prompt = await action._async_factory()
+            executable_prompt = await action._async_factory()  # type: ignore[attr-defined]
             # Store it on the action for future lookups (if not already stored)
             if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:
-                action._executable_prompt = executable_prompt
+                action._executable_prompt = executable_prompt  # type: ignore[attr-defined]
             return executable_prompt
         else:
             # Fallback: try to get from metadata
@@ -1353,7 +1397,7 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
                 executable_prompt = await factory()
                 # Store it on the action for future lookups
                 if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:
-                    action._executable_prompt = executable_prompt
+                    action._executable_prompt = executable_prompt  # type: ignore[attr-defined]
                 return executable_prompt
             # Last resort: this shouldn't happen if prompts are loaded correctly
             raise GenkitError(

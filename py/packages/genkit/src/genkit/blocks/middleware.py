@@ -29,6 +29,7 @@ from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     Message,
+    Metadata,
     Part,
     TextPart,
 )
@@ -72,7 +73,7 @@ def augment_with_context() -> ModelMiddleware:
         req: GenerateRequest,
         ctx: ActionRunContext,
         next_middleware: ModelMiddlewareNext,
-    ) -> Awaitable[GenerateResponse]:
+    ) -> GenerateResponse:
         """The actual middleware logic to inject context.
 
         Checks for documents in the request. If found, locates the last user message.
@@ -97,14 +98,18 @@ def augment_with_context() -> ModelMiddleware:
 
         context_part_index = -1
         for i, part in enumerate(user_message.content):
-            if part.root.metadata and part.root.metadata.root.get('purpose') == 'context':
+            # Access metadata safely through RootModel
+            part_metadata = part.root.metadata
+            if isinstance(part_metadata, Metadata) and part_metadata.root.get('purpose') == 'context':
                 context_part_index = i
                 break
 
         context_part = user_message.content[context_part_index] if context_part_index >= 0 else None
 
-        if context_part and not context_part.root.metadata.root.get('pending'):
-            return await next_middleware(req, ctx)
+        if context_part:
+            metadata = context_part.root.metadata
+            if not (isinstance(metadata, Metadata) and metadata.root.get('pending')):
+                return await next_middleware(req, ctx)
 
         out = CONTEXT_PREFACE
         for i, doc_data in enumerate(req.docs):
@@ -112,7 +117,7 @@ def augment_with_context() -> ModelMiddleware:
             out += context_item_template(doc, i)
         out += '\n'
 
-        text_part = Part(root=TextPart(text=out, metadata={'purpose': 'context'}))
+        text_part = Part(root=TextPart(text=out, metadata=Metadata(root={'purpose': 'context'})))
         if context_part_index >= 0:
             user_message.content[context_part_index] = text_part
         else:
