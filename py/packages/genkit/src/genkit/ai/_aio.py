@@ -20,11 +20,11 @@ To use Genkit in your application, construct an instance of the `Genkit`
 class while customizing it with any plugins.
 """
 
+import asyncio
 import uuid
-from asyncio import Future
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from genkit.aio import Channel
 from genkit.blocks.document import Document
@@ -253,7 +253,7 @@ class Genkit(GenkitBase):
         messages: list[Message] | None = None,
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
-        tool_choice: ToolChoice = None,
+        tool_choice: ToolChoice | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         max_turns: int | None = None,
         context: dict[str, Any] | None = None,
@@ -268,7 +268,7 @@ class Genkit(GenkitBase):
         timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
-        Future[GenerateResponseWrapper],
+        asyncio.Future[GenerateResponseWrapper],
     ]:
         """Streams generated text or structured data using a language model.
 
@@ -351,7 +351,7 @@ class Genkit(GenkitBase):
             use=use,
             on_chunk=lambda c: stream.send(c),
         )
-        stream.set_close_future(resp)
+        stream.set_close_future(asyncio.create_task(resp))
 
         return stream, stream.closed
 
@@ -389,9 +389,12 @@ class Genkit(GenkitBase):
 
         request_options = {**(retriever_config or {}), **(options or {})}
 
-        retrieve_action = await self.registry.resolve_action(ActionKind.RETRIEVER, retriever_name)
+        retrieve_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.RETRIEVER), retriever_name)
         if retrieve_action is None:
             raise ValueError(f'Retriever "{retriever_name}" not found')
+
+        if query is None:
+            raise ValueError('Query must be specified for retrieval.')
 
         return (
             await retrieve_action.arun(
@@ -430,13 +433,18 @@ class Genkit(GenkitBase):
 
         req_options = {**(indexer_config or {}), **(options or {})}
 
-        index_action = await self.registry.resolve_action(ActionKind.INDEXER, indexer_name)
+        index_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.INDEXER), indexer_name)
         if index_action is None:
             raise ValueError(f'Indexer "{indexer_name}" not found')
 
+        if documents is None:
+            raise ValueError('Documents must be specified for indexing.')
+
         await index_action.arun(
             IndexerRequest(
-                documents=documents,
+                # Document subclasses DocumentData, so this is type-safe at runtime.
+                # The type checker doesn't recognize the subclass relationship here.
+                documents=documents,  # type: ignore[arg-type]
                 options=req_options if req_options else None,
             )
         )
@@ -464,11 +472,16 @@ class Genkit(GenkitBase):
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}
 
-        embed_action = await self.registry.resolve_action(ActionKind.EMBEDDER, embedder_name)
+        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
-        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response
+        if documents is None:
+            raise ValueError('Documents must be specified for embedding.')
+
+        # Document subclasses DocumentData, so this is type-safe at runtime.
+        # The type checker doesn't recognize the subclass relationship here.
+        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response  # type: ignore[arg-type]
 
     async def evaluate(
         self,
@@ -501,19 +514,25 @@ class Genkit(GenkitBase):
 
         final_options = {**(evaluator_config or {}), **(options or {})}
 
-        eval_action = await self.registry.resolve_action(ActionKind.EVALUATOR, evaluator_name)
+        eval_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EVALUATOR), evaluator_name)
         if eval_action is None:
             raise ValueError(f'Evaluator "{evaluator_name}" not found')
 
         if not eval_run_id:
             eval_run_id = str(uuid.uuid4())
 
+        if dataset is None:
+            raise ValueError('Dataset must be specified for evaluation.')
+
         return (
             await eval_action.arun(
+                # NOTE: Using camelCase alias (evalRunId) because Pydantic models
+                # have populate_by_name=True. The ty type checker only recognizes
+                # aliases, so we use them to pass both ty check and runtime.
                 EvalRequest(
                     dataset=dataset,
                     options=final_options,
-                    eval_run_id=eval_run_id,
+                    evalRunId=eval_run_id,
                 )
             )
         ).response

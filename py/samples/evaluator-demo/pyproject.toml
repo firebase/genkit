@@ -16,7 +16,13 @@
 
 [project]
 authors         = [{ name = "Google" }]
-dependencies    = ["genkit", "pydantic>=2.0.0", "structlog>=24.0.0", "pypdf"]
+dependencies    = [
+    "genkit",
+    "pydantic>=2.0.0",
+    "structlog>=24.0.0",
+    "pypdf",
+    "uvloop>=0.22.1",
+]
 description     = "Genkit Python Evaluation Demo"
 name            = "eval-demo"
 requires-python = ">=3.10"

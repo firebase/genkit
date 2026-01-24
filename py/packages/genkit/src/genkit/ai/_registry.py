@@ -43,7 +43,7 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from genkit.blocks.resource import ResourceFn, ResourceOptions
@@ -144,11 +144,11 @@ class GenkitRegistry:
             Returns:
                 The wrapped function that executes the flow.
             """
-            flow_name = name if name is not None else func.__name__
+            flow_name = name if name is not None else getattr(func, '__name__', 'unnamed_flow')
             flow_description = get_func_description(func, description)
             action = self.registry.register_action(
                 name=flow_name,
-                kind=ActionKind.FLOW,
+                kind=cast(ActionKind, ActionKind.FLOW),
                 fn=func,
                 description=flow_description,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
@@ -257,7 +257,7 @@ class GenkitRegistry:
             Returns:
                 The wrapped function that executes the tool.
             """
-            tool_name = name if name is not None else func.__name__
+            tool_name = name if name is not None else getattr(func, '__name__', 'unnamed_tool')
             tool_description = get_func_description(func, description)
 
             input_spec = inspect.getfullargspec(func)
@@ -275,7 +275,7 @@ class GenkitRegistry:
 
             action = self.registry.register_action(
                 name=tool_name,
-                kind=ActionKind.TOOL,
+                kind=cast(ActionKind, ActionKind.TOOL),
                 description=tool_description,
                 fn=tool_fn_wrapper,
                 metadata_fn=func,
@@ -315,10 +315,10 @@ class GenkitRegistry:
         self,
         name: str,
         fn: RetrieverFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define a retriever action.
 
         Args:
@@ -339,7 +339,7 @@ class GenkitRegistry:
         retriever_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.RETRIEVER,
+            kind=cast(ActionKind, ActionKind.RETRIEVER),
             fn=fn,
             metadata=retriever_meta,
             description=retriever_description,
@@ -349,10 +349,10 @@ class GenkitRegistry:
         self,
         name: str,
         fn: IndexerFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define an indexer action.
 
         Args:
@@ -374,7 +374,7 @@ class GenkitRegistry:
         indexer_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.INDEXER,
+            kind=cast(ActionKind, ActionKind.INDEXER),
             fn=fn,
             metadata=indexer_meta,
             description=indexer_description,
@@ -384,7 +384,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: RerankerFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
@@ -425,8 +425,11 @@ class GenkitRegistry:
             self.registry,
             name=name,
             fn=fn,
+            # NOTE: Using camelCase alias (configSchema) because Pydantic models
+            # have populate_by_name=True. The ty type checker only recognizes
+            # aliases, so we use them to pass both ty check and runtime.
             options=RerankerOptions(
-                config_schema=reranker_meta['reranker'].get('customOptions'),
+                configSchema=reranker_meta['reranker'].get('customOptions'),
                 label=reranker_meta['reranker'].get('label'),
             ),
             description=reranker_description,
@@ -482,7 +485,7 @@ class GenkitRegistry:
         definition: str,
         fn: EvaluatorFn,
         is_billed: bool = False,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
@@ -544,13 +547,18 @@ class GenkitRegistry:
                                 logger.debug(traceback.format_exc())
                                 evaluation = Score(
                                     error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
-                                    status=EvalStatusEnum.FAIL,
+                                    status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                                 )
                                 eval_responses.append(
+                                    # NOTE: Using camelCase aliases (spanId, traceId, testCaseId)
+                                    # because all Pydantic models have populate_by_name=True.
+                                    # This allows both Python attribute names and aliases at runtime.
+                                    # The ty type checker only recognizes aliases, so we use them
+                                    # to pass both ty check and runtime validation.
                                     EvalFnResponse(
-                                        span_id=span_id,
-                                        trace_id=trace_id,
-                                        test_case_id=datapoint.test_case_id,
+                                        spanId=span_id,
+                                        traceId=trace_id,
+                                        testCaseId=datapoint.test_case_id,
                                         evaluation=evaluation,
                                     )
                                 )
@@ -566,11 +574,13 @@ class GenkitRegistry:
                             logger.debug(traceback.format_exc())
                             evaluation = Score(
                                 error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
-                                status=EvalStatusEnum.FAIL,
+                                status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                             )
                             eval_responses.append(
+                                # NOTE: Using camelCase alias (testCaseId) for ty check.
+                                # See comment above for full explanation.
                                 EvalFnResponse(
-                                    test_case_id=datapoint.test_case_id,
+                                    testCaseId=datapoint.test_case_id,
                                     evaluation=evaluation,
                                 )
                             )
@@ -581,7 +591,7 @@ class GenkitRegistry:
 
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.EVALUATOR,
+            kind=cast(ActionKind, ActionKind.EVALUATOR),
             fn=eval_stepper_fn,
             metadata=evaluator_meta,
             description=evaluator_description,
@@ -594,10 +604,10 @@ class GenkitRegistry:
         definition: str,
         fn: BatchEvaluatorFn,
         is_billed: bool = False,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define a batch evaluator action.
 
         This action runs the callback function on the entire dataset.
@@ -627,7 +637,7 @@ class GenkitRegistry:
         evaluator_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.EVALUATOR,
+            kind=cast(ActionKind, ActionKind.EVALUATOR),
             fn=fn,
             metadata=evaluator_meta,
             description=evaluator_description,
@@ -666,7 +676,7 @@ class GenkitRegistry:
         model_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.MODEL,
+            kind=cast(ActionKind, ActionKind.MODEL),
             fn=fn,
             metadata=model_meta,
             description=model_description,
@@ -706,7 +716,7 @@ class GenkitRegistry:
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.EMBEDDER,
+            kind=cast(ActionKind, ActionKind.EMBEDDER),
             fn=fn,
             metadata=embedder_meta,
             description=embedder_description,
