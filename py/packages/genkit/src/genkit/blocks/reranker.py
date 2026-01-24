@@ -122,7 +122,7 @@ You can define custom rerankers for specific use cases:
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -265,7 +265,7 @@ def reranker_action_metadata(
     reranker_metadata_dict['reranker']['customOptions'] = options.config_schema if options.config_schema else None
 
     return ActionMetadata(
-        kind=ActionKind.RERANKER,
+        kind=cast(ActionKind, ActionKind.RERANKER),
         name=name,
         input_json_schema=to_json_schema(RerankerRequest),
         output_json_schema=to_json_schema(RerankerResponse),
@@ -339,7 +339,7 @@ def define_reranker(
         return await fn(query_doc, documents, request.options)
 
     return registry.register_action(
-        kind=ActionKind.RERANKER,
+        kind=cast(ActionKind, ActionKind.RERANKER),
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
@@ -411,9 +411,9 @@ async def rerank(
     reranker_action: Action | None = None
 
     if isinstance(params.reranker, str):
-        reranker_action = await registry.resolve_action(ActionKind.RERANKER, params.reranker)
+        reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker)
     elif isinstance(params.reranker, RerankerRef):
-        reranker_action = await registry.resolve_action(ActionKind.RERANKER, params.reranker.name)
+        reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker.name)
     elif isinstance(params.reranker, Action):
         reranker_action = params.reranker
 

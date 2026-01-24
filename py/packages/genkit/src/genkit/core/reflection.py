@@ -65,7 +65,7 @@ from genkit.web.requests import (
 )
 from genkit.web.typing import (
     Application,
-    LifespanHandler,
+    StartupHandler,
 )
 
 logger = structlog.get_logger(__name__)
@@ -146,8 +146,8 @@ def _build_actions_payload(
 
 def create_reflection_asgi_app(
     registry: Registry,
-    on_app_startup: LifespanHandler | None = None,
-    on_app_shutdown: LifespanHandler | None = None,
+    on_app_startup: StartupHandler | None = None,
+    on_app_shutdown: StartupHandler | None = None,
     version: str = DEFAULT_GENKIT_VERSION,
     encoding: str = 'utf-8',
 ) -> Application:

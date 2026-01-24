@@ -60,17 +60,17 @@ class WeatherInput(BaseModel):
 class CurrencyInput(BaseModel):
     """Currency conversion input schema."""
 
-    amount: float = Field(description='Amount to convert')
-    from_currency: str = Field(description='Source currency code (e.g., USD)')
-    to_currency: str = Field(description='Target currency code (e.g., EUR)')
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
 
 
 class CurrencyExchangeInput(BaseModel):
     """Currency exchange flow input schema."""
 
-    amount: float = Field(description='Amount to convert')
-    from_curr: str = Field(description='Source currency code')
-    to_curr: str = Field(description='Target currency code')
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
 
 
 @ai.tool()

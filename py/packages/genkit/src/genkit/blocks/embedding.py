@@ -17,7 +17,7 @@
 """Embedding actions."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -85,7 +85,8 @@ class Embedder:
         Returns:
             The generated embedding response.
         """
-        return (await self._action.arun(EmbedRequest(input=documents, options=options))).response
+        # NOTE: Document subclasses DocumentData, so this is type-safe at runtime.
+        return (await self._action.arun(EmbedRequest(input=documents, options=options))).response  # type: ignore[arg-type]
 
 
 EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
@@ -118,7 +119,7 @@ def embedder_action_metadata(
     embedder_metadata_dict['embedder']['customOptions'] = options.config_schema if options.config_schema else None
 
     return ActionMetadata(
-        kind=ActionKind.EMBEDDER,
+        kind=cast(ActionKind, ActionKind.EMBEDDER),
         name=name,
         input_json_schema=to_json_schema(EmbedRequest),
         output_json_schema=to_json_schema(EmbedResponse),

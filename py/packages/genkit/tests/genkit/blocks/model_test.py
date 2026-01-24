@@ -15,17 +15,21 @@ from genkit.blocks.model import (
     get_basic_usage_stats,
     get_part_counts,
     model_action_metadata,
+    text_from_content,
 )
 from genkit.core.action import ActionMetadata
 from genkit.core.typing import (
     Candidate,
+    DocumentPart,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
     Media,
+    MediaPart,
     Message,
     Part,
+    TextPart,
     ToolRequest,
     ToolRequestPart,
 )
@@ -469,3 +473,39 @@ def test_model_action_metadata():
     assert action_metadata.input_json_schema is not None
     assert action_metadata.output_json_schema is not None
     assert action_metadata.metadata == {'model': {'customOptions': None, 'label': 'test_label'}}
+
+
+def test_text_from_content_with_parts() -> None:
+    """Test text_from_content with list of Part objects."""
+    content = [Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))]
+    assert text_from_content(content) == 'hello world'
+
+
+def test_text_from_content_with_document_parts() -> None:
+    """Test text_from_content with list of DocumentPart objects."""
+    content = [DocumentPart(root=TextPart(text='doc1')), DocumentPart(root=TextPart(text=' doc2'))]
+    assert text_from_content(content) == 'doc1 doc2'
+
+
+def test_text_from_content_with_mixed_parts() -> None:
+    """Test text_from_content with mixed Part and DocumentPart objects."""
+    content = [
+        Part(root=TextPart(text='part')),
+        DocumentPart(root=TextPart(text=' text')),
+    ]
+    assert text_from_content(content) == 'part text'
+
+
+def test_text_from_content_with_empty_list() -> None:
+    """Test text_from_content with empty list."""
+    assert text_from_content([]) == ''
+
+
+def test_text_from_content_with_none_text() -> None:
+    """Test text_from_content handles parts without text content."""
+    content = [
+        Part(root=TextPart(text='hello')),
+        Part(root=MediaPart(media=Media(url='http://example.com/image.png'))),
+        Part(root=TextPart(text=' world')),
+    ]
+    assert text_from_content(content) == 'hello world'

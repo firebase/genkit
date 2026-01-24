@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 
 from genkit.web.typing import Application
 
@@ -173,4 +173,4 @@ class Server:
         """
         self.config = config
         self.lifecycle = lifecycle
-        self.adapter = adapter or ASGIServerAdapter.create(ServerType.UVICORN)
+        self.adapter = adapter or ASGIServerAdapter.create(cast(ServerType, ServerType.UVICORN))
