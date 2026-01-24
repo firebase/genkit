@@ -17,13 +17,13 @@
 import structlog
 
 from genkit.ai import Genkit
-from genkit.plugins.vertex_ai.model_garden import VertexAIModelGarden, model_garden_name
+from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
-        VertexAIModelGarden(),
+        ModelGardenPlugin(),
     ],
 )
 

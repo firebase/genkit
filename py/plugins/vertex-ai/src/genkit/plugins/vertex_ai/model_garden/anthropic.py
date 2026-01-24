@@ -15,11 +15,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from collections.abc import Callable
+
 from anthropic import AsyncAnthropicVertex
 
-from genkit.ai import GenkitRegistry
+from genkit.ai import ActionRunContext
 from genkit.plugins.anthropic.models import AnthropicModel
-from genkit.types import GenerationCommonConfig, ModelInfo
+from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
 
 from .model_garden import model_garden_name
 
@@ -32,7 +34,6 @@ class AnthropicModelGarden:
         model: str,
         location: str,
         project_id: str,
-        registry: GenkitRegistry,
     ) -> None:
         """Initializes the AnthropicModelGarden instance.
 
@@ -43,35 +44,39 @@ class AnthropicModelGarden:
                 is hosted (e.g., 'us-central1').
             project_id: The Google Cloud project ID where the Model Garden
                 model is deployed.
-            registry: An instance of `GenkitRegistry` to register the model with.
         """
         self.name = model
-        self.ai = registry
         self.client = AsyncAnthropicVertex(region=location, project_id=project_id)
+        # Strip 'anthropic/' prefix for the model passed to Anthropic SDK
+        clean_model_name = model.removeprefix('anthropic/')
+        self._anthropic_model = AnthropicModel(model_name=clean_model_name, client=self.client)
 
-    def define_model(self) -> None:
-        """Defines and registers the Anthropic model with the Genkit registry."""
-        # Strip 'anthropic/' prefix if present for the model passed to Anthropic SDK
-        # But for model definition in Genkit, use the full name format we want to expose
-        clean_model_name = self.name.removeprefix('anthropic/')
+    def get_handler(self) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
+        """Returns the generate handler function for this model.
 
-        # AnthropicModel wrapper from genkit-anthropic expects the clean name (e.g. claude-3-5-sonnet...)
-        anthropic_model = AnthropicModel(model_name=clean_model_name, client=self.client)
+        Returns:
+            The handler function that can be used as an Action's fn parameter.
+        """
+        return self._anthropic_model.generate
 
-        self.ai.define_model(
-            name=model_garden_name(self.name),
-            fn=anthropic_model.generate,
-            config_schema=GenerationCommonConfig,
-            metadata={
-                'model': ModelInfo(
-                    label=f'ModelGarden - {self.name}',
-                    supports={
-                        'multiturn': True,
-                        'media': True,
-                        'tools': True,
-                        'systemRole': True,
-                        'output': ['text', 'json'],
-                    },
-                ).model_dump()
+    def get_model_info(self) -> ModelInfo:
+        """Returns the model information/metadata for this model.
+
+        Returns:
+            ModelInfo with the model's capabilities.
+        """
+        return ModelInfo(
+            label=f'ModelGarden - {self.name}',
+            supports={
+                'multiturn': True,
+                'media': True,
+                'tools': True,
+                'systemRole': True,
+                'output': ['text', 'json'],
             },
         )
+
+    @staticmethod
+    def get_config_schema():
+        """Returns the config schema for this model type."""
+        return GenerationCommonConfig

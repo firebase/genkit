@@ -121,10 +121,22 @@ class ModelGardenPlugin(Plugin):
                 model=clean_name,
                 location=location,
                 project_id=self.project_id,
-                registry=ai,
             )
-            model_proxy.define_model()
-            return
+
+            handler = model_proxy.get_handler()
+            model_info = model_proxy.get_model_info()
+
+            return Action(
+                kind=ActionKind.MODEL,
+                name=name,
+                fn=handler,
+                metadata={
+                    'model': {
+                        **model_info.model_dump(),
+                        'customOptions': to_json_schema(model_proxy.get_config_schema()),
+                    },
+                },
+            )
 
         location = self.model_locations.get(clean_name, self.location)
         model_proxy = ModelGarden(

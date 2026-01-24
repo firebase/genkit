@@ -146,7 +146,7 @@ from functools import cached_property
 from typing import Any
 
 from google import genai
-from google.genai import types as genai_types  # type: ignore
+from google.genai import types as genai_types
 
 from genkit.ai import (
     ActionRunContext,
@@ -661,7 +661,7 @@ class GeminiModel:
              list of Gemini tools
         """
         tools = []
-        for tool in request.tools:
+        for tool in request.tools or []:
             genai_tool = self._create_tool(tool)
             tools.append(genai_tool)
 

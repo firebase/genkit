@@ -127,7 +127,7 @@ class OpenAIModel:
                 }
 
             model = SUPPORTED_OPENAI_MODELS[self._model]
-            if SupportedOutputFormat.JSON_MODE in model.supports.output:
+            if model.supports.output and SupportedOutputFormat.JSON_MODE in model.supports.output:
                 return {'type': 'json_object'}
 
         return {'type': 'text'}

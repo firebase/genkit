@@ -97,7 +97,7 @@ class Embedder:
         config = self._genkit_to_googleai_cfg(request)
         response = await self._client.aio.models.embed_content(model=self._version, contents=contents, config=config)
 
-        embeddings = [Embedding(embedding=em.values) for em in response.embeddings]
+        embeddings = [Embedding(embedding=em.values) for em in (response.embeddings or [])]
         return EmbedResponse(embeddings=embeddings)
 
     def _build_contents(self, request: EmbedRequest) -> list[genai.types.Content]:

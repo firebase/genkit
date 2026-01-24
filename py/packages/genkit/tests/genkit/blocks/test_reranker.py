@@ -39,6 +39,7 @@ from genkit.core.typing import (
     RankedDocumentData,
     RankedDocumentMetadata,
     RerankerResponse,
+    TextPart,
 )
 
 
@@ -47,7 +48,7 @@ class TestRankedDocument:
 
     def test_ranked_document_creation(self):
         """Test creating a RankedDocument with content and score."""
-        content = [DocumentPart(text='Test content')]
+        content = [DocumentPart(root=TextPart(text='Test content'))]
         metadata = {'key': 'value'}
         score = 0.95
 
@@ -61,7 +62,7 @@ class TestRankedDocument:
 
     def test_ranked_document_default_score(self):
         """Test that RankedDocument has a default score of None."""
-        content = [DocumentPart(text='Test')]
+        content = [DocumentPart(root=TextPart(text='Test'))]
         doc = RankedDocument(content=content)
 
         assert doc.score is None
@@ -69,7 +70,7 @@ class TestRankedDocument:
     def test_ranked_document_from_data(self):
         """Test creating RankedDocument from RankedDocumentData."""
         data = RankedDocumentData(
-            content=[DocumentPart(text='Test content')],
+            content=[DocumentPart(root=TextPart(text='Test content'))],
             metadata=RankedDocumentMetadata(score=0.85),
         )
 
@@ -186,9 +187,9 @@ class TestRerank:
     def sample_documents(self):
         """Create sample documents for testing."""
         return [
-            DocumentData(content=[DocumentPart(text='First document')]),
-            DocumentData(content=[DocumentPart(text='Second document')]),
-            DocumentData(content=[DocumentPart(text='Third document')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='First document'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='Second document'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='Third document'))]),
         ]
 
     @pytest.mark.asyncio
@@ -283,13 +284,13 @@ class TestCustomRerankers:
     def sample_documents(self):
         """Create sample documents matching genkit.dev documentation example."""
         return [
-            DocumentData(content=[DocumentPart(text='pythagorean theorem')]),
-            DocumentData(content=[DocumentPart(text='e=mc^2')]),
-            DocumentData(content=[DocumentPart(text='pi')]),
-            DocumentData(content=[DocumentPart(text='dinosaurs')]),
-            DocumentData(content=[DocumentPart(text='quantum mechanics')]),
-            DocumentData(content=[DocumentPart(text='pizza')]),
-            DocumentData(content=[DocumentPart(text='harry potter')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='pythagorean theorem'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='e=mc^2'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='pi'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='dinosaurs'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='quantum mechanics'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='pizza'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='harry potter'))]),
         ]
 
     @pytest.mark.asyncio
@@ -405,7 +406,7 @@ class TestCustomRerankers:
         define_reranker(registry, 'custom/identity', identity_reranker)
 
         original_texts = ['Document A', 'Document B with more text', 'Doc C']
-        documents = [DocumentData(content=[DocumentPart(text=t)]) for t in original_texts]
+        documents = [DocumentData(content=[DocumentPart(root=TextPart(text=t))]) for t in original_texts]
 
         results = await rerank(
             registry,
@@ -430,11 +431,11 @@ class TestCustomRerankers:
         """
         # Simulate stage 1 retrieval results (unranked)
         retrieved_documents = [
-            DocumentData(content=[DocumentPart(text='Machine learning is a subset of AI')]),
-            DocumentData(content=[DocumentPart(text='Pizza is a popular food')]),
-            DocumentData(content=[DocumentPart(text='Deep learning uses neural networks')]),
-            DocumentData(content=[DocumentPart(text='Cats are domestic animals')]),
-            DocumentData(content=[DocumentPart(text='AI transforms industries')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='Machine learning is a subset of AI'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='Pizza is a popular food'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='Deep learning uses neural networks'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='Cats are domestic animals'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='AI transforms industries'))]),
         ]
 
         async def relevance_reranker(query, documents, options):

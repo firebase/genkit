@@ -15,14 +15,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import sys
 from collections.abc import Callable
 
 from genkit.blocks.model import ModelReference
 
-try:
-    from enum import StrEnum
-except ImportError:
+if sys.version_info < (3, 11):
     from strenum import StrEnum
+else:
+    from enum import StrEnum
+
 from typing import Any
 
 from pydantic import BaseModel, RootModel

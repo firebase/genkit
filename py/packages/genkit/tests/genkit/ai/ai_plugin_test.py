@@ -43,11 +43,11 @@ class AsyncResolveOnlyPlugin(Plugin):
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: lazy'))]),
-                finishReason=FinishReason.STOP,  # ty: ignore[invalid-argument-type]
+                finishReason=FinishReason.STOP,
             )
 
         return Action(
-            kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
+            kind=ActionKind.MODEL,
             name=name,
             fn=_generate,
         )
@@ -55,7 +55,7 @@ class AsyncResolveOnlyPlugin(Plugin):
     async def list_actions(self):
         return [
             ActionMetadata(
-                kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
+                kind=ActionKind.MODEL,
                 name=f'{self.name}/lazy-model',
             )
         ]
@@ -65,7 +65,7 @@ class AsyncInitPlugin(Plugin):
     name = 'async-init-plugin'
 
     async def init(self):
-        action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')  # ty: ignore[invalid-argument-type]
+        action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')
         return [action]
 
     async def resolve(self, action_type: ActionKind, name: str):
@@ -77,11 +77,11 @@ class AsyncInitPlugin(Plugin):
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: resolve'))]),
-                finishReason=FinishReason.STOP,  # ty: ignore[invalid-argument-type]
+                finishReason=FinishReason.STOP,
             )
 
         return Action(
-            kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
+            kind=ActionKind.MODEL,
             name=name,
             fn=_generate,
         )
@@ -89,7 +89,7 @@ class AsyncInitPlugin(Plugin):
     async def list_actions(self):
         return [
             ActionMetadata(
-                kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
+                kind=ActionKind.MODEL,
                 name=f'{self.name}/init-model',
             )
         ]

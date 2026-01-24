@@ -105,7 +105,7 @@ class OpenAIModelHandler:
         """
         supported_models = self._get_supported_models(self._source)
         model_info = supported_models[self._model.name]
-        if version not in model_info.versions:
+        if model_info.versions is not None and version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
