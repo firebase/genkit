@@ -27,6 +27,7 @@ from genkit.core.typing import (
     Message,
     Part,
     Role,
+    TextPart,
 )
 from genkit.testing import (
     define_echo_model,
@@ -57,7 +58,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
     pm.responses.append(
         GenerateResponse(
             finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
 
@@ -68,7 +69,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -84,7 +85,7 @@ async def test_simulates_doc_grounding(setup_test) -> None:
     pm.responses.append(
         GenerateResponse(
             finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
 
@@ -95,20 +96,22 @@ async def test_simulates_doc_grounding(setup_test) -> None:
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
-            docs=[DocumentData(content=[DocumentPart(text='doc content 1')])],
+            docs=[DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
         ),
     )
 
     assert response.request.messages[0] == Message(
         role=Role.USER,
         content=[
-            Part(text='hi'),
+            Part(root=TextPart(text='hi')),
             Part(
-                text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
-                metadata={'purpose': 'context'},
+                root=TextPart(
+                    text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
+                    metadata={'purpose': 'context'},
+                )
             ),
         ],
     )
@@ -127,7 +130,7 @@ async def test_generate_applies_middleware(
         return await next(
             GenerateRequest(
                 messages=[
-                    Message(role=Role.USER, content=[Part(text=f'PRE {txt}')]),
+                    Message(role=Role.USER, content=[Part(root=TextPart(text=f'PRE {txt}'))]),
                 ],
             ),
             ctx,
@@ -138,7 +141,7 @@ async def test_generate_applies_middleware(
         txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
-            message=Message(role=Role.USER, content=[Part(text=f'{txt} POST')]),
+            message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
 
     response = await generate_action(
@@ -148,7 +151,7 @@ async def test_generate_applies_middleware(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -171,7 +174,7 @@ async def test_generate_middleware_next_fn_args_optional(
         txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
-            message=Message(role=Role.USER, content=[Part(text=f'{txt} POST')]),
+            message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
 
     response = await generate_action(
@@ -181,7 +184,7 @@ async def test_generate_middleware_next_fn_args_optional(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -209,7 +212,7 @@ async def test_generate_middleware_can_modify_context(
                 messages=[
                     Message(
                         role=Role.USER,
-                        content=[Part(text=f'{txt} {ctx.context}')],
+                        content=[Part(root=TextPart(text=f'{txt} {ctx.context}'))],
                     ),
                 ],
             ),
@@ -223,7 +226,7 @@ async def test_generate_middleware_can_modify_context(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -244,14 +247,14 @@ async def test_generate_middleware_can_modify_stream(
     pm.responses.append(
         GenerateResponse(
             finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='1')]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='2')]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='3')]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
         ]
     ]
 
@@ -259,7 +262,7 @@ async def test_generate_middleware_can_modify_stream(
         ctx.send_chunk(
             GenerateResponseChunk(
                 role=Role.MODEL,
-                content=[Part(text='something extra before')],
+                content=[Part(root=TextPart(text='something extra before'))],
             )
         )
 
@@ -267,7 +270,7 @@ async def test_generate_middleware_can_modify_stream(
             ctx.send_chunk(
                 GenerateResponseChunk(
                     role=Role.MODEL,
-                    content=[Part(text=f'intercepted: {text_from_content(chunk.content)}')],
+                    content=[Part(root=TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
                 )
             )
 
@@ -275,7 +278,7 @@ async def test_generate_middleware_can_modify_stream(
         ctx.send_chunk(
             GenerateResponseChunk(
                 role='model',
-                content=[Part(text='something extra after')],
+                content=[Part(root=TextPart(text='something extra after'))],
             )
         )
         return resp
@@ -292,7 +295,7 @@ async def test_generate_middleware_can_modify_stream(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),

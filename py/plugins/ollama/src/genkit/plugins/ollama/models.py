@@ -93,7 +93,7 @@ class OllamaModel:
         Returns:
             The generated response.
         """
-        content = [TextPart(text='Failed to get response from Ollama API')]
+        content = [Part(root=TextPart(text='Failed to get response from Ollama API'))]
 
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
             api_response = await self._chat_with_ollama(request=request, ctx=ctx)
@@ -104,7 +104,7 @@ class OllamaModel:
         elif self.model_definition.api_type == OllamaAPITypes.GENERATE:
             api_response = await self._generate_ollama_response(request=request, ctx=ctx)
             if api_response:
-                content = [TextPart(text=api_response.response)]
+                content = [Part(root=TextPart(text=api_response.response))]
         else:
             raise ValueError(f'Unresolved API type: {self.model_definition.api_type}')
 
@@ -224,7 +224,7 @@ class OllamaModel:
                     chunk=GenerateResponseChunk(
                         role=Role.MODEL,
                         index=idx,
-                        content=[TextPart(text=chunk.response)],
+                        content=[Part(root=TextPart(text=chunk.response))],
                     )
                 )
             return generate_response
@@ -246,13 +246,13 @@ class OllamaModel:
         content = []
         chat_response_message = chat_response.message
         if chat_response_message.content:
-            content.append(TextPart(text=chat_response.message.content))
+            content.append(Part(root=TextPart(text=chat_response.message.content)))
         if chat_response_message.images:
             for image in chat_response_message.images:
                 content.append(
                     MediaPart(
                         media=Media(
-                            content_type=mimetypes.guess_type(image.value, strict=False)[0],
+                            contentType=mimetypes.guess_type(image.value, strict=False)[0],
                             url=image.value,
                         )
                     )
@@ -284,7 +284,7 @@ class OllamaModel:
         if isinstance(config, GenerationCommonConfig):
             config = dict(
                 top_k=config.top_k,
-                top_p=config.top_p,
+                topP=config.top_p,
                 stop=config.stop_sequences,
                 temperature=config.temperature,
                 num_predict=config.max_output_tokens,

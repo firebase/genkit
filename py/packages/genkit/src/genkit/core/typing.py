@@ -25,12 +25,12 @@ actions, tools, and configuration options.
 
 from __future__ import annotations
 
-import sys  # noqa
+import sys
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # type: ignore # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 
 from typing import Any, Literal

@@ -63,7 +63,7 @@ def test_retriever_action_metadata_with_supports_and_config_schema():
     options = RetrieverOptions(
         label='Advanced Retriever',
         supports=RetrieverSupports(media=True),
-        config_schema=to_json_schema(CustomConfig),
+        configSchema=to_json_schema(CustomConfig),
     )
     action_metadata = retriever_action_metadata(
         name='advanced_retriever',

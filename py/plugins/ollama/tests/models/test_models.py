@@ -31,6 +31,7 @@ from genkit.types import (
     GenerationUsage,
     Message,
     OutputConfig,
+    Part,
     Role,
     TextPart,
 )
@@ -42,15 +43,15 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Common setup for all async tests."""
         self.mock_client = MagicMock()
-        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[TextPart(text='Hello')])])
+        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
         self.ctx = ActionRunContext()
 
     @patch(
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(
-            input_tokens=10,
-            output_tokens=20,
-            total_tokens=30,
+            inputTokens=10,
+            outputTokens=20,
+            totalTokens=30,
         ),
     )
     async def test_generate_chat_non_streaming(self, mock_get_basic_usage_stats):
@@ -76,13 +77,13 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         )
         ollama_model._generate_ollama_response = AsyncMock()
         ollama_model._build_multimodal_chat_response = MagicMock(
-            return_value=[TextPart(text='Parsed chat content')],
+            return_value=[Part(root=TextPart(text='Parsed chat content'))],
         )
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                input_tokens=5,
-                output_tokens=10,
-                total_tokens=15,
+                inputTokens=5,
+                outputTokens=10,
+                totalTokens=15,
             ),
         )
         ollama_model.is_streaming_request = MagicMock(return_value=False)
@@ -105,9 +106,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
     @patch(
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(
-            input_tokens=10,
-            output_tokens=20,
-            total_tokens=30,
+            inputTokens=10,
+            outputTokens=20,
+            totalTokens=30,
         ),
     )
     async def test_generate_generate_non_streaming(self, mock_get_basic_usage_stats):
@@ -132,9 +133,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         ollama_model.is_streaming_request = MagicMock(return_value=False)
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                input_tokens=7,
-                output_tokens=14,
-                total_tokens=21,
+                inputTokens=7,
+                outputTokens=14,
+                totalTokens=21,
             ),
         )
 
@@ -173,14 +174,14 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             return_value=mock_chat_response,
         )
         ollama_model._build_multimodal_chat_response = MagicMock(
-            return_value=[TextPart(text='Parsed chat content')],
+            return_value=[Part(root=TextPart(text='Parsed chat content'))],
         )
         ollama_model.is_streaming_request = MagicMock(return_value=True)
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                input_tokens=0,
-                output_tokens=0,
-                total_tokens=0,
+                inputTokens=0,
+                outputTokens=0,
+                totalTokens=0,
             ),
         )
 
@@ -219,9 +220,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         ollama_model.is_streaming_request = MagicMock(return_value=True)
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                input_tokens=0,
-                output_tokens=0,
-                total_tokens=0,
+                inputTokens=0,
+                outputTokens=0,
+                totalTokens=0,
             ),
         )
 
@@ -289,7 +290,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
         self.mock_ollama_client_factory = MagicMock(return_value=self.mock_ollama_client_instance)
         self.model_definition = ModelDefinition(name='test-chat-model', api_type=OllamaAPITypes.CHAT)
         self.ollama_model = OllamaModel(client=self.mock_ollama_client_factory, model_definition=self.model_definition)
-        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[TextPart(text='Hello')])])
+        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
         self.ctx = ActionRunContext(on_chunk=False)
         self.ctx.send_chunk = MagicMock()
 
@@ -302,7 +303,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
             return_value={'temperature': 0.7},
         )
         self.ollama_model._build_multimodal_chat_response = MagicMock(
-            return_value=[TextPart(text='mocked content')],
+            return_value=[Part(root=TextPart(text='mocked content'))],
         )
 
         self.mock_convert_parameters = MagicMock(return_value={'type': 'string'})
@@ -455,7 +456,7 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[TextPart(text='Test generate message')],
+                    content=[Part(root=TextPart(text='Test generate message'))],
                 )
             ],
             config={'temperature': 0.8},
@@ -514,10 +515,10 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(self.ctx.send_chunk.call_count, 2)
         self.ctx.send_chunk.assert_any_call(
-            chunk=GenerateResponseChunk(role=Role.MODEL, index=1, content=[TextPart(text='chunk1 ')])
+            chunk=GenerateResponseChunk(role=Role.MODEL, index=1, content=[Part(root=TextPart(text='chunk1 '))])
         )
         self.ctx.send_chunk.assert_any_call(
-            chunk=GenerateResponseChunk(role=Role.MODEL, index=2, content=[TextPart(text='chunk2')])
+            chunk=GenerateResponseChunk(role=Role.MODEL, index=2, content=[Part(root=TextPart(text='chunk2'))])
         )
 
     async def test_generate_api_raises_exception(self):

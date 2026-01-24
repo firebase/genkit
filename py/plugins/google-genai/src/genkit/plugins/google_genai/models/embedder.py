@@ -17,12 +17,12 @@
 """Google-Genai embedder model."""
 
 import sys
-from typing import Any  # noqa
+from typing import Any
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 from google import genai
 

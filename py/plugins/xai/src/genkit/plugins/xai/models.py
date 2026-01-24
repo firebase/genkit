@@ -87,15 +87,15 @@ class XAIModel:
         return GenerateResponse(
             message=response_message,
             usage=GenerationUsage(
-                input_tokens=response.usage.prompt_tokens,
-                output_tokens=response.usage.completion_tokens,
-                total_tokens=response.usage.total_tokens,
-                input_characters=basic_usage.input_characters,
-                output_characters=basic_usage.output_characters,
-                input_images=basic_usage.input_images,
-                output_images=basic_usage.output_images,
+                inputTokens=response.usage.prompt_tokens,
+                outputTokens=response.usage.completion_tokens,
+                totalTokens=response.usage.total_tokens,
+                inputCharacters=basic_usage.input_characters,
+                outputCharacters=basic_usage.output_characters,
+                inputImages=basic_usage.input_images,
+                outputImages=basic_usage.output_images,
             ),
-            finish_reason=FINISH_REASON_MAP.get(response.finish_reason, 'unknown'),
+            finishReason=FINISH_REASON_MAP.get(response.finish_reason, 'unknown'),
         )
 
     def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
@@ -175,10 +175,10 @@ class XAIModel:
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
-                            content=[TextPart(text=chunk.content)],
+                            content=[Part(root=TextPart(text=chunk.content))],
                         )
                     )
-                    accumulated_content.append(TextPart(text=chunk.content))
+                    accumulated_content.append(Part(root=TextPart(text=chunk.content)))
 
                 for choice in chunk.choices:
                     if choice.tool_calls:
@@ -211,15 +211,15 @@ class XAIModel:
             return GenerateResponse(
                 message=response_message,
                 usage=GenerationUsage(
-                    input_tokens=final_response.usage.prompt_tokens if final_response else 0,
-                    output_tokens=final_response.usage.completion_tokens if final_response else 0,
-                    total_tokens=final_response.usage.total_tokens if final_response else 0,
-                    input_characters=basic_usage.input_characters,
-                    output_characters=basic_usage.output_characters,
-                    input_images=basic_usage.input_images,
-                    output_images=basic_usage.output_images,
+                    inputTokens=final_response.usage.prompt_tokens if final_response else 0,
+                    outputTokens=final_response.usage.completion_tokens if final_response else 0,
+                    totalTokens=final_response.usage.total_tokens if final_response else 0,
+                    inputCharacters=basic_usage.input_characters,
+                    outputCharacters=basic_usage.output_characters,
+                    inputImages=basic_usage.input_images,
+                    outputImages=basic_usage.output_images,
                 ),
-                finish_reason=finish_reason,
+                finishReason=finish_reason,
             )
 
         return await asyncio.to_thread(_sync_stream)
@@ -274,7 +274,7 @@ class XAIModel:
         content = []
 
         if response.content:
-            content.append(TextPart(text=response.content))
+            content.append(Part(root=TextPart(text=response.content)))
 
         if response.tool_calls:
             for tool_call in response.tool_calls:
@@ -286,12 +286,14 @@ class XAIModel:
                         pass
 
                 content.append(
-                    ToolRequestPart(
-                        tool_request={
-                            'ref': tool_call.id,
-                            'name': tool_call.function.name,
-                            'input': tool_input,
-                        }
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request={
+                                'ref': tool_call.id,
+                                'name': tool_call.function.name,
+                                'input': tool_input,
+                            }
+                        )
                     )
                 )
 

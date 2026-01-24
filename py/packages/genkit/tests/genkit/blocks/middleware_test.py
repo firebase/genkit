@@ -29,6 +29,7 @@ from genkit.core.typing import (
     GenerateResponse,
     Message,
     Metadata,
+    Part,
     Role,
     TextPart,
 )
@@ -40,7 +41,7 @@ async def run_augmenter(req: GenerateRequest):
 
     async def next(req, _):
         req_future.set_result(req)
-        return GenerateResponse(message=Message(role=Role.USER, content=[TextPart(text='hi')]))
+        return GenerateResponse(message=Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]))
 
     await augmenter(req, ActionRunContext(), next)
 
@@ -52,7 +53,7 @@ async def test_augment_with_context_ignores_no_docs() -> None:
     """Test simple prompt rendering."""
     req = GenerateRequest(
         messages=[
-            Message(role=Role.USER, content=[TextPart(text='hi')]),
+            Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
     )
 
@@ -66,7 +67,7 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
     """Test simple prompt rendering."""
     req = GenerateRequest(
         messages=[
-            Message(role=Role.USER, content=[TextPart(text='hi')]),
+            Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
         docs=[
             DocumentData(content=[TextPart(text='doc content 1')]),
@@ -81,13 +82,15 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text='hi'),
-                    TextPart(
-                        text='\n\nUse the following information to complete '
-                        + 'your task:\n\n'
-                        + '- [0]: doc content 1\n'
-                        + '- [1]: doc content 2\n\n',
-                        metadata=Metadata(root={'purpose': 'context'}),
+                    Part(root=TextPart(text='hi')),
+                    Part(
+                        root=TextPart(
+                            text='\n\nUse the following information to complete '
+                            + 'your task:\n\n'
+                            + '- [0]: doc content 1\n'
+                            + '- [1]: doc content 2\n\n',
+                            metadata=Metadata(root={'purpose': 'context'}),
+                        )
                     ),
                 ],
             )
@@ -107,11 +110,13 @@ async def test_augment_with_context_should_not_modify_non_pending_part() -> None
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(
-                        text='this is already context',
-                        metadata={'purpose': 'context'},
+                    Part(
+                        root=TextPart(
+                            text='this is already context',
+                            metadata={'purpose': 'context'},
+                        )
                     ),
-                    TextPart(text='hi'),
+                    Part(root=TextPart(text='hi')),
                 ],
             ),
         ],
@@ -133,11 +138,13 @@ async def test_augment_with_context_with_purpose_part() -> None:
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(
-                        text='insert context here',
-                        metadata={'purpose': 'context', 'pending': True},
+                    Part(
+                        root=TextPart(
+                            text='insert context here',
+                            metadata={'purpose': 'context', 'pending': True},
+                        )
                     ),
-                    TextPart(text='hi'),
+                    Part(root=TextPart(text='hi')),
                 ],
             ),
         ],
@@ -153,13 +160,15 @@ async def test_augment_with_context_with_purpose_part() -> None:
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(
-                        text='\n\nUse the following information to complete '
-                        + 'your task:\n\n'
-                        + '- [0]: doc content 1\n\n',
-                        metadata=Metadata(root={'purpose': 'context'}),
+                    Part(
+                        root=TextPart(
+                            text='\n\nUse the following information to complete '
+                            + 'your task:\n\n'
+                            + '- [0]: doc content 1\n\n',
+                            metadata=Metadata(root={'purpose': 'context'}),
+                        )
                     ),
-                    TextPart(text='hi'),
+                    Part(root=TextPart(text='hi')),
                 ],
             )
         ],

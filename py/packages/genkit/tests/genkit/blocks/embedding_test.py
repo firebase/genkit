@@ -66,7 +66,7 @@ def test_embedder_action_metadata_with_supports_and_config_schema():
         label='Advanced Embedder',
         dimensions=256,
         supports=EmbedderSupports(input=['text', 'image']),
-        config_schema=to_json_schema(CustomConfig),
+        configSchema=to_json_schema(CustomConfig),
     )
     action_metadata = embedder_action_metadata(
         name='advanced_model',
@@ -146,7 +146,7 @@ class MockGenkitRegistry:
         async def mock_arun_side_effect(request, *args, **kwargs):
             # Call the actual (fake) embedder function directly
             embed_response = await fn(request)
-            return ActionResponse(response=embed_response, trace_id='mock_trace_id')
+            return ActionResponse(response=embed_response, traceId='mock_trace_id')
 
         mock_action.arun = AsyncMock(side_effect=mock_arun_side_effect)
         self.actions[(kind, name)] = mock_action
@@ -178,7 +178,7 @@ async def test_embed_with_embedder_ref(mock_genkit_instance):
         label='Fake Embedder',
         dimensions=3,
         supports=EmbedderSupports(input=['text']),
-        config_schema={'type': 'object', 'properties': {'param': {'type': 'string'}}},
+        configSchema={'type': 'object', 'properties': {'param': {'type': 'string'}}},
     )
     registry.register_action(
         name='my-plugin/my-embedder',

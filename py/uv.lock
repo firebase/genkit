@@ -2118,6 +2118,7 @@ dev = [
 ]
 lint = [
     { name = "ruff" },
+    { name = "strenum" },
     { name = "ty" },
 ]
 
@@ -2164,6 +2165,7 @@ dev = [
 ]
 lint = [
     { name = "ruff", specifier = ">=0.9" },
+    { name = "strenum", specifier = ">=0.4.15" },
     { name = "ty", specifier = ">=0.0.1" },
 ]
 

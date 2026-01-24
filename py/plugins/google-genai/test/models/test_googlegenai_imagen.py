@@ -26,6 +26,7 @@ from genkit.types import (
     GenerateResponse,
     MediaPart,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -44,7 +45,7 @@ async def test_generate_media_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ],

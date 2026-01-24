@@ -63,7 +63,7 @@ dev = [
   "nox-uv>=0.2.2",
 ]
 
-lint = ["ty>=0.0.1", "ruff>=0.9"]
+lint = ["strenum>=0.4.15", "ty>=0.0.1", "ruff>=0.9"]
 
 [tool.hatch.build.targets.wheel]
 packages = []

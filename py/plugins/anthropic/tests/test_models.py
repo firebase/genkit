@@ -40,7 +40,7 @@ def _create_sample_request() -> GenerateRequest:
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text='Hello, how are you?')],
+                content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
         config=GenerationCommonConfig(),
@@ -48,7 +48,7 @@ def _create_sample_request() -> GenerateRequest:
             ToolDefinition(
                 name='get_weather',
                 description='Get weather for a location',
-                input_schema={
+                inputSchema={
                     'type': 'object',
                     'properties': {'location': {'type': 'string', 'description': 'Location name'}},
                     'required': ['location'],
@@ -128,11 +128,11 @@ async def test_generate_with_config():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
     request = GenerateRequest(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Test')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config=GenerationCommonConfig(
             temperature=0.7,
-            max_output_tokens=100,
-            top_p=0.9,
+            maxOutputTokens=100,
+            topP=0.9,
         ),
     )
 
@@ -150,8 +150,8 @@ def test_extract_system():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
     messages = [
-        Message(role=Role.SYSTEM, content=[TextPart(text='You are helpful.')]),
-        Message(role=Role.USER, content=[TextPart(text='Hello')]),
+        Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are helpful.'))]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
     ]
 
     system = model._extract_system(messages)
@@ -164,8 +164,8 @@ def test_to_anthropic_messages():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
     messages = [
-        Message(role=Role.USER, content=[TextPart(text='Hello')]),
-        Message(role=Role.MODEL, content=[TextPart(text='Hi there')]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
+        Message(role=Role.MODEL, content=[Part(root=TextPart(text='Hi there'))]),
     ]
 
     anthropic_messages = model._to_anthropic_messages(messages)

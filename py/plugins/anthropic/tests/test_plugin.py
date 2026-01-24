@@ -30,6 +30,7 @@ from genkit.types import (
     GenerateRequest,
     GenerationCommonConfig,
     Message,
+    Part,
     Role,
     TextPart,
     ToolDefinition,
@@ -128,7 +129,7 @@ def _create_sample_request() -> GenerateRequest:
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text='Hello, how are you?')],
+                content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
         config=GenerationCommonConfig(),
@@ -136,7 +137,7 @@ def _create_sample_request() -> GenerateRequest:
             ToolDefinition(
                 name='get_weather',
                 description='Get weather for a location',
-                input_schema={
+                inputSchema={
                     'type': 'object',
                     'properties': {'location': {'type': 'string', 'description': 'Location name'}},
                     'required': ['location'],

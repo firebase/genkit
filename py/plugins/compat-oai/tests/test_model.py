@@ -26,6 +26,7 @@ from genkit.types import (
     GenerateResponseChunk,
     GenerationCommonConfig,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -139,7 +140,7 @@ async def test_generate(stream, sample_request):
     ctx_mock = MagicMock(spec=ActionRunContext)
     ctx_mock.is_streaming = stream
 
-    mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='mocked')]))
+    mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
 
     model = OpenAIModel(model='gpt-4', client=MagicMock())
     model._generate_stream = AsyncMock(return_value=mock_response)
