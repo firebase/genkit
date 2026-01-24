@@ -93,7 +93,6 @@ def _build_actions_payload(
         actions[key] = {
             'key': key,
             'name': action.name,
-
             'type': action.kind.value,
             'description': action.description,
             'inputSchema': action.input_schema,
@@ -113,7 +112,6 @@ def _build_actions_payload(
         advertised = {
             'key': key,
             'name': meta.name,
-
             'type': meta.kind.value,
             'description': getattr(meta, 'description', None),
             'inputSchema': getattr(meta, 'input_json_schema', None),
