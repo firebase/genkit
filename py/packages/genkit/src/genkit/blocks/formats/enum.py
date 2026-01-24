@@ -61,7 +61,8 @@ class EnumFormat(FormatDef):
         super().__init__(
             'enum',
             FormatterConfig(
-                content_type='text/enum',
+                # NOTE: Using camelCase alias for ty type checker compatibility.
+                contentType='text/enum',
                 constrained=True,
             ),
         )

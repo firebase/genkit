@@ -64,7 +64,8 @@ class JsonlFormat(FormatDef):
         super().__init__(
             'jsonl',
             FormatterConfig(
-                content_type='application/jsonl',
+                # NOTE: Using camelCase alias for ty type checker compatibility.
+                contentType='application/jsonl',
             ),
         )
 
