@@ -76,7 +76,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[[], Coroutine[object
             try:
                 output = await fn()
                 return output
-            except BaseException as e:
+            except (asyncio.CancelledError, Exception) as e:
                 error = e
             finally:
                 lock.release()
