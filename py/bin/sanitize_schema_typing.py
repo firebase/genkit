@@ -68,8 +68,8 @@ class ClassTransformer(ast.NodeTransformer):
     def create_model_config(self, existing_config: ast.Call | None = None, frozen: bool = False) -> ast.Assign:
         """Create or update a model_config assignment.
 
-        Ensures populate_by_name=True and extra='forbid', keeping other existing
-        settings.
+        Ensures alias_generator=to_camel, populate_by_name=True, and extra='forbid',
+        keeping other existing settings.
         """
         keywords = []
         found_populate = False
@@ -113,6 +113,14 @@ class ClassTransformer(ast.NodeTransformer):
         if frozen and not found_frozen:
             keywords.append(ast.keyword(arg='frozen', value=ast.Constant(value=True)))
 
+        # Always add alias_generator=to_camel for snake_case -> camelCase serialization
+        keywords.append(
+            ast.keyword(
+                arg='alias_generator',
+                value=ast.Name(id='to_camel', ctx=ast.Load()),
+            )
+        )
+
         # Sort keywords for consistent output (optional but good practice)
         keywords.sort(key=lambda kw: kw.arg or '')
 
@@ -132,7 +140,13 @@ class ClassTransformer(ast.NodeTransformer):
         return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
-        """Visit and transform annotated assignment."""
+        """Visit and transform annotated assignment.
+
+        - Transform Role type to Role | str for flexibility
+        - Remove 'alias' keyword from Field() calls since alias_generator handles it
+        - Add serialization_alias='schema' for schema_ fields (Pydantic reserves 'schema')
+        """
+        # Transform Role type
         if isinstance(node.annotation, ast.Name) and node.annotation.id == 'Role':
             node.annotation = ast.BinOp(
                 left=ast.Name(id='Role', ctx=ast.Load()),
@@ -140,6 +154,39 @@ class ClassTransformer(ast.NodeTransformer):
                 right=ast.Name(id='str', ctx=ast.Load()),
             )
             self.modified = True
+
+        # Get the field name if this is a simple name target
+        field_name = None
+        if isinstance(node.target, ast.Name):
+            field_name = node.target.id
+
+        # Handle Field() calls
+        if isinstance(node.value, ast.Call):
+            func = node.value.func
+            if isinstance(func, ast.Name) and func.id == 'Field':
+                original_keywords = node.value.keywords
+                # Remove 'alias' keyword since alias_generator=to_camel handles it
+                new_keywords = [kw for kw in original_keywords if kw.arg != 'alias']
+                if len(new_keywords) != len(original_keywords):
+                    node.value.keywords = new_keywords
+                    self.modified = True
+
+                # Special handling for schema_ field:
+                # 1. 'schema' is reserved by Pydantic as a method name, so the field is named 'schema_'
+                # 2. pydantic.alias_generators.to_camel('schema_') returns 'schema_' (NOT 'schema')
+                #    because to_camel does NOT strip trailing underscores
+                # 3. Without explicit alias='schema', JSON serialization would produce 'schema_'
+                #    instead of the expected 'schema'
+                # 4. With populate_by_name=True, both schema= and schema_= work for Python input
+                if field_name == 'schema_':
+                    node.value.keywords.append(
+                        ast.keyword(
+                            arg='alias',
+                            value=ast.Constant(value='schema'),
+                        )
+                    )
+                    self.modified = True
+
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
@@ -343,6 +390,8 @@ if sys.version_info < (3, 11):
     from strenum import StrEnum
 else:
     from enum import StrEnum
+
+from pydantic.alias_generators import to_camel
 """
 
     header_text = header.format(year=datetime.now().year)

@@ -425,11 +425,8 @@ class GenkitRegistry:
             self.registry,
             name=name,
             fn=fn,
-            # NOTE: Using camelCase alias (configSchema) because Pydantic models
-            # have populate_by_name=True. The ty type checker only recognizes
-            # aliases, so we use them to pass both ty check and runtime.
             options=RerankerOptions(
-                configSchema=reranker_meta['reranker'].get('customOptions'),
+                config_schema=reranker_meta['reranker'].get('customOptions'),
                 label=reranker_meta['reranker'].get('label'),
             ),
             description=reranker_description,
@@ -550,15 +547,12 @@ class GenkitRegistry:
                                     status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                                 )
                                 eval_responses.append(
-                                    # NOTE: Using camelCase aliases (spanId, traceId, testCaseId)
-                                    # because all Pydantic models have populate_by_name=True.
-                                    # This allows both Python attribute names and aliases at runtime.
                                     # The ty type checker only recognizes aliases, so we use them
                                     # to pass both ty check and runtime validation.
                                     EvalFnResponse(
-                                        spanId=span_id,
-                                        traceId=trace_id,
-                                        testCaseId=datapoint.test_case_id,
+                                        span_id=span_id,
+                                        trace_id=trace_id,
+                                        test_case_id=datapoint.test_case_id,
                                         evaluation=evaluation,
                                     )
                                 )
@@ -577,10 +571,8 @@ class GenkitRegistry:
                                 status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                             )
                             eval_responses.append(
-                                # NOTE: Using camelCase alias (testCaseId) for ty check.
-                                # See comment above for full explanation.
                                 EvalFnResponse(
-                                    testCaseId=datapoint.test_case_id,
+                                    test_case_id=datapoint.test_case_id,
                                     evaluation=evaluation,
                                 )
                             )

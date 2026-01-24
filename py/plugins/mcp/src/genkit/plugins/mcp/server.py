@@ -202,7 +202,7 @@ class McpServer:
                 Tool(
                     name=action.name,
                     description=action.description or '',
-                    inputSchema=input_schema,
+                    input_schema=input_schema,
                     _meta=action.metadata.get('mcp', {}).get('_meta') if action.metadata else None,
                 )
             )

@@ -189,11 +189,11 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         [[], PartCounts()],
         [
             [
-                Part(root=MediaPart(media=Media(contentType='image', url=''))),
+                Part(root=MediaPart(media=Media(content_type='image', url=''))),
                 Part(root=MediaPart(media=Media(url='data:image'))),
-                Part(root=MediaPart(media=Media(contentType='audio', url=''))),
+                Part(root=MediaPart(media=Media(content_type='audio', url=''))),
                 Part(root=MediaPart(media=Media(url='data:audio'))),
-                Part(root=MediaPart(media=Media(contentType='video', url=''))),
+                Part(root=MediaPart(media=Media(content_type='video', url=''))),
                 Part(root=MediaPart(media=Media(url='data:video'))),
                 Part(root=TextPart(text='test')),
             ],
@@ -217,14 +217,14 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
             [],
             [],
             GenerationUsage(
-                inputImages=0,
-                inputVideos=0,
-                inputCharacters=0,
-                inputAudioFiles=0,
-                outputAudioFiles=0,
-                outputCharacters=0,
-                outputImages=0,
-                outputVideos=0,
+                input_images=0,
+                input_videos=0,
+                input_characters=0,
+                input_audio_files=0,
+                output_audio_files=0,
+                output_characters=0,
+                output_images=0,
+                output_videos=0,
             ),
         ],
         [
@@ -239,11 +239,11 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 Message(
                     role='user',
                     content=[
-                        Part(root=MediaPart(media=Media(contentType='image', url=''))),
+                        Part(root=MediaPart(media=Media(content_type='image', url=''))),
                         Part(root=MediaPart(media=Media(url='data:image'))),
-                        Part(root=MediaPart(media=Media(contentType='audio', url=''))),
+                        Part(root=MediaPart(media=Media(content_type='audio', url=''))),
                         Part(root=MediaPart(media=Media(url='data:audio'))),
-                        Part(root=MediaPart(media=Media(contentType='video', url=''))),
+                        Part(root=MediaPart(media=Media(content_type='video', url=''))),
                         Part(root=MediaPart(media=Media(url='data:video'))),
                     ],
                 ),
@@ -252,23 +252,23 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 role='user',
                 content=[
                     Part(root=TextPart(text='3')),
-                    Part(root=MediaPart(media=Media(contentType='image', url=''))),
+                    Part(root=MediaPart(media=Media(content_type='image', url=''))),
                     Part(root=MediaPart(media=Media(url='data:image'))),
-                    Part(root=MediaPart(media=Media(contentType='audio', url=''))),
+                    Part(root=MediaPart(media=Media(content_type='audio', url=''))),
                     Part(root=MediaPart(media=Media(url='data:audio'))),
-                    Part(root=MediaPart(media=Media(contentType='video', url=''))),
+                    Part(root=MediaPart(media=Media(content_type='video', url=''))),
                     Part(root=MediaPart(media=Media(url='data:video'))),
                 ],
             ),
             GenerationUsage(
-                inputImages=2,
-                inputVideos=2,
-                inputCharacters=2,
-                inputAudioFiles=2,
-                outputAudioFiles=2,
-                outputCharacters=1,
-                outputImages=2,
-                outputVideos=2,
+                input_images=2,
+                input_videos=2,
+                input_characters=2,
+                input_audio_files=2,
+                output_audio_files=2,
+                output_characters=1,
+                output_images=2,
+                output_videos=2,
             ),
         ],
         [
@@ -284,7 +284,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
             [
                 Candidate(
                     index=0,
-                    finishReason='stop',
+                    finish_reason='stop',
                     message=Message(
                         role='user',
                         content=[
@@ -294,17 +294,17 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=1,
-                    finishReason='stop',
+                    finish_reason='stop',
                     message=Message(
                         role='user',
                         content=[
-                            Part(root=MediaPart(media=Media(contentType='image', url=''))),
+                            Part(root=MediaPart(media=Media(content_type='image', url=''))),
                         ],
                     ),
                 ),
                 Candidate(
                     index=2,
-                    finishReason='stop',
+                    finish_reason='stop',
                     message=Message(
                         role='user',
                         content=[
@@ -314,17 +314,17 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=3,
-                    finishReason='stop',
+                    finish_reason='stop',
                     message=Message(
                         role='user',
                         content=[
-                            Part(root=MediaPart(media=Media(contentType='audio', url=''))),
+                            Part(root=MediaPart(media=Media(content_type='audio', url=''))),
                         ],
                     ),
                 ),
                 Candidate(
                     index=4,
-                    finishReason='stop',
+                    finish_reason='stop',
                     message=Message(
                         role='user',
                         content=[
@@ -334,17 +334,17 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=5,
-                    finishReason='stop',
+                    finish_reason='stop',
                     message=Message(
                         role='user',
                         content=[
-                            Part(root=MediaPart(media=Media(contentType='video', url=''))),
+                            Part(root=MediaPart(media=Media(content_type='video', url=''))),
                         ],
                     ),
                 ),
                 Candidate(
                     index=6,
-                    finishReason='stop',
+                    finish_reason='stop',
                     message=Message(
                         role='user',
                         content=[
@@ -354,14 +354,14 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
             ],
             GenerationUsage(
-                inputImages=0,
-                inputVideos=0,
-                inputCharacters=2,
-                inputAudioFiles=0,
-                outputAudioFiles=2,
-                outputCharacters=1,
-                outputImages=2,
-                outputVideos=2,
+                input_images=0,
+                input_videos=0,
+                input_characters=2,
+                input_audio_files=0,
+                output_audio_files=2,
+                output_characters=1,
+                output_images=2,
+                output_videos=2,
             ),
         ],
     ),

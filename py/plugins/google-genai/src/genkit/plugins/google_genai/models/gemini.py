@@ -216,8 +216,8 @@ GEMINI_1_5_PRO = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -234,8 +234,8 @@ GEMINI_1_5_FLASH = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -248,8 +248,8 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -260,8 +260,8 @@ GEMINI_2_0_FLASH = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -272,8 +272,8 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -284,8 +284,8 @@ GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -296,8 +296,8 @@ GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -308,8 +308,8 @@ GEMINI_2_0_FLASH_THINKING_EXP_01_21 = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -320,8 +320,8 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -332,8 +332,8 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -344,8 +344,8 @@ GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -356,8 +356,8 @@ GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
     ),
 )
@@ -368,8 +368,8 @@ GENERIC_GEMINI_MODEL = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
         output=['text', 'json'],
     ),
@@ -381,8 +381,8 @@ GENERIC_TTS_MODEL = ModelInfo(
         multiturn=False,
         media=False,
         tools=False,
-        toolChoice=False,
-        systemRole=False,
+        tool_choice=False,
+        system_role=False,
         constrained='no-tools',
     ),
 )
@@ -393,8 +393,8 @@ GENERIC_IMAGE_MODEL = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
         output=['text'],
     ),
@@ -406,8 +406,8 @@ GENERIC_GEMMA_MODEL = ModelInfo(
         multiturn=True,
         media=True,
         tools=True,
-        toolChoice=True,
-        systemRole=True,
+        tool_choice=True,
+        system_role=True,
         constrained='no-tools',
         output=['text', 'json'],
     ),
@@ -608,8 +608,8 @@ DEFAULT_SUPPORTS_MODEL = Supports(
     multiturn=True,
     media=True,
     tools=True,
-    toolChoice=True,
-    systemRole=True,
+    tool_choice=True,
+    system_role=True,
     constrained='no-tools',
 )
 
@@ -785,7 +785,7 @@ class GeminiModel:
         if cache:
             updated_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=ttl)
             cache = await self._client.aio.caches.update(
-                name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
+                name=cache.name, config=genai_types.UpdateCachedContentConfig(expire_time=updated_expiration_time)
             )
         else:
             cache = await self._client.aio.caches.create(
@@ -1063,9 +1063,9 @@ class GeminiModel:
             request_config = request.config
             if isinstance(request_config, GenerationCommonConfig):
                 cfg = genai_types.GenerateContentConfig(
-                    maxOutputTokens=request_config.max_output_tokens,
+                    max_output_tokens=request_config.max_output_tokens,
                     top_k=request_config.top_k,
-                    topP=request_config.top_p,
+                    top_p=request_config.top_p,
                     temperature=request_config.temperature,
                     stop_sequences=request_config.stop_sequences,
                 )

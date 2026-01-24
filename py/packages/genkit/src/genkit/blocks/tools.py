@@ -120,7 +120,7 @@ def tool_response(
     tr = cast(ToolRequestLike, tool_request)
     return Part(
         root=ToolResponsePart(
-            toolResponse=ToolResponse(
+            tool_response=ToolResponse(
                 name=tr.name,
                 ref=tr.ref,
                 output=response_data,

@@ -41,7 +41,7 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
     first_message.content = None
 
     first_response = MagicMock()
-    first_response.choices = [MagicMock(finishReason='tool_calls', message=first_message)]
+    first_response.choices = [MagicMock(finish_reason='tool_calls', message=first_message)]
 
     # Second call is the model response
     second_message = MagicMock()
@@ -50,7 +50,7 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
     second_message.content = 'final response'
 
     second_response = MagicMock()
-    second_response.choices = [MagicMock(finishReason='stop', message=second_message)]
+    second_response.choices = [MagicMock(finish_reason='stop', message=second_message)]
 
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = [

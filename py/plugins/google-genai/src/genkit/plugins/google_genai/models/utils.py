@@ -250,7 +250,7 @@ class PartConverter:
             return Part(
                 media=Media(
                     url=f'data:{part.inline_data.mime_type};base64,{b64_data}',
-                    contentType=part.inline_data.mime_type,
+                    content_type=part.inline_data.mime_type,
                 )
             )
         if part.executable_code:

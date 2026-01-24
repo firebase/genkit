@@ -49,9 +49,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
     @patch(
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(
-            inputTokens=10,
-            outputTokens=20,
-            totalTokens=30,
+            input_tokens=10,
+            output_tokens=20,
+            total_tokens=30,
         ),
     )
     async def test_generate_chat_non_streaming(self, mock_get_basic_usage_stats):
@@ -81,9 +81,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         )
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                inputTokens=5,
-                outputTokens=10,
-                totalTokens=15,
+                input_tokens=5,
+                output_tokens=10,
+                total_tokens=15,
             ),
         )
         ollama_model.is_streaming_request = MagicMock(return_value=False)
@@ -106,9 +106,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
     @patch(
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(
-            inputTokens=10,
-            outputTokens=20,
-            totalTokens=30,
+            input_tokens=10,
+            output_tokens=20,
+            total_tokens=30,
         ),
     )
     async def test_generate_generate_non_streaming(self, mock_get_basic_usage_stats):
@@ -133,9 +133,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         ollama_model.is_streaming_request = MagicMock(return_value=False)
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                inputTokens=7,
-                outputTokens=14,
-                totalTokens=21,
+                input_tokens=7,
+                output_tokens=14,
+                total_tokens=21,
             ),
         )
 
@@ -179,9 +179,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         ollama_model.is_streaming_request = MagicMock(return_value=True)
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                inputTokens=0,
-                outputTokens=0,
-                totalTokens=0,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
             ),
         )
 
@@ -220,9 +220,9 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         ollama_model.is_streaming_request = MagicMock(return_value=True)
         ollama_model.get_usage_info = MagicMock(
             return_value=GenerationUsage(
-                inputTokens=0,
-                outputTokens=0,
-                totalTokens=0,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
             ),
         )
 

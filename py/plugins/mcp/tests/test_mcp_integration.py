@@ -54,7 +54,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         mock_tool = MagicMock()
         mock_tool.name = 'add'
         mock_tool.description = 'Add two numbers'
-        mock_tool.inputSchema = {'type': 'object'}
+        mock_tool.input_schema = {'type': 'object'}
 
         mock_session.list_tools.return_value.tools = [mock_tool]
         client.session = mock_session
@@ -157,7 +157,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
             mock_tool = MagicMock()
             mock_tool.name = f'{client_name}_tool'
             mock_tool.description = f'Tool from {client_name}'
-            mock_tool.inputSchema = {'type': 'object'}
+            mock_tool.input_schema = {'type': 'object'}
 
             mock_session.list_tools.return_value.tools = [mock_tool]
             client.session = mock_session

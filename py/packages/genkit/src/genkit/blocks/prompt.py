@@ -350,18 +350,15 @@ class ExecutablePrompt:
             if tool_response_parts:
                 resume = Resume(respond=tool_response_parts)
 
-        # GenerateActionOptions uses camelCase aliases. Due to extra='forbid', we must
-        # use the alias names for ty type checker compatibility. The models have
-        # populate_by_name=True, so both aliases and Python names work at runtime.
         return GenerateActionOptions(
             model=model,
             messages=resolved_msgs,
             config=options.config,
             tools=options.tools,
-            returnToolRequests=options.return_tool_requests,
-            toolChoice=options.tool_choice,
+            return_tool_requests=options.return_tool_requests,
+            tool_choice=options.tool_choice,
             output=output,
-            maxTurns=options.max_turns,
+            max_turns=options.max_turns,
             docs=await render_docs(render_input, options, context),
             resume=resume,
         )
@@ -583,18 +580,15 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
         if tool_response_parts:
             resume = Resume(respond=tool_response_parts)
 
-    # GenerateActionOptions uses camelCase aliases. Due to extra='forbid', we must
-    # use the alias names for ty type checker compatibility. The models have
-    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerateActionOptions(
         model=model,
         messages=resolved_msgs,
         config=options.config,
         tools=options.tools,
-        returnToolRequests=options.return_tool_requests,
-        toolChoice=options.tool_choice,
+        return_tool_requests=options.return_tool_requests,
+        tool_choice=options.tool_choice,
         output=output,
-        maxTurns=options.max_turns,
+        max_turns=options.max_turns,
         docs=await render_docs(render_input, options),
         resume=resume,
     )
@@ -637,17 +631,14 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
             message='at least one message is required in generate request',
         )
 
-    # GenerateRequest and OutputConfig use camelCase aliases. Due to extra='forbid', we must
-    # use the alias names for ty type checker compatibility. The models have
-    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerateRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
         docs=options.docs,
         tools=tool_defs,
-        toolChoice=options.tool_choice,
+        tool_choice=options.tool_choice,
         output=OutputConfig(
-            contentType=options.output.content_type if options.output else None,
+            content_type=options.output.content_type if options.output else None,
             format=options.output.format if options.output else None,
             schema=options.output.json_schema if options.output else None,
             constrained=options.output.constrained if options.output else None,
@@ -723,9 +714,6 @@ async def render_system_prompt(
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        # NOTE: dotpromptz PromptInputConfig uses schema_ with alias='schema'.
-                        # The type checker doesn't recognize 'schema=' as valid, but it works
-                        # at runtime due to Pydantic's populate_by_name=True.
                         schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
                     )
                 ),
@@ -828,9 +816,6 @@ async def render_message_prompt(
             ),
             options=PromptMetadata(
                 input=PromptInputConfig(
-                    # NOTE: dotpromptz PromptInputConfig uses schema_ with alias='schema'.
-                    # The type checker doesn't recognize 'schema=' as valid, but it works
-                    # at runtime due to Pydantic's populate_by_name=True.
                     schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
                 )
             ),
@@ -886,9 +871,6 @@ async def render_user_prompt(
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        # NOTE: dotpromptz PromptInputConfig uses schema_ with alias='schema'.
-                        # The type checker doesn't recognize 'schema=' as valid, but it works
-                        # at runtime due to Pydantic's populate_by_name=True.
                         schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
                     )
                 ),

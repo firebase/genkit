@@ -47,8 +47,7 @@ class TextFormat(FormatDef):
         super().__init__(
             'text',
             FormatterConfig(
-                # NOTE: Using camelCase alias for ty type checker compatibility.
-                contentType='text/plain',
+                content_type='text/plain',
             ),
         )
 

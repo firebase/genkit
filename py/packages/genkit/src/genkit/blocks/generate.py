@@ -633,17 +633,14 @@ async def action_to_generate_request(
     # TODO: add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
-    # GenerateRequest and OutputConfig use camelCase aliases. Due to extra='forbid', we must
-    # use the alias names for ty type checker compatibility. The models have
-    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerateRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
         docs=options.docs,
         tools=tool_defs,
-        toolChoice=options.tool_choice,
+        tool_choice=options.tool_choice,
         output=OutputConfig(
-            contentType=options.output.content_type if options.output else None,
+            content_type=options.output.content_type if options.output else None,
             format=options.output.format if options.output else None,
             schema=options.output.json_schema if options.output else None,
             constrained=options.output.constrained if options.output else None,
@@ -668,8 +665,8 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
     tdef = ToolDefinition(
         name=tool.name,
         description=tool.description or '',
-        inputSchema=tool.input_schema,
-        outputSchema=tool.output_schema,
+        input_schema=tool.input_schema,
+        output_schema=tool.output_schema,
     )
     return tdef
 
@@ -751,7 +748,7 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
     # Part is a RootModel, so we pass content via 'root' parameter
     return Part(
         root=ToolRequestPart(
-            toolRequest=request.tool_request,
+            tool_request=request.tool_request,
             metadata=Metadata(root=metadata),
         )
     )
@@ -782,7 +779,7 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         return (
             Part(
                 root=ToolResponsePart(
-                    toolResponse=ToolResponse(
+                    tool_response=ToolResponse(
                         name=tool_request_part.tool_request.name,
                         ref=tool_request_part.tool_request.ref,
                         output=dump_dict(tool_response),
@@ -799,7 +796,7 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
                 None,
                 Part(
                     root=ToolRequestPart(
-                        toolRequest=tool_request_part.tool_request,
+                        tool_request=tool_request_part.tool_request,
                         metadata=Metadata(
                             root={
                                 **(
@@ -951,7 +948,7 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
             # Part is a RootModel, so we pass content via 'root' parameter
             Part(
                 root=ToolResponsePart(
-                    toolResponse=ToolResponse(
+                    tool_response=ToolResponse(
                         name=tool_req_root.tool_request.name,
                         ref=tool_req_root.tool_request.ref,
                         output=dump_dict(pending_output),
@@ -976,7 +973,7 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
             # Part is a RootModel, so we pass content via 'root' parameter
             Part(
                 root=ToolRequestPart(
-                    toolRequest=ToolRequest(
+                    tool_request=ToolRequest(
                         name=tool_req_root.tool_request.name,
                         ref=tool_req_root.tool_request.ref,
                         input=tool_req_root.tool_request.input,
