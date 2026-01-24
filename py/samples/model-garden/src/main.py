@@ -42,9 +42,9 @@ def get_location() -> str:
     """Get Google Cloud location from environment or prompt user."""
     location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION')
     if not location:
-        location = input('Enter your Google Cloud Location (default: us-central1): ').strip()
+        location = input('Enter your Google Cloud Location (default: us-east5): ').strip()
         if not location:
-            location = 'us-central1'
+            location = 'us-east5'
         os.environ['GOOGLE_CLOUD_LOCATION'] = location
     return location
 
