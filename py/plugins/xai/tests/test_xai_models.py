@@ -40,7 +40,7 @@ def _create_sample_request() -> GenerateRequest:
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text='Hello, how are you?')],
+                content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
         config=GenerationCommonConfig(),
@@ -48,7 +48,7 @@ def _create_sample_request() -> GenerateRequest:
             ToolDefinition(
                 name='get_weather',
                 description='Get weather for a location',
-                input_schema={
+                inputSchema={
                     'type': 'object',
                     'properties': {'location': {'type': 'string', 'description': 'Location name'}},
                     'required': ['location'],
@@ -69,7 +69,7 @@ async def test_generate_basic():
     mock_response.usage = MagicMock(
         prompt_tokens=10,
         completion_tokens=15,
-        total_tokens=25,
+        totalTokens=25,
     )
     mock_response.tool_calls = None
 
@@ -101,7 +101,7 @@ async def test_generate_with_config():
     mock_response.usage = MagicMock(
         prompt_tokens=5,
         completion_tokens=5,
-        total_tokens=10,
+        totalTokens=10,
     )
     mock_response.tool_calls = None
 
@@ -115,11 +115,11 @@ async def test_generate_with_config():
     model = XAIModel(model_name='grok-3', client=mock_client)
 
     request = GenerateRequest(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Test')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config=GenerationCommonConfig(
             temperature=0.7,
-            max_output_tokens=100,
-            top_p=0.9,
+            maxOutputTokens=100,
+            topP=0.9,
         ),
     )
 
@@ -136,8 +136,8 @@ def test_to_xai_messages():
     model = XAIModel(model_name='grok-3', client=mock_client)
 
     messages = [
-        Message(role=Role.USER, content=[TextPart(text='Hello')]),
-        Message(role=Role.MODEL, content=[TextPart(text='Hi there')]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
+        Message(role=Role.MODEL, content=[Part(root=TextPart(text='Hi there'))]),
     ]
 
     xai_messages = model._to_xai_messages(messages)
@@ -181,7 +181,7 @@ async def test_streaming_generation():
     mock_response.usage = MagicMock(
         prompt_tokens=10,
         completion_tokens=20,
-        total_tokens=30,
+        totalTokens=30,
     )
 
     def mock_stream():
@@ -239,7 +239,7 @@ async def test_generate_with_tools():
     mock_response.usage = MagicMock(
         prompt_tokens=20,
         completion_tokens=10,
-        total_tokens=30,
+        totalTokens=30,
     )
     mock_response.tool_calls = [mock_tool_call]
 
@@ -267,7 +267,7 @@ async def test_build_params_basic():
     model = XAIModel(model_name='grok-3', client=mock_client)
 
     request = GenerateRequest(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Test')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config=GenerationCommonConfig(),
     )
 
@@ -284,7 +284,7 @@ async def test_build_params_with_config():
     model = XAIModel(model_name='grok-3', client=mock_client)
 
     request = GenerateRequest(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Test')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config={
             'temperature': 0.5,
             'max_output_tokens': 200,
@@ -305,7 +305,7 @@ async def test_build_params_with_xai_specific_config():
     model = XAIModel(model_name='grok-3', client=mock_client)
 
     request = GenerateRequest(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Test')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config={
             'temperature': 0.7,
             'max_output_tokens': 300,
@@ -342,10 +342,12 @@ async def test_to_genkit_content_parses_json_arguments():
     content = model._to_genkit_content(mock_response)
 
     assert len(content) == 2
-    assert isinstance(content[0], TextPart)
-    assert content[0].text == 'Some response'
-    assert isinstance(content[1], ToolRequestPart)
-    assert content[1].tool_request.name == 'get_weather'
-    assert isinstance(content[1].tool_request.input, dict)
-    assert content[1].tool_request.input['location'] == 'Paris'
-    assert content[1].tool_request.input['unit'] == 'celsius'
+    part0 = content[0].root
+    assert isinstance(part0, TextPart)
+    assert part0.text == 'Some response'
+    part1 = content[1].root
+    assert isinstance(part1, ToolRequestPart)
+    assert part1.tool_request.name == 'get_weather'
+    assert isinstance(part1.tool_request.input, dict)
+    assert part1.tool_request.input['location'] == 'Paris'
+    assert part1.tool_request.input['unit'] == 'celsius'

@@ -337,12 +337,12 @@ actions, tools, and configuration options.
     # and future import is right after the header block's closing quotes.
     future_import = 'from __future__ import annotations'
     str_enum_block = """
-import sys # noqa
+import sys
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # type: ignore # noqa
-else: # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 """
 
     header_text = header.format(year=datetime.now().year)

@@ -22,23 +22,26 @@ from genkit.core.typing import (
     DocumentPart,
     Embedding,
     Media,
+    MediaPart,
+    Part,
+    TextPart,
 )
 
 
 def test_makes_deep_copy() -> None:
-    content = [DocumentPart(text='some text')]
+    content = [DocumentPart(root=TextPart(text='some text'))]
     metadata = {'foo': 'bar'}
     doc = Document(content=content, metadata=metadata)
 
-    content[0].root.text = 'other text'
+    content[0].root.text = 'other text'  # ty: ignore[invalid-assignment]
     metadata['foo'] = 'faz'
 
     assert doc.content[0].root.text == 'some text'
-    assert doc.metadata['foo'] == 'bar'
+    assert doc.metadata['foo'] == 'bar'  # ty: ignore[not-subscriptable]
 
 
 def test_from_dcoument_data() -> None:
-    doc = Document.from_document_data(DocumentData(content=[DocumentPart(text='some text')]))
+    doc = Document.from_document_data(DocumentData(content=[DocumentPart(root=TextPart(text='some text'))]))
 
     assert doc.text() == 'some text'
 
@@ -75,14 +78,14 @@ def test_from_data_media_document() -> None:
     doc = Document.from_data(data, data_type, metadata)
 
     assert doc.media() == [
-        Media(url=data, content_type=data_type),
+        Media(url=data, contentType=data_type),
     ]
     assert doc.metadata == metadata
     assert doc.data_type() == data_type
 
 
 def test_concatenates_text() -> None:
-    content = [DocumentPart(text='hello'), DocumentPart(text='world')]
+    content = [DocumentPart(root=TextPart(text='hello')), DocumentPart(root=TextPart(text='world'))]
     doc = Document(content=content)
 
     assert doc.text() == 'helloworld'
@@ -90,8 +93,8 @@ def test_concatenates_text() -> None:
 
 def test_multiple_media_document() -> None:
     content = [
-        DocumentPart(media=Media(url='data:one')),
-        DocumentPart(media=Media(url='data:two')),
+        DocumentPart(root=MediaPart(media=Media(url='data:one'))),
+        DocumentPart(root=MediaPart(media=Media(url='data:two'))),
     ]
     doc = Document(content=content)
 
@@ -148,9 +151,9 @@ def test_get_embedding_documents_multiple_embeddings() -> None:
 
     for i in range(len(docs)):
         assert docs[i].content == doc.content
-        assert docs[i].metadata['embedMetadata'] == embeddings[i].metadata
+        assert docs[i].metadata['embedMetadata'] == embeddings[i].metadata  # ty: ignore[not-subscriptable]
         orig_metadata = docs[i].metadata
-        orig_metadata.pop('embedMetadata', None)
+        orig_metadata.pop('embedMetadata', None)  # ty: ignore[possibly-missing-attribute]
         assert orig_metadata, doc.metadata
 
 

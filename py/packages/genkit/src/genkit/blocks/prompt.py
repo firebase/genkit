@@ -346,10 +346,7 @@ class ExecutablePrompt:
         resume = None
         if options.tool_responses:
             # Filter for only ToolResponsePart instances
-            tool_response_parts = [
-                r.root for r in options.tool_responses
-                if isinstance(r.root, ToolResponsePart)
-            ]
+            tool_response_parts = [r.root for r in options.tool_responses if isinstance(r.root, ToolResponsePart)]
             if tool_response_parts:
                 resume = Resume(respond=tool_response_parts)
 
@@ -582,10 +579,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     resume = None
     if options.tool_responses:
         # Filter for only ToolResponsePart instances
-        tool_response_parts = [
-            r.root for r in options.tool_responses
-            if isinstance(r.root, ToolResponsePart)
-        ]
+        tool_response_parts = [r.root for r in options.tool_responses if isinstance(r.root, ToolResponsePart)]
         if tool_response_parts:
             resume = Resume(respond=tool_response_parts)
 

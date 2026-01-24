@@ -18,10 +18,10 @@ import sys
 import urllib.request
 from unittest.mock import AsyncMock, MagicMock, patch
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 import pytest
 from google import genai
@@ -66,7 +66,7 @@ async def test_generate_text_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ]
@@ -147,7 +147,7 @@ async def test_generate_media_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ],
@@ -281,13 +281,13 @@ async def test_generate_with_system_instructions(mocker):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
             Message(
                 role=Role.SYSTEM,
                 content=[
-                    TextPart(text=system_instruction),
+                    Part(root=TextPart(text=system_instruction)),
                 ],
             ),
         ]
@@ -384,7 +384,7 @@ def test_gemini_model__get_tools(
         ToolDefinition(
             name='tool_1',
             description='model tool description',
-            input_schema={},
+            inputSchema={},
             outputSchema={
                 'type': 'object',
                 'properties': {
@@ -396,7 +396,7 @@ def test_gemini_model__get_tools(
         ToolDefinition(
             name='tool_2',
             description='model tool description',
-            input_schema={},
+            inputSchema={},
             outputSchema={
                 'type': 'object',
                 'properties': {
@@ -413,7 +413,7 @@ def test_gemini_model__get_tools(
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text='test text'),
+                    Part(root=TextPart(text='test text')),
                 ],
             ),
         ],
@@ -432,7 +432,7 @@ def test_gemini_model__create_tool(mock_convert_schema_property, gemini_model_in
     tool_defined = ToolDefinition(
         name='model_tool',
         description='model tool description',
-        input_schema={
+        inputSchema={
             'type': 'str',
             'description': 'test field',
         },
@@ -729,7 +729,7 @@ async def test_gemini_model__retrieve_cached_content(
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text='request text'),
+                    Part(root=TextPart(text='request text')),
                 ],
             ),
         ]

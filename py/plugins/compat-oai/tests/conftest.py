@@ -20,6 +20,7 @@ from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
     GenerateRequest,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -32,9 +33,9 @@ def sample_request():
         messages=[
             Message(
                 role=Role.SYSTEM,
-                content=[TextPart(text='You are an assistant')],
+                content=[Part(root=TextPart(text='You are an assistant'))],
             ),
-            Message(role=Role.USER, content=[TextPart(text='Hello, world!')]),
+            Message(role=Role.USER, content=[Part(root=TextPart(text='Hello, world!'))]),
         ],
         config=OpenAIConfig(
             model='gpt-4',

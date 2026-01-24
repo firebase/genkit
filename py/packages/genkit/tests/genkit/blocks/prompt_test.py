@@ -34,6 +34,7 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerationCommonConfig,
     Message,
+    Part,
     Role,
     TextPart,
     ToolChoice,
@@ -127,7 +128,7 @@ async def test_prompt_with_kitchensink() -> None:
     my_prompt = ai.define_prompt(
         system='pirate',
         prompt='hi',
-        messages=[Message(role=Role.USER, content=[TextPart(text='history')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='history'))])],
         tools=['testTool'],
         tool_choice=ToolChoice.REQUIRED,
         max_turns=5,
@@ -160,7 +161,7 @@ async def test_prompt_with_resolvers() -> None:
         return f'prompt {input["name"]}'
 
     async def messages_resolver(input, context):
-        return [Message(role=Role.USER, content=[TextPart(text=f'msg {input["name"]}')])]
+        return [Message(role=Role.USER, content=[Part(root=TextPart(text=f'msg {input["name"]}'))])]
 
     my_prompt = ai.define_prompt(
         system=system_resolver,
@@ -180,7 +181,7 @@ async def test_prompt_with_docs_resolver() -> None:
     """Test that the rendering works with docs resolver."""
     ai, _, pm = setup_test()
 
-    pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='ok')]))]
+    pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))]
 
     async def docs_resolver(input, context):
         return [DocumentData(content=[TextPart(text=f'doc {input["name"]}')])]
@@ -394,8 +395,8 @@ async def test_prompt_with_messages_list() -> None:
     ai, *_ = setup_test()
 
     messages = [
-        Message(role=Role.SYSTEM, content=[TextPart(text='You are helpful')]),
-        Message(role=Role.USER, content=[TextPart(text='Hi there')]),
+        Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are helpful'))]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Hi there'))]),
     ]
 
     my_prompt = ai.define_prompt(
@@ -415,8 +416,8 @@ async def test_messages_with_explicit_override() -> None:
     ai, *_ = setup_test()
 
     override_messages = [
-        Message(role=Role.USER, content=[TextPart(text='First message')]),
-        Message(role=Role.MODEL, content=[TextPart(text='First response')]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='First message'))]),
+        Message(role=Role.MODEL, content=[Part(root=TextPart(text='First response'))]),
     ]
 
     my_prompt = ai.define_prompt(
@@ -465,8 +466,8 @@ async def test_system_and_prompt_together() -> None:
     my_prompt = ai.define_prompt(
         system='System instruction',
         messages=[
-            Message(role=Role.USER, content=[TextPart(text='History user')]),
-            Message(role=Role.MODEL, content=[TextPart(text='History model')]),
+            Message(role=Role.USER, content=[Part(root=TextPart(text='History user'))]),
+            Message(role=Role.MODEL, content=[Part(root=TextPart(text='History model'))]),
         ],
         prompt='Final prompt',
     )

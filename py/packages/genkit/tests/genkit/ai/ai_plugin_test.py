@@ -14,13 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Note: ty type checker has a known limitation with StrEnum where it sees
+# enum members as Literal values instead of the enum type. We use ty: ignore
+# comments to suppress these false positives. See: https://github.com/python/typing/issues/1367
 
 import pytest
 
 from genkit.ai import Genkit, Plugin
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
-from genkit.types import GenerateRequest, GenerateResponse, Message, Role, TextPart
+from genkit.core.typing import FinishReason
+from genkit.types import GenerateRequest, GenerateResponse, Message, Part, Role, TextPart
 
 
 class AsyncResolveOnlyPlugin(Plugin):
@@ -38,12 +42,12 @@ class AsyncResolveOnlyPlugin(Plugin):
 
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
-                message=Message(role=Role.MODEL, content=[TextPart(text='OK: lazy')]),
-                finish_reason='stop',
+                message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: lazy'))]),
+                finishReason=FinishReason.STOP,  # ty: ignore[invalid-argument-type]
             )
 
         return Action(
-            kind=ActionKind.MODEL,
+            kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
             name=name,
             fn=_generate,
         )
@@ -51,7 +55,7 @@ class AsyncResolveOnlyPlugin(Plugin):
     async def list_actions(self):
         return [
             ActionMetadata(
-                kind=ActionKind.MODEL,
+                kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
                 name=f'{self.name}/lazy-model',
             )
         ]
@@ -61,7 +65,7 @@ class AsyncInitPlugin(Plugin):
     name = 'async-init-plugin'
 
     async def init(self):
-        action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')
+        action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')  # ty: ignore[invalid-argument-type]
         return [action]
 
     async def resolve(self, action_type: ActionKind, name: str):
@@ -72,12 +76,12 @@ class AsyncInitPlugin(Plugin):
 
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
-                message=Message(role=Role.MODEL, content=[TextPart(text='OK: resolve')]),
-                finish_reason='stop',
+                message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: resolve'))]),
+                finishReason=FinishReason.STOP,  # ty: ignore[invalid-argument-type]
             )
 
         return Action(
-            kind=ActionKind.MODEL,
+            kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
             name=name,
             fn=_generate,
         )
@@ -85,7 +89,7 @@ class AsyncInitPlugin(Plugin):
     async def list_actions(self):
         return [
             ActionMetadata(
-                kind=ActionKind.MODEL,
+                kind=ActionKind.MODEL,  # ty: ignore[invalid-argument-type]
                 name=f'{self.name}/init-model',
             )
         ]

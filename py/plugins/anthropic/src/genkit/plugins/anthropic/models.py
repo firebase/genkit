@@ -94,15 +94,15 @@ class AnthropicModel:
         return GenerateResponse(
             message=response_message,
             usage=GenerationUsage(
-                input_tokens=response.usage.input_tokens,
-                output_tokens=response.usage.output_tokens,
-                total_tokens=response.usage.input_tokens + response.usage.output_tokens,
-                input_characters=basic_usage.input_characters,
-                output_characters=basic_usage.output_characters,
-                input_images=basic_usage.input_images,
-                output_images=basic_usage.output_images,
+                inputTokens=response.usage.input_tokens,
+                outputTokens=response.usage.output_tokens,
+                totalTokens=response.usage.input_tokens + response.usage.output_tokens,
+                inputCharacters=basic_usage.input_characters,
+                outputCharacters=basic_usage.output_characters,
+                inputImages=basic_usage.input_images,
+                outputImages=basic_usage.output_images,
             ),
-            finish_reason=finish_reason,
+            finishReason=finish_reason,
         )
 
     def _build_params(self, request: GenerateRequest) -> dict[str, Any]:

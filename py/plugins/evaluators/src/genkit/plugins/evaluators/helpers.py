@@ -65,7 +65,7 @@ def fill_scores(
     if status_override_fn is not None:
         status = status_override_fn(score)
     score.status = status
-    return EvalFnResponse(test_case_id=datapoint.test_case_id, evaluation=score)
+    return EvalFnResponse(testCaseId=datapoint.test_case_id, evaluation=score)
 
 
 def define_genkit_evaluators(ai: Genkit, params: PluginOptions | list[MetricConfig]) -> None:
