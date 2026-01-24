@@ -14,16 +14,44 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+
 import structlog
 
 from genkit.ai import Genkit
-from genkit.plugins.vertex_ai.model_garden import VertexAIModelGarden, model_garden_name
+from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
 logger = structlog.get_logger(__name__)
 
+
+def get_project_id() -> str:
+    """Get Google Cloud project ID from environment or prompt user."""
+    project_id = os.getenv('GCLOUD_PROJECT') or os.getenv('GOOGLE_CLOUD_PROJECT')
+    if not project_id:
+        project_id = input('Enter your Google Cloud Project ID: ').strip()
+        if not project_id:
+            raise ValueError('Google Cloud Project ID is required for Model Garden.')
+        os.environ['GCLOUD_PROJECT'] = project_id
+    return project_id
+
+
+def get_location() -> str:
+    """Get Google Cloud location from environment or prompt user."""
+    location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION')
+    if not location:
+        location = input('Enter your Google Cloud Location (default: us-central1): ').strip()
+        if not location:
+            location = 'us-central1'
+        os.environ['GOOGLE_CLOUD_LOCATION'] = location
+    return location
+
+
+project_id = get_project_id()
+location = get_location()
+
 ai = Genkit(
     plugins=[
-        VertexAIModelGarden(),
+        ModelGardenPlugin(project_id=project_id, location=location),
     ],
 )
 
