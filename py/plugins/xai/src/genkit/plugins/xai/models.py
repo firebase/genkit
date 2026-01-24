@@ -87,15 +87,15 @@ class XAIModel:
         return GenerateResponse(
             message=response_message,
             usage=GenerationUsage(
-                inputTokens=response.usage.prompt_tokens,
-                outputTokens=response.usage.completion_tokens,
-                totalTokens=response.usage.total_tokens,
-                inputCharacters=basic_usage.input_characters,
-                outputCharacters=basic_usage.output_characters,
-                inputImages=basic_usage.input_images,
-                outputImages=basic_usage.output_images,
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+                input_characters=basic_usage.input_characters,
+                output_characters=basic_usage.output_characters,
+                input_images=basic_usage.input_images,
+                output_images=basic_usage.output_images,
             ),
-            finishReason=FINISH_REASON_MAP.get(response.finish_reason, 'unknown'),
+            finish_reason=FINISH_REASON_MAP.get(response.finish_reason, 'unknown'),
         )
 
     def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
@@ -211,15 +211,15 @@ class XAIModel:
             return GenerateResponse(
                 message=response_message,
                 usage=GenerationUsage(
-                    inputTokens=final_response.usage.prompt_tokens if final_response else 0,
-                    outputTokens=final_response.usage.completion_tokens if final_response else 0,
-                    totalTokens=final_response.usage.total_tokens if final_response else 0,
-                    inputCharacters=basic_usage.input_characters,
-                    outputCharacters=basic_usage.output_characters,
-                    inputImages=basic_usage.input_images,
-                    outputImages=basic_usage.output_images,
+                    input_tokens=final_response.usage.prompt_tokens if final_response else 0,
+                    output_tokens=final_response.usage.completion_tokens if final_response else 0,
+                    total_tokens=final_response.usage.total_tokens if final_response else 0,
+                    input_characters=basic_usage.input_characters,
+                    output_characters=basic_usage.output_characters,
+                    input_images=basic_usage.input_images,
+                    output_images=basic_usage.output_images,
                 ),
-                finishReason=finish_reason,
+                finish_reason=finish_reason,
             )
 
         return await asyncio.to_thread(_sync_stream)

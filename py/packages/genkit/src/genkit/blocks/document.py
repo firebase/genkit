@@ -107,7 +107,7 @@ class Document(DocumentData):
         return Document(
             # NOTE: DocumentPart is a RootModel requiring root=MediaPart(...) syntax.
             # Using contentType alias for ty type checker compatibility.
-            content=[DocumentPart(root=MediaPart(media=Media(url=url, contentType=content_type)))],
+            content=[DocumentPart(root=MediaPart(media=Media(url=url, content_type=content_type)))],
             metadata=metadata,
         )
 

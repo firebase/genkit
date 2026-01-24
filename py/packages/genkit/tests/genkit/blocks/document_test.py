@@ -78,7 +78,7 @@ def test_from_data_media_document() -> None:
     doc = Document.from_data(data, data_type, metadata)
 
     assert doc.media() == [
-        Media(url=data, contentType=data_type),
+        Media(url=data, content_type=data_type),
     ]
     assert doc.metadata == metadata
     assert doc.data_type() == data_type

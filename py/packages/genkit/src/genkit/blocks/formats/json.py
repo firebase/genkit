@@ -56,8 +56,7 @@ class JsonFormat(FormatDef):
             'json',
             FormatterConfig(
                 format='json',
-                # NOTE: Using camelCase alias for ty type checker compatibility.
-                contentType='application/json',
+                content_type='application/json',
                 constrained=True,
                 default_instructions=False,
             ),

@@ -118,7 +118,7 @@ class FakeTransport:
 
     # Helper methods to populate the fake state
     def add_tool(self, name: str, description: str = '', schema: dict | None = None):
-        self.tools.append({'name': name, 'description': description, 'inputSchema': schema or {'type': 'object'}})
+        self.tools.append({'name': name, 'description': description, 'input_schema': schema or {'type': 'object'}})
 
     def add_prompt(self, name: str, description: str = '', arguments: list | None = None):
         self.prompts.append({'name': name, 'description': description, 'arguments': arguments or []})

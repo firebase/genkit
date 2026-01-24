@@ -19,7 +19,8 @@
 import traceback
 from typing import Any, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 
@@ -27,10 +28,10 @@ from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 class GenkitReflectionApiDetailsWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
 
     stack: str | None = None
-    trace_id: str | None = Field(None, alias='traceId')
+    trace_id: str | None = None
 
 
 class GenkitReflectionApiErrorWireFormat(BaseModel):

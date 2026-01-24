@@ -137,7 +137,7 @@ def _create_sample_request() -> GenerateRequest:
             ToolDefinition(
                 name='get_weather',
                 description='Get weather for a location',
-                inputSchema={
+                input_schema={
                     'type': 'object',
                     'properties': {'location': {'type': 'string', 'description': 'Location name'}},
                     'required': ['location'],

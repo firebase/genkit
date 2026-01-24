@@ -311,7 +311,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
         ToolDefinition(
             name='testTool',
             description='The tool.',
-            inputSchema={
+            input_schema={
                 'properties': {
                     'value': {
                         'default': None,
@@ -323,7 +323,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            outputSchema={},
+            output_schema={},
         )
     ]
 
@@ -375,13 +375,13 @@ async def test_generate_with_iterrupting_tools(
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
     )
@@ -396,7 +396,7 @@ async def test_generate_with_iterrupting_tools(
         ToolDefinition(
             name='test_tool',
             description='The tool.',
-            inputSchema={
+            input_schema={
                 'properties': {
                     'value': {
                         'default': None,
@@ -408,12 +408,12 @@ async def test_generate_with_iterrupting_tools(
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            outputSchema={},
+            output_schema={},
         ),
         ToolDefinition(
             name='test_interrupt',
             description='The interrupt.',
-            inputSchema={
+            input_schema={
                 'properties': {
                     'value': {
                         'default': None,
@@ -425,7 +425,7 @@ async def test_generate_with_iterrupting_tools(
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            outputSchema={},
+            output_schema={},
         ),
     ]
 
@@ -487,13 +487,13 @@ async def test_generate_with_interrupt_respond(
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
     )
@@ -627,13 +627,13 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
     )
@@ -656,7 +656,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         ToolDefinition(
             name='testTool',
             description='The tool.',
-            inputSchema={
+            input_schema={
                 'properties': {
                     'value': {
                         'default': None,
@@ -668,7 +668,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            outputSchema={},
+            output_schema={},
         )
     ]
 
@@ -696,13 +696,13 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
     )
@@ -759,7 +759,7 @@ async def test_generate_stream_no_need_to_await_response(
 
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='something else'))]),
         )
     )
@@ -985,7 +985,7 @@ async def test_generate_with_middleware(
         resp: GenerateResponse = await next(req, ctx)
         txt = text_from_message(resp.message)
         return GenerateResponse(
-            finishReason=resp.finish_reason,
+            finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
 
@@ -1235,7 +1235,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     pm.responses = [
         (
             GenerateResponse(
-                finishReason=FinishReason.STOP,
+                finish_reason=FinishReason.STOP,
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='model says'))]),
             )
         )
@@ -1453,7 +1453,7 @@ def test_define_evaluator_simple(setup_test: SetupFixture) -> None:
 
     def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
         return EvalFnResponse(
-            testCaseId=datapoint.test_case_id,
+            test_case_id=datapoint.test_case_id,
             evaluation=Score(score=True, details=Details(reasoning='I think it is true')),
         )
 
@@ -1481,7 +1481,7 @@ def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
 
     def my_eval_fn(datapoint: BaseEvalDataPoint, options: CustomOption | None):
         return EvalFnResponse(
-            testCaseId=datapoint.test_case_id,
+            test_case_id=datapoint.test_case_id,
             evaluation=Score(score=True, details=Details(reasoning=options.foo_bar)),
         )
 
@@ -1523,7 +1523,7 @@ def test_define_batch_evaluator(setup_test: SetupFixture) -> None:
             datapoint = req.dataset[index]
             eval_responses.append(
                 EvalFnResponse(
-                    testCaseId=f'testCase{index}',
+                    test_case_id=f'testCase{index}',
                     evaluation=Score(
                         score=True,
                         details=Details(reasoning=f'I think {datapoint.input} is true'),
@@ -1601,7 +1601,7 @@ async def test_evaluate(setup_test: SetupFixture) -> None:
 
     async def my_eval_fn(datapoint: BaseDataPoint, options: Any | None):
         return EvalFnResponse(
-            testCaseId=datapoint.test_case_id,
+            test_case_id=datapoint.test_case_id,
             evaluation=Score(score=True, details=Details(reasoning='I think it is true')),
         )
 
@@ -1613,8 +1613,8 @@ async def test_evaluate(setup_test: SetupFixture) -> None:
     )
 
     dataset = [
-        BaseDataPoint(input='hi', output='hi', testCaseId='case1'),
-        BaseDataPoint(input='bye', output='bye', testCaseId='case2'),
+        BaseDataPoint(input='hi', output='hi', test_case_id='case1'),
+        BaseDataPoint(input='bye', output='bye', test_case_id='case2'),
     ]
 
     response = await ai.evaluate(evaluator='my_eval', dataset=dataset)

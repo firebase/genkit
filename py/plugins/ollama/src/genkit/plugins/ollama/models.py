@@ -254,7 +254,7 @@ class OllamaModel:
                     Part(
                         root=MediaPart(
                             media=Media(
-                                contentType=mimetypes.guess_type(image.value, strict=False)[0],
+                                content_type=mimetypes.guess_type(image.value, strict=False)[0],
                                 url=image.value,
                             )
                         )

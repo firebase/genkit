@@ -384,8 +384,8 @@ def test_gemini_model__get_tools(
         ToolDefinition(
             name='tool_1',
             description='model tool description',
-            inputSchema={},
-            outputSchema={
+            input_schema={},
+            output_schema={
                 'type': 'object',
                 'properties': {
                     'test': {'type': 'string', 'description': 'test field'},
@@ -396,8 +396,8 @@ def test_gemini_model__get_tools(
         ToolDefinition(
             name='tool_2',
             description='model tool description',
-            inputSchema={},
-            outputSchema={
+            input_schema={},
+            output_schema={
                 'type': 'object',
                 'properties': {
                     'test': {'type': 'string', 'description': 'test field'},
@@ -432,11 +432,11 @@ def test_gemini_model__create_tool(mock_convert_schema_property, gemini_model_in
     tool_defined = ToolDefinition(
         name='model_tool',
         description='model tool description',
-        inputSchema={
+        input_schema={
             'type': 'str',
             'description': 'test field',
         },
-        outputSchema={
+        output_schema={
             'type': 'object',
             'properties': {
                 'test': {'type': 'string', 'description': 'test field'},

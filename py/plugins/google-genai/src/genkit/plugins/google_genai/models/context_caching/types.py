@@ -16,14 +16,14 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class CacheConfigSchema(BaseModel):
-    ttl_seconds: int | None = Field(..., alias='ttlSeconds')
+    model_config = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
 
-    class Config:
-        extra = 'allow'
+    ttl_seconds: int | None = ...
 
 
 CacheConfig = Union[bool, CacheConfigSchema]

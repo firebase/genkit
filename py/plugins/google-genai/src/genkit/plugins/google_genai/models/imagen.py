@@ -59,7 +59,7 @@ SUPPORTED_MODELS = {
             media=True,
             multiturn=False,
             tools=False,
-            systemRole=False,
+            system_role=False,
             output=['media'],
         ),
     ),
@@ -69,7 +69,7 @@ SUPPORTED_MODELS = {
             media=False,
             multiturn=False,
             tools=False,
-            systemRole=False,
+            system_role=False,
             output=['media'],
         ),
     ),
@@ -79,7 +79,7 @@ SUPPORTED_MODELS = {
             media=False,
             multiturn=False,
             tools=False,
-            systemRole=False,
+            system_role=False,
             output=['media'],
         ),
     ),
@@ -89,7 +89,7 @@ DEFAULT_IMAGE_SUPPORT = Supports(
     media=True,
     multiturn=False,
     tools=False,
-    systemRole=False,
+    system_role=False,
     output=['media'],
 )
 
@@ -211,7 +211,7 @@ class ImagenModel:
                     Part(
                         media=Media(
                             url=f'data:{image.image.mime_type};base64,{b64_data}',
-                            contentType=image.image.mime_type,
+                            content_type=image.image.mime_type,
                         )
                     )
                 )

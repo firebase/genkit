@@ -48,7 +48,7 @@ def _create_sample_request() -> GenerateRequest:
             ToolDefinition(
                 name='get_weather',
                 description='Get weather for a location',
-                inputSchema={
+                input_schema={
                     'type': 'object',
                     'properties': {'location': {'type': 'string', 'description': 'Location name'}},
                     'required': ['location'],
@@ -131,7 +131,7 @@ async def test_generate_with_config():
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config=GenerationCommonConfig(
             temperature=0.7,
-            maxOutputTokens=100,
+            max_output_tokens=100,
             topP=0.9,
         ),
     )

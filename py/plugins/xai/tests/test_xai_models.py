@@ -48,7 +48,7 @@ def _create_sample_request() -> GenerateRequest:
             ToolDefinition(
                 name='get_weather',
                 description='Get weather for a location',
-                inputSchema={
+                input_schema={
                     'type': 'object',
                     'properties': {'location': {'type': 'string', 'description': 'Location name'}},
                     'required': ['location'],
@@ -69,7 +69,7 @@ async def test_generate_basic():
     mock_response.usage = MagicMock(
         prompt_tokens=10,
         completion_tokens=15,
-        totalTokens=25,
+        total_tokens=25,
     )
     mock_response.tool_calls = None
 
@@ -101,7 +101,7 @@ async def test_generate_with_config():
     mock_response.usage = MagicMock(
         prompt_tokens=5,
         completion_tokens=5,
-        totalTokens=10,
+        total_tokens=10,
     )
     mock_response.tool_calls = None
 
@@ -118,7 +118,7 @@ async def test_generate_with_config():
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config=GenerationCommonConfig(
             temperature=0.7,
-            maxOutputTokens=100,
+            max_output_tokens=100,
             topP=0.9,
         ),
     )
@@ -181,7 +181,7 @@ async def test_streaming_generation():
     mock_response.usage = MagicMock(
         prompt_tokens=10,
         completion_tokens=20,
-        totalTokens=30,
+        total_tokens=30,
     )
 
     def mock_stream():
@@ -239,7 +239,7 @@ async def test_generate_with_tools():
     mock_response.usage = MagicMock(
         prompt_tokens=20,
         completion_tokens=10,
-        totalTokens=30,
+        total_tokens=30,
     )
     mock_response.tool_calls = [mock_tool_call]
 

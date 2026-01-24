@@ -123,7 +123,7 @@ class TestRerankerActionMetadata:
         """Test creating action metadata with options."""
         options = RerankerOptions(
             label='Custom Label',
-            configSchema={'type': 'object'},
+            config_schema={'type': 'object'},
         )
         metadata = reranker_action_metadata('test-reranker', options)
 

@@ -124,7 +124,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tool.name, 'test_tool')
         self.assertEqual(tool.description, 'test tool')
-        self.assertIsNotNone(tool.inputSchema)
+        self.assertIsNotNone(tool.input_schema)
 
     async def test_call_tool(self):
         """Test calling a tool - mirrors JS 'should call the tool'."""

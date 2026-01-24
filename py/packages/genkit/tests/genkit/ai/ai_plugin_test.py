@@ -43,7 +43,7 @@ class AsyncResolveOnlyPlugin(Plugin):
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: lazy'))]),
-                finishReason=FinishReason.STOP,
+                finish_reason=FinishReason.STOP,
             )
 
         return Action(
@@ -77,7 +77,7 @@ class AsyncInitPlugin(Plugin):
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: resolve'))]),
-                finishReason=FinishReason.STOP,
+                finish_reason=FinishReason.STOP,
             )
 
         return Action(

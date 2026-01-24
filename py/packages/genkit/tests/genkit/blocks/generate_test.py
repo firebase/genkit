@@ -57,7 +57,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
 
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
@@ -84,7 +84,7 @@ async def test_simulates_doc_grounding(setup_test) -> None:
 
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
@@ -140,7 +140,7 @@ async def test_generate_applies_middleware(
         resp: GenerateResponse = await next(req, ctx)
         txt = text_from_message(resp.message)
         return GenerateResponse(
-            finishReason=resp.finish_reason,
+            finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
 
@@ -173,7 +173,7 @@ async def test_generate_middleware_next_fn_args_optional(
         resp: GenerateResponse = await next()
         txt = text_from_message(resp.message)
         return GenerateResponse(
-            finishReason=resp.finish_reason,
+            finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
 
@@ -246,7 +246,7 @@ async def test_generate_middleware_can_modify_stream(
 
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
+            finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )

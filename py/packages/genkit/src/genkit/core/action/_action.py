@@ -539,7 +539,7 @@ def _make_tracing_wrappers(
                 ) from e
 
             record_output_metadata(span, output=output)
-            return ActionResponse(response=output, traceId=trace_id)
+            return ActionResponse(response=output, trace_id=trace_id)
 
     def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
         """Wrap the function in a sync tracing wrapper.
@@ -580,6 +580,6 @@ def _make_tracing_wrappers(
                 ) from e
 
             record_output_metadata(span, output=output)
-            return ActionResponse(response=output, traceId=trace_id)
+            return ActionResponse(response=output, trace_id=trace_id)
 
     return sync_tracing_wrapper, async_tracing_wrapper

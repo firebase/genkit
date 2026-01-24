@@ -526,13 +526,10 @@ class Genkit(GenkitBase):
 
         return (
             await eval_action.arun(
-                # NOTE: Using camelCase alias (evalRunId) because Pydantic models
-                # have populate_by_name=True. The ty type checker only recognizes
-                # aliases, so we use them to pass both ty check and runtime.
                 EvalRequest(
                     dataset=dataset,
                     options=final_options,
-                    evalRunId=eval_run_id,
+                    eval_run_id=eval_run_id,
                 )
             )
         ).response
