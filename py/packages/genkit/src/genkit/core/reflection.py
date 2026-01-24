@@ -93,7 +93,7 @@ def _build_actions_payload(
         actions[key] = {
             'key': key,
             'name': action.name,
-            'kind': action.kind.value,  # Add 'kind' field for Dev UI
+
             'type': action.kind.value,
             'description': action.description,
             'inputSchema': action.input_schema,
@@ -113,7 +113,7 @@ def _build_actions_payload(
         advertised = {
             'key': key,
             'name': meta.name,
-            'kind': meta.kind.value,  # Add 'kind' field for Dev UI
+
             'type': meta.kind.value,
             'description': getattr(meta, 'description', None),
             'inputSchema': getattr(meta, 'input_json_schema', None),
@@ -497,7 +497,7 @@ def create_reflection_asgi_app(
                 status_code=200,
                 headers={'x-genkit-version': version},
             )
-        except BaseException as e:
+        except Exception as e:
             error_response = get_reflection_json(e).model_dump(by_alias=True)
             logger.error('Error executing action', error=error_response)
             return JSONResponse(
