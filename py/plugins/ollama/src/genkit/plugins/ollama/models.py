@@ -16,6 +16,7 @@
 
 """Models package for Ollama plugin."""
 
+import mimetypes
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -250,20 +251,24 @@ class OllamaModel:
         if chat_response_message.images:
             for image in chat_response_message.images:
                 content.append(
-                    MediaPart(
-                        media=Media(
-                            contentType=mimetypes.guess_type(image.value, strict=False)[0],
-                            url=image.value,
+                    Part(
+                        root=MediaPart(
+                            media=Media(
+                                contentType=mimetypes.guess_type(image.value, strict=False)[0],
+                                url=image.value,
+                            )
                         )
                     )
                 )
         if chat_response_message.tool_calls:
             for tool_call in chat_response_message.tool_calls:
                 content.append(
-                    ToolRequestPart(
-                        tool_request=ToolRequest(
-                            name=tool_call.function.name,
-                            input=tool_call.function.arguments,
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(
+                                name=tool_call.function.name,
+                                input=tool_call.function.arguments,
+                            )
                         )
                     )
                 )

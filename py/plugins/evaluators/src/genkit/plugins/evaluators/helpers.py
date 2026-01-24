@@ -87,7 +87,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
                 output_string = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                 input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                 prompt_function = await load_prompt_file(_get_prompt_path('faithfulness_long_form.prompt'))
-                context = ' '.join(json.dumps(e) for e in datapoint.context)
+                context = ' '.join(json.dumps(e) for e in (datapoint.context or []))
                 prompt = await render_text(
                     prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                 )
@@ -99,8 +99,12 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
                     output_schema=AnswerRelevancyResponseSchema,
                 )
                 # TODO: embedding comparison between the input and the result of the llm
-                status = EvalStatusEnum.PASS_ if response.output else EvalStatusEnum.FAIL
-                return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
+                status = EvalStatusEnum.PASS_ if response.output and response.output.answered else EvalStatusEnum.FAIL
+                return fill_scores(
+                    datapoint,
+                    Score(score=response.output.answered if response.output else False, status=status),
+                    param.status_override_fn,
+                )
 
             ai.define_evaluator(
                 name=evaluators_name(str(GenkitMetricType.ANSWER_RELEVANCY).lower()),
@@ -188,7 +192,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
                 output_string = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
                 input_string = datapoint.input if isinstance(datapoint.input, str) else json.dumps(datapoint.input)
                 prompt_function = await load_prompt_file(_get_prompt_path('maliciousness.prompt'))
-                context = ' '.join(json.dumps(e) for e in datapoint.context)
+                context = ' '.join(json.dumps(e) for e in (datapoint.context or []))
                 prompt = await render_text(
                     prompt_function, {'input': input_string, 'output': output_string, 'context': context}
                 )

@@ -38,12 +38,12 @@ from __future__ import annotations
 
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-import pytest  # type: ignore
-import pytest_asyncio  # type: ignore
-from httpx import ASGITransport, AsyncClient  # type: ignore
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 
-from genkit.core.reflection import create_reflection_asgi_app  # type: ignore
-from genkit.core.registry import Registry  # type: ignore
+from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.registry import Registry
 
 
 @pytest.fixture

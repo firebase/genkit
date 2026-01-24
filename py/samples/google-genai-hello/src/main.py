@@ -201,7 +201,9 @@ async def say_hi(name: str):
 
 
 @ai.flow()
-async def embed_docs(docs: Annotated[list[str], Field(default=[''], description='List of texts to embed')] = None):
+async def embed_docs(
+    docs: Annotated[list[str] | None, Field(default=[''], description='List of texts to embed')] = None,
+):
     """Generate an embedding for the words in a list.
 
     Args:
