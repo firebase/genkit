@@ -1495,6 +1495,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pypdf" },
     { name = "structlog" },
+    { name = "uvloop" },
 ]
 
 [package.metadata]
@@ -1503,6 +1504,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pypdf" },
     { name = "structlog", specifier = ">=24.0.0" },
+    { name = "uvloop", specifier = ">=0.22.1" },
 ]
 
 [[package]]
