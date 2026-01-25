@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Menu sample package."""
+
 # 01
 
 # 02

@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for Genkit retrievers and indexers."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

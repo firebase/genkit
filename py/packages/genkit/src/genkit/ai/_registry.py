@@ -46,7 +46,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
-    from genkit.blocks.resource import FlexibleResourceFn, ResourceFn, ResourceOptions
+    from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 
 import structlog
 from pydantic import BaseModel
@@ -855,9 +855,6 @@ class GenkitRegistry:
             The registered Action for the resource.
         """
         from genkit.blocks.resource import (
-            FlexibleResourceFn,
-            ResourceFn,
-            ResourceOptions,
             define_resource as define_resource_block,
         )
 

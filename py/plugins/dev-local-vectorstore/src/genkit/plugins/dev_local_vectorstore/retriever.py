@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Retriever for dev-local-vectorstore."""
+
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -26,15 +28,21 @@ from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class ScoredDocument(BaseModel):
+    """Document with an associated similarity score."""
+
     score: float
     document: Document
 
 
 class RetrieverOptionsSchema(BaseModel):
+    """Schema for retriever options."""
+
     limit: int | None = Field(title='Number of documents to retrieve', default=None)
 
 
 class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
+    """Retriever for development-level local vector store."""
+
     def __init__(
         self,
         ai: Genkit,
@@ -56,6 +64,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
         self.embedder_options = embedder_options
 
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
+        """Retrieve documents from the vector store."""
         document = Document.from_document_data(document_data=request.query)
 
         embed_resp = await self.ai.embed(
@@ -96,8 +105,10 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
 
     @classmethod
     def cosine_similarity(cls, a: list[float], b: list[float]) -> float:
+        """Calculate cosine similarity between two vectors."""
         return cls.dot(a, b) / ((cls.dot(a, a) ** 0.5) * (cls.dot(b, b) ** 0.5))
 
     @staticmethod
     def dot(a: list[float], b: list[float]) -> float:
+        """Calculate dot product of two vectors."""
         return sum(av * bv for av, bv in zip(a, b, strict=False))

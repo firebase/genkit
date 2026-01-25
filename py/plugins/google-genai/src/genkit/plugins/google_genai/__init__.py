@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Google GenAI plugin for Genkit."""
+
 from genkit.plugins.google_genai.google import (
     GoogleAI,
     VertexAI,

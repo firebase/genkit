@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the Genkit Resource API.
+
 This module verifies the functionality of defining, registering, and resolving resources
 in the Genkit framework. It covers static resources, template-based resources,
 dynamic resource matching, and metadata handling.
@@ -31,6 +32,7 @@ from genkit.core.typing import Metadata, Part, TextPart
 @pytest.mark.asyncio
 async def test_define_resource():
     """Verifies that a resource can be defined and registered correctly.
+
     Checks:
     - Resource name matches property.
     - Resource is retrievable from the registry by name.
@@ -56,6 +58,7 @@ async def test_define_resource():
 @pytest.mark.asyncio
 async def test_resolve_resources():
     """Verifies resolving resource references into Action objects.
+
     Checks:
     - Resolving by string name works.
     - Resolving by Action object passes through.
@@ -79,6 +82,7 @@ async def test_resolve_resources():
 @pytest.mark.asyncio
 async def test_find_matching_resource():
     """Verifies the logic for finding a matching resource given an input URI.
+
     Checks:
     - Exact match against registered static resources.
     - Template match against registered template resources.
@@ -126,6 +130,7 @@ async def test_find_matching_resource():
 
 def test_is_dynamic_resource_action():
     """Verifies identifying dynamic vs registered resource actions.
+
     Checks:
     - Unregistered resources created with `resource()` are dynamic.
     - Registered resources created with `define_resource()` are not dynamic.
@@ -149,6 +154,7 @@ def test_is_dynamic_resource_action():
 @pytest.mark.asyncio
 async def test_parent_metadata():
     """Verifies that parent metadata is correctly attached to output items.
+
     When a resource is resolved via a template (e.g. `file://{id}`), the output parts
     should contain metadata referencing the parent resource URI and template.
     Checks:
@@ -198,6 +204,7 @@ def test_dynamic_resource_matching():
 
 def test_template_matching():
     """Verifies URI template pattern matching.
+
     Checks:
     - Matches correct URI structure.
     - Fails on paths extending beyond the template structure (strict matching).
@@ -223,6 +230,7 @@ def test_template_matching():
 
 def test_reserved_expansion_matching():
     """Verifies RFC 6570 reserved expansion {+var} pattern matching.
+
     Checks:
     - Matches correct URI structure with slashes (reserved chars).
     """

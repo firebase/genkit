@@ -20,7 +20,6 @@ from collections.abc import Callable
 from typing import Any
 
 from genkit.plugins.compat_oai.models.model import OpenAIModel
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.deepseek.client import DeepSeekClient
 from genkit.plugins.deepseek.model_info import (
     SUPPORTED_DEEPSEEK_MODELS,

@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Imagen model implementation for Google GenAI plugin."""
+
 import base64
 import sys
 

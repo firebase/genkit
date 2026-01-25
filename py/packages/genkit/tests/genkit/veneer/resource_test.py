@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the Genkit Resource API via the Genkit class (Veneer).
+
 This test file verifies that `ai.define_resource` works correctly, mirroring the
 JS SDK's `ai.defineResource`.
 """

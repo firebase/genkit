@@ -30,7 +30,7 @@ Example:
 import asyncio
 import threading
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any
 
 import structlog
 from dotpromptz.dotprompt import Dotprompt

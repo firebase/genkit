@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Host for managing multiple MCP server connections."""
 
 from genkit.ai import Genkit
 
@@ -24,6 +25,11 @@ class McpHost:
     """Host for managing multiple MCP clients."""
 
     def __init__(self, clients: dict[str, McpServerConfig]):
+        """Initialize the MCP host.
+
+        Args:
+            clients: Initial map of server names to configurations.
+        """
         self.clients_config = clients
         self.clients: dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
 
@@ -60,4 +66,5 @@ class McpHost:
 
 
 def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
+    """Creates a new MCP host for managing multiple server connections."""
     return McpHost(configs)

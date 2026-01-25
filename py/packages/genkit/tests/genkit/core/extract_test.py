@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for JSON extraction utilities."""
+
 from typing import Any
 
 import pytest
@@ -143,7 +146,7 @@ test_cases_extract_json = [
 def test_extract_json(name: str, input_data: dict[str, Any], expected_data: dict[str, Any]) -> None:
     """Test if input is unfixable raise the correct exception or return the proper error response."""
     if expected_data.get('throws'):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             extract_json(input_data['text'], throw_on_bad_json=True)
     else:
         result = extract_json(

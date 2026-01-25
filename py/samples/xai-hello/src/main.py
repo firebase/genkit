@@ -30,8 +30,8 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.action import ActionRunContext
 from genkit.plugins.xai import XAI, xai_name
-from genkit.types import ActionRunContext
 
 if 'XAI_API_KEY' not in os.environ:
     os.environ['XAI_API_KEY'] = input('Please enter your XAI_API_KEY: ')
@@ -45,11 +45,15 @@ ai = Genkit(
 
 
 class WeatherInput(BaseModel):
+    """Input for the weather tool."""
+
     location: str = Field(description='City or location name')
     unit: str = Field(default='celsius', description='Temperature unit: celsius or fahrenheit')
 
 
 class CalculatorInput(BaseModel):
+    """Input for the calculator tool."""
+
     operation: str = Field(description='Math operation: add, subtract, multiply, divide')
     a: float = Field(description='First number')
     b: float = Field(description='Second number')
@@ -57,6 +61,14 @@ class CalculatorInput(BaseModel):
 
 @ai.tool()
 def get_weather(input: WeatherInput) -> dict:
+    """Get weather information for a location.
+
+    Args:
+        input: Weather request input.
+
+    Returns:
+        Weather data dictionary.
+    """
     weather_data = {
         'New York': {'temp': 15, 'condition': 'cloudy', 'humidity': 65},
         'London': {'temp': 12, 'condition': 'rainy', 'humidity': 78},
@@ -68,8 +80,10 @@ def get_weather(input: WeatherInput) -> dict:
     data = weather_data.get(location, {'temp': 18, 'condition': 'unknown', 'humidity': 50})
 
     if input.unit == 'fahrenheit' and 'temp' in data:
-        data['temp'] = round((data['temp'] * 9 / 5) + 32, 1)
-        data['unit'] = 'F'
+        temp = data['temp']
+        if isinstance(temp, (int, float)):
+            data['temp'] = round((temp * 9 / 5) + 32, 1)
+            data['unit'] = 'F'
     else:
         data['unit'] = 'C'
 
@@ -79,6 +93,14 @@ def get_weather(input: WeatherInput) -> dict:
 
 @ai.tool()
 def calculate(input: CalculatorInput) -> dict:
+    """Perform basic arithmetic operations.
+
+    Args:
+        input: Calculation request input.
+
+    Returns:
+        Calculation result dictionary.
+    """
     operations = {
         'add': lambda a, b: a + b,
         'subtract': lambda a, b: a - b,
@@ -101,12 +123,37 @@ def calculate(input: CalculatorInput) -> dict:
 
 @ai.flow()
 async def say_hi(name: str) -> str:
+    """Generate a simple greeting.
+
+    Args:
+        name: Name to greet.
+
+    Returns:
+        Greeting message.
+
+    Example:
+        >>> await say_hi('Alice')
+        "Hello Alice!"
+    """
     response = await ai.generate(prompt=f'Say hello to {name}!')
     return response.text
 
 
 @ai.flow()
 async def say_hi_stream(name: str, ctx: ActionRunContext) -> str:
+    """Generate a streaming story response.
+
+    Args:
+        name: Subject of the story.
+        ctx: Action context for streaming.
+
+    Returns:
+        Complete story text.
+
+    Example:
+        >>> await say_hi_stream('Bob', ctx)
+        "Once upon a time..."
+    """
     response = await ai.generate(
         prompt=f'Tell me a short story about {name}',
         on_chunk=ctx.send_chunk,
@@ -116,6 +163,18 @@ async def say_hi_stream(name: str, ctx: ActionRunContext) -> str:
 
 @ai.flow()
 async def say_hi_with_config(name: str) -> str:
+    """Generate a greeting with custom model configuration.
+
+    Args:
+        name: User name.
+
+    Returns:
+        Greeting message.
+
+    Example:
+        >>> await say_hi_with_config('Charlie')
+        "Greetings, Charlie!"
+    """
     response = await ai.generate(
         prompt=f'Write a creative greeting for {name}',
         config={'temperature': 1.0, 'max_output_tokens': 200},
@@ -125,6 +184,18 @@ async def say_hi_with_config(name: str) -> str:
 
 @ai.flow()
 async def weather_flow(location: str) -> str:
+    """Get weather info using the weather tool (direct call).
+
+    Args:
+        location: City name.
+
+    Returns:
+        Formatted weather string.
+
+    Example:
+        >>> await weather_flow('New York')
+        "Weather in New York: 15°C, cloudy"
+    """
     weather_data = get_weather(WeatherInput(location=location))
     return (
         f'Weather in {location}: {weather_data.get("temp")}°{weather_data.get("unit")}, {weather_data.get("condition")}'
@@ -133,6 +204,18 @@ async def weather_flow(location: str) -> str:
 
 @ai.flow()
 async def calculator_flow(expression: str) -> str:
+    """Parse and calculate a math expression.
+
+    Args:
+        expression: String in format 'operation_a_b'.
+
+    Returns:
+        Calculation result string.
+
+    Example:
+        >>> await calculator_flow('add_5_3')
+        "Add(5.0, 3.0) = 8.0"
+    """
     parts = expression.split('_')
     if len(parts) < 3:
         return 'Invalid expression format. Use: operation_a_b (e.g., add_5_3)'

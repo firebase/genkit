@@ -14,9 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Vertex AI Vector Search with Firestore sample."""
+
 import os
 import time
-from typing import Any
 
 import structlog
 from google.cloud import aiplatform, firestore
@@ -26,7 +27,7 @@ from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.core.typing import RetrieverResponse
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai import defineVertexVectorSearchFirestore
+from genkit.plugins.vertex_ai import define_vertex_vector_search_firestore
 
 LOCATION = os.environ['LOCATION']
 PROJECT_ID = os.environ['PROJECT_ID']
@@ -45,7 +46,7 @@ logger = structlog.get_logger(__name__)
 ai = Genkit(plugins=[VertexAI()])
 
 # Define Vertex AI Vector Search with Firestore
-defineVertexVectorSearchFirestore(
+define_vertex_vector_search_firestore(
     ai,
     name='my-vector-search',
     embedder='vertexai/text-embedding-004',
@@ -97,11 +98,11 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
 
     result_data = []
     for doc in result.documents:
-        metadata: dict[str, Any] = doc.metadata or {}
+        metadata = doc.metadata or {}
         result_data.append({
             'id': metadata.get('id'),
-            'text': doc.content[0].root.text,
-            'distance': metadata.get('distance'),
+            'text': doc.content[0].root.text if doc.content and doc.content[0].root.text else '',
+            'distance': metadata.get('distance', 0.0),
         })
 
     result_data = sorted(result_data, key=lambda x: x['distance'])

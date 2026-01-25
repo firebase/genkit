@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Anthropic models."""
+
 from collections.abc import Awaitable, Callable
 from typing import cast
 
@@ -24,8 +26,6 @@ from genkit.ai import ActionRunContext
 from genkit.core.typing import Supports
 from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
-
-from .model_garden import model_garden_name
 
 
 class AnthropicModelGarden:

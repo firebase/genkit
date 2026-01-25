@@ -137,7 +137,7 @@ class McpServer:
         # We use the internal _entries for local actions and plugins
         with self.ai.registry._lock:
             for kind, entries in self.ai.registry._entries.items():
-                for name, action in entries.items():
+                for _name, action in entries.items():
                     if kind == ActionKind.TOOL:
                         self.tool_actions.append(action)
                         self.tool_actions_map[action.name] = action
@@ -452,7 +452,11 @@ def create_mcp_server(ai: Genkit, options: McpServerOptions) -> McpServer:
             return a + b
 
 
-        ai.define_resource(name='my_resource', uri='my://resource', fn=lambda req: {'content': [{'text': 'resource content'}]})
+        ai.define_resource(
+            name='my_resource',
+            uri='my://resource',
+            fn=lambda req: {'content': [{'text': 'resource content'}]},
+        )
 
         # Create and start MCP server
         server = create_mcp_server(ai, McpServerOptions(name='my-server'))

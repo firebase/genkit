@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Utility functions for OpenAI compatible models."""
+
 import json
 from collections.abc import Callable
 

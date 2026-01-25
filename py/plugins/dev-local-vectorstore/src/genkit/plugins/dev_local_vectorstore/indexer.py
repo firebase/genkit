@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Indexer for dev-local-vectorstore."""
+
 import asyncio
 import json
 from hashlib import md5
@@ -31,6 +33,8 @@ from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
+    """Indexer for development-level local vector store."""
+
     def __init__(
         self,
         ai: Genkit,
@@ -52,6 +56,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         self.embedder_options = embedder_options
 
     async def index(self, request: IndexerRequest) -> None:
+        """Index documents into the local vector store."""
         docs = request.documents
         data = self._load_filestore()
 
@@ -79,6 +84,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
             f.write(dump_json(self._serialize_data(data=data), indent=2))
 
     async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
+        """Process a single document and add its embedding to the store."""
         embedding_docs = document.get_embedding_documents([embedding])
         self._add_document(data=data, embedding=embedding, doc=embedding_docs[0])
 

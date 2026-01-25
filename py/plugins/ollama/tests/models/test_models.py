@@ -420,7 +420,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
 
         await self.ollama_model._chat_with_ollama(self.request, self.ctx)
 
-        call_args, call_kwargs = self.mock_ollama_client_instance.chat.call_args
+        _call_args, call_kwargs = self.mock_ollama_client_instance.chat.call_args
         self.assertIn('format', call_kwargs)
         self.assertEqual(call_kwargs['format'], 'json')
 
@@ -439,7 +439,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
 
         await self.ollama_model._chat_with_ollama(self.request, self.ctx)
 
-        call_args, call_kwargs = self.mock_ollama_client_instance.chat.call_args
+        _call_args, call_kwargs = self.mock_ollama_client_instance.chat.call_args
         self.assertIn('format', call_kwargs)
         self.assertEqual(call_kwargs['format'], schema_dict)
 
@@ -457,7 +457,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
 
         await self.ollama_model._chat_with_ollama(self.request, self.ctx)
 
-        call_args, call_kwargs = self.mock_ollama_client_instance.chat.call_args
+        _call_args, call_kwargs = self.mock_ollama_client_instance.chat.call_args
         self.assertIn('format', call_kwargs)
         self.assertEqual(call_kwargs['format'], '')
 

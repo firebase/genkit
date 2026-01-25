@@ -40,8 +40,8 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
+from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
-from genkit.types import Message, Role, TextPart
 
 if 'DEEPSEEK_API_KEY' not in os.environ:
     os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')
@@ -126,7 +126,7 @@ async def weather_flow(location: str) -> str:
             'Always use this tool when asked about weather.'
         ),
         tools=['get_weather'],
-        tool_choice='required',
+        tool_choice=ToolChoice.REQUIRED,
         max_turns=2,
     )
 
@@ -215,22 +215,28 @@ async def chat_flow() -> str:
     history = []
 
     # First turn - User shares information
-    prompt1 = "Hi! I'm planning a trip to Tokyo next month. I'm really excited because I love Japanese cuisine, especially ramen and sushi."
+    prompt1 = (
+        "Hi! I'm planning a trip to Tokyo next month. I'm really excited because I love Japanese cuisine, "
+        'especially ramen and sushi.'
+    )
     response1 = await ai.generate(
         prompt=prompt1,
         system='You are a helpful travel assistant.',
     )
-    history.append(Message(role=Role.USER, content=[TextPart(text=prompt1)]))
-    history.append(response1.message)
+    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text=prompt1))]))
+    if response1.message:
+        history.append(response1.message)
     await logger.ainfo('chat_flow turn 1', result=response1.text)
 
     # Second turn - Ask question requiring context from first turn
     response2 = await ai.generate(
-        messages=history + [Message(role=Role.USER, content=[TextPart(text='What foods did I say I enjoy?')])],
+        messages=history
+        + [Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))])],
         system='You are a helpful travel assistant.',
     )
-    history.append(Message(role=Role.USER, content=[TextPart(text='What foods did I say I enjoy?')]))
-    history.append(response2.message)
+    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))]))
+    if response2.message:
+        history.append(response2.message)
     await logger.ainfo('chat_flow turn 2', result=response2.text)
 
     # Third turn - Ask question requiring context from both previous turns
@@ -239,7 +245,7 @@ async def chat_flow() -> str:
         + [
             Message(
                 role=Role.USER,
-                content=[TextPart(text='Based on our conversation, suggest one restaurant I should visit.')],
+                content=[Part(root=TextPart(text='Based on our conversation, suggest one restaurant I should visit.'))],
             )
         ],
         system='You are a helpful travel assistant.',

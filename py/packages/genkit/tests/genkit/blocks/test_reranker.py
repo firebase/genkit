@@ -485,5 +485,7 @@ class TestCustomRerankers:
         # Filter out None values and validate lists are not empty before comparing
         ai_scores_valid = [s for s in ai_scores if s is not None]
         non_ai_scores_valid = [s for s in non_ai_scores if s is not None]
-        assert ai_scores_valid and non_ai_scores_valid, 'Cannot compare scores if one of the lists is empty or contains only None'
+        assert ai_scores_valid and non_ai_scores_valid, (
+            'Cannot compare scores if one of the lists is empty or contains only None'
+        )
         assert max(ai_scores_valid) > max(non_ai_scores_valid)

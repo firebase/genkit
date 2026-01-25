@@ -18,7 +18,6 @@ from genkit.blocks.model import MessageWrapper, text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     BaseDataPoint,
-    BaseEvalDataPoint,
     Details,
     DocumentData,
     DocumentPart,
@@ -34,7 +33,6 @@ from genkit.core.typing import (
     ModelInfo,
     OutputConfig,
     Part,
-    RetrieverRequest,
     RetrieverResponse,
     Role,
     Score,
@@ -1088,7 +1086,20 @@ async def test_generate_json_format_unconstrained_with_instructions(
                     Part(root=TextPart(text='hi')),
                     Part(
                         root=TextPart(
-                            text='Output should be in JSON format and conform to the following schema:\n\n```\n{\n  "properties": {\n    "foo": {\n      "anyOf": [\n        {\n          "type": "integer"\n        },\n        {\n          "type": "null"\n        }\n      ],\n      "default": null,\n      "description": "foo field",\n      "title": "Foo"\n    },\n    "bar": {\n      "anyOf": [\n        {\n          "type": "string"\n        },\n        {\n          "type": "null"\n        }\n      ],\n      "default": null,\n      "description": "bar field",\n      "title": "Bar"\n    }\n  },\n  "title": "TestSchema",\n  "type": "object"\n}\n```\n',
+                            text=(
+                                'Output should be in JSON format and conform to the '
+                                'following schema:\n\n```\n{\n  "properties": {\n    '
+                                '"foo": {\n      "anyOf": [\n        {\n          '
+                                '"type": "integer"\n        },\n        {\n          '
+                                '"type": "null"\n        }\n      ],\n      '
+                                '"default": null,\n      "description": "foo field",\n      '
+                                '"title": "Foo"\n    },\n    "bar": {\n      '
+                                '"anyOf": [\n        {\n          "type": "string"\n        },\n        '
+                                '{\n          "type": "null"\n        }\n      ],\n      '
+                                '"default": null,\n      "description": "bar field",\n      '
+                                '"title": "Bar"\n    }\n  },\n  "title": "TestSchema",\n  '
+                                '"type": "object"\n}\n```\n'
+                            ),
                             metadata=Metadata(root={'purpose': 'output'}),
                         )
                     ),
@@ -1212,13 +1223,13 @@ class MockBananaFormat(FormatDef):
 
         def message_parser(msg: Message):
             """Parse the message."""
-            return (
-                f'banana {"".join(p.root.text or "" for p in msg.content if hasattr(p.root, "text") and p.root.text)}'  # type: ignore[arg-type]
-            )
+            parts = [p.root.text or '' for p in msg.content if hasattr(p.root, 'text') and p.root.text]
+            return f'banana {"".join(parts)}'  # type: ignore[arg-type]
 
         def chunk_parser(chunk: GenerateResponseChunk) -> str:
             """Parse the chunk."""
-            return f'banana chunk {"".join(p.root.text or "" for p in chunk.content if hasattr(p.root, "text") and p.root.text)}'  # type: ignore[arg-type]
+            parts = [p.root.text or '' for p in chunk.content if hasattr(p.root, 'text') and p.root.text]
+            return f'banana chunk {"".join(parts)}'  # type: ignore[arg-type]
 
         instructions: str | None
 
@@ -1284,7 +1295,13 @@ async def test_define_format(setup_test: SetupFixture) -> None:
                     Part(root=TextPart(text='hi')),
                     Part(
                         root=TextPart(
-                            text='schema: {"properties": {"foo": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": null, "description": "foo field", "title": "Foo"}, "bar": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": null, "description": "bar field", "title": "Bar"}}, "title": "TestSchema", "type": "object"}',
+                            text=(
+                                'schema: {"properties": {"foo": {"anyOf": [{"type": "integer"}, '
+                                '{"type": "null"}], "default": null, "description": "foo field", '
+                                '"title": "Foo"}, "bar": {"anyOf": [{"type": "string"}, '
+                                '{"type": "null"}], "default": null, "description": "bar field", '
+                                '"title": "Bar"}}, "title": "TestSchema", "type": "object"}'
+                            ),
                             metadata=Metadata(root={'purpose': 'output'}),
                         )
                     ),
@@ -1563,6 +1580,7 @@ def test_define_batch_evaluator(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_define_sync_flow(setup_test: SetupFixture) -> None:
+    """Test defining a synchronous flow."""
     ai, _, _, *_ = setup_test
 
     @ai.flow()
@@ -1586,6 +1604,7 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_define_async_flow(setup_test: SetupFixture) -> None:
+    """Test defining an asynchronous flow."""
     ai, _, _, *_ = setup_test
 
     @ai.flow()
@@ -1635,8 +1654,8 @@ async def test_evaluate(setup_test: SetupFixture) -> None:
     assert isinstance(response, EvalResponse)
     assert len(response.root) == 2
     assert response.root[0].test_case_id == 'case1'
-    assert response.root[0].evaluation is not None
-    assert response.root[0].evaluation.score is True  # type: ignore[union-attr]
+    assert isinstance(response.root[0].evaluation, Score)
+    assert response.root[0].evaluation.score is True
     assert response.root[1].test_case_id == 'case2'
-    assert response.root[1].evaluation is not None
-    assert response.root[1].evaluation.score is True  # type: ignore[union-attr]
+    assert isinstance(response.root[1].evaluation, Score)
+    assert response.root[1].evaluation.score is True

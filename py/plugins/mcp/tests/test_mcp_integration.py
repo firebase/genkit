@@ -19,13 +19,8 @@
 import os
 import sys
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
-
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-from fakes import mock_mcp_modules
-
-mock_mcp_modules()
+from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from mcp.types import (
@@ -36,25 +31,66 @@ from mcp.types import (
     ListResourcesRequest,
     ListResourcesResult,
     ListResourceTemplatesRequest,
-    ListResourceTemplatesResult,
     ListToolsResult,
     ReadResourceRequest,
     ReadResourceRequestParams,
     ReadResourceResult,
     Resource,
-    ResourceTemplate,
     TextContent,
     TextResourceContents,
     Tool,
 )
 
-from genkit.ai import Genkit
-from genkit.plugins.mcp import McpClient, McpServerConfig, create_mcp_host, create_mcp_server
+# Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
+Genkit: Any = None
+McpClient: Any = None
+McpServerConfig: Any = None
+create_mcp_host: Any = None
+create_mcp_server: Any = None
+
+
+def setup_mocks():
+    """Set up mocks for testing."""
+    global Genkit, McpClient, McpServerConfig, create_mcp_host, create_mcp_server
+
+    # Add test directory to path for fakes
+    if os.path.dirname(__file__) not in sys.path:
+        sys.path.insert(0, os.path.dirname(__file__))
+
+    # Add src directory to path if not installed
+    src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'))
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+
+    try:
+        from fakes import mock_mcp_modules
+
+        mock_mcp_modules()
+
+        from genkit.ai import Genkit as _Genkit
+        from genkit.plugins.mcp import (
+            McpClient as _McpClient,
+            McpServerConfig as _McpServerConfig,
+            create_mcp_host as _create_mcp_host,
+            create_mcp_server as _create_mcp_server,
+        )
+
+        Genkit = _Genkit
+        McpClient = _McpClient
+        McpServerConfig = _McpServerConfig
+        create_mcp_host = _create_mcp_host
+        create_mcp_server = _create_mcp_server
+    except ImportError:
+        pass
 
 
 @pytest.mark.asyncio
 class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
     """Integration tests for MCP client-server communication."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        setup_mocks()
 
     async def test_client_can_list_server_tools(self):
         """Test that a client can list tools from a server."""
@@ -197,8 +233,8 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Mock the client
         client = host.clients['test']
         client.session = AsyncMock()
-        client.close = AsyncMock()  # type: ignore
-        client.connect = AsyncMock()  # type: ignore
+        client.close = AsyncMock()
+        client.connect = AsyncMock()
 
         # Disable
         await host.disable('test')
@@ -212,6 +248,10 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 @pytest.mark.asyncio
 class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
     """Integration tests specifically for resource handling."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        setup_mocks()
 
     async def test_end_to_end_resource_flow(self):
         """Test complete flow: define resource → expose via server → consume via client."""
@@ -280,6 +320,10 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
 class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
     """Tests for error handling in client-server communication."""
 
+    def setUp(self):
+        """Set up test fixtures."""
+        setup_mocks()
+
     async def test_server_handles_missing_tool(self):
         """Test that server properly handles requests for non-existent tools."""
         server_ai = Genkit()
@@ -314,7 +358,7 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         with patch('genkit.plugins.mcp.client.client.stdio_client') as mock_stdio:
             mock_stdio.side_effect = Exception('Connection failed')
 
-            with self.assertRaises(Exception):
+            with self.assertRaisesRegex(Exception, 'Connection failed'):
                 await client.connect()
 
             # Client should mark server as disabled

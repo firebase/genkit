@@ -13,3 +13,6 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
+
+"""Case 05 package."""

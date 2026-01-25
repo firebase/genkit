@@ -16,6 +16,7 @@ from genkit.core.typing import (
 
 
 def test_inject_instructions_user_message() -> None:
+    """Test injecting instructions into a user message."""
     result = inject_instructions(
         messages=[
             Message(

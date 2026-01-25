@@ -35,11 +35,14 @@ from google.cloud.aiplatform_v1 import (
 from genkit.blocks.document import Document, DocumentData
 from genkit.core.typing import DocumentPart, Embedding, EmbedResponse
 from genkit.plugins.vertex_ai.vector_search import BigQueryRetriever, FirestoreRetriever
-from genkit.types import ActionRunContext, Part, RetrieverRequest, TextPart
+from genkit.types import ActionRunContext, RetrieverRequest, TextPart
 
 
 class FakeAI:
+    """Fake AI instance for testing."""
+
     async def embed(self, embedder, documents, options=None):
+        """Mock embed method."""
         return EmbedResponse(embeddings=[Embedding(embedding=[0.1, 0.2, 0.3])])
 
 

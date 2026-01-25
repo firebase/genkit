@@ -66,17 +66,17 @@ async def transport_from(config: dict[str, Any], session_id: str | None = None) 
 
     # Handle SSE/HTTP config
     if 'url' in config and config['url']:
-        try:
-            # Dynamic import to avoid hard dependency
-            from mcp.client.sse import sse_client
+        # Check if SSE client is available
+        import importlib.util
 
-            # Note: Python MCP SDK may have different SSE client API
-            # This is a placeholder that matches the pattern
-            logger.info(f'Creating SSE transport for URL: {config["url"]}')
-            return (config['url'], 'http')  # Simplified for now
-        except ImportError:
+        if importlib.util.find_spec('mcp.client.sse') is None:
             logger.warning('SSE client not available')
             return (None, 'http')
+
+        # Note: Python MCP SDK may have different SSE client API
+        # This is a placeholder that matches the pattern
+        logger.info(f'Creating SSE transport for URL: {config["url"]}')
+        return (config['url'], 'http')  # Simplified for now
 
     # Handle Stdio config
     if 'command' in config and config['command']:

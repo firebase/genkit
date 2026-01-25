@@ -45,7 +45,7 @@ def setup_test():
 
     @ai.tool(name='testTool')
     def test_tool():
-        """description"""
+        """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
     return (ai, pm)
@@ -81,6 +81,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
 
 @pytest.mark.asyncio
 async def test_simulates_doc_grounding(setup_test) -> None:
+    """Test that docs are correctly grounded and injected into prompt."""
     ai, pm = setup_test
 
     pm.responses.append(
@@ -322,9 +323,9 @@ async def test_generate_middleware_can_modify_stream(
 
 specs = []
 with open(pathlib.Path(__file__).parent.joinpath('../../../../../../tests/specs/generate.yaml').resolve()) as stream:
-    testsSpec = yaml.safe_load(stream)
-    specs = testsSpec['tests']
-    specs = [x for x in testsSpec['tests'] if x['name'] == 'calls tools']
+    tests_spec = yaml.safe_load(stream)
+    specs = tests_spec['tests']
+    specs = [x for x in tests_spec['tests'] if x['name'] == 'calls tools']
 
 
 @pytest.mark.parametrize(
@@ -333,13 +334,14 @@ with open(pathlib.Path(__file__).parent.joinpath('../../../../../../tests/specs/
 )
 @pytest.mark.asyncio
 async def test_generate_action_spec(spec) -> None:
+    """Run tests based on external generate action specifications."""
     ai = Genkit()
 
     pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='testTool')
     def test_tool():
-        """description"""
+        """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
     if 'modelResponses' in spec:
@@ -394,6 +396,7 @@ async def test_generate_action_spec(spec) -> None:
 
 
 def is_equal_lists(a, b):
+    """Deep compare two lists of actions."""
     if len(a) != len(b):
         return False
 
@@ -408,10 +411,12 @@ primitives = (bool, str, int, float, type(None))
 
 
 def is_primitive(obj):
+    """Check if an object is a primitive type."""
     return isinstance(obj, primitives)
 
 
 def clean_schema(d):
+    """Remove $schema keys and other non-relevant parts from a dict recursively."""
     if is_primitive(d):
         return d
     if isinstance(d, dict):

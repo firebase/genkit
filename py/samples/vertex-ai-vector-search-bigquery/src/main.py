@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Vertex AI Vector Search with BigQuery sample."""
+
 import os
 import time
 
@@ -24,7 +26,7 @@ from pydantic import BaseModel
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai import defineVertexVectorSearchBigQuery
+from genkit.plugins.vertex_ai import define_vertex_vector_search_big_query
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
@@ -44,7 +46,7 @@ logger = structlog.get_logger(__name__)
 ai = Genkit(plugins=[VertexAI()])
 
 # Define Vertex AI Vector Search with BigQuery
-defineVertexVectorSearchBigQuery(
+define_vertex_vector_search_big_query(
     ai,
     name='my-vector-search',
     embedder='vertexai/text-embedding-004',
@@ -53,8 +55,8 @@ defineVertexVectorSearchBigQuery(
         'output_dimensionality': 128,
     },
     bq_client=bq_client,
-    dataset_id=BIGQUERY_DATASET_NAME,
-    table_id=BIGQUERY_TABLE_NAME,
+    dataset_id=BIGQUERY_DATASET_NAME or 'default_dataset',
+    table_id=BIGQUERY_TABLE_NAME or 'default_table',
 )
 
 
@@ -85,7 +87,7 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     }
 
-    result: list[Document] = await ai.retrieve(
+    response = await ai.retrieve(
         retriever='my-vector-search',
         query=query_document,
         options={'limit': 10},
@@ -96,11 +98,12 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
     duration = int(end_time - start_time)
 
     result_data = []
-    for doc in result.documents:
+    for doc in response.documents:
+        metadata = doc.metadata or {}
         result_data.append({
-            'id': doc.metadata.get('id'),
-            'text': doc.content[0].root.text,
-            'distance': doc.metadata.get('distance'),
+            'id': metadata.get('id'),
+            'text': doc.content[0].root.text if doc.content and doc.content[0].root.text else '',
+            'distance': metadata.get('distance'),
         })
 
     result_data = sorted(result_data, key=lambda x: x['distance'])

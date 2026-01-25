@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Model Garden implementation."""
+
 import typing
 from collections.abc import Callable
 from typing import Any, cast

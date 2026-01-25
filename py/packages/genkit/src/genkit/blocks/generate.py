@@ -173,7 +173,7 @@ async def generate_action(
             chunk_parser=chunk_parser if formatter else None,
         )
 
-    def wrap_chunks(role: Role = cast(Role, Role.MODEL)):
+    def wrap_chunks(role: Role | None = None):
         """Wrap and process a model response chunk.
 
         This function prepares model response chunks for the stream callback.
@@ -185,6 +185,8 @@ async def generate_action(
         Returns:
             The result of passing the processed chunk to the callback.
         """
+        if role is None:
+            role = cast(Role, Role.MODEL)
 
         def wrapper(chunk):
             if on_chunk is not None:

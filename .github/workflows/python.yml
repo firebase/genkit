@@ -85,10 +85,10 @@ jobs:
         run: uv run --directory py ruff format --check .
 
       - name: Lint with ruff
-        run: uv run --directory py ruff check --select I .
+        run: uv run --directory py ruff check .
 
       - name: Type check with Ty
-        run: uv run --directory py ty check --exit-zero .
+        run: uv run --directory py ty check .
 
       - name: Check licenses
         run: ./bin/check_license

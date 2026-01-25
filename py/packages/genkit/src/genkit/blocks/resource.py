@@ -25,7 +25,7 @@ and return content (`ResourceOutput`) containing `Part`s.
 import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Protocol, TypedDict, Union, cast
+from typing import Any, Protocol, TypedDict, cast
 
 from pydantic import BaseModel
 
@@ -93,10 +93,7 @@ ResourcePayload = ResourceOutput | dict[str, Any]
 # We need a flexible type because the runtime supports various signatures (0-2 args, sync/async, dict return)
 # but we also want to support the strict Protocol for those who want it.
 # Note: Callable[..., T] is used for flexible args because accurate variable arg Union logic is complex/verbose.
-FlexibleResourceFn = Union[
-    ResourceFn,
-    Callable[..., Awaitable[ResourcePayload] | ResourcePayload],
-]
+FlexibleResourceFn = ResourceFn | Callable[..., Awaitable[ResourcePayload] | ResourcePayload]
 
 
 class MatchableAction(Protocol):

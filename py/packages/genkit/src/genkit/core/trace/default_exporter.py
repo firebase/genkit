@@ -25,7 +25,6 @@ The module includes:
     - Utility functions for converting and formatting trace attributes
 """
 
-import json
 import os
 import sys
 from collections.abc import Sequence

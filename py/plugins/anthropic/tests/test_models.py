@@ -184,9 +184,12 @@ def test_to_anthropic_messages():
 
 
 class MockStreamManager:
+    """Mock stream manager for testing Anthropic streaming."""
+
     """Mock stream manager for testing streaming."""
 
     def __init__(self, chunks, final_content=None):
+        """Initialize the MockStreamManager."""
         self.chunks = chunks
         self.final_message = MagicMock()
         self.final_message.content = final_content if final_content else []
@@ -194,20 +197,25 @@ class MockStreamManager:
         self.final_message.stop_reason = 'end_turn'
 
     async def __aenter__(self):
+        """Enter the async context manager."""
         return self
 
     async def __aexit__(self, *args):
+        """Exit the async context manager."""
         pass
 
     def __aiter__(self):
+        """Return the async iterator."""
         return self
 
     async def __anext__(self):
+        """Return the next chunk from the stream."""
         if not self.chunks:
             raise StopAsyncIteration
         return self.chunks.pop(0)
 
     async def get_final_message(self):
+        """Get the final message from the stream."""
         return self.final_message
 
 

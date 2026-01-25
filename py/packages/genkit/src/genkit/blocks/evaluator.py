@@ -21,7 +21,7 @@ Evaluators are used for assessint the quality of output of a Genkit flow or
 model.
 """
 
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict

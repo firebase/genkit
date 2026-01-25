@@ -66,11 +66,21 @@ class XAIModel:
     """xAI Grok model for Genkit."""
 
     def __init__(self, model_name: str, client: XAIClient) -> None:
+        """Initialize the model."""
         model_info = get_model_info(model_name)
         self.model_name = model_info.versions[0] if model_info.versions else model_name
         self.client = client
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+        """Generate content using the model.
+
+        Args:
+            request: The generate request.
+            ctx: The action run context.
+
+        Returns:
+            The generate response.
+        """
         params = self._build_params(request)
         streaming = ctx and ctx.is_streaming
 

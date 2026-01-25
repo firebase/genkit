@@ -57,7 +57,8 @@ class OpenAIModelHandler:
                     Default source is openai.
 
         Returns:
-            Openai models if source is openai. Merges supported openai models with openai-compat models if source is model-garden.
+            Openai models if source is openai. Merges supported openai models
+            with openai-compat models if source is model-garden.
 
         """
         return SUPPORTED_OPENAI_COMPAT_MODELS if source == PluginSource.MODEL_GARDEN else SUPPORTED_OPENAI_MODELS

@@ -23,12 +23,12 @@ from genkit.core.typing import (
     Embedding,
     Media,
     MediaPart,
-    Part,
     TextPart,
 )
 
 
 def test_makes_deep_copy() -> None:
+    """Test that Document makes a deep copy of its content and metadata."""
     content = [DocumentPart(root=TextPart(text='some text'))]
     metadata = {'foo': 'bar'}
     doc = Document(content=content, metadata=metadata)
@@ -41,18 +41,21 @@ def test_makes_deep_copy() -> None:
 
 
 def test_from_dcoument_data() -> None:
+    """Test creating a Document from DocumentData."""
     doc = Document.from_document_data(DocumentData(content=[DocumentPart(root=TextPart(text='some text'))]))
 
     assert doc.text() == 'some text'
 
 
 def test_simple_text_document() -> None:
+    """Test creating a simple text Document."""
     doc = Document.from_text('sample text')
 
     assert doc.text() == 'sample text'
 
 
 def test_media_document() -> None:
+    """Test creating a media Document."""
     doc = Document.from_media(url='data:one')
 
     assert doc.media() == [
@@ -61,6 +64,7 @@ def test_media_document() -> None:
 
 
 def test_from_data_text_document() -> None:
+    """Test creating a text Document using from_data."""
     data = 'foo'
     data_type = 'text'
     metadata = {'embedMetadata': {'embeddingType': 'text'}}
@@ -72,6 +76,7 @@ def test_from_data_text_document() -> None:
 
 
 def test_from_data_media_document() -> None:
+    """Test creating a media Document using from_data."""
     data = 'iVBORw0KGgoAAAANSUhEUgAAAAjCB0C8AAAAASUVORK5CYII='
     data_type = 'image/png'
     metadata = {'embedMetadata': {'embeddingType': 'image'}}
@@ -85,6 +90,7 @@ def test_from_data_media_document() -> None:
 
 
 def test_concatenates_text() -> None:
+    """Test that text() concatenates multiple text parts."""
     content = [DocumentPart(root=TextPart(text='hello')), DocumentPart(root=TextPart(text='world'))]
     doc = Document(content=content)
 
@@ -92,6 +98,7 @@ def test_concatenates_text() -> None:
 
 
 def test_multiple_media_document() -> None:
+    """Test that media() returns all media parts."""
     content = [
         DocumentPart(root=MediaPart(media=Media(url='data:one'))),
         DocumentPart(root=MediaPart(media=Media(url='data:two'))),
@@ -105,30 +112,35 @@ def test_multiple_media_document() -> None:
 
 
 def test_data_with_text() -> None:
+    """Test data() with a text document."""
     doc = Document.from_text('hello')
 
     assert doc.data() == 'hello'
 
 
 def test_data_with_media() -> None:
+    """Test data() with a media document."""
     doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
     assert doc.data() == 'gs://somebucket/someimage.png'
 
 
 def test_data_type_with_text() -> None:
+    """Test data_type() with a text document."""
     doc = Document.from_text('hello')
 
     assert doc.data_type() == 'text'
 
 
 def test_data_type_with_media() -> None:
+    """Test data_type() with a media document."""
     doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
     assert doc.data_type() == 'image/png'
 
 
 def test_get_embedding_documents() -> None:
+    """Test getting embedding documents for a single embedding."""
     doc = Document.from_text('foo')
     embeddings: list[Embedding] = [Embedding(embedding=[0.1, 0.2, 0.3])]
     docs = doc.get_embedding_documents(embeddings)
@@ -137,6 +149,7 @@ def test_get_embedding_documents() -> None:
 
 
 def test_get_embedding_documents_multiple_embeddings() -> None:
+    """Test getting embedding documents for multiple embeddings."""
     url = 'gs://somebucket/somevideo.mp4'
     content_type = 'video/mp4'
     metadata = {'start': 0, 'end': 60}
@@ -158,6 +171,7 @@ def test_get_embedding_documents_multiple_embeddings() -> None:
 
 
 def make_test_embedding(start: int) -> Embedding:
+    """Helper to create a test embedding with specific metadata."""
     return Embedding(
         embedding=[0.1, 0.2, 0.3],
         metadata={'embeddingType': 'video', 'start': start, 'end': start + 15},

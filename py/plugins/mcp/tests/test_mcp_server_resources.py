@@ -19,13 +19,8 @@
 import os
 import sys
 import unittest
+from typing import Any
 from unittest.mock import MagicMock
-
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-from fakes import mock_mcp_modules
-
-mock_mcp_modules()
 
 import pytest
 from mcp.types import (
@@ -33,14 +28,49 @@ from mcp.types import (
     ListResourcesRequest,
     ListResourceTemplatesRequest,
     ListToolsRequest,
-    ReadResourceRequest,
-    ReadResourceRequestParams,
     TextContent,
     TextResourceContents,
 )
 
-from genkit.ai import Genkit
-from genkit.plugins.mcp import McpServerOptions, create_mcp_server
+# Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
+Genkit: Any = None
+McpServerOptions: Any = None
+create_mcp_server: Any = None
+
+
+def setup_mocks():
+    """Set up mocks for testing."""
+    global Genkit, McpServerOptions, create_mcp_server
+
+    # Add test directory to path for fakes
+    if os.path.dirname(__file__) not in sys.path:
+        sys.path.insert(0, os.path.dirname(__file__))
+
+    # Add src directory to path if not installed
+    src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'))
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+
+    try:
+        from fakes import mock_mcp_modules
+
+        mock_mcp_modules()
+
+        from genkit.ai import Genkit as _Genkit
+        from genkit.plugins.mcp import McpServerOptions as _McpServerOptions, create_mcp_server as _create_mcp_server
+
+        Genkit = _Genkit
+        McpServerOptions = _McpServerOptions
+        create_mcp_server = _create_mcp_server
+    except ImportError:
+        # Fallback if dependencies missing
+        pass
+
+
+# Call setup at module level but wrapped? No, still E402 if statements are here.
+# But we can call it in setUpClass or invoke it.
+# However, for the classes to use these types, they need to be defined.
+# If I use lazy imports inside tests, E402 is solved.
 
 
 @pytest.mark.asyncio
@@ -49,6 +79,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        setup_mocks()
         self.ai = Genkit()
 
     async def test_list_resources_with_fixed_uri(self):
@@ -244,6 +275,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        setup_mocks()
         self.ai = Genkit()
 
     async def test_list_tools(self):
@@ -318,6 +350,7 @@ class TestMcpServerIntegration(unittest.IsolatedAsyncioTestCase):
 
     async def test_server_exposes_all_action_types(self):
         """Test that server exposes tools, prompts, and resources."""
+        setup_mocks()
         ai = Genkit()
 
         # Define tool
@@ -342,6 +375,7 @@ class TestMcpServerIntegration(unittest.IsolatedAsyncioTestCase):
 
     async def test_server_initialization_idempotent(self):
         """Test that server setup is idempotent."""
+        setup_mocks()
         ai = Genkit()
 
         @ai.tool()

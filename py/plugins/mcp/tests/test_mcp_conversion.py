@@ -19,26 +19,58 @@
 import os
 import sys
 import unittest
-
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-from fakes import mock_mcp_modules
-
-mock_mcp_modules()
+from typing import Any
 
 from mcp.types import BlobResourceContents, ImageContent, TextContent, TextResourceContents
 
 from genkit.core.typing import Media, MediaPart, Message, Part, TextPart
-from genkit.plugins.mcp.util import (
-    to_mcp_prompt_arguments,
-    to_mcp_prompt_message,
-    to_mcp_resource_contents,
-    to_mcp_tool_result,
-)
+
+# Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
+to_mcp_prompt_arguments: Any = None
+to_mcp_prompt_message: Any = None
+to_mcp_resource_contents: Any = None
+to_mcp_tool_result: Any = None
+
+
+def setup_mocks():
+    """Set up mocks for testing."""
+    global to_mcp_prompt_arguments, to_mcp_prompt_message, to_mcp_resource_contents, to_mcp_tool_result
+
+    # Add test directory to path for fakes
+    if os.path.dirname(__file__) not in sys.path:
+        sys.path.insert(0, os.path.dirname(__file__))
+
+    # Add src directory to path if not installed
+    src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'))
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+
+    try:
+        from fakes import mock_mcp_modules
+
+        mock_mcp_modules()
+
+        from genkit.plugins.mcp.util import (
+            to_mcp_prompt_arguments as _to_mcp_prompt_arguments,
+            to_mcp_prompt_message as _to_mcp_prompt_message,
+            to_mcp_resource_contents as _to_mcp_resource_contents,
+            to_mcp_tool_result as _to_mcp_tool_result,
+        )
+
+        to_mcp_prompt_arguments = _to_mcp_prompt_arguments
+        to_mcp_prompt_message = _to_mcp_prompt_message
+        to_mcp_resource_contents = _to_mcp_resource_contents
+        to_mcp_tool_result = _to_mcp_tool_result
+    except ImportError:
+        pass
 
 
 class TestMessageConversion(unittest.TestCase):
     """Tests for message conversion utilities."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        setup_mocks()
 
     def test_convert_user_message(self):
         """Test converting a user message."""
@@ -125,6 +157,10 @@ class TestMessageConversion(unittest.TestCase):
 class TestResourceConversion(unittest.TestCase):
     """Tests for resource content conversion."""
 
+    def setUp(self):
+        """Set up test fixtures."""
+        setup_mocks()
+
     def test_convert_text_resource(self):
         """Test converting text resource content."""
         parts = [Part(root=TextPart(text='Resource content'))]
@@ -198,6 +234,10 @@ class TestResourceConversion(unittest.TestCase):
 class TestToolResultConversion(unittest.TestCase):
     """Tests for tool result conversion."""
 
+    def setUp(self):
+        """Set up test fixtures."""
+        setup_mocks()
+
     def test_convert_string_result(self):
         """Test converting string result."""
         result = to_mcp_tool_result('Hello, world!')
@@ -244,6 +284,10 @@ class TestToolResultConversion(unittest.TestCase):
 
 class TestSchemaConversion(unittest.TestCase):
     """Tests for schema conversion utilities."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        setup_mocks()
 
     def test_convert_simple_schema(self):
         """Test converting simple string schema."""

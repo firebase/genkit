@@ -37,6 +37,7 @@ XAI_PLUGIN_NAME = 'xai'
 
 
 def xai_name(name: str) -> str:
+    """Create a fully qualified xAI model name."""
     return f'{XAI_PLUGIN_NAME}/{name}'
 
 
@@ -51,6 +52,13 @@ class XAI(Plugin):
         models: list[str] | None = None,
         **xai_params: Any,
     ) -> None:
+        """Initialize the XAI plugin.
+
+        Args:
+            api_key: The xAI API key.
+            models: List of models to register.
+            xai_params: Additional parameters for xAI client.
+        """
         api_key = api_key or os.getenv('XAI_API_KEY')
 
         if not api_key:

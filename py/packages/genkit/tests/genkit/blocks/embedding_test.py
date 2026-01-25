@@ -135,9 +135,11 @@ class MockGenkitRegistry:
     """A mock registry to simulate action lookup."""
 
     def __init__(self):
+        """Initialize the MockGenkitRegistry."""
         self.actions = {}
 
     def register_action(self, name, kind, fn, metadata, description):
+        """Register a mock action."""
         mock_action = MagicMock(spec=Action)
         mock_action.name = name
         mock_action.kind = kind

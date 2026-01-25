@@ -14,7 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import google.auth.transport.requests
+
+"""Vertex AI client."""
+
+import google.auth.transport.requests  # noqa: F401 - explicit import for ty
 from google import auth
 from openai import OpenAI as _OpenAI
 

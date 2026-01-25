@@ -43,7 +43,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator, Callable
-from typing import Any, cast
+from typing import Any
 
 import structlog
 from starlette.applications import Starlette
@@ -55,7 +55,7 @@ from starlette.routing import Route
 
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import Action
-from genkit.core.action.types import ActionKind, ActionResponse
+from genkit.core.action.types import ActionKind
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_reflection_json
 from genkit.core.registry import Registry
@@ -528,5 +528,5 @@ def create_reflection_asgi_app(
         on_startup=[on_app_startup] if on_app_startup else [],
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
     )
-    setattr(app, 'active_actions', active_actions)
+    app.active_actions = active_actions  # type: ignore[attr-defined]
     return app

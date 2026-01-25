@@ -124,7 +124,7 @@ You can define custom rerankers for specific use cases:
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document

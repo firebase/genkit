@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Integration tests for Genkit resources."""
+
 import pytest
 
 from genkit.blocks.generate import generate_action
@@ -24,6 +27,7 @@ from genkit.core.typing import GenerateActionOptions, GenerateResponse, Message,
 
 @pytest.mark.asyncio
 async def test_generate_with_resources():
+    """Test calling generate with resources."""
     registry = Registry()
 
     # 1. Register a resource
@@ -60,6 +64,7 @@ async def test_generate_with_resources():
 
 @pytest.mark.asyncio
 async def test_dynamic_action_provider_resource():
+    """Test dynamic action provider with resources."""
     registry = Registry()
 
     # Register a dynamic provider that handles any "dynamic://*" uri

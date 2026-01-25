@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Helper functions for Genkit evaluators."""
+
 import json
 import os
 import re

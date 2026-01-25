@@ -49,12 +49,10 @@ from genkit.core.typing import (
     GenerationUsage,
     Media,
     MediaModel,
-    MediaPart,
     Message,
     ModelInfo,
     Part,
     Text,
-    TextPart,
     ToolRequestPart,
 )
 

@@ -27,8 +27,8 @@ from genkit.plugins.vertex_ai.vector_search import (
     BigQueryRetriever,
     FirestoreRetriever,
     RetrieverOptionsSchema,
-    defineVertexVectorSearchBigQuery,
-    defineVertexVectorSearchFirestore,
+    define_vertex_vector_search_big_query,
+    define_vertex_vector_search_firestore,
 )
 
 
@@ -47,6 +47,6 @@ __all__ = [
     'BigQueryRetriever',
     'FirestoreRetriever',
     'RetrieverOptionsSchema',
-    'defineVertexVectorSearchBigQuery',
-    'defineVertexVectorSearchFirestore',
+    'define_vertex_vector_search_big_query',
+    'define_vertex_vector_search_firestore',
 ]
