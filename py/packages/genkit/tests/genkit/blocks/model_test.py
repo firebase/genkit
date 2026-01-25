@@ -21,6 +21,7 @@ from genkit.core.action import ActionMetadata
 from genkit.core.typing import (
     Candidate,
     DocumentPart,
+    FinishReason,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -28,6 +29,7 @@ from genkit.core.typing import (
     Media,
     MediaPart,
     Message,
+    Metadata,
     Part,
     TextPart,
     ToolRequest,
@@ -284,7 +286,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
             [
                 Candidate(
                     index=0,
-                    finish_reason='stop',
+                    finish_reason=FinishReason.STOP,
                     message=Message(
                         role='user',
                         content=[
@@ -294,7 +296,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=1,
-                    finish_reason='stop',
+                    finish_reason=FinishReason.STOP,
                     message=Message(
                         role='user',
                         content=[
@@ -304,7 +306,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=2,
-                    finish_reason='stop',
+                    finish_reason=FinishReason.STOP,
                     message=Message(
                         role='user',
                         content=[
@@ -314,7 +316,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=3,
-                    finish_reason='stop',
+                    finish_reason=FinishReason.STOP,
                     message=Message(
                         role='user',
                         content=[
@@ -324,7 +326,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=4,
-                    finish_reason='stop',
+                    finish_reason=FinishReason.STOP,
                     message=Message(
                         role='user',
                         content=[
@@ -334,7 +336,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=5,
-                    finish_reason='stop',
+                    finish_reason=FinishReason.STOP,
                     message=Message(
                         role='user',
                         content=[
@@ -344,7 +346,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 ),
                 Candidate(
                     index=6,
-                    finish_reason='stop',
+                    finish_reason=FinishReason.STOP,
                     message=Message(
                         role='user',
                         content=[
@@ -442,7 +444,7 @@ def test_response_wrapper_interrupts() -> None:
                     Part(
                         root=ToolRequestPart(
                             tool_request=ToolRequest(name='tool2', input={'bcd': 4}),
-                            metadata={'interrupt': {'banana': 'yes'}},
+                            metadata=Metadata(root={'interrupt': {'banana': 'yes'}}),
                         )
                     ),
                     Part(root=TextPart(text='bar')),
@@ -461,7 +463,8 @@ def test_response_wrapper_interrupts() -> None:
 
     assert wrapper.interrupts == [
         ToolRequestPart(
-            tool_request=ToolRequest(name='tool2', input={'bcd': 4}), metadata={'interrupt': {'banana': 'yes'}}
+            tool_request=ToolRequest(name='tool2', input={'bcd': 4}),
+            metadata=Metadata(root={'interrupt': {'banana': 'yes'}}),
         )
     ]
 

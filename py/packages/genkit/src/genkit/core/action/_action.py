@@ -224,6 +224,8 @@ class Action:
         self._metadata = metadata if metadata else {}
         self._description = description
         self._is_async = inspect.iscoroutinefunction(fn)
+        # Optional matcher function for resource actions
+        self.matches: Callable[[Any], bool] | None = None
 
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
         action_args, arg_types = extract_action_args_and_types(input_spec)

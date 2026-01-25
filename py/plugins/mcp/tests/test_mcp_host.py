@@ -27,6 +27,8 @@ mock_mcp_modules()
 import unittest
 from unittest.mock import patch
 
+from mcp.types import Tool
+
 from genkit.ai import Genkit
 
 # Now import plugin
@@ -48,9 +50,9 @@ class TestMcpHost(unittest.IsolatedAsyncioTestCase):
 
         # Mock session for registration
         host.clients['server1'].session = AsyncMock()
-        mock_tool = MagicMock()
-        mock_tool.name = 'tool1'
-        host.clients['server1'].session.list_tools.return_value.tools = [mock_tool]
+        host.clients['server1'].session = AsyncMock()
+        tool1 = Tool(name='tool1', description='tool desc', inputSchema={'type': 'object'})
+        host.clients['server1'].session.list_tools.return_value.tools = [tool1]
 
         ai = MagicMock(spec=Genkit)
         ai.registry = MagicMock()

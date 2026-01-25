@@ -39,6 +39,6 @@ async def render_text(prompt: PromptFunction, input_: dict[str, Any]) -> str:
     )
     result = []
     for message in rendered.messages:
-        result.append(''.join(e.text for e in message.content))
+        result.append(''.join(e.text for e in message.content if hasattr(e, 'text') and e.text))  # type: ignore[arg-type]
 
     return ''.join(result)

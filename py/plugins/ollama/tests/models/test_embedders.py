@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import ollama as ollama_api
 
+from genkit.core.typing import DocumentPart
 from genkit.plugins.ollama.embedders import EmbeddingDefinition, OllamaEmbedder
 from genkit.types import (
     Document,
@@ -71,8 +72,13 @@ class TestOllamaEmbedderEmbed(unittest.IsolatedAsyncioTestCase):
         """Test embed with multiple documents, each with multiple text contents."""
         request = EmbedRequest(
             input=[
-                Document(content=[TextPart(text='doc1_part1'), TextPart(text='doc1_part2')]),
-                Document(content=[TextPart(text='doc2_part1')]),
+                Document(
+                    content=[
+                        DocumentPart(root=TextPart(text='doc1_part1')),
+                        DocumentPart(root=TextPart(text='doc1_part2')),
+                    ]
+                ),
+                Document(content=[DocumentPart(root=TextPart(text='doc2_part1'))]),
             ]
         )
         expected_ollama_embeddings = [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]
@@ -110,7 +116,7 @@ class TestOllamaEmbedderEmbed(unittest.IsolatedAsyncioTestCase):
 
     async def test_embed_api_raises_exception(self):
         """Test embed method handles exception from client.embed."""
-        request = EmbedRequest(input=[Document(content=[TextPart(text='error text')])])
+        request = EmbedRequest(input=[Document(content=[DocumentPart(root=TextPart(text='error text'))])])
         self.mock_ollama_client_instance.embed.side_effect = Exception('Ollama Embed API Error')
 
         with self.assertRaisesRegex(Exception, 'Ollama Embed API Error'):
@@ -122,8 +128,8 @@ class TestOllamaEmbedderEmbed(unittest.IsolatedAsyncioTestCase):
         """Test embed when client returns fewer embeddings than input texts (edge case)."""
         request = EmbedRequest(
             input=[
-                Document(content=[TextPart(text='text1')]),
-                Document(content=[TextPart(text='text2')]),
+                Document(content=[DocumentPart(root=TextPart(text='text1'))]),
+                Document(content=[DocumentPart(root=TextPart(text='text2'))]),
             ]
         )
         # Simulate Ollama returning only one embedding for two inputs

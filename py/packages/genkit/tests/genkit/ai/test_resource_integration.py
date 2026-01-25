@@ -54,6 +54,7 @@ async def test_generate_with_resources():
 
     response = await generate_action(registry, options)
     # Part also uses RootModel, access via root
+    assert response.message is not None
     assert response.message.content[0].root.text == 'Done'
 
 
@@ -100,4 +101,5 @@ async def test_dynamic_action_provider_resource():
     )
 
     response = await generate_action(registry, options)
+    assert response.message is not None
     assert response.message.content[0].root.text == 'Done'

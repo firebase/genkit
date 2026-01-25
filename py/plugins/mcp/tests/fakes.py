@@ -29,28 +29,11 @@ class MockSchema:
 
 def mock_mcp_modules():
     """Sets up comprehensive MCP mocks in sys.modules."""
+    # We only mock the runtime components that do I/O or logic we want to control
+    # types are imported from the real library now
     mock_mcp = MagicMock()
-    sys.modules['mcp'] = mock_mcp
-    sys.modules['mcp'].__path__ = []
-
-    types_mock = MagicMock()
-    sys.modules['mcp.types'] = types_mock
-    types_mock.ListToolsResult = MockSchema
-    types_mock.CallToolResult = MockSchema
-    types_mock.ListPromptsResult = MockSchema
-    types_mock.GetPromptResult = MockSchema
-    types_mock.ListResourcesResult = MockSchema
-    types_mock.ListResourceTemplatesResult = MockSchema
-    types_mock.ReadResourceResult = MockSchema
-    types_mock.Tool = MockSchema
-    types_mock.Prompt = MockSchema
-    types_mock.Resource = MockSchema
-    types_mock.ResourceTemplate = MockSchema
-    types_mock.TextContent = MockSchema
-    types_mock.PromptMessage = MockSchema
-    types_mock.TextResourceContents = MockSchema
-    types_mock.BlobResourceContents = MockSchema
-    types_mock.ImageContent = MockSchema
+    # sys.modules['mcp'] = mock_mcp  <-- removed
+    # sys.modules['mcp.types'] = ... <-- removed
 
     sys.modules['mcp.server'] = MagicMock()
     sys.modules['mcp.server.stdio'] = MagicMock()
@@ -60,7 +43,7 @@ def mock_mcp_modules():
     sys.modules['mcp.client.sse'] = MagicMock()
     sys.modules['mcp.server.sse'] = MagicMock()
 
-    return mock_mcp, types_mock
+    return mock_mcp, None
 
 
 def define_echo_model(ai: Genkit):

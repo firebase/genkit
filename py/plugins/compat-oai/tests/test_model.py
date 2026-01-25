@@ -80,6 +80,7 @@ async def test__generate(sample_request):
 
     mock_client.chat.completions.create.assert_called_once()
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.role == Role.MODEL
     assert response.message.content[0].root.text == 'Hello, user!'
 
@@ -143,16 +144,16 @@ async def test_generate(stream, sample_request):
     mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
 
     model = OpenAIModel(model='gpt-4', client=MagicMock())
-    model._generate_stream = AsyncMock(return_value=mock_response)
-    model._generate = AsyncMock(return_value=mock_response)
-    model.normalize_config = MagicMock(return_value={})
+    model._generate_stream = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
+    model._generate = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
+    model.normalize_config = MagicMock(return_value={})  # type: ignore[method-assign]
     response = await model.generate(sample_request, ctx_mock)
 
     assert response == mock_response
     if stream:
-        model._generate_stream.assert_called_once()
+        model._generate_stream.assert_called_once()  # type: ignore[union-attr]
     else:
-        model._generate.assert_called_once()
+        model._generate.assert_called_once()  # type: ignore[union-attr]
 
 
 @pytest.mark.parametrize(

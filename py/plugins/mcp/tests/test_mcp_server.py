@@ -28,48 +28,24 @@ from unittest.mock import MagicMock
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-# Mock mcp module before importing
-mock_mcp = MagicMock()
-sys.modules['mcp'] = mock_mcp
-
-
-class MockSchema:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-
-types_mock = MagicMock()
-sys.modules['mcp.types'] = types_mock
-types_mock.ListToolsResult = MockSchema
-types_mock.CallToolResult = MockSchema
-types_mock.ListPromptsResult = MockSchema
-types_mock.GetPromptResult = MockSchema
-types_mock.ListResourcesResult = MockSchema
-types_mock.ListResourceTemplatesResult = MockSchema
-types_mock.ReadResourceResult = MockSchema
-types_mock.Tool = MockSchema
-types_mock.Prompt = MockSchema
-types_mock.Resource = MockSchema
-types_mock.ResourceTemplate = MockSchema
-types_mock.TextResourceContents = MockSchema
-types_mock.BlobResourceContents = MockSchema
-types_mock.ImageContent = MockSchema
-types_mock.TextResourceContents = MockSchema
-types_mock.BlobResourceContents = MockSchema
-types_mock.ImageContent = MockSchema
-types_mock.TextContent = MockSchema
-types_mock.PromptMessage = MockSchema
-
-sys.modules['mcp.server'] = MagicMock()
-sys.modules['mcp.server.stdio'] = MagicMock()
-sys.modules['mcp.client'] = MagicMock()
-sys.modules['mcp.client'].__path__ = []
-sys.modules['mcp.client.stdio'] = MagicMock()
-sys.modules['mcp.client.sse'] = MagicMock()
-sys.modules['mcp.server.sse'] = MagicMock()
 
 import pytest
+from mcp.types import (
+    AnyUrl,
+    CallToolRequest,
+    CallToolRequestParams,
+    GetPromptRequest,
+    GetPromptRequestParams,
+    ListPromptsRequest,
+    ListResourcesRequest,
+    ListResourceTemplatesRequest,
+    ListToolsRequest,
+    ReadResourceRequest,
+    ReadResourceRequestParams,
+    TextContent,
+    TextResourceContents,
+    Tool,
+)
 
 from genkit.ai import Genkit
 from genkit.core.action.types import ActionKind
@@ -116,7 +92,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_tools(self):
         """Test listing tools - mirrors JS 'should list tools'."""
-        result = await self.server.list_tools({})
+        result = await self.server.list_tools(ListToolsRequest(method='tools/list'))
 
         # Verify we have the test tool
         self.assertEqual(len(result.tools), 1)
@@ -124,19 +100,24 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tool.name, 'test_tool')
         self.assertEqual(tool.description, 'test tool')
-        self.assertIsNotNone(tool.input_schema)
+        # Ensure it is a Tool and input_schema is present
+        assert isinstance(tool, Tool)
+        assert tool.inputSchema is not None
+        self.assertIsNotNone(tool.inputSchema)
 
     async def test_call_tool(self):
         """Test calling a tool - mirrors JS 'should call the tool'."""
         # Create mock request
-        request = MagicMock()
-        request.params.name = 'test_tool'
-        request.params.arguments = {'foo': 'bar'}
+        request = CallToolRequest(
+            method='tools/call',
+            params=CallToolRequestParams(name='test_tool', arguments={'foo': 'bar'}),
+        )
 
         result = await self.server.call_tool(request)
 
         # Verify response
         self.assertEqual(len(result.content), 1)
+        assert isinstance(result.content[0], TextContent)
         self.assertEqual(result.content[0].type, 'text')
         self.assertEqual(result.content[0].text, 'yep {"foo":"bar"}')
 
@@ -144,7 +125,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_prompts(self):
         """Test listing prompts - mirrors JS 'should list prompts'."""
-        result = await self.server.list_prompts({})
+        result = await self.server.list_prompts(ListPromptsRequest(method='prompts/list'))
 
         # Verify we have the test prompt
         prompt_names = [p.name for p in result.prompts]
@@ -153,9 +134,10 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
     async def test_get_prompt(self):
         """Test rendering a prompt - mirrors JS 'should render prompt'."""
         # Create mock request
-        request = MagicMock()
-        request.params.name = 'testPrompt'
-        request.params.arguments = {'input': 'hello'}
+        request = GetPromptRequest(
+            method='prompts/get',
+            params=GetPromptRequestParams(name='testPrompt', arguments={'input': 'hello'}),
+        )
 
         result = await self.server.get_prompt(request)
 
@@ -167,24 +149,27 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         message = result.messages[0]
         self.assertEqual(message.role, 'user')
         self.assertEqual(message.content.type, 'text')
+        assert isinstance(message.content, TextContent)
         self.assertIn('prompt says: hello', message.content.text)
 
     # ===== RESOURCE TESTS =====
 
     async def test_list_resources(self):
         """Test listing resources - mirrors JS 'should list resources'."""
-        result = await self.server.list_resources({})
+        result = await self.server.list_resources(ListResourcesRequest(method='resources/list'))
 
         # Verify we have the fixed URI resource
         self.assertEqual(len(result.resources), 1)
         resource = result.resources[0]
 
         self.assertEqual(resource.name, 'testResources')
-        self.assertEqual(resource.uri, 'my://resource')
+        self.assertEqual(str(resource.uri), 'my://resource')
 
     async def test_list_resource_templates(self):
         """Test listing resource templates - mirrors JS 'should list templates'."""
-        result = await self.server.list_resource_templates({})
+        result = await self.server.list_resource_templates(
+            ListResourceTemplatesRequest(method='resources/templates/list')
+        )
 
         # Verify we have the template resource
         self.assertEqual(len(result.resourceTemplates), 1)
@@ -196,31 +181,36 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource(self):
         """Test reading a resource - mirrors JS 'should read resource'."""
         # Create mock request
-        request = MagicMock()
-        request.params.uri = 'my://resource'
+        request = ReadResourceRequest(
+            method='resources/read', params=ReadResourceRequestParams(uri=AnyUrl('my://resource'))
+        )
 
         result = await self.server.read_resource(request)
 
         # Verify response
         self.assertEqual(len(result.contents), 1)
         content = result.contents[0]
+        assert isinstance(content, TextResourceContents)
 
-        self.assertEqual(content.uri, 'my://resource')
+        self.assertEqual(str(content.uri), 'my://resource')
         self.assertEqual(content.text, 'my resource')
 
     async def test_read_template_resource(self):
         """Test reading a template resource."""
         # Create mock request
-        request = MagicMock()
-        request.params.uri = 'file:///path/to/file.txt'
+        # Create mock request
+        request = ReadResourceRequest(
+            method='resources/read', params=ReadResourceRequestParams(uri=AnyUrl('file:///path/to/file.txt'))
+        )
 
         result = await self.server.read_resource(request)
 
         # Verify response
         self.assertEqual(len(result.contents), 1)
         content = result.contents[0]
+        assert isinstance(content, TextResourceContents)
 
-        self.assertEqual(content.uri, 'file:///path/to/file.txt')
+        self.assertEqual(str(content.uri), 'file:///path/to/file.txt')
         self.assertIn('file contents for file:///path/to/file.txt', content.text)
 
     # ===== ADDITIONAL TESTS =====
@@ -242,9 +232,10 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         """Test calling a non-existent tool."""
         from genkit.core.error import GenkitError
 
-        request = MagicMock()
-        request.params.name = 'nonexistent_tool'
-        request.params.arguments = {}
+        request = CallToolRequest(
+            method='tools/call',
+            params=CallToolRequestParams(name='nonexistent_tool', arguments={}),
+        )
 
         with self.assertRaises(GenkitError) as context:
             await self.server.call_tool(request)
@@ -255,9 +246,10 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         """Test getting a non-existent prompt."""
         from genkit.core.error import GenkitError
 
-        request = MagicMock()
-        request.params.name = 'nonexistent_prompt'
-        request.params.arguments = {}
+        request = GetPromptRequest(
+            method='prompts/get',
+            params=GetPromptRequestParams(name='nonexistent_prompt', arguments={}),
+        )
 
         with self.assertRaises(GenkitError) as context:
             await self.server.get_prompt(request)
@@ -268,8 +260,10 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         """Test reading a non-existent resource."""
         from genkit.core.error import GenkitError
 
-        request = MagicMock()
-        request.params.uri = 'nonexistent://resource'
+        request = ReadResourceRequest(
+            method='resources/read',
+            params=ReadResourceRequestParams(uri=AnyUrl('nonexistent://resource')),
+        )
 
         with self.assertRaises(GenkitError) as context:
             await self.server.read_resource(request)
@@ -322,7 +316,7 @@ class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
 
         # Test exact match
         result = matches_uri_template('file://{+path}', 'file:///home/user/doc.txt')
-        self.assertIsNotNone(result)
+        assert result is not None
         self.assertIn('path', result)
 
         # Test no match
@@ -331,7 +325,7 @@ class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
 
         # Test multiple parameters
         result = matches_uri_template('user://{id}/posts/{post_id}', 'user://123/posts/456')
-        self.assertIsNotNone(result)
+        assert result is not None
         self.assertEqual(result['id'], '123')
         self.assertEqual(result['post_id'], '456')
 

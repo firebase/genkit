@@ -222,6 +222,8 @@ class Ollama(Plugin):
         actions = []
         for model in response.models:
             _name = model.model
+            if not _name:
+                continue
             if 'embed' in _name:
                 actions.append(
                     embedder_action_metadata(

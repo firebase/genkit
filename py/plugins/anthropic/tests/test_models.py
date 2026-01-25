@@ -74,11 +74,14 @@ async def test_generate_basic():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
     response = await model.generate(sample_request)
 
+    assert response.message is not None
+    assert response.message.content is not None
     assert len(response.message.content) == 1
     part = response.message.content[0]
     actual_part = part.root if isinstance(part, Part) else part
     assert isinstance(actual_part, TextPart)
     assert actual_part.text == "Hello! I'm doing well."
+    assert response.usage is not None
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 15
     assert response.finish_reason == 'stop'
@@ -105,10 +108,13 @@ async def test_generate_with_tools():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
     response = await model.generate(sample_request)
 
+    assert response.message is not None
+    assert response.message.content is not None
     assert len(response.message.content) == 1
     part = response.message.content[0]
     actual_part = part.root if isinstance(part, Part) else part
     assert isinstance(actual_part, ToolRequestPart)
+    assert actual_part.tool_request is not None
     assert actual_part.tool_request.name == 'get_weather'
     assert actual_part.tool_request.ref == 'tool_123'
     assert actual_part.tool_request.input == {'location': 'Paris'}
@@ -132,7 +138,7 @@ async def test_generate_with_config():
         config=GenerationCommonConfig(
             temperature=0.7,
             max_output_tokens=100,
-            topP=0.9,
+            top_p=0.9,
         ),
     )
 
@@ -248,10 +254,12 @@ async def test_streaming_generation():
     chunk2_actual = chunk2_part.root if isinstance(chunk2_part, Part) else chunk2_part
     assert chunk2_actual.text == '!'
 
+    assert response.usage is not None
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 20
 
     # Verify final response content is populated
+    assert response.message is not None
     assert len(response.message.content) == 1
     final_part = response.message.content[0]
     assert isinstance(final_part, Part)

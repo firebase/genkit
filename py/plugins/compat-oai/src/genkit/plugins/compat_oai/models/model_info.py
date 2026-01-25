@@ -188,4 +188,4 @@ def get_default_model_info(name: str) -> ModelInfo:
 
 def get_default_openai_model_info(name: str) -> ModelInfo:
     """Gets the default model info given a name."""
-    return ModelInfo(label=f'OpenAI - {name}', supports={'multiturn': True})
+    return ModelInfo(label=f'OpenAI - {name}', supports=Supports(multiturn=True))

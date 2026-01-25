@@ -63,7 +63,7 @@ async def asgi_client(mock_registry):
         An AsyncClient configured to make requests to the test ASGI app.
     """
     app = create_reflection_asgi_app(mock_registry)
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     client = AsyncClient(transport=transport, base_url='http://test')
     try:
         yield client

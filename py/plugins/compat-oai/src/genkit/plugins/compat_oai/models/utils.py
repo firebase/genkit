@@ -130,7 +130,7 @@ class MessageConverter:
         tool_messages = []
 
         for part in message.content:
-            root: Part = part.root
+            root = part.root
 
             if isinstance(root, TextPart):
                 text_parts.append(root.text)
@@ -203,7 +203,7 @@ class MessageConverter:
         Returns:
             A `Part` instance containing the text.
         """
-        return Part(text=content)
+        return Part(root=TextPart(text=content))
 
     @classmethod
     def tool_call_to_genkit(
@@ -219,13 +219,28 @@ class MessageConverter:
         Returns:
             A `Part` instance containing a `ToolRequest`.
         """
-        args_segment = args_segment if args_segment is not None else tool_call.function.arguments
+        # Get function info from tool_call (could be dict or object)
+        if hasattr(tool_call, 'function') and hasattr(tool_call, 'id'):
+            func = tool_call.function
+            tool_id = tool_call.id
+            func_name = func.name if hasattr(func, 'name') else ''
+            func_args = func.arguments if hasattr(func, 'arguments') else ''
+        else:
+            # Assume dict-like access
+            func = tool_call.get('function', {})  # type: ignore[attr-defined]
+            tool_id = tool_call.get('id', '')  # type: ignore[attr-defined]
+            func_name = func.get('name', '')
+            func_args = func.get('arguments', '')
+
+        args_segment = args_segment if args_segment is not None else func_args  # type: ignore[assignment]
         args_segment = args_parser(args_segment) if args_parser else args_segment
 
         return Part(
-            tool_request=ToolRequest(
-                ref=tool_call.id,
-                name=tool_call.function.name,
-                input=args_segment,
+            root=ToolRequestPart(
+                tool_request=ToolRequest(
+                    ref=str(tool_id) if tool_id else None,
+                    name=str(func_name) if func_name else '',
+                    input=args_segment,
+                )
             )
         )

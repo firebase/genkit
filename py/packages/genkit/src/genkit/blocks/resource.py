@@ -25,7 +25,7 @@ and return content (`ResourceOutput`) containing `Part`s.
 import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Protocol, TypedDict, cast
+from typing import Any, Protocol, TypedDict, Union, cast
 
 from pydantic import BaseModel
 
@@ -86,6 +86,17 @@ class ResourceFn(Protocol):
     def __call__(self, input: ResourceInput, ctx: ActionRunContext) -> Awaitable[ResourceOutput]:
         """Call the resource function."""
         ...
+
+
+ResourcePayload = ResourceOutput | dict[str, Any]
+
+# We need a flexible type because the runtime supports various signatures (0-2 args, sync/async, dict return)
+# but we also want to support the strict Protocol for those who want it.
+# Note: Callable[..., T] is used for flexible args because accurate variable arg Union logic is complex/verbose.
+FlexibleResourceFn = Union[
+    ResourceFn,
+    Callable[..., Awaitable[ResourcePayload] | ResourcePayload],
+]
 
 
 class MatchableAction(Protocol):
@@ -151,7 +162,7 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
     return resource
 
 
-def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -> Action:
+def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     """Defines a resource and registers it with the given registry.
 
     This creates a resource action that can handle requests for a specific URI
@@ -177,7 +188,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
     return action
 
 
-def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
+def resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     """Defines a dynamic resource action without immediate registration.
 
     This is an alias for `dynamic_resource`. Useful for defining resources that
@@ -193,7 +204,7 @@ def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     return dynamic_resource(opts, fn)
 
 
-def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
+def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     """Defines a dynamic resource action.
 
     Creates an `Action` of kind `RESOURCE` that wraps the provided function.
@@ -297,7 +308,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
         description=opts.get('description'),
         span_metadata={'genkit:metadata:resource:uri': uri},
     )
-    cast(MatchableAction, act).matches = matcher
+    act.matches = matcher
     return act
 
 
@@ -391,7 +402,11 @@ async def find_matching_resource(
     """
     if dynamic_resources:
         for action in dynamic_resources:
-            if hasattr(action, 'matches') and cast(MatchableAction, action).matches(input_data):
+            if (
+                hasattr(action, 'matches')
+                and callable(action.matches)
+                and cast(MatchableAction, action).matches(input_data)
+            ):
                 return action
 
     # Try exact match in registry
@@ -411,7 +426,11 @@ async def find_matching_resource(
         resources = registry._entries.get(cast(ActionKind, ActionKind.RESOURCE), {})
 
     for action in resources.values():
-        if hasattr(action, 'matches') and cast(MatchableAction, action).matches(input_data):
+        if (
+            hasattr(action, 'matches')
+            and callable(action.matches)
+            and cast(MatchableAction, action).matches(input_data)
+        ):
             return action
 
     return None

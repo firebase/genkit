@@ -22,10 +22,11 @@ from pydantic import BaseModel
 from genkit.ai import Genkit, Plugin
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.typing import ToolRequestPart, ToolResponsePart
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import CallToolResult, Prompt, Resource, Tool
+from mcp.types import AnyUrl, CallToolResult, ClientCapabilities, Prompt, PromptMessage, Resource, TextContent, Tool
 
 logger = structlog.get_logger(__name__)
 
@@ -118,6 +119,7 @@ class McpClient(Plugin):
                 self.session = await session_context.__aenter__()
                 self._session_context = session_context
 
+            assert self.session is not None
             await self.session.initialize()
             logger.info(f'Connected to MCP server: {self.server_name}')
 
@@ -156,7 +158,10 @@ class McpClient(Plugin):
             raise RuntimeError(f'Tool execution failed: {result.content}')
 
         # Simple text extraction for now
-        texts = [c.text for c in result.content if c.type == 'text']
+        texts = []
+        for c in result.content:
+            if c.type == 'text' and isinstance(c, TextContent):
+                texts.append(c.text)
         return ''.join(texts)
 
     async def list_prompts(self) -> list[Prompt]:
@@ -179,7 +184,7 @@ class McpClient(Plugin):
     async def read_resource(self, uri: str) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-        return await self.session.read_resource(uri)
+        return await self.session.read_resource(AnyUrl(uri))
 
     async def register_tools(self, ai: Genkit | None = None):
         """Registers all tools from connected client to Genkit."""

@@ -102,7 +102,7 @@ class DeepSeek(Plugin):
         # Create the DeepSeek model instance
         deepseek_model = DeepSeekModel(
             model=clean_name,
-            api_key=self.api_key,
+            api_key=str(self.api_key),
             **self.deepseek_params,
         )
 

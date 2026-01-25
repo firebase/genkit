@@ -17,7 +17,7 @@
 """Google-Genai embedder model."""
 
 import sys
-from typing import Any
+from typing import Any, cast
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum
@@ -25,6 +25,7 @@ else:
     from enum import StrEnum
 
 from google import genai
+from google.genai import types as genai_types
 
 from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit.types import Embedding, EmbedRequest, EmbedResponse
@@ -95,9 +96,13 @@ class Embedder:
         """
         contents = self._build_contents(request)
         config = self._genkit_to_googleai_cfg(request)
-        response = await self._client.aio.models.embed_content(model=self._version, contents=contents, config=config)
+        response = await self._client.aio.models.embed_content(
+            model=self._version,
+            contents=cast(genai_types.ContentListUnion, contents),
+            config=config,
+        )
 
-        embeddings = [Embedding(embedding=em.values) for em in (response.embeddings or [])]
+        embeddings = [Embedding(embedding=em.values or []) for em in (response.embeddings or [])]
         return EmbedResponse(embeddings=embeddings)
 
     def _build_contents(self, request: EmbedRequest) -> list[genai.types.Content]:
@@ -113,7 +118,11 @@ class Embedder:
         for doc in request.input:
             content_parts: list[genai.types.Part] = []
             for p in doc.content:
-                content_parts.append(PartConverter.to_gemini(p))
+                converted = PartConverter.to_gemini(p)
+                if isinstance(converted, list):
+                    content_parts.extend(converted)
+                else:
+                    content_parts.append(converted)
             request_contents.append(genai.types.Content(parts=content_parts))
 
         return request_contents

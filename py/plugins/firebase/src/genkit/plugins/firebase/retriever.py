@@ -22,6 +22,7 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
+from genkit.core.typing import DocumentPart, TextPart
 from genkit.types import ActionRunContext, Document, GenkitError, RetrieverRequest, RetrieverResponse
 
 from .constant import MetadataTransformFn
@@ -52,7 +53,7 @@ class FirestoreRetriever:
         firestore_client: Any,
         collection: str,
         vector_field: str,
-        content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]],
+        content_field: str | Callable[[DocumentSnapshot], list[DocumentPart]],
         distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
         metadata_fields: list[str] | MetadataTransformFn | None = None,
     ):
@@ -97,7 +98,7 @@ class FirestoreRetriever:
         if not self.firestore_client:
             raise ValueError('Firestore Retriever config must include firestore client.')
 
-    def _to_content(self, doc_snapshot: DocumentSnapshot) -> list[dict[str, str]]:
+    def _to_content(self, doc_snapshot: DocumentSnapshot) -> list[DocumentPart]:
         """Convert a Firestore document snapshot to a list of content dictionaries.
 
         Args:
@@ -111,9 +112,9 @@ class FirestoreRetriever:
             return content_field(doc_snapshot)
         else:
             content = doc_snapshot.get(content_field)
-            return [{'text': content}] if content else []
+            return [DocumentPart(root=TextPart(text=str(content)))] if content else []
 
-    def _to_metadata(self, doc_snapshot: DocumentSnapshot) -> Document:
+    def _to_metadata(self, doc_snapshot: DocumentSnapshot) -> dict[str, Any]:
         """Convert a Firestore document snapshot to a list of metadata dictionaries.
 
         Args:
@@ -128,11 +129,12 @@ class FirestoreRetriever:
             if callable(metadata_fields):
                 metadata = metadata_fields(doc_snapshot)
             else:
+                doc_dict = doc_snapshot.to_dict() or {}
                 for field in metadata_fields:
-                    if field in doc_snapshot:
-                        metadata[field] = doc_snapshot.get(field)
+                    if field in doc_dict:
+                        metadata[field] = doc_dict[field]
         else:
-            metadata = doc_snapshot.to_dict()
+            metadata = doc_snapshot.to_dict() or {}
             vector_field = self.vector_field
             content_field = self.content_field
             if vector_field in metadata:

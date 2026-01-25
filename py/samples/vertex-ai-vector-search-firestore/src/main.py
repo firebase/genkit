@@ -16,6 +16,7 @@
 
 import os
 import time
+from typing import Any
 
 import structlog
 from google.cloud import aiplatform, firestore
@@ -23,19 +24,20 @@ from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
+from genkit.core.typing import RetrieverResponse
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import defineVertexVectorSearchFirestore
 
-LOCATION = os.getenv('LOCATION')
-PROJECT_ID = os.getenv('PROJECT_ID')
+LOCATION = os.environ['LOCATION']
+PROJECT_ID = os.environ['PROJECT_ID']
 
-FIRESTORE_COLLECTION = os.getenv('FIRESTORE_COLLECTION')
+FIRESTORE_COLLECTION = os.environ['FIRESTORE_COLLECTION']
 
-VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.getenv('VECTOR_SEARCH_DEPLOYED_INDEX_ID')
-VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.getenv('VECTOR_SEARCH_INDEX_ENDPOINT_PATH')
-VECTOR_SEARCH_API_ENDPOINT = os.getenv('VECTOR_SEARCH_API_ENDPOINT')
+VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.environ['VECTOR_SEARCH_DEPLOYED_INDEX_ID']
+VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.environ['VECTOR_SEARCH_INDEX_ENDPOINT_PATH']
+VECTOR_SEARCH_API_ENDPOINT = os.environ['VECTOR_SEARCH_API_ENDPOINT']
 
-firestore_client = firestore.Client(project=PROJECT_ID)
+firestore_client = firestore.AsyncClient(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
 logger = structlog.get_logger(__name__)
@@ -83,7 +85,7 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     }
 
-    result: list[Document] = await ai.retrieve(
+    result: RetrieverResponse = await ai.retrieve(
         retriever='my-vector-search',
         query=query_document,
         options={'limit': 10},
@@ -95,10 +97,11 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
 
     result_data = []
     for doc in result.documents:
+        metadata: dict[str, Any] = doc.metadata or {}
         result_data.append({
-            'id': doc.metadata.get('id'),
+            'id': metadata.get('id'),
             'text': doc.content[0].root.text,
-            'distance': doc.metadata.get('distance'),
+            'distance': metadata.get('distance'),
         })
 
     result_data = sorted(result_data, key=lambda x: x['distance'])

@@ -23,6 +23,7 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from genkit.ai import Genkit
 from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
 from genkit.core.action.types import ActionKind
+from genkit.core.typing import DocumentPart
 from genkit.plugins.firebase.retriever import FirestoreRetriever
 
 from .constant import MetadataTransformFn
@@ -49,7 +50,7 @@ def define_firestore_vector_store(
     embedder_options: dict[str, Any] | None = None,
     collection: str,
     vector_field: str,
-    content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]],
+    content_field: str | Callable[[DocumentSnapshot], list['DocumentPart']],
     firestore_client: Any,
     distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
     metadata_fields: list[str] | MetadataTransformFn | None = None,

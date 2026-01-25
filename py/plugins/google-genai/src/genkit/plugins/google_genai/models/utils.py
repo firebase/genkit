@@ -14,10 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import base64
-from typing import Any
+from typing import List, Union, cast
 
 from google import genai
 
+from genkit.core.typing import DocumentPart, Metadata
 from genkit.types import (
     CustomPart,
     Media,
@@ -58,7 +59,7 @@ class PartConverter:
     DATA = 'data:'
 
     @classmethod
-    def to_gemini(cls, part: Part) -> genai.types.Part:
+    def to_gemini(cls, part: Part | DocumentPart) -> Union[genai.types.Part, List[genai.types.Part]]:
         """Maps a Genkit Part to a Gemini Part.
 
         This method inspects the root type of the Genkit Part and converts it
@@ -168,9 +169,11 @@ class PartConverter:
             )
         if isinstance(part.root, CustomPart):
             return cls._to_gemini_custom(part)
+        # Default fallback for unknown part types
+        return genai.types.Part()
 
     @classmethod
-    def _to_gemini_custom(cls, part: Part) -> genai.types.Part:
+    def _to_gemini_custom(cls, part: Part | DocumentPart) -> genai.types.Part:
         """Converts a Genkit CustomPart into a Gemini Part.
 
         This internal helper method handles the conversion of custom part types,
@@ -183,20 +186,23 @@ class PartConverter:
         Returns:
             A `genai.types.Part` object representing the converted custom content.
         """
-        if cls.EXECUTABLE_CODE in part.root.custom:
+        if part.root.custom and cls.EXECUTABLE_CODE in part.root.custom:
+            custom_data = cast(dict, part.root.custom)
             return genai.types.Part(
                 executable_code=genai.types.ExecutableCode(
-                    code=part.root.custom[cls.EXECUTABLE_CODE][cls.CODE],
-                    language=part.root.custom[cls.EXECUTABLE_CODE][cls.LANGUAGE],
+                    code=custom_data[cls.EXECUTABLE_CODE][cls.CODE],
+                    language=custom_data[cls.EXECUTABLE_CODE][cls.LANGUAGE],
                 )
             )
-        if cls.CODE_EXECUTION_RESULT in part.root.custom:
+        if part.root.custom and cls.CODE_EXECUTION_RESULT in part.root.custom:
+            custom_data = cast(dict, part.root.custom)
             return genai.types.Part(
                 code_execution_result=genai.types.CodeExecutionResult(
-                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTCOME],
-                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTPUT],
+                    outcome=custom_data[cls.CODE_EXECUTION_RESULT][cls.OUTCOME],
+                    output=custom_data[cls.CODE_EXECUTION_RESULT][cls.OUTPUT],
                 )
             )
+        return genai.types.Part()
 
     @classmethod
     def from_gemini(cls, part: genai.types.Part, ref: str | None = None) -> Part:
@@ -228,7 +234,7 @@ class PartConverter:
                     tool_request=ToolRequest(
                         ref=ref or getattr(part.function_call, 'id', None),
                         # restore slashes
-                        name=part.function_call.name.replace('__', '/'),
+                        name=(part.function_call.name or '').replace('__', '/'),
                         input=part.function_call.args,
                     ),
                     metadata=cls._encode_thought_signature(part.thought_signature),
@@ -240,40 +246,48 @@ class PartConverter:
                     tool_response=ToolResponse(
                         ref=getattr(part.function_response, 'id', None),
                         # restore slashes
-                        name=part.function_response.name.replace('__', '/'),
+                        name=(part.function_response.name or '').replace('__', '/'),
                         output=part.function_response.response,
                     )
                 )
             )
-        if part.inline_data:
+        if part.inline_data and part.inline_data.data:
             b64_data = base64.b64encode(part.inline_data.data).decode('utf-8')
             return Part(
-                media=Media(
-                    url=f'data:{part.inline_data.mime_type};base64,{b64_data}',
-                    content_type=part.inline_data.mime_type,
+                root=MediaPart(
+                    media=Media(
+                        url=f'data:{part.inline_data.mime_type};base64,{b64_data}',
+                        content_type=part.inline_data.mime_type,
+                    )
                 )
             )
         if part.executable_code:
-            return CustomPart(
-                custom={
-                    cls.EXECUTABLE_CODE: {
-                        cls.LANGUAGE: part.executable_code.language,
-                        cls.CODE: part.executable_code.code,
+            return Part(
+                root=CustomPart(
+                    custom={
+                        cls.EXECUTABLE_CODE: {
+                            cls.LANGUAGE: part.executable_code.language,
+                            cls.CODE: part.executable_code.code,
+                        }
                     }
-                }
+                )
             )
         if part.code_execution_result:
-            return CustomPart(
-                custom={
-                    cls.CODE_EXECUTION_RESULT: {
-                        cls.OUTCOME: part.code_execution_result.outcome,
-                        cls.OUTPUT: part.code_execution_result.output,
+            return Part(
+                root=CustomPart(
+                    custom={
+                        cls.CODE_EXECUTION_RESULT: {
+                            cls.OUTCOME: part.code_execution_result.outcome,
+                            cls.OUTPUT: part.code_execution_result.output,
+                        }
                     }
-                }
+                )
             )
 
+        return Part(root=TextPart(text=''))
+
     @classmethod
-    def _extract_thought_signature(cls, metadata: Any) -> bytes | None:
+    def _extract_thought_signature(cls, metadata: Metadata | None) -> bytes | None:
         """Extracts and decodes the thought signature from metadata."""
         thought_sig = metadata.root.get('thoughtSignature') if metadata else None
         if isinstance(thought_sig, str):
@@ -281,8 +295,8 @@ class PartConverter:
         return None
 
     @classmethod
-    def _encode_thought_signature(cls, thought_signature: bytes | None) -> dict[str, str] | None:
+    def _encode_thought_signature(cls, thought_signature: bytes | None) -> Metadata | None:
         """Encodes the thought signature into metadata format."""
         if thought_signature:
-            return {'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')}
+            return Metadata(root={'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')})
         return None

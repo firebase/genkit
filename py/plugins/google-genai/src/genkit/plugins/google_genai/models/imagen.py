@@ -35,6 +35,7 @@ from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Media,
+    MediaPart,
     Message,
     ModelInfo,
     Part,
@@ -179,7 +180,7 @@ class ImagenModel:
             )
         )
 
-    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict:
+    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict | None:
         cfg = None
 
         if request.config:
@@ -206,15 +207,18 @@ class ImagenModel:
         content = []
         if response.generated_images:
             for image in response.generated_images:
-                b64_data = base64.b64encode(image.image.image_bytes).decode('utf-8')
-                content.append(
-                    Part(
-                        media=Media(
-                            url=f'data:{image.image.mime_type};base64,{b64_data}',
-                            content_type=image.image.mime_type,
+                if image.image and image.image.image_bytes:
+                    b64_data = base64.b64encode(image.image.image_bytes).decode('utf-8')
+                    content.append(
+                        Part(
+                            root=MediaPart(
+                                media=Media(
+                                    url=f'data:{image.image.mime_type};base64,{b64_data}',
+                                    content_type=image.image.mime_type,
+                                )
+                            )
                         )
                     )
-                )
 
         return content
 
@@ -225,9 +229,11 @@ class ImagenModel:
         Returns:
             model metadata.
         """
-        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
-        return {
-            'model': {
-                'supports': supports,
+        supports = SUPPORTED_MODELS[self._version].supports
+        if supports:
+            return {
+                'model': {
+                    'supports': supports.model_dump(),
+                }
             }
-        }
+        return {'model': {'supports': {}}}

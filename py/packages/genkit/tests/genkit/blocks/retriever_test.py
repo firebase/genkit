@@ -70,6 +70,8 @@ def test_retriever_action_metadata_with_supports_and_config_schema():
         options=options,
     )
     assert isinstance(action_metadata, ActionMetadata)
+    assert action_metadata.metadata is not None
+    assert action_metadata.metadata.get('retriever') is not None
     assert action_metadata.metadata['retriever']['label'] == 'Advanced Retriever'
     assert action_metadata.metadata['retriever']['supports'] == {
         'media': True,

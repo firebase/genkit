@@ -28,10 +28,10 @@ members = [
     "genkit-plugin-flask",
     "genkit-plugin-google-cloud",
     "genkit-plugin-google-genai",
+    "genkit-plugin-mcp",
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
     "genkit-plugin-xai",
-    "genkit-plugins-mcp",
     "genkit-workspace",
     "google-genai-code-execution",
     "google-genai-context-caching",
@@ -1999,6 +1999,21 @@ requires-dist = [
 ]
 
 [[package]]
+name = "genkit-plugin-mcp"
+version = "0.1.0"
+source = { editable = "plugins/mcp" }
+dependencies = [
+    { name = "genkit" },
+    { name = "mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "mcp" },
+]
+
+[[package]]
 name = "genkit-plugin-ollama"
 version = "0.4.0"
 source = { editable = "plugins/ollama" }
@@ -2060,21 +2075,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "genkit-plugins-mcp"
-version = "0.1.0"
-source = { editable = "plugins/mcp" }
-dependencies = [
-    { name = "genkit" },
-    { name = "mcp" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "mcp" },
-]
-
-[[package]]
 name = "genkit-workspace"
 version = "0.1.0"
 source = { virtual = "." }
@@ -2090,6 +2090,7 @@ dependencies = [
     { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
+    { name = "genkit-plugin-mcp" },
     { name = "genkit-plugin-ollama" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "genkit-plugin-xai" },
@@ -2137,6 +2138,7 @@ requires-dist = [
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-mcp", editable = "plugins/mcp" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "genkit-plugin-xai", editable = "plugins/xai" },

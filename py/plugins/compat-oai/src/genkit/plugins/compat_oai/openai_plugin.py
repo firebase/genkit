@@ -68,7 +68,7 @@ class OpenAI(Plugin):
 
     name = 'openai'
 
-    def __init__(self, **openai_params: str) -> None:
+    def __init__(self, **openai_params: Any) -> None:
         """Initializes the OpenAI plugin with the specified parameters.
 
         Args:
@@ -97,7 +97,7 @@ class OpenAI(Plugin):
 
         return actions
 
-    def get_model_info(self, name: str) -> dict[str, str] | None:
+    def get_model_info(self, name: str) -> dict[str, Any] | None:
         """Retrieves metadata and supported features for the specified model.
 
         This method looks up the model's information from a predefined list
@@ -110,15 +110,17 @@ class OpenAI(Plugin):
             the model's capabilities (e.g., tools, streaming).
         """
         if model_supported := SUPPORTED_OPENAI_MODELS.get(name):
+            supports = model_supported.supports.model_dump(exclude_none=True) if model_supported.supports else {}
             return {
                 'label': model_supported.label,
-                'supports': model_supported.supports.model_dump(exclude_none=True),
+                'supports': supports,
             }
 
-        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(name, get_default_openai_model_info(self))
+        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(name, get_default_openai_model_info(name))
+        supports = model_info.supports.model_dump(exclude_none=True) if model_info.supports else {}
         return {
             'label': model_info.label,
-            'supports': model_info.supports.model_dump(exclude_none=True),
+            'supports': supports,
         }
 
     async def resolve(self, action_type: ActionKind, name: str):
@@ -190,12 +192,29 @@ class OpenAI(Plugin):
 
         async def embed_fn(request: EmbedRequest) -> EmbedResponse:
             """Embedder function that calls OpenAI embeddings API."""
+            # Extract text from document content
+            texts = []
+            for doc in request.input:
+                doc_text = ''.join(  # type: ignore[arg-type]
+                    part.root.text for part in doc.content if hasattr(part.root, 'text') and part.root.text
+                )
+                texts.append(doc_text)
+
+            # Get optional parameters with proper types
+            dimensions = None
+            encoding_format = None
+            if request.options:
+                if dim_val := request.options.get('dimensions'):
+                    dimensions = int(dim_val)
+                if enc_val := request.options.get('encodingFormat'):
+                    encoding_format = str(enc_val) if enc_val in ('float', 'base64') else None
+
             # Create embeddings for each document
             response = self._openai_client.embeddings.create(
                 model=clean_name,
-                input=[doc.text() for doc in request.input],
-                dimensions=request.options.get('dimensions') if request.options else None,
-                encoding_format=request.options.get('encodingFormat') if request.options else None,
+                input=texts,
+                dimensions=dimensions,  # type: ignore[arg-type]
+                encoding_format=encoding_format,  # type: ignore[arg-type]
             )
 
             # Convert OpenAI response to Genkit format

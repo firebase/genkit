@@ -28,6 +28,25 @@ from fakes import mock_mcp_modules
 mock_mcp_modules()
 
 import pytest
+from mcp.types import (
+    AnyUrl,
+    CallToolRequest,
+    CallToolRequestParams,
+    CallToolResult,
+    ListResourcesRequest,
+    ListResourcesResult,
+    ListResourceTemplatesRequest,
+    ListResourceTemplatesResult,
+    ListToolsResult,
+    ReadResourceRequest,
+    ReadResourceRequestParams,
+    ReadResourceResult,
+    Resource,
+    ResourceTemplate,
+    TextContent,
+    TextResourceContents,
+    Tool,
+)
 
 from genkit.ai import Genkit
 from genkit.plugins.mcp import McpClient, McpServerConfig, create_mcp_host, create_mcp_server
@@ -51,12 +70,8 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Mock the session to return tools
         mock_session = AsyncMock()
-        mock_tool = MagicMock()
-        mock_tool.name = 'add'
-        mock_tool.description = 'Add two numbers'
-        mock_tool.input_schema = {'type': 'object'}
-
-        mock_session.list_tools.return_value.tools = [mock_tool]
+        mock_tool = Tool(name='add', description='Add two numbers', inputSchema={'type': 'object'})
+        mock_session.list_tools.return_value = ListToolsResult(tools=[mock_tool])
         client.session = mock_session
 
         # List tools
@@ -73,12 +88,8 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Mock the session
         mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.isError = False
-        mock_content = MagicMock()
-        mock_content.type = 'text'
-        mock_content.text = '8'
-        mock_result.content = [mock_content]
+        mock_content = TextContent(type='text', text='8')
+        mock_result = CallToolResult(content=[mock_content])
 
         mock_session.call_tool.return_value = mock_result
         client.session = mock_session
@@ -97,12 +108,9 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Mock the session
         mock_session = AsyncMock()
-        mock_resource = MagicMock()
-        mock_resource.name = 'config'
-        mock_resource.uri = 'app://config'
-        mock_resource.description = 'Configuration'
+        mock_resource = Resource(name='config', uri=AnyUrl('app://config'), description='Configuration')
 
-        mock_session.list_resources.return_value.resources = [mock_resource]
+        mock_session.list_resources.return_value = ListResourcesResult(resources=[mock_resource])
         client.session = mock_session
 
         # List resources
@@ -111,7 +119,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Verify
         self.assertEqual(len(resources), 1)
         self.assertEqual(resources[0].name, 'config')
-        self.assertEqual(resources[0].uri, 'app://config')
+        self.assertEqual(str(resources[0].uri), 'app://config')
 
     async def test_client_can_read_server_resource(self):
         """Test that a client can read a resource from a server."""
@@ -120,8 +128,9 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Mock the session
         mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.contents = [MagicMock(text='Resource content')]
+        mock_result = ReadResourceResult(
+            contents=[TextResourceContents(uri=AnyUrl('app://config'), mimeType='text/plain', text='Resource content')]
+        )
 
         mock_session.read_resource.return_value = mock_result
         client.session = mock_session
@@ -131,7 +140,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertIsNotNone(result)
-        mock_session.read_resource.assert_called_once_with('app://config')
+        mock_session.read_resource.assert_called_once_with(AnyUrl('app://config'))
 
     async def test_host_manages_multiple_clients(self):
         """Test that a host can manage multiple clients."""
@@ -154,12 +163,11 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Mock sessions for both clients
         for client_name, client in host.clients.items():
             mock_session = AsyncMock()
-            mock_tool = MagicMock()
-            mock_tool.name = f'{client_name}_tool'
-            mock_tool.description = f'Tool from {client_name}'
-            mock_tool.input_schema = {'type': 'object'}
+            mock_tool = Tool(
+                name=f'{client_name}_tool', description=f'Tool from {client_name}', inputSchema={'type': 'object'}
+            )
 
-            mock_session.list_tools.return_value.tools = [mock_tool]
+            mock_session.list_tools.return_value = ListToolsResult(tools=[mock_tool])
             client.session = mock_session
 
         # Register tools
@@ -189,8 +197,8 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Mock the client
         client = host.clients['test']
         client.session = AsyncMock()
-        client.close = AsyncMock()
-        client.connect = AsyncMock()
+        client.close = AsyncMock()  # type: ignore
+        client.connect = AsyncMock()  # type: ignore
 
         # Disable
         await host.disable('test')
@@ -223,14 +231,16 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # 3. Verify server can list resources
-        resources_result = await server.list_resources({})
+        resources_result = await server.list_resources(ListResourcesRequest(method='resources/list'))
         self.assertEqual(len(resources_result.resources), 1)
-        self.assertEqual(resources_result.resources[0].uri, 'app://config')
+        self.assertEqual(str(resources_result.resources[0].uri), 'app://config')
 
         # 4. Verify server can read resource
-        request = MagicMock()
-        request.params.uri = 'app://config'
+        request = ReadResourceRequest(
+            method='resources/read', params=ReadResourceRequestParams(uri=AnyUrl('app://config'))
+        )
         read_result = await server.read_resource(request)
+        assert isinstance(read_result.contents[0], TextResourceContents)
         self.assertEqual(read_result.contents[0].text, 'config data')
 
     async def test_template_resource_matching(self):
@@ -250,15 +260,19 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List templates
-        templates_result = await server.list_resource_templates({})
+        templates_result = await server.list_resource_templates(
+            ListResourceTemplatesRequest(method='resources/templates/list')
+        )
         self.assertEqual(len(templates_result.resourceTemplates), 1)
         self.assertEqual(templates_result.resourceTemplates[0].uriTemplate, 'file://{+path}')
 
         # Read with different URIs
         for test_uri in ['file:///path/to/file.txt', 'file:///another/file.md', 'file:///deep/nested/path/doc.pdf']:
-            request = MagicMock()
-            request.params.uri = test_uri
+            request = ReadResourceRequest(
+                method='resources/read', params=ReadResourceRequestParams(uri=AnyUrl(test_uri))
+            )
             result = await server.read_resource(request)
+            assert isinstance(result.contents[0], TextResourceContents)
             self.assertIn(test_uri, result.contents[0].text)
 
 
@@ -280,9 +294,10 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # Try to call non-existent tool
-        request = MagicMock()
-        request.params.name = 'nonexistent_tool'
-        request.params.arguments = {}
+        request = CallToolRequest(
+            method='tools/call',
+            params=CallToolRequestParams(name='nonexistent_tool', arguments={}),
+        )
 
         from genkit.core.error import GenkitError
 

@@ -105,6 +105,7 @@ class TestRerankerRef:
         assert ref.name == 'test-reranker'
         assert ref.config == {'k': 10}
         assert ref.version == '1.0.0'
+        assert ref.info is not None
         assert ref.info.label == 'Test Reranker'
 
 
@@ -117,6 +118,7 @@ class TestRerankerActionMetadata:
 
         assert metadata.kind == ActionKind.RERANKER
         assert metadata.name == 'test-reranker'
+        assert metadata.metadata is not None
         assert 'reranker' in metadata.metadata
 
     def test_action_metadata_with_options(self):
@@ -127,6 +129,7 @@ class TestRerankerActionMetadata:
         )
         metadata = reranker_action_metadata('test-reranker', options)
 
+        assert metadata.metadata is not None
         assert metadata.metadata['reranker']['label'] == 'Custom Label'
         assert metadata.metadata['reranker']['customOptions'] == {'type': 'object'}
 
@@ -344,6 +347,7 @@ class TestCustomRerankers:
         assert len(results) == 7
         # 'quantum mechanics' should have the highest score (overlaps 2 words)
         assert results[0].text() == 'quantum mechanics'
+        assert results[0].score is not None
         assert results[0].score > 0
 
     @pytest.mark.asyncio
@@ -478,5 +482,8 @@ class TestCustomRerankers:
         ai_scores = [doc.score for doc in reranked if 'AI' in doc.text() or 'learning' in doc.text()]
         non_ai_scores = [doc.score for doc in reranked if 'Pizza' in doc.text() or 'Cats' in doc.text()]
 
-        # AI-related documents should have higher scores on average
-        assert max(ai_scores) > max(non_ai_scores)
+        # Filter out None values and validate lists are not empty before comparing
+        ai_scores_valid = [s for s in ai_scores if s is not None]
+        non_ai_scores_valid = [s for s in non_ai_scores if s is not None]
+        assert ai_scores_valid and non_ai_scores_valid, 'Cannot compare scores if one of the lists is empty or contains only None'
+        assert max(ai_scores_valid) > max(non_ai_scores_valid)

@@ -25,6 +25,7 @@ from genkit.blocks.middleware import augment_with_context
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     DocumentData,
+    DocumentPart,
     GenerateRequest,
     GenerateResponse,
     Message,
@@ -70,8 +71,8 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
         docs=[
-            DocumentData(content=[TextPart(text='doc content 1')]),
-            DocumentData(content=[TextPart(text='doc content 2')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
         ],
     )
 
@@ -96,8 +97,8 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
             )
         ],
         docs=[
-            DocumentData(content=[TextPart(text='doc content 1')]),
-            DocumentData(content=[TextPart(text='doc content 2')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
         ],
     )
 
@@ -113,7 +114,7 @@ async def test_augment_with_context_should_not_modify_non_pending_part() -> None
                     Part(
                         root=TextPart(
                             text='this is already context',
-                            metadata={'purpose': 'context'},
+                            metadata=Metadata(root={'purpose': 'context'}),
                         )
                     ),
                     Part(root=TextPart(text='hi')),
@@ -121,7 +122,7 @@ async def test_augment_with_context_should_not_modify_non_pending_part() -> None
             ),
         ],
         docs=[
-            DocumentData(content=[TextPart(text='doc content 1')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
         ],
     )
 
@@ -141,7 +142,7 @@ async def test_augment_with_context_with_purpose_part() -> None:
                     Part(
                         root=TextPart(
                             text='insert context here',
-                            metadata={'purpose': 'context', 'pending': True},
+                            metadata=Metadata(root={'purpose': 'context', 'pending': True}),
                         )
                     ),
                     Part(root=TextPart(text='hi')),
@@ -149,7 +150,7 @@ async def test_augment_with_context_with_purpose_part() -> None:
             ),
         ],
         docs=[
-            DocumentData(content=[TextPart(text='doc content 1')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
         ],
     )
 
@@ -173,6 +174,6 @@ async def test_augment_with_context_with_purpose_part() -> None:
             )
         ],
         docs=[
-            DocumentData(content=[TextPart(text='doc content 1')]),
+            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
         ],
     )

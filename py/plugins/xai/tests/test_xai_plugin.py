@@ -75,17 +75,23 @@ async def test_resolve_action_model():
 def test_supported_models():
     assert len(SUPPORTED_XAI_MODELS) >= 4
     for _name, info in SUPPORTED_XAI_MODELS.items():
+        assert info.label
         assert info.label.startswith('xAI - ')
+        assert info.versions
         assert len(info.versions) > 0
+        assert info.supports
         assert info.supports.tools
 
 
 def test_get_model_info_known():
     info = get_model_info('grok-3')
+    assert info.versions
     assert 'grok-3' in info.versions[0]
+    assert info.supports
     assert info.supports.multiturn
 
 
 def test_get_model_info_unknown():
     info = get_model_info('unknown-model')
+    assert info.label
     assert 'unknown-model' in info.label

@@ -41,8 +41,9 @@ def _metric(name: str, desc: str, unit: str = '1') -> tuple[str, str, str]:
     return f'genkit/ai/{name}', desc, unit
 
 
-# Metric cache for lazy initialization
-_metrics_cache: dict[str, metrics.Counter | metrics.Histogram] = {}
+# Metric caches for lazy initialization
+_counter_cache: dict[str, metrics.Counter] = {}
+_histogram_cache: dict[str, metrics.Histogram] = {}
 
 
 def _get_counter(name: str, desc: str, unit: str = '1') -> metrics.Counter:
@@ -56,9 +57,9 @@ def _get_counter(name: str, desc: str, unit: str = '1') -> metrics.Counter:
     Returns:
         OpenTelemetry Counter metric
     """
-    if name not in _metrics_cache:
-        _metrics_cache[name] = meter.create_counter(name, description=desc, unit=unit)
-    return _metrics_cache[name]
+    if name not in _counter_cache:
+        _counter_cache[name] = meter.create_counter(name, description=desc, unit=unit)
+    return _counter_cache[name]
 
 
 def _get_histogram(name: str, desc: str, unit: str = '1') -> metrics.Histogram:
@@ -72,9 +73,9 @@ def _get_histogram(name: str, desc: str, unit: str = '1') -> metrics.Histogram:
     Returns:
         OpenTelemetry Histogram metric
     """
-    if name not in _metrics_cache:
-        _metrics_cache[name] = meter.create_histogram(name, description=desc, unit=unit)
-    return _metrics_cache[name]
+    if name not in _histogram_cache:
+        _histogram_cache[name] = meter.create_histogram(name, description=desc, unit=unit)
+    return _histogram_cache[name]
 
 
 # Metric definitions

@@ -41,6 +41,7 @@ def test_model_info_structure():
         assert model_info.supports.tools is True
         assert model_info.supports.media is False
         assert model_info.supports.system_role is True
+        assert model_info.supports.output is not None
         assert 'text' in model_info.supports.output
         assert 'json' in model_info.supports.output
 
@@ -48,6 +49,7 @@ def test_model_info_structure():
 def test_get_default_model_info():
     """Test getting default info for unknown models."""
     info = get_default_model_info('deepseek-future-model')
-    assert 'deepseek-future-model' in info.label
+    assert 'deepseek-future-model' in str(info.label)
+    assert info.supports is not None
     assert info.supports.multiturn is True
     assert info.supports.tools is True

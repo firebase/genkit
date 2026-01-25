@@ -73,6 +73,7 @@ def test_embedder_action_metadata_with_supports_and_config_schema():
         options=options,
     )
     assert isinstance(action_metadata, ActionMetadata)
+    assert action_metadata.metadata is not None
     assert action_metadata.metadata['embedder']['label'] == 'Advanced Embedder'
     assert action_metadata.metadata['embedder']['dimensions'] == options.dimensions
     assert action_metadata.metadata['embedder']['supports'] == {
@@ -162,7 +163,7 @@ def mock_genkit_instance():
     """Fixture for a Genkit instance with a mock registry."""
     registry = MockGenkitRegistry()
     genkit_instance = Genkit()
-    genkit_instance.registry = registry
+    genkit_instance.registry = registry  # type: ignore[assignment]
     return genkit_instance, registry
 
 

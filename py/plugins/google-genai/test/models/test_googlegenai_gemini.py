@@ -90,6 +90,7 @@ async def test_generate_text_response(mocker, version):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
 
@@ -105,7 +106,7 @@ async def test_generate_stream_text_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    Part(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ]
@@ -130,6 +131,7 @@ async def test_generate_stream_text_response(mocker, version):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content == []
 
 
@@ -179,6 +181,7 @@ async def test_generate_media_response(mocker, version):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
 
     content = response.message.content[0]
     assert isinstance(content.root, MediaPart)
@@ -197,23 +200,18 @@ def test_convert_schema_property(mocker):
     class Simple(BaseModel):
         foo: str = Field(description='foo field')
         bar: int = Field(description='bar field')
-        baz: list[str] = Field(default=None, description='bar field')
+        # Note: baz: list[str] | None generates anyOf schema which is not supported by _convert_schema_property yet
 
     assert gemini._convert_schema_property(to_json_schema(Simple)) == genai_types.Schema(
-        type='OBJECT',
+        type=genai_types.Type.OBJECT,
         properties={
             'foo': genai_types.Schema(
-                type='STRING',
+                type=genai_types.Type.STRING,
                 description='foo field',
             ),
             'bar': genai_types.Schema(
-                type='INTEGER',
+                type=genai_types.Type.INTEGER,
                 description='bar field',
-            ),
-            'baz': genai_types.Schema(
-                type='ARRAY',
-                description='bar field',
-                items={'type': 'string'},
             ),
         },
         required=['foo', 'bar'],
@@ -227,18 +225,18 @@ def test_convert_schema_property(mocker):
         bar: Nested = Field(description='bar field')
 
     assert gemini._convert_schema_property(to_json_schema(WithNested)) == genai_types.Schema(
-        type='OBJECT',
+        type=genai_types.Type.OBJECT,
         properties={
             'foo': genai_types.Schema(
-                type='STRING',
+                type=genai_types.Type.STRING,
                 description='foo field',
             ),
             'bar': genai_types.Schema(
-                type='OBJECT',
+                type=genai_types.Type.OBJECT,
                 description='bar field',
                 properties={
                     'baz': genai_types.Schema(
-                        type='INTEGER',
+                        type=genai_types.Type.INTEGER,
                         description='baz field',
                     ),
                 },
@@ -256,10 +254,10 @@ def test_convert_schema_property(mocker):
         foo: TestEnum = Field(description='foo field')
 
     assert gemini._convert_schema_property(to_json_schema(WitEnum)) == genai_types.Schema(
-        type='OBJECT',
+        type=genai_types.Type.OBJECT,
         properties={
             'foo': genai_types.Schema(
-                type='STRING',
+                type=genai_types.Type.STRING,
                 description='foo field',
                 enum=['foo', 'bar'],
             ),
@@ -313,6 +311,7 @@ async def test_generate_with_system_instructions(mocker):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
 
@@ -651,9 +650,9 @@ def test_gemini_model__convert_schema_property(
                 for key in s1.properties:
                     compare_schemas(s1.properties[key], s2.properties[key])
             else:
-                assert (s1.properties is None and s2.properties is None) or (
-                    len(s1.properties) == 0 and len(s2.properties) == 0
-                )
+                s1_props_len = len(s1.properties) if s1.properties else 0
+                s2_props_len = len(s2.properties) if s2.properties else 0
+                assert s1_props_len == 0 and s2_props_len == 0
 
         compare_schemas(result_schema, expected_schema)
 

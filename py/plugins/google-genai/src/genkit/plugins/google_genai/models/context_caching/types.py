@@ -23,7 +23,7 @@ from pydantic.alias_generators import to_camel
 class CacheConfigSchema(BaseModel):
     model_config = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
 
-    ttl_seconds: int | None = ...
+    ttl_seconds: int | None = None
 
 
 CacheConfig = Union[bool, CacheConfigSchema]
