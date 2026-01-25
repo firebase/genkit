@@ -83,11 +83,14 @@ async def test_generate_basic():
     model = XAIModel(model_name='grok-3', client=mock_client)
     response = await model.generate(sample_request)
 
+    assert response.message
+    assert response.message.content
     assert len(response.message.content) == 1
     part = response.message.content[0]
     actual_part = part.root if isinstance(part, Part) else part
     assert isinstance(actual_part, TextPart)
     assert actual_part.text == "Hello! I'm doing well."
+    assert response.usage
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 15
     assert response.finish_reason == 'stop'
@@ -119,7 +122,7 @@ async def test_generate_with_config():
         config=GenerationCommonConfig(
             temperature=0.7,
             max_output_tokens=100,
-            topP=0.9,
+            top_p=0.9,
         ),
     )
 
@@ -210,11 +213,14 @@ async def test_streaming_generation():
     response = await model.generate(sample_request, ctx)
 
     assert len(collected_chunks) == 3
+    assert response.usage
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 20
     assert response.finish_reason == 'stop'
 
     accumulated_text = ''
+    assert response.message
+    assert response.message.content
     for part in response.message.content:
         actual_part = part.root if isinstance(part, Part) else part
         if isinstance(actual_part, TextPart):
@@ -253,6 +259,8 @@ async def test_generate_with_tools():
     model = XAIModel(model_name='grok-3', client=mock_client)
     response = await model.generate(sample_request)
 
+    assert response.message
+    assert response.message.content
     assert len(response.message.content) == 1
     part = response.message.content[0]
     actual_part = part.root if isinstance(part, Part) else part

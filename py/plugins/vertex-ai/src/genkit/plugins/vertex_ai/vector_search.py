@@ -20,6 +20,7 @@ This module provides retrievers for Vertex AI Vector Search with BigQuery and Fi
 """
 
 import json
+import typing
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
@@ -39,8 +40,13 @@ from genkit.blocks.document import Document
 from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
-from genkit.core.typing import Embedding
-from genkit.types import ActionRunContext, RetrieverRequest, RetrieverResponse
+from genkit.core.typing import (
+    DocumentData,
+    Embedding,
+    EmbedResponse,
+    RetrieverResponse,
+)
+from genkit.types import ActionRunContext, RetrieverRequest
 
 logger = structlog.get_logger(__name__)
 
@@ -126,7 +132,7 @@ class DocRetriever(ABC):
             query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
         )
 
-        return RetrieverResponse(documents=docs)
+        return RetrieverResponse(documents=typing.cast(list[DocumentData], docs))
 
     async def _get_closest_documents(
         self, request: RetrieverRequest, top_k: int, query_embeddings: Embedding
@@ -327,10 +333,12 @@ class FirestoreRetriever(DocRetriever):
 
         for neighbor in neighbors:
             doc_ref = self.db.collection(self.collection_name).document(document_id=neighbor.datapoint.datapoint_id)
-            doc_snapshot = doc_ref.get()
+            # Typed as Any to bypass verification issues with google.cloud.firestore.DocumentSnapshot
+            # which might be treated as a coroutine by the type checker in some contexts.
+            doc: Any = await doc_ref.get()
 
-            if doc_snapshot.exists:
-                doc_data = doc_snapshot.to_dict() or {}
+            if doc.exists:
+                doc_data = doc.to_dict() or {}
 
                 content = doc_data.get('content', '')
                 content = json.dumps(content) if isinstance(content, dict) else str(content)

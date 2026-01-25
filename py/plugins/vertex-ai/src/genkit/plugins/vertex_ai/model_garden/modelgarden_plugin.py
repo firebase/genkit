@@ -17,6 +17,8 @@
 """ModelGarden API Compatible Plugin for Genkit."""
 
 import os
+import typing
+from typing import Any, cast
 
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
@@ -117,6 +119,8 @@ class ModelGardenPlugin(Plugin):
             from .anthropic import AnthropicModelGarden as AnthropicWorker
 
             location = self.model_locations.get(clean_name, self.location)
+            if not self.project_id:
+                raise ValueError('project_id must be provided')
             model_proxy = AnthropicWorker(
                 model=clean_name,
                 location=location,
@@ -139,6 +143,8 @@ class ModelGardenPlugin(Plugin):
             )
 
         location = self.model_locations.get(clean_name, self.location)
+        if not self.project_id:
+            raise ValueError('project_id must be provided')
         model_proxy = ModelGarden(
             model=clean_name,
             location=location,
@@ -155,7 +161,11 @@ class ModelGardenPlugin(Plugin):
             fn=handler,
             metadata={
                 'model': {
-                    **(model_info.model_dump() if hasattr(model_info, 'model_dump') else model_info),
+                    **(
+                        cast(Any, model_info).model_dump()
+                        if hasattr(model_info, 'model_dump')
+                        else cast(dict[str, Any], model_info)
+                    ),
                     'customOptions': to_json_schema(OpenAIConfig),
                 },
             },

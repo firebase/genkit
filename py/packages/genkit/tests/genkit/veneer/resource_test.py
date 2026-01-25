@@ -22,6 +22,7 @@ JS SDK's `ai.defineResource`.
 import pytest
 
 from genkit.ai import Genkit
+from genkit.core.action.types import ActionKind
 from genkit.core.typing import Part, TextPart
 
 
@@ -39,7 +40,7 @@ async def test_define_resource_veneer():
     assert act.metadata['resource']['uri'] == 'http://example.com/foo'
 
     # Verify lookup via global registry (contained in ai.registry)
-    looked_up = await ai.registry.resolve_action('resource', 'http://example.com/foo')
+    looked_up = await ai.registry.resolve_action(ActionKind.RESOURCE, 'http://example.com/foo')
     assert looked_up == act
 
     # Verify execution

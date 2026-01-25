@@ -23,8 +23,9 @@ dynamic resource matching, and metadata handling.
 import pytest
 
 from genkit.blocks.resource import define_resource, resolve_resources, resource
+from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
-from genkit.core.typing import Part, TextPart
+from genkit.core.typing import Metadata, Part, TextPart
 
 
 @pytest.mark.asyncio
@@ -48,7 +49,7 @@ async def test_define_resource():
     # Registry lookup for resources usually prepends /resource/ etc.
     # but define_resource registers it with name=uri
 
-    looked_up = await registry.resolve_action('resource', 'http://example.com/foo')
+    looked_up = await registry.resolve_action(ActionKind.RESOURCE, 'http://example.com/foo')
     assert looked_up == act
 
 
@@ -156,7 +157,11 @@ async def test_parent_metadata():
     registry = Registry()
 
     async def fn(input, ctx):
-        return {'content': [Part(TextPart(text='sub1', metadata={'resource': {'uri': f'{input.uri}/sub1.txt'}}))]}
+        return {
+            'content': [
+                Part(TextPart(text='sub1', metadata=Metadata(root={'resource': {'uri': f'{input.uri}/sub1.txt'}})))
+            ]
+        }
 
     res = define_resource(registry, {'template': 'file://{id}'}, fn)
 
@@ -178,6 +183,7 @@ def test_dynamic_resource_matching():
         return {'content': [Part(TextPart(text='Match'))]}
 
     res = resource({'uri': 'http://example.com/foo'}, my_resource_fn)
+    assert res.matches is not None
 
     class MockInput:
         uri = 'http://example.com/foo'
@@ -201,6 +207,7 @@ def test_template_matching():
         return {'content': []}
 
     res = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
+    assert res.matches is not None
 
     class MockInput:
         uri = 'http://example.com/items/123'
@@ -225,6 +232,7 @@ def test_reserved_expansion_matching():
 
     # Template with reserved expansion {+path} (matches slashes)
     res = resource({'template': 'http://example.com/files/{+path}'}, my_resource_fn)
+    assert res.matches is not None
 
     class MockInput:
         uri = 'http://example.com/files/foo/bar/baz.txt'
@@ -233,6 +241,7 @@ def test_reserved_expansion_matching():
 
     # Regular template {path} regex ([^/]+) should NOT match slashes
     res_simple = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
+    assert res_simple.matches is not None
 
     class MockInputComplex:
         uri = 'http://example.com/items/foo/bar'

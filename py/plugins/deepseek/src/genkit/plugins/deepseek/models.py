@@ -57,7 +57,7 @@ class DeepSeekModel:
         self,
         model: str,
         api_key: str,
-        **deepseek_params,
+        **deepseek_params: Any,
     ) -> None:
         """Initialize the DeepSeek instance.
 
@@ -82,9 +82,10 @@ class DeepSeekModel:
             capabilities (e.g., tools, streaming).
         """
         model_info = SUPPORTED_DEEPSEEK_MODELS.get(self.name, get_default_model_info(self.name))
+        supports_dict = model_info.supports.model_dump() if model_info.supports else {}
         return {
             'name': model_info.label,
-            'supports': model_info.supports.model_dump(),
+            'supports': supports_dict,
         }
 
     def to_deepseek_model(self) -> Callable:

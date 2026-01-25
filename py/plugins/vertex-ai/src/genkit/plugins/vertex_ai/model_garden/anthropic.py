@@ -15,11 +15,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from typing import cast
 
-from anthropic import AsyncAnthropicVertex
+from anthropic import AsyncAnthropic, AsyncAnthropicVertex
 
 from genkit.ai import ActionRunContext
+from genkit.core.typing import Supports
 from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
 
@@ -49,9 +51,9 @@ class AnthropicModelGarden:
         self.client = AsyncAnthropicVertex(region=location, project_id=project_id)
         # Strip 'anthropic/' prefix for the model passed to Anthropic SDK
         clean_model_name = model.removeprefix('anthropic/')
-        self._anthropic_model = AnthropicModel(model_name=clean_model_name, client=self.client)
+        self._anthropic_model = AnthropicModel(model_name=clean_model_name, client=cast(AsyncAnthropic, self.client))
 
-    def get_handler(self) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
+    def get_handler(self) -> Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]:
         """Returns the generate handler function for this model.
 
         Returns:
@@ -67,13 +69,13 @@ class AnthropicModelGarden:
         """
         return ModelInfo(
             label=f'ModelGarden - {self.name}',
-            supports={
-                'multiturn': True,
-                'media': True,
-                'tools': True,
-                'systemRole': True,
-                'output': ['text', 'json'],
-            },
+            supports=Supports(
+                multiturn=True,
+                media=True,
+                tools=True,
+                system_role=True,
+                output=['text', 'json'],
+            ),
         )
 
     @staticmethod

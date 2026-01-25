@@ -28,6 +28,16 @@ from fakes import mock_mcp_modules
 mock_mcp_modules()
 
 import pytest
+from mcp.types import (
+    ListPromptsRequest,
+    ListResourcesRequest,
+    ListResourceTemplatesRequest,
+    ListToolsRequest,
+    ReadResourceRequest,
+    ReadResourceRequestParams,
+    TextContent,
+    TextResourceContents,
+)
 
 from genkit.ai import Genkit
 from genkit.plugins.mcp import McpServerOptions, create_mcp_server
@@ -53,7 +63,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resources
-        result = await server.list_resources({})
+        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
 
         # Verify
         self.assertEqual(len(result.resources), 2)
@@ -63,7 +73,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify URIs
         config_resource = next(r for r in result.resources if r.name == 'config')
-        self.assertEqual(config_resource.uri, 'app://config')
+        self.assertEqual(str(config_resource.uri), 'app://config')
 
     async def test_list_resource_templates(self):
         """Test listing resources with URI templates."""
@@ -81,7 +91,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resource templates
-        result = await server.list_resource_templates({})
+        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
 
         # Verify
         self.assertEqual(len(result.resourceTemplates), 2)
@@ -107,7 +117,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resources (should only include fixed URI)
-        result = await server.list_resources({})
+        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
 
         self.assertEqual(len(result.resources), 1)
         self.assertEqual(result.resources[0].name, 'fixed')
@@ -126,7 +136,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List templates (should only include template)
-        result = await server.list_resource_templates({})
+        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
 
         self.assertEqual(len(result.resourceTemplates), 1)
         self.assertEqual(result.resourceTemplates[0].name, 'template')
@@ -152,6 +162,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
+        assert isinstance(result.contents[0], TextResourceContents)
         self.assertEqual(result.contents[0].text, 'Configuration data')
 
     async def test_read_resource_with_template(self):
@@ -177,6 +188,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
+        assert isinstance(result.contents[0], TextResourceContents)
         self.assertIn('/home/user/document.txt', result.contents[0].text)
 
     async def test_read_resource_not_found(self):
@@ -218,8 +230,11 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 3)
+        assert isinstance(result.contents[0], TextResourceContents)
         self.assertEqual(result.contents[0].text, 'Part 1')
+        assert isinstance(result.contents[1], TextResourceContents)
         self.assertEqual(result.contents[1].text, 'Part 2')
+        assert isinstance(result.contents[2], TextResourceContents)
         self.assertEqual(result.contents[2].text, 'Part 3')
 
 
@@ -247,7 +262,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List tools
-        result = await server.list_tools({})
+        result = await server.list_tools(ListToolsRequest(method='tools/list'))
 
         # Verify
         self.assertEqual(len(result.tools), 2)
@@ -275,6 +290,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.content), 1)
+        assert isinstance(result.content[0], TextContent)
         self.assertEqual(result.content[0].text, '8')
 
     async def test_list_prompts(self):
@@ -288,7 +304,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List prompts
-        result = await server.list_prompts({})
+        result = await server.list_prompts(ListPromptsRequest(method='prompts/list'))
 
         # Verify
         self.assertGreaterEqual(len(result.prompts), 2)

@@ -32,6 +32,7 @@ from genkit.core.schema import to_json_schema
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import (
+    AnyUrl,
     CallToolRequest,
     CallToolResult,
     GetPromptRequest,
@@ -45,6 +46,7 @@ from mcp.types import (
     ListToolsRequest,
     ListToolsResult,
     Prompt,
+    PromptArgument,
     ReadResourceRequest,
     ReadResourceResult,
     Resource,
@@ -202,8 +204,7 @@ class McpServer:
                 Tool(
                     name=action.name,
                     description=action.description or '',
-                    input_schema=input_schema,
-                    _meta=action.metadata.get('mcp', {}).get('_meta') if action.metadata else None,
+                    inputSchema=input_schema,
                 )
             )
 
@@ -259,8 +260,7 @@ class McpServer:
                 Prompt(
                     name=action.name,
                     description=action.description or '',
-                    arguments=arguments,
-                    _meta=action.metadata.get('mcp', {}).get('_meta') if action.metadata else None,
+                    arguments=[PromptArgument(**arg) for arg in arguments] if arguments else None,
                 )
             )
 
@@ -320,8 +320,7 @@ class McpServer:
                     Resource(
                         name=action.name,
                         description=action.description or '',
-                        uri=resource_meta['uri'],
-                        _meta=metadata.get('mcp', {}).get('_meta'),
+                        uri=AnyUrl(resource_meta['uri']),
                     )
                 )
 
@@ -350,7 +349,6 @@ class McpServer:
                         name=action.name,
                         description=action.description or '',
                         uriTemplate=resource_meta['template'],
-                        _meta=metadata.get('mcp', {}).get('_meta'),
                     )
                 )
 
@@ -373,25 +371,26 @@ class McpServer:
         uri = request.params.uri
 
         # Check for exact URI match
-        resource = self.resource_uri_map.get(uri)
+        uri_str = str(uri)
+        resource = self.resource_uri_map.get(uri_str)
 
         # Check for template match if not found by exact URI
         if not resource:
             for template, action in self.resource_templates:
-                if matches_uri_template(template, uri):
+                if matches_uri_template(template, uri_str):
                     resource = action
                     break
 
         if not resource:
             raise GenkitError(status='NOT_FOUND', message=f"Tried to call resource '{uri}' but it could not be found.")
 
-        # Execute the resource action
-        result = await resource.arun({'uri': uri})
+        # Execute the resource action (uri_str is already a string)
+        result = await resource.arun({'uri': uri_str})
         result = result.response
 
         # Convert content to MCP format
         content = result.get('content', []) if isinstance(result, dict) else result.content
-        contents = to_mcp_resource_contents(uri, content)
+        contents = to_mcp_resource_contents(uri_str, content)
 
         return ReadResourceResult(contents=contents)
 
@@ -406,10 +405,12 @@ class McpServer:
 
         if not transport:
             async with stdio_server() as (read, write):
+                assert self.server is not None
                 await self.server.run(read, write, self.server.create_initialization_options())
         else:
             # Connect the transport
             async with transport as (read, write):
+                assert self.server is not None
                 await self.server.run(read, write, self.server.create_initialization_options())
 
         logger.debug(f"[MCP Server] MCP server '{self.options.name}' started successfully.")

@@ -16,7 +16,7 @@
 
 """OpenAI Compatible Model handlers for Genkit."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from openai import OpenAI
@@ -65,7 +65,7 @@ class OpenAIModelHandler:
     @classmethod
     def get_model_handler(
         cls, model: str, client: OpenAI, source: PluginSource = PluginSource.OPENAI
-    ) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
+    ) -> Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]:
         """Factory method to initialize the model handler for the specified OpenAI model.
 
         OpenAI models in this context are not instantiated as traditional
@@ -123,7 +123,7 @@ class OpenAIModelHandler:
         """
         request.config = self._model.normalize_config(request.config)
 
-        if request.config.model:
+        if request.config and hasattr(request.config, 'model') and request.config.model:
             self._validate_version(request.config.model)
 
         return await self._model.generate(request, ctx)

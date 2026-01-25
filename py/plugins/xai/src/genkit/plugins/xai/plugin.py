@@ -17,6 +17,7 @@
 """xAI plugin for Genkit."""
 
 import os
+from typing import Any
 
 from xai_sdk import Client as XAIClient
 
@@ -48,7 +49,7 @@ class XAI(Plugin):
         self,
         api_key: str | None = None,
         models: list[str] | None = None,
-        **xai_params: str,
+        **xai_params: Any,
     ) -> None:
         api_key = api_key or os.getenv('XAI_API_KEY')
 
@@ -111,7 +112,7 @@ class XAI(Plugin):
             fn=model.generate,
             metadata={
                 'model': {
-                    'supports': model_info.supports.model_dump(),
+                    'supports': model_info.supports.model_dump() if model_info.supports else {},
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
@@ -128,7 +129,7 @@ class XAI(Plugin):
             actions.append(
                 model_action_metadata(
                     name=xai_name(model_name),
-                    info={'supports': model_info.supports.model_dump()},
+                    info={'supports': model_info.supports.model_dump() if model_info.supports else {}},
                     config_schema=GenerationCommonConfig,
                 )
             )

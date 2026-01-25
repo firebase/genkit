@@ -16,6 +16,8 @@
 
 """Anthropic plugin for Genkit."""
 
+from typing import Any
+
 from anthropic import AsyncAnthropic
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
@@ -52,7 +54,7 @@ class Anthropic(Plugin):
     def __init__(
         self,
         models: list[str] | None = None,
-        **anthropic_params: str,
+        **anthropic_params: Any,
     ) -> None:
         """Initializes Anthropic plugin with given configuration.
 
@@ -110,7 +112,7 @@ class Anthropic(Plugin):
             fn=model.generate,
             metadata={
                 'model': {
-                    'supports': model_info.supports.model_dump(),
+                    'supports': model_info.supports.model_dump() if model_info.supports else {},
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
@@ -127,7 +129,7 @@ class Anthropic(Plugin):
             actions.append(
                 model_action_metadata(
                     name=anthropic_name(model_name),
-                    info={'supports': model_info.supports.model_dump()},
+                    info={'supports': model_info.supports.model_dump() if model_info.supports else {}},
                     config_schema=GenerationCommonConfig,
                 )
             )

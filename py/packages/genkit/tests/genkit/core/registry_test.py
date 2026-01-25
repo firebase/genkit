@@ -25,6 +25,7 @@ async def test_register_action_with_name_and_kind() -> None:
     got = await registry.resolve_action(ActionKind.CUSTOM, 'test_action')
 
     assert got == action
+    assert got is not None
     assert got.name == 'test_action'
     assert got.kind == ActionKind.CUSTOM
 
@@ -37,6 +38,7 @@ async def test_resolve_action_by_key() -> None:
     got = await registry.resolve_action_by_key('/custom/test_action')
 
     assert got == action
+    assert got is not None
     assert got.name == 'test_action'
     assert got.kind == ActionKind.CUSTOM
 

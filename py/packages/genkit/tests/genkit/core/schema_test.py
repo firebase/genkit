@@ -26,22 +26,22 @@ def test_to_json_schema_pydantic_model():
     """Test that a Pydantic model can be converted to a JSON schema."""
 
     class TestSchema(BaseModel):
-        foo: int = Field(None, description='foo field')
-        bar: str = Field(None, description='bar field')
+        foo: int | None = Field(default=None, description='foo field')
+        bar: str | None = Field(default=None, description='bar field')
 
     assert to_json_schema(TestSchema) == {
         'properties': {
             'bar': {
+                'anyOf': [{'type': 'string'}, {'type': 'null'}],
                 'default': None,
                 'description': 'bar field',
                 'title': 'Bar',
-                'type': 'string',
             },
             'foo': {
+                'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                 'default': None,
                 'description': 'foo field',
                 'title': 'Foo',
-                'type': 'integer',
             },
         },
         'title': 'TestSchema',

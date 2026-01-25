@@ -29,6 +29,7 @@ from genkit.blocks.prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
     DocumentData,
+    DocumentPart,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -115,10 +116,10 @@ async def test_prompt_with_kitchensink() -> None:
     ai, *_ = setup_test()
 
     class PromptInput(BaseModel):
-        name: str = Field(None, description='the name')
+        name: str | None = Field(default=None, description='the name')
 
     class ToolInput(BaseModel):
-        value: int = Field(None, description='value field')
+        value: int | None = Field(default=None, description='value field')
 
     @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
@@ -184,7 +185,7 @@ async def test_prompt_with_docs_resolver() -> None:
     pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))]
 
     async def docs_resolver(input, context):
-        return [DocumentData(content=[TextPart(text=f'doc {input["name"]}')])]
+        return [DocumentData(content=[DocumentPart(root=TextPart(text=f'doc {input["name"]}'))])]
 
     my_prompt = ai.define_prompt(
         model='programmableModel',

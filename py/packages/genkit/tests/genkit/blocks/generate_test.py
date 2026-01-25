@@ -25,6 +25,7 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     Message,
+    Metadata,
     Part,
     Role,
     TextPart,
@@ -103,6 +104,8 @@ async def test_simulates_doc_grounding(setup_test) -> None:
         ),
     )
 
+    assert response.request is not None
+    assert response.request.messages is not None
     assert response.request.messages[0] == Message(
         role=Role.USER,
         content=[
@@ -110,7 +113,7 @@ async def test_simulates_doc_grounding(setup_test) -> None:
             Part(
                 root=TextPart(
                     text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
-                    metadata={'purpose': 'context'},
+                    metadata=Metadata(root={'purpose': 'context'}),
                 )
             ),
         ],
@@ -277,7 +280,7 @@ async def test_generate_middleware_can_modify_stream(
         resp = await next(req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler))
         ctx.send_chunk(
             GenerateResponseChunk(
-                role='model',
+                role=Role.MODEL,
                 content=[Part(root=TextPart(text='something extra after'))],
             )
         )
@@ -351,6 +354,7 @@ async def test_generate_action_spec(spec) -> None:
             pm.chunks.append(converted)
 
     action = await ai.registry.resolve_action(kind=ActionKind.UTIL, name='generate')
+    assert action is not None
 
     response = None
     chunks = None
@@ -362,8 +366,8 @@ async def test_generate_action_spec(spec) -> None:
 
         action_response = await action.arun(
             ai.registry,
-            TypeAdapter(GenerateActionOptions).validate_python(spec['input']),
-            on_chunk=on_chunk,
+            TypeAdapter(GenerateActionOptions).validate_python(spec['input']),  # type: ignore[arg-type]
+            on_chunk=on_chunk,  # type: ignore[misc]
         )
         response = action_response.response
     else:

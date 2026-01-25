@@ -98,9 +98,11 @@ def test_supported_models():
     """Test that all supported models have proper metadata."""
     assert len(SUPPORTED_MODELS) == 7
     for _name, info in SUPPORTED_MODELS.items():
+        assert info.label is not None
         assert info.label.startswith('Anthropic - ')
         assert info.versions is not None
         assert len(info.versions) > 0
+        assert info.supports is not None
         assert info.supports.multiturn is True
         assert info.supports.tools is True
         assert info.supports.media is True
@@ -111,6 +113,7 @@ def test_get_model_info_known():
     """Test get_model_info returns correct info for known model."""
     info = get_model_info('claude-sonnet-4')
     assert info.label == 'Anthropic - Claude Sonnet 4'
+    assert info.supports is not None
     assert info.supports.multiturn is True
     assert info.supports.tools is True
 
@@ -119,6 +122,7 @@ def test_get_model_info_unknown():
     """Test get_model_info returns default info for unknown model."""
     info = get_model_info('unknown-model')
     assert info.label == 'Anthropic - unknown-model'
+    assert info.supports is not None
     assert info.supports.multiturn is True
     assert info.supports.tools is True
 

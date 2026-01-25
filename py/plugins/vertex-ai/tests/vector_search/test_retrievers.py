@@ -33,7 +33,7 @@ from google.cloud.aiplatform_v1 import (
 )
 
 from genkit.blocks.document import Document, DocumentData
-from genkit.core.typing import Embedding, EmbedResponse
+from genkit.core.typing import DocumentPart, Embedding, EmbedResponse
 from genkit.plugins.vertex_ai.vector_search import BigQueryRetriever, FirestoreRetriever
 from genkit.types import ActionRunContext, Part, RetrieverRequest, TextPart
 
@@ -108,7 +108,7 @@ async def test_bigquery_retriever_retrieve(
     request = RetrieverRequest(
         query=DocumentData(
             content=[
-                TextPart(text='test-1'),
+                DocumentPart(root=TextPart(text='test-1')),
             ],
         ),
         options=options,
@@ -163,7 +163,7 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance):
     await bq_retriever_instance._get_closest_documents(
         request=RetrieverRequest(
             query=DocumentData(
-                content=[TextPart(text='test-1')],
+                content=[DocumentPart(root=TextPart(text='test-1'))],
                 metadata={
                     'index_endpoint_path': 'index_endpoint_path',
                     'api_endpoint': 'api_endpoint',
@@ -233,7 +233,7 @@ async def test_bigquery__get_closest_documents_fail(
         await bq_retriever_instance._get_closest_documents(
             request=RetrieverRequest(
                 query=DocumentData(
-                    content=[TextPart(text='test-1')],
+                    content=[DocumentPart(root=TextPart(text='test-1'))],
                     metadata=metadata,
                 ),
                 options={
@@ -375,7 +375,7 @@ async def test_firesstore__retrieve_neighbors_data_from_db(
             doc_ref = MagicMock()
             doc_snapshot = MagicMock()
 
-            doc_ref.get.return_value = doc_snapshot
+            doc_ref.get = AsyncMock(return_value=doc_snapshot)
             if storage.get(document_id) is not None:
                 doc_snapshot.exists = True
                 doc_snapshot.to_dict.return_value = storage.get(document_id)

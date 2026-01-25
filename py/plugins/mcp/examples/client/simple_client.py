@@ -22,7 +22,7 @@ from genkit.plugins.mcp import McpServerConfig, create_mcp_client
 try:
     from genkit.plugins.google_genai import GoogleAI
 except ImportError:
-    GoogleAI = None
+    GoogleAI = None  # type: ignore
 
 
 # Simple client example connecting to 'everything' server using npx

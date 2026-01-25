@@ -71,7 +71,7 @@ async def test_generate_media_response(mocker, version):
         mocker.call.aio.models.generate_images(model=version, prompt=request_text, config=None)
     ])
     assert isinstance(response, GenerateResponse)
-
+    assert response.message is not None
     content = response.message.content[0]
     assert isinstance(content.root, MediaPart)
 

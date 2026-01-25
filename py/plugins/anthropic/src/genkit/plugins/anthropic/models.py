@@ -33,6 +33,7 @@ from genkit.types import (
     Part,
     Role,
     TextPart,
+    ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
 )
@@ -152,12 +153,12 @@ class AnthropicModel:
         """Handle streaming generation."""
         async with self.client.messages.stream(**params) as stream:
             async for chunk in stream:
-                if chunk.type == 'content_block_delta' and hasattr(chunk.delta, 'text'):
+                if chunk.type == 'content_block_delta' and hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
                     ctx.send_chunk(
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
-                            content=[Part(root=TextPart(text=chunk.delta.text))],
+                            content=[Part(root=TextPart(text=str(chunk.delta.text)))],
                         )
                     )
             return await stream.get_final_message()
@@ -230,11 +231,11 @@ class AnthropicModel:
                 parts.append(
                     Part(
                         root=ToolRequestPart(
-                            tool_request={
-                                'ref': block.id,
-                                'name': block.name,
-                                'input': block.input,
-                            }
+                            tool_request=ToolRequest(
+                                ref=block.id,
+                                name=block.name,
+                                input=block.input,
+                            )
                         )
                     )
                 )

@@ -21,7 +21,7 @@ import json
 from typing import Any
 
 from xai_sdk import Client as XAIClient
-from xai_sdk.proto.v6 import chat_pb2
+from xai_sdk.proto.v6 import chat_pb2, image_pb2
 
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
@@ -38,6 +38,7 @@ from genkit.types import (
     Part,
     Role,
     TextPart,
+    ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
 )
@@ -195,11 +196,11 @@ class XAIModel:
 
                                 accumulated_content.append(
                                     ToolRequestPart(
-                                        tool_request={
-                                            'ref': tool_call.id,
-                                            'name': tool_call.function.name,
-                                            'input': tool_input,
-                                        }
+                                        tool_request=ToolRequest(
+                                            ref=tool_call.id,
+                                            name=tool_call.function.name,
+                                            input=tool_input,
+                                        )
                                     )
                                 )
 
@@ -207,7 +208,9 @@ class XAIModel:
             basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
 
             finish_reason = (
-                FINISH_REASON_MAP.get(final_response.finish_reason, FinishReason.UNKNOWN) if final_response else FinishReason.UNKNOWN
+                FINISH_REASON_MAP.get(final_response.finish_reason, FinishReason.UNKNOWN)
+                if final_response
+                else FinishReason.UNKNOWN
             )
 
             return GenerateResponse(
@@ -242,13 +245,15 @@ class XAIModel:
                 elif isinstance(actual_part, MediaPart):
                     if not actual_part.media.url:
                         raise ValueError('xAI models require a URL for media parts.')
-                    content.append(chat_pb2.Content(image_url=chat_pb2.ImageURL(url=actual_part.media.url)))
+                    content.append(
+                        chat_pb2.Content(image_url=image_pb2.ImageUrlContent(image_url=actual_part.media.url))
+                    )
                 elif isinstance(actual_part, ToolRequestPart):
                     tool_calls.append(
                         chat_pb2.ToolCall(
                             id=actual_part.tool_request.ref,
                             type=chat_pb2.ToolCallType.FUNCTION,
-                            function=chat_pb2.Function(
+                            function=chat_pb2.FunctionCall(
                                 name=actual_part.tool_request.name,
                                 arguments=actual_part.tool_request.input,
                             ),
@@ -258,7 +263,7 @@ class XAIModel:
                     result.append(
                         chat_pb2.Message(
                             role=chat_pb2.MessageRole.ROLE_TOOL,
-                            tool_call_id=actual_part.tool_response.ref,
+                            name=actual_part.tool_response.ref,
                             content=[chat_pb2.Content(text=str(actual_part.tool_response.output))],
                         )
                     )
@@ -290,11 +295,11 @@ class XAIModel:
                 content.append(
                     Part(
                         root=ToolRequestPart(
-                            tool_request={
-                                'ref': tool_call.id,
-                                'name': tool_call.function.name,
-                                'input': tool_input,
-                            }
+                            tool_request=ToolRequest(
+                                ref=tool_call.id,
+                                name=tool_call.function.name,
+                                input=tool_input,
+                            )
                         )
                     )
                 )

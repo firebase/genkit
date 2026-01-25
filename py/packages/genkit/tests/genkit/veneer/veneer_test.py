@@ -291,7 +291,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     ai, echo, *_ = setup_test
 
     class ToolInput(BaseModel):
-        value: int = Field(None, description='value field')
+        value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
@@ -314,10 +314,10 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
             input_schema={
                 'properties': {
                     'value': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'value field',
                         'title': 'Value',
-                        'type': 'integer',
                     }
                 },
                 'title': 'ToolInput',
@@ -349,12 +349,12 @@ async def test_generate_with_iterrupting_tools(
     ai, _, pm, *_ = setup_test
 
     class ToolInput(BaseModel):
-        value: int = Field(None, description='value field')
+        value: int | None = Field(None, description='value field')
 
     @ai.tool(name='test_tool')
     def test_tool(input: ToolInput):
         """The tool."""
-        return input.value + 7
+        return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
     def test_interrupt(input: ToolInput, ctx: ToolRunContext):
@@ -399,10 +399,10 @@ async def test_generate_with_iterrupting_tools(
             input_schema={
                 'properties': {
                     'value': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'value field',
                         'title': 'Value',
-                        'type': 'integer',
                     }
                 },
                 'title': 'ToolInput',
@@ -416,10 +416,10 @@ async def test_generate_with_iterrupting_tools(
             input_schema={
                 'properties': {
                     'value': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'value field',
                         'title': 'Value',
-                        'type': 'integer',
                     }
                 },
                 'title': 'ToolInput',
@@ -461,12 +461,12 @@ async def test_generate_with_interrupt_respond(
     ai, _, pm, *_ = setup_test
 
     class ToolInput(BaseModel):
-        value: int = Field(None, description='value field')
+        value: int | None = Field(None, description='value field')
 
     @ai.tool(name='test_tool')
     def test_tool(input: ToolInput):
         """The tool."""
-        return input.value + 7
+        return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
     def test_interrupt(input: ToolInput, ctx: ToolRunContext):
@@ -509,13 +509,13 @@ async def test_generate_with_interrupt_respond(
         Part(
             root=ToolRequestPart(
                 tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
-                metadata={'interrupt': {'banana': 'yes please'}},
+                metadata=Metadata(root={'interrupt': {'banana': 'yes please'}}),
             )
         ).root,
         Part(
             root=ToolRequestPart(
                 tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                metadata={'pendingOutput': 12},
+                metadata=Metadata(root={'pendingOutput': 12}),
             )
         ).root,
     ]
@@ -532,13 +532,13 @@ async def test_generate_with_interrupt_respond(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
-                        metadata={'interrupt': {'banana': 'yes please'}},
+                        metadata=Metadata(root={'interrupt': {'banana': 'yes please'}}),
                     )
                 ),
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                        metadata={'pendingOutput': 12},
+                        metadata=Metadata(root={'pendingOutput': 12}),
                     )
                 ),
             ],
@@ -566,13 +566,13 @@ async def test_generate_with_interrupt_respond(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
-                        metadata={'resolvedInterrupt': {'banana': 'yes please'}},
+                        metadata=Metadata(root={'resolvedInterrupt': {'banana': 'yes please'}}),
                     )
                 ),
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                        metadata={'pendingOutput': 12},
+                        metadata=Metadata(root={'pendingOutput': 12}),
                     )
                 ),
             ],
@@ -590,7 +590,7 @@ async def test_generate_with_interrupt_respond(
                 Part(
                     root=ToolResponsePart(
                         tool_response=ToolResponse(ref='234', name='test_tool', output=12),
-                        metadata={'source': 'pending'},
+                        metadata=Metadata(root={'source': 'pending'}),
                     )
                 ),
             ],
@@ -610,7 +610,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
     ai, _, pm, *_ = setup_test
 
     class ToolInput(BaseModel):
-        value: int = Field(None, description='value field')
+        value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
@@ -646,6 +646,8 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
     )
 
     assert response.text == 'tool called'
+    assert response.request is not None
+    assert response.request.messages is not None
     assert response.request.messages[0] == Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])
     assert response.request.messages[1] == tool_request_msg
     assert response.request.messages[2] == Message(
@@ -659,10 +661,10 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
             input_schema={
                 'properties': {
                     'value': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'value field',
                         'title': 'Value',
-                        'type': 'integer',
                     }
                 },
                 'title': 'ToolInput',
@@ -679,7 +681,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     ai, _, pm, *_ = setup_test
 
     class ToolInput(BaseModel):
-        value: int = Field(None, description='value field')
+        value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
@@ -709,7 +711,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     pm.chunks = [
         [
             GenerateResponseChunk(
-                role=tool_request_msg.role,
+                role=Role(tool_request_msg.role),
                 content=tool_request_msg.content,
             )
         ],
@@ -737,6 +739,8 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     response = await aresponse
 
     assert response.text == 'tool called'
+    assert response.request is not None
+    assert response.request.messages is not None
     assert response.request.messages[0] == Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])
     assert response.request.messages[1] == tool_request_msg
     assert response.request.messages[2] == Message(
@@ -783,8 +787,8 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
-        foo: int = Field(None, description='foo field')
-        bar: str = Field(None, description='bar field')
+        foo: int | None = Field(None, description='foo field')
+        bar: str | None = Field(None, description='bar field')
 
     want = GenerateRequest(
         messages=[
@@ -797,16 +801,16 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
             schema={
                 'properties': {
                     'foo': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'foo field',
                         'title': 'Foo',
-                        'type': 'integer',
                     },
                     'bar': {
+                        'anyOf': [{'type': 'string'}, {'type': 'null'}],
                         'default': None,
                         'description': 'bar field',
                         'title': 'Bar',
-                        'type': 'string',
                     },
                 },
                 'title': 'TestSchema',
@@ -850,8 +854,8 @@ async def test_generate_defaults_to_json_format(
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
-        foo: int = Field(None, description='foo field')
-        bar: str = Field(None, description='bar field')
+        foo: int | None = Field(None, description='foo field')
+        bar: str | None = Field(None, description='bar field')
 
     want = GenerateRequest(
         messages=[
@@ -864,16 +868,16 @@ async def test_generate_defaults_to_json_format(
             schema={
                 'properties': {
                     'foo': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'foo field',
                         'title': 'Foo',
-                        'type': 'integer',
                     },
                     'bar': {
+                        'anyOf': [{'type': 'string'}, {'type': 'null'}],
                         'default': None,
                         'description': 'bar field',
                         'title': 'Bar',
-                        'type': 'string',
                     },
                 },
                 'title': 'TestSchema',
@@ -910,8 +914,8 @@ async def test_generate_json_format_unconstrained(
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
-        foo: int = Field(None, description='foo field')
-        bar: str = Field(None, description='bar field')
+        foo: int | None = Field(None, description='foo field')
+        bar: str | None = Field(None, description='bar field')
 
     want = GenerateRequest(
         messages=[
@@ -924,16 +928,16 @@ async def test_generate_json_format_unconstrained(
             schema={
                 'properties': {
                     'foo': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'foo field',
                         'title': 'Foo',
-                        'type': 'integer',
                     },
                     'bar': {
+                        'anyOf': [{'type': 'string'}, {'type': 'null'}],
                         'default': None,
                         'description': 'bar field',
                         'title': 'Bar',
-                        'type': 'string',
                     },
                 },
                 'title': 'TestSchema',
@@ -1073,8 +1077,8 @@ async def test_generate_json_format_unconstrained_with_instructions(
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
-        foo: int = Field(None, description='foo field')
-        bar: str = Field(None, description='bar field')
+        foo: int | None = Field(None, description='foo field')
+        bar: str | None = Field(None, description='bar field')
 
     want = GenerateRequest(
         messages=[
@@ -1084,7 +1088,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
                     Part(root=TextPart(text='hi')),
                     Part(
                         root=TextPart(
-                            text='Output should be in JSON format and conform to the following schema:\n\n```\n{\n  "properties": {\n    "foo": {\n      "default": null,\n      "description": "foo field",\n      "title": "Foo",\n      "type": "integer"\n    },\n    "bar": {\n      "default": null,\n      "description": "bar field",\n      "title": "Bar",\n      "type": "string"\n    }\n  },\n  "title": "TestSchema",\n  "type": "object"\n}\n```\n',
+                            text='Output should be in JSON format and conform to the following schema:\n\n```\n{\n  "properties": {\n    "foo": {\n      "anyOf": [\n        {\n          "type": "integer"\n        },\n        {\n          "type": "null"\n        }\n      ],\n      "default": null,\n      "description": "foo field",\n      "title": "Foo"\n    },\n    "bar": {\n      "anyOf": [\n        {\n          "type": "string"\n        },\n        {\n          "type": "null"\n        }\n      ],\n      "default": null,\n      "description": "bar field",\n      "title": "Bar"\n    }\n  },\n  "title": "TestSchema",\n  "type": "object"\n}\n```\n',
                             metadata=Metadata(root={'purpose': 'output'}),
                         )
                     ),
@@ -1098,16 +1102,16 @@ async def test_generate_json_format_unconstrained_with_instructions(
             schema={
                 'properties': {
                     'foo': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'foo field',
                         'title': 'Foo',
-                        'type': 'integer',
                     },
                     'bar': {
+                        'anyOf': [{'type': 'string'}, {'type': 'null'}],
                         'default': None,
                         'description': 'bar field',
                         'title': 'Bar',
-                        'type': 'string',
                     },
                 },
                 'title': 'TestSchema',
@@ -1166,9 +1170,11 @@ async def test_generate_simulates_doc_grounding(
                 content=[Part(root=TextPart(text='hi'))],
             ),
         ],
-        docs=[DocumentData(content=[DocumentPart(text='doc content 1')])],
+        docs=[DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
     )
 
+    assert response.request is not None
+    assert response.request.messages is not None
     assert response.request.messages[0] == want_msg
 
     _, response = ai.generate_stream(
@@ -1178,10 +1184,13 @@ async def test_generate_simulates_doc_grounding(
                 content=[Part(root=TextPart(text='hi'))],
             ),
         ],
-        docs=[DocumentData(content=[DocumentPart(text='doc content 1')])],
+        docs=[DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
     )
 
-    assert (await response).request.messages[0] == want_msg
+    resp = await response
+    assert resp.request is not None
+    assert resp.request.messages is not None
+    assert resp.request.messages[0] == want_msg
 
 
 class MockBananaFormat(FormatDef):
@@ -1203,11 +1212,13 @@ class MockBananaFormat(FormatDef):
 
         def message_parser(msg: Message):
             """Parse the message."""
-            return f'banana {"".join(p.root.text for p in msg.content)}'
+            return (
+                f'banana {"".join(p.root.text or "" for p in msg.content if hasattr(p.root, "text") and p.root.text)}'  # type: ignore[arg-type]
+            )
 
         def chunk_parser(chunk: GenerateResponseChunk) -> str:
             """Parse the chunk."""
-            return f'banana chunk {"".join(p.root.text for p in chunk.content)}'
+            return f'banana chunk {"".join(p.root.text or "" for p in chunk.content if hasattr(p.root, "text") and p.root.text)}'  # type: ignore[arg-type]
 
         instructions: str | None
 
@@ -1229,8 +1240,8 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     ai.define_format(MockBananaFormat())
 
     class TestSchema(BaseModel):
-        foo: int = Field(None, description='foo field')
-        bar: str = Field(None, description='bar field')
+        foo: int | None = Field(None, description='foo field')
+        bar: str | None = Field(None, description='bar field')
 
     pm.responses = [
         (
@@ -1242,9 +1253,9 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     ]
     pm.chunks = [
         [
-            GenerateResponseChunk(role='model', content=[Part(root=TextPart(text='1'))]),
-            GenerateResponseChunk(role='model', content=[Part(root=TextPart(text='2'))]),
-            GenerateResponseChunk(role='model', content=[Part(root=TextPart(text='3'))]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
         ]
     ]
 
@@ -1273,7 +1284,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
                     Part(root=TextPart(text='hi')),
                     Part(
                         root=TextPart(
-                            text='schema: {"properties": {"foo": {"default": null, "description": "foo field", "title": "Foo", "type": "integer"}, "bar": {"default": null, "description": "bar field", "title": "Bar", "type": "string"}}, "title": "TestSchema", "type": "object"}',
+                            text='schema: {"properties": {"foo": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": null, "description": "foo field", "title": "Foo"}, "bar": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": null, "description": "bar field", "title": "Bar"}}, "title": "TestSchema", "type": "object"}',
                             metadata=Metadata(root={'purpose': 'output'}),
                         )
                     ),
@@ -1287,16 +1298,16 @@ async def test_define_format(setup_test: SetupFixture) -> None:
             schema={
                 'properties': {
                     'foo': {
+                        'anyOf': [{'type': 'integer'}, {'type': 'null'}],
                         'default': None,
                         'description': 'foo field',
                         'title': 'Foo',
-                        'type': 'integer',
                     },
                     'bar': {
+                        'anyOf': [{'type': 'string'}, {'type': 'null'}],
                         'default': None,
                         'description': 'bar field',
                         'title': 'Bar',
-                        'type': 'string',
                     },
                 },
                 'title': 'TestSchema',
@@ -1313,7 +1324,7 @@ def test_define_model_default_metadata(setup_test: SetupFixture) -> None:
     """Test that the define model function works."""
     ai, _, _, *_ = setup_test
 
-    def foo_model_fn():
+    def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1334,7 +1345,7 @@ def test_define_model_with_schema(setup_test: SetupFixture) -> None:
         field_a: str = Field(description='a field')
         field_b: str = Field(description='b field')
 
-    def foo_model_fn():
+    def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1371,7 +1382,7 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
     """Test that the define model function with info works."""
     ai, _, _, *_ = setup_test
 
-    def foo_model_fn():
+    def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1392,7 +1403,7 @@ def test_define_retriever_default_metadata(setup_test: SetupFixture) -> None:
     """Test that the define retriever function works."""
     ai, _, _, *_ = setup_test
 
-    def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
+    def my_retriever(doc: Document, config: dict | None = None):
         return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
 
     action = ai.define_retriever(
@@ -1413,7 +1424,7 @@ def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
         field_a: str = Field(description='a field')
         field_b: str = Field(description='b field')
 
-    def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
+    def my_retriever(doc: Document, config: dict | None = None):
         return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
 
     action = ai.define_retriever(
@@ -1451,9 +1462,9 @@ def test_define_evaluator_simple(setup_test: SetupFixture) -> None:
     """Test that the define evaluator function works."""
     ai, _, _, *_ = setup_test
 
-    def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
+    async def my_eval_fn(datapoint: BaseDataPoint, options: dict | None = None):
         return EvalFnResponse(
-            test_case_id=datapoint.test_case_id,
+            test_case_id=datapoint.test_case_id or '',
             evaluation=Score(score=True, details=Details(reasoning='I think it is true')),
         )
 
@@ -1479,10 +1490,12 @@ def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
     class CustomOption(BaseModel):
         foo_bar: str = Field('baz', description='foo_bar field')
 
-    def my_eval_fn(datapoint: BaseEvalDataPoint, options: CustomOption | None):
+    async def my_eval_fn(datapoint: BaseDataPoint, options: dict | None = None):
         return EvalFnResponse(
-            test_case_id=datapoint.test_case_id,
-            evaluation=Score(score=True, details=Details(reasoning=options.foo_bar)),
+            test_case_id=datapoint.test_case_id or '',
+            evaluation=Score(
+                score=True, details=Details(reasoning=options.get('foo_bar', 'baz') if options else 'baz')
+            ),
         )
 
     action = ai.define_evaluator(
@@ -1561,7 +1574,7 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
 
     assert my_flow('banana') == 'banana'
 
-    stream, response = my_flow.stream('banana2')
+    stream, response = my_flow.stream('banana2')  # type: ignore[attr-defined]
 
     chunks = []
     async for chunk in stream:
@@ -1584,7 +1597,7 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
 
     assert (await my_flow('banana')) == 'banana'
 
-    stream, response = my_flow.stream('banana2')
+    stream, response = my_flow.stream('banana2')  # type: ignore[attr-defined]
 
     chunks = []
     async for chunk in stream:
@@ -1601,7 +1614,7 @@ async def test_evaluate(setup_test: SetupFixture) -> None:
 
     async def my_eval_fn(datapoint: BaseDataPoint, options: Any | None):
         return EvalFnResponse(
-            test_case_id=datapoint.test_case_id,
+            test_case_id=datapoint.test_case_id or '',
             evaluation=Score(score=True, details=Details(reasoning='I think it is true')),
         )
 
@@ -1622,6 +1635,8 @@ async def test_evaluate(setup_test: SetupFixture) -> None:
     assert isinstance(response, EvalResponse)
     assert len(response.root) == 2
     assert response.root[0].test_case_id == 'case1'
-    assert response.root[0].evaluation.score is True
+    assert response.root[0].evaluation is not None
+    assert response.root[0].evaluation.score is True  # type: ignore[union-attr]
     assert response.root[1].test_case_id == 'case2'
-    assert response.root[1].evaluation.score is True
+    assert response.root[1].evaluation is not None
+    assert response.root[1].evaluation.score is True  # type: ignore[union-attr]
