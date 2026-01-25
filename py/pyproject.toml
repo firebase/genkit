@@ -28,6 +28,7 @@ dependencies = [
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
+  "genkit-plugins-mcp",
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
@@ -61,6 +62,8 @@ dev = [
   "tox-uv>=1.25.0",
   "nox>=2025.2.9",
   "nox-uv>=0.2.2",
+  "structlog>=25.2.0",
+  "ty>=0.0.13",
 ]
 
 lint = ["strenum>=0.4.15", "ty>=0.0.1", "ruff>=0.9"]
@@ -119,6 +122,7 @@ genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
+genkit-plugins-mcp                  = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
 prompt-demo                         = { workspace = true }

@@ -14,18 +14,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
+import asyncio
+from contextlib import AsyncExitStack
+from typing import Any, cast
 
 import structlog
-from pydantic import BaseModel
+from pydantic import AnyUrl, BaseModel
 
-from genkit.ai import Genkit, Plugin
-from genkit.core.action import Action, ActionMetadata
+from genkit.ai import Genkit
+from genkit.ai._registry import GenkitRegistry
 from genkit.core.action.types import ActionKind
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import CallToolResult, Prompt, Resource, Tool
+from mcp.types import CallToolResult, Prompt, Resource, TextContent, Tool
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +40,7 @@ class McpServerConfig(BaseModel):
     disabled: bool = False
 
 
-class McpClient(Plugin):
+class McpClient:
     """Client for connecting to a single MCP server."""
 
     def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
@@ -46,49 +48,25 @@ class McpClient(Plugin):
         self.config = config
         self.server_name = server_name or name
         self.session: ClientSession | None = None
-        self._exit_stack = None
-        self._session_context = None
-        self.ai: Genkit | None = None
+        self._exit_stack = AsyncExitStack()
+        self.ai: GenkitRegistry | None = None
 
     def plugin_name(self) -> str:
         return self.name
 
-    async def init(self) -> list[Action]:
-        """Initialize MCP plugin.
+    def initialize(self, ai: GenkitRegistry) -> None:
+        self.ai = ai
 
-        MCP tools are registered dynamically upon connection, so this returns an empty list.
-
-        Returns:
-            Empty list (tools are registered dynamically).
-        """
-        return []
-
-    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
-        """Resolve an action by name.
-
-        MCP uses dynamic registration, so this returns None.
-
-        Args:
-            action_type: The kind of action to resolve.
-            name: The namespaced name of the action to resolve.
-
-        Returns:
-            None (MCP uses dynamic registration).
-        """
-        return None
-
-    async def list_actions(self) -> list[ActionMetadata]:
-        """List available MCP actions.
-
-        MCP tools are discovered at runtime, so this returns an empty list.
-
-        Returns:
-            Empty list (tools are discovered at runtime).
-        """
-        return []
+    def resolve_action(self, ai: GenkitRegistry, kind: ActionKind, name: str) -> None:
+        # MCP tools are dynamic and currently registered upon connection/Discovery.
+        # This hook allows lazy resolution if we implement it.
+        pass
 
     async def connect(self):
         """Connects to the MCP server."""
+        if self.session:
+            return
+
         if self.config.disabled:
             logger.info(f'MCP server {self.server_name} is disabled.')
             return
@@ -100,25 +78,24 @@ class McpClient(Plugin):
                 )
                 # stdio_client returns (read, write) streams
                 stdio_context = stdio_client(server_params)
-                read, write = await stdio_context.__aenter__()
-                self._exit_stack = stdio_context
+                read, write = await self._exit_stack.enter_async_context(stdio_context)
 
                 # Create and initialize session
                 session_context = ClientSession(read, write)
-                self.session = await session_context.__aenter__()
-                self._session_context = session_context
+                self.session = await self._exit_stack.enter_async_context(session_context)
 
             elif self.config.url:
                 # TODO: Verify SSE client usage in mcp python SDK
                 sse_context = sse_client(self.config.url)
-                read, write = await sse_context.__aenter__()
-                self._exit_stack = sse_context
+                read, write = await self._exit_stack.enter_async_context(sse_context)
 
                 session_context = ClientSession(read, write)
-                self.session = await session_context.__aenter__()
-                self._session_context = session_context
+                self.session = await self._exit_stack.enter_async_context(session_context)
+            else:
+                raise ValueError(f"MCP client {self.name} configuration requires either 'command' or 'url'.")
 
-            await self.session.initialize()
+            if self.session:
+                await self.session.initialize()
             logger.info(f'Connected to MCP server: {self.server_name}')
 
         except Exception as e:
@@ -130,16 +107,16 @@ class McpClient(Plugin):
 
     async def close(self):
         """Closes the connection."""
-        if hasattr(self, '_session_context') and self._session_context:
-            try:
-                await self._session_context.__aexit__(None, None, None)
-            except Exception as e:
-                logger.debug(f'Error closing session: {e}')
         if self._exit_stack:
             try:
-                await self._exit_stack.__aexit__(None, None, None)
-            except Exception as e:
-                logger.debug(f'Error closing transport: {e}')
+                await self._exit_stack.aclose()
+            except (Exception, asyncio.CancelledError):
+                # Ignore errors during cleanup, especially cancellation from anyio
+                pass
+
+        # Reset exit stack for potential reuse (reconnect)
+        self._exit_stack = AsyncExitStack()
+        self.session = None
 
     async def list_tools(self) -> list[Tool]:
         if not self.session:
@@ -150,14 +127,21 @@ class McpClient(Plugin):
     async def call_tool(self, tool_name: str, arguments: dict) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-        result: CallToolResult = await self.session.call_tool(tool_name, arguments)
-        # Process result similarly to JS SDK
-        if result.isError:
-            raise RuntimeError(f'Tool execution failed: {result.content}')
+        logger.debug(f'MCP {self.server_name}: calling tool {tool_name}', arguments=arguments)
+        try:
+            result: CallToolResult = await self.session.call_tool(tool_name, arguments)
+            logger.debug(f'MCP {self.server_name}: tool {tool_name} returned')
 
-        # Simple text extraction for now
-        texts = [c.text for c in result.content if c.type == 'text']
-        return ''.join(texts)
+            # Process result similarly to JS SDK
+            if result.isError:
+                raise RuntimeError(f'Tool execution failed: {result.content}')
+
+            # Simple text extraction for now
+            texts = [c.text for c in result.content if c.type == 'text' and isinstance(c, TextContent)]
+            return {'content': ''.join(texts)}
+        except Exception as e:
+            logger.error(f'MCP {self.server_name}: tool {tool_name} failed', error=str(e))
+            raise
 
     async def list_prompts(self) -> list[Prompt]:
         if not self.session:
@@ -179,7 +163,7 @@ class McpClient(Plugin):
     async def read_resource(self, uri: str) -> Any:
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-        return await self.session.read_resource(uri)
+        return await self.session.read_resource(cast(AnyUrl, uri))
 
     async def register_tools(self, ai: Genkit | None = None):
         """Registers all tools from connected client to Genkit."""
@@ -194,29 +178,38 @@ class McpClient(Plugin):
         try:
             tools = await self.list_tools()
             for tool in tools:
-                # Create a wrapper function for the tool
-                # We need to capture tool and client in closure
-                async def tool_wrapper(args: Any = None, _tool_name=tool.name):
-                    # args might be Pydantic model or dict. Genkit passes dict usually?
-                    # TODO: Validate args against schema if needed
-                    arguments = args
-                    if hasattr(args, 'model_dump'):
-                        arguments = args.model_dump()
-                    return await self.call_tool(_tool_name, arguments or {})
+                # Create a wrapper function for the tool using a factory to capture tool name
+                def create_wrapper(tool_name: str):
+                    async def tool_wrapper(args: Any = None):
+                        # args might be Pydantic model or dict. Genkit passes dict usually?
+                        # TODO: Validate args against schema if needed
+                        arguments = args
+                        if hasattr(args, 'model_dump'):
+                            arguments = args.model_dump()
+                        return await self.call_tool(tool_name, arguments or {})
+
+                    return tool_wrapper
+
+                tool_wrapper = create_wrapper(tool.name)
 
                 # Use metadata to store MCP specific info
                 metadata = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
 
                 # Define the tool in Genkit registry
-                registry.register_action(
-                    kind=ActionKind.TOOL,
-                    name=f'{self.server_name}/{tool.name}',
+                action = registry.register_action(
+                    kind=cast(ActionKind, ActionKind.TOOL),
+                    name=f'{self.server_name}_{tool.name}',
                     fn=tool_wrapper,
                     description=tool.description,
                     metadata=metadata,
-                    # TODO: json_schema conversion from tool.inputSchema
                 )
-                logger.debug(f'Registered MCP tool: {self.server_name}/{tool.name}')
+
+                # Patch input schema from MCP tool definition
+                if tool.inputSchema:
+                    action._input_schema = tool.inputSchema
+                    action._metadata['inputSchema'] = tool.inputSchema
+
+                logger.debug(f'Registered MCP tool: {self.server_name}_{tool.name}')
         except Exception as e:
             logger.error(f'Error registering tools for {self.server_name}: {e}')
 

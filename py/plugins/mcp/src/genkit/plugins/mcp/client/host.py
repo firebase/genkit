@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
 
 from genkit.ai import Genkit
 
@@ -57,6 +58,43 @@ class McpHost:
             client = self.clients[name]
             client.config.disabled = True
             await client.close()
+
+    async def reconnect(self, name: str):
+        """Reconnects a specific MCP client."""
+        if name in self.clients:
+            client_to_reconnect = self.clients[name]
+            await client_to_reconnect.close()
+            await client_to_reconnect.connect()
+
+    async def get_active_tools(self, ai: Genkit) -> list[str]:
+        """Returns a list of all active tool names from all clients."""
+        active_tools = []
+        for client in self.clients.values():
+            if client.session:
+                try:
+                    tools = await client.get_active_tools()
+                    # Determine tool names as registered: server_tool
+                    for tool in tools:
+                        active_tools.append(f'{client.server_name}_{tool.name}')
+                except Exception as e:
+                    # Log error but continue with other clients
+                    # Use print or logger if available. Ideally structlog.
+                    pass
+        return active_tools
+
+    async def get_active_resources(self, ai: Genkit) -> list[str]:
+        """Returns a list of all active resource URIs from all clients."""
+        active_resources = []
+        for client in self.clients.values():
+            if client.session:
+                try:
+                    resources = await client.list_resources()
+                    for resource in resources:
+                        active_resources.append(resource.uri)
+                except Exception:
+                    # Log error but continue with other clients
+                    pass
+        return active_resources
 
 
 def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
