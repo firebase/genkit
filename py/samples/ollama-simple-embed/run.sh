@@ -34,4 +34,11 @@ fi
 ollama pull nomic-embed-text
 ollama pull phi4:latest
 
-genkit start -- uv run src/main.py "$@"
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run src/main.py "$@"
