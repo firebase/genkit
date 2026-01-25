@@ -10,6 +10,22 @@ To use the Anthropic plugin, you need an API key from Anthropic.
 
 For more details, check out the [official API overview](https://platform.claude.com/docs/en/api/overview).
 
+### Monitoring and Running
+
+For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+
+```bash
+./run.sh
+```
+
+This script uses `watchmedo` to monitor changes in:
+- `src/` (Python logic)
+- `../../packages` (Genkit core)
+- `../../plugins` (Genkit plugins)
+- File patterns: `*.py`, `*.prompt`, `*.json`
+
+Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
+
 ### Usage
 
 1. Setup environment and install dependencies:

@@ -18,4 +18,11 @@
 
 set -e
 export GEMINI_API_KEY=${GEMINI_API_KEY}
-genkit start -- uv run --package format-demo src/main.py
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run src/main.py "$@"
