@@ -422,7 +422,8 @@ def clean_schema(d):
     if isinstance(d, dict):
         out = {}
         for key in d:
-            if key != '$schema':
+            # Skip $schema and latencyMs (dynamic value that varies between runs)
+            if key not in ('$schema', 'latencyMs'):
                 out[key] = clean_schema(d[key])
         return out
     elif hasattr(d, '__len__'):
