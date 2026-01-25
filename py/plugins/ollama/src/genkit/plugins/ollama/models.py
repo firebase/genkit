@@ -59,7 +59,7 @@ class ModelDefinition(BaseModel):
     """Meta definition for Ollama models."""
 
     name: str
-    api_type: OllamaAPITypes = 'chat'
+    api_type: OllamaAPITypes = OllamaAPITypes.CHAT
     supports: OllamaSupports = OllamaSupports()
 
 

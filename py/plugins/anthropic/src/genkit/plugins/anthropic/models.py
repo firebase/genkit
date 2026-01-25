@@ -23,6 +23,7 @@ from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.plugins.anthropic.model_info import get_model_info
 from genkit.types import (
+    FinishReason,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -74,6 +75,7 @@ class AnthropicModel:
         streaming = ctx and ctx.is_streaming
 
         if streaming:
+            assert ctx is not None  # streaming requires ctx
             response = await self._generate_streaming(params, ctx)
         else:
             response = await self.client.messages.create(**params)
@@ -84,12 +86,12 @@ class AnthropicModel:
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
 
         finish_reason_map = {
-            'end_turn': 'stop',
-            'max_tokens': 'length',
-            'stop_sequence': 'stop',
-            'tool_use': 'stop',
+            'end_turn': FinishReason.STOP,
+            'max_tokens': FinishReason.LENGTH,
+            'stop_sequence': FinishReason.STOP,
+            'tool_use': FinishReason.STOP,
         }
-        finish_reason = finish_reason_map.get(response.stop_reason, 'unknown')
+        finish_reason = finish_reason_map.get(response.stop_reason, FinishReason.UNKNOWN)
 
         return GenerateResponse(
             message=response_message,

@@ -794,7 +794,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            schema={
                 'properties': {
                     'foo': {
                         'default': None,
@@ -861,7 +861,7 @@ async def test_generate_defaults_to_json_format(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            schema={
                 'properties': {
                     'foo': {
                         'default': None,
@@ -921,7 +921,7 @@ async def test_generate_json_format_unconstrained(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            schema={
                 'properties': {
                     'foo': {
                         'default': None,
@@ -1095,7 +1095,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            schema={
                 'properties': {
                     'foo': {
                         'default': None,
@@ -1284,7 +1284,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            schema={
                 'properties': {
                     'foo': {
                         'default': None,

@@ -484,7 +484,7 @@ class VertexAI(Plugin):
         return actions_list
 
 
-def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
+def _inject_attribution_headers(http_options: HttpOptions | dict | None = None) -> HttpOptions:
     """Adds genkit client info to the appropriate http headers."""
     if not http_options:
         http_options = HttpOptions()

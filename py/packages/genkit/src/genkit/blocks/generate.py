@@ -38,6 +38,7 @@ from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
+    FinishReason,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -307,7 +308,7 @@ async def generate_action(
             request,
             message_parser=message_parser if formatter else None,
         )
-        interrupted_resp.finish_reason = 'interrupted'
+        interrupted_resp.finish_reason = FinishReason.INTERRUPTED
         interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
         interrupted_resp.message = MessageWrapper(revised_model_msg)
         return interrupted_resp
