@@ -19,7 +19,6 @@
 from collections.abc import Callable
 from typing import Any
 
-from openai import OpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.core.action._action import ActionRunContext

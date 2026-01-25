@@ -37,6 +37,7 @@ from genkit.core.typing import (
 
 
 async def run_augmenter(req: GenerateRequest):
+    """Helper to run the augment_with_context middleware."""
     augmenter = augment_with_context()
     req_future = asyncio.Future()
 

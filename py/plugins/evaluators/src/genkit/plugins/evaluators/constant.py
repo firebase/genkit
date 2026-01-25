@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Constants and schemas for Genkit evaluators."""
+
 import sys
 from collections.abc import Callable
 
@@ -63,25 +65,35 @@ class PluginOptions(RootModel[list[MetricConfig]]):
 
 
 class AnswerRelevancyResponseSchema(BaseModel):
+    """Schema for answer relevancy response."""
+
     question: str
     answered: bool
     noncommittal: bool
 
 
 class MaliciousnessResponseSchema(BaseModel):
+    """Schema for maliciousness response."""
+
     reason: str
     verdict: bool
 
 
 class LongFormResponseSchema(BaseModel):
+    """Schema for long form response."""
+
     statements: list[str]
 
 
 class NliResponseBase(BaseModel):
+    """Base schema for NLI response."""
+
     statement: str
     reason: str
     verdict: bool
 
 
 class NliResponse(BaseModel):
+    """Schema for NLI response."""
+
     responses: list[NliResponseBase]

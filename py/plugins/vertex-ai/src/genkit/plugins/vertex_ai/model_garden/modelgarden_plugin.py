@@ -17,7 +17,6 @@
 """ModelGarden API Compatible Plugin for Genkit."""
 
 import os
-import typing
 from typing import Any, cast
 
 from genkit.ai import Plugin

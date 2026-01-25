@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for the OpenAI compatible plugin."""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -63,6 +66,7 @@ async def test_openai_plugin_resolve_action(kind, name):
 
 @pytest.mark.asyncio
 async def test_openai_plugin_list_actions() -> None:
+    """Test OpenAI plugin list_actions method."""
     entries = [
         Model(id='gpt-4-0613', created=1686588896, object='model', owned_by='openai'),
         Model(id='gpt-4', created=1687882411, object='model', owned_by='openai'),

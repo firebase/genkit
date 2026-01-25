@@ -23,8 +23,8 @@ to accomplish a task.
 """
 
 import inspect
-from collections.abc import Callable
-from typing import Any, Awaitable, Generic, TypeVar, cast
+from collections.abc import Awaitable, Callable
+from typing import Any, Generic, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel

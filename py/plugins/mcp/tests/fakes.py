@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Fakes for MCP tests."""
+
 import sys
 from typing import Any
 from unittest.mock import MagicMock
@@ -22,7 +25,10 @@ from genkit.ai import Genkit
 
 
 class MockSchema:
+    """Mock schema."""
+
     def __init__(self, **kwargs):
+        """Initialize mock schema."""
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -72,6 +78,7 @@ class FakeTransport:
     """Fakes an MCP transport/server for testing."""
 
     def __init__(self):
+        """Initialize fake transport."""
         self.tools = []
         self.prompts = []
         self.resources = []
@@ -87,6 +94,7 @@ class FakeTransport:
         self.on_error = None
 
     async def start(self):
+        """Start the transport."""
         pass
 
     async def send(self, message: dict[str, Any]):
@@ -101,7 +109,9 @@ class FakeTransport:
 
     # Helper methods to populate the fake state
     def add_tool(self, name: str, description: str = '', schema: dict | None = None):
+        """Add a tool."""
         self.tools.append({'name': name, 'description': description, 'input_schema': schema or {'type': 'object'}})
 
     def add_prompt(self, name: str, description: str = '', arguments: list | None = None):
+        """Add a prompt."""
         self.prompts.append({'name': name, 'description': description, 'arguments': arguments or []})

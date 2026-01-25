@@ -106,6 +106,8 @@ def gablorken_tool(input: GablorkenInput):
 
 
 class WeatherToolInput(BaseModel):
+    """Input for the weather tool."""
+
     location: str = Field(description='weather location')
 
 
@@ -137,10 +139,14 @@ async def weather_flow(location: str):
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
-        value: Input data containing number
+        location: The location to get weather for.
 
     Returns:
         A GenerateRequest object with the evaluation output
+
+    Example:
+        >>> await weather_flow('San Francisco')
+        'Weather in San Francisco is 23°'
     """
     response = await ai.generate(
         prompt=f'Use the get_weather tool to tell me the weather in {location}',
@@ -159,6 +165,10 @@ async def calculate_gablorken(value: int):
 
     Returns:
         A GenerateRequest object with the evaluation output
+
+    Example:
+        >>> await calculate_gablorken(33)
+        '94'
     """
     response = await ai.generate(
         prompt=f'Use the gablorken_tool to calculate the gablorken of {value}',
@@ -177,6 +187,10 @@ async def say_hi_constrained(hi_input: str) -> str:
 
     Returns:
         The greeting text.
+
+    Example:
+        >>> await say_hi_constrained('John Doe')
+        'Hi John Doe'
     """
     response = await ai.generate(
         prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',

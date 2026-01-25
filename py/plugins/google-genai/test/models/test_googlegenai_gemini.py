@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for the Gemini model implementation."""
+
 import sys
 import urllib.request
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -28,8 +31,7 @@ from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionRunContext, Genkit
-from genkit.core.action.types import ActionResponse
+from genkit.ai import ActionRunContext
 from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,

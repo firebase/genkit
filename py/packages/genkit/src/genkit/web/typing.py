@@ -42,7 +42,6 @@ except ImportError:
 
 
 try:
-    import starlette
     import starlette.types  # Explicit import for ty type checker
 
     # Import the actual application class

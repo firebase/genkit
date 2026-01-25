@@ -86,10 +86,10 @@ generation, tracing, and streaming mechanics.
 
 import asyncio
 import inspect
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextvars import ContextVar
 from functools import cached_property
-from typing import Any, Awaitable
+from typing import Any
 
 from pydantic import BaseModel, TypeAdapter
 

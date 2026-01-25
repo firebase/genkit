@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Development local vector store plugin for Genkit."""
+
 from .plugin_api import define_dev_local_vector_store
 
 __all__ = [

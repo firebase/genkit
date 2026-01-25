@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utility functions for Google GenAI context caching."""
+
 import hashlib
 import json
 

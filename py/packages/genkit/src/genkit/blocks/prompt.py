@@ -1355,7 +1355,7 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
         if hasattr(action, '_executable_prompt') and action._executable_prompt is not None:
             ref = action._executable_prompt
             # If it's a weakref, dereference it
-            if hasattr(ref, '__call__') and callable(ref):
+            if callable(ref):
                 return ref()  # type: ignore[no-any-return]
             return ref  # type: ignore[no-any-return]
         elif hasattr(action, '_async_factory'):

@@ -17,8 +17,6 @@ export GEMINI_API_KEY=<Your api key>
 
 ## Run the sample
 
-TODO
-
 ```bash
-genkit start -- uv run src/main.py
+genkit start -- uv run python -m src.main
 ```

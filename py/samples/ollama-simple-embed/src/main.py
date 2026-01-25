@@ -20,7 +20,6 @@ This sample demonstrates how to use Genkit to create a simple glossary of
 Pokemon using the Ollama plugin.
 """
 
-import asyncio
 from math import sqrt
 from typing import cast
 

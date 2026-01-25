@@ -15,17 +15,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Chats for case 03."""
+
 from pydantic import BaseModel
 
 from genkit.core.typing import Message
 
 
 class ChatSessionInputSchema(BaseModel):
+    """Input for starting a chat session."""
+
     session_id: str
     question: str
 
 
 class ChatSessionOutputSchema(BaseModel):
+    """Output for a chat session."""
+
     session_id: str
     history: list[Message]
 
@@ -34,12 +40,17 @@ ChatHistory = list[Message]
 
 
 class ChatHistoryStore:
+    """Store for chat history."""
+
     def __init__(self, preamble: ChatHistory | None = None):
+        """Initialize the store."""
         self.preamble = preamble if preamble is not None else []
         self.sessions: dict[str, ChatHistory] = {}
 
     def write(self, session_id: str, history: ChatHistory):
+        """Write history for a session."""
         self.sessions[session_id] = history
 
     def read(self, session_id: str) -> ChatHistory:
+        """Read history for a session."""
         return self.sessions.get(session_id, self.preamble)

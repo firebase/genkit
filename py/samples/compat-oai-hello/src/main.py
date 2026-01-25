@@ -102,7 +102,7 @@ async def say_hi(name: str) -> str:
         config={'temperature': 1},
         prompt=f'hi {name}',
     )
-    return response.message.content[0].root.text
+    return response.text
 
 
 @ai.flow()
@@ -120,10 +120,9 @@ async def say_hi_stream(name: str) -> str:
         config={'model': 'gpt-4-0613', 'temperature': 1},
         prompt=f'hi {name}',
     )
-    result = ''
+    result: str = ''
     async for data in stream:
-        for part in data.content:
-            result += part.root.text
+        result += data.text
     return result
 
 
@@ -187,7 +186,7 @@ async def get_weather_flow(location: str) -> str:
         tools=['get_weather_tool'],
         output_schema=WeatherResponse,
     )
-    return response.message.content[0].root.text
+    return response.text
 
 
 @ai.flow()
@@ -202,16 +201,16 @@ async def get_weather_flow_stream(location: str) -> str:
     """
     stream, _ = ai.generate_stream(
         model=openai_model('gpt-4o'),
-        system='You are an assistant that provides current weather information in JSON format and calculates gablorken based on weather value',
+        system='You are an assistant that provides current weather information in JSON format and calculates '
+        'gablorken based on weather value',
         config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
         tools=['get_weather_tool', 'gablorkenTool'],
         output_schema=WeatherResponse,
     )
-    result = ''
+    result: str = ''
     async for data in stream:
-        for part in data.content:
-            result += part.root.text or ''
+        result += data.text
     return result
 
 
@@ -268,7 +267,7 @@ async def calculate_gablorken(value: int):
         tools=['gablorkenTool'],
     )
 
-    return response.message.content[0].root.text
+    return response.text
 
 
 @ai.flow()

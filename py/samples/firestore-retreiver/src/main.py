@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Firestore retriever sample."""
+
 import os
 
 from google.cloud import firestore
@@ -24,7 +26,7 @@ from google.cloud.firestore_v1.vector import Vector
 from genkit.ai import Genkit
 from genkit.plugins.firebase import add_firebase_telemetry, define_firestore_vector_store
 from genkit.plugins.google_genai import VertexAI
-from genkit.types import Document, TextPart
+from genkit.types import Document
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
@@ -71,7 +73,7 @@ films = [
 @ai.flow()
 async def index_documents() -> None:
     """Indexes the film documents in Firestore."""
-    genkit_documents = [Document(content=[TextPart(text=film)]) for film in films]
+    genkit_documents = [Document.from_text(film) for film in films]
     embed_response = await ai.embed(embedder=EMBEDDING_MODEL, documents=genkit_documents)
     embeddings = [emb.embedding for emb in embed_response.embeddings]
 

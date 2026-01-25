@@ -14,16 +14,15 @@
 
 """Hello Google GenAI Vertex AI sample."""
 
-import argparse
 import base64
 import pathlib
 from enum import Enum
 
 import structlog
 
-from genkit.ai import Genkit, Media, MediaPart, TextPart
+from genkit.ai import Genkit
 from genkit.plugins.google_genai import GeminiImageConfigSchema, VertexAI
-from genkit.types import GenerationCommonConfig
+from genkit.types import GenerationCommonConfig, Media, MediaPart, Metadata, Part, TextPart
 
 logger = structlog.get_logger(__name__)
 
@@ -37,6 +36,8 @@ ai = Genkit(
 
 
 class ThinkingLevel(str, Enum):
+    """Thinking level enum."""
+
     LOW = 'LOW'
     HIGH = 'HIGH'
 
@@ -66,6 +67,8 @@ async def thinking_level_pro(level: ThinkingLevel):
 
 
 class ThinkingLevelFlash(str, Enum):
+    """Thinking level flash enum."""
+
     MINIMAL = 'MINIMAL'
     LOW = 'LOW'
     MEDIUM = 'MEDIUM'
@@ -102,17 +105,19 @@ async def video_understanding_metadata():
     response = await ai.generate(
         model='vertexai/gemini-2.5-flash',
         prompt=[
-            MediaPart(
-                media=Media(url='gs://cloud-samples-data/video/animals.mp4', content_type='video/mp4'),
-                metadata={
-                    'videoMetadata': {
-                        'fps': 0.5,
-                        'startOffset': '3.5s',
-                        'endOffset': '10.2s',
-                    }
-                },
+            Part(
+                root=MediaPart(
+                    media=Media(url='gs://cloud-samples-data/video/animals.mp4', content_type='video/mp4'),
+                    metadata=Metadata({
+                        'videoMetadata': {
+                            'fps': 0.5,
+                            'startOffset': '3.5s',
+                            'endOffset': '10.2s',
+                        }
+                    }),
+                )
             ),
-            TextPart(text='describe this video'),
+            Part(root=TextPart(text='describe this video')),
         ],
     )
     return response.text
@@ -156,10 +161,12 @@ async def gemini_media_resolution():
     response = await ai.generate(
         model='vertexai/gemini-3-pro-preview',
         prompt=[
-            TextPart(text='What is in this picture?'),
-            MediaPart(
-                media=Media(url=f'data:image/png;base64,{plant_b64}'),
-                metadata={'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}},
+            Part(root=TextPart(text='What is in this picture?')),
+            Part(
+                root=MediaPart(
+                    media=Media(url=f'data:image/png;base64,{plant_b64}'),
+                    metadata=Metadata({'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}}),
+                )
             ),
         ],
     )
@@ -180,9 +187,9 @@ async def gemini_image_editing():
     response = await ai.generate(
         model='vertexai/gemini-2.5-flash-image-preview',
         prompt=[
-            TextPart(text='add the plant to my room'),
-            MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}')),
-            MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}')),
+            Part(root=TextPart(text='add the plant to my room')),
+            Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}'))),
+            Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}'))),
         ],
         config=GeminiImageConfigSchema(
             response_modalities=['TEXT', 'IMAGE'],
@@ -190,7 +197,7 @@ async def gemini_image_editing():
         ).model_dump(exclude_none=True),
     )
 
-    for part in response.message.content:
+    for part in response.message.content if response.message else []:
         if isinstance(part.root, MediaPart):
             return part.root.media
 
@@ -211,7 +218,10 @@ async def nano_banana_pro():
             },
         },
     )
-    return response.media
+    for part in response.message.content if response.message else []:
+        if isinstance(part.root, MediaPart):
+            return part.root.media
+    return None
 
 
 @ai.flow()
@@ -221,7 +231,10 @@ async def imagen_image_generation():
         model='vertexai/imagen-3.0-generate-002',
         prompt='generate an image of a banana riding a bicycle',
     )
-    return response.media
+    for part in response.message.content if response.message else []:
+        if isinstance(part.root, MediaPart):
+            return part.root.media
+    return None
 
 
 @ai.tool(name='getWeather')

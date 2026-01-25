@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Firestore retriever implementation for Genkit."""
+
 from collections.abc import Callable
 from typing import Any
 

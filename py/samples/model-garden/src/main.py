@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Model Garden sample."""
+
 import structlog
 
 from genkit.ai import Genkit
@@ -90,6 +92,7 @@ async def jokes_flow(subject: str) -> str:
 
 
 async def main() -> None:
+    """Run the sample flows."""
     # await logger.ainfo(await say_hi('John Doe'))
     # await logger.ainfo(await say_hi_stream('John Doe'))
     await logger.ainfo(await jokes_flow('banana'))

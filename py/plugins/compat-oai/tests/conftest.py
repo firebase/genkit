@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Test configuration for the OpenAI compatible plugin."""
+
 import pytest
 
 from genkit.plugins.compat_oai.typing import OpenAIConfig

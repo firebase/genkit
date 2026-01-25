@@ -38,6 +38,7 @@ from genkit.core.typing import (
 
 
 def test_message_wrapper_text() -> None:
+    """Test text property of MessageWrapper."""
     wrapper = MessageWrapper(
         Message(
             role='model',
@@ -49,6 +50,7 @@ def test_message_wrapper_text() -> None:
 
 
 def test_response_wrapper_text() -> None:
+    """Test text property of GenerateResponseWrapper."""
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(
             message=Message(
@@ -65,6 +67,7 @@ def test_response_wrapper_text() -> None:
 
 
 def test_response_wrapper_output() -> None:
+    """Test output property of GenerateResponseWrapper."""
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(
             message=Message(
@@ -81,6 +84,7 @@ def test_response_wrapper_output() -> None:
 
 
 def test_response_wrapper_messages() -> None:
+    """Test messages property of GenerateResponseWrapper."""
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(
             message=Message(
@@ -119,6 +123,7 @@ def test_response_wrapper_messages() -> None:
 
 
 def test_response_wrapper_output_uses_parser() -> None:
+    """Test that GenerateResponseWrapper uses the provided message_parser."""
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(
             message=Message(
@@ -136,6 +141,7 @@ def test_response_wrapper_output_uses_parser() -> None:
 
 
 def test_chunk_wrapper_text() -> None:
+    """Test text property of GenerateResponseChunkWrapper."""
     wrapper = GenerateResponseChunkWrapper(
         chunk=GenerateResponseChunk(content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))]),
         index=0,
@@ -146,6 +152,7 @@ def test_chunk_wrapper_text() -> None:
 
 
 def test_chunk_wrapper_accumulated_text() -> None:
+    """Test accumulated_text property of GenerateResponseChunkWrapper."""
     wrapper = GenerateResponseChunkWrapper(
         GenerateResponseChunk(content=[Part(root=TextPart(text=' PS: aliens'))]),
         index=0,
@@ -159,6 +166,7 @@ def test_chunk_wrapper_accumulated_text() -> None:
 
 
 def test_chunk_wrapper_output() -> None:
+    """Test output property of GenerateResponseChunkWrapper."""
     wrapper = GenerateResponseChunkWrapper(
         GenerateResponseChunk(content=[Part(root=TextPart(text=', "baz":[1,2,'))]),
         index=0,
@@ -172,6 +180,7 @@ def test_chunk_wrapper_output() -> None:
 
 
 def test_chunk_wrapper_output_uses_parser() -> None:
+    """Test that GenerateResponseChunkWrapper uses the provided chunk_parser."""
     wrapper = GenerateResponseChunkWrapper(
         GenerateResponseChunk(content=[Part(root=TextPart(text=', "baz":[1,2,'))]),
         index=0,
@@ -209,6 +218,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
     ),
 )
 def test_get_part_counts(test_parts, expected_part_counts) -> None:
+    """Test get_part_counts utility."""
     assert get_part_counts(parts=test_parts) == expected_part_counts
 
 
@@ -369,10 +379,12 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
     ),
 )
 def test_get_basic_usage_stats(test_input, test_response, expected_output) -> None:
+    """Test get_basic_usage_stats utility."""
     assert get_basic_usage_stats(input_=test_input, response=test_response) == expected_output
 
 
 def test_response_wrapper_tool_requests() -> None:
+    """Test tool_requests property of GenerateResponseWrapper."""
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(
             message=Message(
@@ -416,6 +428,7 @@ def test_response_wrapper_tool_requests() -> None:
 
 
 def test_response_wrapper_interrupts() -> None:
+    """Test interrupts property of GenerateResponseWrapper."""
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(
             message=Message(

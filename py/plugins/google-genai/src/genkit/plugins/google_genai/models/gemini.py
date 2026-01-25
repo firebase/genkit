@@ -905,6 +905,7 @@ class GeminiModel:
             request_contents: request contents
             request_cfg: request configuration
             model_name: name of generation model to use
+            client: optional client to use for the request
 
         Returns:
             genai response.
@@ -953,6 +954,7 @@ class GeminiModel:
             request_cfg: request configuration
             ctx: action context
             model_name: name of generation model to use
+            client: optional client to use for the request
 
         Returns:
             empty genai response

@@ -17,7 +17,7 @@
 """Base error classes and utilities for Genkit."""
 
 import traceback
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel

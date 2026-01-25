@@ -23,7 +23,6 @@ Tests tools, prompts, and resources exposed via MCP server.
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))

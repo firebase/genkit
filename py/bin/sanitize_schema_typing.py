@@ -139,7 +139,7 @@ class ClassTransformer(ast.NodeTransformer):
                         return item
         return None
 
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:  # noqa: N802
         """Visit and transform annotated assignment.
 
         - Transform Role type to Role | str for flexibility
@@ -189,7 +189,7 @@ class ClassTransformer(ast.NodeTransformer):
 
         return node
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:  # noqa: N802
         """Visit and transform a class definition node.
 
         Args:
@@ -316,7 +316,6 @@ class ClassTransformer(ast.NodeTransformer):
         modifying the shared schema file. The JS SDK manually adds this field in
         model-types.ts line 398.
         """
-
         tools_index = -1
         for i, stmt in enumerate(body):
             if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):

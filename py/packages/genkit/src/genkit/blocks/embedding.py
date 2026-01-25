@@ -26,7 +26,7 @@ from genkit.blocks.document import Document
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
-from genkit.core.typing import EmbedRequest, EmbedResponse
+from genkit.core.typing import DocumentData, EmbedRequest, EmbedResponse
 
 
 class EmbedderSupports(BaseModel):
@@ -87,7 +87,10 @@ class Embedder:
             The generated embedding response.
         """
         # NOTE: Document subclasses DocumentData, so this is type-safe at runtime.
-        return (await self._action.arun(EmbedRequest(input=documents, options=options))).response  # type: ignore[arg-type]
+        # NOTE: Document subclasses DocumentData, so this is type-safe at runtime.
+        return (
+            await self._action.arun(EmbedRequest(input=cast(list['DocumentData'], documents), options=options))
+        ).response
 
 
 EmbedderFn = Callable[[EmbedRequest], EmbedResponse]

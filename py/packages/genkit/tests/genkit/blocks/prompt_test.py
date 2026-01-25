@@ -47,7 +47,7 @@ from genkit.testing import (
 
 
 def setup_test():
-    """Setup a test fixture for the veneer tests."""
+    """Setup a test fixture for the prompt tests."""
     ai = Genkit(model='echoModel')
 
     pm, _ = define_programmable_model(ai)
@@ -139,7 +139,11 @@ async def test_prompt_with_kitchensink() -> None:
         description='a prompt descr',
     )
 
-    want_txt = '[ECHO] system: "pirate" user: "history" user: "hi" tools=testTool tool_choice=required output={"format":"json","constrained":true,"contentType":"application/json"}'
+    want_txt = (
+        '[ECHO] system: "pirate" user: "history" user: "hi" tools=testTool '
+        'tool_choice=required output={"format":"json","constrained":true,'
+        '"contentType":"application/json"}'
+    )
 
     response = await my_prompt()
 
@@ -601,6 +605,7 @@ async def test_lookup_prompt_returns_executable_prompt() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_function_uses_lookup_prompt() -> None:
+    """Test using the prompt function from the Genkit class."""
     ai, *_ = setup_test()
 
     with tempfile.TemporaryDirectory() as tmpdir:

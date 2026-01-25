@@ -13,12 +13,14 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-from menu_ai import ai
-from menu_schemas import ReadMenuImagePromptSchema, TextMenuQuestionInputSchema
+"""Prompts for case 05."""
 
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
-s05_readMenuPrompt = ai.define_prompt(
+from ..menu_ai import ai
+from ..menu_schemas import ReadMenuImagePromptSchema, TextMenuQuestionInputSchema
+
+s05_read_menu_prompt = ai.define_prompt(
     variant='s05_readMenu',
     model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=ReadMenuImagePromptSchema,
@@ -27,11 +29,11 @@ s05_readMenuPrompt = ai.define_prompt(
 Extract _all_ of the text, in order,
 from the following image of a restaurant menu.
 
-{{media url=imageUrl}}
+{{media url=image_url}}
 """,
 )
 
-s05_textMenuPrompt = ai.define_prompt(
+s05_text_menu_prompt = ai.define_prompt(
     variant='s05_textMenu',
     model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=TextMenuQuestionInputSchema,

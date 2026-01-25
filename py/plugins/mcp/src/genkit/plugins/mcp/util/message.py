@@ -20,7 +20,7 @@ This module contains helper functions for converting between MCP message
 formats and Genkit message formats.
 """
 
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import structlog
 

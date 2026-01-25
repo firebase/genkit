@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Dev local vector store sample."""
+
 import os
 
 from genkit.ai import Genkit
@@ -64,6 +67,7 @@ async def index_documents() -> None:
 
 @ai.flow()
 async def retreive_documents():
+    """Retrieve documents from the vector store."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),
         retriever='films',
@@ -71,4 +75,14 @@ async def retreive_documents():
     )
 
 
-ai.run_main()
+async def main() -> None:
+    """Main entry point for the sample - keep alive for Dev UI."""
+    import asyncio
+
+    print('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
+
+
+if __name__ == '__main__':
+    ai.run_main(main())

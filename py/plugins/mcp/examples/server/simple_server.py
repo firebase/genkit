@@ -14,7 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Simple MCP server example."""
+
 import asyncio
+import os
 
 from pydantic import BaseModel, Field
 
@@ -24,14 +28,14 @@ from genkit.plugins.mcp import McpServerOptions, create_mcp_server
 
 # Define input model
 class AddInput(BaseModel):
+    """Input schema for the add tool."""
+
     a: int = Field(..., description='First number')
     b: int = Field(..., description='Second number')
 
 
-import os
-
-
 def main():
+    """Run the simple MCP server."""
     # Load prompts from the 'prompts' directory relative to this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     prompts_dir = os.path.join(script_dir, 'prompts')

@@ -43,7 +43,6 @@ from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     DocumentData,
     Embedding,
-    EmbedResponse,
     RetrieverResponse,
 )
 from genkit.types import ActionRunContext, RetrieverRequest
@@ -376,7 +375,7 @@ def vertexai_vector_search_name(name: str) -> str:
     return f'vertexai/{name}'
 
 
-def defineVertexVectorSearchBigQuery(
+def define_vertex_vector_search_big_query(
     ai: Genkit,
     *,
     name: str,
@@ -433,7 +432,7 @@ def defineVertexVectorSearchBigQuery(
     return name
 
 
-def defineVertexVectorSearchFirestore(
+def define_vertex_vector_search_firestore(
     ai: Genkit,
     *,
     name: str,

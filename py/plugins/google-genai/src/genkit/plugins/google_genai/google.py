@@ -14,8 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Google AI and Vertex AI plugin implementations."""
+
 import os
-from typing import Any
 
 from google import genai
 from google.auth.credentials import Credentials

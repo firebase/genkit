@@ -47,6 +47,7 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,
@@ -54,6 +55,7 @@ from genkit.plugins.google_genai import (
 from genkit.types import (
     GenerationCommonConfig,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -143,7 +145,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         tool_responses=[tr],
         tools=['gablorkenTool'],
     )
-    return response
+    return response.text
 
 
 @ai.flow()
@@ -191,13 +193,13 @@ async def say_hi_with_configured_temperature(data: str):
         The generated response with a function.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
 
 @ai.flow()
-async def say_hi_stream(name: str, ctx):
+async def say_hi_stream(name: str, ctx: ActionRunContext):
     """Generate a greeting for the given name.
 
     Args:
@@ -208,16 +210,17 @@ async def say_hi_stream(name: str, ctx):
         The generated response with a function.
     """
     stream, _ = ai.generate_stream(prompt=f'hi {name}')
-    result = ''
+    result: str = ''
     async for data in stream:
         ctx.send_chunk(data.text)
-        for part in data.content:
-            result += part.root.text
+        result += data.text
 
     return result
 
 
 class Skills(BaseModel):
+    """Skills for an RPG character."""
+
     strength: int = Field(description='strength (0-100)')
     charisma: int = Field(description='charisma (0-100)')
     endurance: int = Field(description='endurance (0-100)')
@@ -233,7 +236,7 @@ class RpgCharacter(BaseModel):
 
 
 @ai.flow()
-async def generate_character(name: str, ctx):
+async def generate_character(name: str, ctx: ActionRunContext):
     """Generate an RPG character.
 
     Args:
@@ -261,7 +264,7 @@ async def generate_character(name: str, ctx):
 
 
 @ai.flow()
-async def generate_character_unconstrained(name: str, ctx):
+async def generate_character_unconstrained(name: str, ctx: ActionRunContext):
     """Generate an unconstrained RPG character.
 
     Args:

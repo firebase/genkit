@@ -13,8 +13,11 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
+"""Utility functions and converters for Google GenAI plugin."""
+
 import base64
-from typing import List, Union, cast
+from typing import cast
 
 from google import genai
 
@@ -59,7 +62,7 @@ class PartConverter:
     DATA = 'data:'
 
     @classmethod
-    def to_gemini(cls, part: Part | DocumentPart) -> Union[genai.types.Part, List[genai.types.Part]]:
+    def to_gemini(cls, part: Part | DocumentPart) -> genai.types.Part | list[genai.types.Part]:
         """Maps a Genkit Part to a Gemini Part.
 
         This method inspects the root type of the Genkit Part and converts it

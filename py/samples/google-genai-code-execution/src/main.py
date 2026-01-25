@@ -42,7 +42,7 @@ async def execute_code(task: str) -> MessageWrapper:
     """Execute code for the given task.
 
     Args:
-        name: the task to send to test function
+        task: the task to send to test function
 
     Returns:
         The generated response enclosed in a MessageWrapper. The content field should contain the following:
@@ -54,6 +54,8 @@ async def execute_code(task: str) -> MessageWrapper:
         prompt=f'Generate and run code for the task: {task}',
         config=GeminiConfigSchema(temperature=1, code_execution=True).model_dump(),
     )
+    if not response.message:
+        raise ValueError('No message returned from model')
     return response.message
 
 

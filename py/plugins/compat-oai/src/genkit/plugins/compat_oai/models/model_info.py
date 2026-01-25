@@ -35,6 +35,8 @@ MODEL_GARDEN = 'model-garden'
 
 
 class PluginSource(StrEnum):
+    """Source of the plugin (OpenAI or Model Garden)."""
+
     OPENAI = 'openai'
     MODEL_GARDEN = 'model-garden'
 

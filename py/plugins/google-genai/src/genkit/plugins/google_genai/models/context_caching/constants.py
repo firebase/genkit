@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Constants for context caching."""
+
 CONTEXT_CACHE_SUPPORTED_MODELS = [
     'gemini-1.5-flash',
     'gemini-1.5-flash-001',
@@ -25,7 +28,10 @@ CONTEXT_CACHE_SUPPORTED_MODELS = [
 ]
 
 INVALID_ARGUMENT_MESSAGES = {
-    'modelVersion': "Model version is required for context caching, supported only in ${CONTEXT_CACHE_SUPPORTED_MODELS.join(',')} models.",
+    'modelVersion': (
+        'Model version is required for context caching, supported only in '
+        "${CONTEXT_CACHE_SUPPORTED_MODELS.join(',')} models."
+    ),
     'tools': 'Context caching cannot be used simultaneously with tools.',
     'codeExecution': 'Context caching cannot be used simultaneously with code execution.',
 }

@@ -28,7 +28,6 @@ from genkit.types import (
     Embedding,
     EmbedRequest,
     EmbedResponse,
-    Part,
     TextPart,
 )
 

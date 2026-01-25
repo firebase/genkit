@@ -23,6 +23,7 @@ from .server import McpServer, McpServerOptions, create_mcp_server
 
 
 def package_name() -> str:
+    """Returns the package name of the MCP plugin."""
     return 'genkit.plugins.mcp'
 
 

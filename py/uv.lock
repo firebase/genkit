@@ -2120,6 +2120,7 @@ dev = [
     { name = "twine" },
 ]
 lint = [
+    { name = "pypdf" },
     { name = "ruff" },
     { name = "strenum" },
     { name = "ty" },
@@ -2168,6 +2169,7 @@ dev = [
     { name = "twine", specifier = ">=6.1.0" },
 ]
 lint = [
+    { name = "pypdf" },
     { name = "ruff", specifier = ">=0.9" },
     { name = "strenum", specifier = ">=0.4.15" },
     { name = "ty", specifier = ">=0.0.1" },

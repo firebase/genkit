@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tool interrupts sample."""
+
 import asyncio
 
 from pydantic import BaseModel, Field
@@ -42,7 +44,7 @@ class TriviaQuestions(BaseModel):
 @ai.tool()
 def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
     """Can present questions to the user, responds with the user' selected answer."""
-    ctx.interrupt(questions)
+    ctx.interrupt(questions.model_dump())
 
 
 async def main() -> None:
@@ -68,11 +70,13 @@ async def main() -> None:
         messages = response.messages
         if len(response.interrupts) > 0:
             request = response.interrupts[0]
-            print(request.tool_request.input.get('question'))
-            i = 1
-            for question in request.tool_request.input.get('answers'):
-                print(f'   ({i}) {question}')
-                i += 1
+            input_data = request.tool_request.input
+            if input_data:
+                print(input_data.get('question'))
+                i = 1
+                for question in input_data.get('answers', []):
+                    print(f'   ({i}) {question}')
+                    i += 1
 
             tr = tool_response(request, input('Your answer (number): '))
             response = await ai.generate(
