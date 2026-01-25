@@ -86,12 +86,13 @@ generation, tracing, and streaming mechanics.
 
 import asyncio
 import inspect
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextvars import ContextVar
 from functools import cached_property
 from typing import Any
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from genkit.aio import Channel, ensure_async
 from genkit.core.error import GenkitError
@@ -501,6 +502,26 @@ def _make_tracing_wrappers(
         fn: The function to wrap.
     """
 
+    def _record_latency(output: Any, start_time: float) -> Any:
+        """Record latency for the action if the output supports it.
+
+        Args:
+            output: The action output.
+            start_time: The start time of the action execution.
+
+        Returns:
+            The updated action output.
+        """
+        latency_ms = (time.perf_counter() - start_time) * 1000
+        if hasattr(output, 'latency_ms'):
+            try:
+                output.latency_ms = latency_ms
+            except (TypeError, ValidationError, AttributeError):
+                # If immutable (e.g. Pydantic model with frozen=True), try model_copy
+                if hasattr(output, 'model_copy'):
+                    output = output.model_copy(update={'latency_ms': latency_ms})
+        return output
+
     async def async_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
         """Wrap the function in an async tracing wrapper.
 
@@ -512,6 +533,7 @@ def _make_tracing_wrappers(
             The action response.
         """
         afn = ensure_async(fn)
+        start_time = time.perf_counter()
         with tracer.start_as_current_span(name) as span:
             trace_id = str(span.get_span_context().trace_id)
             ctx._on_trace_start(trace_id)
@@ -540,6 +562,7 @@ def _make_tracing_wrappers(
                     trace_id=trace_id,
                 ) from e
 
+            output = _record_latency(output, start_time)
             record_output_metadata(span, output=output)
             return ActionResponse(response=output, trace_id=trace_id)
 
@@ -553,6 +576,7 @@ def _make_tracing_wrappers(
         Returns:
             The action response.
         """
+        start_time = time.perf_counter()
         with tracer.start_as_current_span(name) as span:
             trace_id = str(span.get_span_context().trace_id)
             ctx._on_trace_start(trace_id)
@@ -581,6 +605,7 @@ def _make_tracing_wrappers(
                     trace_id=trace_id,
                 ) from e
 
+            output = _record_latency(output, start_time)
             record_output_metadata(span, output=output)
             return ActionResponse(response=output, trace_id=trace_id)
 

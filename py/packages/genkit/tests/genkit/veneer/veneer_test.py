@@ -84,6 +84,38 @@ async def test_generate_uses_default_model(setup_test: SetupFixture) -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_populates_latency_ms(setup_test: SetupFixture) -> None:
+    """Test that the generate function populates latency_ms in the response."""
+    ai, *_ = setup_test
+
+    response = await ai.generate(prompt='hi')
+
+    # Verify latency_ms is set and is a positive number
+    assert response.latency_ms is not None
+    assert response.latency_ms > 0
+
+
+@pytest.mark.asyncio
+async def test_generate_latency_ms_in_serialized_json(setup_test: SetupFixture) -> None:
+    """Test that latencyMs appears in the serialized JSON output.
+
+    This is critical for DevUI trace viewer which expects the camelCase alias
+    'latencyMs' to be present in the span output JSON.
+    """
+    ai, *_ = setup_test
+
+    response = await ai.generate(prompt='hi')
+
+    # Serialize using the same method used in span output recording
+    serialized = response.model_dump_json(by_alias=True, exclude_none=True)
+    parsed = json.loads(serialized)
+
+    # Verify latencyMs (camelCase) is in the serialized output
+    assert 'latencyMs' in parsed, f'latencyMs not found in serialized JSON. Keys: {list(parsed.keys())}'
+    assert parsed['latencyMs'] > 0
+
+
+@pytest.mark.asyncio
 async def test_generate_with_explicit_model(setup_test: SetupFixture) -> None:
     """Test that the generate function uses the explicit model."""
     ai, *_ = setup_test
