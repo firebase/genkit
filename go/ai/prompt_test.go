@@ -3292,3 +3292,34 @@ Hello {{name}}, please help me with {{task}}.
 		}
 	})
 }
+
+func TestPromptWithDifferentInput(t *testing.T) {
+	reg := registry.New()
+	prompt, err := LoadPromptFromSource(reg, `Hello, {{name}}!`, "rawPrompt", "test-ns")
+	if err != nil {
+		t.Fatalf("LoadPromptFromRaw failed: %v", err)
+	}
+
+	if prompt == nil {
+		t.Fatal("prompt is nil")
+	}
+
+	for i := range 10 {
+		opts, err := prompt.Render(t.Context(), map[string]int{
+			"name": i,
+		})
+
+		if err != nil {
+			t.Fatalf("Render failed on iteration %d: %v", i, err)
+		}
+
+		if len(opts.Messages) != 1 {
+			t.Fatalf("Expected 1 message, got %d", len(opts.Messages))
+		}
+
+		expected := fmt.Sprintf("Hello, %d!", i)
+		if opts.Messages[0].Text() != expected {
+			t.Errorf("Iteration %d: got %q, want %q", i, opts.Messages[0].Text(), expected)
+		}
+	}
+}

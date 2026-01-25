@@ -204,7 +204,17 @@ func (o *commonGenOptions) applyGenerate(genOpts *generateOptions) error {
 func WithMessages(messages ...*Message) CommonGenOption {
 	return &commonGenOptions{
 		MessagesFn: func(ctx context.Context, _ any) ([]*Message, error) {
-			return messages, nil
+			buf, err := json.Marshal(messages)
+			if err != nil {
+				return nil, err
+			}
+
+			msgs := make([]*Message, 0, len(messages))
+			if err := json.Unmarshal(buf, &msgs); err != nil {
+				return nil, err
+			}
+
+			return msgs, nil
 		},
 	}
 }
