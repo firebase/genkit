@@ -161,6 +161,7 @@ from genkit.lang.deprecations import (
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit.types import (
+    Constrained,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -218,7 +219,7 @@ GEMINI_1_5_PRO = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -236,7 +237,7 @@ GEMINI_1_5_FLASH = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -250,7 +251,7 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -262,7 +263,7 @@ GEMINI_2_0_FLASH = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -274,7 +275,7 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -286,7 +287,7 @@ GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -298,7 +299,7 @@ GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -310,7 +311,7 @@ GEMINI_2_0_FLASH_THINKING_EXP_01_21 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -322,7 +323,7 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -334,7 +335,7 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -346,7 +347,7 @@ GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -358,7 +359,7 @@ GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -370,7 +371,7 @@ GENERIC_GEMINI_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text', 'json'],
     ),
 )
@@ -383,7 +384,7 @@ GENERIC_TTS_MODEL = ModelInfo(
         tools=False,
         tool_choice=False,
         system_role=False,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -395,7 +396,7 @@ GENERIC_IMAGE_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text'],
     ),
 )
@@ -408,7 +409,7 @@ GENERIC_GEMMA_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text', 'json'],
     ),
 )
@@ -610,7 +611,7 @@ DEFAULT_SUPPORTS_MODEL = Supports(
     tools=True,
     tool_choice=True,
     system_role=True,
-    constrained='no-tools',
+    constrained=Constrained.NO_TOOLS,
 )
 
 
@@ -1041,7 +1042,7 @@ class GeminiModel:
         content = []
         if response.candidates:
             for candidate in response.candidates:
-                if candidate.content:
+                if candidate.content and candidate.content.parts:
                     for i, part in enumerate(candidate.content.parts):
                         content.append(PartConverter.from_gemini(part=part, ref=str(i)))
 

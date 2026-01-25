@@ -28,6 +28,7 @@ from genkit.blocks.model import get_basic_usage_stats
 from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import get_model_info
 from genkit.types import (
+    FinishReason,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -46,10 +47,10 @@ __all__ = ['XAIModel']
 DEFAULT_MAX_OUTPUT_TOKENS = 4096
 
 FINISH_REASON_MAP = {
-    'STOP': 'stop',
-    'LENGTH': 'length',
-    'TOOL_CALLS': 'stop',
-    'CONTENT_FILTER': 'other',
+    'STOP': FinishReason.STOP,
+    'LENGTH': FinishReason.LENGTH,
+    'TOOL_CALLS': FinishReason.STOP,
+    'CONTENT_FILTER': FinishReason.OTHER,
 }
 
 ROLE_MAP = {
@@ -73,6 +74,7 @@ class XAIModel:
         streaming = ctx and ctx.is_streaming
 
         if streaming:
+            assert ctx is not None  # streaming requires ctx
             return await self._generate_streaming(params, request, ctx)
 
         def _sample():
@@ -95,7 +97,7 @@ class XAIModel:
                 input_images=basic_usage.input_images,
                 output_images=basic_usage.output_images,
             ),
-            finish_reason=FINISH_REASON_MAP.get(response.finish_reason, 'unknown'),
+            finish_reason=FINISH_REASON_MAP.get(response.finish_reason, FinishReason.UNKNOWN),
         )
 
     def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
@@ -205,7 +207,7 @@ class XAIModel:
             basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
 
             finish_reason = (
-                FINISH_REASON_MAP.get(final_response.finish_reason, 'unknown') if final_response else 'unknown'
+                FINISH_REASON_MAP.get(final_response.finish_reason, FinishReason.UNKNOWN) if final_response else FinishReason.UNKNOWN
             )
 
             return GenerateResponse(

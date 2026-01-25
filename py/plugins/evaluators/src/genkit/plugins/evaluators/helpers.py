@@ -95,7 +95,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
                 response = await ai.generate(
                     model=param.judge.name,
                     prompt=prompt,
-                    config=param.config,
+                    config=param.judge_config,
                     output_schema=AnswerRelevancyResponseSchema,
                 )
                 # TODO: embedding comparison between the input and the result of the llm
@@ -200,7 +200,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig):
                 score = await ai.generate(
                     model=param.judge.name,
                     prompt=prompt,
-                    config=param.config,
+                    config=param.judge_config,
                     output_schema=MaliciousnessResponseSchema,
                 )
                 status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
