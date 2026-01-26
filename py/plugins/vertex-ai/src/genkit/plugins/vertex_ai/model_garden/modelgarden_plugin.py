@@ -17,6 +17,8 @@
 """ModelGarden API Compatible Plugin for Genkit."""
 
 import os
+
+from typing import cast
 from typing import Any, cast
 
 from genkit.ai import Plugin
@@ -24,11 +26,15 @@ from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
+from genkit.types import GenerationCommonConfig, ModelInfo, Supports
 from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS
-from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit.plugins.vertex_ai import constants as const
 
 from .model_garden import MODELGARDEN_PLUGIN_NAME, ModelGarden, model_garden_name
+from .anthropic import SUPPORTED_ANTHROPIC_MODELS
+from .llama import SUPPORTED_LLAMA_MODELS
+from .mistral import SUPPORTED_MISTRAL_MODELS, MistralModel
 
 
 class ModelGardenPlugin(Plugin):
@@ -118,7 +124,8 @@ class ModelGardenPlugin(Plugin):
             from anthropic import AsyncAnthropicVertex
 
             from genkit.plugins.anthropic.models import AnthropicModel
-            from genkit.types import GenerationCommonConfig, ModelInfo
+            # Uses global imports now
+
 
             location = self.model_locations.get(clean_name, self.location)
             client = AsyncAnthropicVertex(region=location, project_id=self.project_id)
@@ -128,7 +135,7 @@ class ModelGardenPlugin(Plugin):
             anthropic_model = AnthropicModel(model_name=anthropic_model_name, client=client)
 
             return Action(
-                kind=ActionKind.MODEL,
+                kind=cast(ActionKind, ActionKind.MODEL),
                 name=name,
                 fn=anthropic_model.generate,
                 metadata={
@@ -168,6 +175,57 @@ class ModelGardenPlugin(Plugin):
                 },
             )
 
+        if any(keyword in clean_name for keyword in ['mistral', 'codestral']) or clean_name in SUPPORTED_MISTRAL_MODELS:
+            from mistralai_gcp import MistralGoogleCloud
+
+            location = self.model_locations.get(clean_name, self.location)
+            client = MistralGoogleCloud(project_id=self.project_id, region=location)
+            
+            mistral_model = MistralModel(client=client, model_name=clean_name)
+            
+            model_info = SUPPORTED_MISTRAL_MODELS.get(clean_name, ModelInfo(
+                label=f'ModelGarden - {clean_name}',
+                supports=Supports(
+                    multiturn=True,
+                    media=False,
+                    tools=True,
+                    systemRole=True,
+                    output=[SupportedOutputFormat.TEXT],
+                )
+            ))
+
+            return Action(
+                kind=cast(ActionKind, ActionKind.MODEL),
+                name=name,
+                fn=mistral_model.generate,
+                metadata={
+                    'model': model_info.model_dump(),
+                    'customOptions': to_json_schema(GenerationCommonConfig),
+                },
+            )
+            if not self.project_id:
+                raise ValueError('project_id must be provided')
+            model_proxy = AnthropicWorker(
+                model=clean_name,
+                location=location,
+                project_id=self.project_id,
+            )
+
+            handler = model_proxy.get_handler()
+            model_info = model_proxy.get_model_info()
+
+            return Action(
+                kind=ActionKind.MODEL,
+                name=name,
+                fn=handler,
+                metadata={
+                    'model': {
+                        **model_info.model_dump(),
+                        'customOptions': to_json_schema(model_proxy.get_config_schema()),
+                    },
+                },
+            )
+
         location = self.model_locations.get(clean_name, self.location)
         if not self.project_id:
             raise ValueError('project_id must be provided')
@@ -178,11 +236,15 @@ class ModelGardenPlugin(Plugin):
         )
 
         # Get model info and handler
-        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(clean_name, {})
+        if clean_name in SUPPORTED_LLAMA_MODELS:
+            model_info = SUPPORTED_LLAMA_MODELS[clean_name]
+        else:
+            model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(clean_name, {})
+            
         handler = model_proxy.to_openai_compatible_model()
 
         return Action(
-            kind=ActionKind.MODEL,
+            kind=cast(ActionKind, ActionKind.MODEL),
             name=name,
             fn=handler,
             metadata={
