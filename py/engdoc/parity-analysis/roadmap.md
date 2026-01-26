@@ -4,37 +4,70 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
-## Potential Gaps Not Yet Analyzed
+## Current Status (Updated 2026-01-26)
+
+> [!IMPORTANT]
+> **Overall Parity: ~95% Complete** - Most milestones are done!
+
+### Completed Milestones ✅
+
+| Milestone | Status | Notes |
+|-----------|--------|-------|
+| **M0: Foundation** | ✅ Complete | DevUI config, latency_ms, docs context |
+| **M1: Core APIs** | ✅ Complete | check_operation, run, current_context, dynamic_tool |
+| **M2: Sessions** | ✅ Complete | SessionStore, create/load_session, chat API |
+| **M3: Plugin Parity** | ✅ Complete | Anthropic ThinkingConfig, Google apiVersion/baseUrl |
+| **M4: Telemetry** | ✅ Complete | RealtimeSpanProcessor, flushTracing, AdjustingTraceExporter, GCP parity |
+| **M5: Advanced** | ⚠️ 80% | embed_many ✅, define_simple_retriever ✅, define_background_model ❌ |
+
+### Remaining Work
+
+| Priority | Task | Effort | Status |
+|----------|------|--------|--------|
+| **P0** | Testing Infrastructure (`genkit.testing`) | S | ✅ Complete |
+| **P0** | Context Caching (google-genai) | M | ✅ Complete |
+| **P1** | `define_background_model()` | M | ❌ Not Started |
+| **P1** | Live/Realtime API | L | ❌ Not Started |
+| **P2** | Multi-agent sample | M | ❌ Not Started |
+| **P2** | MCP sample | M | ❌ Not Started |
+
+---
+
+## Remaining Gaps (Prioritized)
 
 > [!NOTE]
-> These areas may require future analysis but are not yet covered in detail.
+> Most original gaps have been addressed. These are the remaining items.
 
-| Gap | Description | Priority |
-|-----|-------------|----------|
-| **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. Python equivalents need verification. | Medium |
-| **CLI/Tooling Parity** | `genkit` CLI commands and their behavior with Python projects (especially DevUI integration) | Medium |
-| **Error Types** | JS has `GenkitError`, `ModelError`, `UserFacingError`. Python error hierarchy needs parity check. | Low |
-| **Context Caching** | Listed as missing plugin feature but no detailed implementation analysis | High |
-| **Auth/Security Patterns** | How auth context flows through actions, middleware patterns for auth | Medium |
-| **Performance Benchmarks** | Streaming latency, memory usage, concurrent request handling | Low |
-| **Migration Guide** | Documentation for teams moving from JS to Python | Low |
-| **Go Parity** | This analysis is JS↔Python only. Go is a third implementation with its own gaps. | Low |
-| **Imagen/Veo Details** | Image/video generation model support specifics | Medium |
-| **Live/Realtime API** | Google GenAI Live API for real-time streaming | High |
+| Gap | Description | Priority | Status |
+|-----|-------------|----------|--------|
+| **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. | **P0** | 🔄 In Progress |
+| **Context Caching** | `ai.cacheContent()`, `cachedContent` option in generate | **P0** | 🔄 In Progress |
+| **define_background_model** | Needed for Veo, Imagen async operations | **P1** | ❌ Not Started |
+| **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
+| **CLI/Tooling Parity** | `genkit` CLI commands and Python project behavior | Medium | ⚠️ Mostly Working |
+| **Error Types** | Python error hierarchy parity check | Low | ⚠️ Needs Review |
+| **Auth/Security Patterns** | Auth context flow through actions | Medium | ⚠️ Needs Review |
+| **Performance Benchmarks** | Streaming latency, memory usage | Low | ❌ Not Started |
+| **Migration Guide** | Documentation for JS to Python migration | Low | ❌ Not Started |
 
-### Quick Notes on Key Gaps
+### Phase 1 Tasks ✅ COMPLETE (2026-01-26)
 
-**Testing Infrastructure:**
-- JS: `import { echoModel } from '@genkit-ai/ai/testing'`
-- Python: Needs `genkit.testing` module with equivalent utilities
+**1. Testing Infrastructure (`genkit.testing` module)** ✅
+- Location: `py/packages/genkit/src/genkit/testing.py`
+- Implemented:
+  - `EchoModel` / `define_echo_model()` - Returns input as output for testing
+  - `ProgrammableModel` / `define_programmable_model()` - Configurable responses
+  - `StaticResponseModel` / `define_static_response_model()` - Fixed responses
+  - Streaming support with countdown ("3", "2", "1")
+  - Request tracking (`last_request`, `request_count`)
 
-**Context Caching:**
-- JS: `ai.cacheContent()`, `cachedContent` option in generate
-- Python: Missing entirely from google-genai plugin
-
-**Live/Realtime API:**
-- JS: `ai.generate({ model: 'googleai/gemini-live' })` with real-time streaming
-- Python: Not implemented
+**2. Context Caching (google-genai plugin)** ✅
+- Location: `py/plugins/google-genai/src/.../models/context_caching/`
+- Already implemented:
+  - `_retrieve_cached_content()` - Cache lookup/creation
+  - `_build_messages()` - Extracts cache config from message metadata
+  - Model integration with `cached_content` option
+  - Supported models: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash, etc.
 
 ---
 
