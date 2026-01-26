@@ -54,7 +54,7 @@ class JsonlFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the JsonlFormat.
 
         Configures the format with:

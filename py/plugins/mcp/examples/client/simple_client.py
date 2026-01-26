@@ -29,7 +29,7 @@ except ImportError:
 
 
 # Simple client example connecting to 'everything' server using npx
-async def main():
+async def main() -> None:
     """Run the simple MCP client."""
     # Define the client plugin
     everything_client = create_mcp_client(

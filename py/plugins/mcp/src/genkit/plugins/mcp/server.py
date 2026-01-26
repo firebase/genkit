@@ -83,7 +83,7 @@ class McpServer:
     (tools, prompts, resources) available to MCP clients via the Model Context Protocol.
     """
 
-    def __init__(self, ai: Genkit, options: McpServerOptions):
+    def __init__(self, ai: Genkit, options: McpServerOptions) -> None:
         """Initialize the MCP server.
 
         Args:

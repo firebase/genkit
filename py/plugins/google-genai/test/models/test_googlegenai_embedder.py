@@ -32,7 +32,7 @@ from genkit.types import (
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in GeminiEmbeddingModels])
-async def test_embedding(mocker, version):
+async def test_embedding(mocker, version) -> None:
     """Test the embedding method."""
     request_text = 'request text'
     embedding_values = [0.0017063986, -0.044727605, 0.043327782, 0.00044852644]

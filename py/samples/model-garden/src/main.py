@@ -16,7 +16,10 @@
 
 """Model Garden sample."""
 
+from typing import Annotated
+
 import structlog
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
@@ -72,7 +75,7 @@ ai = Genkit(
 
 
 @ai.flow()
-async def jokes_flow(subject: str) -> str:
+async def jokes_flow(subject: Annotated[str, Field(default='banana')] = 'banana') -> str:
     """Generate a joke about the given subject.
 
     Args:

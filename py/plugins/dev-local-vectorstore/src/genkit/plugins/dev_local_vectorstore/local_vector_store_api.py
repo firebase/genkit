@@ -34,7 +34,7 @@ class LocalVectorStoreAPI:
     def __init__(
         self,
         index_name: str,
-    ):
+    ) -> None:
         """Initialize the LocalVectorStoreAPI."""
         self.index_name = index_name
 

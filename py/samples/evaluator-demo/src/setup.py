@@ -31,7 +31,7 @@ class SetupInput(BaseModel):
 
 
 @ai.flow(name='setup')
-async def setup(options: SetupInput | None = None):
+async def setup(options: SetupInput | None = None) -> None:
     """Run initial setup (indexing).
 
     Args:

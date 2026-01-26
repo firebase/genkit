@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from genkit.codec import dump_json
 
 
-def test_dump_json_basic():
+def test_dump_json_basic() -> None:
     """Test basic JSON serialization."""
     # Test dictionary
     assert dump_json({'a': 1, 'b': 'test'}) == '{"a": 1, "b": "test"}'
@@ -33,7 +33,7 @@ def test_dump_json_basic():
     assert dump_json({'a': [1, 2], 'b': {'c': 3}}) == '{"a": [1, 2], "b": {"c": 3}}'
 
 
-def test_dump_json_special_types():
+def test_dump_json_special_types() -> None:
     """Test JSON serialization of special Python types."""
     # Test None
     assert dump_json(None) == 'null'
@@ -43,7 +43,7 @@ def test_dump_json_special_types():
     assert dump_json(False) == 'false'
 
 
-def test_dump_json_numbers():
+def test_dump_json_numbers() -> None:
     """Test JSON serialization of different number types."""
     # Test integers
     assert dump_json(42) == '42'
@@ -55,7 +55,7 @@ def test_dump_json_numbers():
     assert dump_json(1e-10) == '1e-10'
 
 
-def test_dump_json_pydantic():
+def test_dump_json_pydantic() -> None:
     """Test JSON serialization of Pydantic models."""
 
     class MyModel(BaseModel):

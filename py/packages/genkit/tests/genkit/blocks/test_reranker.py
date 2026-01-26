@@ -46,7 +46,7 @@ from genkit.core.typing import (
 class TestRankedDocument:
     """Tests for the RankedDocument class."""
 
-    def test_ranked_document_creation(self):
+    def test_ranked_document_creation(self) -> None:
         """Test creating a RankedDocument with content and score."""
         content = [DocumentPart(root=TextPart(text='Test content'))]
         metadata = {'key': 'value'}
@@ -60,14 +60,14 @@ class TestRankedDocument:
         # Original metadata should not be modified
         assert metadata == {'key': 'value'}
 
-    def test_ranked_document_default_score(self):
+    def test_ranked_document_default_score(self) -> None:
         """Test that RankedDocument has a default score of None."""
         content = [DocumentPart(root=TextPart(text='Test'))]
         doc = RankedDocument(content=content)
 
         assert doc.score is None
 
-    def test_ranked_document_from_data(self):
+    def test_ranked_document_from_data(self) -> None:
         """Test creating RankedDocument from RankedDocumentData."""
         data = RankedDocumentData(
             content=[DocumentPart(root=TextPart(text='Test content'))],
@@ -83,7 +83,7 @@ class TestRankedDocument:
 class TestRerankerRef:
     """Tests for RerankerRef and related helper functions."""
 
-    def test_create_reranker_ref_basic(self):
+    def test_create_reranker_ref_basic(self) -> None:
         """Test creating a basic reranker reference."""
         ref = create_reranker_ref('test-reranker')
 
@@ -92,7 +92,7 @@ class TestRerankerRef:
         assert ref.version is None
         assert ref.info is None
 
-    def test_create_reranker_ref_with_options(self):
+    def test_create_reranker_ref_with_options(self) -> None:
         """Test creating a reranker reference with all options."""
         info = RerankerInfo(label='Test Reranker')
         ref = create_reranker_ref(
@@ -112,7 +112,7 @@ class TestRerankerRef:
 class TestRerankerActionMetadata:
     """Tests for reranker action metadata creation."""
 
-    def test_action_metadata_basic(self):
+    def test_action_metadata_basic(self) -> None:
         """Test creating basic action metadata."""
         metadata = reranker_action_metadata('test-reranker')
 
@@ -121,7 +121,7 @@ class TestRerankerActionMetadata:
         assert metadata.metadata is not None
         assert 'reranker' in metadata.metadata
 
-    def test_action_metadata_with_options(self):
+    def test_action_metadata_with_options(self) -> None:
         """Test creating action metadata with options."""
         options = RerankerOptions(
             label='Custom Label',
@@ -143,7 +143,7 @@ class TestDefineReranker:
         return Registry()
 
     @pytest.mark.asyncio
-    async def test_define_reranker_registers_action(self, registry):
+    async def test_define_reranker_registers_action(self, registry) -> None:
         """Test that define_reranker registers an action in the registry."""
 
         async def simple_reranker(query, documents, options):
@@ -166,7 +166,7 @@ class TestDefineReranker:
         assert action.name == 'test-reranker'
 
     @pytest.mark.asyncio
-    async def test_define_reranker_with_options(self, registry):
+    async def test_define_reranker_with_options(self, registry) -> None:
         """Test define_reranker with custom options."""
 
         async def reranker_fn(query, documents, options):
@@ -196,7 +196,7 @@ class TestRerank:
         ]
 
     @pytest.mark.asyncio
-    async def test_rerank_with_string_query(self, registry, sample_documents):
+    async def test_rerank_with_string_query(self, registry, sample_documents) -> None:
         """Test rerank with a string query."""
 
         async def score_by_length(query, documents, options):
@@ -227,7 +227,7 @@ class TestRerank:
         assert all(isinstance(r, RankedDocument) for r in results)
 
     @pytest.mark.asyncio
-    async def test_rerank_with_reranker_ref(self, registry, sample_documents):
+    async def test_rerank_with_reranker_ref(self, registry, sample_documents) -> None:
         """Test rerank with a RerankerRef."""
 
         async def simple_reranker(query, documents, options):
@@ -257,7 +257,7 @@ class TestRerank:
         assert all(doc.score == 0.5 for doc in results)
 
     @pytest.mark.asyncio
-    async def test_rerank_unknown_reranker_raises(self, registry, sample_documents):
+    async def test_rerank_unknown_reranker_raises(self, registry, sample_documents) -> None:
         """Test that rerank raises ValueError for unknown reranker."""
         with pytest.raises(ValueError, match='Unable to resolve reranker'):
             await rerank(
@@ -297,7 +297,7 @@ class TestCustomRerankers:
         ]
 
     @pytest.mark.asyncio
-    async def test_custom_keyword_overlap_reranker(self, registry, sample_documents):
+    async def test_custom_keyword_overlap_reranker(self, registry, sample_documents) -> None:
         """Test a custom reranker that scores by keyword overlap.
 
         This demonstrates the pattern shown in genkit.dev docs for
@@ -351,7 +351,7 @@ class TestCustomRerankers:
         assert results[0].score > 0
 
     @pytest.mark.asyncio
-    async def test_custom_reranker_with_top_k_option(self, registry, sample_documents):
+    async def test_custom_reranker_with_top_k_option(self, registry, sample_documents) -> None:
         """Test custom reranker with k option to limit results.
 
         Demonstrates using options to configure reranking behavior.
@@ -392,7 +392,7 @@ class TestCustomRerankers:
         assert len(results) == 3
 
     @pytest.mark.asyncio
-    async def test_custom_reranker_preserves_document_content(self, registry):
+    async def test_custom_reranker_preserves_document_content(self, registry) -> None:
         """Test that custom reranker preserves original document content."""
 
         async def identity_reranker(query, documents, options):
@@ -426,7 +426,7 @@ class TestCustomRerankers:
         assert result_texts == original_texts
 
     @pytest.mark.asyncio
-    async def test_custom_reranker_two_stage_retrieval_pattern(self, registry):
+    async def test_custom_reranker_two_stage_retrieval_pattern(self, registry) -> None:
         """Test the two-stage retrieval pattern: retrieve then rerank.
 
         This demonstrates the typical RAG pattern where:

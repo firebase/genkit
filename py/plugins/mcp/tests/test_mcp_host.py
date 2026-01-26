@@ -31,7 +31,7 @@ McpServerConfig: Any = None
 create_mcp_host: Any = None
 
 
-def setup_mocks():
+def setup_mocks() -> None:
     """Set up mocks for testing."""
     global Genkit, McpServerConfig, create_mcp_host
 
@@ -62,11 +62,11 @@ def setup_mocks():
 class TestMcpHost(unittest.IsolatedAsyncioTestCase):
     """Tests for MCP host."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    async def test_connect_and_register(self):
+    async def test_connect_and_register(self) -> None:
         """Test connect and register."""
         # Setup configs
         config1 = McpServerConfig(command='echo')

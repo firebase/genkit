@@ -42,7 +42,7 @@ class TriviaQuestions(BaseModel):
 
 
 @ai.tool()
-def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
+def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
     """Can present questions to the user, responds with the user' selected answer."""
     ctx.interrupt(questions.model_dump())
 

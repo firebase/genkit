@@ -19,7 +19,7 @@
 from genkit.codec import dump_json
 
 
-def record_input_metadata(span, kind, name, span_metadata, input):
+def record_input_metadata(span, kind, name, span_metadata, input) -> None:
     """Records input metadata onto an OpenTelemetry span for a Genkit action.
 
     Sets standard Genkit attributes like action type, subtype (kind), name,

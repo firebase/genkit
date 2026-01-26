@@ -62,7 +62,7 @@ DEFAULT_MAX_TURNS = 5
 logger = structlog.get_logger(__name__)
 
 
-def define_generate_action(registry: Registry):
+def define_generate_action(registry: Registry) -> None:
     """Registers generate action in the provided registry."""
 
     async def generate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> GenerateResponse:
@@ -188,7 +188,7 @@ async def generate_action(
         if role is None:
             role = cast(Role, Role.MODEL)
 
-        def wrapper(chunk):
+        def wrapper(chunk) -> None:
             if on_chunk is not None:
                 on_chunk(make_chunk(role, chunk))
 
@@ -568,7 +568,7 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
     return new_request
 
 
-def assert_valid_tool_names(raw_request: GenerateActionOptions):
+def assert_valid_tool_names(raw_request: GenerateActionOptions) -> None:
     """Assert that tool names in the request are valid.
 
     Args:
@@ -1022,7 +1022,7 @@ class GenerationResponseError(Exception):
         message: str,
         status: str,
         details: dict[str, Any],
-    ):
+    ) -> None:
         """Initialize the GenerationResponseError.
 
         Args:

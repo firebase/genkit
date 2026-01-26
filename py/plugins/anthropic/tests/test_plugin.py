@@ -37,19 +37,19 @@ from genkit.types import (
 )
 
 
-def test_anthropic_name():
+def test_anthropic_name() -> None:
     """Test anthropic_name helper function."""
     assert anthropic_name('claude-sonnet-4') == 'anthropic/claude-sonnet-4'
 
 
-def test_init_with_api_key():
+def test_init_with_api_key() -> None:
     """Test plugin initialization with API key."""
     plugin = Anthropic(api_key='test-key')
     assert plugin._anthropic_client.api_key == 'test-key'
     assert plugin.models == list(SUPPORTED_MODELS.keys())
 
 
-def test_init_without_api_key_raises():
+def test_init_without_api_key_raises() -> None:
     """Test plugin initialization without API key uses default behavior."""
     with patch.dict('os.environ', {}, clear=True):
         # AsyncAnthropic allows initialization without API key
@@ -58,21 +58,21 @@ def test_init_without_api_key_raises():
         assert plugin._anthropic_client is not None
 
 
-def test_init_with_env_var():
+def test_init_with_env_var() -> None:
     """Test plugin initialization with environment variable."""
     with patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'env-key'}):
         plugin = Anthropic()
         assert plugin._anthropic_client.api_key == 'env-key'
 
 
-def test_custom_models():
+def test_custom_models() -> None:
     """Test plugin initialization with custom models."""
     plugin = Anthropic(api_key='test-key', models=['claude-sonnet-4'])
     assert plugin.models == ['claude-sonnet-4']
 
 
 @pytest.mark.asyncio
-async def test_plugin_init():
+async def test_plugin_init() -> None:
     """Test plugin init method."""
     plugin = Anthropic(api_key='test-key', models=['claude-sonnet-4'])
 
@@ -82,7 +82,7 @@ async def test_plugin_init():
 
 
 @pytest.mark.asyncio
-async def test_resolve_action_model():
+async def test_resolve_action_model() -> None:
     """Test resolve method for model."""
     plugin = Anthropic(api_key='test-key')
 
@@ -94,7 +94,7 @@ async def test_resolve_action_model():
     assert action.kind == ActionKind.MODEL
 
 
-def test_supported_models():
+def test_supported_models() -> None:
     """Test that all supported models have proper metadata."""
     assert len(SUPPORTED_MODELS) == 7
     for _name, info in SUPPORTED_MODELS.items():
@@ -109,7 +109,7 @@ def test_supported_models():
         assert info.supports.system_role is True
 
 
-def test_get_model_info_known():
+def test_get_model_info_known() -> None:
     """Test get_model_info returns correct info for known model."""
     info = get_model_info('claude-sonnet-4')
     assert info.label == 'Anthropic - Claude Sonnet 4'
@@ -118,7 +118,7 @@ def test_get_model_info_known():
     assert info.supports.tools is True
 
 
-def test_get_model_info_unknown():
+def test_get_model_info_unknown() -> None:
     """Test get_model_info returns default info for unknown model."""
     info = get_model_info('unknown-model')
     assert info.label == 'Anthropic - unknown-model'

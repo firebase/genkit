@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from genkit.core.schema import to_json_schema
 
 
-def test_to_json_schema_pydantic_model():
+def test_to_json_schema_pydantic_model() -> None:
     """Test that a Pydantic model can be converted to a JSON schema."""
 
     class TestSchema(BaseModel):
@@ -49,7 +49,7 @@ def test_to_json_schema_pydantic_model():
     }
 
 
-def test_to_json_schema_already_schema():
+def test_to_json_schema_already_schema() -> None:
     """Test that a JSON schema can be converted to a JSON schema."""
     json_schema = {
         'properties': {
@@ -85,7 +85,7 @@ class TestNullType:
     See: https://json-schema.org/understanding-json-schema/reference/null
     """
 
-    def test_none_produces_null_type(self):
+    def test_none_produces_null_type(self) -> None:
         """Python None should produce JSON Schema null type."""
         assert to_json_schema(None) == {'type': 'null'}
 
@@ -96,7 +96,7 @@ class TestStringType:
     See: https://json-schema.org/understanding-json-schema/reference/string
     """
 
-    def test_str_type(self):
+    def test_str_type(self) -> None:
         """Python str type should produce JSON Schema string type."""
         assert to_json_schema(str) == {'type': 'string'}
 
@@ -115,7 +115,7 @@ class TestNumericTypes:
             (float, 'number'),
         ],
     )
-    def test_numeric_types(self, py_type, json_type_name):
+    def test_numeric_types(self, py_type, json_type_name) -> None:
         """Python numeric types should produce correct JSON Schema numeric types."""
         assert to_json_schema(py_type) == {'type': json_type_name}
 
@@ -126,7 +126,7 @@ class TestBooleanType:
     See: https://json-schema.org/understanding-json-schema/reference/boolean
     """
 
-    def test_bool_type(self):
+    def test_bool_type(self) -> None:
         """Python bool type should produce JSON Schema boolean type."""
         assert to_json_schema(bool) == {'type': 'boolean'}
 
@@ -144,7 +144,7 @@ class TestArrayType:
             (list[int], {'type': 'integer'}),
         ],
     )
-    def test_list_types(self, list_type, item_schema):
+    def test_list_types(self, list_type, item_schema) -> None:
         """Python list types should produce array schema with correct item types."""
         result = to_json_schema(list_type)
         assert result['type'] == 'array'
@@ -157,12 +157,12 @@ class TestObjectType:
     See: https://json-schema.org/understanding-json-schema/reference/object
     """
 
-    def test_dict_type(self):
+    def test_dict_type(self) -> None:
         """Python dict should produce object schema."""
         result = to_json_schema(dict)
         assert result['type'] == 'object'
 
-    def test_pydantic_model(self):
+    def test_pydantic_model(self) -> None:
         """Pydantic BaseModel should produce object schema with properties."""
 
         class Person(BaseModel):
@@ -198,6 +198,6 @@ class TestPassthroughBehavior:
         ],
         ids=['simple_schema', 'complex_schema'],
     )
-    def test_passthrough_behavior(self, schema):
+    def test_passthrough_behavior(self, schema) -> None:
         """A dict representing a JSON Schema should be returned as-is."""
         assert to_json_schema(schema) == schema

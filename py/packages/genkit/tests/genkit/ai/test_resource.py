@@ -30,7 +30,7 @@ from genkit.core.typing import Metadata, Part, TextPart
 
 
 @pytest.mark.asyncio
-async def test_define_resource():
+async def test_define_resource() -> None:
     """Verifies that a resource can be defined and registered correctly.
 
     Checks:
@@ -56,7 +56,7 @@ async def test_define_resource():
 
 
 @pytest.mark.asyncio
-async def test_resolve_resources():
+async def test_resolve_resources() -> None:
     """Verifies resolving resource references into Action objects.
 
     Checks:
@@ -80,7 +80,7 @@ async def test_resolve_resources():
 
 
 @pytest.mark.asyncio
-async def test_find_matching_resource():
+async def test_find_matching_resource() -> None:
     """Verifies the logic for finding a matching resource given an input URI.
 
     Checks:
@@ -128,7 +128,7 @@ async def test_find_matching_resource():
     assert res is None
 
 
-def test_is_dynamic_resource_action():
+def test_is_dynamic_resource_action() -> None:
     """Verifies identifying dynamic vs registered resource actions.
 
     Checks:
@@ -152,7 +152,7 @@ def test_is_dynamic_resource_action():
 
 
 @pytest.mark.asyncio
-async def test_parent_metadata():
+async def test_parent_metadata() -> None:
     """Verifies that parent metadata is correctly attached to output items.
 
     When a resource is resolved via a template (e.g. `file://{id}`), the output parts
@@ -182,7 +182,7 @@ async def test_parent_metadata():
     assert part['metadata']['resource']['uri'] == 'file://dir/sub1.txt'
 
 
-def test_dynamic_resource_matching():
+def test_dynamic_resource_matching() -> None:
     """Verifies the matching logic for a simple static URI dynamic resource."""
 
     async def my_resource_fn(input, ctx):
@@ -202,7 +202,7 @@ def test_dynamic_resource_matching():
     assert not res.matches(MockInputBad())
 
 
-def test_template_matching():
+def test_template_matching() -> None:
     """Verifies URI template pattern matching.
 
     Checks:
@@ -228,7 +228,7 @@ def test_template_matching():
     assert not res.matches(MockInputBad())
 
 
-def test_reserved_expansion_matching():
+def test_reserved_expansion_matching() -> None:
     """Verifies RFC 6570 reserved expansion {+var} pattern matching.
 
     Checks:

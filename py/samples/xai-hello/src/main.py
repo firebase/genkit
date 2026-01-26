@@ -25,6 +25,7 @@ Demonstrates:
 """
 
 import os
+from typing import Annotated
 
 import structlog
 from pydantic import BaseModel, Field
@@ -122,7 +123,7 @@ def calculate(input: CalculatorInput) -> dict:
 
 
 @ai.flow()
-async def say_hi(name: str) -> str:
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a simple greeting.
 
     Args:
@@ -140,7 +141,10 @@ async def say_hi(name: str) -> str:
 
 
 @ai.flow()
-async def say_hi_stream(name: str, ctx: ActionRunContext) -> str:
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Bob')] = 'Bob',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate a streaming story response.
 
     Args:
@@ -162,7 +166,7 @@ async def say_hi_stream(name: str, ctx: ActionRunContext) -> str:
 
 
 @ai.flow()
-async def say_hi_with_config(name: str) -> str:
+async def say_hi_with_config(name: Annotated[str, Field(default='Charlie')] = 'Charlie') -> str:
     """Generate a greeting with custom model configuration.
 
     Args:
@@ -183,7 +187,7 @@ async def say_hi_with_config(name: str) -> str:
 
 
 @ai.flow()
-async def weather_flow(location: str) -> str:
+async def weather_flow(location: Annotated[str, Field(default='New York')] = 'New York') -> str:
     """Get weather info using the weather tool (direct call).
 
     Args:
@@ -203,7 +207,7 @@ async def weather_flow(location: str) -> str:
 
 
 @ai.flow()
-async def calculator_flow(expression: str) -> str:
+async def calculator_flow(expression: Annotated[str, Field(default='add_5_3')] = 'add_5_3') -> str:
     """Parse and calculate a math expression.
 
     Args:
@@ -227,7 +231,7 @@ async def calculator_flow(expression: str) -> str:
     return f'{operation.title()}({a}, {b}) = {result.get("result")}'
 
 
-async def main():
+async def main() -> None:
     """Main entry point - keep alive for Dev UI."""
     import asyncio
 

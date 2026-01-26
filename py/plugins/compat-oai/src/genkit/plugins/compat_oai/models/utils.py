@@ -34,7 +34,7 @@ from genkit.types import (
 class DictMessageAdapter:
     """Adapter for dictionary-based chat message objects with OpenAI-compatible fields."""
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict) -> None:
         """Initializes the adapter with a dictionary.
 
         Args:
@@ -73,7 +73,7 @@ class DictMessageAdapter:
 class MessageAdapter:
     """Adapter for object-based chat message objects with OpenAI-compatible fields."""
 
-    def __init__(self, data: object):
+    def __init__(self, data: object) -> None:
         """Initializes the adapter with an object.
 
         Args:

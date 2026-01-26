@@ -382,12 +382,12 @@ async def test_generate_with_iterrupting_tools(
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='test_tool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> int:
         """The tool."""
         return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
-    def test_interrupt(input: ToolInput, ctx: ToolRunContext):
+    def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
@@ -438,7 +438,7 @@ async def test_generate_with_iterrupting_tools(
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            output_schema={},
+            output_schema={'type': 'integer'},
         ),
         ToolDefinition(
             name='test_interrupt',
@@ -455,7 +455,7 @@ async def test_generate_with_iterrupting_tools(
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            output_schema={},
+            output_schema={'type': 'null'},
         ),
     ]
 
@@ -499,7 +499,7 @@ async def test_generate_with_interrupt_respond(
         return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
-    def test_interrupt(input: ToolInput, ctx: ToolRunContext):
+    def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
@@ -643,7 +643,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
@@ -700,7 +700,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            output_schema={},
+            output_schema={'type': 'string'},
         )
     ]
 
@@ -714,7 +714,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
@@ -1239,7 +1239,7 @@ async def test_generate_simulates_doc_grounding(
 class MockBananaFormat(FormatDef):
     """Mock format for testing the format."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the format."""
         super().__init__(
             'banana',
@@ -1253,7 +1253,7 @@ class MockBananaFormat(FormatDef):
     def handle(self, schema) -> Formatter:
         """Handle the format."""
 
-        def message_parser(msg: Message):
+        def message_parser(msg: Message) -> str:
             """Parse the message."""
             parts = [p.root.text or '' for p in msg.content if hasattr(p.root, 'text') and p.root.text]
             return f'banana {"".join(parts)}'  # type: ignore[arg-type]
@@ -1624,7 +1624,7 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
 
     assert my_flow('banana') == 'banana'
 
-    stream, response = my_flow.stream('banana2')  # type: ignore[attr-defined]
+    stream, response = my_flow.stream('banana2')
 
     chunks = []
     async for chunk in stream:
@@ -1648,7 +1648,7 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
 
     assert (await my_flow('banana')) == 'banana'
 
-    stream, response = my_flow.stream('banana2')  # type: ignore[attr-defined]
+    stream, response = my_flow.stream('banana2')
 
     chunks = []
     async for chunk in stream:

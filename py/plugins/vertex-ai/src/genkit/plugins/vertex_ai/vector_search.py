@@ -114,10 +114,10 @@ class DocRetriever(ABC):
         # Get query embedding
         embed_resp = await self.ai.embed(
             embedder=self.embedder,
-            documents=[document],
+            content=document,
             options=self.embedder_options,
         )
-        if not embed_resp.embeddings:
+        if not embed_resp:
             raise ValueError('Embedder returned no embeddings for query')
 
         # Get limit from options
@@ -128,7 +128,7 @@ class DocRetriever(ABC):
         docs = await self._get_closest_documents(
             request=request,
             top_k=limit_neighbors,
-            query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
+            query_embeddings=Embedding(embedding=embed_resp[0].embedding),
         )
 
         return RetrieverResponse(documents=typing.cast(list[DocumentData], docs))

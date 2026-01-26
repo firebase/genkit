@@ -67,7 +67,7 @@ ai.define_evaluator(
 )
 
 
-async def main():
+async def main() -> None:
     """Keep alive for Dev UI."""
     print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI

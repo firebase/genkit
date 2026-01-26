@@ -57,7 +57,7 @@ define_vertex_vector_search_big_query(
 
 
 @ai.flow(name='generateEmbeddings')
-async def generate_embeddings():
+async def generate_embeddings() -> None:
     """Generates document embeddings and upserts them to the Vertex AI Vector Search index.
 
     This flow retrieves data from BigQuery, generates embeddings for the documents,
@@ -98,13 +98,13 @@ async def generate_embeddings():
 
     genkit_documents = [Document(content=[DocumentPart(root=TextPart(text=text))]) for text in results_dict.values()]
 
-    embed_response = await ai.embed(
+    embed_response = await ai.embed_many(
         embedder=f'vertexai/{EMBEDDING_MODEL}',
-        documents=genkit_documents,
+        content=genkit_documents,
         options={'task': 'RETRIEVAL_DOCUMENT', 'output_dimensionality': 128},
     )
 
-    embeddings = [emb.embedding for emb in embed_response.embeddings]
+    embeddings = [emb.embedding for emb in embed_response]
 
     ids = list(results_dict.keys())[: len(embeddings)]
     data_embeddings = list(zip(ids, embeddings, strict=True))

@@ -21,7 +21,7 @@ process. This module provides context and error types for tool execution,
 allowing for controlled interruptions and specific response formatting.
 """
 
-from typing import Any, Protocol, cast
+from typing import Any, NoReturn, Protocol, cast
 
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import Metadata, Part, ToolRequestPart, ToolResponse, ToolResponsePart
@@ -44,7 +44,7 @@ class ToolRunContext(ActionRunContext):
     def __init__(
         self,
         ctx: ActionRunContext,
-    ):
+    ) -> None:
         """Initializes the ToolRunContext.
 
         Args:
@@ -55,7 +55,7 @@ class ToolRunContext(ActionRunContext):
             context=ctx.context,
         )
 
-    def interrupt(self, metadata: dict[str, Any] | None = None):
+    def interrupt(self, metadata: dict[str, Any] | None = None) -> NoReturn:
         """Interrupts the current tool execution.
 
         Raises a ToolInterruptError, which can be caught by the generation
@@ -78,7 +78,7 @@ class ToolInterruptError(Exception):
     causing a hard failure.
     """
 
-    def __init__(self, metadata: dict[str, Any] | None = None):
+    def __init__(self, metadata: dict[str, Any] | None = None) -> None:
         """Initializes the ToolInterruptError.
 
         Args:

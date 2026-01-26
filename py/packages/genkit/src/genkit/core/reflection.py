@@ -340,7 +340,7 @@ def create_reflection_asgi_app(
         # Wrap execution to track the task for cancellation support
         task = asyncio.current_task()
 
-        def on_trace_start(trace_id: str):
+        def on_trace_start(trace_id: str) -> None:
             if task:
                 active_actions[trace_id] = task
 
@@ -382,16 +382,16 @@ def create_reflection_asgi_app(
         # Capture trace_id from the runner task for cleanup
         run_trace_id: str | None = None
 
-        def wrapped_on_trace_start(tid):
+        def wrapped_on_trace_start(tid) -> None:
             nonlocal run_trace_id
             run_trace_id = tid
             on_trace_start(tid)
 
-        async def run_action_task():
+        async def run_action_task() -> None:
             """Run the action and put chunks on the queue."""
             try:
 
-                def send_chunk(chunk):
+                def send_chunk(chunk) -> None:
                     """Callback that puts chunks on the queue."""
                     out = dump_json(chunk)
                     chunk_queue.put_nowait(f'{out}\n')
@@ -477,7 +477,7 @@ def create_reflection_asgi_app(
         """
         run_trace_id: str | None = None
 
-        def wrapped_on_trace_start(tid):
+        def wrapped_on_trace_start(tid) -> None:
             nonlocal run_trace_id
             run_trace_id = tid
             on_trace_start(tid)

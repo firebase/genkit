@@ -49,7 +49,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
         index_name: str,
         embedder: str,
         embedder_options: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         """Initialize the DevLocalVectorStoreRetriever.
 
         Args:
@@ -69,10 +69,10 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
 
         embed_resp = await self.ai.embed(
             embedder=self.embedder,
-            documents=[document],
+            content=document,
             options=self.embedder_options,
         )
-        if not embed_resp.embeddings:
+        if not embed_resp:
             raise ValueError('Embedder returned no embeddings for query')
 
         k = 3
@@ -81,7 +81,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
 
         docs = self._get_closest_documents(
             k=k,
-            query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
+            query_embeddings=Embedding(embedding=embed_resp[0].embedding),
         )
 
         return RetrieverResponse(documents=[d.document for d in docs])

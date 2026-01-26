@@ -78,7 +78,7 @@ def define_genkit_evaluators(ai: Genkit, params: PluginOptions | list[MetricConf
         _configure_evaluator(ai=ai, param=param)
 
 
-def _configure_evaluator(ai: Genkit, param: MetricConfig):
+def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
     """Validates and configures supported evaluators."""
     metric_type = param.metric_type
     match metric_type:

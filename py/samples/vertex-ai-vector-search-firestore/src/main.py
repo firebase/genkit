@@ -21,7 +21,7 @@ import time
 
 import structlog
 from google.cloud import aiplatform, firestore
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
@@ -62,8 +62,8 @@ define_vertex_vector_search_firestore(
 class QueryFlowInputSchema(BaseModel):
     """Input schema."""
 
-    query: str
-    k: int
+    query: str = Field(default='document 1', description='Search query text')
+    k: int = Field(default=5, description='Number of results to return')
 
 
 class QueryFlowOutputSchema(BaseModel):

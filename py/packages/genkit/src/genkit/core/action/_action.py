@@ -126,7 +126,7 @@ class ActionRunContext:
         on_chunk: StreamingCallback | None = None,
         context: dict[str, Any] | None = None,
         on_trace_start: Callable[[str], None] | None = None,
-    ):
+    ) -> None:
         """Initializes an ActionRunContext instance.
 
         Sets up the context with an optional streaming callback and an optional
@@ -433,7 +433,7 @@ class Action:
         action_args: list[str],
         arg_types: list[type],
         input_spec: inspect.FullArgSpec,
-    ):
+    ) -> None:
         """Initializes input/output schemas based on function signature and hints.
 
         Uses Pydantic's TypeAdapter to generate JSON schemas for the first

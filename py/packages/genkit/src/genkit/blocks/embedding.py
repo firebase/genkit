@@ -14,7 +14,79 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Embedding actions."""
+"""Embedding types and utilities for Genkit.
+
+This module provides types and utilities for working with text embeddings
+in Genkit. Embeddings are numerical vector representations of text that
+capture semantic meaning, enabling similarity search, clustering, and
+other AI applications.
+
+Terminology:
+
+    +-------------------+------------------------------------------------------+
+    | Term              | Description                                          |
+    +===================+======================================================+
+    | Embedding         | A numerical vector (list of floats) representing     |
+    |                   | semantic meaning. Similar texts produce similar      |
+    |                   | vectors. Contains 'embedding' field and metadata.    |
+    +-------------------+------------------------------------------------------+
+    | Embedder          | A model/service that converts text to embeddings.    |
+    |                   | Examples: 'googleai/text-embedding-004'. Registered  |
+    |                   | as actions, invoked via embed() and embed_many().    |
+    +-------------------+------------------------------------------------------+
+    | EmbedderRef       | Reference bundling embedder name with optional       |
+    |                   | config and version. Useful for reusing settings.     |
+    +-------------------+------------------------------------------------------+
+    | Document          | Structured content to embed. Create via              |
+    |                   | Document.from_text(). Can include metadata.          |
+    +-------------------+------------------------------------------------------+
+    | Dimensions        | Size of embedding vector (e.g., 768 or 1536 floats). |
+    |                   | Higher dimensions = more nuance but more storage.    |
+    +-------------------+------------------------------------------------------+
+
+Key Components:
+
+    +-------------------+------------------------------------------------------+
+    | Component         | Description                                          |
+    +===================+======================================================+
+    | EmbedderRef       | Reference to an embedder with optional configuration |
+    +-------------------+------------------------------------------------------+
+    | EmbedderOptions   | Configuration options for defining embedders         |
+    +-------------------+------------------------------------------------------+
+    | EmbedderSupports  | Declares what input types an embedder supports       |
+    +-------------------+------------------------------------------------------+
+    | Embedder          | Runtime wrapper around an embedder action            |
+    +-------------------+------------------------------------------------------+
+    | create_embedder   | Factory function for creating embedder references    |
+    | _ref              |                                                      |
+    +-------------------+------------------------------------------------------+
+
+Usage with Genkit:
+    The primary way to use embeddings is through the Genkit class methods:
+
+    - ai.embed(): Embed a single piece of content
+    - ai.embed_many(): Embed multiple pieces of content in batch
+
+Example - Single embedding:
+    >>> embeddings = await ai.embed(embedder='googleai/text-embedding-004', content='Hello, world!')
+    >>> vector = embeddings[0].embedding
+
+Example - Batch embedding:
+    >>> embeddings = await ai.embed_many(embedder='googleai/text-embedding-004', content=['Doc 1', 'Doc 2', 'Doc 3'])
+
+Example - Using EmbedderRef with configuration:
+    >>> ref = create_embedder_ref('googleai/text-embedding-004', config={'task_type': 'CLUSTERING'}, version='v1')
+    >>> embeddings = await ai.embed(embedder=ref, content='My text')
+
+Note on embed() vs embed_many():
+    - embed() extracts config/version from EmbedderRef and merges with options
+    - embed_many() does NOT extract config from EmbedderRef - pass options directly
+
+See Also:
+    - genkit.ai.Genkit.embed: Single content embedding method
+    - genkit.ai.Genkit.embed_many: Batch embedding method
+    - genkit.core.typing.Embedding: The embedding result type
+"""
 
 from collections.abc import Callable
 from typing import Any, cast

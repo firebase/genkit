@@ -43,9 +43,10 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, cast
 
 if TYPE_CHECKING:
+    from genkit.blocks.prompt import ExecutablePrompt
     from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 
 import structlog
@@ -98,6 +99,9 @@ EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
 
 logger = structlog.get_logger(__name__)
+P = ParamSpec('P')
+R = TypeVar('R')
+T = TypeVar('T')
 
 
 def get_func_description(func: Callable, description: str | None = None) -> str:
@@ -118,11 +122,13 @@ def get_func_description(func: Callable, description: str | None = None) -> str:
 class GenkitRegistry:
     """User-facing API for interacting with Genkit registry."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the Genkit registry."""
         self.registry: Registry = Registry()
 
-    def flow(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
+    def flow(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T]']:
         """Decorator to register a function as a flow.
 
         Args:
@@ -135,7 +141,7 @@ class GenkitRegistry:
             A decorator function that registers the flow.
         """
 
-        def wrapper(func: Callable) -> Callable:
+        def wrapper(func: Callable[P, T]) -> 'FlowWrapper[P, T]':
             """Register the decorated function as a flow.
 
             Args:
@@ -155,7 +161,7 @@ class GenkitRegistry:
             )
 
             @wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
                 """Asynchronous wrapper for the flow function.
 
                 Args:
@@ -165,10 +171,10 @@ class GenkitRegistry:
                 Returns:
                     The response from the flow function.
                 """
-                return (await action.arun(*args, **kwargs)).response
+                return (await action.arun(*args, **kwargs)).response  # type: ignore[arg-type]
 
             @wraps(func)
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
                 """Synchronous wrapper for the flow function.
 
                 Args:
@@ -178,10 +184,10 @@ class GenkitRegistry:
                 Returns:
                     The response from the flow function.
                 """
-                return action.run(*args, **kwargs).response
+                return action.run(*args, **kwargs).response  # type: ignore[arg-type]
 
             return FlowWrapper(
-                fn=async_wrapper if action.is_async else sync_wrapper,
+                fn=cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper),
                 action=action,
             )
 
@@ -235,7 +241,9 @@ class GenkitRegistry:
         define_schema(self.registry, name, schema)
         return schema
 
-    def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
+    def tool(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """Decorator to register a function as a tool.
 
         Args:
@@ -248,7 +256,7 @@ class GenkitRegistry:
             A decorator function that registers the tool.
         """
 
-        def wrapper(func: Callable) -> Callable:
+        def wrapper(func: Callable[P, T]) -> Callable[P, T]:
             """Register the decorated function as a tool.
 
             Args:
@@ -262,14 +270,14 @@ class GenkitRegistry:
 
             input_spec = inspect.getfullargspec(func)
 
-            def tool_fn_wrapper(*args):
+            def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
                 match len(input_spec.args):
                     case 0:
                         return func()
                     case 1:
                         return func(args[0])
                     case 2:
-                        return func(args[0], ToolRunContext(args[1]))
+                        return func(args[0], ToolRunContext(args[1]))  # type: ignore[arg-type]
                     case _:
                         raise ValueError('tool must have 0-2 args...')
 
@@ -282,7 +290,7 @@ class GenkitRegistry:
             )
 
             @wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
                 """Asynchronous wrapper for the tool function.
 
                 Args:
@@ -292,10 +300,10 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return (await action.arun(*args, **kwargs)).response
+                return (await action.arun(*args, **kwargs)).response  # type: ignore[arg-type]
 
             @wraps(func)
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
                 """Synchronous wrapper for the tool function.
 
                 Args:
@@ -305,9 +313,9 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return action.run(*args, **kwargs).response
+                return action.run(*args, **kwargs).response  # type: ignore[arg-type]
 
-            return async_wrapper if action.is_async else sync_wrapper
+            return cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
 
         return wrapper
 
@@ -745,7 +753,7 @@ class GenkitRegistry:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable | None = None,
-    ):
+    ) -> 'ExecutablePrompt':
         """Define a prompt.
 
         Args:
@@ -802,7 +810,7 @@ class GenkitRegistry:
         self,
         name: str,
         variant: str | None = None,
-    ):
+    ) -> 'ExecutablePrompt':
         """Look up a prompt by name and optional variant.
 
         This matches the JavaScript prompt() function behavior.
@@ -876,14 +884,14 @@ class GenkitRegistry:
         return define_resource_block(self.registry, opts, fn)
 
 
-class FlowWrapper:
+class FlowWrapper(Generic[P, T]):
     """A wapper for flow functions to add `stream` method.
 
     This class wraps a flow function and provides a `stream` method for
     asynchronous execution.
     """
 
-    def __init__(self, fn: Callable, action: Action):
+    def __init__(self, fn: Callable[P, T], action: Action) -> None:
         """Initialize the FlowWrapper.
 
         Args:
@@ -893,7 +901,7 @@ class FlowWrapper:
         self._fn = fn
         self._action = action
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    def __call__(self, *args: P.args, **kwds: P.kwargs) -> T:
         """Call the wrapped function.
 
         Args:

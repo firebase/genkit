@@ -55,7 +55,7 @@ class ArrayFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the ArrayFormat.
 
         Configures the format with:

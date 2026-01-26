@@ -43,7 +43,7 @@ class ThinkingLevel(str, Enum):
 
 
 @ai.flow()
-async def thinking_level_pro(level: ThinkingLevel):
+async def thinking_level_pro(level: ThinkingLevel = ThinkingLevel.LOW) -> str:
     """Gemini 3.0 thinkingLevel config (Pro)."""
     response = await ai.generate(
         model='vertexai/gemini-3-pro-preview',
@@ -76,7 +76,7 @@ class ThinkingLevelFlash(str, Enum):
 
 
 @ai.flow()
-async def thinking_level_flash(level: ThinkingLevelFlash):
+async def thinking_level_flash(level: ThinkingLevelFlash = ThinkingLevelFlash.MEDIUM) -> str:
     """Gemini 3.0 thinkingLevel config (Flash)."""
     response = await ai.generate(
         model='vertexai/gemini-3-flash-preview',
@@ -100,7 +100,7 @@ async def thinking_level_flash(level: ThinkingLevelFlash):
 
 
 @ai.flow()
-async def video_understanding_metadata():
+async def video_understanding_metadata() -> str:
     """Video understanding with metadata."""
     response = await ai.generate(
         model='vertexai/gemini-2.5-flash',
@@ -124,7 +124,7 @@ async def video_understanding_metadata():
 
 
 @ai.flow()
-async def maps_grounding():
+async def maps_grounding() -> str:
     """Google maps grounding."""
     response = await ai.generate(
         model='vertexai/gemini-2.5-flash',
@@ -143,7 +143,7 @@ async def maps_grounding():
 
 
 @ai.flow()
-async def search_grounding():
+async def search_grounding() -> str:
     """Search grounding."""
     response = await ai.generate(
         model='vertexai/gemini-2.5-flash',
@@ -154,7 +154,7 @@ async def search_grounding():
 
 
 @ai.flow()
-async def gemini_media_resolution():
+async def gemini_media_resolution() -> str:
     """Media resolution."""
     # Placeholder base64 for sample
     plant_b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
@@ -174,7 +174,7 @@ async def gemini_media_resolution():
 
 
 @ai.flow()
-async def gemini_image_editing():
+async def gemini_image_editing() -> Media | None:
     """Image editing with Gemini."""
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
@@ -205,7 +205,7 @@ async def gemini_image_editing():
 
 
 @ai.flow()
-async def nano_banana_pro():
+async def nano_banana_pro() -> Media | None:
     """Nano banana pro config."""
     response = await ai.generate(
         model='vertexai/gemini-3-pro-image-preview',
@@ -225,7 +225,7 @@ async def nano_banana_pro():
 
 
 @ai.flow()
-async def imagen_image_generation():
+async def imagen_image_generation() -> Media | None:
     """A simple example of image generation with Gemini (Imagen)."""
     response = await ai.generate(
         model='vertexai/imagen-3.0-generate-002',
@@ -254,7 +254,7 @@ def celsius_to_fahrenheit(celsius: float) -> float:
 
 
 @ai.flow()
-async def tool_calling(location: str = 'Paris, France'):
+async def tool_calling(location: str = 'Paris, France') -> str:
     """Tool calling with Gemini."""
     response = await ai.generate(
         model='vertexai/gemini-2.5-flash',

@@ -142,7 +142,7 @@ class ExecutablePrompt:
         _prompt_action: Action | None = None,  # reference to PROMPT action
         # TODO:
         #  docs: list[Document]):
-    ):
+    ) -> None:
         """Initializes an ExecutablePrompt instance.
 
         Args:

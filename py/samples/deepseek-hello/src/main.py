@@ -34,6 +34,7 @@ Key features demonstrated in this sample:
 """
 
 import os
+from typing import Annotated
 
 import structlog
 from pydantic import BaseModel, Field
@@ -83,7 +84,7 @@ def get_weather(input: WeatherInput) -> str:
 
 
 @ai.flow()
-async def say_hi(name: str) -> str:
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a simple greeting.
 
     Args:
@@ -97,7 +98,10 @@ async def say_hi(name: str) -> str:
 
 
 @ai.flow()
-async def streaming_flow(topic: str, ctx: ActionRunContext) -> str:
+async def streaming_flow(
+    topic: Annotated[str, Field(default='pandas')] = 'pandas',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate with streaming response.
 
     Args:
@@ -115,7 +119,7 @@ async def streaming_flow(topic: str, ctx: ActionRunContext) -> str:
 
 
 @ai.flow()
-async def weather_flow(location: str) -> str:
+async def weather_flow(location: Annotated[str, Field(default='San Francisco, CA')] = 'San Francisco, CA') -> str:
     """Get weather using compat-oai auto tool calling."""
     response = await ai.generate(
         model=deepseek_name('deepseek-chat'),

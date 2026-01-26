@@ -37,7 +37,7 @@ class TextFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes a TextFormat instance.
 
         Configures the format with:

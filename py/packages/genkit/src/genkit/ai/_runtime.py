@@ -70,7 +70,7 @@ def _register_atexit_cleanup_handler(path_to_remove: Path | None) -> None:
         logger.warning('Cannot register atexit cleanup: runtime file path not set.')
         return
 
-    def sync_cleanup():
+    def sync_cleanup() -> None:
         # TODO: Neither print nor logger appears to work during atexit.
         _remove_file(path_to_remove)
 
@@ -151,7 +151,7 @@ class RuntimeManager:
         spec: ServerSpec,
         runtime_dir: str | Path | None = None,
         lazy_write: bool = False,
-    ):
+    ) -> None:
         """Initialize the RuntimeManager.
 
         Args:

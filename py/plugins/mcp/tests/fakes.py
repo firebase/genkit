@@ -27,7 +27,7 @@ from genkit.ai import Genkit
 class MockSchema:
     """Mock schema."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         """Initialize mock schema."""
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -52,11 +52,11 @@ def mock_mcp_modules():
     return mock_mcp, None
 
 
-def define_echo_model(ai: Genkit):
+def define_echo_model(ai: Genkit) -> None:
     """Defines a fake echo model for testing."""
 
     @ai.tool(name='echoModel')
-    def echo_model(request: Any):
+    def echo_model(request: Any) -> None:
         # This is a simplified mock of a model action
         # Real model action would handle GenerateRequest and return GenerateResponse
 
@@ -77,7 +77,7 @@ def define_echo_model(ai: Genkit):
 class FakeTransport:
     """Fakes an MCP transport/server for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize fake transport."""
         self.tools = []
         self.prompts = []
@@ -93,11 +93,11 @@ class FakeTransport:
         self.on_close = None
         self.on_error = None
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the transport."""
         pass
 
-    async def send(self, message: dict[str, Any]):
+    async def send(self, message: dict[str, Any]) -> None:
         """Handle incoming JSON-RPC message (simulating server)."""
         # msg_id = request.get("id")
 
@@ -108,10 +108,10 @@ class FakeTransport:
         pass
 
     # Helper methods to populate the fake state
-    def add_tool(self, name: str, description: str = '', schema: dict | None = None):
+    def add_tool(self, name: str, description: str = '', schema: dict | None = None) -> None:
         """Add a tool."""
         self.tools.append({'name': name, 'description': description, 'input_schema': schema or {'type': 'object'}})
 
-    def add_prompt(self, name: str, description: str = '', arguments: list | None = None):
+    def add_prompt(self, name: str, description: str = '', arguments: list | None = None) -> None:
         """Add a prompt."""
         self.prompts.append({'name': name, 'description': description, 'arguments': arguments or []})
