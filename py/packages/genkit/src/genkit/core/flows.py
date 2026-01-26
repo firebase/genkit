@@ -247,9 +247,10 @@ def create_flows_asgi_app(
 
             def chunk_callback(chunk: object) -> None:
                 # Put chunk into queue (non-blocking since queue is unbounded)
+                # Use dump_dict to properly serialize Pydantic models with field aliases
                 chunk_queue.put_nowait({
                     'event': 'message',
-                    'data': json.dumps({'message': chunk}),
+                    'data': json.dumps({'message': dump_dict(chunk)}),
                 })
 
             async def run_action() -> None:

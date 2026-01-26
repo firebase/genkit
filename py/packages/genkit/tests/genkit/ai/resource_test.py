@@ -203,15 +203,8 @@ def test_dynamic_resource_matching() -> None:
     res = resource({'uri': 'http://example.com/foo'}, my_resource_fn)
     assert res.matches is not None
 
-    class MockInput:
-        uri = 'http://example.com/foo'
-
-    assert res.matches(MockInput())
-
-    class MockInputBad:
-        uri = 'http://example.com/bar'
-
-    assert not res.matches(MockInputBad())
+    assert res.matches(ResourceInput(uri='http://example.com/foo'))
+    assert not res.matches(ResourceInput(uri='http://example.com/bar'))
 
 
 def test_template_matching() -> None:
@@ -228,16 +221,10 @@ def test_template_matching() -> None:
     res = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
     assert res.matches is not None
 
-    class MockInput:
-        uri = 'http://example.com/items/123'
-
-    assert res.matches(MockInput())
-
-    class MockInputBad:
-        uri = 'http://example.com/items/123/details'
+    assert res.matches(ResourceInput(uri='http://example.com/items/123'))
 
     # Should not match because of strict end anchor or slash handling in our regex
-    assert not res.matches(MockInputBad())
+    assert not res.matches(ResourceInput(uri='http://example.com/items/123/details'))
 
 
 def test_reserved_expansion_matching() -> None:
@@ -254,16 +241,10 @@ def test_reserved_expansion_matching() -> None:
     res = resource({'template': 'http://example.com/files/{+path}'}, my_resource_fn)
     assert res.matches is not None
 
-    class MockInput:
-        uri = 'http://example.com/files/foo/bar/baz.txt'
-
-    assert res.matches(MockInput())
+    assert res.matches(ResourceInput(uri='http://example.com/files/foo/bar/baz.txt'))
 
     # Regular template {path} regex ([^/]+) should NOT match slashes
     res_simple = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
     assert res_simple.matches is not None
 
-    class MockInputComplex:
-        uri = 'http://example.com/items/foo/bar'
-
-    assert not res_simple.matches(MockInputComplex())
+    assert not res_simple.matches(ResourceInput(uri='http://example.com/items/foo/bar'))
