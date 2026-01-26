@@ -47,7 +47,6 @@
     - input-image-base64
     - input-image-url
     - input-video-youtube
-    - reasoning
   tests:
     - name: Reasoning conformance
       input:
@@ -59,6 +58,17 @@
           thinkingConfig:
             thinkingBudget: 1024
             includeThoughts: true
+      validators:
+        - reasoning
+
+    - name: Streaming conformance
+      stream: true
+      input:
+        messages:
+          - role: user
+            content: [{ text: 'Count to 10' }]
+      validators:
+        - text-not-empty
 
     - name: Tool Response Conformance
       input:

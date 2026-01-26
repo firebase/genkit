@@ -138,6 +138,9 @@ const VALIDATORS: Record<
       );
     }
   },
+  'stream-text-includes': (response, expected) => {
+    VALIDATORS['text-includes'](response, expected);
+  },
   'text-starts-with': (response, expected) => {
     const text = getMessageText(response);
     if (!text || (expected && !text.trim().startsWith(expected))) {
@@ -260,6 +263,18 @@ const TEST_CASES: Record<string, TestCase> = {
     },
     validators: ['text-includes:Genkit'],
   },
+  'streaming-multiturn': {
+    name: 'Multiturn Conformance with streaming',
+    stream: true,
+    input: {
+      messages: [
+        { role: 'user', content: [{ text: 'My name is Genkit.' }] },
+        { role: 'model', content: [{ text: 'Hello Genkit.' }] },
+        { role: 'user', content: [{ text: 'What is my name?' }] },
+      ],
+    },
+    validators: ['stream-text-includes:Genkit'],
+  },
   'system-role': {
     name: 'System Role Conformance',
     input: {
@@ -356,22 +371,6 @@ const TEST_CASES: Record<string, TestCase> = {
     },
     validators: ['valid-media:image'],
   },
-  reasoning: {
-    name: 'Reasoning Conformance',
-    input: {
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              text: 'A banana farmer harvest 10 bananas but eats 3 and sells 4 of them, how many bananas are remaining?',
-            },
-          ],
-        },
-      ],
-    },
-    validators: ['reasoning'],
-  },
 };
 
 async function waitForRuntime(manager: RuntimeManager) {
@@ -386,24 +385,13 @@ async function waitForRuntime(manager: RuntimeManager) {
 async function runTest(
   manager: RuntimeManager,
   model: string,
-  testCase: TestCase,
-  stream: boolean
+  testCase: TestCase
 ): Promise<boolean> {
-  logger.info(`Running test: ${testCase.name} (streaming: ${stream})...`);
+  logger.info(`Running test: ${testCase.name}`);
   try {
     // Adjust model name if needed (e.g. /model/ prefix)
     const modelKey = model.startsWith('/') ? model : `/model/${model}`;
-
-    // Media output models usually do not support streaming
-    const isMediaOutput = testCase.validators.some((v) =>
-      v.startsWith('valid-media')
-    );
-    const shouldStream = stream && !isMediaOutput;
-    if (stream && isMediaOutput) {
-      logger.info(
-        `(Note: Media output tests do not support streaming. Falling back to non-streaming request.)`
-      );
-    }
+    const shouldStream = !!testCase.stream;
 
     let chunks = 0;
     let streamedText = '';
@@ -466,8 +454,7 @@ async function runTest(
 async function runTestSuite(
   manager: RuntimeManager,
   suite: TestSuite,
-  defaultSupports: string[],
-  stream: boolean
+  defaultSupports: string[]
 ): Promise<{ passed: number; failed: number }> {
   const supports = suite.supports || (suite.tests ? [] : defaultSupports);
 
@@ -479,7 +466,7 @@ async function runTestSuite(
   for (const support of supports) {
     const testCase = TEST_CASES[support];
     if (testCase) {
-      promises.push(runTest(manager, suite.model, testCase, stream));
+      promises.push(runTest(manager, suite.model, testCase));
     } else {
       logger.warn(`Unknown capability: ${support}`);
     }
@@ -492,8 +479,9 @@ async function runTestSuite(
         name: test.name || 'Custom Test',
         input: test.input,
         validators: test.validators || [],
+        stream: test.stream,
       };
-      promises.push(runTest(manager, suite.model, customTestCase, stream));
+      promises.push(runTest(manager, suite.model, customTestCase));
     }
   }
 
@@ -510,16 +498,15 @@ export const devTestModel = new Command('dev:test-model')
   .argument('[args...]', 'Command arguments')
   .option(
     '--supports <list>',
-    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image, streaming, reasoning)',
-    'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url'
+    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image, streaming-multiturn, reasoning)',
+    'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url,streaming-multiturn'
   )
   .option('--from-file <file>', 'Path to a file containing test payloads')
-  .option('--stream', 'Run tests using streaming API')
   .action(
     async (
       modelOrCmd: string | undefined,
       args: string[] | undefined,
-      options: TestOptions & { stream?: boolean }
+      options: TestOptions
     ) => {
       const projectRoot = await findProjectRoot();
 
@@ -588,8 +575,7 @@ export const devTestModel = new Command('dev:test-model')
           const { passed, failed } = await runTestSuite(
             manager,
             suite,
-            defaultSupports,
-            !!options.stream
+            defaultSupports
           );
           totalPassed += passed;
           totalFailed += failed;
