@@ -122,7 +122,7 @@ async def test_prompt_with_kitchensink() -> None:
         value: int | None = Field(default=None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
@@ -159,10 +159,10 @@ async def test_prompt_with_resolvers() -> None:
     """Test that the rendering works with resolvers."""
     ai, *_ = setup_test()
 
-    async def system_resolver(input, context):
+    async def system_resolver(input, context) -> str:
         return f'system {input["name"]}'
 
-    def prompt_resolver(input, context):
+    def prompt_resolver(input, context) -> str:
         return f'prompt {input["name"]}'
 
     async def messages_resolver(input, context):
@@ -626,7 +626,7 @@ async def test_prompt_function_uses_lookup_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading():
+async def test_automatic_prompt_loading() -> None:
     """Test that Genkit automatically loads prompts from a directory."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Create a prompt file
@@ -650,7 +650,7 @@ Hello {{name}}!
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading_default_none():
+async def test_automatic_prompt_loading_default_none() -> None:
     """Test that Genkit does not load prompts if prompt_dir is None."""
     ai = Genkit(prompt_dir=None)
 
@@ -662,7 +662,7 @@ async def test_automatic_prompt_loading_default_none():
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading_defaults_mock():
+async def test_automatic_prompt_loading_defaults_mock() -> None:
     """Test that Genkit defaults to ./prompts when prompt_dir is not specified and dir exists."""
     from unittest.mock import ANY, MagicMock, patch
 
@@ -677,7 +677,7 @@ async def test_automatic_prompt_loading_defaults_mock():
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading_defaults_missing():
+async def test_automatic_prompt_loading_defaults_missing() -> None:
     """Test that Genkit skips loading when ./prompts is missing."""
     from unittest.mock import MagicMock, patch
 

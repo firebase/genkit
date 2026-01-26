@@ -26,27 +26,27 @@ from genkit.core.registry import ActionKind
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
 
 
-def test_deepseek_name():
+def test_deepseek_name() -> None:
     """Test name helper function."""
     assert deepseek_name('deepseek-chat') == 'deepseek/deepseek-chat'
     assert deepseek_name('deepseek-reasoner') == 'deepseek/deepseek-reasoner'
 
 
-def test_plugin_initialization_with_api_key():
+def test_plugin_initialization_with_api_key() -> None:
     """Test plugin initializes with API key."""
     plugin = DeepSeek(api_key='test-key')
     assert plugin.name == 'deepseek'
     assert plugin.api_key == 'test-key'
 
 
-def test_plugin_initialization_from_env():
+def test_plugin_initialization_from_env() -> None:
     """Test plugin reads API key from environment."""
     with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'env-key'}):
         plugin = DeepSeek()
         assert plugin.api_key == 'env-key'
 
 
-def test_plugin_initialization_without_api_key():
+def test_plugin_initialization_without_api_key() -> None:
     """Test plugin raises error without API key."""
     with patch.dict(os.environ, {}, clear=True):
         with pytest.raises(GenkitError) as exc_info:
@@ -56,7 +56,7 @@ def test_plugin_initialization_without_api_key():
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_initialize(mock_client):
+async def test_plugin_initialize(mock_client) -> None:
     """Test plugin init method."""
     plugin = DeepSeek(api_key='test-key', models=['deepseek-chat'])
 
@@ -68,7 +68,7 @@ async def test_plugin_initialize(mock_client):
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_resolve_action(mock_client):
+async def test_plugin_resolve_action(mock_client) -> None:
     """Test plugin resolves models dynamically."""
     plugin = DeepSeek(api_key='test-key', models=[])
 
@@ -80,7 +80,7 @@ async def test_plugin_resolve_action(mock_client):
 
 
 @pytest.mark.asyncio
-async def test_plugin_list_actions():
+async def test_plugin_list_actions() -> None:
     """Test plugin lists available models."""
     plugin = DeepSeek(api_key='test-key')
     actions = await plugin.list_actions()
@@ -92,7 +92,7 @@ async def test_plugin_list_actions():
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
-def test_plugin_with_custom_params(mock_client):
+def test_plugin_with_custom_params(mock_client) -> None:
     """Test plugin accepts custom parameters."""
     plugin = DeepSeek(
         api_key='test-key',
@@ -107,7 +107,7 @@ def test_plugin_with_custom_params(mock_client):
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_initialize_no_models(mock_client):
+async def test_plugin_initialize_no_models(mock_client) -> None:
     """Test plugin init returns empty list for lazy loading."""
     plugin = DeepSeek(api_key='test-key')
 
@@ -118,7 +118,7 @@ async def test_plugin_initialize_no_models(mock_client):
 
 
 @pytest.mark.asyncio
-async def test_plugin_resolve_action_non_model_kind():
+async def test_plugin_resolve_action_non_model_kind() -> None:
     """Test resolve does nothing for non-MODEL kinds."""
     plugin = DeepSeek(api_key='test-key')
 
@@ -131,7 +131,7 @@ async def test_plugin_resolve_action_non_model_kind():
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_resolve_action_without_prefix(mock_client):
+async def test_plugin_resolve_action_without_prefix(mock_client) -> None:
     """Test plugin resolves models without plugin prefix."""
     plugin = DeepSeek(api_key='test-key', models=[])
 
@@ -143,7 +143,7 @@ async def test_plugin_resolve_action_without_prefix(mock_client):
 
 
 @patch('genkit.plugins.deepseek.client.DeepSeekClient.__new__')
-def test_deepseek_client_initialization(mock_new):
+def test_deepseek_client_initialization(mock_new) -> None:
     """Test DeepSeekClient creates OpenAI client with correct params."""
     from genkit.plugins.deepseek.client import DeepSeekClient
 
@@ -158,7 +158,7 @@ def test_deepseek_client_initialization(mock_new):
     mock_new.assert_called_once()
 
 
-def test_deepseek_client_with_custom_base_url():
+def test_deepseek_client_with_custom_base_url() -> None:
     """Test DeepSeekClient accepts custom base_url."""
     from openai import OpenAI
 
@@ -172,7 +172,7 @@ def test_deepseek_client_with_custom_base_url():
         )
 
 
-def test_deepseek_client_default_base_url():
+def test_deepseek_client_default_base_url() -> None:
     """Test DeepSeekClient uses default base_url when not provided."""
     from openai import OpenAI
 

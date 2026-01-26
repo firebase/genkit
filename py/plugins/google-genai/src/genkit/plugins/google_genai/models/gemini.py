@@ -642,7 +642,7 @@ class GeminiModel:
         self,
         version: str | GoogleAIGeminiVersion | VertexAIGeminiVersion,
         client: genai.Client,
-    ):
+    ) -> None:
         """Initialize Gemini model.
 
         Args:

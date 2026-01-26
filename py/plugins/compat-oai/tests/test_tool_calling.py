@@ -82,12 +82,12 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
 
 
 @pytest.mark.asyncio
-async def test_generate_stream_with_tool_calls(sample_request):
+async def test_generate_stream_with_tool_calls(sample_request) -> None:
     """Test generate_stream processes tool calls streamed in chunks correctly."""
     mock_client = MagicMock()
 
     class MockToolCall:
-        def __init__(self, id, index, name, args_chunk):
+        def __init__(self, id, index, name, args_chunk) -> None:
             self.id = id
             self.index = index
             self.function = MagicMock()
@@ -95,7 +95,7 @@ async def test_generate_stream_with_tool_calls(sample_request):
             self.function.arguments = args_chunk
 
     class MockStream:
-        def __init__(self):
+        def __init__(self) -> None:
             self._chunks = [
                 # Initial chunk - empty args
                 self._make_tool_chunk(id='tool123', index=0, name='tool_fn', args_chunk=''),
@@ -132,7 +132,7 @@ async def test_generate_stream_with_tool_calls(sample_request):
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
 
-    def callback(chunk: GenerateResponseChunk):
+    def callback(chunk: GenerateResponseChunk) -> None:
         collected_chunks.append(chunk.content[0].root)
 
     await model._generate_stream(sample_request, callback)

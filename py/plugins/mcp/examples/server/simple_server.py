@@ -34,7 +34,7 @@ class AddInput(BaseModel):
     b: int = Field(..., description='Second number')
 
 
-def main():
+def main() -> None:
     """Run the simple MCP server."""
     # Load prompts from the 'prompts' directory relative to this script
     script_dir = os.path.dirname(os.path.abspath(__file__))

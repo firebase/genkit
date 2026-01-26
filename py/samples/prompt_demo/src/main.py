@@ -19,6 +19,7 @@
 import os
 import weakref
 from pathlib import Path
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -39,7 +40,7 @@ prompts_path = current_dir.parent / 'prompts'
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-3-flash-preview', prompt_dir=prompts_path)
 
 
-def list_helper(data, *args, **kwargs):
+def list_helper(data: Any, *args: Any, **kwargs: Any) -> str:
     """Format a list of strings as bullet points.
 
     Args:
@@ -78,7 +79,7 @@ ai.define_schema('Recipe', Recipe)
 _sticky_prompts = {}
 
 
-async def get_sticky_prompt(name: str, variant: str | None = None):
+async def get_sticky_prompt(name: str, variant: str | None = None) -> Any:
     """Helper to get a prompt and keep it alive."""
     key = f'{name}:{variant}' if variant else name
     if key in _sticky_prompts:
@@ -104,7 +105,7 @@ async def get_sticky_prompt(name: str, variant: str | None = None):
 class ChefInput(BaseModel):
     """Input for the chef flow."""
 
-    food: str
+    food: str = Field(default='banana bread', description='The food to create a recipe for')
 
 
 @ai.flow(name='chef_flow')
@@ -155,8 +156,8 @@ async def robot_chef_flow(input: ChefInput) -> Recipe:
 class StoryInput(BaseModel):
     """Input for the story flow."""
 
-    subject: str
-    personality: str | None = None
+    subject: str = Field(default='a brave little toaster', description='The subject of the story')
+    personality: str | None = Field(default='courageous', description='Optional personality trait')
 
 
 @ai.flow(name='tell_story')
@@ -188,7 +189,7 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
     return full_text
 
 
-async def main():
+async def main() -> None:
     """Run the sample flows."""
     prompts = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
     executable_prompts = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
@@ -213,7 +214,7 @@ async def main():
     # Tell Story Flow (Streaming)
     await logger.ainfo('--- Running Tell Story Flow ---')
     # To demonstrate streaming, we'll iterate over the streamer if calling directly like a flow would be consumed.
-    story_stream, _ = tell_story.stream(StoryInput(subject='a brave little toaster', personality='courageous'))  # type: ignore
+    story_stream, _ = tell_story.stream(StoryInput(subject='a brave little toaster', personality='courageous'))
 
     async for chunk in story_stream:
         print(chunk, end='', flush=True)

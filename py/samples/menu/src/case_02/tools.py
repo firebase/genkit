@@ -19,6 +19,7 @@
 
 import json
 import os
+from typing import Any
 
 from ..menu_ai import ai
 from ..menu_schemas import MenuToolOutputSchema
@@ -29,7 +30,7 @@ with open(menu_json_path) as f:
 
 
 @ai.tool(name='todaysMenu')
-def todays_menu(input=None) -> MenuToolOutputSchema:
+def todays_menu(input: Any = None) -> MenuToolOutputSchema:
     """Use this tool to retrieve all the items on today's menu.
 
     Args:

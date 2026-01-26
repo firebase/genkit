@@ -15,8 +15,10 @@
 """PDF RAG sample flows."""
 
 import os
+from typing import Annotated
 
 from genkit_demo import ai
+from pydantic import Field
 from pypdf import PdfReader
 
 from genkit.blocks.document import Document
@@ -37,7 +39,7 @@ Helpful Answer:"""
 
 # Define a simple RAG flow, we will evaluate this flow
 @ai.flow(name='pdf_qa')
-async def pdf_qa(query: str) -> str:
+async def pdf_qa(query: Annotated[str, Field(default='What is in the PDF?')] = 'What is in the PDF?') -> str:
     """Answer questions about PDF content.
 
     Args:
@@ -75,7 +77,7 @@ async def pdf_qa(query: str) -> str:
 
 # Define a simple structured flow, we will evaluate this flow
 @ai.flow(name='simple_structured')
-async def simple_structured(query: str) -> str:
+async def simple_structured(query: Annotated[str, Field(default='Tell me a joke')] = 'Tell me a joke') -> str:
     """Generate a structured response (simple generation).
 
     Args:
@@ -97,7 +99,7 @@ async def simple_structured(query: str) -> str:
 
 # Define a simple flow
 @ai.flow(name='simple_echo')
-async def simple_echo(i: str) -> str:
+async def simple_echo(i: Annotated[str, Field(default='Hello, echo!')] = 'Hello, echo!') -> str:
     """Echo input using the model.
 
     Args:

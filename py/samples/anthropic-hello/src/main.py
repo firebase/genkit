@@ -32,6 +32,7 @@ Key features demonstrated in this sample:
 """
 
 import os
+from typing import Annotated
 
 import structlog
 from pydantic import BaseModel, Field
@@ -111,7 +112,7 @@ def convert_currency(input: CurrencyInput) -> str:
 
 
 @ai.flow()
-async def say_hi(name: str) -> str:
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a simple greeting.
 
     Args:
@@ -127,7 +128,10 @@ async def say_hi(name: str) -> str:
 
 
 @ai.flow()
-async def say_hi_stream(topic: str, ctx: ActionRunContext) -> str:
+async def say_hi_stream(
+    topic: Annotated[str, Field(default='space exploration')] = 'space exploration',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate streaming response.
 
     Args:
@@ -145,7 +149,7 @@ async def say_hi_stream(topic: str, ctx: ActionRunContext) -> str:
 
 
 @ai.flow()
-async def weather_flow(location: str) -> str:
+async def weather_flow(location: Annotated[str, Field(default='San Francisco')] = 'San Francisco') -> str:
     """Get weather using tools.
 
     Args:
@@ -179,7 +183,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 
 @ai.flow()
-async def say_hi_with_config(name: str) -> str:
+async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate greeting with custom configuration.
 
     Args:

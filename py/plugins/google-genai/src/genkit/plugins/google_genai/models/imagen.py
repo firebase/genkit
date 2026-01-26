@@ -120,7 +120,7 @@ def vertexai_image_model_info(
 class ImagenModel:
     """Imagen text-to-image model."""
 
-    def __init__(self, version: str | ImagenVersion, client: genai.Client):
+    def __init__(self, version: str | ImagenVersion, client: genai.Client) -> None:
         """Initialize Imagen model.
 
         Args:

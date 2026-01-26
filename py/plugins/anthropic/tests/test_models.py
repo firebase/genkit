@@ -59,7 +59,7 @@ def _create_sample_request() -> GenerateRequest:
 
 
 @pytest.mark.asyncio
-async def test_generate_basic():
+async def test_generate_basic() -> None:
     """Test basic generation."""
     sample_request = _create_sample_request()
 
@@ -88,7 +88,7 @@ async def test_generate_basic():
 
 
 @pytest.mark.asyncio
-async def test_generate_with_tools():
+async def test_generate_with_tools() -> None:
     """Test generation with tool calls."""
     sample_request = _create_sample_request()
 
@@ -121,7 +121,7 @@ async def test_generate_with_tools():
 
 
 @pytest.mark.asyncio
-async def test_generate_with_config():
+async def test_generate_with_config() -> None:
     """Test generation with custom config."""
     mock_client = MagicMock()
     mock_response = MagicMock()
@@ -150,7 +150,7 @@ async def test_generate_with_config():
     assert call_args.kwargs['top_p'] == 0.9
 
 
-def test_extract_system():
+def test_extract_system() -> None:
     """Test system prompt extraction."""
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
@@ -164,7 +164,7 @@ def test_extract_system():
     assert system == 'You are helpful.'
 
 
-def test_to_anthropic_messages():
+def test_to_anthropic_messages() -> None:
     """Test message conversion."""
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
@@ -188,7 +188,7 @@ class MockStreamManager:
 
     """Mock stream manager for testing streaming."""
 
-    def __init__(self, chunks, final_content=None):
+    def __init__(self, chunks, final_content=None) -> None:
         """Initialize the MockStreamManager."""
         self.chunks = chunks
         self.final_message = MagicMock()
@@ -220,7 +220,7 @@ class MockStreamManager:
 
 
 @pytest.mark.asyncio
-async def test_streaming_generation():
+async def test_streaming_generation() -> None:
     """Test streaming generation."""
     sample_request = _create_sample_request()
 
@@ -242,7 +242,7 @@ async def test_streaming_generation():
     ctx.is_streaming = True
     collected_chunks = []
 
-    def send_chunk(chunk: GenerateResponseChunk):
+    def send_chunk(chunk: GenerateResponseChunk) -> None:
         collected_chunks.append(chunk)
 
     ctx.send_chunk = send_chunk

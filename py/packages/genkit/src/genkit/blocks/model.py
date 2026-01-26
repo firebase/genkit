@@ -100,7 +100,7 @@ class MessageWrapper(Message):
     def __init__(
         self,
         message: Message,
-    ):
+    ) -> None:
         """Initializes the MessageWrapper.
 
         Args:
@@ -159,7 +159,7 @@ class GenerateResponseWrapper(GenerateResponse):
         response: GenerateResponse,
         request: GenerateRequest,
         message_parser: MessageParser | None = None,
-    ):
+    ) -> None:
         """Initializes a GenerateResponseWrapper instance.
 
         Args:
@@ -189,7 +189,7 @@ class GenerateResponseWrapper(GenerateResponse):
         # Set subclass-specific field after parent initialization
         self.message_parser = message_parser
 
-    def assert_valid(self):
+    def assert_valid(self) -> None:
         """Validates the basic structure of the response.
 
         Note: This method is currently a placeholder (TODO).
@@ -200,7 +200,7 @@ class GenerateResponseWrapper(GenerateResponse):
         # TODO: implement
         pass
 
-    def assert_valid_schema(self):
+    def assert_valid_schema(self) -> None:
         """Validates that the response message conforms to any specified output schema.
 
         Note: This method is currently a placeholder (TODO).
@@ -289,7 +289,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         previous_chunks: list[GenerateResponseChunk],
         index: int,
         chunk_parser: ChunkParser | None = None,
-    ):
+    ) -> None:
         """Initializes the GenerateResponseChunkWrapper.
 
         Args:

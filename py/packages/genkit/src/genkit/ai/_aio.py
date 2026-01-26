@@ -46,6 +46,7 @@ from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
 from genkit.core.typing import (
     BaseDataPoint,
+    Embedding,
     EmbedRequest,
     EmbedResponse,
     EvalRequest,
@@ -96,6 +97,25 @@ class Genkit(GenkitBase):
 
         if load_path:
             load_prompt_folder(self.registry, dir_path=load_path)
+
+    def _resolve_embedder_name(self, embedder: str | EmbedderRef | None) -> str:
+        """Resolve embedder name from string or EmbedderRef.
+
+        Args:
+            embedder: The embedder specified as a string name or EmbedderRef.
+
+        Returns:
+            The resolved embedder name.
+
+        Raises:
+            ValueError: If embedder is not specified or is of invalid type.
+        """
+        if isinstance(embedder, EmbedderRef):
+            return embedder.name
+        elif isinstance(embedder, str):
+            return embedder
+        else:
+            raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
 
     async def generate(
         self,
@@ -452,22 +472,65 @@ class Genkit(GenkitBase):
     async def embed(
         self,
         embedder: str | EmbedderRef | None = None,
-        documents: list[Document] | None = None,
+        content: str | Document | DocumentData | None = None,
+        metadata: dict[str, Any] | None = None,
         options: dict[str, Any] | None = None,
-    ) -> EmbedResponse:
-        embedder_name: str
+    ) -> list[Embedding]:
+        """Embeds a single document or string.
+
+        Generates vector embeddings for a single piece of content using the
+        specified embedder. This is the primary method for embedding individual
+        items.
+
+        When using an EmbedderRef, the config and version from the ref are
+        extracted and merged with any provided options. The merge order is:
+        {version, ...config, ...options} (options take precedence).
+
+        Args:
+            embedder: Embedder name (e.g., 'googleai/text-embedding-004') or
+                an EmbedderRef with configuration.
+            content: A single string, Document, or DocumentData to embed.
+            metadata: Optional metadata to apply to the document. Only used
+                when content is a string.
+            options: Optional embedder-specific options (e.g., task_type).
+
+        Returns:
+            A list containing the Embedding for the input content.
+
+        Raises:
+            ValueError: If embedder is not specified or not found.
+            ValueError: If content is not specified.
+
+        Example - Basic string embedding:
+            >>> embeddings = await ai.embed(embedder='googleai/text-embedding-004', content='Hello, world!')
+            >>> print(len(embeddings[0].embedding))  # Vector dimensions
+
+        Example - With metadata:
+            >>> embeddings = await ai.embed(
+            ...     embedder='googleai/text-embedding-004',
+            ...     content='Product description',
+            ...     metadata={'category': 'electronics'},
+            ... )
+
+        Example - With embedder options:
+            >>> embeddings = await ai.embed(
+            ...     embedder='googleai/text-embedding-004',
+            ...     content='Search query',
+            ...     options={'task_type': 'RETRIEVAL_QUERY'},
+            ... )
+
+        Example - Using EmbedderRef:
+            >>> ref = create_embedder_ref('googleai/text-embedding-004', config={'task_type': 'CLUSTERING'})
+            >>> embeddings = await ai.embed(embedder=ref, content='Text')
+        """
+        embedder_name = self._resolve_embedder_name(embedder)
         embedder_config: dict[str, Any] = {}
 
+        # Extract config and version from EmbedderRef (not done for embed_many per JS behavior)
         if isinstance(embedder, EmbedderRef):
-            embedder_name = embedder.name
             embedder_config = embedder.config or {}
             if embedder.version:
                 embedder_config['version'] = embedder.version  # Handle version from ref
-        elif isinstance(embedder, str):
-            embedder_name = embedder
-        else:
-            # Handle case where embedder is None
-            raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
 
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}
@@ -476,18 +539,98 @@ class Genkit(GenkitBase):
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
-        if documents is None:
-            raise ValueError('Documents must be specified for embedding.')
+        if content is None:
+            raise ValueError('Content must be specified for embedding.')
+
+        if isinstance(content, str):
+            documents = [Document.from_text(content, metadata)]
+        else:
+            documents = [content]
 
         # Document subclasses DocumentData, so this is type-safe at runtime.
         # The type checker doesn't recognize the subclass relationship here.
-        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response  # type: ignore[arg-type]
+        response: EmbedResponse = (
+            await embed_action.arun(EmbedRequest(input=documents, options=final_options))
+        ).response
+        return response.embeddings
+
+    async def embed_many(
+        self,
+        embedder: str | EmbedderRef | None = None,
+        content: list[str] | list[Document] | list[DocumentData] | None = None,
+        metadata: dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> list[Embedding]:
+        """Embeds multiple documents or strings in a single batch call.
+
+        Generates vector embeddings for multiple pieces of content in one API
+        call. This is more efficient than calling embed() multiple times when
+        you have a batch of items to embed.
+
+        Important: Unlike embed(), this method does NOT extract config/version
+        from EmbedderRef. It only uses the ref to resolve the embedder name
+        and passes options directly. This matches the JS canonical behavior.
+
+        Args:
+            embedder: Embedder name (e.g., 'googleai/text-embedding-004') or
+                an EmbedderRef.
+            content: List of strings, Documents, or DocumentData to embed.
+            metadata: Optional metadata to apply to all items. Only used when
+                content items are strings.
+            options: Optional embedder-specific options.
+
+        Returns:
+            List of Embedding objects, one per input item (same order).
+
+        Raises:
+            ValueError: If embedder is not specified or not found.
+            ValueError: If content is not specified.
+
+        Example - Basic batch embedding:
+            >>> embeddings = await ai.embed_many(
+            ...     embedder='googleai/text-embedding-004',
+            ...     content=['Doc 1', 'Doc 2', 'Doc 3'],
+            ... )
+            >>> for i, emb in enumerate(embeddings):
+            ...     print(f'Doc {i}: {len(emb.embedding)} dims')
+
+        Example - With shared metadata:
+            >>> embeddings = await ai.embed_many(
+            ...     embedder='googleai/text-embedding-004',
+            ...     content=['text1', 'text2'],
+            ...     metadata={'batch_id': 'batch-001'},
+            ... )
+
+        Example - With options (EmbedderRef config is NOT extracted):
+            >>> embeddings = await ai.embed_many(
+            ...     embedder='googleai/text-embedding-004',
+            ...     content=documents,
+            ...     options={'task_type': 'RETRIEVAL_DOCUMENT'},
+            ... )
+        """
+        if content is None:
+            raise ValueError('Content must be specified for embedding.')
+
+        # Convert strings to Documents if needed
+        documents: list[Document | DocumentData] = [
+            Document.from_text(item, metadata) if isinstance(item, str) else item for item in content
+        ]
+
+        # Resolve embedder name (JS embedMany does not extract config/version from ref)
+        embedder_name = self._resolve_embedder_name(embedder)
+
+        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
+        if embed_action is None:
+            raise ValueError(f'Embedder "{embedder_name}" not found')
+
+        response: EmbedResponse = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
+        return response.embeddings
 
     async def evaluate(
         self,
         evaluator: str | EvaluatorRef | None = None,
         dataset: list[BaseDataPoint] | None = None,
-        options: Any | None = None,
+        options: dict[str, Any] | None = None,
         eval_run_id: str | None = None,
     ) -> EvalResponse:
         """Evaluates a dataset using an evaluator.

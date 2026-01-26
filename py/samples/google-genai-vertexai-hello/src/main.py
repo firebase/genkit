@@ -42,17 +42,20 @@ Key features demonstrated in this sample:
 """
 
 import os
+from typing import Annotated
 
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,
 )
 from genkit.types import (
+    Embedding,
     GenerationCommonConfig,
     Message,
     Part,
@@ -91,7 +94,7 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: int) -> str:
+async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -108,7 +111,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
 
 
 @ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
+def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -122,7 +125,7 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: int) -> str:
+async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -149,7 +152,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
 
 @ai.flow()
-async def say_hi(name: str):
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -165,7 +168,7 @@ async def say_hi(name: str):
 
 
 @ai.flow()
-async def embed_docs(docs: list[str]):
+async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
     """Generate an embedding for the words in a list.
 
     Args:
@@ -174,16 +177,20 @@ async def embed_docs(docs: list[str]):
     Returns:
         The generated embedding.
     """
+    if docs is None:
+        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed(
+    return await ai.embed_many(
         embedder='vertexai/text-embedding-004',
-        documents=[Document.from_text(doc) for doc in docs],
+        content=docs,
         options=options,
     )
 
 
 @ai.flow()
-async def say_hi_with_configured_temperature(data: str):
+async def say_hi_with_configured_temperature(
+    data: Annotated[str, Field(default='Alice')] = 'Alice',
+) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
     Args:
@@ -199,7 +206,10 @@ async def say_hi_with_configured_temperature(data: str):
 
 
 @ai.flow()
-async def say_hi_stream(name: str, ctx: ActionRunContext):
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -236,7 +246,10 @@ class RpgCharacter(BaseModel):
 
 
 @ai.flow()
-async def generate_character(name: str, ctx: ActionRunContext):
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
@@ -264,7 +277,10 @@ async def generate_character(name: str, ctx: ActionRunContext):
 
 
 @ai.flow()
-async def generate_character_unconstrained(name: str, ctx: ActionRunContext):
+async def generate_character_unconstrained(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:

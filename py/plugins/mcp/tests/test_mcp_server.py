@@ -55,7 +55,7 @@ from genkit.plugins.mcp import McpServerOptions, create_mcp_server
 class TestMcpServer(unittest.IsolatedAsyncioTestCase):
     """Test MCP server functionality - mirrors JS server_test.ts."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures before each test."""
         self.ai = Genkit()
 
@@ -83,13 +83,13 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         # Create MCP server
         self.server = create_mcp_server(self.ai, McpServerOptions(name='test-server', version='0.0.1'))
 
-    async def asyncSetUp(self):
+    async def asyncSetUp(self) -> None:
         """Async setup - initialize server."""
         await self.server.setup()
 
     # ===== TOOL TESTS =====
 
-    async def test_list_tools(self):
+    async def test_list_tools(self) -> None:
         """Test listing tools - mirrors JS 'should list tools'."""
         result = await self.server.list_tools(ListToolsRequest(method='tools/list'))
 
@@ -104,7 +104,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         assert tool.inputSchema is not None
         self.assertIsNotNone(tool.inputSchema)
 
-    async def test_call_tool(self):
+    async def test_call_tool(self) -> None:
         """Test calling a tool - mirrors JS 'should call the tool'."""
         # Create mock request
         request = CallToolRequest(
@@ -122,7 +122,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
     # ===== PROMPT TESTS =====
 
-    async def test_list_prompts(self):
+    async def test_list_prompts(self) -> None:
         """Test listing prompts - mirrors JS 'should list prompts'."""
         result = await self.server.list_prompts(ListPromptsRequest(method='prompts/list'))
 
@@ -130,7 +130,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         prompt_names = [p.name for p in result.prompts]
         self.assertIn('testPrompt', prompt_names)
 
-    async def test_get_prompt(self):
+    async def test_get_prompt(self) -> None:
         """Test rendering a prompt - mirrors JS 'should render prompt'."""
         # Create mock request
         request = GetPromptRequest(
@@ -153,7 +153,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
     # ===== RESOURCE TESTS =====
 
-    async def test_list_resources(self):
+    async def test_list_resources(self) -> None:
         """Test listing resources - mirrors JS 'should list resources'."""
         result = await self.server.list_resources(ListResourcesRequest(method='resources/list'))
 
@@ -164,7 +164,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(resource.name, 'testResources')
         self.assertEqual(str(resource.uri), 'my://resource')
 
-    async def test_list_resource_templates(self):
+    async def test_list_resource_templates(self) -> None:
         """Test listing resource templates - mirrors JS 'should list templates'."""
         result = await self.server.list_resource_templates(
             ListResourceTemplatesRequest(method='resources/templates/list')
@@ -177,7 +177,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(template.name, 'testTmpl')
         self.assertEqual(template.uriTemplate, 'file://{+path}')
 
-    async def test_read_resource(self):
+    async def test_read_resource(self) -> None:
         """Test reading a resource - mirrors JS 'should read resource'."""
         # Create mock request
         request = ReadResourceRequest(
@@ -194,7 +194,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(str(content.uri), 'my://resource')
         self.assertEqual(content.text, 'my resource')
 
-    async def test_read_template_resource(self):
+    async def test_read_template_resource(self) -> None:
         """Test reading a template resource."""
         # Create mock request
         # Create mock request
@@ -214,20 +214,20 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
     # ===== ADDITIONAL TESTS =====
 
-    async def test_server_initialization(self):
+    async def test_server_initialization(self) -> None:
         """Test that server initializes correctly."""
         self.assertIsNotNone(self.server)
         self.assertEqual(self.server.options.name, 'test-server')
         self.assertEqual(self.server.options.version, '0.0.1')
         self.assertTrue(self.server.actions_resolved)
 
-    async def test_server_has_all_action_types(self):
+    async def test_server_has_all_action_types(self) -> None:
         """Test that server has tools, prompts, and resources."""
         self.assertGreater(len(self.server.tool_actions), 0)
         self.assertGreater(len(self.server.prompt_actions), 0)
         self.assertGreater(len(self.server.resource_actions), 0)
 
-    async def test_tool_not_found(self):
+    async def test_tool_not_found(self) -> None:
         """Test calling a non-existent tool."""
         from genkit.core.error import GenkitError
 
@@ -241,7 +241,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(context.exception.status, 'NOT_FOUND')
 
-    async def test_prompt_not_found(self):
+    async def test_prompt_not_found(self) -> None:
         """Test getting a non-existent prompt."""
         from genkit.core.error import GenkitError
 
@@ -255,7 +255,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(context.exception.status, 'NOT_FOUND')
 
-    async def test_resource_not_found(self):
+    async def test_resource_not_found(self) -> None:
         """Test reading a non-existent resource."""
         from genkit.core.error import GenkitError
 
@@ -275,7 +275,7 @@ class TestMcpServer(unittest.IsolatedAsyncioTestCase):
 class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
     """Test resource-specific functionality."""
 
-    async def test_resource_registration_with_fixed_uri(self):
+    async def test_resource_registration_with_fixed_uri(self) -> None:
         """Test registering a resource with fixed URI."""
         ai = Genkit()
 
@@ -287,7 +287,7 @@ class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(action.kind, ActionKind.RESOURCE)
         self.assertEqual(action.metadata['resource']['uri'], 'test://resource')
 
-    async def test_resource_registration_with_template(self):
+    async def test_resource_registration_with_template(self) -> None:
         """Test registering a resource with URI template."""
         ai = Genkit()
 
@@ -299,7 +299,7 @@ class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(action.kind, ActionKind.RESOURCE)
         self.assertEqual(action.metadata['resource']['template'], 'file://{+path}')
 
-    async def test_resource_requires_uri_or_template(self):
+    async def test_resource_requires_uri_or_template(self) -> None:
         """Test that resource requires either uri or template."""
         ai = Genkit()
 
@@ -309,7 +309,7 @@ class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
         self.assertIn('uri', str(context.exception).lower())
         self.assertIn('template', str(context.exception).lower())
 
-    async def test_uri_template_matching(self):
+    async def test_uri_template_matching(self) -> None:
         """Test URI template matching."""
         from genkit.blocks.resource import matches_uri_template
 

@@ -50,7 +50,7 @@ class EnumFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the EnumFormat.
 
         Configures the format with:

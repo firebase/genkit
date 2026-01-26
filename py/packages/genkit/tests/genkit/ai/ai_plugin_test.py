@@ -108,7 +108,7 @@ class AsyncInitPlugin(Plugin):
 
 
 @pytest.mark.asyncio
-async def test_async_resolve_is_awaited_via_generate():
+async def test_async_resolve_is_awaited_via_generate() -> None:
     """Test that async resolve is awaited when calling generate."""
     ai = Genkit(plugins=[AsyncResolveOnlyPlugin()])
     resp = await ai.generate('async-resolve-only/lazy-model', prompt='hello')
@@ -116,7 +116,7 @@ async def test_async_resolve_is_awaited_via_generate():
 
 
 @pytest.mark.asyncio
-async def test_async_init_is_awaited_via_generate():
+async def test_async_init_is_awaited_via_generate() -> None:
     """Test that async init is awaited when calling generate."""
     ai = Genkit(plugins=[AsyncInitPlugin()])
     resp = await ai.generate('async-init-plugin/init-model', prompt='hello')

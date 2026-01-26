@@ -59,7 +59,7 @@ def _create_sample_request() -> GenerateRequest:
 
 
 @pytest.mark.asyncio
-async def test_generate_basic():
+async def test_generate_basic() -> None:
     """Test basic generation."""
     sample_request = _create_sample_request()
 
@@ -97,7 +97,7 @@ async def test_generate_basic():
 
 
 @pytest.mark.asyncio
-async def test_generate_with_config():
+async def test_generate_with_config() -> None:
     """Test generation with config."""
     mock_response = MagicMock()
     mock_response.content = 'Response'
@@ -135,7 +135,7 @@ async def test_generate_with_config():
     assert call_args.kwargs['top_p'] == 0.9
 
 
-def test_to_xai_messages():
+def test_to_xai_messages() -> None:
     """Test xAI messages conversion."""
     mock_client = MagicMock()
     model = XAIModel(model_name='grok-3', client=mock_client)
@@ -149,7 +149,7 @@ def test_to_xai_messages():
     assert len(xai_messages) == 2
 
 
-def test_to_genkit_content():
+def test_to_genkit_content() -> None:
     """Test content conversion."""
     mock_client = MagicMock()
     model = XAIModel(model_name='grok-3', client=mock_client)
@@ -167,7 +167,7 @@ def test_to_genkit_content():
 
 
 @pytest.mark.asyncio
-async def test_streaming_generation():
+async def test_streaming_generation() -> None:
     """Test streaming generation."""
     sample_request = _create_sample_request()
 
@@ -209,7 +209,7 @@ async def test_streaming_generation():
     ctx.is_streaming = True
     collected_chunks = []
 
-    def send_chunk(chunk: GenerateResponseChunk):
+    def send_chunk(chunk: GenerateResponseChunk) -> None:
         collected_chunks.append(chunk)
 
     ctx.send_chunk = send_chunk
@@ -234,7 +234,7 @@ async def test_streaming_generation():
 
 
 @pytest.mark.asyncio
-async def test_generate_with_tools():
+async def test_generate_with_tools() -> None:
     """Test generation with tools."""
     sample_request = _create_sample_request()
 
@@ -275,7 +275,7 @@ async def test_generate_with_tools():
 
 
 @pytest.mark.asyncio
-async def test_build_params_basic():
+async def test_build_params_basic() -> None:
     """Test parameters build."""
     mock_client = MagicMock()
     model = XAIModel(model_name='grok-3', client=mock_client)
@@ -293,7 +293,7 @@ async def test_build_params_basic():
 
 
 @pytest.mark.asyncio
-async def test_build_params_with_config():
+async def test_build_params_with_config() -> None:
     """Test parameters build with config."""
     mock_client = MagicMock()
     model = XAIModel(model_name='grok-3', client=mock_client)
@@ -315,7 +315,7 @@ async def test_build_params_with_config():
 
 
 @pytest.mark.asyncio
-async def test_build_params_with_xai_specific_config():
+async def test_build_params_with_xai_specific_config() -> None:
     """Test parameters build with xAI config."""
     mock_client = MagicMock()
     model = XAIModel(model_name='grok-3', client=mock_client)
@@ -341,7 +341,7 @@ async def test_build_params_with_xai_specific_config():
 
 
 @pytest.mark.asyncio
-async def test_to_genkit_content_parses_json_arguments():
+async def test_to_genkit_content_parses_json_arguments() -> None:
     """Test content conversion with JSON arguments."""
     mock_client = MagicMock()
     model = XAIModel(model_name='grok-3', client=mock_client)

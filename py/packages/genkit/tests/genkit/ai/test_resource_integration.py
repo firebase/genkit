@@ -26,7 +26,7 @@ from genkit.core.typing import GenerateActionOptions, GenerateResponse, Message,
 
 
 @pytest.mark.asyncio
-async def test_generate_with_resources():
+async def test_generate_with_resources() -> None:
     """Test calling generate with resources."""
     registry = Registry()
 
@@ -63,7 +63,7 @@ async def test_generate_with_resources():
 
 
 @pytest.mark.asyncio
-async def test_dynamic_action_provider_resource():
+async def test_dynamic_action_provider_resource() -> None:
     """Test dynamic action provider with resources."""
     registry = Registry()
 

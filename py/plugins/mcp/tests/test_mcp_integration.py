@@ -49,7 +49,7 @@ create_mcp_host: Any = None
 create_mcp_server: Any = None
 
 
-def setup_mocks():
+def setup_mocks() -> None:
     """Set up mocks for testing."""
     global Genkit, McpClient, McpServerConfig, create_mcp_host, create_mcp_server
 
@@ -88,11 +88,11 @@ def setup_mocks():
 class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
     """Integration tests for MCP client-server communication."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    async def test_client_can_list_server_tools(self):
+    async def test_client_can_list_server_tools(self) -> None:
         """Test that a client can list tools from a server."""
         # Create server with tools
         server_ai = Genkit()
@@ -117,7 +117,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(tools), 1)
         self.assertEqual(tools[0].name, 'add')
 
-    async def test_client_can_call_server_tool(self):
+    async def test_client_can_call_server_tool(self) -> None:
         """Test that a client can call a tool on a server."""
         # Create client
         client = McpClient(name='test-client', config=McpServerConfig(command='echo'))
@@ -137,7 +137,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, '8')
         mock_session.call_tool.assert_called_once_with('add', {'a': 5, 'b': 3})
 
-    async def test_client_can_list_server_resources(self):
+    async def test_client_can_list_server_resources(self) -> None:
         """Test that a client can list resources from a server."""
         # Create client
         client = McpClient(name='test-client', config=McpServerConfig(command='echo'))
@@ -157,7 +157,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(resources[0].name, 'config')
         self.assertEqual(str(resources[0].uri), 'app://config')
 
-    async def test_client_can_read_server_resource(self):
+    async def test_client_can_read_server_resource(self) -> None:
         """Test that a client can read a resource from a server."""
         # Create client
         client = McpClient(name='test-client', config=McpServerConfig(command='echo'))
@@ -178,7 +178,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(result)
         mock_session.read_resource.assert_called_once_with(AnyUrl('app://config'))
 
-    async def test_host_manages_multiple_clients(self):
+    async def test_host_manages_multiple_clients(self) -> None:
         """Test that a host can manage multiple clients."""
         # Create host with multiple servers
         config1 = McpServerConfig(command='server1')
@@ -191,7 +191,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertIn('server1', host.clients)
         self.assertIn('server2', host.clients)
 
-    async def test_host_can_register_tools_from_multiple_servers(self):
+    async def test_host_can_register_tools_from_multiple_servers(self) -> None:
         """Test that a host can register tools from multiple servers."""
         # Create host
         host = create_mcp_host({'server1': McpServerConfig(command='s1'), 'server2': McpServerConfig(command='s2')})
@@ -214,7 +214,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Each client should have registered one tool
         # Tool names should be prefixed with server name
 
-    async def test_client_handles_disabled_server(self):
+    async def test_client_handles_disabled_server(self) -> None:
         """Test that a client handles disabled servers correctly."""
         # Create client with disabled config
         config = McpServerConfig(command='echo', disabled=True)
@@ -226,7 +226,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Should not have a session
         self.assertIsNone(client.session)
 
-    async def test_host_can_disable_and_enable_clients(self):
+    async def test_host_can_disable_and_enable_clients(self) -> None:
         """Test that a host can disable and enable clients."""
         host = create_mcp_host({'test': McpServerConfig(command='echo')})
 
@@ -249,11 +249,11 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
     """Integration tests specifically for resource handling."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    async def test_end_to_end_resource_flow(self):
+    async def test_end_to_end_resource_flow(self) -> None:
         """Test complete flow: define resource → expose via server → consume via client."""
         # This is a conceptual test showing the flow
         # In practice, we'd need actual MCP transport for true end-to-end
@@ -283,7 +283,7 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         assert isinstance(read_result.contents[0], TextResourceContents)
         self.assertEqual(read_result.contents[0].text, 'config data')
 
-    async def test_template_resource_matching(self):
+    async def test_template_resource_matching(self) -> None:
         """Test that template resources match correctly."""
         server_ai = Genkit()
 
@@ -320,11 +320,11 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
 class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
     """Tests for error handling in client-server communication."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    async def test_server_handles_missing_tool(self):
+    async def test_server_handles_missing_tool(self) -> None:
         """Test that server properly handles requests for non-existent tools."""
         server_ai = Genkit()
 
@@ -350,7 +350,7 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('NOT_FOUND', str(context.exception.status))
 
-    async def test_client_handles_connection_failure(self):
+    async def test_client_handles_connection_failure(self) -> None:
         """Test that client handles connection failures gracefully."""
         client = McpClient(name='test-client', config=McpServerConfig(command='nonexistent_command'))
 

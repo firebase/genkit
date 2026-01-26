@@ -28,7 +28,7 @@ from genkit.core.typing import Part, TextPart
 
 
 @pytest.mark.asyncio
-async def test_define_resource_veneer():
+async def test_define_resource_veneer() -> None:
     """Verifies ai.define_resource registers a resource correctly."""
     ai = Genkit(plugins=[])
 

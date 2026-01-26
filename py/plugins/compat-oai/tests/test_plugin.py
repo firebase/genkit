@@ -53,7 +53,7 @@ async def test_openai_plugin_init() -> None:
     [(ActionKind.MODEL, 'gpt-3.5-turbo')],
 )
 @pytest.mark.asyncio
-async def test_openai_plugin_resolve_action(kind, name):
+async def test_openai_plugin_resolve_action(kind, name) -> None:
     """Unit Tests for resolve method."""
     plugin = OpenAI(api_key='test-key')
 
@@ -100,7 +100,7 @@ async def test_openai_plugin_list_actions() -> None:
     [(ActionKind.MODEL, 'model_doesnt_exist')],
 )
 @pytest.mark.asyncio
-async def test_openai_plugin_resolve_action_not_found(kind, name):
+async def test_openai_plugin_resolve_action_not_found(kind, name) -> None:
     """Unit Tests for resolve method with non-existent model."""
     plugin = OpenAI(api_key='test-key')
     action = await plugin.resolve(kind, f'openai/{name}')

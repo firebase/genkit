@@ -39,6 +39,7 @@ Key features demonstrated in this sample:
 
 import os
 from decimal import Decimal
+from typing import Annotated
 
 import httpx
 import structlog
@@ -58,8 +59,8 @@ ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4o'))
 class MyInput(BaseModel):
     """My input."""
 
-    a: int = Field(description='a field')
-    b: int = Field(description='b field')
+    a: int = Field(default=5, description='a field')
+    b: int = Field(default=3, description='b field')
 
 
 class HelloSchema(BaseModel):
@@ -88,7 +89,7 @@ def sum_two_numbers2(my_input: MyInput) -> int:
 
 
 @ai.flow()
-async def say_hi(name: str) -> str:
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Say hi to a name.
 
     Args:
@@ -106,7 +107,7 @@ async def say_hi(name: str) -> str:
 
 
 @ai.flow()
-async def say_hi_stream(name: str) -> str:
+async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Say hi to a name and stream the response.
 
     Args:
@@ -169,7 +170,7 @@ def get_weather_tool(coordinates: WeatherRequest) -> float:
 
 
 @ai.flow()
-async def get_weather_flow(location: str) -> str:
+async def get_weather_flow(location: Annotated[str, Field(default='New York')] = 'New York') -> str:
     """Get the weather for a location.
 
     Args:
@@ -190,7 +191,7 @@ async def get_weather_flow(location: str) -> str:
 
 
 @ai.flow()
-async def get_weather_flow_stream(location: str) -> str:
+async def get_weather_flow_stream(location: Annotated[str, Field(default='New York')] = 'New York') -> str:
     """Get the weather for a location using a stream.
 
     Args:
@@ -252,7 +253,7 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def calculate_gablorken(value: int):
+async def calculate_gablorken(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
@@ -271,7 +272,7 @@ async def calculate_gablorken(value: int):
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: str):
+async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 'World') -> HelloSchema:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:
@@ -288,7 +289,10 @@ async def say_hi_constrained(hi_input: str):
 
 
 @ai.flow()
-async def generate_character(name: str, ctx: ActionRunContext):
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:

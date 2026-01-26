@@ -6,6 +6,7 @@
 """Tests for the action module."""
 
 import pathlib
+from typing import Any
 
 import pytest
 import yaml
@@ -44,7 +45,7 @@ def setup_test():
     pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='testTool')
-    def test_tool():
+    def test_tool() -> Any:
         """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
@@ -270,7 +271,7 @@ async def test_generate_middleware_can_modify_stream(
             )
         )
 
-        def chunk_handler(chunk):
+        def chunk_handler(chunk) -> None:
             ctx.send_chunk(
                 GenerateResponseChunk(
                     role=Role.MODEL,
@@ -289,7 +290,7 @@ async def test_generate_middleware_can_modify_stream(
 
     got_chunks = []
 
-    def collect_chunks(c):
+    def collect_chunks(c) -> None:
         got_chunks.append(text_from_content(c.content))
 
     response = await generate_action(
@@ -340,7 +341,7 @@ async def test_generate_action_spec(spec) -> None:
     pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='testTool')
-    def test_tool():
+    def test_tool() -> Any:
         """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
@@ -363,7 +364,7 @@ async def test_generate_action_spec(spec) -> None:
     if 'stream' in spec and spec['stream']:
         chunks = []
 
-        def on_chunk(chunk):
+        def on_chunk(chunk) -> None:
             chunks.append(chunk)
 
         action_response = await action.arun(
@@ -395,7 +396,7 @@ async def test_generate_action_spec(spec) -> None:
             )
 
 
-def is_equal_lists(a, b):
+def is_equal_lists(a, b) -> bool:
     """Deep compare two lists of actions."""
     if len(a) != len(b):
         return False

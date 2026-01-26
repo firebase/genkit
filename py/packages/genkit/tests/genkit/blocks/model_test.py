@@ -482,7 +482,7 @@ def test_response_wrapper_interrupts() -> None:
     ]
 
 
-def test_model_action_metadata():
+def test_model_action_metadata() -> None:
     """Test for model_action_metadata."""
     action_metadata = model_action_metadata(
         name='test_model',

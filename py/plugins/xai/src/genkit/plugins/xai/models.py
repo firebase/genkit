@@ -88,7 +88,7 @@ class XAIModel:
             assert ctx is not None  # streaming requires ctx
             return await self._generate_streaming(params, request, ctx)
 
-        def _sample():
+        def _sample() -> Any:
             chat = self.client.chat.create(**params)
             return chat.sample()
 
@@ -175,7 +175,7 @@ class XAIModel:
     async def _generate_streaming(
         self, params: dict[str, Any], request: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse:
-        def _sync_stream():
+        def _sync_stream() -> GenerateResponse:
             accumulated_content = []
             final_response = None
 
@@ -287,7 +287,7 @@ class XAIModel:
 
         return result
 
-    def _to_genkit_content(self, response) -> list[Part]:
+    def _to_genkit_content(self, response: Any) -> list[Part]:
         content = []
 
         if response.content:

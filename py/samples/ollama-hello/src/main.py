@@ -33,6 +33,8 @@ Key features demonstrated in this sample:
 
 """
 
+from typing import Annotated
+
 import structlog
 from pydantic import BaseModel, Field
 
@@ -100,7 +102,7 @@ class GablorkenInput(BaseModel):
 
 
 @ai.tool()
-def gablorken_tool(input: GablorkenInput):
+def gablorken_tool(input: GablorkenInput) -> int:
     """Calculate a gablorken."""
     return input.value * 3 - 5
 
@@ -118,7 +120,7 @@ def get_weather(input: WeatherToolInput) -> str:
 
 
 @ai.flow()
-async def say_hi(hi_input: str):
+async def say_hi(hi_input: Annotated[str, Field(default='World')] = 'World') -> str:
     """Generate a request to greet a user.
 
     Args:
@@ -135,7 +137,7 @@ async def say_hi(hi_input: str):
 
 
 @ai.flow()
-async def weather_flow(location: str):
+async def weather_flow(location: Annotated[str, Field(default='San Francisco')] = 'San Francisco') -> str:
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
@@ -157,7 +159,7 @@ async def weather_flow(location: str):
 
 
 @ai.flow()
-async def calculate_gablorken(value: int):
+async def calculate_gablorken(value: Annotated[int, Field(default=33)] = 33) -> str:
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
@@ -179,7 +181,7 @@ async def calculate_gablorken(value: int):
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: str) -> str:
+async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')] = 'John Doe') -> str:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:

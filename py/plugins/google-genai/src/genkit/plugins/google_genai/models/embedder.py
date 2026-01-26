@@ -75,7 +75,7 @@ class Embedder:
         self,
         version: VertexEmbeddingModels | GeminiEmbeddingModels | str,
         client: genai.Client,
-    ):
+    ) -> None:
         """Initialize the embedder.
 
         Args:

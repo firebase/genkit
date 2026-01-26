@@ -46,7 +46,7 @@ class JsonFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes a JsonFormat instance.
 
         Sets up the format definition with configurations suitable for JSON,

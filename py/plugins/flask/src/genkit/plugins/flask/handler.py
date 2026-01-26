@@ -28,7 +28,8 @@ from genkit.core.error import GenkitError, get_callable_json
 
 
 class _FlaskRequestData(RequestData):
-    def __init__(self):
+    def __init__(self) -> None:
+        super().__init__(request=request)
         self.method = request.method
 
         self.headers = {}
@@ -36,10 +37,7 @@ class _FlaskRequestData(RequestData):
             self.headers[key.lower()] = value
 
         input_data = request.get_json()
-        if 'data' not in input_data:
-            return Response(status=400, response='flow request must be wrapped in {"data": data} object')
-
-        self.input = input_data.get('data')
+        self.input = input_data.get('data') if input_data else None
 
 
 def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = None) -> Callable:
@@ -64,7 +62,7 @@ def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = 
     """
     loop = create_loop()
 
-    def decorator(flow: Callable) -> Callable:
+    def decorator(flow: FlowWrapper) -> Callable:
         if not isinstance(flow, FlowWrapper):
             raise GenkitError(status='INVALID_ARGUMENT', message='must apply @genkit_flask_handler on a @flow')
 

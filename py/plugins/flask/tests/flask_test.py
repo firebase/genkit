@@ -48,7 +48,7 @@ def create_app():
     return app
 
 
-def test_simple_post():
+def test_simple_post() -> None:
     """Test a simple POST request to the chat endpoint."""
     client = create_app().test_client()
     response = client.post(
@@ -62,7 +62,7 @@ def test_simple_post():
     }
 
 
-def test_streaming():
+def test_streaming() -> None:
     """Test a streaming POST request to the chat endpoint."""
     client = create_app().test_client()
     response = client.post(

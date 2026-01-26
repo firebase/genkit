@@ -46,7 +46,7 @@ class Retriever(Generic[T]):
     def __init__(
         self,
         retriever_fn: RetrieverFn[T],
-    ):
+    ) -> None:
         """Initialize a Retriever.
 
         Args:

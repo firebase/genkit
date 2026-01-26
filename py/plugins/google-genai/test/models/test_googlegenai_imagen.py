@@ -37,7 +37,7 @@ from genkit.types import (
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in ImagenVersion])
-async def test_generate_media_response(mocker, version):
+async def test_generate_media_response(mocker, version) -> None:
     """Test generate method for media responses."""
     request_text = 'response question'
     response_byte_string = b'\x89PNG\r\n\x1a\n'

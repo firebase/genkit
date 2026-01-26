@@ -45,7 +45,7 @@ class McpServerConfig(BaseModel):
 class McpClient(Plugin):
     """Client for connecting to a single MCP server."""
 
-    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
+    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None) -> None:
         """Initialize the MCP client.
 
         Args:
@@ -99,7 +99,7 @@ class McpClient(Plugin):
         """
         return []
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connects to the MCP server."""
         if self.config.disabled:
             logger.info(f'MCP server {self.server_name} is disabled.')
@@ -141,7 +141,7 @@ class McpClient(Plugin):
             await self.close()
             raise e
 
-    async def close(self):
+    async def close(self) -> None:
         """Closes the connection."""
         if hasattr(self, '_session_context') and self._session_context:
             try:
@@ -203,7 +203,7 @@ class McpClient(Plugin):
             raise RuntimeError('MCP client is not connected')
         return await self.session.read_resource(AnyUrl(uri))
 
-    async def register_tools(self, ai: Genkit | None = None):
+    async def register_tools(self, ai: Genkit | None = None) -> None:
         """Registers all tools from connected client to Genkit."""
         registry = ai.registry if ai else (self.ai.registry if self.ai else None)
         if not registry:

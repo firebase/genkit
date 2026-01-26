@@ -77,7 +77,7 @@ def model_garden_instance(client):
         ),
     ],
 )
-def test_get_model_info(model_name, expected, model_garden_instance):
+def test_get_model_info(model_name, expected, model_garden_instance) -> None:
     """Unittest for get_model_info."""
     model_garden_instance.name = model_name
 

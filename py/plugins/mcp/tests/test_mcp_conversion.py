@@ -32,7 +32,7 @@ to_mcp_resource_contents: Any = None
 to_mcp_tool_result: Any = None
 
 
-def setup_mocks():
+def setup_mocks() -> None:
     """Set up mocks for testing."""
     global to_mcp_prompt_arguments, to_mcp_prompt_message, to_mcp_resource_contents, to_mcp_tool_result
 
@@ -68,11 +68,11 @@ def setup_mocks():
 class TestMessageConversion(unittest.TestCase):
     """Tests for message conversion utilities."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    def test_convert_user_message(self):
+    def test_convert_user_message(self) -> None:
         """Test converting a user message."""
         message = Message(role='user', content=[Part(root=TextPart(text='Hello, world!'))])
 
@@ -86,7 +86,7 @@ class TestMessageConversion(unittest.TestCase):
         assert isinstance(result.content, TextContent)
         self.assertEqual(result.content.text, 'Hello, world!')
 
-    def test_convert_model_message(self):
+    def test_convert_model_message(self) -> None:
         """Test converting a model message (maps to assistant)."""
         message = Message(role='model', content=[Part(root=TextPart(text='Hi there!'))])
 
@@ -97,7 +97,7 @@ class TestMessageConversion(unittest.TestCase):
         assert isinstance(result.content, TextContent)
         self.assertEqual(result.content.text, 'Hi there!')
 
-    def test_convert_message_with_multiple_text_parts(self):
+    def test_convert_message_with_multiple_text_parts(self) -> None:
         """Test converting a message with multiple text parts."""
         message = Message(
             role='user',
@@ -113,7 +113,7 @@ class TestMessageConversion(unittest.TestCase):
         assert isinstance(result.content, TextContent)
         self.assertEqual(result.content.text, 'Part 1 Part 2 Part 3')
 
-    def test_convert_message_with_invalid_role(self):
+    def test_convert_message_with_invalid_role(self) -> None:
         """Test that converting a message with invalid role raises error."""
         message = Message(role='system', content=[Part(root=TextPart(text='System message'))])
 
@@ -122,7 +122,7 @@ class TestMessageConversion(unittest.TestCase):
 
         self.assertIn('system', str(context.exception).lower())
 
-    def test_convert_message_with_image(self):
+    def test_convert_message_with_image(self) -> None:
         """Test converting a message with image content."""
         message = Message(
             role='user',
@@ -141,7 +141,7 @@ class TestMessageConversion(unittest.TestCase):
         assert isinstance(result.content, ImageContent)
         self.assertEqual(result.content.mimeType, 'image/png')
 
-    def test_convert_message_with_non_data_url_fails(self):
+    def test_convert_message_with_non_data_url_fails(self) -> None:
         """Test that non-data URLs raise an error."""
         message = Message(
             role='user',
@@ -157,11 +157,11 @@ class TestMessageConversion(unittest.TestCase):
 class TestResourceConversion(unittest.TestCase):
     """Tests for resource content conversion."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    def test_convert_text_resource(self):
+    def test_convert_text_resource(self) -> None:
         """Test converting text resource content."""
         parts = [Part(root=TextPart(text='Resource content'))]
 
@@ -172,7 +172,7 @@ class TestResourceConversion(unittest.TestCase):
         assert isinstance(result[0], TextResourceContents)
         self.assertEqual(result[0].text, 'Resource content')
 
-    def test_convert_multiple_text_parts(self):
+    def test_convert_multiple_text_parts(self) -> None:
         """Test converting multiple text parts."""
         parts = [
             Part(root=TextPart(text='Part 1')),
@@ -187,7 +187,7 @@ class TestResourceConversion(unittest.TestCase):
             assert isinstance(part, TextResourceContents)
             self.assertEqual(part.text, f'Part {i}')
 
-    def test_convert_string_parts(self):
+    def test_convert_string_parts(self) -> None:
         """Test converting string parts - strings are not Part objects, function expects list[Part]."""
         # We need to construct Parts even for strings if the function expects list[Part].
         # If the function handles strings (Union[str, Part]), we should check the function signature.
@@ -203,7 +203,7 @@ class TestResourceConversion(unittest.TestCase):
         assert isinstance(result[1], TextResourceContents)
         self.assertEqual(result[1].text, 'Text 2')
 
-    def test_convert_media_resource(self):
+    def test_convert_media_resource(self) -> None:
         """Test converting media resource content."""
         parts = [Part(root=MediaPart(media=Media(url='data:image/png;base64,abc123', content_type='image/png')))]
 
@@ -215,7 +215,7 @@ class TestResourceConversion(unittest.TestCase):
         assert isinstance(result[0], BlobResourceContents)
         self.assertEqual(result[0].blob, 'abc123')
 
-    def test_convert_mixed_content(self):
+    def test_convert_mixed_content(self) -> None:
         """Test converting mixed text and media content."""
         parts = [
             Part(root=TextPart(text='Description')),
@@ -234,11 +234,11 @@ class TestResourceConversion(unittest.TestCase):
 class TestToolResultConversion(unittest.TestCase):
     """Tests for tool result conversion."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    def test_convert_string_result(self):
+    def test_convert_string_result(self) -> None:
         """Test converting string result."""
         result = to_mcp_tool_result('Hello, world!')
 
@@ -249,7 +249,7 @@ class TestToolResultConversion(unittest.TestCase):
         assert isinstance(result[0], TextContent)
         self.assertEqual(result[0].text, 'Hello, world!')
 
-    def test_convert_dict_result(self):
+    def test_convert_dict_result(self) -> None:
         """Test converting dict result."""
         result = to_mcp_tool_result({'key': 'value', 'number': 42})
 
@@ -263,7 +263,7 @@ class TestToolResultConversion(unittest.TestCase):
         self.assertEqual(parsed['key'], 'value')
         self.assertEqual(parsed['number'], 42)
 
-    def test_convert_number_result(self):
+    def test_convert_number_result(self) -> None:
         """Test converting number result."""
         result = to_mcp_tool_result(42)
 
@@ -272,7 +272,7 @@ class TestToolResultConversion(unittest.TestCase):
         assert isinstance(result[0], TextContent)
         self.assertEqual(result[0].text, '42')
 
-    def test_convert_boolean_result(self):
+    def test_convert_boolean_result(self) -> None:
         """Test converting boolean result."""
         result = to_mcp_tool_result(True)
 
@@ -285,11 +285,11 @@ class TestToolResultConversion(unittest.TestCase):
 class TestSchemaConversion(unittest.TestCase):
     """Tests for schema conversion utilities."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         setup_mocks()
 
-    def test_convert_simple_schema(self):
+    def test_convert_simple_schema(self) -> None:
         """Test converting simple string schema."""
         schema = {'type': 'object', 'properties': {'name': {'type': 'string', 'description': 'User name'}}}
 
@@ -300,7 +300,7 @@ class TestSchemaConversion(unittest.TestCase):
         self.assertEqual(result[0]['name'], 'name')
         self.assertEqual(result[0]['description'], 'User name')
 
-    def test_convert_schema_with_required(self):
+    def test_convert_schema_with_required(self) -> None:
         """Test converting schema with required fields."""
         schema = {
             'type': 'object',
@@ -317,7 +317,7 @@ class TestSchemaConversion(unittest.TestCase):
         self.assertTrue(name_arg['required'])
         self.assertFalse(age_arg['required'])
 
-    def test_convert_schema_with_non_string_fails(self):
+    def test_convert_schema_with_non_string_fails(self) -> None:
         """Test that non-string properties raise an error."""
         schema = {'type': 'object', 'properties': {'count': {'type': 'number'}}}
 
@@ -326,7 +326,7 @@ class TestSchemaConversion(unittest.TestCase):
 
         self.assertIn('string', str(context.exception).lower())
 
-    def test_convert_schema_with_union_type(self):
+    def test_convert_schema_with_union_type(self) -> None:
         """Test converting schema with union type including string."""
         schema = {'type': 'object', 'properties': {'value': {'type': ['string', 'null']}}}
 
@@ -336,13 +336,13 @@ class TestSchemaConversion(unittest.TestCase):
         assert result is not None
         self.assertEqual(len(result), 1)
 
-    def test_convert_none_schema(self):
+    def test_convert_none_schema(self) -> None:
         """Test converting None schema."""
         result = to_mcp_prompt_arguments(None)
 
         self.assertIsNone(result)
 
-    def test_convert_schema_without_properties_fails(self):
+    def test_convert_schema_without_properties_fails(self) -> None:
         """Test that schema without properties raises an error."""
         schema = {'type': 'object'}
 

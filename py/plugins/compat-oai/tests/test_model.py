@@ -35,7 +35,7 @@ from genkit.types import (
 )
 
 
-def test_get_messages(sample_request):
+def test_get_messages(sample_request) -> None:
     """Test _get_messages method.
 
     Ensures the method correctly converts GenerateRequest messages into OpenAI-compatible ChatMessage format.
@@ -51,7 +51,7 @@ def test_get_messages(sample_request):
 
 
 @pytest.mark.asyncio
-async def test_get_openai_config(sample_request):
+async def test_get_openai_config(sample_request) -> None:
     """Test _get_openai_request_config method.
 
     Ensures the method correctly constructs the OpenAI API configuration dictionary.
@@ -66,7 +66,7 @@ async def test_get_openai_config(sample_request):
 
 
 @pytest.mark.asyncio
-async def test__generate(sample_request):
+async def test__generate(sample_request) -> None:
     """Test generate method calls OpenAI API and returns GenerateResponse."""
     mock_message = MagicMock()
     mock_message.content = 'Hello, user!'
@@ -89,7 +89,7 @@ async def test__generate(sample_request):
 
 
 @pytest.mark.asyncio
-async def test__generate_stream(sample_request):
+async def test__generate_stream(sample_request) -> None:
     """Test generate_stream method ensures it processes streamed responses correctly."""
     mock_client = MagicMock()
 
@@ -123,7 +123,7 @@ async def test__generate_stream(sample_request):
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
 
-    def callback(chunk: GenerateResponseChunk):
+    def callback(chunk: GenerateResponseChunk) -> None:
         collected_chunks.append(chunk.content[0].root.text)
 
     await model._generate_stream(sample_request, callback)
@@ -139,7 +139,7 @@ async def test__generate_stream(sample_request):
     ],
 )
 @pytest.mark.asyncio
-async def test_generate(stream, sample_request):
+async def test_generate(stream, sample_request) -> None:
     """Tests for generate."""
     ctx_mock = MagicMock(spec=ActionRunContext)
     ctx_mock.is_streaming = stream
@@ -174,7 +174,7 @@ async def test_generate(stream, sample_request):
         ),
     ],
 )
-def test_normalize_config(config, expected):
+def test_normalize_config(config, expected) -> None:
     """Tests for _normalize_config."""
     if isinstance(expected, Exception):
         with pytest.raises(ValueError, match=r'Expected request.config to be a dict or OpenAIConfig, got .*'):
