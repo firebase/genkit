@@ -41,6 +41,7 @@ from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
     SUPPORTED_MODELS,
     google_model_info,
+    GeminiConfigSchema,
 )
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
@@ -645,6 +646,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
         model_action_metadata(
             name=vertexai_name('model1'),
             info=google_model_info('model1').model_dump(),
+            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=vertexai_name('model2_embeddings'),
@@ -659,6 +661,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
         model_action_metadata(
             name=vertexai_name('model2_embeddings'),
             info=google_model_info('model2_embeddings').model_dump(),
+            config_schema=GeminiConfigSchema,
         ),
         embedder_action_metadata(
             name=vertexai_name('model3_embedder'),
@@ -673,5 +676,6 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
         model_action_metadata(
             name=vertexai_name('model3_embedder'),
             info=google_model_info('model3_embedder').model_dump(),
+            config_schema=GeminiConfigSchema,
         ),
     ]

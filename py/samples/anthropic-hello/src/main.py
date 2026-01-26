@@ -29,6 +29,8 @@ Key features demonstrated in this sample:
 | Streaming Generation                    | `say_hi_stream`                     |
 | Generation with Tools                   | `weather_flow`, `currency_exchange` |
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
+| Thinking (CoT)                          | `thinking_demo`                     |
+| Multimodal (Image Input)                | `describe_image`                    |
 """
 
 import os
@@ -198,6 +200,44 @@ async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Ali
             temperature=0.7,
             max_output_tokens=100,
         ),
+    )
+    return response.text
+
+
+@ai.flow()
+async def thinking_demo(
+    question: Annotated[str, Field(default='Explain quantum entanglement')] = 'Explain quantum entanglement',
+) -> str:
+    """Demonstrate Anthropic thinking capability.
+
+    Note: 'thinking' requires a compatible model (e.g., Claude 3.7 Sonnet).
+    """
+    response = await ai.generate(
+        model=anthropic_name('claude-3-5-sonnet-20241022'),
+        prompt=question,
+        config={
+            'thinking': {'type': 'enabled', 'budget_tokens': 1024},
+            'max_output_tokens': 4096,  # Required when thinking is enabled
+        },
+    )
+    return response.text
+
+
+@ai.flow()
+async def describe_image(
+    image_url: Annotated[
+        str,
+        Field(default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png'),
+    ] = 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+) -> str:
+    """Describe an image using Anthropic."""
+    from genkit.types import Media, MediaPart, Part, TextPart
+
+    response = await ai.generate(
+        prompt=[
+            Part(root=TextPart(text='Describe this image')),
+            Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
+        ],
     )
     return response.text
 

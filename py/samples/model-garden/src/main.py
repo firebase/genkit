@@ -14,7 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Model Garden sample."""
+"""Model Garden sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Model Garden Plugin                     | `ModelGardenPlugin()`               |
+| Specific Model Usage                    | `model_garden_name('anthropic/...')`|
+| Generation Config                       | `max_output_tokens`, `temperature`  |
+"""
 
 from typing import Annotated
 

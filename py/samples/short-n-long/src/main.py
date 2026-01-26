@@ -14,17 +14,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hello Google GenAI sample.
+"""Hello Google GenAI sample (long-running / server mode).
 
 Key features demonstrated in this sample:
 
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
-| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])` |
+| Deployment as ASGI App                                   | `create_flows_asgi_app`                |
+| Custom Server Lifecycle Hooks                            | `on_app_startup`, `on_app_shutdown`    |
+| Running as HTTP Server                                   | `uvicorn.Server`                       |
+| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])`    |
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
-| Pydantic for Tool Input Schema                           | `GablorkenInput`                       |
+| Tool Input Schema (Pydantic)                             | `GablorkenInput`                       |
 | Simple Generation (Prompt String)                        | `say_hi`                               |
 | Generation with Messages (`Message`, `Role`, `TextPart`) | `simple_generate_with_tools_flow`      |
 | Generation with Tools                                    | `simple_generate_with_tools_flow`      |
@@ -38,7 +41,6 @@ Key features demonstrated in this sample:
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
-
 """
 
 import argparse

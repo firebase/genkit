@@ -24,8 +24,9 @@ Key features demonstrated in this sample:
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
-| Pydantic for Tool Input Schema                           | `GablorkenOutputSchema`               |
+| Tool Input Schema (Pydantic)                             | `GablorkenInput`                       |
 | Simple Generation (Prompt String)                        | `say_hi`                               |
+| Streaming Generation                                     | `say_hi_stream`                        |
 | Generation with Messages (`Message`, `Role`, `TextPart`) | `say_hi_constrained`                   |
 | Generation with Tools                                    | `calculate_gablorken`                  |
 | Tool Response Handling                                   | `say_hi_constrained`                   |
@@ -39,6 +40,7 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.action import ActionRunContext
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,
@@ -134,6 +136,32 @@ async def say_hi(hi_input: Annotated[str, Field(default='World')] = 'World') -> 
         prompt='hi ' + hi_input,
     )
     return response.text
+
+
+@ai.flow()
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+        ctx: the context of the tool
+
+    Returns:
+        The generated response with a function.
+    """
+    stream, _ = ai.generate_stream(
+        model=ollama_name(GEMMA_MODEL),
+        prompt=f'hi {name}',
+    )
+    result: str = ''
+    async for data in stream:
+        ctx.send_chunk(data.text)
+        result += data.text
+
+    return result
 
 
 @ai.flow()

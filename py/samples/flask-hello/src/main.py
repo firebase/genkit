@@ -14,7 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A simple flow served via a flask server."""
+"""A simple flow served via a flask server.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Flask Integration                       | `genkit_flask_handler`              |
+| Context Provider                        | `my_context_provider`               |
+| Request Header Access                   | `request.request.headers`           |
+| Flow Context Usage                      | `ctx.context.get("username")`       |
+"""
 
 import os
 from typing import Annotated

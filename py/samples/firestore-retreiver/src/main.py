@@ -15,7 +15,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Firestore retriever sample."""
+"""Firestore retriever sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Firestore Vector Store Definition       | `define_firestore_vector_store`     |
+| Embed Many                              | `ai.embed_many()`                   |
+| Document Retrieval                      | `ai.retrieve()`                     |
+| Firestore Integration                   | `firestore.Client()`                |
+"""
 
 import os
 

@@ -169,6 +169,8 @@ class Ollama(Plugin):
                     'multiturn': model_ref.api_type == OllamaAPITypes.CHAT,
                     'system_role': True,
                     'tools': model_ref.supports.tools,
+                    'output': ['text', 'json'],
+                    'constrained': 'all',
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
@@ -244,7 +246,9 @@ class Ollama(Plugin):
                             'label': f'Ollama - {_name}',
                             'multiturn': True,
                             'system_role': True,
-                            'tools': False,
+                            'tools': True,
+                            'output': ['text', 'json'],
+                            'constrained': 'all',
                         },
                     )
                 )

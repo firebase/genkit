@@ -14,7 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample demonstrating code execution using the Google Gemini API with GenAI."""
+"""Sample demonstrating code execution using the Google Gemini API with GenAI.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Code Execution Config                   | `code_execution=True`               |
+| Executable Code Part Handling           | `PartConverter.EXECUTABLE_CODE`     |
+| Code Execution Result Handling          | `PartConverter.CODE_EXECUTION_RESULT`|
+| Custom Part Parsing                     | `CustomPart` processing             |
+"""
 
 import os
 from typing import Annotated

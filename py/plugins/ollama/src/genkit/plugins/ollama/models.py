@@ -52,7 +52,7 @@ logger = structlog.get_logger(__name__)
 class OllamaSupports(BaseModel):
     """Supports for Ollama models."""
 
-    tools: bool = False
+    tools: bool = True
 
 
 class ModelDefinition(BaseModel):

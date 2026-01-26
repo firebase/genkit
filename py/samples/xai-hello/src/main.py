@@ -16,12 +16,17 @@
 
 """xAI Genkit sample.
 
-Demonstrates:
-- Plugin initialization
-- Simple text generation
-- Streaming generation
-- Tool usage
-- Generation with configuration
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Plugin Initialization                   | `ai = Genkit(plugins=[XAI()])`      |
+| Model Configuration                     | `xai_name('grok-2')`                |
+| Simple Text Generation                  | `say_hi`                            |
+| Streaming Generation                    | `say_hi_stream`                     |
+| Tool Usage (Decorated)                  | `get_weather`, `calculate`          |
+| Generation Configuration                | `say_hi_with_config`                |
+| Tool Calling                            | `weather_flow`                      |
 """
 
 import os
@@ -188,7 +193,7 @@ async def say_hi_with_config(name: Annotated[str, Field(default='Charlie')] = 'C
 
 @ai.flow()
 async def weather_flow(location: Annotated[str, Field(default='New York')] = 'New York') -> str:
-    """Get weather info using the weather tool (direct call).
+    """Get weather info using the weather tool (via model tool calling).
 
     Args:
         location: City name.
@@ -200,10 +205,11 @@ async def weather_flow(location: Annotated[str, Field(default='New York')] = 'Ne
         >>> await weather_flow('New York')
         "Weather in New York: 15°C, cloudy"
     """
-    weather_data = get_weather(WeatherInput(location=location))
-    return (
-        f'Weather in {location}: {weather_data.get("temp")}°{weather_data.get("unit")}, {weather_data.get("condition")}'
+    response = await ai.generate(
+        prompt=f'What is the weather in {location}?',
+        tools=['get_weather'],
     )
+    return response.text
 
 
 @ai.flow()

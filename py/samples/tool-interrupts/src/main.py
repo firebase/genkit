@@ -14,7 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tool interrupts sample."""
+"""Tool interrupts sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Tool Interruption                       | `ctx.interrupt(payload)`            |
+| Handling Interrupts in Loop             | `response.interrupts` check         |
+| Resuming with Tool Response             | `tool_response(request, input)`     |
+| Interactive CLI Loop                    | `while True: ... input()`           |
+"""
 
 import asyncio
 

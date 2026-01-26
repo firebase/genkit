@@ -67,6 +67,7 @@ dev = [
 lint = [
   "pypdf",
   "strenum>=0.4.15",
+  "streamlit>=1.41.0",
   "ty>=0.0.1",
   "ruff>=0.9",
   "pysentry-rs>=0.3.14",

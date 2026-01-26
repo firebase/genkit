@@ -14,7 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Vertex AI Vector Search with BigQuery sample."""
+"""Vertex AI Vector Search with BigQuery sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| BigQuery Vector Search Definition       | `define_vertex_vector_search_big_query`|
+| BigQuery Client Integration             | `bigquery.Client()`                 |
+| Document Retrieval with Filters         | `ai.retrieve(..., options={'limit': ...})`|
+| Performance Metrics                     | Duration tracking                   |
+"""
 
 import os
 import time

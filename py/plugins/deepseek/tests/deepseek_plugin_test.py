@@ -85,10 +85,12 @@ async def test_plugin_list_actions() -> None:
     plugin = DeepSeek(api_key='test-key')
     actions = await plugin.list_actions()
 
-    assert len(actions) == 2
+    assert len(actions) == 4
     action_names = [action.name for action in actions]
     assert 'deepseek/deepseek-reasoner' in action_names
     assert 'deepseek/deepseek-chat' in action_names
+    assert 'deepseek/deepseek-v3' in action_names
+    assert 'deepseek/deepseek-r1' in action_names
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')

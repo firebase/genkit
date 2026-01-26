@@ -37,6 +37,7 @@ each endpoint's behavior.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from typing import Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
@@ -196,6 +197,7 @@ async def test_run_action_streaming(
         raw_input: object,
         on_chunk: object | None = None,
         context: object | None = None,
+        **kwargs: Any,  # noqa: ANN401
     ) -> MagicMock:
         if on_chunk:
             await on_chunk({'chunk': 1})

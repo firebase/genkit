@@ -14,7 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Prompt demo sample."""
+"""Prompt demo sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Prompt Management (Loading)             | `ai = Genkit(..., prompt_dir=...)`  |
+| Prompt Execution                        | `recipe_prompt(input=...)`          |
+| Prompt Variants                         | `get_sticky_prompt(..., variant=...)`|
+| Custom Helpers                          | `ai.define_helper('list', ...)`     |
+| Prompt Output Schema Validation         | `Recipe.model_validate(...)`        |
+| Streaming Prompts                       | `story_prompt.stream()`             |
+"""
 
 import os
 import weakref
