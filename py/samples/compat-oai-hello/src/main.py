@@ -24,17 +24,12 @@ Key features demonstrated in this sample:
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
-| Pydantic for Tool Input Schema                           | `GablorkenOutputSchema`                |
-| Simple arithmetic addition(Input integers a,b)           | `sum_two_numbers2`                     |
+| Tool Input Schema (Pydantic)                             | `GablorkenInput`                       |
 | Simple Generation (Prompt String)                        | `say_hi`                               |
 | Generation with Messages (`Message`, `Role`, `TextPart`) | `say_hi_constrained`                   |
-| Generated response as stream (Prompt String)             | `say_hi_stream`                        |
+| Streaming Generation                                     | `say_hi_stream`                        |
 | Generation with Tools                                    | `calculate_gablorken`                  |
-| Generate current weather response using tools            | `get_weather_flow`                     |
-| Weather response generated as stream                     | `get_weather_flow_stream`              |
 | Tool Response Handling with context                      | `generate_character`                   |
-
-
 """
 
 import os

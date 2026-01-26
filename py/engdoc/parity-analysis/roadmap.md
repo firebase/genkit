@@ -351,9 +351,9 @@ PHASE 5 (Roots - End Here)
 | **A3: docs context handling** | M | RAG + Chat API | `generate.py` |
 
 **Definition of Done:**
-- [ ] Model config shows in DevUI
-- [ ] latency_ms populated in GenerateResponse
-- [ ] `docs` field augments message history
+- [x] Model config shows in DevUI
+- [x] latency_ms populated in GenerateResponse
+- [x] `docs` field augments message history
 
 ---
 
@@ -368,10 +368,10 @@ PHASE 5 (Roots - End Here)
 | **B4: dynamicTool()** | S | Runtime tool creation | `_registry.py` |
 
 **Definition of Done:**
-- [ ] `await ai.check_operation(op)` returns updated Operation
-- [ ] `await ai.run('step', fn)` creates traced sub-span
-- [ ] `ai.current_context()` returns ActionContext
-- [ ] `ai.dynamic_tool(config, fn)` returns unregistered ToolAction
+- [x] `await ai.check_operation(op)` returns updated Operation
+- [x] `await ai.run('step', fn)` creates traced sub-span
+- [x] `ai.current_context()` returns ActionContext
+- [x] `ai.dynamic_tool(config, fn)` returns unregistered ToolAction
 
 ---
 
@@ -393,10 +393,10 @@ flowchart LR
 | **C3: chat() API** | M | C2, A3 | `_aio.py` |
 
 **Definition of Done:**
-- [ ] `SessionStore` abstract base class with `get/save/delete`
-- [ ] `session = await ai.create_session()` / `ai.load_session(id)`
-- [ ] `response = await session.chat('message')` maintains history
-- [ ] At least one store implementation (in-memory)
+- [x] `SessionStore` abstract base class with `get/save/delete`
+- [x] `session = await ai.create_session()` / `ai.load_session(id)`
+- [x] `response = await session.chat('message')` maintains history
+- [x] At least one store implementation (in-memory)
 
 ---
 
@@ -411,9 +411,9 @@ flowchart LR
 | **D4: plugin.model() factory** | M | All | All plugin `__init__.py` |
 
 **Definition of Done:**
-- [ ] `config={'thinking': {'enabled': True, 'budgetTokens': 10000}}` works
-- [ ] `tool_choice={'type': 'tool', 'name': 'myTool'}` supported
-- [ ] `GoogleGenAI(api_version='v1beta')` accepted
+- [x] `config={'thinking': {'enabled': True, 'budgetTokens': 10000}}` works
+- [x] `tool_choice={'type': 'tool', 'name': 'myTool'}` supported
+- [x] `GoogleGenAI(api_version='v1beta')` accepted
 - [ ] `google_ai.model('gemini-2.5-flash')` returns typed reference
 
 ---
@@ -431,8 +431,9 @@ flowchart LR
 **Definition of Done:**
 - [ ] Spans appear in DevUI as they START (not just on completion)
 - [ ] `GENKIT_ENABLE_REALTIME_TELEMETRY=true` env var supported
-- [ ] `await ai.flush_tracing()` available
+- [x] `await ai.flush_tracing()` available
 - [ ] Model I/O redacted before Cloud Trace export
+- [x] Logging instrumentation enabled with trace correlation
 
 ---
 
@@ -445,6 +446,13 @@ flowchart LR
 | **F2: MCP Tool Host** | L | External tools | NEW: `mcp/host.py` |
 | **F3: embedMany()** | S | Batch embedding | `_aio.py` |
 | **F4: defineSimpleRetriever()** | S | Quick RAG setup | `_registry.py` |
+
+(Marking done for verified items)
+- [x] F3: embedMany() API
+- [x] F4: defineSimpleRetriever()
+- [x] S2: Chatbot sample (chat-demo)
+
+---
 
 ---
 
@@ -503,11 +511,11 @@ gantt
 
 These have no dependencies and provide immediate value:
 
-1. **A1: DevUI config_schema** - Uncomment and fix existing code
-2. **A2: latency_ms** - Add timing to model wrappers
-3. **B3: currentContext()** - Thread-local context access
-4. **D3: apiVersion/baseUrl** - Add to plugin options
-5. **E2: flushTracing()** - Simple exporter flush
+1. ~~**A1: DevUI config_schema** - Uncomment and fix existing code~~
+2. ~~**A2: latency_ms** - Add timing to model wrappers~~
+3. ~~**B3: currentContext()** - Thread-local context access~~
+4. ~~**D3: apiVersion/baseUrl** - Add to plugin options~~
+5. ~~**E2: flushTracing()** - Simple exporter flush~~
 
 ---
 

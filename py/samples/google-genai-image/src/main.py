@@ -14,7 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""This sample demonstrates how to use Gemini to describe, draw, and edit images."""
+"""This sample demonstrates how to use Gemini to describe, draw, and edit images.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Text-to-Image Generation                | `draw_image_with_gemini`            |
+| Image-to-Text (Description)             | `describe_image_with_gemini`        |
+| Multimodal Prompting                    | `generate_images`                   |
+| Image Editing (Inpainting/Outpainting)  | `gemini_image_editing`              |
+| Video Generation (Veo)                  | `photo_move_veo`                    |
+| Media Resolution Control                | `gemini_media_resolution`           |
+"""
 
 import asyncio
 import base64

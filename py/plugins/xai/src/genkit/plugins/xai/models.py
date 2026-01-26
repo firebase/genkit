@@ -175,6 +175,8 @@ class XAIModel:
     async def _generate_streaming(
         self, params: dict[str, object], request: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse:
+        loop = asyncio.get_running_loop()
+
         def _sync_stream() -> GenerateResponse:
             accumulated_content = []
             final_response = None
@@ -184,12 +186,13 @@ class XAIModel:
                 final_response = response
 
                 if chunk.content:
-                    ctx.send_chunk(
+                    loop.call_soon_threadsafe(
+                        ctx.send_chunk,
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
                             content=[Part(root=TextPart(text=chunk.content))],
-                        )
+                        ),
                     )
                     accumulated_content.append(Part(root=TextPart(text=chunk.content)))
 

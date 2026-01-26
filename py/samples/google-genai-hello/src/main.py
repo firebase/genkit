@@ -39,7 +39,10 @@ Key features demonstrated in this sample:
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
 | GCP Telemetry (Traces and Metrics)                       | `add_gcp_telemetry()`                  |
-
+| Thinking Mode (CoT)                                      | `thinking_level_pro`, `thinking_level_flash` |
+| Search Grounding                                         | `search_grounding`                     |
+| URL Context                                              | `url_context`                          |
+| Multimodal Generation (Video input)                      | `youtube_videos`                       |
 """
 
 import argparse
@@ -529,6 +532,23 @@ async def tool_calling(location: Annotated[str, Field(default='Paris, France')] 
         tools=['getWeather', 'celsiusToFahrenheit'],
         prompt=f"What's the weather in {location}? Convert the temperature to Fahrenheit.",
         config=GenerationCommonConfig(temperature=1),
+    )
+    return response.text
+
+
+@ai.flow()
+async def describe_image(
+    image_url: Annotated[
+        str, Field(default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png')
+    ] = 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+) -> str:
+    """Describe an image."""
+    response = await ai.generate(
+        model='googleai/gemini-2.5-flash',
+        prompt=[
+            Part(root=TextPart(text='Describe this image')),
+            Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
+        ],
     )
     return response.text
 

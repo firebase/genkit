@@ -65,6 +65,7 @@ from genkit.core.typing import (
     Operation,
     SpanMetadata,
 )
+from genkit.session import InMemorySessionStore, Session, SessionStore
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -141,6 +142,81 @@ class Genkit(GenkitBase):
             return embedder
         else:
             raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
+
+    def create_session(
+        self,
+        store: SessionStore | None = None,
+        initial_state: dict[str, Any] | None = None,
+    ) -> Session:
+        """Creates a new session for multi-turn conversations.
+
+        **Overview:**
+
+        Initializes a new `Session` instance, which manages conversation history
+        and state. By default, it uses an ephemeral `InMemorySessionStore`, but
+        you should provide a persistent store (e.g. Firestore, Redis) for
+        production use.
+
+        **Args:**
+            store: The `SessionStore` implementation to use. Defaults to `InMemorySessionStore`.
+            initial_state: A dictionary of initial state to populate the session with.
+
+        **Returns:**
+            A new `Session` object bound to this Genkit instance.
+
+        **Examples:**
+
+        ```python
+        # ephemeral session
+        session = ai.create_session()
+
+        # persistent session with initial state
+        session = ai.create_session(store=my_firestore_store, initial_state={'username': 'jdoe'})
+        await session.chat('Hello')
+        ```
+        """
+        if store is None:
+            store = InMemorySessionStore()
+
+        session = Session(ai=self, store=store)
+        if initial_state:
+            session.update_state(initial_state)
+        return session
+
+    async def load_session(
+        self,
+        session_id: str,
+        store: SessionStore,
+    ) -> Session | None:
+        """Loads an existing session from a store.
+
+        **Overview:**
+
+        Retrieves session data (history and state) from the provided `SessionStore`
+        and reconstructs a `Session` object. If the session ID is not found,
+        returns `None`.
+
+        **Args:**
+            session_id: The unique identifier of the session to load.
+            store: The `SessionStore` to query.
+
+        **Returns:**
+            The loaded `Session` object, or `None` if not found.
+
+        **Examples:**
+
+        ```python
+        session = await ai.load_session('sess_12345', store=my_store)
+        if session:
+            await session.chat('Continue our conversation')
+        else:
+            print('Session not found')
+        ```
+        """
+        data = await store.get(session_id)
+        if not data:
+            return None
+        return Session(ai=self, store=store, data=data)
 
     async def generate(
         self,

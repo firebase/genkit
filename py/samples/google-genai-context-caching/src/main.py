@@ -16,6 +16,15 @@
 
 """Sample that demonstrates caching of generation context in Genkit.
 
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Context Caching Config                  | `metadata={'cache': {'ttl_seconds': 300}}` |
+| URL Content Fetching                    | `httpx.AsyncClient().get()`         |
+| Message History Reuse                   | `messages=messages_history`         |
+| Large Context Handling                  | Processing full book text           |
+
 In this sample user actor supplies "Tom Sawyer" book content from Gutenberg library archive
 and model caches this context.
 As a result, model is capable to quickly relate to the book's content and answer the follow-up questions.

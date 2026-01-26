@@ -37,8 +37,6 @@ Key features demonstrated in this sample:
 | Structured Output (Schema)                               | `generate_character`                   |
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
-| Multi-modal Output Configuration                         | `generate_images`                      |
-
 """
 
 import os

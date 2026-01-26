@@ -117,17 +117,46 @@ class AnthropicModel:
             temperature = config.get('temperature')
             top_p = config.get('top_p')
             stop_sequences = config.get('stop_sequences')
+            thinking = config.get('thinking')
+            metadata = config.get('metadata')
         else:
-            max_tokens = config.max_output_tokens if config and config.max_output_tokens else DEFAULT_MAX_OUTPUT_TOKENS
-            temperature = config.temperature if config else None
-            top_p = config.top_p if config else None
-            stop_sequences = config.stop_sequences if config else None
+            max_tokens = (
+                config.max_output_tokens
+                if config and getattr(config, 'max_output_tokens', None)
+                else DEFAULT_MAX_OUTPUT_TOKENS
+            )
+            temperature = config.temperature if config and getattr(config, 'temperature', None) else None
+            top_p = config.top_p if config and getattr(config, 'top_p', None) else None
+            stop_sequences = config.stop_sequences if config and getattr(config, 'stop_sequences', None) else None
+            thinking = getattr(config, 'thinking', None) if config else None
+            metadata = getattr(config, 'metadata', None) if config else None
 
         params: dict[str, Any] = {
             'model': self.model_name,
             'messages': self._to_anthropic_messages(request.messages),
             'max_tokens': int(max_tokens),
         }
+
+        if thinking:
+            if isinstance(thinking, dict):
+                anthropic_thinking = {}
+                # Handle boolean enabled -> type="enabled"
+                if thinking.get('enabled') is True or thinking.get('type') == 'enabled':
+                    anthropic_thinking['type'] = 'enabled'
+
+                # Handle camelCase -> snake_case for budget tokens
+                tokens = thinking.get('budgetTokens', thinking.get('budget_tokens'))
+                if tokens:
+                    anthropic_thinking['budget_tokens'] = int(tokens)
+
+                if anthropic_thinking.get('type') == 'enabled':
+                    params['thinking'] = anthropic_thinking
+                    # Anthropic requires temperature to be None/excluded if thinking is enabled?
+                    # Actually standard behavior is: if thinking, extended thinking model rules apply.
+                    # We pass it if valid.
+
+        if metadata:
+            params['metadata'] = metadata
 
         system = self._extract_system(request.messages)
         if system:
@@ -138,6 +167,7 @@ class AnthropicModel:
             params['top_p'] = top_p
         if stop_sequences:
             params['stop_sequences'] = stop_sequences
+
         if request.tools:
             params['tools'] = [
                 {
@@ -147,6 +177,14 @@ class AnthropicModel:
                 }
                 for t in request.tools
             ]
+
+            if request.tool_choice:
+                if request.tool_choice == 'required':
+                    params['tool_choice'] = {'type': 'any'}
+                elif request.tool_choice == 'auto':
+                    params['tool_choice'] = {'type': 'auto'}
+                elif isinstance(request.tool_choice, dict):
+                    params['tool_choice'] = request.tool_choice
 
         return params
 

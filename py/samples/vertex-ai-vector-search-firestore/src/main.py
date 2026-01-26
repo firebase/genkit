@@ -14,7 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Vertex AI Vector Search with Firestore sample."""
+"""Vertex AI Vector Search with Firestore sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Firestore Vector Search Definition      | `define_vertex_vector_search_firestore`|
+| Firestore Async Client Integration      | `firestore.AsyncClient()`           |
+| Document Retrieval                      | `ai.retrieve()`                     |
+| Result Ranking                          | Custom sorting by distance          |
+"""
 
 import os
 import time

@@ -38,6 +38,7 @@ from genkit.plugins.google_genai.models.embedder import (
 )
 from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
+    GeminiConfigSchema,
     GeminiModel,
     google_model_info,
 )
@@ -212,7 +213,11 @@ class GoogleAI(Plugin):
             kind=ActionKind.MODEL,
             name=name,
             fn=gemini_model.generate,
-            metadata=gemini_model.metadata,
+            metadata=model_action_metadata(
+                name=name,
+                info=gemini_model.metadata['model']['supports'],
+                config_schema=GeminiConfigSchema,
+            ).metadata,
         )
 
     def _resolve_embedder(self, name: str) -> Action:
@@ -428,7 +433,13 @@ class VertexAI(Plugin):
             kind=ActionKind.MODEL,
             name=name,
             fn=model.generate,
-            metadata=model.metadata,
+            metadata=model_action_metadata(
+                name=name,
+                info=model.metadata['model']['supports'],
+                config_schema=GeminiConfigSchema
+                if not _clean_name.lower().startswith('image')
+                else None,  # TODO: Add ImagenConfigSchema if available
+            ).metadata,
         )
 
     def _resolve_embedder(self, name: str) -> Action:
@@ -493,7 +504,7 @@ class VertexAI(Plugin):
                 model_action_metadata(
                     name=vertexai_name(name),
                     info=google_model_info(name).model_dump(),
-                    # config_schema=GeminiConfigSchema,
+                    config_schema=GeminiConfigSchema,
                 ),
             )
 

@@ -16,6 +16,15 @@
 
 """Pokemon glossary.
 
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Local Embedding with Ollama             | `ai.embed_many()`                   |
+| Vector Similarity Search                | `find_nearest_pokemons`             |
+| RAG (Retrieval Augmented Generation)    | `generate_response`                 |
+| Custom Data Structures                  | `PokemonInfo` Pydantic model        |
+
 This sample demonstrates how to use Genkit to create a simple glossary of
 Pokemon using the Ollama plugin.
 """

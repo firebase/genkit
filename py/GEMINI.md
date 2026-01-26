@@ -52,6 +52,28 @@
     - **Returns**: Required for callables.
     - **Examples**: Required for user-facing API.
     - **Caveats**: Known limitations or edge cases.
+- **References**: 
+    - Please use the descriptions from genkit.dev and
+      github.com/genkit-ai/docsite as the source of truth for the API and
+      concepts.
+    - When you are not sure about the API or concepts, please refer to the
+      JavaScript implementation for the same.
+
+### Implementation
+    - When there is a conflict between the JavaScript implementation and the
+      Python implementation, please refer to the JavaScript implementation for
+      the same.
+    - Always add/update samples to demonstrate the usage of the API or
+      functionality.
+    - Use default input values for flows and actions to make them easier to use
+      in the DevUI so that bug bashes can be faster and more effective.
+    - Support hot reloading in samples by using the `watchdog` library that 
+      exposes a `watchmedo` command line tool. See other samples for example.
+    - Add a `run.sh` script to samples that can be used to run the sample.
+      The script should also perform any setup required for the sample, such as
+      installing dependencies or setting up environment variables.
+    - Prompt for API keys and other configuration required for the sample
+      in Python.
 
 ### Formatting
 - **Tool**: Format code using `ruff` (or `bin/fmt`).

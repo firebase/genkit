@@ -14,7 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""This sample demonstrates how to use Gemini VertexAI to describe and draw images."""
+"""This sample demonstrates how to use Gemini VertexAI to describe and draw images.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Text-to-Image Generation (Imagen)       | `draw_image_with_imagen`            |
+| Image Response Handling                 | `media_url`, `base64_data` parsing  |
+| VertexAI Plugin Usage                   | `ai = Genkit(plugins=[VertexAI()])` |
+"""
 
 import base64
 import os
