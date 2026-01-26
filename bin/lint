@@ -33,6 +33,7 @@ if find "${PY_DIR}" -name "test_*.py" -not -path "*/.*" | grep -q .; then
 fi
 
 uv run --directory "${PY_DIR}" ty check .
+"${PY_DIR}/bin/run_python_security_checks"
 
 # Disabled because there are many lint errors.
 #pushd "${GO_DIR}" &>/dev/null

@@ -64,7 +64,7 @@ dev = [
   "nox-uv>=0.2.2",
 ]
 
-lint = ["pypdf", "strenum>=0.4.15", "ty>=0.0.1", "ruff>=0.9"]
+lint = ["pypdf", "strenum>=0.4.15", "ty>=0.0.1", "ruff>=0.9", "pysentry-rs>=0.3.14"]
 
 [tool.hatch.build.targets.wheel]
 
