@@ -38,10 +38,11 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 """
 
 import asyncio
+from genkit.aio import ensure_async
 import inspect
 import traceback
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Coroutine
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, cast
 
@@ -89,6 +90,8 @@ from genkit.core.typing import (
     Message,
     ModelInfo,
     Part,
+    RetrieverRequest,
+    RetrieverResponse,
     Score,
     SpanMetadata,
     ToolChoice,
@@ -355,6 +358,43 @@ class GenkitRegistry:
             fn=fn,
             metadata=retriever_meta,
             description=retriever_description,
+        )
+
+    def define_simple_retriever(
+        self,
+        name: str,
+        fn: Callable[[RetrieverRequest], Any] | Callable[[RetrieverRequest], Coroutine[Any, Any, list[DocumentData]]],
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define a simple retriever action.
+
+        A simple retriever is one that takes a RetrieverRequest and returns a list
+        of documents. This method wraps the function to return a full RetrieverResponse.
+
+        Args:
+            name: Name of the retriever.
+            fn: Function implementing the retriever behavior. Should accept
+                a RetrieverRequest and return a list of DocumentData.
+            config_schema: Optional schema for retriever configuration.
+            metadata: Optional metadata for the retriever.
+            description: Optional description for the retriever.
+
+        Returns:
+            The registered Action for the retriever.
+        """
+
+        async def retriever_fn(req: RetrieverRequest) -> RetrieverResponse:
+            docs = await ensure_async(fn)(req)
+            return RetrieverResponse(documents=docs)
+
+        return self.define_retriever(
+            name=name,
+            fn=retriever_fn,
+            config_schema=config_schema,
+            metadata=metadata,
+            description=description,
         )
 
     def define_indexer(
