@@ -1,3 +1,17 @@
+---
+name: genkit-js
+description: Use the Genkit AI SDK to build application features and agents with LLMs and other GenAI models for JavaScript/TypeScript applications. ALWAYS use this skill when writing Genkit code.
+license: Apache-2.0
+metadata:
+  author: Google
+---
+
+# Genkit JS
+
+## Installation
+
+If Genkit is not already installed and configured in this application (present in `package.json` and `const ai = genkit(...)` present in the codebase), read `references/setup.md` to install and configure Genkit.
+
 ## Basic Example
 
 ```ts
@@ -61,3 +75,16 @@ import { defineFlow } from "..."; // INCORRECT pre-1.0 syntax
 - Use `import {z} from "genkit"` when you need Zod to get an implementation consistent with Genkit.
 - When defining Zod schemas, ONLY use basic scalar, object, and array types. Use `.optional()` when needed and `.describe('...')` to add descriptions for output schemas.
 - Genkit has many capabilities, make sure to read docs when you need to use them.
+
+## References
+
+- [Using Gemini with Genkit](references/gemini.md): Read this to leverage Google's Gemini models with Genkit, including image generation with Nano Banana and Nano Banana Pro models.
+
+## Online Documentation
+
+In addition to the above, you can read official documentation directly from the Genkit website by using `https://genkit.dev/docs/{topic}.md` as the URL. Available topics include:
+
+- `models`: general information about how to generate content
+- `flows`: general information about how to define and use flows
+- `tool-calling`: general information about how to define and use tools
+- `model-context-protocol`: information about how to use and build MCP servers with Genkit
