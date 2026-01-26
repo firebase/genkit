@@ -131,6 +131,8 @@ async def generate_action(
 
     request = await action_to_generate_request(raw_request, tools, model)
 
+    logger.debug('generate request', model=model.name, request=dump_dict(request))
+
     prev_chunks: list[GenerateResponseChunk] = []
 
     chunk_role: Role = cast(Role, Role.MODEL)
@@ -281,6 +283,8 @@ async def generate_action(
         request,
         message_parser=message_parser if formatter else None,
     )
+
+    logger.debug('generate response', response=dump_dict(response))
 
     response.assert_valid()
     generated_msg = response.message

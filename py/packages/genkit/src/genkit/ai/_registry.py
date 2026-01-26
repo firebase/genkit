@@ -41,9 +41,11 @@ import asyncio
 import inspect
 import traceback
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, cast
+
+from genkit.aio import ensure_async
 
 if TYPE_CHECKING:
     from genkit.blocks.prompt import ExecutablePrompt
@@ -81,6 +83,7 @@ from genkit.core.schema import to_json_schema
 from genkit.core.tracing import run_in_new_span
 from genkit.core.typing import (
     DocumentData,
+    DocumentPart,
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
@@ -89,6 +92,7 @@ from genkit.core.typing import (
     Message,
     ModelInfo,
     Part,
+    RetrieverResponse,
     Score,
     SpanMetadata,
     ToolChoice,
@@ -117,6 +121,77 @@ def get_func_description(func: Callable, description: str | None = None) -> str:
     if func.__doc__ is not None:
         return func.__doc__
     return ''
+
+
+R = TypeVar('R')
+
+
+class SimpleRetrieverOptions(BaseModel, Generic[R]):
+    """Configuration options for `define_simple_retriever`.
+
+    This class defines how items returned by a simple retriever handler are
+    mapped into Genkit `DocumentData` objects.
+
+    Attributes:
+        name: The unique name of the retriever.
+        content: Specifies how to extract content from the returned items.
+            Can be a string key (for dict items) or a callable that transforms the item.
+        metadata: Specifies how to extract metadata from the returned items.
+            Can be a list of keys (for dict items) or a callable that transforms the item.
+        config_schema: Optional Pydantic schema or JSON schema for retriever configuration.
+    """
+
+    name: str
+    content: str | Callable[[R], str | list[DocumentPart]] | None = None
+    metadata: list[str] | Callable[[R], dict[str, Any]] | None = None
+    config_schema: type[BaseModel] | dict[str, Any] | None = None
+
+
+def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentData:
+    """Internal helper to convert a raw item to a Genkit DocumentData."""
+    from genkit.blocks.document import Document
+
+    if isinstance(item, (Document, DocumentData)):
+        return item
+
+    if isinstance(item, str):
+        return Document.from_text(item)
+
+    if callable(options.content):
+        transformed = options.content(item)
+        if isinstance(transformed, str):
+            return Document.from_text(transformed)
+        else:
+            # transformed is list[DocumentPart]
+            return DocumentData(content=cast(list[DocumentPart], transformed))
+
+    if isinstance(options.content, str) and isinstance(item, dict):
+        return Document.from_text(str(item[options.content]))
+
+    if options.content is None and isinstance(item, str):
+        return Document.from_text(item)
+
+    raise ValueError(f'Cannot convert item to document without content option. Item: {item}')
+
+
+def _item_to_metadata(item: R, options: SimpleRetrieverOptions[R]) -> dict[str, Any] | None:
+    """Internal helper to extract metadata from a raw item for a Document."""
+    if isinstance(item, str):
+        return None
+
+    if isinstance(options.metadata, list) and isinstance(item, dict):
+        return {str(k): item[k] for k in options.metadata if k in item}
+
+    if callable(options.metadata):
+        return options.metadata(item)
+
+    if options.metadata is None and isinstance(item, dict):
+        out = cast(dict[str, Any], item.copy())
+        if isinstance(options.content, str) and options.content in out:
+            del out[options.content]
+        return out
+
+    return None
 
 
 class GenkitRegistry:
@@ -355,6 +430,49 @@ class GenkitRegistry:
             fn=fn,
             metadata=retriever_meta,
             description=retriever_description,
+        )
+
+    def define_simple_retriever(
+        self,
+        options: SimpleRetrieverOptions[R] | str,
+        handler: Callable[[DocumentData, Any], list[R] | Awaitable[list[R]]],
+        description: str | None = None,
+    ) -> Action:
+        """Define a simple retriever action.
+
+        A simple retriever makes it easy to map existing data into documents
+        that can be used for prompt augmentation.
+
+        Args:
+            options: Configuration options for the retriever, or just the name.
+            handler: A function that queries a datastore and returns items
+                from which to extract documents.
+            description: Optional description for the retriever.
+
+        Returns:
+            The registered Action for the retriever.
+        """
+        if isinstance(options, str):
+            options = SimpleRetrieverOptions(name=options)
+
+        from genkit.blocks.document import Document
+
+        async def retriever_fn(query: Document, options_obj: Any) -> RetrieverResponse:  # noqa: ANN401
+
+            items = await ensure_async(handler)(query, options_obj)
+            docs = []
+            for item in items:
+                doc = _item_to_document(item, options)
+                if not isinstance(item, str):
+                    doc.metadata = _item_to_metadata(item, options)
+                docs.append(doc)
+            return RetrieverResponse(documents=docs)
+
+        return self.define_retriever(
+            name=options.name,
+            fn=retriever_fn,
+            config_schema=options.config_schema,
+            description=description,
         )
 
     def define_indexer(
