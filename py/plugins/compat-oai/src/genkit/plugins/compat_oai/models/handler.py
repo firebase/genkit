@@ -17,7 +17,6 @@
 """OpenAI Compatible Model handlers for Genkit."""
 
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from openai import OpenAI
 
@@ -31,13 +30,14 @@ from genkit.plugins.compat_oai.models.model_info import (
 from genkit.types import (
     GenerateRequest,
     GenerateResponse,
+    ModelInfo,
 )
 
 
 class OpenAIModelHandler:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: Any, source: PluginSource = PluginSource.OPENAI) -> None:
+    def __init__(self, model: OpenAIModel, source: PluginSource = PluginSource.OPENAI) -> None:
         """Initializes the OpenAIModelHandler with a specified model.
 
         Args:
@@ -49,7 +49,7 @@ class OpenAIModelHandler:
         self._source = source
 
     @staticmethod
-    def _get_supported_models(source: PluginSource) -> dict[str, Any]:
+    def _get_supported_models(source: PluginSource) -> dict[str, ModelInfo]:
         """Returns the supported models based on the plugin source.
 
         Args:

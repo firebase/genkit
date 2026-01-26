@@ -30,7 +30,6 @@ Example:
 import asyncio
 import threading
 from collections.abc import Callable
-from typing import Any
 
 import structlog
 from dotpromptz.dotprompt import Dotprompt
@@ -38,6 +37,7 @@ from dotpromptz.dotprompt import Dotprompt
 from genkit.core.action import (
     Action,
     ActionMetadata,
+    SpanAttributeValue,
     parse_action_key,
 )
 from genkit.core.action.types import ActionKind, ActionName
@@ -81,8 +81,8 @@ class Registry:
     def __init__(self) -> None:
         """Initialize an empty Registry instance."""
         self._entries: ActionStore = {}
-        self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
-        self._schemas_by_name: dict[str, dict[str, Any]] = {}
+        self._value_by_kind_and_name: dict[str, dict[str, object]] = {}
+        self._schemas_by_name: dict[str, dict[str, object]] = {}
         self._lock = threading.RLock()
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
@@ -107,11 +107,11 @@ class Registry:
         self,
         kind: ActionKind,
         name: str,
-        fn: Callable,
-        metadata_fn: Callable | None = None,
+        fn: Callable[..., object],
+        metadata_fn: Callable[..., object] | None = None,
         description: str | None = None,
-        metadata: dict[str, Any] | None = None,
-        span_metadata: dict[str, str] | None = None,
+        metadata: dict[str, object] | None = None,
+        span_metadata: dict[str, SpanAttributeValue] | None = None,
     ) -> Action:
         """Register a new action with the registry.
 
@@ -173,7 +173,7 @@ class Registry:
         with self._lock:
             return self._entries.get(kind, {}).copy()
 
-    def register_value(self, kind: str, name: str, value: Any) -> None:
+    def register_value(self, kind: str, name: str, value: object) -> None:
         """Registers a value with a given kind and name.
 
         This method stores a value in a nested dictionary, where the first level
@@ -199,7 +199,7 @@ class Registry:
 
             self._value_by_kind_and_name[kind][name] = value
 
-    def lookup_value(self, kind: str, name: str) -> Any | None:
+    def lookup_value(self, kind: str, name: str) -> object | None:
         """Looks up value that us previously registered by `register_value`.
 
         Args:
@@ -456,7 +456,7 @@ class Registry:
                 metas.append(meta)
         return metas
 
-    def register_schema(self, name: str, schema: dict[str, Any]) -> None:
+    def register_schema(self, name: str, schema: dict[str, object]) -> None:
         """Registers a schema by name.
 
         Schemas registered with this method can be referenced by name in
@@ -475,7 +475,7 @@ class Registry:
             self._schemas_by_name[name] = schema
             logger.debug(f'Registered schema "{name}"')
 
-    def lookup_schema(self, name: str) -> dict[str, Any] | None:
+    def lookup_schema(self, name: str) -> dict[str, object] | None:
         """Looks up a schema by name.
 
         Args:

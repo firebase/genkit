@@ -16,8 +16,6 @@
 
 """Implementation of text output format."""
 
-from typing import Any
-
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -51,7 +49,7 @@ class TextFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling text data.
 
         Args:
@@ -61,7 +59,7 @@ class TextFormat(FormatDef):
             A Formatter instance configured for text handling.
         """
 
-        def message_parser(msg: MessageWrapper):
+        def message_parser(msg: MessageWrapper) -> str:
             """Extracts text from a Message object.
 
             Args:
@@ -72,7 +70,7 @@ class TextFormat(FormatDef):
             """
             return msg.text
 
-        def chunk_parser(chunk: GenerateResponseChunkWrapper):
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> str:
             """Extracts text from a GenerateResponseChunkWrapper object.
 
             Args:

@@ -99,7 +99,7 @@ FlexibleResourceFn = ResourceFn | Callable[..., Awaitable[ResourcePayload] | Res
 class MatchableAction(Protocol):
     """Protocol for actions that have a matches method."""
 
-    matches: Callable[[ResourceInput], bool]
+    matches: Callable[[object], bool]
 
 
 ResourceArgument = Action | str
@@ -309,7 +309,7 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     return act
 
 
-def create_matcher(uri: str | None, template: str | None) -> Callable[[ResourceInput], bool]:
+def create_matcher(uri: str | None, template: str | None) -> Callable[[object], bool]:
     """Creates a matching function for resource validation.
 
     Args:
@@ -317,10 +317,12 @@ def create_matcher(uri: str | None, template: str | None) -> Callable[[ResourceI
         template: Optional URI template string.
 
     Returns:
-        A callable that takes ResourceInput and returns True if it matches.
+        A callable that takes an object (expected to be ResourceInput) and returns True if it matches.
     """
 
-    def matcher(input_data: ResourceInput) -> bool:
+    def matcher(input_data: object) -> bool:
+        if not isinstance(input_data, ResourceInput):
+            return False
         if uri:
             return input_data.uri == uri
         if template:
@@ -339,7 +341,7 @@ def is_dynamic_resource_action(action: Action) -> bool:
     Returns:
         True if the action is a dynamic resource, False otherwise.
     """
-    return action.kind == ActionKind.RESOURCE and action.metadata.get('dynamic', True)
+    return action.kind == ActionKind.RESOURCE and bool(action.metadata.get('dynamic', True))
 
 
 def matches_uri_template(template: str, uri: str) -> dict[str, str] | None:

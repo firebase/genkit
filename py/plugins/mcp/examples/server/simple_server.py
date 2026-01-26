@@ -43,7 +43,7 @@ def main() -> None:
     ai = Genkit(prompt_dir=prompts_dir)
 
     @ai.tool(name='add', description='add two numbers together')
-    def add(input: AddInput):
+    def add(input: AddInput) -> int:
         return input.a + input.b
 
     # Genkit Python prompt definition (simplified)

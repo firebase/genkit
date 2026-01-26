@@ -18,7 +18,7 @@
 
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import Generic, TypeVar
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum
@@ -60,7 +60,10 @@ class ActionKind(StrEnum):
     UTIL = 'util'
 
 
-class ActionResponse(BaseModel):
+ResponseT = TypeVar('ResponseT')
+
+
+class ActionResponse(BaseModel, Generic[ResponseT]):
     """The response from an action.
 
     Attributes:
@@ -68,9 +71,11 @@ class ActionResponse(BaseModel):
         trace_id: A unique identifier for tracing the action execution.
     """
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+    model_config = ConfigDict(
+        extra='forbid', populate_by_name=True, alias_generator=to_camel, arbitrary_types_allowed=True
+    )
 
-    response: Any
+    response: ResponseT
     trace_id: str
 
 

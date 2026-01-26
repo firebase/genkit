@@ -24,7 +24,7 @@ from partial_json_parser import loads
 CHAR_NON_BREAKING_SPACE = '\u00a0'
 
 
-def parse_partial_json(json_string: str) -> Any:
+def parse_partial_json(json_string: str) -> Any:  # noqa: ANN401
     """Parses a partially complete JSON string and returns the parsed object.
 
     This function attempts to parse the given JSON string, even if it is not
@@ -43,7 +43,7 @@ def parse_partial_json(json_string: str) -> Any:
     return loads(json_string)
 
 
-def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
+def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:  # noqa: ANN401
     """Extracts JSON from a string with lenient parsing.
 
     This function attempts to extract a valid JSON object or array from a

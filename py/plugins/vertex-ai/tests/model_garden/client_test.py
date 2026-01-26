@@ -24,7 +24,9 @@ from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
 @patch('google.auth.default')
 @patch('google.auth.transport.requests.Request')
 @patch('openai.OpenAI')
-def test_client_initialization_with_explicit_project_id(mock_openai_cls, mock_request_cls, mock_default_auth) -> None:
+def test_client_initialization_with_explicit_project_id(
+    mock_openai_cls: MagicMock, mock_request_cls: MagicMock, mock_default_auth: MagicMock
+) -> None:
     """Unittests for init client."""
     mock_location = 'location'
     mock_project_id = 'project_id'
@@ -48,7 +50,7 @@ def test_client_initialization_with_explicit_project_id(mock_openai_cls, mock_re
 @patch('google.auth.transport.requests.Request')
 @patch('openai.OpenAI')
 def test_client_initialization_without_explicit_project_id(
-    mock_openai_cls, mock_request_cls, mock_default_auth
+    mock_openai_cls: MagicMock, mock_request_cls: MagicMock, mock_default_auth: MagicMock
 ) -> None:
     """Unittests for init client."""
     mock_location = 'location'

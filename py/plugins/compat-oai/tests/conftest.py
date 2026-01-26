@@ -30,7 +30,7 @@ from genkit.types import (
 
 
 @pytest.fixture
-def sample_request():
+def sample_request() -> GenerateRequest:
     """Fixture to create a sample GenerateRequest object."""
     return GenerateRequest(
         messages=[

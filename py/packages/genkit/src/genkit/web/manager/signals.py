@@ -172,7 +172,7 @@ class SignalHandler:
         """
 
         # Define signal handler function that works in the main thread
-        def _handle_signal(sig: int, frame: Any) -> None:
+        def _handle_signal(sig: int, frame: Any) -> None:  # noqa: ANN401
             """Handle received signal.
 
             Args:

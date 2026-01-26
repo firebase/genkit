@@ -23,7 +23,7 @@
 import pytest
 
 from genkit.ai import Genkit, Plugin
-from genkit.core.action import Action, ActionMetadata
+from genkit.core.action import Action, ActionMetadata, ActionRunContext
 from genkit.core.registry import ActionKind
 from genkit.core.typing import FinishReason
 from genkit.types import GenerateRequest, GenerateResponse, Message, Part, Role, TextPart
@@ -34,19 +34,19 @@ class AsyncResolveOnlyPlugin(Plugin):
 
     name = 'async-resolve-only'
 
-    async def init(self):
+    async def init(self) -> list[Action]:
         """Initialize the plugin."""
         # Intentionally register nothing eagerly.
         return []
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action."""
         if action_type != ActionKind.MODEL:
             return None
         if name != f'{self.name}/lazy-model':
             return None
 
-        async def _generate(req: GenerateRequest, ctx):
+        async def _generate(req: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: lazy'))]),
                 finish_reason=FinishReason.STOP,
@@ -58,7 +58,7 @@ class AsyncResolveOnlyPlugin(Plugin):
             fn=_generate,
         )
 
-    async def list_actions(self):
+    async def list_actions(self) -> list[ActionMetadata]:
         """List available actions."""
         return [
             ActionMetadata(
@@ -73,19 +73,19 @@ class AsyncInitPlugin(Plugin):
 
     name = 'async-init-plugin'
 
-    async def init(self):
+    async def init(self) -> list[Action]:
         """Initialize the plugin."""
         action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')
-        return [action]
+        return [action] if action else []
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action."""
         if action_type != ActionKind.MODEL:
             return None
         if name != f'{self.name}/init-model':
             return None
 
-        async def _generate(req: GenerateRequest, ctx):
+        async def _generate(req: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: resolve'))]),
                 finish_reason=FinishReason.STOP,
@@ -97,7 +97,7 @@ class AsyncInitPlugin(Plugin):
             fn=_generate,
         )
 
-    async def list_actions(self):
+    async def list_actions(self) -> list[ActionMetadata]:
         """List available actions."""
         return [
             ActionMetadata(

@@ -60,7 +60,7 @@ class GenkitSpan:
         if labels is not None:
             self.set_attributes(labels)
 
-    def __getattr__(self, name) -> Any:
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
         """Passthrough for all OpenTelemetry Span attributes."""
         return getattr(self._span, name)
 
@@ -89,7 +89,7 @@ class GenkitSpan:
         """Returns the trace_id."""
         return str(self._span.get_span_context().trace_id)
 
-    def set_input(self, input: Any) -> None:
+    def set_input(self, input: object) -> None:
         """Set Genkit Span input, visible in the trace viewer."""
         value = None
         if isinstance(input, BaseModel):
@@ -98,7 +98,7 @@ class GenkitSpan:
             value = json.dumps(input)
         self.set_genkit_attribute('input', value)
 
-    def set_output(self, output: Any) -> None:
+    def set_output(self, output: object) -> None:
         """Set Genkit Span output, visible in the trace viewer."""
         value = None
         if isinstance(output, BaseModel):

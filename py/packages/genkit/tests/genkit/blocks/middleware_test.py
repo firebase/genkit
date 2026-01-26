@@ -36,12 +36,12 @@ from genkit.core.typing import (
 )
 
 
-async def run_augmenter(req: GenerateRequest):
+async def run_augmenter(req: GenerateRequest) -> GenerateRequest:
     """Helper to run the augment_with_context middleware."""
     augmenter = augment_with_context()
     req_future = asyncio.Future()
 
-    async def next(req, _):
+    async def next(req: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
         req_future.set_result(req)
         return GenerateResponse(message=Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]))
 

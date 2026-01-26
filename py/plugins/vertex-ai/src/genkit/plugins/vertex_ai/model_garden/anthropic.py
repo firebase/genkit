@@ -79,6 +79,6 @@ class AnthropicModelGarden:
         )
 
     @staticmethod
-    def get_config_schema():
+    def get_config_schema() -> type[GenerationCommonConfig]:
         """Returns the config schema for this model type."""
         return GenerationCommonConfig

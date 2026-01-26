@@ -16,6 +16,8 @@
 
 """Tests for the schema module."""
 
+from typing import Any
+
 import pytest
 from pydantic import BaseModel, Field
 
@@ -115,7 +117,7 @@ class TestNumericTypes:
             (float, 'number'),
         ],
     )
-    def test_numeric_types(self, py_type, json_type_name) -> None:
+    def test_numeric_types(self, py_type: type, json_type_name: str) -> None:
         """Python numeric types should produce correct JSON Schema numeric types."""
         assert to_json_schema(py_type) == {'type': json_type_name}
 
@@ -144,7 +146,7 @@ class TestArrayType:
             (list[int], {'type': 'integer'}),
         ],
     )
-    def test_list_types(self, list_type, item_schema) -> None:
+    def test_list_types(self, list_type: type, item_schema: dict[str, Any]) -> None:
         """Python list types should produce array schema with correct item types."""
         result = to_json_schema(list_type)
         assert result['type'] == 'array'
@@ -198,6 +200,6 @@ class TestPassthroughBehavior:
         ],
         ids=['simple_schema', 'complex_schema'],
     )
-    def test_passthrough_behavior(self, schema) -> None:
+    def test_passthrough_behavior(self, schema: dict[str, Any]) -> None:
         """A dict representing a JSON Schema should be returned as-is."""
         assert to_json_schema(schema) == schema

@@ -54,7 +54,7 @@ class HttpErrorWireFormat(BaseModel):
 
     model_config = ConfigDict(extra='allow', populate_by_name=True)
 
-    details: Any
+    details: Any  # noqa: ANN401
     message: str
     status: str = StatusCodes.INTERNAL.name
 
@@ -70,7 +70,7 @@ class GenkitError(Exception):
         message: str,
         status: StatusName | None = None,
         cause: Exception | None = None,
-        details: Any = None,
+        details: Any = None,  # noqa: ANN401
         trace_id: str | None = None,
         source: str | None = None,
     ) -> None:
@@ -166,7 +166,7 @@ class UserFacingError(GenkitError):
     exceptions being leaked to attackers.
     """
 
-    def __init__(self, status: StatusName, message: str, details: Any = None) -> None:
+    def __init__(self, status: StatusName, message: str, details: Any = None) -> None:  # noqa: ANN401
         """Initialize a UserFacingError.
 
         Args:
@@ -177,7 +177,7 @@ class UserFacingError(GenkitError):
         super().__init__(status=status, message=message, details=details)
 
 
-def get_http_status(error: Any) -> int:
+def get_http_status(error: object) -> int:
     """Get the HTTP status code for an error.
 
     Args:
@@ -191,7 +191,7 @@ def get_http_status(error: Any) -> int:
     return 500
 
 
-def get_reflection_json(error: Any) -> GenkitReflectionApiErrorWireFormat:
+def get_reflection_json(error: object) -> GenkitReflectionApiErrorWireFormat:
     """Get the JSON representation of an error for callable responses.
 
     Args:
@@ -209,7 +209,7 @@ def get_reflection_json(error: Any) -> GenkitReflectionApiErrorWireFormat:
     )
 
 
-def get_callable_json(error: Any) -> HttpErrorWireFormat:
+def get_callable_json(error: object) -> HttpErrorWireFormat:
     """Get the JSON representation of an error for callable responses.
 
     Args:
@@ -227,7 +227,7 @@ def get_callable_json(error: Any) -> HttpErrorWireFormat:
     )
 
 
-def get_error_message(error: Any) -> str:
+def get_error_message(error: object) -> str:
     """Extract error message from an error object.
 
     Args:
@@ -241,14 +241,14 @@ def get_error_message(error: Any) -> str:
     return str(error)
 
 
-def get_error_stack(error: Exception) -> str | None:
+def get_error_stack(error: object) -> str | None:
     """Extract stack trace from an error object.
 
     Args:
         error: The error to get the stack trace from.
 
     Returns:
-        The stack trace string if available.
+        The stack trace string if available, None otherwise.
     """
     if isinstance(error, Exception):
         return ''.join(traceback.format_tb(error.__traceback__))

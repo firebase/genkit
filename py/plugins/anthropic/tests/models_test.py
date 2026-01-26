@@ -16,6 +16,7 @@
 
 """Tests for Anthropic models."""
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -188,7 +189,7 @@ class MockStreamManager:
 
     """Mock stream manager for testing streaming."""
 
-    def __init__(self, chunks, final_content=None) -> None:
+    def __init__(self, chunks: list[Any], final_content: list[Any] | None = None) -> None:
         """Initialize the MockStreamManager."""
         self.chunks = chunks
         self.final_message = MagicMock()
@@ -196,25 +197,25 @@ class MockStreamManager:
         self.final_message.usage = MagicMock(input_tokens=10, output_tokens=20)
         self.final_message.stop_reason = 'end_turn'
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'MockStreamManager':
         """Enter the async context manager."""
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: object) -> None:
         """Exit the async context manager."""
         pass
 
-    def __aiter__(self):
+    def __aiter__(self) -> 'MockStreamManager':
         """Return the async iterator."""
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> object:
         """Return the next chunk from the stream."""
         if not self.chunks:
             raise StopAsyncIteration
         return self.chunks.pop(0)
 
-    async def get_final_message(self):
+    async def get_final_message(self) -> object:
         """Get the final message from the stream."""
         return self.final_message
 

@@ -23,6 +23,7 @@ Tests tools, prompts, and resources exposed via MCP server.
 import os
 import sys
 import unittest
+from typing import Any, cast
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
@@ -285,7 +286,10 @@ class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsNotNone(action)
         self.assertEqual(action.kind, ActionKind.RESOURCE)
-        self.assertEqual(action.metadata['resource']['uri'], 'test://resource')
+        assert action.metadata is not None
+        metadata = cast(dict[str, Any], action.metadata)
+        resource_meta = cast(dict[str, Any], metadata['resource'])
+        self.assertEqual(resource_meta['uri'], 'test://resource')
 
     async def test_resource_registration_with_template(self) -> None:
         """Test registering a resource with URI template."""
@@ -297,7 +301,10 @@ class TestResourceFunctionality(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsNotNone(action)
         self.assertEqual(action.kind, ActionKind.RESOURCE)
-        self.assertEqual(action.metadata['resource']['template'], 'file://{+path}')
+        assert action.metadata is not None
+        metadata = cast(dict[str, Any], action.metadata)
+        resource_meta = cast(dict[str, Any], metadata['resource'])
+        self.assertEqual(resource_meta['template'], 'file://{+path}')
 
     async def test_resource_requires_uri_or_template(self) -> None:
         """Test that resource requires either uri or template."""

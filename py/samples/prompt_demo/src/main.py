@@ -19,12 +19,12 @@
 import os
 import weakref
 from pathlib import Path
-from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionKind, Genkit
+from genkit.blocks.prompt import ExecutablePrompt
 from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 
@@ -40,7 +40,7 @@ prompts_path = current_dir.parent / 'prompts'
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-3-flash-preview', prompt_dir=prompts_path)
 
 
-def list_helper(data: Any, *args: Any, **kwargs: Any) -> str:
+def list_helper(data: object, *args: object, **kwargs: object) -> str:
     """Format a list of strings as bullet points.
 
     Args:
@@ -79,7 +79,7 @@ ai.define_schema('Recipe', Recipe)
 _sticky_prompts = {}
 
 
-async def get_sticky_prompt(name: str, variant: str | None = None) -> Any:
+async def get_sticky_prompt(name: str, variant: str | None = None) -> ExecutablePrompt:
     """Helper to get a prompt and keep it alive."""
     key = f'{name}:{variant}' if variant else name
     if key in _sticky_prompts:

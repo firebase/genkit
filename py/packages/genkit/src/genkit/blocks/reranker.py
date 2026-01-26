@@ -333,7 +333,7 @@ def define_reranker(
 
     async def wrapper(
         request: RerankerRequest,
-        _ctx: Any,
+        _ctx: Any,  # noqa: ANN401
     ) -> RerankerResponse:
         query_doc = Document.from_document_data(request.query)
         documents = [Document.from_document_data(d) for d in request.documents]
@@ -344,7 +344,7 @@ def define_reranker(
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
-        span_metadata=metadata.metadata,
+        span_metadata={'genkit:metadata:reranker:name': name},
         description=description,
     )
 

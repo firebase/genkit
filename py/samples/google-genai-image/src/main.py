@@ -21,7 +21,7 @@ import base64
 import logging
 import os
 import pathlib
-from typing import Annotated, Any
+from typing import Annotated
 
 from google import genai
 from google.genai import types as genai_types
@@ -211,7 +211,7 @@ async def nano_banana_pro() -> Media | None:
 
 
 @ai.flow()
-async def photo_move_veo(_: Any, context: ActionRunContext | None = None) -> Any:
+async def photo_move_veo(_: object, context: ActionRunContext | None = None) -> object:
     """An example of using Ver 3 model to make a static photo move."""
     # Find photo.jpg (or my_room.png)
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'

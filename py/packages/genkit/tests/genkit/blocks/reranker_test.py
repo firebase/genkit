@@ -20,6 +20,8 @@ This module contains tests for the reranker functionality including
 RankedDocument, define_reranker, and rerank functions.
 """
 
+from typing import Any, cast
+
 import pytest
 
 from genkit.blocks.reranker import (
@@ -41,6 +43,7 @@ from genkit.core.typing import (
     RerankerResponse,
     TextPart,
 )
+from genkit.types import Document
 
 
 class TestRankedDocument:
@@ -130,23 +133,28 @@ class TestRerankerActionMetadata:
         metadata = reranker_action_metadata('test-reranker', options)
 
         assert metadata.metadata is not None
-        assert metadata.metadata['reranker']['label'] == 'Custom Label'
-        assert metadata.metadata['reranker']['customOptions'] == {'type': 'object'}
+        md = cast(dict[str, Any], metadata.metadata)
+        assert md['reranker']['label'] == 'Custom Label'
+        assert md['reranker']['customOptions'] == {'type': 'object'}
 
 
 class TestDefineReranker:
     """Tests for the define_reranker function."""
 
     @pytest.fixture
-    def registry(self):
+    def registry(self) -> Registry:
         """Create a fresh registry for each test."""
         return Registry()
 
     @pytest.mark.asyncio
-    async def test_define_reranker_registers_action(self, registry) -> None:
+    async def test_define_reranker_registers_action(self, registry: Registry) -> None:
         """Test that define_reranker registers an action in the registry."""
 
-        async def simple_reranker(query, documents, options):
+        async def simple_reranker(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             # Return documents in same order with scores
             return RerankerResponse(
                 documents=[
@@ -166,10 +174,14 @@ class TestDefineReranker:
         assert action.name == 'test-reranker'
 
     @pytest.mark.asyncio
-    async def test_define_reranker_with_options(self, registry) -> None:
+    async def test_define_reranker_with_options(self, registry: Registry) -> None:
         """Test define_reranker with custom options."""
 
-        async def reranker_fn(query, documents, options):
+        async def reranker_fn(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             return RerankerResponse(documents=[])
 
         options = RerankerOptions(label='My Reranker')
@@ -182,12 +194,12 @@ class TestRerank:
     """Tests for the rerank function."""
 
     @pytest.fixture
-    def registry(self):
+    def registry(self) -> Registry:
         """Create a fresh registry for each test."""
         return Registry()
 
     @pytest.fixture
-    def sample_documents(self):
+    def sample_documents(self) -> list[DocumentData]:
         """Create sample documents for testing."""
         return [
             DocumentData(content=[DocumentPart(root=TextPart(text='First document'))]),
@@ -196,10 +208,18 @@ class TestRerank:
         ]
 
     @pytest.mark.asyncio
-    async def test_rerank_with_string_query(self, registry, sample_documents) -> None:
+    async def test_rerank_with_string_query(
+        self,
+        registry: Registry,
+        sample_documents: list[Document],
+    ) -> None:
         """Test rerank with a string query."""
 
-        async def score_by_length(query, documents, options):
+        async def score_by_length(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             # Score documents by content length (longer = higher score)
             scored = []
             for doc in documents:
@@ -227,10 +247,18 @@ class TestRerank:
         assert all(isinstance(r, RankedDocument) for r in results)
 
     @pytest.mark.asyncio
-    async def test_rerank_with_reranker_ref(self, registry, sample_documents) -> None:
+    async def test_rerank_with_reranker_ref(
+        self,
+        registry: Registry,
+        sample_documents: list[Document],
+    ) -> None:
         """Test rerank with a RerankerRef."""
 
-        async def simple_reranker(query, documents, options):
+        async def simple_reranker(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             return RerankerResponse(
                 documents=[
                     RankedDocumentData(
@@ -257,7 +285,11 @@ class TestRerank:
         assert all(doc.score == 0.5 for doc in results)
 
     @pytest.mark.asyncio
-    async def test_rerank_unknown_reranker_raises(self, registry, sample_documents) -> None:
+    async def test_rerank_unknown_reranker_raises(
+        self,
+        registry: Registry,
+        sample_documents: list[Document],
+    ) -> None:
         """Test that rerank raises ValueError for unknown reranker."""
         with pytest.raises(ValueError, match='Unable to resolve reranker'):
             await rerank(
@@ -279,12 +311,12 @@ class TestCustomRerankers:
     """
 
     @pytest.fixture
-    def registry(self):
+    def registry(self) -> Registry:
         """Create a fresh registry for each test."""
         return Registry()
 
     @pytest.fixture
-    def sample_documents(self):
+    def sample_documents(self) -> list[DocumentData]:
         """Create sample documents matching genkit.dev documentation example."""
         return [
             DocumentData(content=[DocumentPart(root=TextPart(text='pythagorean theorem'))]),
@@ -297,14 +329,22 @@ class TestCustomRerankers:
         ]
 
     @pytest.mark.asyncio
-    async def test_custom_keyword_overlap_reranker(self, registry, sample_documents) -> None:
+    async def test_custom_keyword_overlap_reranker(
+        self,
+        registry: Registry,
+        sample_documents: list[Document],
+    ) -> None:
         """Test a custom reranker that scores by keyword overlap.
 
         This demonstrates the pattern shown in genkit.dev docs for
         creating custom reranking logic.
         """
 
-        async def keyword_overlap_reranker(query, documents, options):
+        async def keyword_overlap_reranker(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             """Reranker that scores documents by keyword overlap with query."""
             query_words = set(query.text().lower().split())
             scored = []
@@ -351,13 +391,21 @@ class TestCustomRerankers:
         assert results[0].score > 0
 
     @pytest.mark.asyncio
-    async def test_custom_reranker_with_top_k_option(self, registry, sample_documents) -> None:
+    async def test_custom_reranker_with_top_k_option(
+        self,
+        registry: Registry,
+        sample_documents: list[Document],
+    ) -> None:
         """Test custom reranker with k option to limit results.
 
         Demonstrates using options to configure reranking behavior.
         """
 
-        async def random_score_reranker(query, documents, options):
+        async def random_score_reranker(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             """Reranker that assigns incrementing scores and respects k option."""
             k = options.get('k', 3) if options else 3
 
@@ -392,10 +440,14 @@ class TestCustomRerankers:
         assert len(results) == 3
 
     @pytest.mark.asyncio
-    async def test_custom_reranker_preserves_document_content(self, registry) -> None:
+    async def test_custom_reranker_preserves_document_content(self, registry: Registry) -> None:
         """Test that custom reranker preserves original document content."""
 
-        async def identity_reranker(query, documents, options):
+        async def identity_reranker(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             """Reranker that returns documents with their original content."""
             return RerankerResponse(
                 documents=[
@@ -426,7 +478,7 @@ class TestCustomRerankers:
         assert result_texts == original_texts
 
     @pytest.mark.asyncio
-    async def test_custom_reranker_two_stage_retrieval_pattern(self, registry) -> None:
+    async def test_custom_reranker_two_stage_retrieval_pattern(self, registry: Registry) -> None:
         """Test the two-stage retrieval pattern: retrieve then rerank.
 
         This demonstrates the typical RAG pattern where:
@@ -442,7 +494,11 @@ class TestCustomRerankers:
             DocumentData(content=[DocumentPart(root=TextPart(text='AI transforms industries'))]),
         ]
 
-        async def relevance_reranker(query, documents, options):
+        async def relevance_reranker(
+            query: Document,
+            documents: list[Document],
+            options: dict[str, Any] | None,
+        ) -> RerankerResponse:
             """Reranker that scores by word presence in query."""
             query_lower = query.text().lower()
             scored = []

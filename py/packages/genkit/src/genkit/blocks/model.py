@@ -34,7 +34,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from functools import cached_property
 from typing import Any, TypeVar, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from genkit.core.action import ActionMetadata, ActionRunContext
 from genkit.core.action.types import ActionKind
@@ -83,10 +83,10 @@ class ModelReference(BaseModel):
     """Reference to a model with configuration."""
 
     name: str
-    config_schema: Any | None = None
+    config_schema: object | None = None
     info: ModelInfo | None = None
     version: str | None = None
-    config: dict[str, Any] | None = None
+    config: dict[str, object] | None = None
 
 
 class MessageWrapper(Message):
@@ -149,8 +149,8 @@ class GenerateResponseWrapper(GenerateResponse):
     `assert_valid_schema`). It also handles optional message/chunk parsing.
     """
 
-    # Field(exclude=True) means this field is not included in serialization
-    message_parser: MessageParser | None = Field(None, exclude=True)
+    # _message_parser is a private attribute that Pydantic will ignore
+    _message_parser: MessageParser | None = PrivateAttr(None)
     # Override the parent's message field with our wrapper type
     message: MessageWrapper | None = None
 
@@ -187,7 +187,7 @@ class GenerateResponseWrapper(GenerateResponse):
             candidates=response.candidates,
         )
         # Set subclass-specific field after parent initialization
-        self.message_parser = message_parser
+        self._message_parser = message_parser
 
     def assert_valid(self) -> None:
         """Validates the basic structure of the response.
@@ -223,14 +223,14 @@ class GenerateResponseWrapper(GenerateResponse):
         return self.message.text
 
     @cached_property
-    def output(self) -> Any:
+    def output(self) -> object:
         """Parses out JSON data from the text parts of the response.
 
         Returns:
             Any: The parsed JSON data from the response.
         """
-        if self.message_parser:
-            return self.message_parser(self.message)
+        if self._message_parser:
+            return self._message_parser(self.message)
         return extract_json(self.text)
 
     @cached_property
@@ -348,7 +348,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         return ''.join(parts) + self.text
 
     @cached_property
-    def output(self) -> Any:
+    def output(self) -> object:
         """Parses out JSON data from the accumulated text parts of the response.
 
         Returns:
@@ -487,8 +487,8 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
 
 def model_action_metadata(
     name: str,
-    info: dict[str, Any] | None = None,
-    config_schema: Any | None = None,
+    info: dict[str, object] | None = None,
+    config_schema: type | dict[str, Any] | None = None,
 ) -> ActionMetadata:
     """Generates an ActionMetadata for models."""
     info = info if info is not None else {}
@@ -501,14 +501,29 @@ def model_action_metadata(
     )
 
 
-def model_ref(name: str, namespace: str | None = None, **options: Any) -> ModelReference:
-    """The factory function equivalent to export function modelRef(...)."""
+def model_ref(
+    name: str,
+    namespace: str | None = None,
+    info: ModelInfo | None = None,
+    version: str | None = None,
+    config: dict[str, object] | None = None,
+) -> ModelReference:
+    """The factory function equivalent to export function modelRef(...).
+
+    Args:
+        name: The model name.
+        namespace: Optional namespace to prefix the name.
+        info: Optional model info.
+        version: Optional model version.
+        config: Optional model configuration.
+
+    Returns:
+        A ModelReference instance.
+    """
     # Logic: if (options.namespace && !name.startsWith(options.namespace + '/'))
     if namespace and not name.startswith(f'{namespace}/'):
         final_name = f'{namespace}/{name}'
     else:
         final_name = name
 
-    # Create and return the Pydantic model instance
-    # We pass **options to capture any other properties passed in
-    return ModelReference(name=final_name, **options)
+    return ModelReference(name=final_name, info=info, version=version, config=config)

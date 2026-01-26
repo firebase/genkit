@@ -16,6 +16,8 @@
 
 """Tests for the action module."""
 
+from collections.abc import Callable
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -74,12 +76,14 @@ def test_embedder_action_metadata_with_supports_and_config_schema() -> None:
     )
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata is not None
-    assert action_metadata.metadata['embedder']['label'] == 'Advanced Embedder'
-    assert action_metadata.metadata['embedder']['dimensions'] == options.dimensions
-    assert action_metadata.metadata['embedder']['supports'] == {
+    metadata = cast(dict[str, Any], action_metadata.metadata)
+    embedder_meta = cast(dict[str, Any], metadata['embedder'])
+    assert embedder_meta['label'] == 'Advanced Embedder'
+    assert embedder_meta['dimensions'] == options.dimensions
+    assert embedder_meta['supports'] == {
         'input': ['text', 'image'],
     }
-    assert action_metadata.metadata['embedder']['customOptions'] == {
+    assert embedder_meta['customOptions'] == {
         'title': 'CustomConfig',
         'type': 'object',
         'properties': {
@@ -138,15 +142,26 @@ class MockGenkitRegistry:
         """Initialize the MockGenkitRegistry."""
         self.actions = {}
 
-    def register_action(self, name, kind, fn, metadata, description):
-        """Register a mock action."""
+    def register_action(
+        self,
+        name: str,
+        kind: str,
+        fn: Callable[..., Any],
+        metadata: dict[str, object] | None,
+        description: str | None,
+    ) -> Any:  # noqa: ANN401
+        """Register a mock action.
+
+        Note: Returns Any because we return MagicMock objects that have
+        mock-specific attributes like assert_called_once and call_args.
+        """
         mock_action = MagicMock(spec=Action)
         mock_action.name = name
         mock_action.kind = kind
         mock_action.metadata = metadata
         mock_action.description = description
 
-        async def mock_arun_side_effect(request, *args, **kwargs):
+        async def mock_arun_side_effect(request: object, *args: object, **kwargs: object) -> ActionResponse:
             # Call the actual (fake) embedder function directly
             embed_response = await fn(request)
             return ActionResponse(response=embed_response, trace_id='mock_trace_id')
@@ -155,13 +170,16 @@ class MockGenkitRegistry:
         self.actions[(kind, name)] = mock_action
         return mock_action
 
-    async def resolve_action(self, kind, name):
-        """Async action resolution for new plugin API."""
+    async def resolve_action(self, kind: str, name: str) -> Any:  # noqa: ANN401
+        """Async action resolution for new plugin API.
+
+        Note: Returns Any because actions are MagicMock objects.
+        """
         return self.actions.get((kind, name))
 
 
 @pytest.fixture
-def mock_genkit_instance():
+def mock_genkit_instance() -> tuple[Genkit, MockGenkitRegistry]:
     """Fixture for a Genkit instance with a mock registry."""
     registry = MockGenkitRegistry()
     genkit_instance = Genkit()
@@ -170,7 +188,9 @@ def mock_genkit_instance():
 
 
 @pytest.mark.asyncio
-async def test_embed_with_embedder_ref(mock_genkit_instance) -> None:
+async def test_embed_with_embedder_ref(
+    mock_genkit_instance: tuple[Genkit, MockGenkitRegistry],
+) -> None:
     """Test the embed method using EmbedderRef."""
     genkit_instance, registry = mock_genkit_instance
 
@@ -210,7 +230,9 @@ async def test_embed_with_embedder_ref(mock_genkit_instance) -> None:
 
 
 @pytest.mark.asyncio
-async def test_embed_with_string_name_and_options(mock_genkit_instance) -> None:
+async def test_embed_with_string_name_and_options(
+    mock_genkit_instance: tuple[Genkit, MockGenkitRegistry],
+) -> None:
     """Test the embed method using a string name for embedder and options."""
     genkit_instance, registry = mock_genkit_instance
 
@@ -239,7 +261,9 @@ async def test_embed_with_string_name_and_options(mock_genkit_instance) -> None:
 
 
 @pytest.mark.asyncio
-async def test_embed_missing_embedder_raises_error(mock_genkit_instance) -> None:
+async def test_embed_missing_embedder_raises_error(
+    mock_genkit_instance: tuple[Genkit, MockGenkitRegistry],
+) -> None:
     """Test that embedding with a missing embedder raises an error."""
     genkit_instance, _ = mock_genkit_instance
     content = 'some text'
@@ -249,7 +273,7 @@ async def test_embed_missing_embedder_raises_error(mock_genkit_instance) -> None
 
 
 @pytest.mark.asyncio
-async def test_embed_many(mock_genkit_instance) -> None:
+async def test_embed_many(mock_genkit_instance: tuple[Genkit, MockGenkitRegistry]) -> None:
     """Test the embed_many method."""
     genkit_instance, registry = mock_genkit_instance
 

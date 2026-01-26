@@ -49,10 +49,10 @@ class EvaluatorRef(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     name: str
-    config_schema: Any | None = None
+    config_schema: dict[str, object] | None = None
 
 
-def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
+def evaluator_ref(name: str, config_schema: dict[str, object] | None = None) -> EvaluatorRef:
     """Create a reference to an evaluator.
 
     Args:

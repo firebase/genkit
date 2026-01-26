@@ -24,7 +24,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, cast
+from typing import TypedDict, cast
 
 from genkit.aio import Channel
 from genkit.blocks.document import Document
@@ -65,6 +65,16 @@ from genkit.types import (
 
 from ._base_async import GenkitBase
 from ._server import ServerSpec
+
+
+class OutputConfigDict(TypedDict, total=False):
+    """TypedDict for output configuration when passed as a dict."""
+
+    format: str | None
+    content_type: str | None
+    instructions: bool | str | None
+    schema: type | dict[str, object] | None
+    constrained: bool | None
 
 
 class Genkit(GenkitBase):
@@ -127,16 +137,16 @@ class Genkit(GenkitBase):
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         tool_responses: list[Part] | None = None,
-        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
         max_turns: int | None = None,
         on_chunk: ModelStreamingCallback | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, Any] | None = None,
+        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
+        output: OutputConfig | OutputConfigDict | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
     ) -> GenerateResponseWrapper:
@@ -274,15 +284,15 @@ class Genkit(GenkitBase):
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
         max_turns: int | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, Any] | None = None,
+        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
+        output: OutputConfig | OutputConfigDict | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
         timeout: float | None = None,
@@ -379,7 +389,7 @@ class Genkit(GenkitBase):
         self,
         retriever: str | RetrieverRef | None = None,
         query: str | DocumentData | None = None,
-        options: dict[str, Any] | None = None,
+        options: dict[str, object] | None = None,
     ) -> RetrieverResponse:
         """Retrieves documents based on query.
 
@@ -392,7 +402,7 @@ class Genkit(GenkitBase):
             The generated response with documents.
         """
         retriever_name: str
-        retriever_config: dict[str, Any] = {}
+        retriever_config: dict[str, object] = {}
 
         if isinstance(retriever, RetrieverRef):
             retriever_name = retriever.name
@@ -429,7 +439,7 @@ class Genkit(GenkitBase):
         self,
         indexer: str | IndexerRef | None = None,
         documents: list[Document] | None = None,
-        options: dict[str, Any] | None = None,
+        options: dict[str, object] | None = None,
     ) -> None:
         """Indexes documents.
 
@@ -439,7 +449,7 @@ class Genkit(GenkitBase):
             options: Optional indexer-specific options.
         """
         indexer_name: str
-        indexer_config: dict[str, Any] = {}
+        indexer_config: dict[str, object] = {}
 
         if isinstance(indexer, IndexerRef):
             indexer_name = indexer.name
@@ -473,8 +483,8 @@ class Genkit(GenkitBase):
         self,
         embedder: str | EmbedderRef | None = None,
         content: str | Document | DocumentData | None = None,
-        metadata: dict[str, Any] | None = None,
-        options: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
+        options: dict[str, object] | None = None,
     ) -> list[Embedding]:
         """Embeds a single document or string.
 
@@ -524,7 +534,7 @@ class Genkit(GenkitBase):
             >>> embeddings = await ai.embed(embedder=ref, content='Text')
         """
         embedder_name = self._resolve_embedder_name(embedder)
-        embedder_config: dict[str, Any] = {}
+        embedder_config: dict[str, object] = {}
 
         # Extract config and version from EmbedderRef (not done for embed_many per JS behavior)
         if isinstance(embedder, EmbedderRef):
@@ -558,8 +568,8 @@ class Genkit(GenkitBase):
         self,
         embedder: str | EmbedderRef | None = None,
         content: list[str] | list[Document] | list[DocumentData] | None = None,
-        metadata: dict[str, Any] | None = None,
-        options: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
+        options: dict[str, object] | None = None,
     ) -> list[Embedding]:
         """Embeds multiple documents or strings in a single batch call.
 
@@ -630,7 +640,7 @@ class Genkit(GenkitBase):
         self,
         evaluator: str | EvaluatorRef | None = None,
         dataset: list[BaseDataPoint] | None = None,
-        options: dict[str, Any] | None = None,
+        options: dict[str, object] | None = None,
         eval_run_id: str | None = None,
     ) -> EvalResponse:
         """Evaluates a dataset using an evaluator.
@@ -645,7 +655,7 @@ class Genkit(GenkitBase):
             The evaluation results.
         """
         evaluator_name: str = ''
-        evaluator_config: dict[str, Any] = {}
+        evaluator_config: dict[str, object] = {}
 
         if isinstance(evaluator, EvaluatorRef):
             evaluator_name = evaluator.name

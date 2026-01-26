@@ -100,7 +100,7 @@ async def test_define_sync_action() -> None:
 async def test_define_sync_action_with_input_without_type_annotation() -> None:
     """Define and run a sync action with input without type annotation."""
 
-    def sync_foo(input) -> str:
+    def sync_foo(input: object) -> str:
         """A sync action that returns 'syncFoo' with an input."""
         return f'syncFoo {input}'
 
@@ -152,7 +152,7 @@ async def test_define_sync_streaming_action() -> None:
 
     chunks = []
 
-    def on_chunk(c) -> None:
+    def on_chunk(c: object) -> None:
         chunks.append(c)
 
     assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
@@ -237,7 +237,7 @@ async def test_define_async_streaming_action() -> None:
 
     chunks = []
 
-    def on_chunk(c) -> None:
+    def on_chunk(c: object) -> None:
         chunks.append(c)
 
     assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
@@ -255,17 +255,17 @@ def test_parse_plugin_name_from_action_name() -> None:
 async def test_propagates_context_via_contextvar() -> None:
     """Context is properly propagated via contextvar."""
 
-    async def foo(_: str | None, ctx: ActionRunContext):
+    async def foo(_: str | None, ctx: ActionRunContext) -> str:
         return dump_json(ctx.context)
 
     foo_action = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
 
-    async def bar():
+    async def bar() -> str:
         return (await foo_action.arun()).response
 
     bar_action = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
 
-    async def baz():
+    async def baz() -> str:
         return (await bar_action.arun()).response
 
     baz_action = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)

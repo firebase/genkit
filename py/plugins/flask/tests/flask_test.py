@@ -17,13 +17,16 @@
 
 """Tests for the Flask plugin."""
 
-from flask import Flask
+from typing import Any
 
-from genkit.ai import Genkit
+from flask import Flask, Request
+
+from genkit.ai import ActionRunContext, Genkit
+from genkit.core.context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 
 
-def create_app():
+def create_app() -> Flask:
     """Create a Flask application for testing."""
     ai = Genkit()
 
@@ -32,14 +35,14 @@ def create_app():
         'TESTING': True,
     })
 
-    async def my_context_provider(request):
+    async def my_context_provider(request_data: RequestData[Request]) -> dict[str, Any]:
         """Provide a context for the flow."""
-        return {'username': request.headers.get('authorization')}
+        return {'username': request_data.request.headers.get('authorization')}
 
     @app.post('/chat')
     @genkit_flask_handler(ai, context_provider=my_context_provider)
     @ai.flow()
-    async def say_hi(name: str, ctx):
+    async def say_hi(name: str, ctx: ActionRunContext) -> dict[str, str]:
         ctx.send_chunk(1)
         ctx.send_chunk({'username': ctx.context.get('username')})
         ctx.send_chunk({'foo': 'bar'})

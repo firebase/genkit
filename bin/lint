@@ -21,9 +21,17 @@ TOP_DIR=$(git rev-parse --show-toplevel)
 
 GO_DIR="${TOP_DIR}/go"
 PY_DIR="${TOP_DIR}/py"
-JS_DIR="${TOP_DIR}/js"j
+JS_DIR="${TOP_DIR}/js"
 
 uv run --directory "${PY_DIR}" ruff check --fix --preview --unsafe-fixes .
+uv run --directory "${PY_DIR}" ruff format --preview .
+# Ensure Python test files follow the *_test.py naming convention.
+if find "${PY_DIR}" -name "test_*.py" -not -path "*/.*" | grep -q .; then
+    echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
+    find "${PY_DIR}" -name "test_*.py" -not -path "*/.*"
+    exit 1
+fi
+
 uv run --directory "${PY_DIR}" ty check .
 
 # Disabled because there are many lint errors.

@@ -33,7 +33,7 @@ Key features demonstrated in this sample:
 
 """
 
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 import structlog
 from pydantic import BaseModel, Field
@@ -199,9 +199,15 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')]
         output_schema=HelloSchema,
     )
     output = response.output
-    if not isinstance(output, dict) or 'text' not in output:
-        raise ValueError('Received invalid output from model')
-    return output['text']
+    if isinstance(output, HelloSchema):
+        return output.text
+    if isinstance(output, dict):
+        # Cast to proper dict type to satisfy type checker
+        output_dict = cast(dict[str, Any], output)
+        text_val = output_dict.get('text')
+        if isinstance(text_val, str):
+            return text_val
+    raise ValueError('Received invalid output from model')
 
 
 async def main() -> None:

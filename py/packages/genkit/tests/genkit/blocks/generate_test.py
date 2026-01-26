@@ -6,7 +6,8 @@
 """Tests for the action module."""
 
 import pathlib
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, cast
 
 import pytest
 import yaml
@@ -14,7 +15,11 @@ from pydantic import TypeAdapter
 
 from genkit.ai import ActionKind, Genkit
 from genkit.blocks.generate import generate_action
-from genkit.blocks.model import text_from_content, text_from_message
+from genkit.blocks.model import (
+    ModelMiddlewareNext,
+    text_from_content,
+    text_from_message,
+)
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -32,20 +37,21 @@ from genkit.core.typing import (
     TextPart,
 )
 from genkit.testing import (
+    ProgrammableModel,
     define_echo_model,
     define_programmable_model,
 )
 
 
 @pytest.fixture
-def setup_test():
+def setup_test() -> tuple[Genkit, ProgrammableModel]:
     """Setup the test."""
     ai = Genkit()
 
     pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='testTool')
-    def test_tool() -> Any:
+    def test_tool() -> object:
         """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
@@ -53,7 +59,9 @@ def setup_test():
 
 
 @pytest.mark.asyncio
-async def test_simple_text_generate_request(setup_test) -> None:
+async def test_simple_text_generate_request(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
     """Test that the generate action can generate text."""
     ai, pm = setup_test
 
@@ -81,7 +89,9 @@ async def test_simple_text_generate_request(setup_test) -> None:
 
 
 @pytest.mark.asyncio
-async def test_simulates_doc_grounding(setup_test) -> None:
+async def test_simulates_doc_grounding(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
     """Test that docs are correctly grounded and injected into prompt."""
     ai, pm = setup_test
 
@@ -124,13 +134,17 @@ async def test_simulates_doc_grounding(setup_test) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_applies_middleware(
-    setup_test,
+    setup_test: tuple[Genkit, ProgrammableModel],
 ) -> None:
     """When middleware is provided, apply it."""
     ai, *_ = setup_test
     define_echo_model(ai)
 
-    async def pre_middle(req, ctx, next):
+    async def pre_middle(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
@@ -141,8 +155,13 @@ async def test_generate_applies_middleware(
             ctx,
         )
 
-    async def post_middle(req, ctx, next):
+    async def post_middle(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
         resp: GenerateResponse = await next(req, ctx)
+        assert resp.message is not None
         txt = text_from_message(resp.message)
         return GenerateResponse(
             finish_reason=resp.finish_reason,
@@ -168,14 +187,19 @@ async def test_generate_applies_middleware(
 
 @pytest.mark.asyncio
 async def test_generate_middleware_next_fn_args_optional(
-    setup_test,
+    setup_test: tuple[Genkit, ProgrammableModel],
 ) -> None:
     """Can call next function without args (convenience)."""
     ai, *_ = setup_test
     define_echo_model(ai)
 
-    async def post_middle(_, __, next):
-        resp: GenerateResponse = await next()
+    async def post_middle(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
+        resp: GenerateResponse = await next(req, ctx)
+        assert resp.message is not None
         txt = text_from_message(resp.message)
         return GenerateResponse(
             finish_reason=resp.finish_reason,
@@ -201,16 +225,24 @@ async def test_generate_middleware_next_fn_args_optional(
 
 @pytest.mark.asyncio
 async def test_generate_middleware_can_modify_context(
-    setup_test,
+    setup_test: tuple[Genkit, ProgrammableModel],
 ) -> None:
     """Test that middleware can modify context."""
     ai, *_ = setup_test
     define_echo_model(ai)
 
-    async def add_context(req, ctx, next):
+    async def add_context(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
         return await next(req, ActionRunContext(context={**ctx.context, 'banana': True}))
 
-    async def inject_context(req, ctx, next):
+    async def inject_context(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
@@ -244,7 +276,7 @@ async def test_generate_middleware_can_modify_context(
 
 @pytest.mark.asyncio
 async def test_generate_middleware_can_modify_stream(
-    setup_test,
+    setup_test: tuple[Genkit, ProgrammableModel],
 ) -> None:
     """Test that middleware can modify streams."""
     ai, pm = setup_test
@@ -263,7 +295,11 @@ async def test_generate_middleware_can_modify_stream(
         ]
     ]
 
-    async def modify_stream(req, ctx, next):
+    async def modify_stream(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
         ctx.send_chunk(
             GenerateResponseChunk(
                 role=Role.MODEL,
@@ -271,7 +307,8 @@ async def test_generate_middleware_can_modify_stream(
             )
         )
 
-        def chunk_handler(chunk) -> None:
+        def chunk_handler(chunk: object) -> None:
+            assert isinstance(chunk, GenerateResponseChunk)
             ctx.send_chunk(
                 GenerateResponseChunk(
                     role=Role.MODEL,
@@ -290,7 +327,7 @@ async def test_generate_middleware_can_modify_stream(
 
     got_chunks = []
 
-    def collect_chunks(c) -> None:
+    def collect_chunks(c: GenerateResponseChunk) -> None:
         got_chunks.append(text_from_content(c.content))
 
     response = await generate_action(
@@ -334,14 +371,14 @@ with open(pathlib.Path(__file__).parent.joinpath('../../../../../../tests/specs/
     specs,
 )
 @pytest.mark.asyncio
-async def test_generate_action_spec(spec) -> None:
+async def test_generate_action_spec(spec: dict[str, Any]) -> None:
     """Run tests based on external generate action specifications."""
     ai = Genkit()
 
     pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='testTool')
-    def test_tool() -> Any:
+    def test_tool() -> object:
         """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
@@ -364,7 +401,7 @@ async def test_generate_action_spec(spec) -> None:
     if 'stream' in spec and spec['stream']:
         chunks = []
 
-        def on_chunk(chunk) -> None:
+        def on_chunk(chunk: GenerateResponseChunk) -> None:
             chunks.append(chunk)
 
         action_response = await action.arun(
@@ -382,6 +419,7 @@ async def test_generate_action_spec(spec) -> None:
     if 'expectChunks' in spec:
         got = clean_schema(chunks)
         want = clean_schema(spec['expectChunks'])
+        assert isinstance(got, list) and isinstance(want, list)
         if not is_equal_lists(got, want):
             raise AssertionError(
                 f'{dump_json(got, indent=2)}\n\nis not equal to expected:\n\n{dump_json(want, indent=2)}'
@@ -396,7 +434,7 @@ async def test_generate_action_spec(spec) -> None:
             )
 
 
-def is_equal_lists(a, b) -> bool:
+def is_equal_lists(a: Sequence[object], b: Sequence[object]) -> bool:
     """Deep compare two lists of actions."""
     if len(a) != len(b):
         return False
@@ -411,23 +449,24 @@ def is_equal_lists(a, b) -> bool:
 primitives = (bool, str, int, float, type(None))
 
 
-def is_primitive(obj):
+def is_primitive(obj: object) -> bool:
     """Check if an object is a primitive type."""
     return isinstance(obj, primitives)
 
 
-def clean_schema(d):
+def clean_schema(d: object) -> object:
     """Remove $schema keys and other non-relevant parts from a dict recursively."""
     if is_primitive(d):
         return d
     if isinstance(d, dict):
-        out = {}
-        for key in d:
+        out: dict[str, object] = {}
+        d_dict = cast(dict[str, object], d)
+        for key in d_dict:
             # Skip $schema and latencyMs (dynamic value that varies between runs)
             if key not in ('$schema', 'latencyMs'):
-                out[key] = clean_schema(d[key])
+                out[key] = clean_schema(d_dict[key])
         return out
-    elif hasattr(d, '__len__'):
+    elif isinstance(d, (list, tuple)):
         return [clean_schema(i) for i in d]
     else:
         return d
