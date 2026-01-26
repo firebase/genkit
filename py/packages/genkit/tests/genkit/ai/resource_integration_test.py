@@ -81,7 +81,6 @@ async def test_dynamic_action_provider_resource() -> None:
     # Register a dynamic provider that handles any "dynamic://*" uri
     def provider_fn(input: dict[str, object], ctx: ActionRunContext) -> Action | None:
         from genkit.blocks.resource import resource
-
         kind = cast(ActionKind, input['kind'])
         name = cast(str, input['name'])
         if kind == ActionKind.RESOURCE and name.startswith('dynamic://'):
