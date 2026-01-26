@@ -58,7 +58,7 @@ import { openAISpeechModelRef, SUPPORTED_TTS_MODELS } from './tts.js';
 import {
   openAITranscriptionModelRef,
   SUPPORTED_STT_MODELS,
-} from './whisper.js';
+} from './stt.js';
 
 export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
