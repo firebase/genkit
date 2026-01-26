@@ -45,6 +45,9 @@ name = "prompt-demo"
 requires-python = ">=3.10"
 version = "0.0.1"
 
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
+
 [build-system]
 build-backend = "hatchling.build"
 requires      = ["hatchling"]
