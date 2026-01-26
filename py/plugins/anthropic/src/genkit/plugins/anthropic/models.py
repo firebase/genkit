@@ -112,30 +112,38 @@ class AnthropicModel:
     def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
         """Build Anthropic API parameters."""
         config = request.config
-        if isinstance(config, dict):
-            max_tokens = config.get('max_output_tokens') or DEFAULT_MAX_OUTPUT_TOKENS
-            temperature = config.get('temperature')
-            top_p = config.get('top_p')
-            stop_sequences = config.get('stop_sequences')
-            thinking = config.get('thinking')
-            metadata = config.get('metadata')
-        else:
-            max_tokens = (
-                config.max_output_tokens
-                if config and getattr(config, 'max_output_tokens', None)
-                else DEFAULT_MAX_OUTPUT_TOKENS
-            )
-            temperature = config.temperature if config and getattr(config, 'temperature', None) else None
-            top_p = config.top_p if config and getattr(config, 'top_p', None) else None
-            stop_sequences = config.stop_sequences if config and getattr(config, 'stop_sequences', None) else None
-            thinking = getattr(config, 'thinking', None) if config else None
-            metadata = getattr(config, 'metadata', None) if config else None
+        params: dict[str, Any] = {}
 
-        params: dict[str, Any] = {
-            'model': self.model_name,
-            'messages': self._to_anthropic_messages(request.messages),
-            'max_tokens': int(max_tokens),
-        }
+        if isinstance(config, dict):
+            params = config.copy()
+        elif config:
+            if hasattr(config, 'model_dump'):
+                params = config.model_dump(exclude_none=True)
+            else:
+                params = {k: v for k, v in vars(config).items() if v is not None}
+
+        # Handle mapped parameters
+        max_tokens = params.pop('max_output_tokens', None)
+        if max_tokens is None:
+            max_tokens = params.get('max_tokens', DEFAULT_MAX_OUTPUT_TOKENS)
+
+        params.get('temperature')
+        params.get('top_p')
+        params.get('stop_sequences')
+        thinking = params.pop('thinking', None)
+        metadata = params.pop('metadata', None)
+
+        # Standard mapped fields are already in params if they share names (temperature, top_p, stop_sequences)
+        # But we ensure they are set correctly if valid
+        # Actually, if they are in params, they are good.
+        # We just need to handle renaming/logic.
+
+        params['model'] = self.model_name
+        params['messages'] = self._to_anthropic_messages(request.messages)
+        params['max_tokens'] = int(max_tokens)
+
+        # Remove known genkit keys that don't map directly or are handled
+        params.pop('version', None)  # If version was passed through config
 
         if thinking:
             if isinstance(thinking, dict):
@@ -161,12 +169,6 @@ class AnthropicModel:
         system = self._extract_system(request.messages)
         if system:
             params['system'] = system
-        if temperature is not None:
-            params['temperature'] = temperature
-        if top_p is not None:
-            params['top_p'] = top_p
-        if stop_sequences:
-            params['stop_sequences'] = stop_sequences
 
         if request.tools:
             params['tools'] = [

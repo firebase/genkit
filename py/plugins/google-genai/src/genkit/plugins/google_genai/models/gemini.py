@@ -147,7 +147,7 @@ from typing import Any, cast
 
 from google import genai
 from google.genai import types as genai_types
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from genkit.ai import (
     ActionRunContext,
@@ -179,6 +179,8 @@ from genkit.types import (
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
     """Gemini Config Schema."""
+
+    model_config = ConfigDict(extra='allow')
 
     code_execution: bool | None = None
     response_modalities: list[str] | None = None

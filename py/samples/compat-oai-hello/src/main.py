@@ -51,11 +51,26 @@ logger = structlog.get_logger(__name__)
 ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4o'))
 
 
-class MyInput(BaseModel):
-    """My input."""
+class CurrencyExchangeInput(BaseModel):
+    """Currency exchange flow input schema."""
 
-    a: int = Field(default=5, description='a field')
-    b: int = Field(default=3, description='b field')
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
+
+
+class CurrencyInput(BaseModel):
+    """Currency conversion input schema."""
+
+    amount: float = Field(description='Amount to convert')
+    from_currency: str = Field(description='Source currency code (e.g., USD)')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)')
+
+
+class GablorkenInput(BaseModel):
+    """The Pydantic model for tools."""
+
+    value: int = Field(description='value to calculate gablorken for')
 
 
 class HelloSchema(BaseModel):
@@ -70,56 +85,29 @@ class HelloSchema(BaseModel):
     receiver: str
 
 
-@ai.flow()
-def sum_two_numbers2(my_input: MyInput) -> int:
-    """Sum two numbers.
+class MyInput(BaseModel):
+    """My input."""
 
-    Args:
-        my_input: The input to sum.
-
-    Returns:
-        The sum of the input.
-    """
-    return my_input.a + my_input.b
+    a: int = Field(default=5, description='a field')
+    b: int = Field(default=3, description='b field')
 
 
-@ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
-    """Say hi to a name.
+class Skills(BaseModel):
+    """A set of core character skills for an RPG character."""
 
-    Args:
-        name: The name to say hi to.
-
-    Returns:
-        The response from the OpenAI API.
-    """
-    response = await ai.generate(
-        model=openai_model('gpt-4o'),
-        config={'temperature': 1},
-        prompt=f'hi {name}',
-    )
-    return response.text
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+    gablorket: int = Field(description='gablorken (0-100)')
 
 
-@ai.flow()
-async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
-    """Say hi to a name and stream the response.
+class RpgCharacter(BaseModel):
+    """An RPG character."""
 
-    Args:
-        name: The name to say hi to.
-
-    Returns:
-        The response from the OpenAI API.
-    """
-    stream, _ = ai.generate_stream(
-        model=openai_model('gpt-4'),
-        config={'model': 'gpt-4-0613', 'temperature': 1},
-        prompt=f'hi {name}',
-    )
-    result: str = ''
-    async for data in stream:
-        result += data.text
-    return result
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
 
 
 class WeatherRequest(BaseModel):
@@ -143,6 +131,19 @@ class WeatherResponse(BaseModel):
     answer: list[Temperature]
 
 
+@ai.tool(description='calculates a gablorken', name='gablorkenTool')
+def gablorken_tool(input_: GablorkenInput) -> int:
+    """Calculate a gablorken.
+
+    Args:
+        input_: The input to calculate gablorken for.
+
+    Returns:
+        The calculated gablorken.
+    """
+    return input_.value * 3 - 5
+
+
 @ai.tool(description='Get current temperature for provided coordinates in celsius')
 def get_weather_tool(coordinates: WeatherRequest) -> float:
     """Get the current temperature for provided coordinates in celsius.
@@ -162,6 +163,101 @@ def get_weather_tool(coordinates: WeatherRequest) -> float:
         response = client.get(url)
         data = response.json()
         return float(data['current']['temperature_2m'])
+
+
+@ai.tool()
+def convert_currency(input: CurrencyInput) -> str:
+    """Convert currency amount.
+
+    Args:
+        input: Currency conversion parameters.
+
+    Returns:
+        Converted amount.
+    """
+    # Mock conversion rates
+    rates = {
+        ('USD', 'EUR'): 0.85,
+        ('EUR', 'USD'): 1.18,
+        ('USD', 'GBP'): 0.73,
+        ('GBP', 'USD'): 1.37,
+    }
+
+    rate = rates.get((input.from_currency, input.to_currency), 1.0)
+    converted = input.amount * rate
+
+    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
+
+
+@ai.flow()
+async def calculate_gablorken(value: Annotated[int, Field(default=42)] = 42) -> str:
+    """Generate a request to calculate gablorken according to gablorken_tool.
+
+    Args:
+        value: Input data containing number
+
+    Returns:
+        A GenerateRequest object with the evaluation output
+    """
+    response = await ai.generate(
+        prompt=f'what is the gablorken of {value}',
+        model=openai_model('gpt-4'),
+        tools=['gablorkenTool'],
+    )
+
+    return response.text
+
+
+@ai.flow()
+async def currency_exchange(input: CurrencyExchangeInput) -> str:
+    """Convert currency using tools.
+
+    Args:
+        input: Currency exchange parameters.
+
+    Returns:
+        Conversion result.
+    """
+    response = await ai.generate(
+        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
+        tools=['convert_currency'],
+    )
+    return response.text
+
+
+@ai.flow()
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
+    """Generate an RPG character.
+
+    Args:
+        name: the name of the character
+        ctx: the context of the tool
+
+    Returns:
+        The generated RPG character.
+    """
+    if ctx.is_streaming:
+        stream, result = ai.generate_stream(
+            prompt=f'generate an RPG character named {name} with gablorken based on 42',
+            output_schema=RpgCharacter,
+            config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
+            tools=['gablorkenTool'],
+        )
+        async for data in stream:
+            ctx.send_chunk(data.output)
+
+        return cast(RpgCharacter, (await result).output)
+    else:
+        result = await ai.generate(
+            prompt=f'generate an RPG character named {name} with gablorken based on 13',
+            output_schema=RpgCharacter,
+            config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
+            tools=['gablorkenTool'],
+        )
+        return cast(RpgCharacter, result.output)
 
 
 @ai.flow()
@@ -210,59 +306,21 @@ async def get_weather_flow_stream(location: Annotated[str, Field(default='New Yo
     return result
 
 
-class Skills(BaseModel):
-    """A set of core character skills for an RPG character."""
-
-    strength: int = Field(description='strength (0-100)')
-    charisma: int = Field(description='charisma (0-100)')
-    endurance: int = Field(description='endurance (0-100)')
-    gablorket: int = Field(description='gablorken (0-100)')
-
-
-class RpgCharacter(BaseModel):
-    """An RPG character."""
-
-    name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
-    abilities: list[str] = Field(description='list of abilities (3-4)')
-    skills: Skills
-
-
-class GablorkenInput(BaseModel):
-    """The Pydantic model for tools."""
-
-    value: int = Field(description='value to calculate gablorken for')
-
-
-@ai.tool(description='calculates a gablorken', name='gablorkenTool')
-def gablorken_tool(input_: GablorkenInput) -> int:
-    """Calculate a gablorken.
-
-    Args:
-        input_: The input to calculate gablorken for.
-
-    Returns:
-        The calculated gablorken.
-    """
-    return input_.value * 3 - 5
-
-
 @ai.flow()
-async def calculate_gablorken(value: Annotated[int, Field(default=42)] = 42) -> str:
-    """Generate a request to calculate gablorken according to gablorken_tool.
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+    """Say hi to a name.
 
     Args:
-        value: Input data containing number
+        name: The name to say hi to.
 
     Returns:
-        A GenerateRequest object with the evaluation output
+        The response from the OpenAI API.
     """
     response = await ai.generate(
-        prompt=f'what is the gablorken of {value}',
-        model=openai_model('gpt-4'),
-        tools=['gablorkenTool'],
+        model=openai_model('gpt-4o'),
+        config={'temperature': 1},
+        prompt=f'hi {name}',
     )
-
     return response.text
 
 
@@ -284,38 +342,37 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 
 
 
 @ai.flow()
-async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
-) -> RpgCharacter:
-    """Generate an RPG character.
+async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+    """Say hi to a name and stream the response.
 
     Args:
-        name: the name of the character
-        ctx: the context of the tool
+        name: The name to say hi to.
 
     Returns:
-        The generated RPG character.
+        The response from the OpenAI API.
     """
-    if ctx.is_streaming:
-        stream, result = ai.generate_stream(
-            prompt=f'generate an RPG character named {name} with gablorken based on 42',
-            output_schema=RpgCharacter,
-            config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
-            tools=['gablorkenTool'],
-        )
-        async for data in stream:
-            ctx.send_chunk(data.output)
+    stream, _ = ai.generate_stream(
+        model=openai_model('gpt-4'),
+        config={'model': 'gpt-4-0613', 'temperature': 1},
+        prompt=f'hi {name}',
+    )
+    result: str = ''
+    async for data in stream:
+        result += data.text
+    return result
 
-        return cast(RpgCharacter, (await result).output)
-    else:
-        result = await ai.generate(
-            prompt=f'generate an RPG character named {name} with gablorken based on 13',
-            output_schema=RpgCharacter,
-            config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
-            tools=['gablorkenTool'],
-        )
-        return cast(RpgCharacter, result.output)
+
+@ai.flow()
+def sum_two_numbers2(my_input: MyInput) -> int:
+    """Sum two numbers.
+
+    Args:
+        my_input: The input to sum.
+
+    Returns:
+        The sum of the input.
+    """
+    return my_input.a + my_input.b
 
 
 async def main() -> None:

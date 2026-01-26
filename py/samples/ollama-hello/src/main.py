@@ -71,26 +71,20 @@ ai = Genkit(
 )
 
 
-class HelloSchema(BaseModel):
-    """Hello schema.
+class CurrencyExchangeInput(BaseModel):
+    """Currency exchange flow input schema."""
 
-    Args:
-        text: The text to say hello to.
-        receiver: The receiver of the hello.
-    """
-
-    text: str
-    receiver: str
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
 
 
-class GablorkenOutputSchema(BaseModel):
-    """Gablorken output schema.
+class CurrencyInput(BaseModel):
+    """Currency conversion input schema."""
 
-    Args:
-        result: The result of the gablorken.
-    """
-
-    result: int
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
 
 
 class GablorkenInput(BaseModel):
@@ -103,16 +97,140 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool()
-def gablorken_tool(input: GablorkenInput) -> int:
-    """Calculate a gablorken."""
-    return input.value * 3 - 5
+class GablorkenOutputSchema(BaseModel):
+    """Gablorken output schema.
+
+    Args:
+        result: The result of the gablorken.
+    """
+
+    result: int
+
+
+class HelloSchema(BaseModel):
+    """Hello schema.
+
+    Args:
+        text: The text to say hello to.
+        receiver: The receiver of the hello.
+    """
+
+    text: str
+    receiver: str
+
+
+class Skills(BaseModel):
+    """A set of core character skills for an RPG character."""
+
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+
+
+class RpgCharacter(BaseModel):
+    """An RPG character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
 
 
 class WeatherToolInput(BaseModel):
     """Input for the weather tool."""
 
     location: str = Field(description='weather location')
+
+
+@ai.flow()
+async def calculate_gablorken(value: Annotated[int, Field(default=33)] = 33) -> str:
+    """Generate a request to calculate gablorken according to gablorken_tool.
+
+    Args:
+        value: Input data containing number
+
+    Returns:
+        A GenerateRequest object with the evaluation output
+
+    Example:
+        >>> await calculate_gablorken(33)
+        '94'
+    """
+    response = await ai.generate(
+        prompt=f'Use the gablorken_tool to calculate the gablorken of {value}',
+        model=ollama_name(MISTRAL_MODEL),
+        tools=['gablorken_tool'],
+    )
+    return response.text
+
+
+@ai.tool()
+def convert_currency(input: CurrencyInput) -> str:
+    """Convert currency amount.
+
+    Args:
+        input: Currency conversion parameters.
+
+    Returns:
+        Converted amount.
+    """
+    # Mock conversion rates
+    rates = {
+        ('USD', 'EUR'): 0.85,
+        ('EUR', 'USD'): 1.18,
+        ('USD', 'GBP'): 0.73,
+        ('GBP', 'USD'): 1.37,
+    }
+
+    rate = rates.get((input.from_currency, input.to_currency), 1.0)
+    converted = input.amount * rate
+
+    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
+
+
+@ai.flow()
+async def currency_exchange(input: CurrencyExchangeInput) -> str:
+    """Convert currency using tools.
+
+    Args:
+        input: Currency exchange parameters.
+
+    Returns:
+        Conversion result.
+    """
+    # Note: Using GEMMA_MODEL as it typically supports tool use, but always verify tool support
+    response = await ai.generate(
+        model=ollama_name(MISTRAL_MODEL),
+        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
+        tools=['convert_currency'],
+    )
+    return response.text
+
+
+@ai.tool()
+def gablorken_tool(input: GablorkenInput) -> int:
+    """Calculate a gablorken."""
+    return input.value * 3 - 5
+
+
+@ai.flow()
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+) -> RpgCharacter:
+    """Generate an RPG character.
+
+    Args:
+        name: the name of the character
+
+    Returns:
+        The generated RPG character.
+    """
+    result = await ai.generate(
+        model=ollama_name(GEMMA_MODEL),
+        prompt=f'generate an RPG character named {name}',
+        output_schema=RpgCharacter,
+    )
+    return cast(RpgCharacter, result.output)
 
 
 @ai.tool()
@@ -136,6 +254,36 @@ async def say_hi(hi_input: Annotated[str, Field(default='World')] = 'World') -> 
         prompt='hi ' + hi_input,
     )
     return response.text
+
+
+@ai.flow()
+async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')] = 'John Doe') -> str:
+    """Generate a request to greet a user with response following `HelloSchema` schema.
+
+    Args:
+        hi_input: Input data containing user information.
+
+    Returns:
+        The greeting text.
+
+    Example:
+        >>> await say_hi_constrained('John Doe')
+        'Hi John Doe'
+    """
+    response = await ai.generate(
+        prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',
+        output_schema=HelloSchema,
+    )
+    output = response.output
+    if isinstance(output, HelloSchema):
+        return output.text
+    if isinstance(output, dict):
+        # Cast to proper dict type to satisfy type checker
+        output_dict = cast(dict[str, Any], output)
+        text_val = output_dict.get('text')
+        if isinstance(text_val, str):
+            return text_val
+    raise ValueError('Received invalid output from model')
 
 
 @ai.flow()
@@ -184,58 +332,6 @@ async def weather_flow(location: Annotated[str, Field(default='San Francisco')] 
         tools=['get_weather'],
     )
     return response.text
-
-
-@ai.flow()
-async def calculate_gablorken(value: Annotated[int, Field(default=33)] = 33) -> str:
-    """Generate a request to calculate gablorken according to gablorken_tool.
-
-    Args:
-        value: Input data containing number
-
-    Returns:
-        A GenerateRequest object with the evaluation output
-
-    Example:
-        >>> await calculate_gablorken(33)
-        '94'
-    """
-    response = await ai.generate(
-        prompt=f'Use the gablorken_tool to calculate the gablorken of {value}',
-        model=ollama_name(MISTRAL_MODEL),
-        tools=['gablorken_tool'],
-    )
-    return response.text
-
-
-@ai.flow()
-async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')] = 'John Doe') -> str:
-    """Generate a request to greet a user with response following `HelloSchema` schema.
-
-    Args:
-        hi_input: Input data containing user information.
-
-    Returns:
-        The greeting text.
-
-    Example:
-        >>> await say_hi_constrained('John Doe')
-        'Hi John Doe'
-    """
-    response = await ai.generate(
-        prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',
-        output_schema=HelloSchema,
-    )
-    output = response.output
-    if isinstance(output, HelloSchema):
-        return output.text
-    if isinstance(output, dict):
-        # Cast to proper dict type to satisfy type checker
-        output_dict = cast(dict[str, Any], output)
-        text_val = output_dict.get('text')
-        if isinstance(text_val, str):
-            return text_val
-    raise ValueError('Received invalid output from model')
 
 
 async def main() -> None:
