@@ -56,6 +56,9 @@
           "run": "uv run --directory py liccheck"
         },
         {
+          "run": "py/bin/run_python_security_checks"
+        },
+        {
           "run": "bin/run_go_tests"
         }
       ]
@@ -97,6 +100,9 @@
         },
         {
           "run": "uv run --directory py liccheck"
+        },
+        {
+          "run": "py/bin/run_python_security_checks"
         },
         {
           "run": "bin/run_go_tests"

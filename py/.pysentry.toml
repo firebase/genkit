@@ -1,0 +1,30 @@
+version = 1
+
+[defaults]
+format = "human"
+severity = "low"
+fail_on = "medium"
+scope = "all"
+direct_only = false
+detailed = false
+include_withdrawn = false
+
+[sources]
+enabled = ["pypa", "pypi", "osv"]
+
+[resolver]
+type = "uv"
+fallback = "pip-tools"
+
+[ignore]
+ids = []
+while_no_fix = [
+  "GHSA-xm59-rqc7-hhvf", # nbconvert: Code execution through malicious .bat file (Windows only)
+  "GHSA-7gcm-g887-7qv7", # protobuf: DoS through nested Any messages
+]
+
+[ci]
+enabled = "auto"
+format = "sarif"
+fail_on = "high"
+annotations = true
