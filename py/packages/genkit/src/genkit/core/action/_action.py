@@ -553,7 +553,8 @@ def _make_tracing_wrappers(
         afn = ensure_async(fn)
         start_time = time.perf_counter()
         with tracer.start_as_current_span(name) as span:
-            trace_id = str(span.get_span_context().trace_id)
+            # Format trace_id as 32-char hex string (OpenTelemetry standard format)
+            trace_id = format(span.get_span_context().trace_id, '032x')
             ctx._on_trace_start(trace_id)
             record_input_metadata(
                 span=span,
@@ -596,7 +597,8 @@ def _make_tracing_wrappers(
         """
         start_time = time.perf_counter()
         with tracer.start_as_current_span(name) as span:
-            trace_id = str(span.get_span_context().trace_id)
+            # Format trace_id as 32-char hex string (OpenTelemetry standard format)
+            trace_id = format(span.get_span_context().trace_id, '032x')
             ctx._on_trace_start(trace_id)
             record_input_metadata(
                 span=span,

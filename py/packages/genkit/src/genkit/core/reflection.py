@@ -361,8 +361,12 @@ def create_reflection_asgi_app(
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
-    ) -> StreamingResponse | JSONResponse:
-        """Handle streaming action execution for Starlette.
+    ) -> StreamingResponse:
+        """Handle streaming action execution with early header flushing.
+
+        Uses early header flushing to send X-Genkit-Trace-Id immediately when
+        the trace starts, enabling the Dev UI to subscribe to SSE for real-time
+        trace updates.
 
         Args:
             action: The action to execute.
@@ -379,13 +383,15 @@ def create_reflection_asgi_app(
         # Use a queue to pass chunks from the callback to the generator
         chunk_queue: asyncio.Queue[str | None] = asyncio.Queue()
 
-        # Capture trace_id from the runner task for cleanup
+        # Event to signal when trace ID is available
+        trace_id_event: asyncio.Event = asyncio.Event()
         run_trace_id: str | None = None
 
         def wrapped_on_trace_start(tid: str) -> None:
             nonlocal run_trace_id
             run_trace_id = tid
             on_trace_start(tid)
+            trace_id_event.set()  # Signal that trace ID is ready
 
         async def run_action_task() -> None:
             """Run the action and put chunks on the queue."""
@@ -416,6 +422,8 @@ def create_reflection_asgi_app(
                 )
                 # Error response also should not have trailing newline (final message)
                 chunk_queue.put_nowait(json.dumps(error_response))
+                # Ensure trace_id_event is set even on error
+                trace_id_event.set()
 
             finally:
                 # Signal end of stream
@@ -423,11 +431,22 @@ def create_reflection_asgi_app(
                 if run_trace_id:
                     active_actions.pop(run_trace_id, None)
 
+        # Start the action task immediately so trace ID becomes available ASAP
+        action_task = asyncio.create_task(run_action_task())
+
+        # Wait for trace ID before returning response - this enables early header flushing
+        await trace_id_event.wait()
+
+        # Now we have the trace ID, include it in headers
+        headers = {
+            'x-genkit-version': version,
+            'Transfer-Encoding': 'chunked',
+        }
+        if run_trace_id:
+            headers['X-Genkit-Trace-Id'] = run_trace_id
+
         async def stream_generator() -> AsyncGenerator[str, None]:
             """Yield chunks from the queue as they arrive."""
-            # Start the action task
-            task = asyncio.create_task(run_action_task())
-
             try:
                 while True:
                     chunk = await chunk_queue.get()
@@ -435,23 +454,15 @@ def create_reflection_asgi_app(
                         break
                     yield chunk
             finally:
-                # Ensure task is cleaned up
-                if not task.done():
-                    task.cancel()
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                        pass
+                # Cancel task if still running (no-op if already done)
+                action_task.cancel()
 
         return StreamingResponse(
             stream_generator(),
             # Reflection server uses text/plain for streaming (not SSE format)
             # to match Go implementation
             media_type='text/plain',
-            headers={
-                'x-genkit-version': version,
-                'Transfer-Encoding': 'chunked',
-            },
+            headers=headers,
         )
 
     async def run_standard_action(
@@ -461,8 +472,12 @@ def create_reflection_asgi_app(
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
-    ) -> JSONResponse:
-        """Handle standard (non-streaming) action execution for Starlette.
+    ) -> StreamingResponse:
+        """Handle standard (non-streaming) action execution with early header flushing.
+
+        Uses StreamingResponse to enable sending the X-Genkit-Trace-Id header
+        immediately when the trace starts, allowing the Dev UI to subscribe to
+        the SSE stream for real-time trace updates.
 
         Args:
             action: The action to execute.
@@ -473,38 +488,69 @@ def create_reflection_asgi_app(
             on_trace_start: Callback for trace start.
 
         Returns:
-            A JSONResponse with the action result or error.
+            A StreamingResponse that flushes headers early.
         """
+        # Event to signal when trace ID is available
+        trace_id_event: asyncio.Event = asyncio.Event()
         run_trace_id: str | None = None
+        action_result: dict[str, Any] | None = None
+        action_error: Exception | None = None
 
         def wrapped_on_trace_start(tid: str) -> None:
             nonlocal run_trace_id
             run_trace_id = tid
             on_trace_start(tid)
+            trace_id_event.set()  # Signal that trace ID is ready
 
-        try:
-            output = await action.arun_raw(
-                raw_input=payload.get('input'), context=context, on_trace_start=wrapped_on_trace_start
-            )
-            response = {
-                'result': dump_dict(output.response),
-                'telemetry': {'traceId': output.trace_id},
-            }
-            return JSONResponse(
-                content=response,
-                status_code=200,
-                headers={'x-genkit-version': version},
-            )
-        except Exception as e:
-            error_response = get_reflection_json(e).model_dump(by_alias=True)
-            logger.error('Error executing action', error=error_response)
-            return JSONResponse(
-                content=error_response,
-                status_code=500,
-            )
-        finally:
+        async def run_action_and_get_result() -> None:
+            nonlocal action_result, action_error
+            try:
+                output = await action.arun_raw(
+                    raw_input=payload.get('input'),
+                    context=context,
+                    on_trace_start=wrapped_on_trace_start,
+                )
+                action_result = {
+                    'result': dump_dict(output.response),
+                    'telemetry': {'traceId': output.trace_id},
+                }
+            except Exception as e:
+                action_error = e
+                # Still set the event so the response can proceed
+                trace_id_event.set()
+
+        # Start the action immediately so trace ID becomes available ASAP
+        action_task = asyncio.create_task(run_action_and_get_result())
+
+        # Wait for trace ID before returning response
+        await trace_id_event.wait()
+
+        # Now return streaming response - headers will include trace ID
+        async def body_generator() -> AsyncGenerator[bytes, None]:
+            # Wait for action to complete
+            await action_task
+
+            if action_error:
+                error_response = get_reflection_json(action_error).model_dump(by_alias=True)
+                logger.error('Error executing action', error=error_response)
+                yield json.dumps(error_response).encode('utf-8')
+            else:
+                yield json.dumps(action_result).encode('utf-8')
+
             if run_trace_id:
                 active_actions.pop(run_trace_id, None)
+
+        headers = {
+            'x-genkit-version': version,
+        }
+        if run_trace_id:
+            headers['X-Genkit-Trace-Id'] = run_trace_id
+
+        return StreamingResponse(
+            body_generator(),
+            media_type='application/json',
+            headers=headers,
+        )
 
     app = Starlette(
         routes=[
@@ -523,6 +569,7 @@ def create_reflection_asgi_app(
                 allow_origins=['*'],
                 allow_methods=['*'],
                 allow_headers=['*'],
+                expose_headers=['X-Genkit-Trace-Id', 'X-Genkit-Span-Id', 'x-genkit-version'],
             )
         ],
         on_startup=[on_app_startup] if on_app_startup else [],
