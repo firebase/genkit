@@ -1,4 +1,4 @@
-The Nano Banana modles can perform sophisticated image edits.
+The Nano Banana models can perform sophisticated image edits.
 
 - `gemini-2.5-flash-image-preview`
 
