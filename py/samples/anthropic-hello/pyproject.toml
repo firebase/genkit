@@ -28,6 +28,9 @@ name = "anthropic-hello"
 requires-python = ">=3.10"
 version = "0.1.0"
 
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
+
 [tool.uv.sources]
 genkit-plugin-anthropic = { workspace = true }
 
