@@ -95,7 +95,6 @@ class WeatherInput(BaseModel):
     """Input for the weather tool."""
 
     location: str = Field(description='City or location name')
-    unit: str = Field(default='celsius', description='Temperature unit: celsius or fahrenheit')
 
 
 @ai.tool()
@@ -214,35 +213,24 @@ async def generate_character(
 
 
 @ai.tool()
-def get_weather(input: WeatherInput) -> dict:
-    """Get weather information for a location.
+def get_weather(input: WeatherInput) -> str:
+    """Return a random realistic weather string for a city name.
 
     Args:
-        input: Weather request input.
+        input: Weather input  location.
 
     Returns:
-        Weather data dictionary.
+        Weather information with temperature in degree Celsius.
     """
-    weather_data = {
-        'New York': {'temp': 15, 'condition': 'cloudy', 'humidity': 65},
-        'London': {'temp': 12, 'condition': 'rainy', 'humidity': 78},
-        'Tokyo': {'temp': 20, 'condition': 'sunny', 'humidity': 55},
-        'Paris': {'temp': 14, 'condition': 'partly cloudy', 'humidity': 60},
-    }
+    import random
 
-    location = input.location.title()
-    data = weather_data.get(location, {'temp': 18, 'condition': 'unknown', 'humidity': 50})
-
-    if input.unit == 'fahrenheit' and 'temp' in data:
-        temp = data['temp']
-        if isinstance(temp, (int, float)):
-            data['temp'] = round((temp * 9 / 5) + 32, 1)
-            data['unit'] = 'F'
-    else:
-        data['unit'] = 'C'
-
-    data['location'] = location
-    return data
+    weather_options = [
+        '32° C sunny',
+        '17° C cloudy',
+        '22° C cloudy',
+        '19° C humid',
+    ]
+    return random.choice(weather_options)
 
 
 @ai.flow()

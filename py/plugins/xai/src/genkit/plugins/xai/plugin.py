@@ -29,7 +29,6 @@ from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import SUPPORTED_XAI_MODELS, get_model_info
 from genkit.plugins.xai.models import XAIModel
-from genkit.types import GenerationCommonConfig
 
 __all__ = ['XAI', 'xai_name']
 
@@ -114,6 +113,8 @@ class XAI(Plugin):
         model = XAIModel(model_name=clean_name, client=self._xai_client)
         model_info = get_model_info(clean_name)
 
+        from genkit.plugins.xai.models import XAIConfig
+
         return Action(
             kind=ActionKind.MODEL,
             name=name,
@@ -121,7 +122,7 @@ class XAI(Plugin):
             metadata={
                 'model': {
                     'supports': model_info.supports.model_dump() if model_info.supports else {},
-                    'customOptions': to_json_schema(GenerationCommonConfig),
+                    'customOptions': to_json_schema(XAIConfig),
                 },
             },
         )
@@ -132,13 +133,15 @@ class XAI(Plugin):
         Returns:
             List of ActionMetadata for all supported models.
         """
+        from genkit.plugins.xai.models import XAIConfig
+
         actions = []
         for model_name, model_info in SUPPORTED_XAI_MODELS.items():
             actions.append(
                 model_action_metadata(
                     name=xai_name(model_name),
                     info={'supports': model_info.supports.model_dump() if model_info.supports else {}},
-                    config_schema=GenerationCommonConfig,
+                    config_schema=XAIConfig,
                 )
             )
         return actions
