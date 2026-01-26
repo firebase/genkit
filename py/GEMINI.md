@@ -97,6 +97,8 @@
 * When creating shell scripts using bash, please use `#!/usr/bin/env bash` as
   the shebang line and `set -euo pipefail`.
 * Avoid mentioning sample specific stuff in core framework or plugin code.
+* Always check for missing dependencies in pyproject.toml for each sample
+  and add them if we're using them.
 
 ### Formatting
 

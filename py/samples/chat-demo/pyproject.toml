@@ -34,13 +34,19 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-google-genai",
   "genkit-plugin-anthropic",
+  "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-ollama",
+  "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
+  "ollama",
   "pydantic>=2.10.5",
-  "structlog>=25.2.0",
   "streamlit>=1.40.0",
+  "structlog>=25.2.0",
+  "uvloop>=0.21.0",
 ]
 description = "Chat demo using session management"
 license = "Apache-2.0"

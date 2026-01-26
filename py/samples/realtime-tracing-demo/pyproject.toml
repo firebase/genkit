@@ -37,6 +37,7 @@ dependencies = [
   "genkit-plugin-google-genai",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
+  "uvloop>=0.21.0",
   "watchdog>=6.0.0",
 ]
 description = "Realtime tracing demo showing live span updates in DevUI"

@@ -34,9 +34,10 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "pillow",
   "genkit-plugin-google-genai",
+  "pillow",
   "pydantic>=2.10.5",
+  "uvloop>=0.21.0",
 ]
 description = "Image Generation on VertexAI with GenAI library example"
 license = "Apache-2.0"

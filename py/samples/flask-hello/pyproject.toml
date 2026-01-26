@@ -33,10 +33,11 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit",
-  "genkit-plugin-google-genai",
-  "genkit-plugin-flask",
   "flask",
+  "genkit",
+  "genkit-plugin-flask",
+  "genkit-plugin-google-genai",
+  "uvloop>=0.21.0",
 ]
 description = "hello Genkit sample"
 license = "Apache-2.0"

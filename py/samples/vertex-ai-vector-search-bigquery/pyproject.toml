@@ -34,12 +34,14 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-vertex-ai",
   "genkit-plugin-google-genai",
-  "pydantic>=2.10.5",
-  "structlog>=25.2.0",
+  "genkit-plugin-vertex-ai",
+  "google-cloud-aiplatform",
   "google-cloud-bigquery",
+  "pydantic>=2.10.5",
   "strenum>=0.4.15; python_version < '3.11'",
+  "structlog>=25.2.0",
+  "uvloop>=0.21.0",
 ]
 description = "An example demonstrating the use Vector Search API with BigQuery retriever for Vertex AI"
 license = "Apache-2.0"

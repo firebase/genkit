@@ -34,13 +34,16 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-google-genai",
   "genkit-plugin-anthropic",
   "genkit-plugin-deepseek",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-ollama",
   "genkit-plugin-xai",
+  "ollama",
   "pydantic>=2.10.5",
-  "structlog>=25.2.0",
   "streamlit>=1.40.0",
+  "structlog>=25.2.0",
+  "uvloop>=0.21.0",
 ]
 description = "Session management demo"
 license = "Apache-2.0"

@@ -35,9 +35,10 @@ classifiers = [
 dependencies = [
   "genkit",
   "genkit-plugin-compat-oai",
+  "httpx>=0.28.1",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
-  "httpx>=0.28.1",
+  "uvloop>=0.21.0",
 ]
 description = "OpenAI sample"
 license = "Apache-2.0"
