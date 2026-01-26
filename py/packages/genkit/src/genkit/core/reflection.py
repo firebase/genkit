@@ -426,6 +426,8 @@ def create_reflection_asgi_app(
                 trace_id_event.set()
 
             finally:
+                if not trace_id_event.is_set():
+                    trace_id_event.set()
                 # Signal end of stream
                 chunk_queue.put_nowait(None)
                 if run_trace_id:
@@ -516,8 +518,9 @@ def create_reflection_asgi_app(
                 }
             except Exception as e:
                 action_error = e
-                # Still set the event so the response can proceed
-                trace_id_event.set()
+            finally:
+                if not trace_id_event.is_set():
+                    trace_id_event.set()
 
         # Start the action immediately so trace ID becomes available ASAP
         action_task = asyncio.create_task(run_action_and_get_result())
