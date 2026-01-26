@@ -14,18 +14,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Chat Demo.
+"""Chat Demo with Streamlit UI.
 
 Key features demonstrated in this sample:
 
-| Feature Description                     | Example Usage                       |
-|-----------------------------------------|-------------------------------------|
-| Persistent Sessions                     | `ai.create_session()`               |
-| Interactive Loop                        | `while True: session.chat(input)`   |
-| Simple Text Chat                        | `response.text`                     |
+| Feature Description                     | Example Usage                           |
+|-----------------------------------------|-----------------------------------------|
+| ai.chat() convenience API               | `chat = ai.chat(system='...')`          |
+| Chat.send() for messages                | `response = await chat.send('Hi')`      |
+| Chat.send_stream() for streaming        | `result = chat.send_stream('Hi')`       |
+| Thread-based conversations              | `ai.chat(thread='conv1')`               |
+| Multiple parallel conversations         | Each conversation is a separate thread  |
 
-This sample implements a classic CLI chatbot loop. It maintains conversation
-context across multiple message turns using a single Session instance.
+This sample implements a web-based chatbot using Streamlit. It uses the
+ai.chat() convenience API with threads for managing multiple conversations.
 """
 
 import asyncio
@@ -45,7 +47,6 @@ from genkit.plugins.google_genai import GoogleAI, VertexAI
 from genkit.plugins.ollama import Ollama
 from genkit.plugins.vertex_ai import ModelGardenPlugin
 from genkit.plugins.xai import XAI
-from genkit.session import InMemorySessionStore
 
 logging.basicConfig(level=logging.INFO)
 logger = structlog.get_logger(__name__)
@@ -238,51 +239,52 @@ ai = Genkit(
     model=model_val,
 )
 
-# Initialize Sessions
-if 'chat_sessions' not in st.session_state:
-    st.session_state['chat_sessions'] = {}
-    # Create default first session
-    first_id = 'Conversation 1'
-    st.session_state['chat_sessions'][first_id] = {'messages': []}
-    st.session_state['active_session_id'] = first_id
+# Initialize conversation threads
+# We use a simple dict to track thread names and their display messages
+if 'threads' not in st.session_state:
+    st.session_state['threads'] = ['Conversation 1']
+    st.session_state['active_thread'] = 'Conversation 1'
+    st.session_state['thread_messages'] = {'Conversation 1': []}  # For UI display
 
 # 3. Conversations (Sidebar - Appended)
 with st.sidebar:
     st.header('Conversations')
 
     if st.button('➕ New Conversation', use_container_width=True):
-        new_id = f'Conversation {len(st.session_state["chat_sessions"]) + 1}'
-        st.session_state['chat_sessions'][new_id] = {'messages': []}
-        st.session_state['active_session_id'] = new_id
+        new_thread = f'Conversation {len(st.session_state["threads"]) + 1}'
+        st.session_state['threads'].append(new_thread)
+        st.session_state['thread_messages'][new_thread] = []
+        st.session_state['active_thread'] = new_thread
         st.rerun()
 
     # Conversation List
-    session_ids = list(st.session_state['chat_sessions'].keys())
+    thread_names = st.session_state['threads']
 
     # Determine index dynamically to handle deletions or state changes safely
     try:
-        idx = session_ids.index(st.session_state['active_session_id'])
+        idx = thread_names.index(st.session_state['active_thread'])
     except ValueError:
         idx = 0
 
-    selected_session = st.radio(
+    selected_thread = st.radio(
         'History',
-        options=session_ids,
+        options=thread_names,
         index=idx,
         label_visibility='collapsed',
     )
 
-    if selected_session != st.session_state['active_session_id']:
-        st.session_state['active_session_id'] = selected_session
+    if selected_thread != st.session_state['active_thread']:
+        st.session_state['active_thread'] = selected_thread
         st.rerun()
 
     if st.button('🗑️ Clear Current History', use_container_width=True):
-        st.session_state['chat_sessions'][st.session_state['active_session_id']]['messages'] = []
+        st.session_state['thread_messages'][st.session_state['active_thread']] = []
         st.rerun()
 
 
-# Get messages for active session
-messages = st.session_state['chat_sessions'][st.session_state['active_session_id']]['messages']
+# Get the current thread name and messages for display
+current_thread = st.session_state['active_thread']
+messages = st.session_state['thread_messages'][current_thread]
 
 # Display chat messages from history
 for message in messages:
@@ -302,30 +304,18 @@ if prompt := st.chat_input('What is up?'):
         full_response = ''
 
         async def run_chat() -> GenerateResponseWrapper:
-            """Run chat."""
-            # Reconstruct session and context for this run
+            """Run chat using ai.chat() with thread support."""
+            # Build message history from stored conversation (excluding the prompt we just added)
             history: list[Message] = []
-
-            # Use local variable `messages` which points to the correct list
-            for msg_dict in messages:
-                # Skip the last one if it is the prompt we just added (to avoid duplication if session.chat adds it)
-                if msg_dict == messages[-1] and msg_dict['role'] == 'user' and msg_dict['content'] == prompt:
-                    continue
-
+            for msg_dict in messages[:-1]:  # Exclude last message (the prompt we just added)
                 role = 'model' if msg_dict['role'] == 'assistant' else msg_dict['role']
                 history.append(Message(role=role, content=[Part(root=TextPart(text=msg_dict['content']))]))
 
-            # Create ephemeral store populated with history for this ID
-            sid = st.session_state['active_session_id']
-            store = InMemorySessionStore({
-                sid: {'id': sid, 'state': {}, 'messages': history, 'created_at': None, 'updated_at': None}
-            })
+            # Create a chat with the history restored
+            # Note: Using ChatOptions dict to pass messages (matches JS API)
+            chat = ai.chat({'messages': history})
 
-            session = await ai.load_session(sid, store=store)
-            if not session:
-                session = ai.create_session()  # fallback
-
-            # Callback for streaming
+            # Streaming callback
             full_text = ''
 
             def on_chunk(chunk: GenerateResponseChunkWrapper) -> None:
@@ -334,11 +324,14 @@ if prompt := st.chat_input('What is up?'):
                     full_text += chunk.text
                     message_placeholder.markdown(full_text + '▌')
 
-            kwargs = {}
+            # Send the message
             if enable_streaming:
-                kwargs['on_chunk'] = on_chunk
-
-            return await session.chat(prompt, **kwargs)
+                result = chat.send_stream(prompt)
+                async for chunk in result.stream:
+                    on_chunk(chunk)
+                return await result.response
+            else:
+                return await chat.send(prompt)
 
         # Use asyncio.run which handles the loop correctly for this thread
         try:

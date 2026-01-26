@@ -31,11 +31,19 @@ can focus on creating incredible user experiences.
 """
 
 from genkit.blocks.document import Document
+from genkit.blocks.prompt import (
+    ExecutablePrompt,
+    GenerateStreamResponse,
+    OutputOptions,
+    PromptGenerateOptions,
+    ResumeOptions,
+)
 from genkit.blocks.tools import ToolRunContext, tool_response
 from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
+from genkit.session import Chat, ChatOptions, ChatStreamResponse
 
 from ._aio import Genkit
 from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
@@ -43,14 +51,22 @@ from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
 __all__ = [
     ActionKind.__name__,
     ActionRunContext.__name__,
+    Chat.__name__,
+    'ChatOptions',
+    ChatStreamResponse.__name__,
     Document.__name__,
+    ExecutablePrompt.__name__,
+    FlowWrapper.__name__,
+    GenerateStreamResponse.__name__,
     GenkitRegistry.__name__,
     Genkit.__name__,
+    'OutputOptions',
     Plugin.__name__,
+    'PromptGenerateOptions',
+    'ResumeOptions',
+    SimpleRetrieverOptions.__name__,
     ToolRunContext.__name__,
     tool_response.__name__,
-    FlowWrapper.__name__,
-    SimpleRetrieverOptions.__name__,
     'GENKIT_CLIENT_HEADER',
     'GENKIT_VERSION',
 ]

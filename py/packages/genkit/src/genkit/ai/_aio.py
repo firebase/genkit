@@ -27,11 +27,16 @@ Key features provided by the `Genkit` class:
 - **Observability**: Specialized methods for managing trace context and flushing telemetry.
 """
 
+from __future__ import annotations
+
 import asyncio
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import Any, TypedDict, TypeVar, cast  # noqa: F401
+from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, cast  # noqa: F401
+
+if TYPE_CHECKING:
+    from genkit.blocks.prompt import ExecutablePrompt
 
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
@@ -65,7 +70,7 @@ from genkit.core.typing import (
     Operation,
     SpanMetadata,
 )
-from genkit.session import InMemorySessionStore, Session, SessionStore
+from genkit.session import Chat, ChatOptions, InMemorySessionStore, Session, SessionStore
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -217,6 +222,96 @@ class Genkit(GenkitBase):
         if not data:
             return None
         return Session(ai=self, store=store, data=data)
+
+    def chat(
+        self,
+        preamble_or_options: ExecutablePrompt | ChatOptions | None = None,
+        options: ChatOptions | None = None,
+    ) -> Chat:
+        r"""Creates a chat session for multi-turn conversations (matches JS API).
+
+        This method creates a Session and returns a Chat object for
+        conversational AI. It matches the JavaScript `ai.chat()` API exactly.
+
+        Args:
+            preamble_or_options: Either an ExecutablePrompt to use as the
+                conversation preamble, or a ChatOptions dict with system
+                prompt, model, config, etc.
+            options: Additional ChatOptions (only used when first arg is
+                an ExecutablePrompt).
+
+        Returns:
+            A Chat instance ready for multi-turn conversation.
+
+        Example:
+            Basic chat with system prompt:
+
+            ```python
+            chat = ai.chat({'system': 'You are a helpful pirate.'})
+            response = await chat.send('Hello!')
+            print(response.text)  # "Ahoy, matey!"
+            ```
+
+            Using an ExecutablePrompt:
+
+            ```python
+            support_agent = ai.define_prompt(
+                name='support',
+                system='You are a customer support agent.',
+            )
+            chat = ai.chat(support_agent)
+            response = await chat.send('My order is late')
+            ```
+
+            Streaming responses:
+
+            ```python
+            chat = ai.chat({'system': 'Be verbose.'})
+            result = chat.send_stream('Explain quantum physics')
+
+            async for chunk in result.stream:
+                print(chunk.text, end='', flush=True)
+
+            final = await result.response
+            ```
+
+            Multiple threads (use session.chat for thread names):
+
+            ```python
+            session = ai.create_session()
+            lawyer = session.chat('lawyer', {'system': 'Talk like a lawyer'})
+            pirate = session.chat('pirate', {'system': 'Talk like a pirate'})
+            await lawyer.send('Tell me a joke')
+            await pirate.send('Tell me a joke')
+            ```
+
+        See Also:
+            - session.chat(): For named threads within a session
+            - JavaScript ai.chat(): js/genkit/src/genkit-beta.ts
+        """
+        from genkit.blocks.prompt import ExecutablePrompt
+
+        # Resolve preamble and options (matching JS pattern exactly)
+        preamble: ExecutablePrompt | None = None
+        chat_options: ChatOptions | None = None
+
+        if preamble_or_options is not None:
+            if isinstance(preamble_or_options, ExecutablePrompt):
+                preamble = preamble_or_options
+                chat_options = options
+            else:
+                chat_options = preamble_or_options
+
+        # Create session and use session.chat() (matches JS)
+        store = chat_options.get('store') if chat_options else None
+        session = self.create_session(store=store)
+
+        if preamble is not None:
+            return session.chat(preamble, chat_options)
+        elif chat_options:
+            return session.chat(chat_options)
+        else:
+            return session.chat()
 
     async def generate(
         self,

@@ -429,10 +429,10 @@ flowchart LR
 | **E4: Logging instrumentation** | S | Log correlation | `google_cloud/telemetry/` |
 
 **Definition of Done:**
-- [ ] Spans appear in DevUI as they START (not just on completion)
-- [ ] `GENKIT_ENABLE_REALTIME_TELEMETRY=true` env var supported
+- [x] Spans appear in DevUI as they START (not just on completion)
+- [x] `GENKIT_ENABLE_REALTIME_TELEMETRY=true` env var supported
 - [x] `await ai.flush_tracing()` available
-- [ ] Model I/O redacted before Cloud Trace export
+- [x] Model I/O redacted before Cloud Trace export (via AdjustingTraceExporter)
 - [x] Logging instrumentation enabled with trace correlation
 
 ---

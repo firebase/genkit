@@ -235,8 +235,9 @@ def add_log(role: str, text: str) -> None:
 
 
 async def run_chat(sess: Session, prompt: str) -> GenerateResponseWrapper:
-    """Run chat asynchronously."""
-    return await sess.chat(prompt)
+    """Run chat asynchronously using session.chat() -> Chat -> send()."""
+    chat = sess.chat()  # Returns a Chat object (matching JS API)
+    return await chat.send(prompt)
 
 
 # --- Layout ---
