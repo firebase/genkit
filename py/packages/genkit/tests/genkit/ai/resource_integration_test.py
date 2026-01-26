@@ -23,7 +23,7 @@ import pytest
 
 from genkit.blocks.generate import generate_action
 from genkit.blocks.resource import ResourceInput, ResourceOutput, define_resource
-from genkit.core.action import ActionRunContext
+from genkit.core.action import Action, ActionRunContext
 from genkit.core.registry import ActionKind, Registry
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -79,7 +79,7 @@ async def test_dynamic_action_provider_resource() -> None:
     registry = Registry()
 
     # Register a dynamic provider that handles any "dynamic://*" uri
-    def provider_fn(input: dict[str, object], ctx: ActionRunContext) -> object:
+    def provider_fn(input: dict[str, object], ctx: ActionRunContext) -> Action | None:
         from genkit.blocks.resource import resource
 
         kind = cast(ActionKind, input['kind'])
