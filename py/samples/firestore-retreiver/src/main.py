@@ -15,7 +15,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Firestore retriever sample."""
+"""Firestore retriever sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Firestore Vector Store Definition       | `define_firestore_vector_store`     |
+| Embed Many                              | `ai.embed_many()`                   |
+| Document Retrieval                      | `ai.retrieve()`                     |
+| Firestore Integration                   | `firestore.Client()`                |
+"""
 
 import os
 
@@ -26,7 +36,7 @@ from google.cloud.firestore_v1.vector import Vector
 from genkit.ai import Genkit
 from genkit.plugins.firebase import add_firebase_telemetry, define_firestore_vector_store
 from genkit.plugins.google_genai import VertexAI
-from genkit.types import Document
+from genkit.types import Document, RetrieverResponse
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
@@ -73,13 +83,10 @@ films = [
 @ai.flow()
 async def index_documents() -> None:
     """Indexes the film documents in Firestore."""
-    genkit_documents = [Document.from_text(film) for film in films]
-    embed_response = await ai.embed(embedder=EMBEDDING_MODEL, documents=genkit_documents)
-    embeddings = [emb.embedding for emb in embed_response.embeddings]
-
+    embeddings = await ai.embed_many(embedder=EMBEDDING_MODEL, content=films)
     for i, film_text in enumerate(films):
         doc_id = f'doc-{i + 1}'
-        embedding = embeddings[i]
+        embedding = embeddings[i].embedding
 
         doc_ref = firestore_client.collection(collection_name).document(doc_id)
         try:
@@ -97,7 +104,7 @@ async def index_documents() -> None:
 
 
 @ai.flow()
-async def retreive_documents():
+async def retreive_documents() -> RetrieverResponse:
     """Retrieves the film documents from Firestore."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),

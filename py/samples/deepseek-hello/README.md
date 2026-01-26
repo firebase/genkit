@@ -11,6 +11,22 @@ A DeepSeek API key is a secret token for accessing DeepSeek's powerful AI models
 4. **Copy Key**: Copy the generated key immediately as it's shown only once.
 5. **Add Credits (if needed)**: You might need to add funds or a payment method for usage beyond the free tier.
 
+#### Monitoring and Running
+
+For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+
+```bash
+./run.sh
+```
+
+This script uses `watchmedo` to monitor changes in:
+- `src/` (Python logic)
+- `../../packages` (Genkit core)
+- `../../plugins` (Genkit plugins)
+- File patterns: `*.py`, `*.prompt`, `*.json`
+
+Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
+
 ### Usage
 
 1. Setup environment and install dependencies:

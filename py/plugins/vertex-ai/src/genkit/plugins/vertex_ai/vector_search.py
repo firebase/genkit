@@ -114,10 +114,10 @@ class DocRetriever(ABC):
         # Get query embedding
         embed_resp = await self.ai.embed(
             embedder=self.embedder,
-            documents=[document],
+            content=document,
             options=self.embedder_options,
         )
-        if not embed_resp.embeddings:
+        if not embed_resp:
             raise ValueError('Embedder returned no embeddings for query')
 
         # Get limit from options
@@ -128,7 +128,7 @@ class DocRetriever(ABC):
         docs = await self._get_closest_documents(
             request=request,
             top_k=limit_neighbors,
-            query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
+            query_embeddings=Embedding(embedding=embed_resp[0].embedding),
         )
 
         return RetrieverResponse(documents=typing.cast(list[DocumentData], docs))
@@ -217,8 +217,11 @@ class BigQueryRetriever(DocRetriever):
         bq_client: bigquery.Client,
         dataset_id: str,
         table_id: str,
-        *args,
-        **kwargs,
+        ai: Genkit,
+        name: str,
+        embedder: str,
+        match_service_client_generator: Callable,
+        embedder_options: dict[str, Any] | None = None,
     ) -> None:
         """Initializes the BigQueryRetriever.
 
@@ -226,10 +229,19 @@ class BigQueryRetriever(DocRetriever):
             bq_client: The BigQuery client to use for querying.
             dataset_id: The ID of the BigQuery dataset.
             table_id: The ID of the BigQuery table.
-            *args: Additional positional arguments to pass to the parent class.
-            **kwargs: Additional keyword arguments to pass to the parent class.
+            ai: The Genkit instance used for embeddings.
+            name: The name of this retriever instance.
+            embedder: The embedder to use for query embeddings.
+            match_service_client_generator: Generator function for the Vertex AI client.
+            embedder_options: Optional configuration to pass to the embedder.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            ai=ai,
+            name=name,
+            embedder=embedder,
+            match_service_client_generator=match_service_client_generator,
+            embedder_options=embedder_options,
+        )
         self.bq_client = bq_client
         self.dataset_id = dataset_id
         self.table_id = table_id
@@ -304,18 +316,30 @@ class FirestoreRetriever(DocRetriever):
         self,
         firestore_client: firestore.AsyncClient,
         collection_name: str,
-        *args,
-        **kwargs,
+        ai: Genkit,
+        name: str,
+        embedder: str,
+        match_service_client_generator: Callable,
+        embedder_options: dict[str, Any] | None = None,
     ) -> None:
         """Initializes the FirestoreRetriever.
 
         Args:
             firestore_client: The Firestore client to use for querying.
             collection_name: The name of the Firestore collection.
-            *args: Additional positional arguments to pass to the parent class.
-            **kwargs: Additional keyword arguments to pass to the parent class.
+            ai: The Genkit instance used for embeddings.
+            name: The name of this retriever instance.
+            embedder: The embedder to use for query embeddings.
+            match_service_client_generator: Generator function for the Vertex AI client.
+            embedder_options: Optional configuration to pass to the embedder.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            ai=ai,
+            name=name,
+            embedder=embedder,
+            match_service_client_generator=match_service_client_generator,
+            embedder_options=embedder_options,
+        )
         self.db = firestore_client
         self.collection_name = collection_name
 

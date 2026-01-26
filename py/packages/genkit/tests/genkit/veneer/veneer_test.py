@@ -14,8 +14,9 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit, ToolRunContext, tool_response
 from genkit.blocks.document import Document
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.blocks.model import MessageWrapper, text_from_message
+from genkit.blocks.model import MessageWrapper, ModelMiddlewareNext, text_from_message
 from genkit.core.action import ActionRunContext
+from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
     BaseDataPoint,
     Details,
@@ -57,7 +58,7 @@ SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 
 
 @pytest.fixture
-def setup_test():
+def setup_test() -> SetupFixture:
     """Setup a test fixture for the veneer tests."""
     ai = Genkit(model='echoModel')
 
@@ -81,6 +82,38 @@ async def test_generate_uses_default_model(setup_test: SetupFixture) -> None:
     _, response = ai.generate_stream(prompt='hi', config={'temperature': 11})
 
     assert (await response).text == want_txt
+
+
+@pytest.mark.asyncio
+async def test_generate_populates_latency_ms(setup_test: SetupFixture) -> None:
+    """Test that the generate function populates latency_ms in the response."""
+    ai, *_ = setup_test
+
+    response = await ai.generate(prompt='hi')
+
+    # Verify latency_ms is set and is a positive number
+    assert response.latency_ms is not None
+    assert response.latency_ms > 0
+
+
+@pytest.mark.asyncio
+async def test_generate_latency_ms_in_serialized_json(setup_test: SetupFixture) -> None:
+    """Test that latencyMs appears in the serialized JSON output.
+
+    This is critical for DevUI trace viewer which expects the camelCase alias
+    'latencyMs' to be present in the span output JSON.
+    """
+    ai, *_ = setup_test
+
+    response = await ai.generate(prompt='hi')
+
+    # Serialize using the same method used in span output recording
+    serialized = response.model_dump_json(by_alias=True, exclude_none=True)
+    parsed = json.loads(serialized)
+
+    # Verify latencyMs (camelCase) is in the serialized output
+    assert 'latencyMs' in parsed, f'latencyMs not found in serialized JSON. Keys: {list(parsed.keys())}'
+    assert parsed['latencyMs'] > 0
 
 
 @pytest.mark.asyncio
@@ -292,9 +325,9 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> int:
         """The tool."""
-        return input.value
+        return input.value or 0
 
     response = await ai.generate(
         model='echoModel',
@@ -321,7 +354,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            output_schema={},
+            output_schema={'type': 'integer'},
         )
     ]
 
@@ -350,12 +383,12 @@ async def test_generate_with_iterrupting_tools(
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='test_tool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> int:
         """The tool."""
         return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
-    def test_interrupt(input: ToolInput, ctx: ToolRunContext):
+    def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
@@ -406,7 +439,7 @@ async def test_generate_with_iterrupting_tools(
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            output_schema={},
+            output_schema={'type': 'integer'},
         ),
         ToolDefinition(
             name='test_interrupt',
@@ -423,7 +456,7 @@ async def test_generate_with_iterrupting_tools(
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            output_schema={},
+            output_schema={'type': 'null'},
         ),
     ]
 
@@ -462,12 +495,12 @@ async def test_generate_with_interrupt_respond(
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='test_tool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> int:
         """The tool."""
         return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
-    def test_interrupt(input: ToolInput, ctx: ToolRunContext):
+    def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
@@ -611,7 +644,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
@@ -668,7 +701,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
                 'title': 'ToolInput',
                 'type': 'object',
             },
-            output_schema={},
+            output_schema={'type': 'string'},
         )
     ]
 
@@ -682,7 +715,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
@@ -972,7 +1005,7 @@ async def test_generate_with_middleware(
     """When middleware is provided, applies it."""
     ai, *_ = setup_test
 
-    async def pre_middle(req, ctx, next):
+    async def pre_middle(req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
@@ -983,8 +1016,9 @@ async def test_generate_with_middleware(
             ctx,
         )
 
-    async def post_middle(req, ctx, next):
+    async def post_middle(req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
         resp: GenerateResponse = await next(req, ctx)
+        assert resp.message is not None
         txt = text_from_message(resp.message)
         return GenerateResponse(
             finish_reason=resp.finish_reason,
@@ -1004,12 +1038,14 @@ async def test_generate_with_middleware(
 
 @pytest.mark.asyncio
 async def test_generate_passes_through_current_action_context(
-    setup_test,
+    setup_test: SetupFixture,
 ) -> None:
     """Test that generate uses current action context by default."""
     ai, *_ = setup_test
 
-    async def inject_context(req, ctx, next):
+    async def inject_context(
+        req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext
+    ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
@@ -1023,10 +1059,10 @@ async def test_generate_passes_through_current_action_context(
             ctx,
         )
 
-    async def action_fn():
+    async def action_fn() -> GenerateResponse:
         return await ai.generate(model='echoModel', prompt='hi', use=[inject_context])
 
-    action = ai.registry.register_action(name='test_action', kind='custom', fn=action_fn)
+    action = ai.registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=action_fn)
     action_response = await action.arun(context={'foo': 'bar'})
 
     assert action_response.response.text == '''[ECHO] user: "hi {'foo': 'bar'}"'''
@@ -1034,12 +1070,14 @@ async def test_generate_passes_through_current_action_context(
 
 @pytest.mark.asyncio
 async def test_generate_uses_explicitly_passed_in_context(
-    setup_test,
+    setup_test: SetupFixture,
 ) -> None:
     """Generate uses specific context instead of current action context."""
     ai, *_ = setup_test
 
-    async def inject_context(req, ctx, next):
+    async def inject_context(
+        req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext
+    ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
@@ -1053,7 +1091,7 @@ async def test_generate_uses_explicitly_passed_in_context(
             ctx,
         )
 
-    async def action_fn():
+    async def action_fn() -> GenerateResponse:
         return await ai.generate(
             model='echoModel',
             prompt='hi',
@@ -1061,7 +1099,7 @@ async def test_generate_uses_explicitly_passed_in_context(
             context={'bar': 'baz'},
         )
 
-    action = ai.registry.register_action(name='test_action', kind='custom', fn=action_fn)
+    action = ai.registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=action_fn)
     action_response = await action.arun(context={'foo': 'bar'})
 
     assert action_response.response.text == '''[ECHO] user: "hi {'bar': 'baz'}"'''
@@ -1207,7 +1245,7 @@ async def test_generate_simulates_doc_grounding(
 class MockBananaFormat(FormatDef):
     """Mock format for testing the format."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the format."""
         super().__init__(
             'banana',
@@ -1218,10 +1256,10 @@ class MockBananaFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema) -> Formatter:
+    def handle(self, schema: dict[str, Any] | None) -> Formatter:
         """Handle the format."""
 
-        def message_parser(msg: Message):
+        def message_parser(msg: Message) -> str:
             """Parse the message."""
             parts = [p.root.text or '' for p in msg.content if hasattr(p.root, 'text') and p.root.text]
             return f'banana {"".join(parts)}'  # type: ignore[arg-type]
@@ -1420,7 +1458,7 @@ def test_define_retriever_default_metadata(setup_test: SetupFixture) -> None:
     """Test that the define retriever function works."""
     ai, _, _, *_ = setup_test
 
-    def my_retriever(doc: Document, config: dict | None = None):
+    def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
         return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
 
     action = ai.define_retriever(
@@ -1441,7 +1479,7 @@ def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
         field_a: str = Field(description='a field')
         field_b: str = Field(description='b field')
 
-    def my_retriever(doc: Document, config: dict | None = None):
+    def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
         return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
 
     action = ai.define_retriever(
@@ -1479,7 +1517,7 @@ def test_define_evaluator_simple(setup_test: SetupFixture) -> None:
     """Test that the define evaluator function works."""
     ai, _, _, *_ = setup_test
 
-    async def my_eval_fn(datapoint: BaseDataPoint, options: dict | None = None):
+    async def my_eval_fn(datapoint: BaseDataPoint, options: dict[str, Any] | None = None) -> EvalFnResponse:
         return EvalFnResponse(
             test_case_id=datapoint.test_case_id or '',
             evaluation=Score(score=True, details=Details(reasoning='I think it is true')),
@@ -1507,7 +1545,7 @@ def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
     class CustomOption(BaseModel):
         foo_bar: str = Field('baz', description='foo_bar field')
 
-    async def my_eval_fn(datapoint: BaseDataPoint, options: dict | None = None):
+    async def my_eval_fn(datapoint: BaseDataPoint, options: dict[str, Any] | None = None) -> EvalFnResponse:
         return EvalFnResponse(
             test_case_id=datapoint.test_case_id or '',
             evaluation=Score(
@@ -1547,7 +1585,7 @@ def test_define_batch_evaluator(setup_test: SetupFixture) -> None:
     """Test that the define batch evaluator function works."""
     ai, _, _, *_ = setup_test
 
-    def my_eval_fn(req: EvalRequest, options: Any | None):
+    async def my_eval_fn(req: EvalRequest, options: object | None) -> list[EvalFnResponse]:
         eval_responses: list[EvalFnResponse] = []
         for index in range(len(req.dataset)):
             datapoint = req.dataset[index]
@@ -1561,7 +1599,7 @@ def test_define_batch_evaluator(setup_test: SetupFixture) -> None:
                 )
             )
 
-        return EvalResponse(eval_responses)
+        return eval_responses
 
     action = ai.define_batch_evaluator(
         name='my_eval',
@@ -1584,7 +1622,7 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
     ai, _, _, *_ = setup_test
 
     @ai.flow()
-    def my_flow(input: str, ctx):
+    def my_flow(input: str, ctx: ActionRunContext) -> str:
         ctx.send_chunk(1)
         ctx.send_chunk(2)
         ctx.send_chunk(3)
@@ -1592,7 +1630,7 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
 
     assert my_flow('banana') == 'banana'
 
-    stream, response = my_flow.stream('banana2')  # type: ignore[attr-defined]
+    stream, response = my_flow.stream('banana2')
 
     chunks = []
     async for chunk in stream:
@@ -1608,7 +1646,7 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
     ai, _, _, *_ = setup_test
 
     @ai.flow()
-    async def my_flow(input: str, ctx):
+    async def my_flow(input: str, ctx: ActionRunContext) -> str:
         ctx.send_chunk(1)
         ctx.send_chunk(2)
         ctx.send_chunk(3)
@@ -1616,7 +1654,7 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
 
     assert (await my_flow('banana')) == 'banana'
 
-    stream, response = my_flow.stream('banana2')  # type: ignore[attr-defined]
+    stream, response = my_flow.stream('banana2')
 
     chunks = []
     async for chunk in stream:
@@ -1631,7 +1669,7 @@ async def test_evaluate(setup_test: SetupFixture) -> None:
     """Test that the evaluate function works."""
     ai, _, _, *_ = setup_test
 
-    async def my_eval_fn(datapoint: BaseDataPoint, options: Any | None):
+    async def my_eval_fn(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
         return EvalFnResponse(
             test_case_id=datapoint.test_case_id or '',
             evaluation=Score(score=True, details=Details(reasoning='I think it is true')),

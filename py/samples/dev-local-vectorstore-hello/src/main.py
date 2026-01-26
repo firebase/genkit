@@ -15,14 +15,24 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Dev local vector store sample."""
+"""Dev local vector store sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Local Vector Store Definition           | `define_dev_local_vector_store`     |
+| Document Indexing                       | `ai.index()`                        |
+| Document Retrieval                      | `ai.retrieve()`                     |
+| Document Structure                      | `Document.from_text()`              |
+"""
 
 import os
 
 from genkit.ai import Genkit
 from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import VertexAI
-from genkit.types import Document
+from genkit.types import Document, RetrieverResponse
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
@@ -66,7 +76,7 @@ async def index_documents() -> None:
 
 
 @ai.flow()
-async def retreive_documents():
+async def retreive_documents() -> RetrieverResponse:
     """Retrieve documents from the vector store."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),

@@ -24,7 +24,7 @@ from .client import McpClient, McpServerConfig
 class McpHost:
     """Host for managing multiple MCP clients."""
 
-    def __init__(self, clients: dict[str, McpServerConfig]):
+    def __init__(self, clients: dict[str, McpServerConfig]) -> None:
         """Initialize the MCP host.
 
         Args:
@@ -33,31 +33,31 @@ class McpHost:
         self.clients_config = clients
         self.clients: dict[str, McpClient] = {name: McpClient(name, config) for name, config in clients.items()}
 
-    async def start(self):
+    async def start(self) -> None:
         """Starts all enabled MCP clients."""
         for client in self.clients.values():
             if not client.config.disabled:
                 await client.connect()
 
-    async def close(self):
+    async def close(self) -> None:
         """Closes all MCP clients."""
         for client in self.clients.values():
             await client.close()
 
-    async def register_tools(self, ai: Genkit):
+    async def register_tools(self, ai: Genkit) -> None:
         """Registers all tools from connected clients to Genkit."""
         for client in self.clients.values():
             if client.session:
                 await client.register_tools(ai)
 
-    async def enable(self, name: str):
+    async def enable(self, name: str) -> None:
         """Enables and connects an MCP client."""
         if name in self.clients:
             client = self.clients[name]
             client.config.disabled = False
             await client.connect()
 
-    async def disable(self, name: str):
+    async def disable(self, name: str) -> None:
         """Disables and closes an MCP client."""
         if name in self.clients:
             client = self.clients[name]

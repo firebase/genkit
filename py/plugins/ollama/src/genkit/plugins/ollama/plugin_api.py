@@ -115,7 +115,7 @@ class Ollama(Plugin):
 
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -131,7 +131,7 @@ class Ollama(Plugin):
             return self._create_embedder_action(name)
         return None
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for an Ollama model.
 
         Args:
@@ -169,12 +169,14 @@ class Ollama(Plugin):
                     'multiturn': model_ref.api_type == OllamaAPITypes.CHAT,
                     'system_role': True,
                     'tools': model_ref.supports.tools,
+                    'output': ['text', 'json'],
+                    'constrained': 'all',
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
         )
 
-    def _create_embedder_action(self, name: str):
+    def _create_embedder_action(self, name: str) -> Action:
         """Create an Action object for an Ollama embedder.
 
         Args:
@@ -244,7 +246,9 @@ class Ollama(Plugin):
                             'label': f'Ollama - {_name}',
                             'multiturn': True,
                             'system_role': True,
-                            'tools': False,
+                            'tools': True,
+                            'output': ['text', 'json'],
+                            'constrained': 'all',
                         },
                     )
                 )

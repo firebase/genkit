@@ -14,17 +14,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hello Google GenAI sample.
+"""Hello Google GenAI sample (long-running / server mode).
 
 Key features demonstrated in this sample:
 
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
-| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])` |
+| Deployment as ASGI App                                   | `create_flows_asgi_app`                |
+| Custom Server Lifecycle Hooks                            | `on_app_startup`, `on_app_shutdown`    |
+| Running as HTTP Server                                   | `uvicorn.Server`                       |
+| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])`    |
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
-| Pydantic for Tool Input Schema                           | `GablorkenInput`                       |
+| Tool Input Schema (Pydantic)                             | `GablorkenInput`                       |
 | Simple Generation (Prompt String)                        | `say_hi`                               |
 | Generation with Messages (`Message`, `Role`, `TextPart`) | `simple_generate_with_tools_flow`      |
 | Generation with Tools                                    | `simple_generate_with_tools_flow`      |
@@ -38,18 +41,18 @@ Key features demonstrated in this sample:
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
-
 """
 
 import argparse
 import asyncio
 import os
+from typing import Annotated, cast
 
 import structlog
 import uvicorn
 from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, ToolRunContext, tool_response
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
 from genkit.core.flows import create_flows_asgi_app
@@ -62,6 +65,7 @@ from genkit.plugins.google_genai import (
 )
 from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
+    Embedding,
     GenerationCommonConfig,
     Message,
     Role,
@@ -99,7 +103,7 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: int) -> str:
+async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -122,7 +126,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
 
 
 @ai.tool(name='interruptingTool')
-def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext):
+def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -136,7 +140,7 @@ def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext):
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: int) -> str:
+async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -170,7 +174,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
 
 @ai.flow()
-async def say_hi(name: str):
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -186,7 +190,7 @@ async def say_hi(name: str):
 
 
 @ai.flow()
-async def embed_docs(docs: list[str]):
+async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
     """Generate an embedding for the words in a list.
 
     Args:
@@ -195,16 +199,20 @@ async def embed_docs(docs: list[str]):
     Returns:
         The generated embedding.
     """
+    if docs is None:
+        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed(
+    return await ai.embed_many(
         embedder=f'googleai/{GeminiEmbeddingModels.TEXT_EMBEDDING_004}',
-        documents=[Document.from_text(doc) for doc in docs],
+        content=docs,
         options=options,
     )
 
 
 @ai.flow()
-async def say_hi_with_configured_temperature(data: str):
+async def say_hi_with_configured_temperature(
+    data: Annotated[str, Field(default='Alice')] = 'Alice',
+) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
     Args:
@@ -220,7 +228,10 @@ async def say_hi_with_configured_temperature(data: str):
 
 
 @ai.flow()
-async def say_hi_stream(name: str, ctx: ActionRunContext):
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -240,7 +251,10 @@ async def say_hi_stream(name: str, ctx: ActionRunContext):
 
 
 @ai.flow()
-async def stream_greeting(name: str, ctx: ActionRunContext) -> str:
+async def stream_greeting(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Stream a greeting for the given name.
 
     Args:
@@ -280,7 +294,10 @@ class RpgCharacter(BaseModel):
 
 
 @ai.flow()
-async def generate_character(name: str, ctx: ActionRunContext):
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
@@ -298,17 +315,20 @@ async def generate_character(name: str, ctx: ActionRunContext):
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return (await result).output
+        return cast(RpgCharacter, (await result).output)
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
-        return result.output
+        return cast(RpgCharacter, result.output)
 
 
 @ai.flow()
-async def generate_character_unconstrained(name: str, ctx: ActionRunContext):
+async def generate_character_unconstrained(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
@@ -324,11 +344,14 @@ async def generate_character_unconstrained(name: str, ctx: ActionRunContext):
         output_constrained=False,
         output_instructions=True,
     )
-    return result.output
+    return cast(RpgCharacter, result.output)
 
 
 @ai.flow()
-async def generate_images(name: str, ctx: ActionRunContext) -> GenerateResponseWrapper:
+async def generate_images(
+    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> GenerateResponseWrapper:
     """Generate images for the given name.
 
     Args:

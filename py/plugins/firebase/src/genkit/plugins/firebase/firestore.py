@@ -18,8 +18,8 @@
 """Firestore vector store operations for Genkit."""
 
 from collections.abc import Callable
-from typing import Any
 
+from google.cloud import firestore
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
@@ -50,11 +50,11 @@ def define_firestore_vector_store(
     *,
     name: str,
     embedder: str,
-    embedder_options: dict[str, Any] | None = None,
+    embedder_options: dict[str, object] | None = None,
     collection: str,
     vector_field: str,
     content_field: str | Callable[[DocumentSnapshot], list['DocumentPart']],
-    firestore_client: Any,
+    firestore_client: firestore.Client,
     distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
     metadata_fields: list[str] | MetadataTransformFn | None = None,
 ) -> str:

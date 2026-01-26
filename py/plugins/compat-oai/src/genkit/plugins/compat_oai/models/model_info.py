@@ -107,6 +107,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
     'gpt-4-turbo-preview': ModelInfo(label='OpenAI - gpt-4-turbo-preview', supports=MULTIMODAL_MODEL_SUPPORTS),
     'gpt-4-0125-preview': ModelInfo(label='OpenAI - gpt-4-0125-preview', supports=MULTIMODAL_MODEL_SUPPORTS),
     'gpt-4-1106-preview': ModelInfo(label='OpenAI - gpt-4-1106-preview', supports=MULTIMODAL_MODEL_SUPPORTS),
+    'gpt-4.5-preview': ModelInfo(label='OpenAI - gpt-4.5-preview', supports=MULTIMODAL_MODEL_SUPPORTS),
     'gpt-4': ModelInfo(label='OpenAI - gpt-4', supports=GPT_4_MODEL_SUPPORTS),
     'gpt-4-0613': ModelInfo(label='OpenAI - gpt-4-0613', supports=GPT_4_MODEL_SUPPORTS),
     'gpt-3.5-turbo': ModelInfo(label='OpenAI - gpt-3.5-turbo', supports=GPT_35_MODEL_SUPPORTS),

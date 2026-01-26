@@ -17,7 +17,7 @@
 
 """Chats for case 03."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from genkit.core.typing import Message
 
@@ -25,8 +25,8 @@ from genkit.core.typing import Message
 class ChatSessionInputSchema(BaseModel):
     """Input for starting a chat session."""
 
-    session_id: str
-    question: str
+    session_id: str = Field(default='demo-session-1', description='Unique session identifier')
+    question: str = Field(default='What dishes do you recommend?', description='Question about the menu')
 
 
 class ChatSessionOutputSchema(BaseModel):
@@ -42,12 +42,12 @@ ChatHistory = list[Message]
 class ChatHistoryStore:
     """Store for chat history."""
 
-    def __init__(self, preamble: ChatHistory | None = None):
+    def __init__(self, preamble: ChatHistory | None = None) -> None:
         """Initialize the store."""
         self.preamble = preamble if preamble is not None else []
         self.sessions: dict[str, ChatHistory] = {}
 
-    def write(self, session_id: str, history: ChatHistory):
+    def write(self, session_id: str, history: ChatHistory) -> None:
         """Write history for a session."""
         self.sessions[session_id] = history
 

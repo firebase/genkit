@@ -17,7 +17,7 @@
 """xAI plugin for Genkit."""
 
 import os
-from typing import Any
+from typing import Any, cast
 
 from xai_sdk import Client as XAIClient
 
@@ -50,7 +50,7 @@ class XAI(Plugin):
         self,
         api_key: str | None = None,
         models: list[str] | None = None,
-        **xai_params: Any,
+        **xai_params: object,
     ) -> None:
         """Initialize the XAI plugin.
 
@@ -66,7 +66,7 @@ class XAI(Plugin):
 
         self.models = models or list(SUPPORTED_XAI_MODELS.keys())
         self._xai_params = xai_params
-        self._xai_client = XAIClient(api_key=api_key, **xai_params)
+        self._xai_client = XAIClient(api_key=api_key, **cast(dict[str, Any], xai_params))
 
     async def init(self) -> list:
         """Initialize plugin.
@@ -84,7 +84,7 @@ class XAI(Plugin):
 
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -99,7 +99,7 @@ class XAI(Plugin):
 
         return self._create_model_action(name)
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for an XAI model.
 
         Args:

@@ -14,7 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Entry point for the menu AI sample."""
+"""Entry point for the menu AI sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Multi-file Flow Organization            | `case_01`, `case_02`, etc. imports  |
+| Prompt Management                       | `prompts` module imports            |
+| Tool Integration                        | `tools` module imports              |
+"""
 
 # Import all of the example prompts and flows to ensure they are registered
 import asyncio
@@ -43,7 +52,7 @@ from .menu_ai import ai
 print('All prompts and flows loaded, use the Developer UI to test them out')
 
 
-async def main():
+async def main() -> None:
     """Keep alive for Dev UI."""
     print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI

@@ -16,7 +16,7 @@
 
 """AIO util module for defining and managing AIO utilities."""
 
-import asyncio
+import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -30,11 +30,11 @@ def ensure_async(fn: Callable[..., Any] | Callable[..., Awaitable[Any]]) -> Call
     Returns:
         The async function.
     """
-    is_async = asyncio.iscoroutinefunction(fn)
+    is_async = inspect.iscoroutinefunction(fn)
     if is_async:
         return fn
 
-    async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+    async def async_wrapper(*args: object, **kwargs: object) -> Any:  # noqa: ANN401
         """Wrap the function in an async function.
 
         Args:

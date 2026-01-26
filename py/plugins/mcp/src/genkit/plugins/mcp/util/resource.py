@@ -20,8 +20,6 @@ This module contains helper functions for handling MCP resources,
 including reading and converting resource content.
 """
 
-from typing import Any
-
 import structlog
 
 from genkit.core.typing import MediaPart, Part, TextPart
@@ -30,7 +28,9 @@ from mcp.types import AnyUrl, BlobResourceContents, ReadResourceResult, Resource
 logger = structlog.get_logger(__name__)
 
 
-def from_mcp_resource_part(content: dict[str, Any] | TextResourceContents | BlobResourceContents) -> dict[str, Any]:
+def from_mcp_resource_part(
+    content: dict[str, object] | TextResourceContents | BlobResourceContents,
+) -> dict[str, object]:
     """Convert MCP resource content to Genkit Part format.
 
     Handles different content types:
@@ -73,7 +73,7 @@ def from_mcp_resource_part(content: dict[str, Any] | TextResourceContents | Blob
     return {'text': str(content)}
 
 
-def process_resource_content(resource_result: ReadResourceResult) -> Any:
+def process_resource_content(resource_result: ReadResourceResult) -> object:
     """Process MCP ReadResourceResult and extract content.
 
     Args:
@@ -88,7 +88,7 @@ def process_resource_content(resource_result: ReadResourceResult) -> Any:
     return [from_mcp_resource_part(content) for content in resource_result.contents]
 
 
-def convert_resource_to_genkit_part(resource: Resource) -> dict[str, Any]:
+def convert_resource_to_genkit_part(resource: Resource) -> dict[str, object]:
     """Convert MCP resource to Genkit Part format.
 
     Args:

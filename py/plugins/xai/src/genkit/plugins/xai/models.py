@@ -18,7 +18,7 @@
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 from xai_sdk import Client as XAIClient
 from xai_sdk.proto.v6 import chat_pb2, image_pb2
@@ -88,11 +88,11 @@ class XAIModel:
             assert ctx is not None  # streaming requires ctx
             return await self._generate_streaming(params, request, ctx)
 
-        def _sample():
-            chat = self.client.chat.create(**params)
+        def _sample() -> Any:  # noqa: ANN401
+            chat = self.client.chat.create(**cast(dict[str, Any], params))
             return chat.sample()
 
-        response = await asyncio.to_thread(_sample)
+        response: Any = await asyncio.to_thread(_sample)  # noqa: ANN401
         content = self._to_genkit_content(response)
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -111,7 +111,7 @@ class XAIModel:
             finish_reason=FINISH_REASON_MAP.get(response.finish_reason, FinishReason.UNKNOWN),
         )
 
-    def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
+    def _build_params(self, request: GenerateRequest) -> dict[str, object]:
         """Build xAI API parameters from request."""
         config = request.config
         if isinstance(config, dict):
@@ -135,7 +135,7 @@ class XAIModel:
             deferred = getattr(config, 'deferred', None) if config else None
             reasoning_effort = getattr(config, 'reasoning_effort', None) if config else None
 
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             'model': self.model_name,
             'messages': self._to_xai_messages(request.messages),
             'max_tokens': int(max_tokens),
@@ -173,23 +173,26 @@ class XAIModel:
         return params
 
     async def _generate_streaming(
-        self, params: dict[str, Any], request: GenerateRequest, ctx: ActionRunContext
+        self, params: dict[str, object], request: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse:
-        def _sync_stream():
+        loop = asyncio.get_running_loop()
+
+        def _sync_stream() -> GenerateResponse:
             accumulated_content = []
             final_response = None
 
-            chat = self.client.chat.create(**params)
+            chat = self.client.chat.create(**cast(dict[str, Any], params))
             for response, chunk in chat.stream():
                 final_response = response
 
                 if chunk.content:
-                    ctx.send_chunk(
+                    loop.call_soon_threadsafe(
+                        ctx.send_chunk,
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
                             content=[Part(root=TextPart(text=chunk.content))],
-                        )
+                        ),
                     )
                     accumulated_content.append(Part(root=TextPart(text=chunk.content)))
 
@@ -262,7 +265,7 @@ class XAIModel:
                     tool_calls.append(
                         chat_pb2.ToolCall(
                             id=actual_part.tool_request.ref,
-                            type=chat_pb2.ToolCallType.FUNCTION,
+                            type=chat_pb2.ToolCallType.TOOL_CALL_TYPE_CLIENT_SIDE_TOOL,
                             function=chat_pb2.FunctionCall(
                                 name=actual_part.tool_request.name,
                                 arguments=actual_part.tool_request.input,
@@ -287,8 +290,8 @@ class XAIModel:
 
         return result
 
-    def _to_genkit_content(self, response) -> list[Part]:
-        content = []
+    def _to_genkit_content(self, response: Any) -> list[Part]:  # noqa: ANN401
+        content: list[Part] = []
 
         if response.content:
             content.append(Part(root=TextPart(text=response.content)))

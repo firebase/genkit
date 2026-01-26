@@ -18,7 +18,7 @@
 
 import abc
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -62,7 +62,7 @@ class Formatter(Generic[OutputT, ChunkT]):
         message_parser: MessageParser[OutputT],
         chunk_parser: ChunkParser[ChunkT],
         instructions: str | None,
-    ):
+    ) -> None:
         """Initializes a Formatter.
 
         Args:
@@ -105,7 +105,7 @@ class FormatDef:
     an optional schema.
     """
 
-    def __init__(self, name: str, config: FormatterConfig):
+    def __init__(self, name: str, config: FormatterConfig) -> None:
         """Initializes a FormatDef.
 
         Args:
@@ -117,7 +117,7 @@ class FormatDef:
         pass
 
     @abc.abstractmethod
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Handles the format.
 
         Args:
@@ -128,7 +128,7 @@ class FormatDef:
         """
         pass
 
-    def __call__(self, schema: dict[str, Any] | None) -> Formatter:
+    def __call__(self, schema: dict[str, object] | None) -> Formatter:
         """Calls the handle method.
 
         Args:

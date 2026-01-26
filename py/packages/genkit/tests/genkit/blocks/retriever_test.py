@@ -17,6 +17,7 @@
 
 """Tests for Genkit retrievers and indexers."""
 
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -38,7 +39,7 @@ from genkit.core.action import ActionMetadata
 from genkit.core.schema import to_json_schema
 
 
-def test_retriever_action_metadata():
+def test_retriever_action_metadata() -> None:
     """Test for retriever_action_metadata with basic options."""
     options = RetrieverOptions(label='Test Retriever')
     action_metadata = retriever_action_metadata(
@@ -57,7 +58,7 @@ def test_retriever_action_metadata():
     }
 
 
-def test_retriever_action_metadata_with_supports_and_config_schema():
+def test_retriever_action_metadata_with_supports_and_config_schema() -> None:
     """Test for retriever_action_metadata with supports and config_schema."""
 
     class CustomConfig(BaseModel):
@@ -74,12 +75,14 @@ def test_retriever_action_metadata_with_supports_and_config_schema():
     )
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata is not None
-    assert action_metadata.metadata.get('retriever') is not None
-    assert action_metadata.metadata['retriever']['label'] == 'Advanced Retriever'
-    assert action_metadata.metadata['retriever']['supports'] == {
+    metadata = cast(dict[str, Any], action_metadata.metadata)
+    assert metadata.get('retriever') is not None
+    retriever_meta = cast(dict[str, Any], metadata['retriever'])
+    assert retriever_meta['label'] == 'Advanced Retriever'
+    assert retriever_meta['supports'] == {
         'media': True,
     }
-    assert action_metadata.metadata['retriever']['customOptions'] == {
+    assert retriever_meta['customOptions'] == {
         'title': 'CustomConfig',
         'type': 'object',
         'properties': {
@@ -89,14 +92,14 @@ def test_retriever_action_metadata_with_supports_and_config_schema():
     }
 
 
-def test_retriever_action_metadata_no_options():
+def test_retriever_action_metadata_no_options() -> None:
     """Test retriever_action_metadata when no options are provided."""
     action_metadata = retriever_action_metadata(name='default_retriever')
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata == {'retriever': {'customOptions': None}}
 
 
-def test_create_retriever_ref_basic():
+def test_create_retriever_ref_basic() -> None:
     """Test basic creation of RetrieverRef."""
     ref = create_retriever_ref('my-retriever')
     assert ref.name == 'my-retriever'
@@ -104,7 +107,7 @@ def test_create_retriever_ref_basic():
     assert ref.version is None
 
 
-def test_create_retriever_ref_with_config():
+def test_create_retriever_ref_with_config() -> None:
     """Test creation of RetrieverRef with configuration."""
     config = {'k': 5}
     ref = create_retriever_ref('configured-retriever', config=config)
@@ -113,7 +116,7 @@ def test_create_retriever_ref_with_config():
     assert ref.version is None
 
 
-def test_create_retriever_ref_with_version():
+def test_create_retriever_ref_with_version() -> None:
     """Test creation of RetrieverRef with a version."""
     ref = create_retriever_ref('versioned-retriever', version='v1.0')
     assert ref.name == 'versioned-retriever'
@@ -121,7 +124,7 @@ def test_create_retriever_ref_with_version():
     assert ref.version == 'v1.0'
 
 
-def test_create_retriever_ref_with_config_and_version():
+def test_create_retriever_ref_with_config_and_version() -> None:
     """Test creation of RetrieverRef with both config and version."""
     config = {'k': 10}
     ref = create_retriever_ref('full-retriever', config=config, version='beta')
@@ -131,7 +134,7 @@ def test_create_retriever_ref_with_config_and_version():
 
 
 @pytest.mark.asyncio
-async def test_define_retriever():
+async def test_define_retriever() -> None:
     """Test define_retriever registration."""
     registry = MagicMock()
     fn = AsyncMock(return_value=RetrieverResponse(documents=[]))
@@ -145,7 +148,7 @@ async def test_define_retriever():
 
 
 @pytest.mark.asyncio
-async def test_define_indexer():
+async def test_define_indexer() -> None:
     """Test define_indexer registration."""
     registry = MagicMock()
     fn = AsyncMock()
@@ -158,7 +161,7 @@ async def test_define_indexer():
     assert call_args.kwargs['name'] == 'test_indexer'
 
 
-def test_indexer_action_metadata():
+def test_indexer_action_metadata() -> None:
     """Test for indexer_action_metadata with basic options."""
     options = IndexerOptions(label='Test Indexer')
     action_metadata = indexer_action_metadata(
@@ -177,7 +180,7 @@ def test_indexer_action_metadata():
     }
 
 
-def test_create_indexer_ref_basic():
+def test_create_indexer_ref_basic() -> None:
     """Test basic creation of IndexerRef."""
     ref = create_indexer_ref('my-indexer')
     assert ref.name == 'my-indexer'

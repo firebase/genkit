@@ -16,7 +16,7 @@
 
 """MCP Client implementation for connecting to Model Context Protocol servers."""
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from pydantic import BaseModel
@@ -45,7 +45,7 @@ class McpServerConfig(BaseModel):
 class McpClient(Plugin):
     """Client for connecting to a single MCP server."""
 
-    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
+    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None) -> None:
         """Initialize the MCP client.
 
         Args:
@@ -99,7 +99,7 @@ class McpClient(Plugin):
         """
         return []
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connects to the MCP server."""
         if self.config.disabled:
             logger.info(f'MCP server {self.server_name} is disabled.')
@@ -141,7 +141,7 @@ class McpClient(Plugin):
             await self.close()
             raise e
 
-    async def close(self):
+    async def close(self) -> None:
         """Closes the connection."""
         if hasattr(self, '_session_context') and self._session_context:
             try:
@@ -161,7 +161,7 @@ class McpClient(Plugin):
         result = await self.session.list_tools()
         return result.tools
 
-    async def call_tool(self, tool_name: str, arguments: dict) -> Any:
+    async def call_tool(self, tool_name: str, arguments: dict) -> str:
         """Calls a tool on the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
@@ -184,7 +184,7 @@ class McpClient(Plugin):
         result = await self.session.list_prompts()
         return result.prompts
 
-    async def get_prompt(self, name: str, arguments: dict | None = None) -> Any:
+    async def get_prompt(self, name: str, arguments: dict | None = None) -> object:
         """Gets a prompt from the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
@@ -197,13 +197,13 @@ class McpClient(Plugin):
         result = await self.session.list_resources()
         return result.resources
 
-    async def read_resource(self, uri: str) -> Any:
+    async def read_resource(self, uri: str) -> object:
         """Reads a resource from the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
         return await self.session.read_resource(AnyUrl(uri))
 
-    async def register_tools(self, ai: Genkit | None = None):
+    async def register_tools(self, ai: Genkit | None = None) -> None:
         """Registers all tools from connected client to Genkit."""
         registry = ai.registry if ai else (self.ai.registry if self.ai else None)
         if not registry:
@@ -218,13 +218,15 @@ class McpClient(Plugin):
             for tool in tools:
                 # Create a wrapper function for the tool
                 # We need to capture tool and client in closure
-                async def tool_wrapper(args: Any = None, _tool_name=tool.name):
+                async def tool_wrapper(args: object = None, _tool_name: str = tool.name) -> object:
                     # args might be Pydantic model or dict. Genkit passes dict usually?
                     # TODO: Validate args against schema if needed
-                    arguments = args
-                    if hasattr(args, 'model_dump'):
-                        arguments = args.model_dump()
-                    return await self.call_tool(_tool_name, arguments or {})
+                    arguments: dict[str, Any] = {}
+                    if isinstance(args, dict):
+                        arguments = cast(dict[str, Any], args)
+                    elif hasattr(args, 'model_dump') and callable(args.model_dump):
+                        arguments = args.model_dump()  # type: ignore[union-attr]
+                    return await self.call_tool(_tool_name, arguments)
 
                 # Use metadata to store MCP specific info
                 metadata = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}

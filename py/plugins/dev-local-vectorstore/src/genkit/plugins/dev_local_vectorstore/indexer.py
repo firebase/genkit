@@ -41,7 +41,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         index_name: str,
         embedder: str,
         embedder_options: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         """Initialize the DevLocalVectorStoreIndexer.
 
         Args:
@@ -60,16 +60,16 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         docs = request.documents
         data = self._load_filestore()
 
-        embed_resp = await self.ai.embed(
+        embed_resp = await self.ai.embed_many(
             embedder=self.embedder,
-            documents=[Document.from_document_data(document_data=doc) for doc in docs],
+            content=docs,
             options=self.embedder_options,
         )
-        if not embed_resp.embeddings:
+        if not embed_resp:
             raise ValueError('Embedder returned no embeddings for documents')
 
         tasks = []
-        for doc_data, emb in zip(docs, embed_resp.embeddings, strict=False):
+        for doc_data, emb in zip(docs, embed_resp, strict=True):
             tasks.append(
                 self.process_document(
                     document=Document.from_document_data(document_data=doc_data),

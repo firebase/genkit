@@ -32,6 +32,7 @@ from pydantic.alias_generators import to_camel
 from genkit.blocks.document import Document
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import DocumentData, RetrieverResponse
 
@@ -46,7 +47,7 @@ class Retriever(Generic[T]):
     def __init__(
         self,
         retriever_fn: RetrieverFn[T],
-    ):
+    ) -> None:
         """Initialize a Retriever.
 
         Args:
@@ -211,7 +212,7 @@ def create_indexer_ref(
 
 
 def define_retriever(
-    registry: Any,
+    registry: Registry,
     name: str,
     fn: RetrieverFn,
     options: RetrieverOptions | None = None,
@@ -221,7 +222,7 @@ def define_retriever(
 
     async def wrapper(
         request: RetrieverRequest,
-        ctx: Any,
+        ctx: Any,  # noqa: ANN401
     ) -> RetrieverResponse:
         query = Document.from_document_data(request.query)
         res = fn(query, request.options)
@@ -232,7 +233,7 @@ def define_retriever(
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
-        span_metadata=metadata.metadata,
+        span_metadata={'genkit:metadata:retriever:name': name},
     )
 
 
@@ -240,7 +241,7 @@ IndexerFn = Callable[[list[Document], T], None | Awaitable[None]]
 
 
 def define_indexer(
-    registry: Any,
+    registry: Registry,
     name: str,
     fn: IndexerFn,
     options: IndexerOptions | None = None,
@@ -250,7 +251,7 @@ def define_indexer(
 
     async def wrapper(
         request: IndexerRequest,
-        ctx: Any,
+        ctx: Any,  # noqa: ANN401
     ) -> None:
         docs = [Document.from_document_data(d) for d in request.documents]
         res = fn(docs, request.options)
@@ -262,5 +263,5 @@ def define_indexer(
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
-        span_metadata=metadata.metadata,
+        span_metadata={'genkit:metadata:indexer:name': name},
     )

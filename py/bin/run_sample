@@ -77,55 +77,96 @@ else
 fi
 
 if [[ $# -lt 1 ]]; then
-    SAMPLES=$(list_samples)
-    
-    if [[ -n "$FZF_CMD" ]]; then
-        # Use fzf with preview window if available
-        SAMPLE_NAME=$(echo "$SAMPLES" | $FZF_CMD --preview "if [ -f $SAMPLES_DIR/{}/README.md ]; then cat $SAMPLES_DIR/{}/README.md; else echo 'No README found.'; fi" --preview-window=right:60%:wrap --height=100% --reverse --header="Select a sample to run")
-        if [[ -z "$SAMPLE_NAME" ]]; then
-            exit 0
+    while true; do
+        SAMPLES=$(list_samples)
+        
+        if [[ -n "$FZF_CMD" ]]; then
+            # Use fzf with preview window if available
+            SAMPLE_NAME=$(echo "$SAMPLES" | $FZF_CMD --preview "if [ -f $SAMPLES_DIR/{}/README.md ]; then cat $SAMPLES_DIR/{}/README.md; else echo 'No README found.'; fi" --preview-window=right:60%:wrap --height=100% --reverse --header="Select a sample to run (Ctrl-C to exit sample and return here)")
+            if [[ -z "$SAMPLE_NAME" ]]; then
+                exit 0
+            fi
+        elif [[ -n "$GUM_CMD" ]]; then
+            SAMPLE_NAME=$($GUM_CMD filter --placeholder "Select a sample to run..." <<< "$SAMPLES")
+            if [[ -z "$SAMPLE_NAME" ]]; then
+                exit 0
+            fi
+        else
+            echo "Usage: $0 <sample-name> [args...]"
+            echo ""
+            echo "Available samples:"
+            echo "$SAMPLES"
+            exit 1
         fi
-    elif [[ -n "$GUM_CMD" ]]; then
-        SAMPLE_NAME=$($GUM_CMD filter --placeholder "Select a sample to run..." <<< "$SAMPLES")
-        if [[ -z "$SAMPLE_NAME" ]]; then
-            exit 0
+
+        SAMPLE_DIR="$SAMPLES_DIR/$SAMPLE_NAME"
+
+        if [[ ! -d "$SAMPLE_DIR" ]]; then
+            echo "Error: Sample '$SAMPLE_NAME' not found in $SAMPLES_DIR"
+            continue
         fi
-    else
-        echo "Usage: $0 <sample-name> [args...]"
+
+
+        # Run in a subshell to ensure directory change doesn't persist
+        (
+            cd "$SAMPLE_DIR"
+
+            if [[ -f "./README.md" ]]; then
+                if [[ -n "$GUM_CMD" ]]; then
+                    $GUM_CMD format -t markdown < ./README.md
+                else
+                    cat ./README.md
+                fi
+                echo ""
+            fi
+
+            if [[ -f "./run.sh" ]]; then
+                 # Trap SIGINT to ignore it in the parent shell while the child runs
+                 trap '' SIGINT
+                 ./run.sh "$@" || true
+                 trap - SIGINT
+            else
+                echo "Error: Sample '$SAMPLE_NAME' does not have a 'run.sh' script."
+            fi
+        )
+        
         echo ""
-        echo "Available samples:"
-        echo "$SAMPLES"
-        exit 1
-    fi
+        echo "Sample '$SAMPLE_NAME' exited. Returning to menu..."
+        echo ""
+        # Ignore SIGINT during the read prompt so user can't accidental exit the menu loop
+        trap '' SIGINT
+        read -p "Press Enter to continue..." || true
+        trap - SIGINT
+    done
 else
     SAMPLE_NAME="$1"
     shift
-fi
+    
+    SAMPLE_DIR="$SAMPLES_DIR/$SAMPLE_NAME"
 
-SAMPLE_DIR="$SAMPLES_DIR/$SAMPLE_NAME"
-
-if [[ ! -d "$SAMPLE_DIR" ]]; then
-    echo "Error: Sample '$SAMPLE_NAME' not found in $SAMPLES_DIR"
-    echo ""
-    echo "Available samples:"
-    list_samples
-    exit 1
-fi
-
-cd "$SAMPLE_DIR"
-
-if [[ -f "./README.md" ]]; then
-    if [[ -n "$GUM_CMD" ]]; then
-        $GUM_CMD format -t markdown < ./README.md
-    else
-        cat ./README.md
+    if [[ ! -d "$SAMPLE_DIR" ]]; then
+        echo "Error: Sample '$SAMPLE_NAME' not found in $SAMPLES_DIR"
+        echo ""
+        echo "Available samples:"
+        list_samples
+        exit 1
     fi
-    echo ""
-fi
 
-if [[ -f "./run.sh" ]]; then
-    exec ./run.sh "$@"
-else
-    echo "Error: Sample '$SAMPLE_NAME' does not have a 'run.sh' script."
-    exit 1
+    cd "$SAMPLE_DIR"
+
+    if [[ -f "./README.md" ]]; then
+        if [[ -n "$GUM_CMD" ]]; then
+            $GUM_CMD format -t markdown < ./README.md
+        else
+            cat ./README.md
+        fi
+        echo ""
+    fi
+
+    if [[ -f "./run.sh" ]]; then
+        exec ./run.sh "$@"
+    else
+        echo "Error: Sample '$SAMPLE_NAME' does not have a 'run.sh' script."
+        exit 1
+    fi
 fi

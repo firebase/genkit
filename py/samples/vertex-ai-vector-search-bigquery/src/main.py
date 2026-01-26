@@ -14,14 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Vertex AI Vector Search with BigQuery sample."""
+"""Vertex AI Vector Search with BigQuery sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| BigQuery Vector Search Definition       | `define_vertex_vector_search_big_query`|
+| BigQuery Client Integration             | `bigquery.Client()`                 |
+| Document Retrieval with Filters         | `ai.retrieve(..., options={'limit': ...})`|
+| Performance Metrics                     | Duration tracking                   |
+"""
 
 import os
 import time
 
 import structlog
 from google.cloud import aiplatform, bigquery
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
@@ -63,8 +73,8 @@ define_vertex_vector_search_big_query(
 class QueryFlowInputSchema(BaseModel):
     """Input schema."""
 
-    query: str
-    k: int
+    query: str = Field(default='document 1', description='Search query text')
+    k: int = Field(default=5, description='Number of results to return')
 
 
 class QueryFlowOutputSchema(BaseModel):

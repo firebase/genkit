@@ -14,13 +14,28 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A simple flow served via a flask server."""
+"""A simple flow served via a flask server.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Flask Integration                       | `genkit_flask_handler`              |
+| Context Provider                        | `my_context_provider`               |
+| Request Header Access                   | `request.request.headers`           |
+| Flow Context Usage                      | `ctx.context.get("username")`       |
+"""
 
 import os
+from typing import Annotated
 
 from flask import Flask
+from pydantic import Field
 
 from genkit.ai import Genkit
+from genkit.blocks.model import GenerateResponseWrapper
+from genkit.core.action import ActionRunContext
+from genkit.core.context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
@@ -36,15 +51,18 @@ ai = Genkit(
 app = Flask(__name__)
 
 
-async def my_context_provider(request):
+async def my_context_provider(request: RequestData) -> dict:
     """Provide a context for the flow."""
-    return {'username': request.headers.get('authorization')}
+    return {'username': request.request.headers.get('authorization')}
 
 
 @app.post('/chat')
 @genkit_flask_handler(ai, context_provider=my_context_provider)
 @ai.flow()
-async def say_hi(name: str, ctx):
+async def say_hi(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> GenerateResponseWrapper:
     """Say hi to the user."""
     return await ai.generate(
         on_chunk=ctx.send_chunk,

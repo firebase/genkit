@@ -14,11 +14,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample demonstrating code execution using the Google Gemini API with GenAI."""
+"""Sample demonstrating code execution using the Google Gemini API with GenAI.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Code Execution Config                   | `code_execution=True`               |
+| Executable Code Part Handling           | `PartConverter.EXECUTABLE_CODE`     |
+| Code Execution Result Handling          | `PartConverter.CODE_EXECUTION_RESULT`|
+| Custom Part Parsing                     | `CustomPart` processing             |
+"""
 
 import os
+from typing import Annotated
 
 import structlog
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
@@ -37,8 +49,13 @@ ai = Genkit(
 )
 
 
+DEFAULT_CODE_TASK = 'What is the sum of the first 50 prime numbers?'
+
+
 @ai.flow()
-async def execute_code(task: str) -> MessageWrapper:
+async def execute_code(
+    task: Annotated[str, Field(default=DEFAULT_CODE_TASK)] = DEFAULT_CODE_TASK,
+) -> MessageWrapper:
     """Execute code for the given task.
 
     Args:
@@ -59,7 +76,7 @@ async def execute_code(task: str) -> MessageWrapper:
     return response.message
 
 
-def display_code_execution(message: Message):
+def display_code_execution(message: Message) -> None:
     """Display the code execution results from a message."""
     print('\n=== INTERNAL CODE EXECUTION ===')
     for part in message.content:

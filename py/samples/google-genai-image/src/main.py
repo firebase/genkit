@@ -14,17 +14,30 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""This sample demonstrates how to use Gemini to describe, draw, and edit images."""
+"""This sample demonstrates how to use Gemini to describe, draw, and edit images.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Text-to-Image Generation                | `draw_image_with_gemini`            |
+| Image-to-Text (Description)             | `describe_image_with_gemini`        |
+| Multimodal Prompting                    | `generate_images`                   |
+| Image Editing (Inpainting/Outpainting)  | `gemini_image_editing`              |
+| Video Generation (Veo)                  | `photo_move_veo`                    |
+| Media Resolution Control                | `gemini_media_resolution`           |
+"""
 
 import asyncio
 import base64
 import logging
 import os
 import pathlib
-from typing import Any
+from typing import Annotated
 
 from google import genai
 from google.genai import types as genai_types
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
@@ -52,7 +65,9 @@ ai = Genkit(plugins=[GoogleAI()])
 
 
 @ai.flow()
-async def draw_image_with_gemini(prompt: str = '') -> GenerateResponseWrapper:
+async def draw_image_with_gemini(
+    prompt: Annotated[str, Field(default='Draw a cat in a hat.')] = 'Draw a cat in a hat.',
+) -> GenerateResponseWrapper:
     """Draw an image.
 
     Args:
@@ -61,9 +76,6 @@ async def draw_image_with_gemini(prompt: str = '') -> GenerateResponseWrapper:
     Returns:
         The image.
     """
-    if not prompt:
-        prompt = 'Draw a cat in a hat.'
-
     return await ai.generate(
         prompt=prompt,
         config={'response_modalities': ['Text', 'Image']},
@@ -111,7 +123,10 @@ async def describe_image_with_gemini(data: str = '') -> str:
 
 
 @ai.flow()
-async def generate_images(name: str, ctx: ActionRunContext) -> GenerateResponseWrapper:
+async def generate_images(
+    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> GenerateResponseWrapper:
     """Generate images for the given name.
 
     Args:
@@ -144,7 +159,7 @@ def screenshot() -> dict:
 
 
 @ai.flow()
-async def multipart_tool_calling():
+async def multipart_tool_calling() -> str:
     """Multipart tool calling."""
     response = await ai.generate(
         model='googleai/gemini-3-pro-preview',
@@ -156,7 +171,7 @@ async def multipart_tool_calling():
 
 
 @ai.flow()
-async def gemini_image_editing():
+async def gemini_image_editing() -> Media | None:
     """Image editing with Gemini."""
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
@@ -187,7 +202,7 @@ async def gemini_image_editing():
 
 
 @ai.flow()
-async def nano_banana_pro():
+async def nano_banana_pro() -> Media | None:
     """Nano banana pro config."""
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
@@ -208,7 +223,7 @@ async def nano_banana_pro():
 
 
 @ai.flow()
-async def photo_move_veo(_: Any, context: ActionRunContext | None = None):
+async def photo_move_veo(_: object, context: ActionRunContext | None = None) -> object:
     """An example of using Ver 3 model to make a static photo move."""
     # Find photo.jpg (or my_room.png)
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
@@ -285,7 +300,7 @@ async def photo_move_veo(_: Any, context: ActionRunContext | None = None):
 
 
 @ai.flow()
-async def gemini_media_resolution():
+async def gemini_media_resolution() -> str:
     """Media resolution."""
     # Placeholder base64 for sample
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
@@ -308,7 +323,7 @@ async def gemini_media_resolution():
 
 
 @ai.flow()
-async def multimodal_input():
+async def multimodal_input() -> str:
     """Multimodal input."""
     photo_path = pathlib.Path(__file__).parent.parent / 'photo.jpg'
     with open(photo_path, 'rb') as f:

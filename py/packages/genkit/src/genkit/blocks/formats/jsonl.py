@@ -16,7 +16,7 @@
 
 """Implementation of JSONL output format."""
 
-from typing import Any
+from typing import cast
 
 import json5
 
@@ -54,7 +54,7 @@ class JsonlFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the JsonlFormat.
 
         Configures the format with:
@@ -68,7 +68,7 @@ class JsonlFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling JSONL data.
 
         Args:
@@ -80,15 +80,23 @@ class JsonlFormat(FormatDef):
         Raises:
             GenkitError: If the schema structure matches expectations for JSONL.
         """
-        if schema and (schema.get('type') != 'array' or schema.get('items', {}).get('type') != 'object'):
-            raise GenkitError(
-                status='INVALID_ARGUMENT',
-                message=(
-                    "Must supply an 'array' schema type containing 'object' items when using the 'jsonl' parser format."
-                ),
-            )
+        if schema:
+            schema_type = schema.get('type')
+            items = schema.get('items')
+            items_type: object | None = None
+            if isinstance(items, dict):
+                items_dict = cast(dict[str, object], items)
+                items_type = items_dict.get('type')
+            if schema_type != 'array' or items_type != 'object':
+                raise GenkitError(
+                    status='INVALID_ARGUMENT',
+                    message=(
+                        "Must supply an 'array' schema type containing 'object' items "
+                        "when using the 'jsonl' parser format."
+                    ),
+                )
 
-        def message_parser(msg: MessageWrapper):
+        def message_parser(msg: MessageWrapper) -> list[object]:
             """Parses a complete message into a list of objects."""
             lines = [line.strip() for line in msg.text.split('\n') if line.strip().startswith('{')]
             items = []
@@ -98,7 +106,7 @@ class JsonlFormat(FormatDef):
                     items.append(extracted)
             return items
 
-        def chunk_parser(chunk: GenerateResponseChunkWrapper):
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> list[object]:
             """Parses a streaming chunk into a list of objects found in that chunk."""
             # Calculate the length of text from previous chunks
             previous_text_len = len(chunk.accumulated_text) - len(chunk.text)

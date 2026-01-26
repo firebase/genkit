@@ -34,7 +34,7 @@ class AddInput(BaseModel):
     b: int = Field(..., description='Second number')
 
 
-def main():
+def main() -> None:
     """Run the simple MCP server."""
     # Load prompts from the 'prompts' directory relative to this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -43,7 +43,7 @@ def main():
     ai = Genkit(prompt_dir=prompts_dir)
 
     @ai.tool(name='add', description='add two numbers together')
-    def add(input: AddInput):
+    def add(input: AddInput) -> int:
         return input.a + input.b
 
     # Genkit Python prompt definition (simplified)

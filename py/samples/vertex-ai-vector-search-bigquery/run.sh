@@ -36,4 +36,11 @@ if ! gcloud auth application-default print-access-token &>/dev/null; then
   echo "Run: gcloud auth application-default login"
 fi
 
-genkit start -- uv run src/main.py "$@"
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run src/main.py "$@"

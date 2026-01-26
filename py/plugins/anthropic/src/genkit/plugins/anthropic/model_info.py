@@ -17,6 +17,7 @@
 """Anthropic Models for Genkit."""
 
 from genkit.types import (
+    Constrained,
     ModelInfo,
     Supports,
 )
@@ -68,34 +69,53 @@ CLAUDE_OPUS_4 = ModelInfo(
 
 CLAUDE_SONNET_4_5 = ModelInfo(
     label='Anthropic - Claude Sonnet 4.5',
-    versions=['claude-sonnet-4-5-20250915'],
+    versions=['claude-sonnet-4-5-20250929'],
     supports=Supports(
         multiturn=True,
         media=True,
         tools=True,
         system_role=True,
+        output=['text', 'json'],
+        constrained=Constrained.ALL,
     ),
 )
 
 CLAUDE_HAIKU_4_5 = ModelInfo(
     label='Anthropic - Claude Haiku 4.5',
-    versions=['claude-haiku-4-5-20250915'],
+    versions=['claude-haiku-4-5-20251001'],
     supports=Supports(
         multiturn=True,
         media=True,
         tools=True,
         system_role=True,
+        output=['text', 'json'],
+        constrained=Constrained.ALL,
     ),
 )
 
 CLAUDE_OPUS_4_1 = ModelInfo(
     label='Anthropic - Claude Opus 4.1',
-    versions=['claude-opus-4-1-20260115'],
+    versions=['claude-opus-4-1-20250805'],
     supports=Supports(
         multiturn=True,
         media=True,
         tools=True,
         system_role=True,
+        output=['text', 'json'],
+        constrained=Constrained.ALL,
+    ),
+)
+
+CLAUDE_OPUS_4_5 = ModelInfo(
+    label='Anthropic - Claude Opus 4.5',
+    versions=['claude-opus-4-5-20251101'],
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        system_role=True,
+        output=['text', 'json'],
+        constrained=Constrained.ALL,
     ),
 )
 
@@ -107,6 +127,7 @@ SUPPORTED_ANTHROPIC_MODELS: dict[str, ModelInfo] = {
     'claude-sonnet-4-5': CLAUDE_SONNET_4_5,
     'claude-haiku-4-5': CLAUDE_HAIKU_4_5,
     'claude-opus-4-1': CLAUDE_OPUS_4_1,
+    'claude-opus-4-5': CLAUDE_OPUS_4_5,
 }
 
 DEFAULT_SUPPORTS = Supports(
@@ -114,6 +135,7 @@ DEFAULT_SUPPORTS = Supports(
     media=True,
     tools=True,
     system_role=True,
+    output=['text'],
 )
 
 

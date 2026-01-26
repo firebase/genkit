@@ -120,12 +120,12 @@ class GenkitBase(GenkitRegistry):
         if not spec:
             spec = ServerSpec(scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999))
 
-        async def dev_runner():
+        async def dev_runner() -> T | None:
             """Internal async function to run tasks using AnyIO TaskGroup."""
             user_result: T | None = None
             user_task_finished_event = anyio.Event()
 
-            async def run_user_coro_wrapper():
+            async def run_user_coro_wrapper() -> None:
                 """Wraps user coroutine to capture result and signal completion."""
                 nonlocal user_result
                 try:
@@ -149,7 +149,7 @@ class GenkitBase(GenkitRegistry):
             # JS uses: process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 
             # Since anyio/asyncio handles SIGINT well, let's add a task to catch SIGTERM
-            async def handle_sigterm(tg_to_cancel):
+            async def handle_sigterm(tg_to_cancel: anyio.abc.TaskGroup) -> None:  # type: ignore[name-defined]
                 with anyio.open_signal_receiver(signal.SIGTERM) as signals:
                     async for _signum in signals:
                         logger.info('Received SIGTERM, cancelling tasks...')
@@ -193,7 +193,7 @@ class GenkitBase(GenkitRegistry):
                                 # uvicorn.Server has 'started' attribute but it might be internal state.
 
                                 # Let's stick to simple polling with to_thread for safety
-                                def check_health():
+                                def check_health() -> bool:
                                     with urllib.request.urlopen(f'{spec.url}/api/__health', timeout=0.5) as response:
                                         return response.status == 200
 

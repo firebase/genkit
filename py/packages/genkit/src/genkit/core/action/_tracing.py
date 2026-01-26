@@ -16,10 +16,22 @@
 
 """Action tracing module for defining and managing action tracing."""
 
+from opentelemetry.trace import Span
+from opentelemetry.util import types as otel_types
+
 from genkit.codec import dump_json
 
+# Type alias for span attribute values
+SpanAttributeValue = otel_types.AttributeValue
 
-def record_input_metadata(span, kind, name, span_metadata, input):
+
+def record_input_metadata(
+    span: Span,
+    kind: str,
+    name: str,
+    span_metadata: dict[str, SpanAttributeValue] | None,
+    input: object | None,
+) -> None:
     """Records input metadata onto an OpenTelemetry span for a Genkit action.
 
     Sets standard Genkit attributes like action type, subtype (kind), name,
@@ -45,7 +57,7 @@ def record_input_metadata(span, kind, name, span_metadata, input):
             span.set_attribute(meta_key, span_metadata[meta_key])
 
 
-def record_output_metadata(span, output) -> None:
+def record_output_metadata(span: Span, output: object) -> None:
     """Records output metadata onto an OpenTelemetry span for a Genkit action.
 
     Marks the span state as 'success' and records the JSON representation of

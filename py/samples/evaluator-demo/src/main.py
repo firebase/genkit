@@ -15,7 +15,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Evaluator demo main entry point."""
+"""Evaluator demo main entry point.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Custom Evaluator Definition             | `ai.define_evaluator()`             |
+| Evaluation Logic                        | `random_eval`                       |
+| Evaluation Response Structure           | `EvalFnResponse`, `Score`           |
+"""
 
 import argparse
 import asyncio
@@ -67,7 +76,7 @@ ai.define_evaluator(
 )
 
 
-async def main():
+async def main() -> None:
     """Keep alive for Dev UI."""
     print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI

@@ -147,6 +147,7 @@ from typing import Any, cast
 
 from google import genai
 from google.genai import types as genai_types
+from pydantic import ConfigDict, Field
 
 from genkit.ai import (
     ActionRunContext,
@@ -179,24 +180,32 @@ from genkit.types import (
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
     """Gemini Config Schema."""
 
+    model_config = ConfigDict(extra='allow')
+
     code_execution: bool | None = None
     response_modalities: list[str] | None = None
-    thinking_config: dict[str, Any] | None = None
-    file_search: dict[str, Any] | None = None
-    url_context: dict[str, Any] | None = None
+    thinking_config: dict[str, object] | None = None
+    file_search: dict[str, object] | None = None
+    url_context: dict[str, object] | None = None
     api_version: str | None = None
+
+    http_options: Any | None = Field(None, exclude=True)
+    tools: Any | None = Field(None, exclude=True)
+    tool_config: Any | None = Field(None, exclude=True)
+    response_schema: Any | None = Field(None, exclude=True)
+    response_json_schema: Any | None = Field(None, exclude=True)
 
 
 class GeminiTtsConfigSchema(GeminiConfigSchema):
     """Gemini TTS Config Schema."""
 
-    speech_config: dict[str, Any] | None = None
+    speech_config: dict[str, object] | None = None
 
 
 class GeminiImageConfigSchema(GeminiConfigSchema):
     """Gemini Image Config Schema."""
 
-    image_config: dict[str, Any] | None = None
+    image_config: dict[str, object] | None = None
 
 
 class GemmaConfigSchema(GeminiConfigSchema):
@@ -220,6 +229,7 @@ GEMINI_1_5_PRO = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -238,6 +248,7 @@ GEMINI_1_5_FLASH = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -252,6 +263,7 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -264,6 +276,7 @@ GEMINI_2_0_FLASH = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -276,6 +289,7 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -288,6 +302,7 @@ GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -300,6 +315,7 @@ GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -312,6 +328,7 @@ GEMINI_2_0_FLASH_THINKING_EXP_01_21 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -324,6 +341,7 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -336,6 +354,7 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -348,6 +367,7 @@ GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -360,6 +380,7 @@ GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -642,7 +663,7 @@ class GeminiModel:
         self,
         version: str | GoogleAIGeminiVersion | VertexAIGeminiVersion,
         client: genai.Client,
-    ):
+    ) -> None:
         """Initialize Gemini model.
 
         Args:
@@ -692,7 +713,7 @@ class GeminiModel:
         return genai_types.Tool(function_declarations=[function])
 
     def _convert_schema_property(
-        self, input_schema: dict[str, Any] | None, defs: dict[str, Any] | None = None
+        self, input_schema: dict[str, object] | None, defs: dict[str, object] | None = None
     ) -> genai_types.Schema | None:
         """Sanitizes a schema to be compatible with Gemini API.
 
@@ -707,50 +728,60 @@ class GeminiModel:
             return None
 
         if defs is None:
-            defs = input_schema.get('$defs') or {}
+            defs_value = input_schema.get('$defs')
+            defs = cast(dict[str, object], defs_value) if isinstance(defs_value, dict) else {}
 
         if '$ref' in input_schema:
             ref_path = input_schema['$ref']
-            ref_tokens = ref_path.split('/')
-            ref_name = ref_tokens[-1]
+            if isinstance(ref_path, str):
+                ref_tokens = ref_path.split('/')
+                ref_name = ref_tokens[-1]
 
-            if ref_name not in defs:
-                raise ValueError(f'Failed to resolve schema for {ref_name}')
+                if defs is None or ref_name not in defs:
+                    raise ValueError(f'Failed to resolve schema for {ref_name}')
 
-            schema = self._convert_schema_property(defs[ref_name], defs)
+                ref_schema = defs[ref_name]
+                if isinstance(ref_schema, dict):
+                    schema = self._convert_schema_property(cast(dict[str, object], ref_schema), defs)
+                else:
+                    schema = None
 
-            if schema and input_schema.get('description'):
-                schema.description = input_schema['description']
+                if schema and input_schema.get('description'):
+                    schema.description = cast(str, input_schema['description'])
 
-            return schema
+                return schema
 
         if 'type' not in input_schema:
             return None
 
         schema = genai_types.Schema()
         if input_schema.get('description'):
-            schema.description = input_schema['description']
+            schema.description = cast(str, input_schema['description'])
 
         if 'required' in input_schema:
-            schema.required = input_schema['required']
+            schema.required = cast(list[str], input_schema['required'])
 
         if 'type' in input_schema:
-            schema_type = genai_types.Type(input_schema['type'])
+            schema_type = genai_types.Type(cast(str, input_schema['type']))
             schema.type = schema_type
 
             if 'enum' in input_schema:
-                schema.enum = input_schema['enum']
+                schema.enum = cast(list[str], input_schema['enum'])
 
             if schema_type == genai_types.Type.ARRAY:
-                schema.items = self._convert_schema_property(input_schema['items'], defs)
+                items_value = input_schema.get('items')
+                if isinstance(items_value, dict):
+                    schema.items = self._convert_schema_property(cast(dict[str, object], items_value), defs)
 
             if schema_type == genai_types.Type.OBJECT:
                 schema.properties = {}
-                properties = input_schema.get('properties', {})
-                for key in properties:
-                    nested_schema = self._convert_schema_property(properties[key], defs)
-                    if nested_schema:
-                        schema.properties[key] = nested_schema
+                properties_value = input_schema.get('properties', {})
+                if isinstance(properties_value, dict):
+                    properties = cast(dict[str, dict[str, object]], properties_value)
+                    for key in properties:
+                        nested_schema = self._convert_schema_property(properties[key], defs)
+                        if nested_schema:
+                            schema.properties[key] = nested_schema
 
         return schema
 
