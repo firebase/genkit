@@ -34,10 +34,11 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-google-genai",
   "genkit-plugin-dev-local-vectorstore",
+  "genkit-plugin-google-genai",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
+  "uvloop>=0.21.0",
 ]
 description = "hello Genkit sample"
 license = "Apache-2.0"

@@ -36,11 +36,12 @@ dependencies = [
   "genkit",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-firebase",
-  "genkit-plugin-google-genai",
   "genkit-plugin-google-cloud",
+  "genkit-plugin-google-genai",
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
+  "uvloop>=0.21.0",
 ]
 description = "menu Genkit sample"
 license = "Apache-2.0"

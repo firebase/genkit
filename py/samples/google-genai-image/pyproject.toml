@@ -34,9 +34,11 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "pillow",
   "genkit-plugin-google-genai",
+  "google-genai",
+  "pillow",
   "pydantic>=2.10.5",
+  "uvloop>=0.21.0",
 ]
 description = "Vision API and Image Generation example"
 license = "Apache-2.0"
