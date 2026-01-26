@@ -265,7 +265,7 @@ class XAIModel:
                     tool_calls.append(
                         chat_pb2.ToolCall(
                             id=actual_part.tool_request.ref,
-                            type=chat_pb2.ToolCallType.FUNCTION,
+                            type=chat_pb2.ToolCallType.TOOL_CALL_TYPE_CLIENT_SIDE_TOOL,
                             function=chat_pb2.FunctionCall(
                                 name=actual_part.tool_request.name,
                                 arguments=actual_part.tool_request.input,

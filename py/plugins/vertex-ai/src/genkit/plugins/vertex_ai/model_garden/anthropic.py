@@ -21,11 +21,18 @@ from collections.abc import Awaitable, Callable
 from typing import cast
 
 from anthropic import AsyncAnthropic, AsyncAnthropicVertex
+from pydantic import ConfigDict
 
 from genkit.ai import ActionRunContext
 from genkit.core.typing import Supports
 from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
+
+
+class AnthropicConfigSchema(GenerationCommonConfig):
+    """Configuration for Anthropic models."""
+
+    model_config = ConfigDict(extra='allow')
 
 
 class AnthropicModelGarden:
@@ -81,4 +88,4 @@ class AnthropicModelGarden:
     @staticmethod
     def get_config_schema() -> type[GenerationCommonConfig]:
         """Returns the config schema for this model type."""
-        return GenerationCommonConfig
+        return AnthropicConfigSchema
