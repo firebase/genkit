@@ -93,6 +93,8 @@ class GoogleAI(Plugin):
         credentials: Credentials | None = None,
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
+        api_version: str | None = None,
+        base_url: str | None = None,
     ) -> None:
         """Initializes the GoogleAI plugin.
 
@@ -106,6 +108,8 @@ class GoogleAI(Plugin):
             debug_config: Configuration for debugging the client. Defaults to None.
             http_options: HTTP options for configuring the client's network requests.
                 Can be an instance of HttpOptions or a dictionary. Defaults to None.
+            api_version: The API version to use (e.g., 'v1beta'). Defaults to None.
+            base_url: The base URL for the API. Defaults to None.
 
         Raises:
             ValueError: If `api_key` is not provided and the 'GEMINI_API_KEY'
@@ -122,7 +126,7 @@ class GoogleAI(Plugin):
             api_key=api_key,
             credentials=credentials,
             debug_config=debug_config,
-            http_options=_inject_attribution_headers(http_options),
+            http_options=_inject_attribution_headers(http_options, base_url, api_version),
         )
 
     async def init(self) -> list[Action]:
@@ -301,6 +305,8 @@ class VertexAI(Plugin):
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
         api_key: str | None = None,
+        api_version: str | None = None,
+        base_url: str | None = None,
     ) -> None:
         """Initializes the VertexAI plugin.
 
@@ -316,6 +322,8 @@ class VertexAI(Plugin):
             api_key: The API key for authenticating with the Google AI service.
                 If not provided, it defaults to reading from the 'GEMINI_API_KEY'
                 environment variable.
+            api_version: The API version to use. Defaults to None.
+            base_url: The base URL for the API. Defaults to None.
         """
         project = project if project else os.getenv(const.GCLOUD_PROJECT)
         location = location if location else const.DEFAULT_REGION
@@ -327,7 +335,7 @@ class VertexAI(Plugin):
             project=project,
             location=location,
             debug_config=debug_config,
-            http_options=_inject_attribution_headers(http_options),
+            http_options=_inject_attribution_headers(http_options, base_url, api_version),
         )
 
     async def init(self) -> list[Action]:
@@ -492,7 +500,11 @@ class VertexAI(Plugin):
         return actions_list
 
 
-def _inject_attribution_headers(http_options: HttpOptions | HttpOptionsDict | None = None) -> HttpOptions:
+def _inject_attribution_headers(
+    http_options: HttpOptions | HttpOptionsDict | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+) -> HttpOptions:
     """Adds genkit client info to the appropriate http headers."""
     # Normalize to HttpOptions instance
     opts: HttpOptions
@@ -503,6 +515,12 @@ def _inject_attribution_headers(http_options: HttpOptions | HttpOptionsDict | No
     else:
         # HttpOptionsDict or other dict-like - use model_validate for proper type conversion
         opts = HttpOptions.model_validate(http_options)
+
+    if base_url:
+        opts.base_url = base_url
+
+    if api_version:
+        opts.api_version = api_version
 
     if not opts.headers:
         opts.headers = {}

@@ -207,6 +207,44 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 
 @ai.flow()
+async def demo_dynamic_tools(
+    input_val: Annotated[str, Field(default='Dynamic tools demo')] = 'Dynamic tools demo',
+) -> dict:
+    """Demonstrates advanced Genkit features: ai.run() and ai.dynamic_tool().
+
+    This flow shows how to:
+    1. Use `ai.run()` to create sub-spans (steps) within a flow trace.
+    2. Use `ai.dynamic_tool()` to create tools on-the-fly without registration.
+
+    To test this in the Dev UI:
+    1. Select 'demo_dynamic_tools' from the flows list.
+    2. Run it with the default input or provide a custom string.
+    3. Click 'View trace' to see the 'process_data_step' sub-span and tool execution.
+    """
+
+    # ai.run() allows you to wrap any function in a trace span, which is visible
+    # in the Dev UI. It supports an optional input argument as the second parameter.
+    def process_data(data: str) -> str:
+        return f'processed: {data}'
+
+    run_result = await ai.run('process_data_step', input_val, process_data)
+
+    # ai.dynamic_tool() creates a tool that isn't globally registered but can be
+    # used immediately or passed to generate() calls.
+    def multiplier_fn(x: int) -> int:
+        return x * 10
+
+    dynamic_multiplier = ai.dynamic_tool('dynamic_multiplier', multiplier_fn, description='Multiplies by 10')
+    tool_res = await dynamic_multiplier.arun(5)
+
+    return {
+        'step_result': run_result,
+        'dynamic_tool_result': tool_res.response,
+        'tool_metadata': dynamic_multiplier.metadata,
+    }
+
+
+@ai.flow()
 async def embed_docs(
     docs: list[str] | None = None,
 ) -> list[Embedding]:

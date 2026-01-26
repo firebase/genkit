@@ -406,10 +406,10 @@ class TestVertexAIInit(unittest.TestCase):
             vertexai=True,
             api_key=api_key,
             credentials=None,
-            debug_config=None,
-            http_options=_inject_attribution_headers(),
             project='project',
             location='us-central1',
+            debug_config=None,
+            http_options=_inject_attribution_headers(),
         )
         self.assertIsInstance(plugin, VertexAI)
         self.assertTrue(plugin._vertexai)
@@ -425,10 +425,10 @@ class TestVertexAIInit(unittest.TestCase):
             vertexai=True,
             api_key=None,
             credentials=mock_credentials,
-            debug_config=None,
-            http_options=_inject_attribution_headers(),
             project='project',
             location='us-central1',
+            debug_config=None,
+            http_options=_inject_attribution_headers(),
         )
         self.assertIsInstance(plugin, VertexAI)
         self.assertTrue(plugin._vertexai)
@@ -449,10 +449,10 @@ class TestVertexAIInit(unittest.TestCase):
             vertexai=True,
             api_key=api_key,
             credentials=mock_credentials,
-            debug_config=None,
-            http_options=_inject_attribution_headers(),
             project='project',
             location='location',
+            debug_config=None,
+            http_options=_inject_attribution_headers(),
         )
         self.assertIsInstance(plugin, VertexAI)
         self.assertTrue(plugin._vertexai)

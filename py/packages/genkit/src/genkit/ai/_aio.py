@@ -16,17 +16,27 @@
 
 """User-facing asyncio API for Genkit.
 
-To use Genkit in your application, construct an instance of the `Genkit`
-class while customizing it with any plugins.
+This module provides the primary entry point for using Genkit in an asynchronous
+environment. The `Genkit` class coordinates plugins, registry, and execution
+of AI actions like generation, embedding, and retrieval.
+
+Key features provided by the `Genkit` class:
+- **Generation**: Interface for unified model interaction via `generate` and `generate_stream`.
+- **Flow Control**: Execution of granular steps with tracing via `run`.
+- **Dynamic Extensibility**: On-the-fly creation of tools via `dynamic_tool`.
+- **Observability**: Specialized methods for managing trace context and flushing telemetry.
 """
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import Any, TypedDict, TypeVar, cast  # noqa: F401
 
-from genkit.aio import Channel
+from opentelemetry import trace as trace_api
+from opentelemetry.sdk.trace import TracerProvider
+
+from genkit.aio import Channel, ensure_async
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
 from genkit.blocks.evaluator import EvaluatorRef
@@ -41,9 +51,10 @@ from genkit.blocks.model import (
 )
 from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
-from genkit.core.action import ActionRunContext
+from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
+from genkit.core.tracing import run_in_new_span
 from genkit.core.typing import (
     BaseDataPoint,
     Embedding,
@@ -51,6 +62,8 @@ from genkit.core.typing import (
     EmbedResponse,
     EvalRequest,
     EvalResponse,
+    Operation,
+    SpanMetadata,
 )
 from genkit.types import (
     DocumentData,
@@ -65,6 +78,8 @@ from genkit.types import (
 
 from ._base_async import GenkitBase
 from ._server import ServerSpec
+
+T = TypeVar('T')
 
 
 class OutputConfigDict(TypedDict, total=False):
@@ -686,3 +701,143 @@ class Genkit(GenkitBase):
                 )
             )
         ).response
+
+    @staticmethod
+    def current_context() -> dict[str, Any] | None:
+        """Retrieves the current execution context for the running action.
+
+        This allows tools and other actions to access context data (like auth
+        or metadata) passed through the execution chain via ContextVars.
+        This provides parity with the JavaScript SDK's context handling.
+
+        Returns:
+            The current context dictionary, or None if not running in an action.
+        """
+        return ActionRunContext._current_context()
+
+    def dynamic_tool(
+        self,
+        name: str,
+        fn: Callable[..., object],
+        description: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> Action:
+        """Creates an unregistered tool action.
+
+        This is useful for creating tools that are passed directly to generate()
+        without being registered in the global registry. Dynamic tools behave exactly
+        like registered tools but offer more flexibility for runtime-defined logic.
+
+        Args:
+            name: The unique name of the tool.
+            fn: The function that implements the tool logic.
+            description: Optional human-readable description of what the tool does.
+            metadata: Optional dictionary of metadata about the tool.
+
+        Returns:
+            An Action instance of kind TOOL, configured for dynamic execution.
+        """
+        tool_meta = metadata.copy() if metadata else {}
+        tool_meta['type'] = 'tool'
+        tool_meta['dynamic'] = True
+        return Action(
+            kind=ActionKind.TOOL,
+            name=name,
+            fn=fn,
+            description=description,
+            metadata=tool_meta,
+        )
+
+    async def flush_tracing(self) -> None:
+        """Flushes all registered trace processors.
+
+        This ensures all pending spans are exported before the application
+        shuts down, preventing loss of telemetry data.
+        """
+        provider = trace_api.get_tracer_provider()
+        if isinstance(provider, TracerProvider):
+            await ensure_async(provider.force_flush)()
+
+    async def run(
+        self,
+        name: str,
+        func_or_input: object,
+        maybe_fn: Callable[..., T | Awaitable[T]] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> T:
+        """Runs a function as a discrete step within a trace.
+
+        This method is used to create sub-spans (steps) within a flow or other action.
+        Each run step is recorded separately in the trace, making it easier to
+        debug and monitor the internal execution of complex flows.
+
+        It supports two call signatures:
+        1. `run(name, fn)`: Runs the provided function.
+        2. `run(name, input, fn)`: Passes the input to the function and records it.
+
+        Args:
+            name: The descriptive name of the span/step.
+            func_or_input: Either the function to execute, or input data to pass
+                to `maybe_fn`.
+            maybe_fn: An optional function to execute if `func_or_input` is
+                provided as input data.
+            metadata: Optional metadata to associate with the generated trace span.
+
+        Returns:
+            The result of the function execution.
+        """
+        fn: Callable[..., T | Awaitable[T]]
+        input_data: Any = None
+        has_input = False
+
+        if maybe_fn:
+            fn = maybe_fn
+            input_data = func_or_input
+            has_input = True
+        elif callable(func_or_input):
+            fn = cast(Callable[..., T | Awaitable[T]], func_or_input)
+        else:
+            raise ValueError('A function must be provided to run.')
+
+        span_metadata = SpanMetadata(name=name, metadata=metadata)
+        with run_in_new_span(span_metadata, labels={'genkit:type': 'flowStep'}) as span:
+            try:
+                if has_input:
+                    span.set_input(input_data)
+                    result = await ensure_async(fn)(input_data)
+                else:
+                    result = await ensure_async(fn)()
+
+                span.set_output(result)
+                return result
+            except Exception:
+                # We catch all exceptions here to ensure they are captured by
+                # the trace span context manager before being re-raised.
+                # The GenkitSpan wrapper (run_in_new_span) handles recording
+                # the exception details.
+                raise
+
+    async def check_operation(self, operation: Operation) -> Operation:
+        """Checks the status of a long-running operation.
+
+        This method resolves the action associated with the operation and executes
+        it to get an updated status.
+
+        Args:
+            operation: The Operation object to check.
+
+        Returns:
+            An updated Operation object.
+
+        Raises:
+            ValueError: If the operation doesn't specify an action or if the
+                action cannot be resolved.
+        """
+        if not operation.action:
+            raise ValueError('Operation must have an action specified to be checked.')
+
+        action = await self.registry.resolve_action_by_key(operation.action)
+        if not action:
+            raise ValueError(f'Action "{operation.action}" not found.')
+
+        return (await action.arun(operation)).response
