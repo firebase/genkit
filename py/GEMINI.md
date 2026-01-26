@@ -66,6 +66,8 @@
   * When you are not sure about the API or concepts, please refer to the
     JavaScript implementation for the same.
 * Keep examples in documentation and docstrings simple.
+* Add links to relevant documentation on the Web or elsewhere
+  in the relevent places in docstrings.
 
 ### Implementation
 
