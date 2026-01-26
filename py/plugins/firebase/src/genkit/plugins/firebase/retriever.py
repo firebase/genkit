@@ -14,14 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from collections.abc import Callable
-from typing import Any
 
+"""Firestore retriever implementation for Genkit."""
+
+from collections.abc import Callable
+
+from google.cloud import firestore
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
+from genkit.core.typing import DocumentPart, TextPart
 from genkit.types import ActionRunContext, Document, GenkitError, RetrieverRequest, RetrieverResponse
 
 from .constant import MetadataTransformFn
@@ -48,14 +52,14 @@ class FirestoreRetriever:
         ai: Genkit,
         name: str,
         embedder: str,
-        embedder_options: dict[str, Any] | None,
-        firestore_client: Any,
+        embedder_options: dict[str, object] | None,
+        firestore_client: firestore.Client,
         collection: str,
         vector_field: str,
-        content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]],
+        content_field: str | Callable[[DocumentSnapshot], list[DocumentPart]],
         distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
         metadata_fields: list[str] | MetadataTransformFn | None = None,
-    ):
+    ) -> None:
         """Initialize the FirestoreRetriever.
 
         Args:
@@ -82,7 +86,7 @@ class FirestoreRetriever:
         self.metadata_fields = metadata_fields
         self._validate_config()
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """Validate the FirestoreRetriever configuration.
 
         Raises:
@@ -97,7 +101,7 @@ class FirestoreRetriever:
         if not self.firestore_client:
             raise ValueError('Firestore Retriever config must include firestore client.')
 
-    def _to_content(self, doc_snapshot: DocumentSnapshot) -> list[dict[str, str]]:
+    def _to_content(self, doc_snapshot: DocumentSnapshot) -> list[DocumentPart]:
         """Convert a Firestore document snapshot to a list of content dictionaries.
 
         Args:
@@ -111,9 +115,9 @@ class FirestoreRetriever:
             return content_field(doc_snapshot)
         else:
             content = doc_snapshot.get(content_field)
-            return [{'text': content}] if content else []
+            return [DocumentPart(root=TextPart(text=str(content)))] if content else []
 
-    def _to_metadata(self, doc_snapshot: DocumentSnapshot) -> Document:
+    def _to_metadata(self, doc_snapshot: DocumentSnapshot) -> dict[str, object]:
         """Convert a Firestore document snapshot to a list of metadata dictionaries.
 
         Args:
@@ -122,17 +126,18 @@ class FirestoreRetriever:
         Returns:
             A list of dictionaries containing the metadata of the document.
         """
-        metadata: dict[str, Any] = {}
+        metadata: dict[str, object] = {}
         metadata_fields = self.metadata_fields
         if metadata_fields:
             if callable(metadata_fields):
                 metadata = metadata_fields(doc_snapshot)
             else:
+                doc_dict = doc_snapshot.to_dict() or {}
                 for field in metadata_fields:
-                    if field in doc_snapshot:
-                        metadata[field] = doc_snapshot.get(field)
+                    if field in doc_dict:
+                        metadata[field] = doc_dict[field]
         else:
-            metadata = doc_snapshot.to_dict()
+            metadata = doc_snapshot.to_dict() or {}
             vector_field = self.vector_field
             content_field = self.content_field
             if vector_field in metadata:
@@ -164,14 +169,14 @@ class FirestoreRetriever:
         query = Document.from_document_data(document_data=request.query)
         query_embedding_result = await self.ai.embed(
             embedder=self.embedder,
-            documents=[query],
+            content=query,
             options=self.embedder_options,
         )
 
-        if not query_embedding_result.embeddings or len(query_embedding_result.embeddings) == 0:
+        if not query_embedding_result:
             raise GenkitError(message='Embedder returned no embeddings')
 
-        query_embedding = query_embedding_result.embeddings[0].embedding
+        query_embedding = query_embedding_result[0].embedding
         query_vector = Vector(query_embedding)
         collection = self.firestore_client.collection(self.collection)
 

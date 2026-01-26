@@ -60,7 +60,6 @@ import {
 export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
   protected name: string;
   protected client: Anthropic;
-  protected cacheSystemPrompt?: boolean;
 
   /**
    * Default maximum output tokens for Claude models when not specified in the request.
@@ -70,7 +69,6 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
   constructor(params: ClaudeRunnerParams) {
     this.name = params.name;
     this.client = params.client;
-    this.cacheSystemPrompt = params.cacheSystemPrompt;
   }
 
   /**
@@ -351,39 +349,31 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
    * toAnthropicMessageContent implementation.
    */
   protected toAnthropicMessages(messages: MessageData[]): {
-    system?: string;
+    system?: RunnerContentBlockParam<ApiTypes>[];
     messages: RunnerMessageParam<ApiTypes>[];
   } {
-    let system: string | undefined;
+    let system: RunnerContentBlockParam<ApiTypes>[] | undefined;
 
     if (messages[0]?.role === 'system') {
       const systemMessage = messages[0];
-      const textParts: string[] = [];
+      messages = messages.slice(1);
 
       for (const part of systemMessage.content ?? []) {
-        if (part.text) {
-          textParts.push(part.text);
-        } else if (part.media || part.toolRequest || part.toolResponse) {
+        if (part.media || part.toolRequest || part.toolResponse) {
           throw new Error(
             'System messages can only contain text content. Media, tool requests, and tool responses are not supported in system messages.'
           );
         }
       }
 
-      // Concatenate multiple text parts into a single string.
-      // Note: The Anthropic SDK supports system as string | Array<TextBlockParam>,
-      // so we could alternatively preserve the multi-part structure as:
-      //   system = textParts.map(text => ({ type: 'text', text }))
-      // However, concatenation is simpler and maintains semantic equivalence while
-      // keeping the cache control logic straightforward in the concrete runners.
-      system = textParts.length > 0 ? textParts.join('\n\n') : undefined;
+      system = systemMessage.content.map((part) =>
+        this.toAnthropicMessageContent(part)
+      );
     }
 
-    const messagesToIterate =
-      system !== undefined ? messages.slice(1) : messages;
     const anthropicMsgs: RunnerMessageParam<ApiTypes>[] = [];
 
-    for (const message of messagesToIterate) {
+    for (const message of messages) {
       const msg = new GenkitMessage(message);
 
       // Detect tool message kind from Genkit Parts (no SDK typing needed)
@@ -423,28 +413,24 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
    * Converts an Anthropic request to a non-streaming Anthropic API request body.
    * @param modelName The name of the Anthropic model to use.
    * @param request The Genkit GenerateRequest to convert.
-   * @param cacheSystemPrompt Whether to cache the system prompt.
    * @returns The converted Anthropic API non-streaming request body.
    * @throws An error if an unsupported output format is requested.
    */
   protected abstract toAnthropicRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): RunnerRequestBody<ApiTypes>;
 
   /**
    * Converts an Anthropic request to a streaming Anthropic API request body.
    * @param modelName The name of the Anthropic model to use.
    * @param request The Genkit GenerateRequest to convert.
-   * @param cacheSystemPrompt Whether to cache the system prompt.
    * @returns The converted Anthropic API streaming request body.
    * @throws An error if an unsupported output format is requested.
    */
   protected abstract toAnthropicStreamingRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): RunnerStreamingRequestBody<ApiTypes>;
 
   protected abstract createMessage(
@@ -476,11 +462,7 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     const { streamingRequested, sendChunk, abortSignal } = options;
 
     if (streamingRequested) {
-      const body = this.toAnthropicStreamingRequestBody(
-        this.name,
-        request,
-        this.cacheSystemPrompt
-      );
+      const body = this.toAnthropicStreamingRequestBody(this.name, request);
       const stream = this.streamMessages(body, abortSignal);
       for await (const event of stream) {
         const part = this.toGenkitPart(event);
@@ -495,11 +477,7 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
       return this.toGenkitResponse(finalMessage);
     }
 
-    const body = this.toAnthropicRequestBody(
-      this.name,
-      request,
-      this.cacheSystemPrompt
-    );
+    const body = this.toAnthropicRequestBody(this.name, request);
     const response = await this.createMessage(body, abortSignal);
     return this.toGenkitResponse(response);
   }

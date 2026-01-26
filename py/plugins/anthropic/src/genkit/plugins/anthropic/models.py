@@ -19,10 +19,12 @@
 from typing import Any
 
 from anthropic import AsyncAnthropic
+from anthropic.types import Message as AnthropicMessage
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.plugins.anthropic.model_info import get_model_info
 from genkit.types import (
+    FinishReason,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -32,6 +34,7 @@ from genkit.types import (
     Part,
     Role,
     TextPart,
+    ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
 )
@@ -74,6 +77,7 @@ class AnthropicModel:
         streaming = ctx and ctx.is_streaming
 
         if streaming:
+            assert ctx is not None  # streaming requires ctx
             response = await self._generate_streaming(params, ctx)
         else:
             response = await self.client.messages.create(**params)
@@ -84,12 +88,12 @@ class AnthropicModel:
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
 
         finish_reason_map = {
-            'end_turn': 'stop',
-            'max_tokens': 'length',
-            'stop_sequence': 'stop',
-            'tool_use': 'stop',
+            'end_turn': FinishReason.STOP,
+            'max_tokens': FinishReason.LENGTH,
+            'stop_sequence': FinishReason.STOP,
+            'tool_use': FinishReason.STOP,
         }
-        finish_reason = finish_reason_map.get(response.stop_reason, 'unknown')
+        finish_reason = finish_reason_map.get(response.stop_reason, FinishReason.UNKNOWN)
 
         return GenerateResponse(
             message=response_message,
@@ -146,16 +150,16 @@ class AnthropicModel:
 
         return params
 
-    async def _generate_streaming(self, params: dict[str, Any], ctx: ActionRunContext):
+    async def _generate_streaming(self, params: dict[str, Any], ctx: ActionRunContext) -> AnthropicMessage:
         """Handle streaming generation."""
         async with self.client.messages.stream(**params) as stream:
             async for chunk in stream:
-                if chunk.type == 'content_block_delta' and hasattr(chunk.delta, 'text'):
+                if chunk.type == 'content_block_delta' and hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
                     ctx.send_chunk(
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
-                            content=[Part(root=TextPart(text=chunk.delta.text))],
+                            content=[Part(root=TextPart(text=str(chunk.delta.text)))],
                         )
                     )
             return await stream.get_final_message()
@@ -218,7 +222,7 @@ class AnthropicModel:
             }
         return {'type': 'image', 'source': {'type': 'url', 'url': url}}
 
-    def _to_genkit_content(self, content_blocks: list) -> list[Part]:
+    def _to_genkit_content(self, content_blocks: list[Any]) -> list[Part]:
         """Convert Anthropic response to Genkit format."""
         parts = []
         for block in content_blocks:
@@ -228,11 +232,11 @@ class AnthropicModel:
                 parts.append(
                     Part(
                         root=ToolRequestPart(
-                            tool_request={
-                                'ref': block.id,
-                                'name': block.name,
-                                'input': block.input,
-                            }
+                            tool_request=ToolRequest(
+                                ref=block.id,
+                                name=block.name,
+                                input=block.input,
+                            )
                         )
                     )
                 )

@@ -17,6 +17,7 @@
 """ModelGarden API Compatible Plugin for Genkit."""
 
 import os
+from typing import cast
 
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
@@ -76,7 +77,7 @@ class ModelGardenPlugin(Plugin):
         self.models = models
         self.model_locations = model_locations or {}
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize plugin.
 
         Returns:
@@ -84,7 +85,7 @@ class ModelGardenPlugin(Plugin):
         """
         return []
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -99,7 +100,7 @@ class ModelGardenPlugin(Plugin):
 
         return self._create_model_action(name)
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for a Model Garden Vertex AI model.
 
         Args:
@@ -117,16 +118,32 @@ class ModelGardenPlugin(Plugin):
             from .anthropic import AnthropicModelGarden as AnthropicWorker
 
             location = self.model_locations.get(clean_name, self.location)
+            if not self.project_id:
+                raise ValueError('project_id must be provided')
             model_proxy = AnthropicWorker(
                 model=clean_name,
                 location=location,
                 project_id=self.project_id,
-                registry=ai,
             )
-            model_proxy.define_model()
-            return
+
+            handler = model_proxy.get_handler()
+            model_info = model_proxy.get_model_info()
+
+            return Action(
+                kind=ActionKind.MODEL,
+                name=name,
+                fn=handler,
+                metadata={
+                    'model': {
+                        **model_info.model_dump(),
+                        'customOptions': to_json_schema(model_proxy.get_config_schema()),
+                    },
+                },
+            )
 
         location = self.model_locations.get(clean_name, self.location)
+        if not self.project_id:
+            raise ValueError('project_id must be provided')
         model_proxy = ModelGarden(
             model=clean_name,
             location=location,
@@ -143,7 +160,11 @@ class ModelGardenPlugin(Plugin):
             fn=handler,
             metadata={
                 'model': {
-                    **(model_info.model_dump() if hasattr(model_info, 'model_dump') else model_info),
+                    **(
+                        model_info.model_dump()  # type: ignore[union-attr]
+                        if hasattr(model_info, 'model_dump')
+                        else cast(dict[str, object], model_info)
+                    ),
                     'customOptions': to_json_schema(OpenAIConfig),
                 },
             },

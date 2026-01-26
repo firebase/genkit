@@ -45,13 +45,19 @@ Key features demonstrated in this sample:
 import argparse
 import asyncio
 import os
-from enum import StrEnum
-from typing import Annotated
+import sys
+
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
+from typing import Annotated, cast
 
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
 from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_cloud import add_gcp_telemetry
@@ -60,10 +66,12 @@ from genkit.plugins.google_genai import (
     GoogleAI,
 )
 from genkit.types import (
+    Embedding,
     GenerationCommonConfig,
     Media,
     MediaPart,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -107,11 +115,15 @@ def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: int, ctx: ActionRunContext) -> str:
+async def simple_generate_with_tools_flow(
+    value: Annotated[int, Field(default=42)] = 42,
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate a greeting for the given name.
 
     Args:
         value: the integer to send to test function
+        ctx: the flow context
 
     Returns:
         The generated response with a function.
@@ -125,7 +137,7 @@ async def simple_generate_with_tools_flow(value: int, ctx: ActionRunContext) -> 
 
 
 @ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
+def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -139,7 +151,7 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: int) -> str:
+async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -152,7 +164,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text=f'what is a gablorken of {value}')],
+                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
             ),
         ],
         tools=['gablorkenTool2'],
@@ -167,11 +179,11 @@ async def simple_generate_with_interrupts(value: int) -> str:
         tool_responses=[tr],
         tools=['gablorkenTool'],
     )
-    return response
+    return response.text
 
 
 @ai.flow()
-async def say_hi(name: str):
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -195,7 +207,47 @@ async def say_hi(name: str):
 
 
 @ai.flow()
-async def embed_docs(docs: Annotated[list[str], Field(default=[''], description='List of texts to embed')] = None):
+async def demo_dynamic_tools(
+    input_val: Annotated[str, Field(default='Dynamic tools demo')] = 'Dynamic tools demo',
+) -> dict:
+    """Demonstrates advanced Genkit features: ai.run() and ai.dynamic_tool().
+
+    This flow shows how to:
+    1. Use `ai.run()` to create sub-spans (steps) within a flow trace.
+    2. Use `ai.dynamic_tool()` to create tools on-the-fly without registration.
+
+    To test this in the Dev UI:
+    1. Select 'demo_dynamic_tools' from the flows list.
+    2. Run it with the default input or provide a custom string.
+    3. Click 'View trace' to see the 'process_data_step' sub-span and tool execution.
+    """
+
+    # ai.run() allows you to wrap any function in a trace span, which is visible
+    # in the Dev UI. It supports an optional input argument as the second parameter.
+    def process_data(data: str) -> str:
+        return f'processed: {data}'
+
+    run_result = await ai.run('process_data_step', input_val, process_data)
+
+    # ai.dynamic_tool() creates a tool that isn't globally registered but can be
+    # used immediately or passed to generate() calls.
+    def multiplier_fn(x: int) -> int:
+        return x * 10
+
+    dynamic_multiplier = ai.dynamic_tool('dynamic_multiplier', multiplier_fn, description='Multiplies by 10')
+    tool_res = await dynamic_multiplier.arun(5)
+
+    return {
+        'step_result': run_result,
+        'dynamic_tool_result': tool_res.response,
+        'tool_metadata': dynamic_multiplier.metadata,
+    }
+
+
+@ai.flow()
+async def embed_docs(
+    docs: list[str] | None = None,
+) -> list[Embedding]:
     """Generate an embedding for the words in a list.
 
     Args:
@@ -205,17 +257,19 @@ async def embed_docs(docs: Annotated[list[str], Field(default=[''], description=
         The generated embedding.
     """
     if docs is None:
-        docs = ['']
+        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed(
+    return await ai.embed_many(
         embedder='googleai/text-embedding-004',
-        documents=[Document.from_text(doc) for doc in docs],
+        content=docs,
         options=options,
     )
 
 
 @ai.flow()
-async def say_hi_with_configured_temperature(data: str):
+async def say_hi_with_configured_temperature(
+    data: Annotated[str, Field(default='Alice')] = 'Alice',
+) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
     Args:
@@ -225,13 +279,16 @@ async def say_hi_with_configured_temperature(data: str):
         The generated response with a function.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
 
 @ai.flow()
-async def say_hi_stream(name: str, ctx):
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -242,11 +299,10 @@ async def say_hi_stream(name: str, ctx):
         The generated response with a function.
     """
     stream, _ = ai.generate_stream(prompt=f'hi {name}')
-    result = ''
+    result: str = ''
     async for data in stream:
         ctx.send_chunk(data.text)
-        for part in data.content:
-            result += part.root.text
+        result += data.text
 
     return result
 
@@ -269,7 +325,10 @@ class RpgCharacter(BaseModel):
 
 
 @ai.flow()
-async def generate_character(name: str, ctx):
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
@@ -287,17 +346,20 @@ async def generate_character(name: str, ctx):
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return (await result).output
+        return cast(RpgCharacter, (await result).output)
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
-        return result.output
+        return cast(RpgCharacter, result.output)
 
 
 @ai.flow()
-async def generate_character_unconstrained(name: str, ctx):
+async def generate_character_unconstrained(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
@@ -313,16 +375,18 @@ async def generate_character_unconstrained(name: str, ctx):
         output_constrained=False,
         output_instructions=True,
     )
-    return result.output
+    return cast(RpgCharacter, result.output)
 
 
 class ThinkingLevel(StrEnum):
+    """Thinking level enum."""
+
     LOW = 'LOW'
     HIGH = 'HIGH'
 
 
 @ai.flow()
-async def thinking_level_pro(level: ThinkingLevel):
+async def thinking_level_pro(level: ThinkingLevel) -> str:
     """Gemini 3.0 thinkingLevel config (Pro)."""
     response = await ai.generate(
         model='googleai/gemini-3-pro-preview',
@@ -345,6 +409,8 @@ async def thinking_level_pro(level: ThinkingLevel):
 
 
 class ThinkingLevelFlash(StrEnum):
+    """Thinking level flash enum."""
+
     MINIMAL = 'MINIMAL'
     LOW = 'LOW'
     MEDIUM = 'MEDIUM'
@@ -352,7 +418,7 @@ class ThinkingLevelFlash(StrEnum):
 
 
 @ai.flow()
-async def thinking_level_flash(level: ThinkingLevelFlash):
+async def thinking_level_flash(level: ThinkingLevelFlash) -> str:
     """Gemini 3.0 thinkingLevel config (Flash)."""
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
@@ -375,7 +441,7 @@ async def thinking_level_flash(level: ThinkingLevelFlash):
 
 
 @ai.flow()
-async def search_grounding():
+async def search_grounding() -> str:
     """Search grounding."""
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
@@ -386,18 +452,20 @@ async def search_grounding():
 
 
 @ai.flow()
-async def url_context():
+async def url_context() -> str:
     """Url context."""
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
-        prompt='Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/simple-whole-roasted-chicken/',
+        prompt='Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/'
+        'perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/'
+        'simple-whole-roasted-chicken/',
         config={'url_context': {}, 'api_version': 'v1alpha'},
     )
     return response.text
 
 
 @ai.flow()
-async def file_search():
+async def file_search() -> str:
     """File Search."""
     # TODO: add file search store
     store_name = 'fileSearchStores/sample-store'
@@ -416,13 +484,15 @@ async def file_search():
 
 
 @ai.flow()
-async def youtube_videos():
+async def youtube_videos() -> str:
     """YouTube videos."""
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
         prompt=[
-            TextPart(text='transcribe this video'),
-            MediaPart(media=Media(url='https://www.youtube.com/watch?v=3p1P5grjXIQ', content_type='video/mp4')),
+            Part(root=TextPart(text='transcribe this video')),
+            Part(
+                root=MediaPart(media=Media(url='https://www.youtube.com/watch?v=3p1P5grjXIQ', content_type='video/mp4'))
+            ),
         ],
         config={'api_version': 'v1alpha'},
     )
@@ -452,7 +522,7 @@ def celsius_to_fahrenheit(celsius: float) -> float:
 
 
 @ai.flow()
-async def tool_calling(location: Annotated[str, Field(default='Paris, France')]):
+async def tool_calling(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
     """Tool calling with Gemini."""
     response = await ai.generate(
         model='googleai/gemini-2.5-flash',

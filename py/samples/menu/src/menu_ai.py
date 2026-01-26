@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""AI flows and tools for the menu sample."""
+
 import os
 
 from genkit.ai import Genkit

@@ -25,6 +25,7 @@ async def test_register_action_with_name_and_kind() -> None:
     got = await registry.resolve_action(ActionKind.CUSTOM, 'test_action')
 
     assert got == action
+    assert got is not None
     assert got.name == 'test_action'
     assert got.kind == ActionKind.CUSTOM
 
@@ -37,6 +38,7 @@ async def test_resolve_action_by_key() -> None:
     got = await registry.resolve_action_by_key('/custom/test_action')
 
     assert got == action
+    assert got is not None
     assert got.name == 'test_action'
     assert got.kind == ActionKind.CUSTOM
 
@@ -50,7 +52,7 @@ async def test_resolve_action_by_key_invalid_format() -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_action_from_plugin():
+async def test_resolve_action_from_plugin() -> None:
     """Resolve action from plugin test."""
     resolver_calls = []
 
@@ -60,11 +62,11 @@ async def test_resolve_action_from_plugin():
         async def init(self) -> list[Action]:
             return []
 
-        async def resolve(self, action_type: ActionKind, name: str):
+        async def resolve(self, action_type: ActionKind, name: str) -> Action:
             nonlocal resolver_calls
             resolver_calls.append([action_type, name])
 
-            def model_fn():
+            def model_fn() -> None:
                 pass
 
             return Action(name=name, fn=model_fn, kind=action_type)
@@ -89,7 +91,7 @@ async def test_resolve_action_from_plugin():
     assert len(resolver_calls) == 1
 
 
-def test_register_value():
+def test_register_value() -> None:
     """Register a value and lookup test."""
     registry = Registry()
 

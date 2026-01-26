@@ -16,10 +16,12 @@
 
 """Anthropic plugin for Genkit."""
 
+from typing import Any, cast
+
 from anthropic import AsyncAnthropic
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.plugins.anthropic.model_info import SUPPORTED_ANTHROPIC_MODELS, get_model_info
@@ -52,7 +54,7 @@ class Anthropic(Plugin):
     def __init__(
         self,
         models: list[str] | None = None,
-        **anthropic_params: str,
+        **anthropic_params: object,
     ) -> None:
         """Initializes Anthropic plugin with given configuration.
 
@@ -64,9 +66,9 @@ class Anthropic(Plugin):
         """
         self.models = models or list(SUPPORTED_ANTHROPIC_MODELS.keys())
         self._anthropic_params = anthropic_params
-        self._anthropic_client = AsyncAnthropic(**anthropic_params)
+        self._anthropic_client = AsyncAnthropic(**cast(dict[str, Any], anthropic_params))
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize plugin.
 
         Returns:
@@ -74,7 +76,7 @@ class Anthropic(Plugin):
         """
         return []
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -89,7 +91,7 @@ class Anthropic(Plugin):
 
         return self._create_model_action(name)
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for an Anthropic model.
 
         Args:
@@ -110,13 +112,13 @@ class Anthropic(Plugin):
             fn=model.generate,
             metadata={
                 'model': {
-                    'supports': model_info.supports.model_dump(),
+                    'supports': model_info.supports.model_dump() if model_info.supports else {},
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
         )
 
-    async def list_actions(self) -> list:
+    async def list_actions(self) -> list[ActionMetadata]:
         """List available Anthropic models.
 
         Returns:
@@ -127,7 +129,7 @@ class Anthropic(Plugin):
             actions.append(
                 model_action_metadata(
                     name=anthropic_name(model_name),
-                    info={'supports': model_info.supports.model_dump()},
+                    info={'supports': model_info.supports.model_dump() if model_info.supports else {}},
                     config_schema=GenerationCommonConfig,
                 )
             )

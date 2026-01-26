@@ -34,4 +34,11 @@ fi
 
 echo "NOTE: Ensure Firestore index is created. See README.md for details."
 
-genkit start -- uv run src/main.py "$@"
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run src/main.py "$@"

@@ -85,10 +85,21 @@ jobs:
         run: uv run --directory py ruff format --check .
 
       - name: Lint with ruff
-        run: uv run --directory py ruff check --select I .
+        run: uv run --directory py ruff check .
+
+      - name: Ensure Python test files follow the *_test.py naming convention
+        run: |
+          if find py -name "test_*.py" -not -path "*/.*" | grep -q .; then
+              echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
+              find py -name "test_*.py" -not -path "*/.*"
+              exit 1
+          fi
 
       - name: Type check with Ty
-        run: uv run --directory py ty check --exit-zero .
+        run: uv run --directory py ty check .
+
+      - name: Run security scan
+        run: ./py/bin/run_python_security_checks
 
       - name: Check licenses
         run: ./bin/check_license

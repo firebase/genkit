@@ -66,6 +66,7 @@ SUPPORTED_XAI_MODELS: dict[str, ModelInfo] = {
 
 
 def get_model_info(name: str) -> ModelInfo:
+    """Get information for a specific model."""
     return SUPPORTED_XAI_MODELS.get(
         name,
         ModelInfo(

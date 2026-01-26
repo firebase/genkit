@@ -14,16 +14,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Model Garden sample."""
+
+from typing import Annotated
+
 import structlog
+from pydantic import Field
 
 from genkit.ai import Genkit
-from genkit.plugins.vertex_ai.model_garden import VertexAIModelGarden, model_garden_name
+from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
-        VertexAIModelGarden(),
+        ModelGardenPlugin(),
     ],
 )
 
@@ -70,7 +75,7 @@ ai = Genkit(
 
 
 @ai.flow()
-async def jokes_flow(subject: str) -> str:
+async def jokes_flow(subject: Annotated[str, Field(default='banana')] = 'banana') -> str:
     """Generate a joke about the given subject.
 
     Args:
@@ -90,6 +95,7 @@ async def jokes_flow(subject: str) -> str:
 
 
 async def main() -> None:
+    """Run the sample flows."""
     # await logger.ainfo(await say_hi('John Doe'))
     # await logger.ainfo(await say_hi_stream('John Doe'))
     await logger.ainfo(await jokes_flow('banana'))

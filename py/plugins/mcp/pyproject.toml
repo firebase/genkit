@@ -35,7 +35,7 @@ classifiers = [
 dependencies = ["genkit", "mcp"]
 description = "Genkit MCP Plugin"
 license = "Apache-2.0"
-name = "genkit-plugins-mcp"
+name = "genkit-plugin-mcp"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
@@ -45,4 +45,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src/genkit", "src/genkit/plugins"]

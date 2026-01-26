@@ -31,6 +31,7 @@ dependencies = [
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
+  "genkit-plugin-mcp",
   "liccheck>=0.9.2",
   "mcp>=1.25.0",
   "strenum>=0.4.15; python_version < '3.11'",
@@ -63,10 +64,16 @@ dev = [
   "nox-uv>=0.2.2",
 ]
 
-lint = ["ty>=0.0.1", "ruff>=0.9"]
+lint = [
+  "pypdf",
+  "strenum>=0.4.15",
+  "ty>=0.0.1",
+  "ruff>=0.9",
+  "pysentry-rs>=0.3.14",
+]
 
 [tool.hatch.build.targets.wheel]
-packages = []
+
 
 [tool.setuptools]
 py-modules = []
@@ -82,7 +89,7 @@ addopts = [
   "-vv",
 ]
 asyncio_default_fixture_loop_scope = "session"
-python_files = ["test_*.py", "*_test.py"]
+python_files = ["*_test.py"]
 testpaths = ["packages", "plugins", "samples", "tests"]
 #asyncio_mode = "auto"
 asyncio_mode = "strict"
@@ -116,6 +123,7 @@ genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
+genkit-plugin-mcp                   = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
@@ -160,7 +168,7 @@ exclude = [
 indent-width = 4
 line-length = 120
 preview = true
-target-version = "py311" # NOTE: Keep this at 3.11 not 3.10. We use backported libs for enums.
+target-version = "py310"
 unsafe-fixes = true
 
 
@@ -175,6 +183,7 @@ select = [
   "B",    # flake8-bugbear (common bugs)
   "N",    # pep8-naming (naming conventions)
   "D",    # pydocstyle
+  "ANN",  # flake8-annotations (type hints)
   "F401", # unused imports
   "F403", # wildcard imports
   "F841", # unused variables

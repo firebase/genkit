@@ -7,12 +7,13 @@
 
 from genkit.ai import Genkit
 from genkit.codec import dump_json
-from genkit.core.action import ActionRunContext
+from genkit.core.action import Action, ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -32,14 +33,14 @@ class ProgrammableModel:
         last_request: The most recent request received.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a new ProgrammableModel instance."""
         self.request_idx = 0
         self.responses: list[GenerateResponse] = []
         self.chunks: list[list[GenerateResponseChunk]] = None
         self.last_request: GenerateRequest = None
 
-    def model_fn(self, request: GenerateRequest, ctx: ActionRunContext):
+    def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Process a generation request and return a programmed response.
 
         This function returns pre-configured responses and streams
@@ -61,11 +62,11 @@ class ProgrammableModel:
         return response
 
 
-def define_programmable_model(ai: Genkit, name: str = 'programmableModel'):
+def define_programmable_model(ai: Genkit, name: str = 'programmableModel') -> tuple[ProgrammableModel, Action]:
     """Defines a configurable programmable model."""
     pm = ProgrammableModel()
 
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext):
+    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return pm.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -83,11 +84,11 @@ class EchoModel:
         last_request: The most recent request received.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a new EchoModel instance."""
         self.last_request: GenerateRequest = None
 
-    def model_fn(self, request: GenerateRequest):
+    def model_fn(self, request: GenerateRequest) -> GenerateResponse:
         """Process a generation request and echo it back in the response.
 
         Args:
@@ -111,14 +112,16 @@ class EchoModel:
             echo_resp += f' tool_choice={request.tool_choice}'
         if request.output and dump_json(request.output) != '{}':
             echo_resp += f' output={dump_json(request.output)}'
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text=echo_resp)]))
+        # NOTE: Part is a RootModel requiring root=TextPart(...) syntax.
+        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=echo_resp))]))
 
 
-def define_echo_model(ai: Genkit, name: str = 'echoModel'):
+def define_echo_model(ai: Genkit, name: str = 'echoModel') -> tuple[EchoModel, Action]:
     """Defines a simple echo model that echos requests."""
     echo = EchoModel()
 
-    def model_fn(request: GenerateRequest):
+    # NOTE: model_fn requires ctx parameter to match ModelFn signature.
+    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return echo.model_fn(request)
 
     action = ai.define_model(name=name, fn=model_fn)

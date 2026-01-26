@@ -32,6 +32,7 @@ Key features demonstrated in this sample:
 """
 
 import os
+from typing import Annotated
 
 import structlog
 from pydantic import BaseModel, Field
@@ -60,17 +61,17 @@ class WeatherInput(BaseModel):
 class CurrencyInput(BaseModel):
     """Currency conversion input schema."""
 
-    amount: float = Field(description='Amount to convert')
-    from_currency: str = Field(description='Source currency code (e.g., USD)')
-    to_currency: str = Field(description='Target currency code (e.g., EUR)')
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
 
 
 class CurrencyExchangeInput(BaseModel):
     """Currency exchange flow input schema."""
 
-    amount: float = Field(description='Amount to convert')
-    from_curr: str = Field(description='Source currency code')
-    to_curr: str = Field(description='Target currency code')
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
 
 
 @ai.tool()
@@ -111,7 +112,7 @@ def convert_currency(input: CurrencyInput) -> str:
 
 
 @ai.flow()
-async def say_hi(name: str) -> str:
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a simple greeting.
 
     Args:
@@ -127,7 +128,10 @@ async def say_hi(name: str) -> str:
 
 
 @ai.flow()
-async def say_hi_stream(topic: str, ctx: ActionRunContext) -> str:
+async def say_hi_stream(
+    topic: Annotated[str, Field(default='space exploration')] = 'space exploration',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate streaming response.
 
     Args:
@@ -145,7 +149,7 @@ async def say_hi_stream(topic: str, ctx: ActionRunContext) -> str:
 
 
 @ai.flow()
-async def weather_flow(location: str) -> str:
+async def weather_flow(location: Annotated[str, Field(default='San Francisco')] = 'San Francisco') -> str:
     """Get weather using tools.
 
     Args:
@@ -179,7 +183,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 
 @ai.flow()
-async def say_hi_with_config(name: str) -> str:
+async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate greeting with custom configuration.
 
     Args:

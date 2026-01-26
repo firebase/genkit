@@ -13,18 +13,31 @@ To use the Google GenAI plugin, you need a Gemini API key.
 
 For more details, check out the [official documentation](https://ai.google.dev/gemini-api/docs/api-key).
 
+### Monitoring and Running
+
+For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+
+```bash
+./run.sh
+```
+
+This script uses `watchmedo` to monitor changes in:
+- `src/` (Python logic)
+- `docs/` (PDF documents)
+- `../../packages` (Genkit core)
+- `../../plugins` (Genkit plugins)
+- File patterns: `*.py`, `*.prompt`, `*.json`, `*.pdf`
+
+Changes to Python, prompt, or JSON files will trigger an automatic restart. **Changes to PDF files in `docs/` will also trigger an automatic re-indexing** of the documents by deleting the internal marker file `__db_pdf_qa.json` before restarting.
+
+You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
+
 ## Setup and start the sample
 
 ```bash
 export GEMINI_API_KEY=<Your api key>
 ```
 
-```bash
-
-# Start the Genkit Dev UI
-genkit start -- uv run src/main.py
-# This command should output the link to the Genkit Dev UI.
-```
 Choose any flow of interest and run in the Dev UI.
 ## Available Flows
 

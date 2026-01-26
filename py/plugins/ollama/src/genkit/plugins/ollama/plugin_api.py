@@ -24,7 +24,7 @@ import ollama as ollama_api
 from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.plugins.ollama.constants import (
@@ -115,7 +115,7 @@ class Ollama(Plugin):
 
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -131,7 +131,7 @@ class Ollama(Plugin):
             return self._create_embedder_action(name)
         return None
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for an Ollama model.
 
         Args:
@@ -174,7 +174,7 @@ class Ollama(Plugin):
             },
         )
 
-    def _create_embedder_action(self, name: str):
+    def _create_embedder_action(self, name: str) -> Action:
         """Create an Action object for an Ollama embedder.
 
         Args:
@@ -206,7 +206,7 @@ class Ollama(Plugin):
             },
         )
 
-    async def list_actions(self) -> list[dict[str, str]]:
+    async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
@@ -222,6 +222,8 @@ class Ollama(Plugin):
         actions = []
         for model in response.models:
             _name = model.model
+            if not _name:
+                continue
             if 'embed' in _name:
                 actions.append(
                     embedder_action_metadata(

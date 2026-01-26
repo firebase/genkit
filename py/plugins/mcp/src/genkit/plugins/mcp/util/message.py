@@ -20,12 +20,12 @@ This module contains helper functions for converting between MCP message
 formats and Genkit message formats.
 """
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
 
 from genkit.core.typing import Message
-from mcp.types import ImageContent, PromptMessage, TextContent
+from mcp.types import ImageContent, PromptMessage, Role, TextContent
 
 logger = structlog.get_logger(__name__)
 
@@ -36,7 +36,7 @@ ROLE_MAP = {
 }
 
 
-def from_mcp_prompt_message(message: dict[str, Any]) -> dict[str, Any]:
+def from_mcp_prompt_message(message: dict[str, object] | PromptMessage) -> dict[str, object]:
     """Convert MCP PromptMessage to Genkit MessageData format.
 
     This involves mapping MCP roles (user, assistant) to Genkit roles (user, model)
@@ -48,13 +48,22 @@ def from_mcp_prompt_message(message: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Genkit MessageData object with 'role' and 'content' fields
     """
+    if isinstance(message, PromptMessage):
+        role = message.role
+        content = message.content
+        part_dict = content.model_dump() if hasattr(content, 'model_dump') else cast(dict[str, object], content)
+    else:
+        role = cast(str, message.get('role', 'user'))
+        content = message.get('content', {})
+        part_dict = cast(dict[str, object], content) if isinstance(content, dict) else {}
+
     return {
-        'role': ROLE_MAP.get(message.get('role', 'user'), 'user'),
-        'content': [from_mcp_part(message.get('content', {}))],
+        'role': ROLE_MAP.get(str(role), 'user'),
+        'content': [from_mcp_part(part_dict)],
     }
 
 
-def from_mcp_part(part: dict[str, Any]) -> dict[str, Any]:
+def from_mcp_part(part: dict[str, object]) -> dict[str, object]:
     """Convert MCP message content part to Genkit Part.
 
     Handles different content types:
@@ -94,13 +103,18 @@ def from_mcp_part(part: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _get_part_data(part: Any) -> dict[str, Any]:
+def _get_part_data(part: object) -> dict[str, object]:
     """Extract data from a Part, handling potential 'root' nesting."""
     if isinstance(part, str):
         return {'text': part}
-    part_dict = part if isinstance(part, dict) else part.model_dump()
+    if isinstance(part, dict):
+        part_dict = cast(dict[str, object], part)
+    elif hasattr(part, 'model_dump'):
+        part_dict = cast(dict[str, object], part.model_dump())  # type: ignore[union-attr]
+    else:
+        return {}
     if 'root' in part_dict and isinstance(part_dict['root'], dict):
-        return part_dict['root']
+        return cast(dict[str, object], part_dict['root'])
     return part_dict
 
 
@@ -146,14 +160,16 @@ def to_mcp_prompt_message(message: Message) -> PromptMessage:
             f"MCP prompt messages do not support role '{message.role}'. Only 'user' and 'model' messages are supported."
         )
 
-    mcp_role = role_map[message.role]
+    mcp_role = cast(Role, role_map[message.role])
 
     # First, look for any media content as MCP content is currently single-part
     if message.content:
         for part in message.content:
             data = _get_part_data(part)
             if data.get('media'):
-                return PromptMessage(role=mcp_role, content=_parse_media_part(data['media']))
+                media_data = data['media']
+                if isinstance(media_data, dict):
+                    return PromptMessage(role=mcp_role, content=_parse_media_part(cast(dict[str, Any], media_data)))
 
     # If no media, aggregate all text content
     text_content = []

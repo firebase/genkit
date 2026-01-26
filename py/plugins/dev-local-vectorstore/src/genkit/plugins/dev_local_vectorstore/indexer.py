@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Indexer for dev-local-vectorstore."""
+
 import asyncio
 import json
 from hashlib import md5
@@ -31,13 +33,15 @@ from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
+    """Indexer for development-level local vector store."""
+
     def __init__(
         self,
         ai: Genkit,
         index_name: str,
         embedder: str,
         embedder_options: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         """Initialize the DevLocalVectorStoreIndexer.
 
         Args:
@@ -52,19 +56,20 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         self.embedder_options = embedder_options
 
     async def index(self, request: IndexerRequest) -> None:
+        """Index documents into the local vector store."""
         docs = request.documents
         data = self._load_filestore()
 
-        embed_resp = await self.ai.embed(
+        embed_resp = await self.ai.embed_many(
             embedder=self.embedder,
-            documents=[Document.from_document_data(document_data=doc) for doc in docs],
+            content=docs,
             options=self.embedder_options,
         )
-        if not embed_resp.embeddings:
+        if not embed_resp:
             raise ValueError('Embedder returned no embeddings for documents')
 
         tasks = []
-        for doc_data, emb in zip(docs, embed_resp.embeddings, strict=False):
+        for doc_data, emb in zip(docs, embed_resp, strict=True):
             tasks.append(
                 self.process_document(
                     document=Document.from_document_data(document_data=doc_data),
@@ -79,6 +84,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
             f.write(dump_json(self._serialize_data(data=data), indent=2))
 
     async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
+        """Process a single document and add its embedding to the store."""
         embedding_docs = document.get_embedding_documents([embedding])
         self._add_document(data=data, embedding=embedding, doc=embedding_docs[0])
 

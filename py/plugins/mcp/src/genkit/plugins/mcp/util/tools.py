@@ -21,28 +21,42 @@ and Genkit actions, processing tool results, and registering tools.
 """
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import structlog
 
-from mcp.types import CallToolResult, ImageContent, TextContent
+from mcp.types import (
+    AudioContent,
+    CallToolResult,
+    EmbeddedResource,
+    ImageContent,
+    ResourceLink,
+    TextContent,
+)
 
 logger = structlog.get_logger(__name__)
 
 
-def to_text(content: list[dict[str, Any]]) -> str:
+def to_text(content: list[object]) -> str:
     """Extract text from MCP CallToolResult content.
 
     Args:
-        content: List of content parts from CallToolResult
+        content: List of content parts from CallToolResult (dict or Pydantic objects)
 
     Returns:
         Concatenated text from all text parts
     """
-    return ''.join(part.get('text', '') for part in content)
+    text_parts: list[str] = []
+    for part in content:
+        if isinstance(part, dict):
+            part_dict = cast(dict[str, Any], part)
+            text_parts.append(str(part_dict.get('text', '')))
+        elif hasattr(part, 'text'):
+            text_parts.append(str(getattr(part, 'text', '')))
+    return ''.join(text_parts)
 
 
-def process_result(result: CallToolResult) -> Any:
+def process_result(result: CallToolResult) -> object:
     """Process MCP CallToolResult and extract/parse content.
 
     Handles different result types:
@@ -61,11 +75,11 @@ def process_result(result: CallToolResult) -> Any:
         RuntimeError: If the tool execution failed (isError=True)
     """
     if result.isError:
-        return {'error': to_text(result.content)}
+        return {'error': to_text(list(result.content))}
 
     # Check if all content parts are text
     if all(hasattr(c, 'text') and c.text for c in result.content):
-        text = to_text(result.content)
+        text = to_text(list(result.content))
         # Try to parse as JSON if it looks like JSON
         text_stripped = text.strip()
         if text_stripped.startswith('{') or text_stripped.startswith('['):
@@ -83,7 +97,7 @@ def process_result(result: CallToolResult) -> Any:
     return result
 
 
-def process_tool_result(result: CallToolResult) -> Any:
+def process_tool_result(result: CallToolResult) -> object:
     """Process MCP CallToolResult and extract content.
 
     This is an alias for process_result() for backwards compatibility.
@@ -100,7 +114,7 @@ def process_tool_result(result: CallToolResult) -> Any:
     return process_result(result)
 
 
-def convert_tool_schema(mcp_schema: dict[str, Any]) -> dict[str, Any]:
+def convert_tool_schema(mcp_schema: dict[str, object]) -> dict[str, object]:
     """Convert MCP tool input schema (JSONSchema7) to Genkit format.
 
     Args:
@@ -117,23 +131,26 @@ def convert_tool_schema(mcp_schema: dict[str, Any]) -> dict[str, Any]:
     return mcp_schema
 
 
-def to_mcp_tool_result(result: Any) -> list[TextContent | ImageContent]:
+def to_mcp_tool_result(
+    result: object,
+) -> list[TextContent | ImageContent | AudioContent | ResourceLink | EmbeddedResource]:
     """Convert tool execution result to MCP CallToolResult content.
 
     Args:
         result: The result from tool execution (can be string, dict, or other).
 
     Returns:
-        List of MCP content items (TextContent or ImageContent).
+        List of MCP content items.
     """
     if isinstance(result, str):
         return [TextContent(type='text', text=result)]
     elif isinstance(result, dict):
+        result_dict = cast(dict[str, Any], result)
         # If it's already in MCP format, return as-is
-        if 'type' in result and 'text' in result:
-            return [TextContent(type='text', text=result['text'])]
+        if 'type' in result_dict and 'text' in result_dict:
+            return [TextContent(type='text', text=str(result_dict['text']))]
         # Otherwise, serialize to JSON
-        return [TextContent(type='text', text=json.dumps(result))]
+        return [TextContent(type='text', text=json.dumps(result_dict))]
     else:
         # Convert to string for other types
         return [TextContent(type='text', text=str(result))]

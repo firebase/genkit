@@ -357,7 +357,7 @@ def get_server_info(config: ServerConfig) -> dict[str, Any]:
         A dictionary containing server information.
     """
     has_prefix = hasattr(config, 'env_prefix')
-    env_prefix = config.env_prefix if has_prefix else None
+    env_prefix = config.env_prefix if has_prefix else None  # type: ignore[attr-defined]
 
     # Get feature flags if available
     feature_flags = {}

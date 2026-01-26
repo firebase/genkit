@@ -14,15 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from collections.abc import Callable
-from typing import Any
 
+"""Firestore vector store operations for Genkit."""
+
+from collections.abc import Callable
+
+from google.cloud import firestore
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
 from genkit.ai import Genkit
 from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
 from genkit.core.action.types import ActionKind
+from genkit.core.typing import DocumentPart
 from genkit.plugins.firebase.retriever import FirestoreRetriever
 
 from .constant import MetadataTransformFn
@@ -46,11 +50,11 @@ def define_firestore_vector_store(
     *,
     name: str,
     embedder: str,
-    embedder_options: dict[str, Any] | None = None,
+    embedder_options: dict[str, object] | None = None,
     collection: str,
     vector_field: str,
-    content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]],
-    firestore_client: Any,
+    content_field: str | Callable[[DocumentSnapshot], list['DocumentPart']],
+    firestore_client: firestore.Client,
     distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
     metadata_fields: list[str] | MetadataTransformFn | None = None,
 ) -> str:

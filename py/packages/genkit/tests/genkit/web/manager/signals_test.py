@@ -159,13 +159,12 @@ class AsyncSignalHandlerTest(IsolatedAsyncioTestCase):
         """Test the async wrapper for signal handling."""
         signal_handler = SignalHandler()
         # Mock the handle_signal method
-        signal_handler.handle_signal = mock.Mock()
+        with mock.patch.object(signal_handler, 'handle_signal') as mock_handle:
+            # Call the async signal handler
+            await signal_handler.handle_signal_async(signal.SIGINT)
 
-        # Call the async signal handler
-        await signal_handler.handle_signal_async(signal.SIGINT)
-
-        # Verify handle_signal was called with the signal
-        signal_handler.handle_signal.assert_called_once_with(signal.SIGINT)
+            # Verify handle_signal was called with the signal
+            mock_handle.assert_called_once_with(signal.SIGINT)
 
     async def test_integration(self) -> None:
         """Test the full signal handling flow."""

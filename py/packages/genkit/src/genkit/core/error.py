@@ -19,7 +19,8 @@
 import traceback
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 
@@ -27,10 +28,10 @@ from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 class GenkitReflectionApiDetailsWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
 
     stack: str | None = None
-    trace_id: str | None = Field(None, alias='traceId')
+    trace_id: str | None = None
 
 
 class GenkitReflectionApiErrorWireFormat(BaseModel):
@@ -53,7 +54,7 @@ class HttpErrorWireFormat(BaseModel):
 
     model_config = ConfigDict(extra='allow', populate_by_name=True)
 
-    details: Any
+    details: Any  # noqa: ANN401
     message: str
     status: str = StatusCodes.INTERNAL.name
 
@@ -61,30 +62,35 @@ class HttpErrorWireFormat(BaseModel):
 class GenkitError(Exception):
     """Base error class for Genkit errors."""
 
+    status: StatusName
+
     def __init__(
         self,
         *,
         message: str,
         status: StatusName | None = None,
         cause: Exception | None = None,
-        details: Any = None,
+        details: Any = None,  # noqa: ANN401
         trace_id: str | None = None,
         source: str | None = None,
     ) -> None:
         """Initialize a GenkitError.
 
         Args:
-            status: The status name for this error.
             message: The error message.
-            detail: Optional detail information.
+            status: The status name for this error.
+            cause: The underlying exception that caused this error.
+            details: Optional detail information.
+            trace_id: A unique identifier for tracing the action execution.
             source: Optional source of the error.
         """
-        self.status = status
-        if not self.status and isinstance(cause, GenkitError):
-            self.status = cause.status
-
-        if not self.status:
-            self.status = 'INTERNAL'
+        if status:
+            temp_status: StatusName = status
+        elif isinstance(cause, GenkitError):
+            temp_status = cause.status
+        else:
+            temp_status = 'INTERNAL'
+        self.status = temp_status
 
         source_prefix = f'{source}: ' if source else ''
         super().__init__(f'{source_prefix}{self.status}: {message}')
@@ -127,7 +133,7 @@ class GenkitError(Exception):
         # This error type is used by 3P authors with the field "details",
         # but the actual Callable protocol value is "details"
         return GenkitReflectionApiErrorWireFormat(
-            details=self.details,
+            details=GenkitReflectionApiDetailsWireFormat(**self.details) if self.details else None,
             code=StatusCodes[self.status].value,
             message=repr(self.cause) if self.cause else self.original_message,
         )
@@ -160,7 +166,7 @@ class UserFacingError(GenkitError):
     exceptions being leaked to attackers.
     """
 
-    def __init__(self, status: StatusName, message: str, details: Any = None) -> None:
+    def __init__(self, status: StatusName, message: str, details: Any = None) -> None:  # noqa: ANN401
         """Initialize a UserFacingError.
 
         Args:
@@ -171,7 +177,7 @@ class UserFacingError(GenkitError):
         super().__init__(status=status, message=message, details=details)
 
 
-def get_http_status(error: Any) -> int:
+def get_http_status(error: object) -> int:
     """Get the HTTP status code for an error.
 
     Args:
@@ -185,7 +191,7 @@ def get_http_status(error: Any) -> int:
     return 500
 
 
-def get_reflection_json(error: Any) -> GenkitReflectionApiErrorWireFormat:
+def get_reflection_json(error: object) -> GenkitReflectionApiErrorWireFormat:
     """Get the JSON representation of an error for callable responses.
 
     Args:
@@ -199,11 +205,11 @@ def get_reflection_json(error: Any) -> GenkitReflectionApiErrorWireFormat:
     return GenkitReflectionApiErrorWireFormat(
         message=str(error),
         code=StatusCodes.INTERNAL.value,
-        details={'stack': get_error_stack(error)},
+        details=GenkitReflectionApiDetailsWireFormat(stack=get_error_stack(error)),
     )
 
 
-def get_callable_json(error: Any) -> HttpErrorWireFormat:
+def get_callable_json(error: object) -> HttpErrorWireFormat:
     """Get the JSON representation of an error for callable responses.
 
     Args:
@@ -221,7 +227,7 @@ def get_callable_json(error: Any) -> HttpErrorWireFormat:
     )
 
 
-def get_error_message(error: Any) -> str:
+def get_error_message(error: object) -> str:
     """Extract error message from an error object.
 
     Args:
@@ -235,14 +241,14 @@ def get_error_message(error: Any) -> str:
     return str(error)
 
 
-def get_error_stack(error: Exception) -> str | None:
+def get_error_stack(error: object) -> str | None:
     """Extract stack trace from an error object.
 
     Args:
         error: The error to get the stack trace from.
 
     Returns:
-        The stack trace string if available.
+        The stack trace string if available, None otherwise.
     """
     if isinstance(error, Exception):
         return ''.join(traceback.format_tb(error.__traceback__))

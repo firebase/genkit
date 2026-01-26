@@ -17,7 +17,6 @@
 """Implementation of Enum output format."""
 
 import re
-from typing import Any
 
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
@@ -50,7 +49,7 @@ class EnumFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the EnumFormat.
 
         Configures the format with:
@@ -66,7 +65,7 @@ class EnumFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling Enum values.
 
         Args:
@@ -84,18 +83,22 @@ class EnumFormat(FormatDef):
                 message="Must supply a schema of type 'string' with an 'enum' property when using the enum format.",
             )
 
-        def message_parser(msg: MessageWrapper):
+        def message_parser(msg: MessageWrapper) -> str:
             """Parses a complete message, removing quotes."""
             return re.sub(r'[\'"]', '', msg.text).strip()
 
-        def chunk_parser(chunk: GenerateResponseChunkWrapper):
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> str:
             """Parses a chunk, removing quotes from accumulated text."""
             return re.sub(r'[\'"]', '', chunk.accumulated_text).strip()
 
         instructions = None
         if schema and schema.get('enum'):
             enum_values = '\n'.join([str(v) for v in schema['enum']])
-            instructions = f'Output should be ONLY one of the following enum values. Do not output any additional information or add quotes.\n\n{enum_values}'
+            instructions = (
+                'Output should be ONLY one of the following enum values. '
+                'Do not output any additional information or add quotes.\n\n'
+                f'{enum_values}'
+            )
 
         return Formatter(
             chunk_parser=chunk_parser,

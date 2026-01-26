@@ -35,6 +35,8 @@ MODEL_GARDEN = 'model-garden'
 
 
 class PluginSource(StrEnum):
+    """Source of the plugin (OpenAI or Model Garden)."""
+
     OPENAI = 'openai'
     MODEL_GARDEN = 'model-garden'
 
@@ -43,7 +45,7 @@ MULTIMODAL_MODEL_SUPPORTS = Supports(
     multiturn=True,
     media=True,
     tools=True,
-    systemRole=True,
+    system_role=True,
     output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.STRUCTURED_OUTPUTS, SupportedOutputFormat.TEXT],
 )
 
@@ -51,7 +53,7 @@ GPT_4_MODEL_SUPPORTS = Supports(
     multiturn=True,
     media=False,
     tools=True,
-    systemRole=True,
+    system_role=True,
     output=[SupportedOutputFormat.TEXT],
 )
 
@@ -59,7 +61,7 @@ GPT_35_MODEL_SUPPORTS = Supports(
     multiturn=True,
     media=False,
     tools=True,
-    systemRole=True,
+    system_role=True,
     output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
 )
 
@@ -67,7 +69,7 @@ O_SERIES_MODEL_SUPPORTS = Supports(
     multiturn=True,
     media=True,
     tools=True,
-    systemRole=False,
+    system_role=False,
     output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
 )
 
@@ -75,7 +77,7 @@ GPT_5_MODEL_SUPPORTS = Supports(
     multiturn=True,
     media=True,
     tools=True,
-    systemRole=True,
+    system_role=True,
     output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
 )
 
@@ -93,7 +95,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             multiturn=True,
             media=False,
             tools=True,
-            systemRole=False,
+            system_role=False,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
@@ -119,7 +121,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             multiturn=True,
             media=True,
             tools=False,
-            systemRole=True,
+            system_role=True,
             output=[SupportedOutputFormat.TEXT],
         ),
     ),
@@ -151,8 +153,8 @@ SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
             multiturn=True,
             media=False,
             tools=True,
-            systemRole=True,
-            longRunning=False,
+            system_role=True,
+            long_running=False,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
@@ -162,7 +164,7 @@ SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
             multiturn=True,
             media=True,
             tools=True,
-            systemRole=True,
+            system_role=True,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
@@ -173,7 +175,7 @@ DEFAULT_SUPPORTS = Supports(
     multiturn=True,
     media=True,
     tools=True,
-    systemRole=True,
+    system_role=True,
     output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
 )
 
@@ -188,4 +190,4 @@ def get_default_model_info(name: str) -> ModelInfo:
 
 def get_default_openai_model_info(name: str) -> ModelInfo:
     """Gets the default model info given a name."""
-    return ModelInfo(label=f'OpenAI - {name}', supports={'multiturn': True})
+    return ModelInfo(label=f'OpenAI - {name}', supports=Supports(multiturn=True))

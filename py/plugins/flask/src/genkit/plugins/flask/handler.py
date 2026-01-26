@@ -17,7 +17,8 @@
 """Genkit Flask plugin."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Iterable
+from typing import Any
 
 from flask import Response, request
 from genkit.ai import FlowWrapper, Genkit
@@ -28,7 +29,8 @@ from genkit.core.error import GenkitError, get_callable_json
 
 
 class _FlaskRequestData(RequestData):
-    def __init__(self):
+    def __init__(self) -> None:
+        super().__init__(request=request)
         self.method = request.method
 
         self.headers = {}
@@ -36,13 +38,13 @@ class _FlaskRequestData(RequestData):
             self.headers[key.lower()] = value
 
         input_data = request.get_json()
-        if 'data' not in input_data:
-            return Response(status=400, response='flow request must be wrapped in {"data": data} object')
-
-        self.input = input_data.get('data')
+        self.input = input_data.get('data') if input_data else None
 
 
-def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = None) -> Callable:
+def genkit_flask_handler(
+    ai: Genkit,
+    context_provider: ContextProvider | None = None,
+) -> Callable[[FlowWrapper], Callable[..., object]]:
     """A decorator for serving Genkit flows via a flask sever.
 
     ```python
@@ -64,11 +66,11 @@ def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = 
     """
     loop = create_loop()
 
-    def decorator(flow: Callable) -> Callable:
+    def decorator(flow: FlowWrapper) -> Callable[..., object]:
         if not isinstance(flow, FlowWrapper):
             raise GenkitError(status='INVALID_ARGUMENT', message='must apply @genkit_flask_handler on a @flow')
 
-        async def handler():
+        async def handler() -> Response | dict[str, object] | AsyncIterator[str] | Iterable[Any]:
             input_data = request.get_json()
             if 'data' not in input_data:
                 return Response(status=400, response='flow request must be wrapped in {"data": data} object')
@@ -83,7 +85,7 @@ def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = 
             stream = request_data.headers.get('accept') == 'text/event-stream' or request.args.get('stream') == 'true'
             if stream:
 
-                async def async_gen():
+                async def async_gen() -> AsyncIterator[str]:
                     try:
                         stream, response = flow._action.stream(input_data.get('data'), context=context)
                         async for chunk in stream:

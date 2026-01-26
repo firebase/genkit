@@ -29,23 +29,27 @@ from genkit.blocks.prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import (
     DocumentData,
+    DocumentPart,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
     GenerationCommonConfig,
     Message,
+    Part,
     Role,
     TextPart,
     ToolChoice,
 )
 from genkit.testing import (
+    EchoModel,
+    ProgrammableModel,
     define_echo_model,
     define_programmable_model,
 )
 
 
-def setup_test():
-    """Setup a test fixture for the veneer tests."""
+def setup_test() -> tuple[Genkit, EchoModel, ProgrammableModel]:
+    """Setup a test fixture for the prompt tests."""
     ai = Genkit(model='echoModel')
 
     pm, _ = define_programmable_model(ai)
@@ -114,20 +118,20 @@ async def test_prompt_with_kitchensink() -> None:
     ai, *_ = setup_test()
 
     class PromptInput(BaseModel):
-        name: str = Field(None, description='the name')
+        name: str | None = Field(default=None, description='the name')
 
     class ToolInput(BaseModel):
-        value: int = Field(None, description='value field')
+        value: int | None = Field(default=None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput):
+    def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
     my_prompt = ai.define_prompt(
         system='pirate',
         prompt='hi',
-        messages=[Message(role=Role.USER, content=[TextPart(text='history')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='history'))])],
         tools=['testTool'],
         tool_choice=ToolChoice.REQUIRED,
         max_turns=5,
@@ -137,7 +141,11 @@ async def test_prompt_with_kitchensink() -> None:
         description='a prompt descr',
     )
 
-    want_txt = '[ECHO] system: "pirate" user: "history" user: "hi" tools=testTool tool_choice=required output={"format":"json","constrained":true,"contentType":"application/json"}'
+    want_txt = (
+        '[ECHO] system: "pirate" user: "history" user: "hi" tools=testTool '
+        'tool_choice=required output={"format":"json","constrained":true,'
+        '"contentType":"application/json"}'
+    )
 
     response = await my_prompt()
 
@@ -153,14 +161,14 @@ async def test_prompt_with_resolvers() -> None:
     """Test that the rendering works with resolvers."""
     ai, *_ = setup_test()
 
-    async def system_resolver(input, context):
+    async def system_resolver(input: dict[str, Any], context: object) -> str:
         return f'system {input["name"]}'
 
-    def prompt_resolver(input, context):
+    def prompt_resolver(input: dict[str, Any], context: object) -> str:
         return f'prompt {input["name"]}'
 
-    async def messages_resolver(input, context):
-        return [Message(role=Role.USER, content=[TextPart(text=f'msg {input["name"]}')])]
+    async def messages_resolver(input: dict[str, Any], context: object) -> list[Message]:
+        return [Message(role=Role.USER, content=[Part(root=TextPart(text=f'msg {input["name"]}'))])]
 
     my_prompt = ai.define_prompt(
         system=system_resolver,
@@ -180,10 +188,10 @@ async def test_prompt_with_docs_resolver() -> None:
     """Test that the rendering works with docs resolver."""
     ai, _, pm = setup_test()
 
-    pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='ok')]))]
+    pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))]
 
-    async def docs_resolver(input, context):
-        return [DocumentData(content=[TextPart(text=f'doc {input["name"]}')])]
+    async def docs_resolver(input: dict[str, Any], context: object) -> list[DocumentData]:
+        return [DocumentData(content=[DocumentPart(root=TextPart(text=f'doc {input["name"]}'))])]
 
     my_prompt = ai.define_prompt(
         model='programmableModel',
@@ -194,6 +202,7 @@ async def test_prompt_with_docs_resolver() -> None:
     await my_prompt(input={'name': 'world'})
 
     # Check that PM received the docs
+    assert pm.last_request.docs is not None
     assert pm.last_request.docs[0].content[0].root.text == 'doc world'
 
 
@@ -394,8 +403,8 @@ async def test_prompt_with_messages_list() -> None:
     ai, *_ = setup_test()
 
     messages = [
-        Message(role=Role.SYSTEM, content=[TextPart(text='You are helpful')]),
-        Message(role=Role.USER, content=[TextPart(text='Hi there')]),
+        Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are helpful'))]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Hi there'))]),
     ]
 
     my_prompt = ai.define_prompt(
@@ -415,8 +424,8 @@ async def test_messages_with_explicit_override() -> None:
     ai, *_ = setup_test()
 
     override_messages = [
-        Message(role=Role.USER, content=[TextPart(text='First message')]),
-        Message(role=Role.MODEL, content=[TextPart(text='First response')]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='First message'))]),
+        Message(role=Role.MODEL, content=[Part(root=TextPart(text='First response'))]),
     ]
 
     my_prompt = ai.define_prompt(
@@ -442,7 +451,7 @@ async def test_prompt_with_tools_list() -> None:
         value: int = Field(description='A value')
 
     @ai.tool(name='myTool')
-    def my_tool(input: ToolInput):
+    def my_tool(input: ToolInput) -> int:
         return input.value * 2
 
     my_prompt = ai.define_prompt(
@@ -465,8 +474,8 @@ async def test_system_and_prompt_together() -> None:
     my_prompt = ai.define_prompt(
         system='System instruction',
         messages=[
-            Message(role=Role.USER, content=[TextPart(text='History user')]),
-            Message(role=Role.MODEL, content=[TextPart(text='History model')]),
+            Message(role=Role.USER, content=[Part(root=TextPart(text='History user'))]),
+            Message(role=Role.MODEL, content=[Part(root=TextPart(text='History model'))]),
         ],
         prompt='Final prompt',
     )
@@ -599,6 +608,7 @@ async def test_lookup_prompt_returns_executable_prompt() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_function_uses_lookup_prompt() -> None:
+    """Test using the prompt function from the Genkit class."""
     ai, *_ = setup_test()
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -619,7 +629,7 @@ async def test_prompt_function_uses_lookup_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading():
+async def test_automatic_prompt_loading() -> None:
     """Test that Genkit automatically loads prompts from a directory."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Create a prompt file
@@ -643,7 +653,7 @@ Hello {{name}}!
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading_default_none():
+async def test_automatic_prompt_loading_default_none() -> None:
     """Test that Genkit does not load prompts if prompt_dir is None."""
     ai = Genkit(prompt_dir=None)
 
@@ -655,7 +665,7 @@ async def test_automatic_prompt_loading_default_none():
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading_defaults_mock():
+async def test_automatic_prompt_loading_defaults_mock() -> None:
     """Test that Genkit defaults to ./prompts when prompt_dir is not specified and dir exists."""
     from unittest.mock import ANY, MagicMock, patch
 
@@ -670,7 +680,7 @@ async def test_automatic_prompt_loading_defaults_mock():
 
 
 @pytest.mark.asyncio
-async def test_automatic_prompt_loading_defaults_missing():
+async def test_automatic_prompt_loading_defaults_missing() -> None:
     """Test that Genkit skips loading when ./prompts is missing."""
     from unittest.mock import MagicMock, patch
 

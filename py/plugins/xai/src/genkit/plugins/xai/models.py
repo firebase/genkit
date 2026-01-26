@@ -18,16 +18,17 @@
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 from xai_sdk import Client as XAIClient
-from xai_sdk.proto.v6 import chat_pb2
+from xai_sdk.proto.v6 import chat_pb2, image_pb2
 
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import get_model_info
 from genkit.types import (
+    FinishReason,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -37,6 +38,7 @@ from genkit.types import (
     Part,
     Role,
     TextPart,
+    ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
 )
@@ -46,10 +48,10 @@ __all__ = ['XAIModel']
 DEFAULT_MAX_OUTPUT_TOKENS = 4096
 
 FINISH_REASON_MAP = {
-    'STOP': 'stop',
-    'LENGTH': 'length',
-    'TOOL_CALLS': 'stop',
-    'CONTENT_FILTER': 'other',
+    'STOP': FinishReason.STOP,
+    'LENGTH': FinishReason.LENGTH,
+    'TOOL_CALLS': FinishReason.STOP,
+    'CONTENT_FILTER': FinishReason.OTHER,
 }
 
 ROLE_MAP = {
@@ -64,22 +66,33 @@ class XAIModel:
     """xAI Grok model for Genkit."""
 
     def __init__(self, model_name: str, client: XAIClient) -> None:
+        """Initialize the model."""
         model_info = get_model_info(model_name)
         self.model_name = model_info.versions[0] if model_info.versions else model_name
         self.client = client
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+        """Generate content using the model.
+
+        Args:
+            request: The generate request.
+            ctx: The action run context.
+
+        Returns:
+            The generate response.
+        """
         params = self._build_params(request)
         streaming = ctx and ctx.is_streaming
 
         if streaming:
+            assert ctx is not None  # streaming requires ctx
             return await self._generate_streaming(params, request, ctx)
 
-        def _sample():
-            chat = self.client.chat.create(**params)
+        def _sample() -> Any:  # noqa: ANN401
+            chat = self.client.chat.create(**cast(dict[str, Any], params))
             return chat.sample()
 
-        response = await asyncio.to_thread(_sample)
+        response: Any = await asyncio.to_thread(_sample)  # noqa: ANN401
         content = self._to_genkit_content(response)
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -95,10 +108,10 @@ class XAIModel:
                 input_images=basic_usage.input_images,
                 output_images=basic_usage.output_images,
             ),
-            finish_reason=FINISH_REASON_MAP.get(response.finish_reason, 'unknown'),
+            finish_reason=FINISH_REASON_MAP.get(response.finish_reason, FinishReason.UNKNOWN),
         )
 
-    def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
+    def _build_params(self, request: GenerateRequest) -> dict[str, object]:
         """Build xAI API parameters from request."""
         config = request.config
         if isinstance(config, dict):
@@ -122,7 +135,7 @@ class XAIModel:
             deferred = getattr(config, 'deferred', None) if config else None
             reasoning_effort = getattr(config, 'reasoning_effort', None) if config else None
 
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             'model': self.model_name,
             'messages': self._to_xai_messages(request.messages),
             'max_tokens': int(max_tokens),
@@ -160,13 +173,13 @@ class XAIModel:
         return params
 
     async def _generate_streaming(
-        self, params: dict[str, Any], request: GenerateRequest, ctx: ActionRunContext
+        self, params: dict[str, object], request: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse:
-        def _sync_stream():
+        def _sync_stream() -> GenerateResponse:
             accumulated_content = []
             final_response = None
 
-            chat = self.client.chat.create(**params)
+            chat = self.client.chat.create(**cast(dict[str, Any], params))
             for response, chunk in chat.stream():
                 final_response = response
 
@@ -175,10 +188,10 @@ class XAIModel:
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
-                            content=[TextPart(text=chunk.content)],
+                            content=[Part(root=TextPart(text=chunk.content))],
                         )
                     )
-                    accumulated_content.append(TextPart(text=chunk.content))
+                    accumulated_content.append(Part(root=TextPart(text=chunk.content)))
 
                 for choice in chunk.choices:
                     if choice.tool_calls:
@@ -193,11 +206,11 @@ class XAIModel:
 
                                 accumulated_content.append(
                                     ToolRequestPart(
-                                        tool_request={
-                                            'ref': tool_call.id,
-                                            'name': tool_call.function.name,
-                                            'input': tool_input,
-                                        }
+                                        tool_request=ToolRequest(
+                                            ref=tool_call.id,
+                                            name=tool_call.function.name,
+                                            input=tool_input,
+                                        )
                                     )
                                 )
 
@@ -205,7 +218,9 @@ class XAIModel:
             basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
 
             finish_reason = (
-                FINISH_REASON_MAP.get(final_response.finish_reason, 'unknown') if final_response else 'unknown'
+                FINISH_REASON_MAP.get(final_response.finish_reason, FinishReason.UNKNOWN)
+                if final_response
+                else FinishReason.UNKNOWN
             )
 
             return GenerateResponse(
@@ -240,13 +255,15 @@ class XAIModel:
                 elif isinstance(actual_part, MediaPart):
                     if not actual_part.media.url:
                         raise ValueError('xAI models require a URL for media parts.')
-                    content.append(chat_pb2.Content(image_url=chat_pb2.ImageURL(url=actual_part.media.url)))
+                    content.append(
+                        chat_pb2.Content(image_url=image_pb2.ImageUrlContent(image_url=actual_part.media.url))
+                    )
                 elif isinstance(actual_part, ToolRequestPart):
                     tool_calls.append(
                         chat_pb2.ToolCall(
                             id=actual_part.tool_request.ref,
                             type=chat_pb2.ToolCallType.FUNCTION,
-                            function=chat_pb2.Function(
+                            function=chat_pb2.FunctionCall(
                                 name=actual_part.tool_request.name,
                                 arguments=actual_part.tool_request.input,
                             ),
@@ -256,7 +273,7 @@ class XAIModel:
                     result.append(
                         chat_pb2.Message(
                             role=chat_pb2.MessageRole.ROLE_TOOL,
-                            tool_call_id=actual_part.tool_response.ref,
+                            name=actual_part.tool_response.ref,
                             content=[chat_pb2.Content(text=str(actual_part.tool_response.output))],
                         )
                     )
@@ -270,11 +287,11 @@ class XAIModel:
 
         return result
 
-    def _to_genkit_content(self, response) -> list[Part]:
-        content = []
+    def _to_genkit_content(self, response: Any) -> list[Part]:  # noqa: ANN401
+        content: list[Part] = []
 
         if response.content:
-            content.append(TextPart(text=response.content))
+            content.append(Part(root=TextPart(text=response.content)))
 
         if response.tool_calls:
             for tool_call in response.tool_calls:
@@ -286,12 +303,14 @@ class XAIModel:
                         pass
 
                 content.append(
-                    ToolRequestPart(
-                        tool_request={
-                            'ref': tool_call.id,
-                            'name': tool_call.function.name,
-                            'input': tool_input,
-                        }
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(
+                                ref=tool_call.id,
+                                name=tool_call.function.name,
+                                input=tool_input,
+                            )
+                        )
                     )
                 )
 

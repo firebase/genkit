@@ -17,7 +17,7 @@
 """OpenAI Compatible Models for Genkit."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from openai import OpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
@@ -41,7 +41,7 @@ from genkit.types import (
 class OpenAIModel:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: str, client: OpenAI):
+    def __init__(self, model: str, client: OpenAI) -> None:
         """Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
 
         Args:
@@ -127,7 +127,7 @@ class OpenAIModel:
                 }
 
             model = SUPPORTED_OPENAI_MODELS[self._model]
-            if SupportedOutputFormat.JSON_MODE in model.supports.output:
+            if model.supports and model.supports.output and SupportedOutputFormat.JSON_MODE in model.supports.output:
                 return {'type': 'json_object'}
 
         return {'type': 'text'}
@@ -175,7 +175,9 @@ class OpenAIModel:
             message=MessageConverter.to_genkit(response.choices[0].message),
         )
 
-    async def _generate_stream(self, request: GenerateRequest, callback: Callable) -> GenerateResponse:
+    async def _generate_stream(
+        self, request: GenerateRequest, callback: Callable[[GenerateResponseChunk], None]
+    ) -> GenerateResponse:
         """Streams responses from the OpenAI client and sends chunks to a callback.
 
         Args:
@@ -248,7 +250,7 @@ class OpenAIModel:
             return await self._generate(request)
 
     @staticmethod
-    def normalize_config(config: Any) -> OpenAIConfig:
+    def normalize_config(config: object) -> OpenAIConfig:
         """Ensures the config is an OpenAIConfig instance."""
         if isinstance(config, OpenAIConfig):
             return config
@@ -262,11 +264,12 @@ class OpenAIModel:
             )
 
         if isinstance(config, dict):
-            if config.get('topK'):
-                del config['topK']
-            if config.get('topP'):
-                config['top_p'] = config['topP']
-                del config['topP']
-            return OpenAIConfig(**config)
+            config_dict = cast(dict[str, Any], config)
+            if config_dict.get('topK'):
+                del config_dict['topK']
+            if config_dict.get('topP'):
+                config_dict['top_p'] = config_dict['topP']
+                del config_dict['topP']
+            return OpenAIConfig(**config_dict)
 
         raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')

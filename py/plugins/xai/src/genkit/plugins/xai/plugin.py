@@ -17,6 +17,7 @@
 """xAI plugin for Genkit."""
 
 import os
+from typing import Any, cast
 
 from xai_sdk import Client as XAIClient
 
@@ -36,6 +37,7 @@ XAI_PLUGIN_NAME = 'xai'
 
 
 def xai_name(name: str) -> str:
+    """Create a fully qualified xAI model name."""
     return f'{XAI_PLUGIN_NAME}/{name}'
 
 
@@ -48,8 +50,15 @@ class XAI(Plugin):
         self,
         api_key: str | None = None,
         models: list[str] | None = None,
-        **xai_params: str,
+        **xai_params: object,
     ) -> None:
+        """Initialize the XAI plugin.
+
+        Args:
+            api_key: The xAI API key.
+            models: List of models to register.
+            xai_params: Additional parameters for xAI client.
+        """
         api_key = api_key or os.getenv('XAI_API_KEY')
 
         if not api_key:
@@ -57,7 +66,7 @@ class XAI(Plugin):
 
         self.models = models or list(SUPPORTED_XAI_MODELS.keys())
         self._xai_params = xai_params
-        self._xai_client = XAIClient(api_key=api_key, **xai_params)
+        self._xai_client = XAIClient(api_key=api_key, **cast(dict[str, Any], xai_params))
 
     async def init(self) -> list:
         """Initialize plugin.
@@ -75,7 +84,7 @@ class XAI(Plugin):
 
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -90,7 +99,7 @@ class XAI(Plugin):
 
         return self._create_model_action(name)
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for an XAI model.
 
         Args:
@@ -111,7 +120,7 @@ class XAI(Plugin):
             fn=model.generate,
             metadata={
                 'model': {
-                    'supports': model_info.supports.model_dump(),
+                    'supports': model_info.supports.model_dump() if model_info.supports else {},
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
@@ -128,7 +137,7 @@ class XAI(Plugin):
             actions.append(
                 model_action_metadata(
                     name=xai_name(model_name),
-                    info={'supports': model_info.supports.model_dump()},
+                    info={'supports': model_info.supports.model_dump() if model_info.supports else {}},
                     config_schema=GenerationCommonConfig,
                 )
             )

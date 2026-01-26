@@ -20,7 +20,7 @@ This module contains helper functions for creating and managing
 MCP transport connections (stdio, SSE, custom).
 """
 
-from typing import Any
+from typing import cast
 
 import structlog
 
@@ -30,7 +30,7 @@ logger = structlog.get_logger(__name__)
 
 
 def create_stdio_params(
-    command: str, args: list | None = None, env: dict[str, str] | None = None
+    command: str, args: list[str] | None = None, env: dict[str, str] | None = None
 ) -> StdioServerParameters:
     """Create StdioServerParameters for MCP connection.
 
@@ -45,7 +45,7 @@ def create_stdio_params(
     return StdioServerParameters(command=command, args=args or [], env=env)
 
 
-async def transport_from(config: dict[str, Any], session_id: str | None = None) -> tuple[Any, str]:
+async def transport_from(config: dict[str, object], session_id: str | None = None) -> tuple[object, str]:
     """Create an MCP transport instance based on the provided server configuration.
 
     Supports creating SSE, Stdio, or using a pre-configured custom transport.
@@ -66,21 +66,26 @@ async def transport_from(config: dict[str, Any], session_id: str | None = None) 
 
     # Handle SSE/HTTP config
     if 'url' in config and config['url']:
-        try:
-            # Dynamic import to avoid hard dependency
-            from mcp.client.sse import sse_client
+        # Check if SSE client is available
+        import importlib.util
 
-            # Note: Python MCP SDK may have different SSE client API
-            # This is a placeholder that matches the pattern
-            logger.info(f'Creating SSE transport for URL: {config["url"]}')
-            return (config['url'], 'http')  # Simplified for now
-        except ImportError:
+        if importlib.util.find_spec('mcp.client.sse') is None:
             logger.warning('SSE client not available')
             return (None, 'http')
 
+        # Note: Python MCP SDK may have different SSE client API
+        # This is a placeholder that matches the pattern
+        logger.info(f'Creating SSE transport for URL: {config["url"]}')
+        return (config['url'], 'http')  # Simplified for now
+
     # Handle Stdio config
     if 'command' in config and config['command']:
-        stdio_params = create_stdio_params(command=config['command'], args=config.get('args'), env=config.get('env'))
+        cmd = str(config['command'])
+        args_raw = config.get('args')
+        args: list[str] | None = cast(list[str], args_raw) if isinstance(args_raw, list) else None
+        env_raw = config.get('env')
+        env: dict[str, str] | None = cast(dict[str, str], env_raw) if isinstance(env_raw, dict) else None
+        stdio_params = create_stdio_params(command=cmd, args=args, env=env)
         return (stdio_params, 'stdio')
 
     return (None, 'unknown')

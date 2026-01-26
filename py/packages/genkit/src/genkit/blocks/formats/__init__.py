@@ -22,11 +22,11 @@ specified in `GenerateActionOptions` or `OutputConfig`.
 
 | Format | Description | Constraints |
 | :--- | :--- | :--- |
-| `json` | Parses output as a JSON object. This is the default format when a JSON schema is provided. | Enforced by `constrained: true` if supported by model. |
+| `json` | JSON object. Default when a schema is provided. | Enforced by `constrained: true`. |
 | `text` | Returns the raw text output from the model. | No constraints. |
-| `array` | Parses output as a JSON array of items. Useful for generating lists of items. | Enforced by `constrained: true` if supported by model. |
-| `enum` | Parses output as a single enum value. | Enforced by `constrained: true` if supported by model. |
-| `jsonl` | Parses output as newline-delimited JSON objects. Useful for streaming lists of objects. | No constraints (streaming friendly). |
+| `array` | JSON array of items. Useful for generating lists. | Enforced by `constrained: true`. |
+| `enum` | Parses output as a single enum value. | Enforced by `constrained: true`. |
+| `jsonl` | Newline-delimited JSON. Useful for streaming lists. | No constraints. |
 
 Usage Example:
 

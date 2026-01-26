@@ -14,8 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Google AI and Vertex AI plugin implementations."""
+
 import os
-from typing import Any
 
 from google import genai
 from google.auth.credentials import Credentials
@@ -91,6 +93,8 @@ class GoogleAI(Plugin):
         credentials: Credentials | None = None,
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
+        api_version: str | None = None,
+        base_url: str | None = None,
     ) -> None:
         """Initializes the GoogleAI plugin.
 
@@ -104,6 +108,8 @@ class GoogleAI(Plugin):
             debug_config: Configuration for debugging the client. Defaults to None.
             http_options: HTTP options for configuring the client's network requests.
                 Can be an instance of HttpOptions or a dictionary. Defaults to None.
+            api_version: The API version to use (e.g., 'v1beta'). Defaults to None.
+            base_url: The base URL for the API. Defaults to None.
 
         Raises:
             ValueError: If `api_key` is not provided and the 'GEMINI_API_KEY'
@@ -120,10 +126,10 @@ class GoogleAI(Plugin):
             api_key=api_key,
             credentials=credentials,
             debug_config=debug_config,
-            http_options=_inject_attribution_headers(http_options),
+            http_options=_inject_attribution_headers(http_options, base_url, api_version),
         )
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize the plugin.
 
         Returns:
@@ -169,7 +175,7 @@ class GoogleAI(Plugin):
             actions.append(self._resolve_embedder(googleai_name(embedder_name.value)))
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -185,7 +191,7 @@ class GoogleAI(Plugin):
             return self._resolve_embedder(name)
         return None
 
-    def _resolve_model(self, name: str):
+    def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Google AI model.
 
         Args:
@@ -209,7 +215,7 @@ class GoogleAI(Plugin):
             metadata=gemini_model.metadata,
         )
 
-    def _resolve_embedder(self, name: str):
+    def _resolve_embedder(self, name: str) -> Action:
         """Create an Action object for a Google AI embedder.
 
         Args:
@@ -250,8 +256,11 @@ class GoogleAI(Plugin):
         """
         actions_list = list()
         for m in self._client.models.list():
-            name = m.name.replace('models/', '')
-            if 'generateContent' in m.supported_actions:
+            model_name = m.name
+            if not model_name:
+                continue
+            name = model_name.replace('models/', '')
+            if m.supported_actions and 'generateContent' in m.supported_actions:
                 actions_list.append(
                     model_action_metadata(
                         name=googleai_name(name),
@@ -259,7 +268,7 @@ class GoogleAI(Plugin):
                     ),
                 )
 
-            if 'embedContent' in m.supported_actions:
+            if m.supported_actions and 'embedContent' in m.supported_actions:
                 embed_info = default_embedder_info(name)
                 actions_list.append(
                     embedder_action_metadata(
@@ -296,6 +305,8 @@ class VertexAI(Plugin):
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
         api_key: str | None = None,
+        api_version: str | None = None,
+        base_url: str | None = None,
     ) -> None:
         """Initializes the VertexAI plugin.
 
@@ -311,6 +322,8 @@ class VertexAI(Plugin):
             api_key: The API key for authenticating with the Google AI service.
                 If not provided, it defaults to reading from the 'GEMINI_API_KEY'
                 environment variable.
+            api_version: The API version to use. Defaults to None.
+            base_url: The base URL for the API. Defaults to None.
         """
         project = project if project else os.getenv(const.GCLOUD_PROJECT)
         location = location if location else const.DEFAULT_REGION
@@ -322,10 +335,10 @@ class VertexAI(Plugin):
             project=project,
             location=location,
             debug_config=debug_config,
-            http_options=_inject_attribution_headers(http_options),
+            http_options=_inject_attribution_headers(http_options, base_url, api_version),
         )
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize the plugin.
 
         Returns:
@@ -374,7 +387,7 @@ class VertexAI(Plugin):
             actions.append(self._resolve_embedder(vertexai_name(embedder_name.value)))
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -390,7 +403,7 @@ class VertexAI(Plugin):
             return self._resolve_embedder(name)
         return None
 
-    def _resolve_model(self, name: str):
+    def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Vertex AI model.
 
         Args:
@@ -418,7 +431,7 @@ class VertexAI(Plugin):
             metadata=model.metadata,
         )
 
-    def _resolve_embedder(self, name: str):
+    def _resolve_embedder(self, name: str) -> Action:
         """Create an Action object for a Vertex AI embedder.
 
         Args:
@@ -459,7 +472,10 @@ class VertexAI(Plugin):
         """
         actions_list = list()
         for m in self._client.models.list():
-            name = m.name.replace('publishers/google/models/', '')
+            model_name = m.name
+            if not model_name:
+                continue
+            name = model_name.replace('publishers/google/models/', '')
             if 'embed' in name.lower():
                 embed_info = default_embedder_info(name)
                 actions_list.append(
@@ -484,25 +500,39 @@ class VertexAI(Plugin):
         return actions_list
 
 
-def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
+def _inject_attribution_headers(
+    http_options: HttpOptions | HttpOptionsDict | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+) -> HttpOptions:
     """Adds genkit client info to the appropriate http headers."""
-    if not http_options:
-        http_options = HttpOptions()
+    # Normalize to HttpOptions instance
+    opts: HttpOptions
+    if http_options is None:
+        opts = HttpOptions()
+    elif isinstance(http_options, HttpOptions):
+        opts = http_options
     else:
-        if isinstance(http_options, dict):
-            http_options = HttpOptions(**http_options)
+        # HttpOptionsDict or other dict-like - use model_validate for proper type conversion
+        opts = HttpOptions.model_validate(http_options)
 
-    if not http_options.headers:
-        http_options.headers = {}
+    if base_url:
+        opts.base_url = base_url
 
-    if 'x-goog-api-client' not in http_options.headers:
-        http_options.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
+    if api_version:
+        opts.api_version = api_version
+
+    if not opts.headers:
+        opts.headers = {}
+
+    if 'x-goog-api-client' not in opts.headers:
+        opts.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
     else:
-        http_options.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
 
-    if 'user-agent' not in http_options.headers:
-        http_options.headers['user-agent'] = GENKIT_CLIENT_HEADER
+    if 'user-agent' not in opts.headers:
+        opts.headers['user-agent'] = GENKIT_CLIENT_HEADER
     else:
-        http_options.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
 
-    return http_options
+    return opts

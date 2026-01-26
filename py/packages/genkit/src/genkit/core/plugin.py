@@ -21,6 +21,7 @@ It provides a way to initialize and register plugin functionality.
 """
 
 import abc
+from typing import cast
 
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
@@ -92,7 +93,7 @@ class Plugin(abc.ABC):
             ValueError: If the model is not found.
         """
         target = name if '/' in name else f'{self.name}/{name}'
-        action = await self.resolve(ActionKind.MODEL, target)
+        action = await self.resolve(cast(ActionKind, ActionKind.MODEL), target)
         if action is None:
             raise ValueError(f'Model not found: {target}')
         return action

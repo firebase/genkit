@@ -16,8 +16,6 @@
 
 """Implementation of JSON output format."""
 
-from typing import Any
-
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -46,7 +44,7 @@ class JsonFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes a JsonFormat instance.
 
         Sets up the format definition with configurations suitable for JSON,
@@ -62,7 +60,7 @@ class JsonFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling JSON data based on an optional schema.
 
         Args:
@@ -76,7 +74,7 @@ class JsonFormat(FormatDef):
             the provided schema.
         """
 
-        def message_parser(msg: MessageWrapper):
+        def message_parser(msg: MessageWrapper) -> object:
             """Extracts JSON from a Message object.
 
             Concatenates the text content of all parts in the message and
@@ -90,7 +88,7 @@ class JsonFormat(FormatDef):
             """
             return extract_json(msg.text)
 
-        def chunk_parser(chunk: GenerateResponseChunkWrapper):
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> object:
             """Extracts JSON from a GenerateResponseChunkWrapper object.
 
             Extracts a JSON object from the accumulated text in the given chunk.

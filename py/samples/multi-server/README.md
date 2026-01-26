@@ -3,11 +3,21 @@
 This sample shows how to run multiple servers using the Genkit Web server
 manager.
 
-## Running the sample
+### Monitoring and Running
+
+For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
 
 ```bash
-env GENKIT_ENV=dev uv run src/main.py
+./run.sh
 ```
+
+This script uses `watchmedo` to monitor changes in:
+- `src/` (Python logic)
+- `../../packages` (Genkit core)
+- `../../plugins` (Genkit plugins)
+- File patterns: `*.py`, `*.prompt`, `*.json`
+
+Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
 
 ## Output
 

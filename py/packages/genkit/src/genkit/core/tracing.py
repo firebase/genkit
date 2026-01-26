@@ -28,6 +28,7 @@ The module includes:
 """
 
 import traceback
+from collections.abc import Generator
 from contextlib import contextmanager
 
 import structlog
@@ -70,7 +71,7 @@ def init_provider() -> TracerProvider:
     return tracer_provider
 
 
-def add_custom_exporter(exporter: SpanExporter, name: str = 'last') -> None:
+def add_custom_exporter(exporter: SpanExporter | None, name: str = 'last') -> None:
     """Adds custom span exporter to current tracer provider.
 
     Args:
@@ -106,7 +107,7 @@ def run_in_new_span(
     metadata: SpanMetadata,
     labels: dict[str, str] | None = None,
     links: list[trace_api.Link] | None = None,
-):
+) -> Generator[GenkitSpan, None, None]:
     """Starts a new span context under the current trace.
 
     This method provides a contexmanager for working with Genkit spans. The

@@ -20,6 +20,7 @@ This module provides retrievers for Vertex AI Vector Search with BigQuery and Fi
 """
 
 import json
+import typing
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
@@ -39,8 +40,12 @@ from genkit.blocks.document import Document
 from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
-from genkit.core.typing import Embedding
-from genkit.types import ActionRunContext, RetrieverRequest, RetrieverResponse
+from genkit.core.typing import (
+    DocumentData,
+    Embedding,
+    RetrieverResponse,
+)
+from genkit.types import ActionRunContext, RetrieverRequest
 
 logger = structlog.get_logger(__name__)
 
@@ -109,10 +114,10 @@ class DocRetriever(ABC):
         # Get query embedding
         embed_resp = await self.ai.embed(
             embedder=self.embedder,
-            documents=[document],
+            content=document,
             options=self.embedder_options,
         )
-        if not embed_resp.embeddings:
+        if not embed_resp:
             raise ValueError('Embedder returned no embeddings for query')
 
         # Get limit from options
@@ -123,10 +128,10 @@ class DocRetriever(ABC):
         docs = await self._get_closest_documents(
             request=request,
             top_k=limit_neighbors,
-            query_embeddings=Embedding(embedding=embed_resp.embeddings[0].embedding),
+            query_embeddings=Embedding(embedding=embed_resp[0].embedding),
         )
 
-        return RetrieverResponse(documents=docs)
+        return RetrieverResponse(documents=typing.cast(list[DocumentData], docs))
 
     async def _get_closest_documents(
         self, request: RetrieverRequest, top_k: int, query_embeddings: Embedding
@@ -212,8 +217,11 @@ class BigQueryRetriever(DocRetriever):
         bq_client: bigquery.Client,
         dataset_id: str,
         table_id: str,
-        *args,
-        **kwargs,
+        ai: Genkit,
+        name: str,
+        embedder: str,
+        match_service_client_generator: Callable,
+        embedder_options: dict[str, Any] | None = None,
     ) -> None:
         """Initializes the BigQueryRetriever.
 
@@ -221,10 +229,19 @@ class BigQueryRetriever(DocRetriever):
             bq_client: The BigQuery client to use for querying.
             dataset_id: The ID of the BigQuery dataset.
             table_id: The ID of the BigQuery table.
-            *args: Additional positional arguments to pass to the parent class.
-            **kwargs: Additional keyword arguments to pass to the parent class.
+            ai: The Genkit instance used for embeddings.
+            name: The name of this retriever instance.
+            embedder: The embedder to use for query embeddings.
+            match_service_client_generator: Generator function for the Vertex AI client.
+            embedder_options: Optional configuration to pass to the embedder.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            ai=ai,
+            name=name,
+            embedder=embedder,
+            match_service_client_generator=match_service_client_generator,
+            embedder_options=embedder_options,
+        )
         self.bq_client = bq_client
         self.dataset_id = dataset_id
         self.table_id = table_id
@@ -299,18 +316,30 @@ class FirestoreRetriever(DocRetriever):
         self,
         firestore_client: firestore.AsyncClient,
         collection_name: str,
-        *args,
-        **kwargs,
+        ai: Genkit,
+        name: str,
+        embedder: str,
+        match_service_client_generator: Callable,
+        embedder_options: dict[str, Any] | None = None,
     ) -> None:
         """Initializes the FirestoreRetriever.
 
         Args:
             firestore_client: The Firestore client to use for querying.
             collection_name: The name of the Firestore collection.
-            *args: Additional positional arguments to pass to the parent class.
-            **kwargs: Additional keyword arguments to pass to the parent class.
+            ai: The Genkit instance used for embeddings.
+            name: The name of this retriever instance.
+            embedder: The embedder to use for query embeddings.
+            match_service_client_generator: Generator function for the Vertex AI client.
+            embedder_options: Optional configuration to pass to the embedder.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            ai=ai,
+            name=name,
+            embedder=embedder,
+            match_service_client_generator=match_service_client_generator,
+            embedder_options=embedder_options,
+        )
         self.db = firestore_client
         self.collection_name = collection_name
 
@@ -327,10 +356,12 @@ class FirestoreRetriever(DocRetriever):
 
         for neighbor in neighbors:
             doc_ref = self.db.collection(self.collection_name).document(document_id=neighbor.datapoint.datapoint_id)
-            doc_snapshot = doc_ref.get()
+            # Typed as Any to bypass verification issues with google.cloud.firestore.DocumentSnapshot
+            # which might be treated as a coroutine by the type checker in some contexts.
+            doc: Any = await doc_ref.get()
 
-            if doc_snapshot.exists:
-                doc_data = doc_snapshot.to_dict() or {}
+            if doc.exists:
+                doc_data = doc.to_dict() or {}
 
                 content = doc_data.get('content', '')
                 content = json.dumps(content) if isinstance(content, dict) else str(content)
@@ -368,7 +399,7 @@ def vertexai_vector_search_name(name: str) -> str:
     return f'vertexai/{name}'
 
 
-def defineVertexVectorSearchBigQuery(
+def define_vertex_vector_search_big_query(
     ai: Genkit,
     *,
     name: str,
@@ -425,7 +456,7 @@ def defineVertexVectorSearchBigQuery(
     return name
 
 
-def defineVertexVectorSearchFirestore(
+def define_vertex_vector_search_firestore(
     ai: Genkit,
     *,
     name: str,

@@ -17,6 +17,7 @@
 """DeepSeek Plugin for Genkit."""
 
 import os
+from typing import Any
 
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
@@ -42,7 +43,7 @@ class DeepSeek(Plugin):
         self,
         api_key: str | None = None,
         models: list[str] | None = None,
-        **deepseek_params,
+        **deepseek_params: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the plugin and set up its configuration.
 
@@ -64,7 +65,7 @@ class DeepSeek(Plugin):
         self.models = models
         self.deepseek_params = deepseek_params
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize the plugin.
 
         Returns:
@@ -72,7 +73,7 @@ class DeepSeek(Plugin):
         """
         return []
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -87,7 +88,7 @@ class DeepSeek(Plugin):
 
         return self._create_model_action(name)
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for a DeepSeek model.
 
         Args:
@@ -102,7 +103,7 @@ class DeepSeek(Plugin):
         # Create the DeepSeek model instance
         deepseek_model = DeepSeekModel(
             model=clean_name,
-            api_key=self.api_key,
+            api_key=str(self.api_key),
             **self.deepseek_params,
         )
 

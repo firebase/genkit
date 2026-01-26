@@ -17,12 +17,12 @@
 
 """OpenAI configuration for Genkit."""
 
-import sys  # noqa
+import sys
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 

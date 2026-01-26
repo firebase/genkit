@@ -55,12 +55,12 @@ import structlog
 
 from genkit.web.typing import Application
 
-logger = structlog.get_logger(__name__)
-
 if sys.version_info < (3, 11):
     from strenum import StrEnum
 else:
     from enum import StrEnum
+
+logger = structlog.get_logger(__name__)
 
 
 class ServerType(StrEnum):
@@ -195,7 +195,7 @@ class UvicornAdapter(ASGIServerAdapter):
         server = uvicorn.Server(config)
 
         # Modified server startup to work with shared event loop
-        server.config.setup_event_loop = lambda: None
+        server.config.setup_event_loop = lambda: None  # type: ignore[attr-defined]
 
         await logger.ainfo(
             'Starting uvicorn server',
@@ -237,7 +237,7 @@ class GranianAdapter(ASGIServerAdapter):
             ImportError: If Granian is not available
             Exception: If the server fails to start or encounters an error
         """
-        import granian
+        import granian  # type: ignore[import-not-found]
 
         # Granian accepts the log level as a string
         # Valid values are: 'trace', 'debug', 'info', 'warn', 'error', or 'off'

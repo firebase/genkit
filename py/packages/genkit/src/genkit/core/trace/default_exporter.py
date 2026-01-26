@@ -25,7 +25,6 @@ The module includes:
     - Utility functions for converting and formatting trace attributes
 """
 
-import json
 import os
 import sys
 from collections.abc import Sequence
@@ -51,12 +50,16 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
     This function extracts the span data from a ReadableSpan object and returns
     a dictionary containing the span data.
     """
-    span_data = {'traceId': f'{span.context.trace_id}', 'spans': {}}
-    span_data['spans'][span.context.span_id] = {
-        'spanId': f'{span.context.span_id}',
+    span_data: dict[str, Any] = {'traceId': f'{span.context.trace_id}', 'spans': {}}
+    span_id = span.context.span_id
+    start_time = (span.start_time / 1000000) if span.start_time is not None else 0
+    end_time = (span.end_time / 1000000) if span.end_time is not None else 0
+
+    span_data['spans'][span_id] = {
+        'spanId': f'{span_id}',
         'traceId': f'{span.context.trace_id}',
-        'startTime': span.start_time / 1000000,
-        'endTime': span.end_time / 1000000,
+        'startTime': start_time,
+        'endTime': end_time,
         'attributes': {**span.attributes},
         'displayName': span.name,
         # "links": span.links,
@@ -75,8 +78,8 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
             'version': 'v1',
         },
     }
-    if not span_data['spans'][span.context.span_id]['parentSpanId']:  # type: ignore
-        del span_data['spans'][span.context.span_id]['parentSpanId']  # type: ignore
+    if not span_data['spans'][span.context.span_id]['parentSpanId']:
+        del span_data['spans'][span.context.span_id]['parentSpanId']
 
     if not span.parent:
         span_data['displayName'] = span.name
@@ -96,7 +99,7 @@ class TelemetryServerSpanExporter(SpanExporter):
         telemetry_server_url: The URL of the telemetry server endpoint.
     """
 
-    def __init__(self, telemetry_server_url: str, telemetry_server_endpoint: str | None = None):
+    def __init__(self, telemetry_server_url: str, telemetry_server_endpoint: str | None = None) -> None:
         """Initializes the TelemetryServerSpanExporter.
 
         Args:
@@ -127,7 +130,7 @@ class TelemetryServerSpanExporter(SpanExporter):
             for span in spans:
                 client.post(
                     urljoin(self.telemetry_server_url, self.telemetry_server_endpoint),
-                    data=json.dumps(extract_span_data(span)),
+                    json=extract_span_data(span),
                     headers={
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',

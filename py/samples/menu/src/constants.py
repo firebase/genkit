@@ -26,9 +26,11 @@ DEFAULT_MENU_TEXT = """APPETIZERS
 - Nachos $12 - Crispy tortilla chips topped with melted cheese, chili, sour cream, and salsa
 
 BURGERS & SANDWICHES
-- Classic Cheeseburger $12 - A juicy beef patty topped with melted American cheese, lettuce, tomato, and onion on a toasted bun
+- Classic Cheeseburger $12 - A juicy beef patty topped with melted American cheese, lettuce, tomato, and onion on a
+  toasted bun
 - Bacon Cheeseburger $14 - A classic cheeseburger with the addition of crispy bacon
-- Mushroom Swiss Burger $15 - A beef patty topped with sautéed mushrooms, melted Swiss cheese, and a creamy horseradish sauce
+- Mushroom Swiss Burger $15 - A beef patty topped with sautéed mushrooms, melted Swiss cheese, and a creamy horseradish
+  sauce
 - Chicken Sandwich $13 - A crispy chicken breast on a toasted bun with lettuce, tomato, and your choice of sauce
 
 SALADS
