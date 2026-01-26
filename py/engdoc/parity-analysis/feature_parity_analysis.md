@@ -327,13 +327,13 @@ stream, response = await my_prompt.stream(name='value')
 | **TracerProvider** | ✅ | ✅ | Both configure |
 | **SimpleSpanProcessor** | ✅ (dev) | ✅ (dev) | Same pattern |
 | **BatchSpanProcessor** | ✅ (prod) | ✅ (prod) | Same pattern |
-| **RealtimeSpanProcessor** | ✅ | ❌ | **JS only** |
-| **Configurable via env** | ✅ `GENKIT_ENABLE_REALTIME_TELEMETRY` | ❌ | Python lacks option |
+| **RealtimeSpanProcessor** | ✅ | ✅ | Parity achieved |
+| **Configurable via env** | ✅ `GENKIT_ENABLE_REALTIME_TELEMETRY` | ✅ | Parity achieved |
 
-### Realtime Tracing (JS Only)
+### Realtime Tracing
 
-> [!IMPORTANT]
-> JS has `RealtimeSpanProcessor` that exports spans on **both start AND end**, enabling live trace visualization during development. Python only exports on span completion.
+> [!NOTE]
+> Both JS and Python now have `RealtimeSpanProcessor` that exports spans on **both start AND end**, enabling live trace visualization during development.
 
 **JS RealtimeSpanProcessor:**
 ```typescript
@@ -349,7 +349,17 @@ class RealtimeSpanProcessor implements SpanProcessor {
 }
 ```
 
-**Python:** No equivalent - only exports spans when they complete.
+**Python:** Equivalent implementation in `genkit.core.trace.realtime_processor`:
+```python
+class RealtimeSpanProcessor(SpanProcessor):
+    def on_start(self, span: Span, parent_context: Context | None = None) -> None:
+        # Export immediately for real-time updates
+        self._exporter.export([span])
+
+    def on_end(self, span: ReadableSpan) -> None:
+        # Export completed span
+        self._exporter.export([span])
+```
 
 ### Span Exporters
 
@@ -357,7 +367,7 @@ class RealtimeSpanProcessor implements SpanProcessor {
 |----------|-----|--------|-------|
 | **TelemetryServerExporter** | ✅ `TraceServerExporter` | ✅ `TelemetryServerSpanExporter` | Both have |
 | **GCP Cloud Trace** | ✅ | ✅ | Both via plugins |
-| **AdjustingTraceExporter** | ✅ (redacts content) | ❌ | JS redacts model I/O |
+| **AdjustingTraceExporter** | ✅ (redacts content) | ✅ | Parity achieved |
 | **Custom exporter API** | ✅ | ✅ `add_custom_exporter()` | Both support |
 
 ### Telemetry Configuration API
@@ -365,7 +375,7 @@ class RealtimeSpanProcessor implements SpanProcessor {
 | API | JS | Python | Notes |
 |-----|-----|--------|-------|
 | `enableTelemetry(config)` | ✅ | ❌ | Python auto-configures |
-| `flushTracing()` | ✅ | ❌ | Python no flush API |
+| `flushTracing()` | ✅ | ✅ `ai.flush_tracing()` | Parity achieved |
 | `cleanUpTracing()` | ✅ | ❌ | Python no cleanup |
 | `TelemetryConfig` type | ✅ `Partial<NodeSDKConfiguration>` | ❌ | Python untyped |
 
@@ -397,16 +407,16 @@ class RealtimeSpanProcessor implements SpanProcessor {
 | **Cloud Trace export** | ✅ | ✅ |
 | **Cloud Metrics export** | ✅ | ✅ |
 | **Automatic instrumentation** | ✅ (Pino, Winston) | ❌ |
-| **Span adjustment/redaction** | ✅ `AdjustingTraceExporter` | ❌ |
+| **Span adjustment/redaction** | ✅ `AdjustingTraceExporter` | ✅ | Parity achieved |
 | **Feature markers** | ✅ (marks genkit spans) | ❌ |
 
 ### Telemetry Gaps Summary
 
-| Gap | Priority | Impact |
+| Gap | Priority | Status |
 |-----|----------|--------|
-| **RealtimeSpanProcessor** | P1 | No live tracing in DevUI |
-| **Span redaction** | P2 | PII may leak to Cloud Trace |
-| **flushTracing() API** | P2 | Can't force flush before exit |
+| ~~**RealtimeSpanProcessor**~~ | ~~P1~~ | ✅ Implemented - live tracing now works |
+| ~~**Span redaction**~~ | ~~P2~~ | ✅ Implemented - `AdjustingTraceExporter` |
+| ~~**flushTracing() API**~~ | ~~P2~~ | ✅ Implemented - `ai.flush_tracing()` |
 | **Logging instrumentation** | P3 | Logs not auto-correlated |
 | **enableTelemetry() config** | P3 | Less flexibility |
 

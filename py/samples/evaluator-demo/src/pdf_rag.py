@@ -69,8 +69,9 @@ async def pdf_qa(query: Annotated[str, Field(default='What is in the PDF?')] = '
         ]),
     )
     llm_response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
+        model='googleai/gemini-3-flash-preview',
         prompt=augmented_prompt,
+        config={'api_version': 'v1alpha'},
     )
     return llm_response.text
 
@@ -91,8 +92,9 @@ async def simple_structured(query: Annotated[str, Field(default='Tell me a joke'
         "Hi there"
     """
     llm_response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
+        model='googleai/gemini-3-flash-preview',
         prompt=query,
+        config={'api_version': 'v1alpha'},
     )
     return llm_response.text
 
@@ -113,8 +115,9 @@ async def simple_echo(i: Annotated[str, Field(default='Hello, echo!')] = 'Hello,
         "echo"
     """
     llm_response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
+        model='googleai/gemini-3-flash-preview',
         prompt=i,
+        config={'api_version': 'v1alpha'},
     )
     return llm_response.text
 

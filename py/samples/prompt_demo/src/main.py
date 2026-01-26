@@ -14,7 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Prompt demo sample."""
+"""Prompt demo sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Prompt Management (Loading)             | `ai = Genkit(..., prompt_dir=...)`  |
+| Prompt Execution                        | `recipe_prompt(input=...)`          |
+| Prompt Variants                         | `get_sticky_prompt(..., variant=...)`|
+| Custom Helpers                          | `ai.define_helper('list', ...)`     |
+| Prompt Output Schema Validation         | `Recipe.model_validate(...)`        |
+| Streaming Prompts                       | `story_prompt.stream()`             |
+"""
 
 import os
 import weakref
@@ -85,13 +97,13 @@ async def get_sticky_prompt(name: str, variant: str | None = None) -> Executable
     if key in _sticky_prompts:
         return _sticky_prompts[key]
 
-    prompt = await ai.prompt(name, variant=variant)
+    prompt = ai.prompt(name, variant=variant)
     if isinstance(prompt, weakref.ReferenceType):
         ref = prompt
         prompt = ref()
         if prompt is None:
             # Stale reference; retry loading the prompt as the comments suggest.
-            prompt = await ai.prompt(name, variant=variant)
+            prompt = ai.prompt(name, variant=variant)
             if isinstance(prompt, weakref.ReferenceType):
                 prompt = prompt()
             if prompt is None:
@@ -177,10 +189,10 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
     """
     await logger.ainfo(f'tell_story called with input: {input}')
     story_prompt = await get_sticky_prompt('story')
-    stream, _response = story_prompt.stream(input={'subject': input.subject, 'personality': input.personality})
+    result = story_prompt.stream(input={'subject': input.subject, 'personality': input.personality})
 
     full_text = ''
-    async for chunk in stream:
+    async for chunk in result.stream:
         if chunk.text:
             ctx.send_chunk(chunk.text)
             full_text += chunk.text

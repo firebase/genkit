@@ -98,6 +98,9 @@ jobs:
       - name: Type check with Ty
         run: uv run --directory py ty check .
 
+      - name: Run security scan
+        run: ./py/bin/run_python_security_checks
+
       - name: Check licenses
         run: ./bin/check_license
 

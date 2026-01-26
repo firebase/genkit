@@ -175,6 +175,8 @@ class XAIModel:
     async def _generate_streaming(
         self, params: dict[str, object], request: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse:
+        loop = asyncio.get_running_loop()
+
         def _sync_stream() -> GenerateResponse:
             accumulated_content = []
             final_response = None
@@ -184,12 +186,13 @@ class XAIModel:
                 final_response = response
 
                 if chunk.content:
-                    ctx.send_chunk(
+                    loop.call_soon_threadsafe(
+                        ctx.send_chunk,
                         GenerateResponseChunk(
                             role=Role.MODEL,
                             index=0,
                             content=[Part(root=TextPart(text=chunk.content))],
-                        )
+                        ),
                     )
                     accumulated_content.append(Part(root=TextPart(text=chunk.content)))
 
@@ -262,7 +265,7 @@ class XAIModel:
                     tool_calls.append(
                         chat_pb2.ToolCall(
                             id=actual_part.tool_request.ref,
-                            type=chat_pb2.ToolCallType.FUNCTION,
+                            type=chat_pb2.ToolCallType.TOOL_CALL_TYPE_CLIENT_SIDE_TOOL,
                             function=chat_pb2.FunctionCall(
                                 name=actual_part.tool_request.name,
                                 arguments=actual_part.tool_request.input,

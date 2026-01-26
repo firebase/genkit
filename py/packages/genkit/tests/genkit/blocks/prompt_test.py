@@ -71,27 +71,34 @@ async def test_simple_prompt() -> None:
 
     assert response.text == want_txt
 
-    _, response = my_prompt.stream()
+    # New API: stream returns GenerateStreamResponse with .response property
+    result = my_prompt.stream()
 
-    assert (await response).text == want_txt
+    assert (await result.response).text == want_txt
 
 
 @pytest.mark.asyncio
 async def test_simple_prompt_with_override_config() -> None:
-    """Test the config provided at render time is used."""
+    """Test the config provided at render time is MERGED (not replaced) with prompt config.
+
+    This matches JS behavior where configs are merged: {...promptConfig, ...optsConfig}
+    """
     ai, *_ = setup_test()
 
-    want_txt = '[ECHO] user: "hi" {"temperature":12.0}'
+    # Config is MERGED: prompt config (banana: true) + opts config (temperature: 12)
+    want_txt = '[ECHO] user: "hi" {"banana": true, "temperature": 12}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'banana': True})
 
-    response = await my_prompt(config={'temperature': 12})
+    # New API: pass config via opts parameter - this MERGES with prompt config
+    response = await my_prompt(opts={'config': {'temperature': 12}})
 
     assert response.text == want_txt
 
-    _, response = my_prompt.stream(config={'temperature': 12})
+    # New API: stream also uses opts
+    result = my_prompt.stream(opts={'config': {'temperature': 12}})
 
-    assert (await response).text == want_txt
+    assert (await result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -107,9 +114,10 @@ async def test_prompt_with_system() -> None:
 
     assert response.text == want_txt
 
-    _, response = my_prompt.stream()
+    # New API: stream returns GenerateStreamResponse
+    result = my_prompt.stream()
 
-    assert (await response).text == want_txt
+    assert (await result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -151,9 +159,10 @@ async def test_prompt_with_kitchensink() -> None:
 
     assert response.text == want_txt
 
-    _, response = my_prompt.stream()
+    # New API: stream returns GenerateStreamResponse
+    result = my_prompt.stream()
 
-    assert (await response).text == want_txt
+    assert (await result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -224,7 +233,8 @@ test_cases_parse_partial_json = [
         {'name': 'foo'},
         GenerationCommonConfig.model_validate({'temperature': 11}),
         {},
-        """[ECHO] system: "hello foo (bar)" {"temperature":11.0}""",
+        # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
+        """[ECHO] system: "hello foo (bar)" {"banana": "ripe", "temperature": 11.0}""",
     ),
     (
         'renders user prompt',
@@ -243,7 +253,8 @@ test_cases_parse_partial_json = [
         {'name': 'foo'},
         GenerationCommonConfig.model_validate({'temperature': 11}),
         {},
-        """[ECHO] user: "hello foo (bar_system)" {"temperature":11.0}""",
+        # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
+        """[ECHO] user: "hello foo (bar_system)" {"banana": "ripe", "temperature": 11.0}""",
     ),
     (
         'renders user prompt with context',
@@ -262,7 +273,8 @@ test_cases_parse_partial_json = [
         {'name': 'foo'},
         GenerationCommonConfig.model_validate({'temperature': 11}),
         {'auth': {'email': 'a@b.c'}},
-        """[ECHO] user: "hello foo (bar, a@b.c)" {"temperature":11.0}""",
+        # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
+        """[ECHO] user: "hello foo (bar, a@b.c)" {"banana": "ripe", "temperature": 11.0}""",
     ),
 ]
 
@@ -286,7 +298,8 @@ async def test_prompt_rendering_dotprompt(
 
     my_prompt = ai.define_prompt(**prompt)
 
-    response = await my_prompt(input, input_option, context=context)
+    # New API: use opts parameter to pass config and context
+    response = await my_prompt(input, opts={'config': input_option, 'context': context})
 
     assert response.text == want_rendered
 
@@ -433,7 +446,8 @@ async def test_messages_with_explicit_override() -> None:
         prompt='Final question',
     )
 
-    rendered = await my_prompt.render(input=None, config=None)
+    # New API: use opts parameter (or no opts for defaults)
+    rendered = await my_prompt.render(input=None)
 
     # Check that we have the final prompt message
     assert any('Final question' in str(msg) for msg in rendered.messages)
@@ -513,7 +527,12 @@ async def test_prompt_with_output_schema() -> None:
 
 @pytest.mark.asyncio
 async def test_config_merge_priority() -> None:
-    """Test that runtime config overrides definition config."""
+    """Test that runtime config is MERGED with definition config.
+
+    This matches JS behavior: {...promptConfig, ...optsConfig}
+    So opts.config values override prompt config values, but prompt config values
+    that aren't in opts.config are preserved.
+    """
     ai, *_ = setup_test()
 
     my_prompt = ai.define_prompt(
@@ -521,11 +540,120 @@ async def test_config_merge_priority() -> None:
         config={'temperature': 0.5, 'banana': 'yellow'},
     )
 
-    # Runtime config should override temperature but keep banana
-    rendered = await my_prompt.render(config={'temperature': 0.9})
+    # New API: runtime config is MERGED with prompt config
+    # - temperature: 0.9 (from opts, overrides 0.5)
+    # - banana: 'yellow' (from prompt, preserved)
+    rendered = await my_prompt.render(opts={'config': {'temperature': 0.9}})
 
     assert rendered.config is not None
-    assert rendered.config.temperature == 0.9
+    # Config is now a dict after merging
+    assert rendered.config['temperature'] == 0.9
+    assert rendered.config['banana'] == 'yellow'  # Preserved from prompt config
+
+
+# Tests for new PromptGenerateOptions API
+@pytest.mark.asyncio
+async def test_opts_can_override_model() -> None:
+    """Test that opts.model can override the prompt's default model."""
+    ai, _, pm = setup_test()
+
+    pm.responses = [
+        GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='pm response'))]))
+    ]
+
+    my_prompt = ai.define_prompt(
+        model='echoModel',
+        prompt='hello',
+    )
+
+    # Override model via opts
+    response = await my_prompt(opts={'model': 'programmableModel'})
+
+    # Should use programmableModel, not echoModel
+    assert response.text == 'pm response'
+
+
+@pytest.mark.asyncio
+async def test_opts_can_append_messages() -> None:
+    """Test that opts.messages appends conversation history."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(
+        system='You are helpful',
+        prompt='Current question',
+    )
+
+    history_messages = [
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Previous question'))]),
+        Message(role=Role.MODEL, content=[Part(root=TextPart(text='Previous answer'))]),
+    ]
+
+    # Append conversation history via opts
+    rendered = await my_prompt.render(opts={'messages': history_messages})
+
+    # Should have: system + history (2) + user prompt = 4 messages
+    assert len(rendered.messages) == 4
+    # Check that history is included
+    assert any('Previous question' in str(msg) for msg in rendered.messages)
+    assert any('Previous answer' in str(msg) for msg in rendered.messages)
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_response_api() -> None:
+    """Test that GenerateStreamResponse provides both stream and response."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(
+        prompt='hello world',
+    )
+
+    # Get stream response
+    result = my_prompt.stream()
+
+    # Verify it has the expected properties (matching JS GenerateStreamResponse)
+    assert hasattr(result, 'stream')
+    assert hasattr(result, 'response')
+
+    # Stream may not have chunks (depends on model implementation),
+    # but we can always await the response
+    async for _ in result.stream:
+        pass  # Consume stream if any chunks
+
+    # Get final response - this should always work
+    final_response = await result.response
+
+    # Final response should be complete
+    assert final_response.text is not None
+    assert 'hello world' in final_response.text
+
+
+@pytest.mark.asyncio
+async def test_opts_can_override_output() -> None:
+    """Test that opts.output can override output configuration."""
+    ai, *_ = setup_test()
+
+    class OutputSchema(BaseModel):
+        name: str = Field(description='A name')
+
+    my_prompt = ai.define_prompt(
+        prompt='Generate a name',
+        output_format='text',  # Default to text
+    )
+
+    # Override output via opts
+    rendered = await my_prompt.render(
+        opts={
+            'output': {
+                'format': 'json',
+                'schema': OutputSchema,
+            }
+        }
+    )
+
+    # Should have json format, not text
+    assert rendered.output is not None
+    assert rendered.output.format == 'json'
+    assert rendered.output.json_schema is not None
 
 
 # Tests for file-based prompt loading and two-action structure
@@ -621,7 +749,7 @@ async def test_prompt_function_uses_lookup_prompt() -> None:
         load_prompt_folder(ai.registry, prompt_dir)
 
         # Use ai.prompt() to look up the file-based prompt
-        executable = await ai.prompt('promptFuncTest')
+        executable = ai.prompt('promptFuncTest')
 
         # Verify it can be executed
         response = await executable({'name': 'Genkit'})

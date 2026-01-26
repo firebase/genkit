@@ -14,15 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Model Garden sample."""
+"""Model Garden sample.
 
 from typing import Annotated
 import asyncio
 
 import structlog
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.action import ActionRunContext
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 from genkit.plugins.google_genai import VertexAI
 from pydantic import BaseModel, Field
@@ -140,6 +141,9 @@ async def anthropic_model(input: ToolFlowInput) -> str:
     )
     return response.text
 
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
 
 # @ai.flow()
 # async def jokes_flow(subject: str) -> str:
@@ -218,11 +222,76 @@ async def generate_function(input: GenerateFunctionInput) -> str:
     return response.text
 
 
+@ai.flow()
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: The name of the person to greet.
+
+    Returns:
+        The generated greeting response.
+    """
+    response = await ai.generate(
+        # model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+        # Using Anthropic for Model Garden example as it is reliably available
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        config={'temperature': 1},
+        prompt=f'hi {name}',
+    )
+
+    return response.text
+
+
+@ai.flow()
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
+    """Say hi to a name and stream the response.
+
+    Args:
+        name: The name to say hi to.
+        ctx: Action context for streaming.
+
+    Returns:
+        The response from the model.
+    """
+    stream, _ = ai.generate_stream(
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        config={'temperature': 1},
+        prompt=f'hi {name}',
+    )
+    result = ''
+    async for data in stream:
+        ctx.send_chunk(data.text)
+        result += data.text
+    return result
+
+
+@ai.flow()
+async def weather_flow(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
+    """Tool calling with Model Garden."""
+    response = await ai.generate(
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        tools=['getWeather'],
+        prompt=f"What's the weather in {location}?",
+        config={'temperature': 1},
+    )
+    return response.text
+
+
 async def main() -> None:
-    """Run the sample flows."""
-    # await logger.ainfo(await say_hi('John Doe'))
-    # await logger.ainfo(await say_hi_stream('John Doe'))
-    await logger.ainfo(await jokes_flow('banana'))
+    """Main entry point for the Model Garden sample - keep alive for Dev UI."""
+    import asyncio
+
+    # For testing/demo purposes, you can uncomment these to run them on startup:
+    # await logger.ainfo(await say_hi('Alice'))
+    # await logger.ainfo(await jokes_flow('banana'))
+
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

@@ -112,32 +112,64 @@ class AnthropicModel:
     def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
         """Build Anthropic API parameters."""
         config = request.config
-        if isinstance(config, dict):
-            max_tokens = config.get('max_output_tokens') or DEFAULT_MAX_OUTPUT_TOKENS
-            temperature = config.get('temperature')
-            top_p = config.get('top_p')
-            stop_sequences = config.get('stop_sequences')
-        else:
-            max_tokens = config.max_output_tokens if config and config.max_output_tokens else DEFAULT_MAX_OUTPUT_TOKENS
-            temperature = config.temperature if config else None
-            top_p = config.top_p if config else None
-            stop_sequences = config.stop_sequences if config else None
+        params: dict[str, Any] = {}
 
-        params: dict[str, Any] = {
-            'model': self.model_name,
-            'messages': self._to_anthropic_messages(request.messages),
-            'max_tokens': int(max_tokens),
-        }
+        if isinstance(config, dict):
+            params = config.copy()
+        elif config:
+            if hasattr(config, 'model_dump'):
+                params = config.model_dump(exclude_none=True)
+            else:
+                params = {k: v for k, v in vars(config).items() if v is not None}
+
+        # Handle mapped parameters
+        max_tokens = params.pop('max_output_tokens', None)
+        if max_tokens is None:
+            max_tokens = params.get('max_tokens', DEFAULT_MAX_OUTPUT_TOKENS)
+
+        params.get('temperature')
+        params.get('top_p')
+        params.get('stop_sequences')
+        thinking = params.pop('thinking', None)
+        metadata = params.pop('metadata', None)
+
+        # Standard mapped fields are already in params if they share names (temperature, top_p, stop_sequences)
+        # But we ensure they are set correctly if valid
+        # Actually, if they are in params, they are good.
+        # We just need to handle renaming/logic.
+
+        params['model'] = self.model_name
+        params['messages'] = self._to_anthropic_messages(request.messages)
+        params['max_tokens'] = int(max_tokens)
+
+        # Remove known genkit keys that don't map directly or are handled
+        params.pop('version', None)  # If version was passed through config
+
+        if thinking:
+            if isinstance(thinking, dict):
+                anthropic_thinking = {}
+                # Handle boolean enabled -> type="enabled"
+                if thinking.get('enabled') is True or thinking.get('type') == 'enabled':
+                    anthropic_thinking['type'] = 'enabled'
+
+                # Handle camelCase -> snake_case for budget tokens
+                tokens = thinking.get('budgetTokens', thinking.get('budget_tokens'))
+                if tokens:
+                    anthropic_thinking['budget_tokens'] = int(tokens)
+
+                if anthropic_thinking.get('type') == 'enabled':
+                    params['thinking'] = anthropic_thinking
+                    # Anthropic requires temperature to be None/excluded if thinking is enabled?
+                    # Actually standard behavior is: if thinking, extended thinking model rules apply.
+                    # We pass it if valid.
+
+        if metadata:
+            params['metadata'] = metadata
 
         system = self._extract_system(request.messages)
         if system:
             params['system'] = system
-        if temperature is not None:
-            params['temperature'] = temperature
-        if top_p is not None:
-            params['top_p'] = top_p
-        if stop_sequences:
-            params['stop_sequences'] = stop_sequences
+
         if request.tools:
             params['tools'] = [
                 {
@@ -147,6 +179,14 @@ class AnthropicModel:
                 }
                 for t in request.tools
             ]
+
+            if request.tool_choice:
+                if request.tool_choice == 'required':
+                    params['tool_choice'] = {'type': 'any'}
+                elif request.tool_choice == 'auto':
+                    params['tool_choice'] = {'type': 'auto'}
+                elif isinstance(request.tool_choice, dict):
+                    params['tool_choice'] = request.tool_choice
 
         return params
 

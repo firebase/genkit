@@ -4,37 +4,70 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
-## Potential Gaps Not Yet Analyzed
+## Current Status (Updated 2026-01-26)
+
+> [!IMPORTANT]
+> **Overall Parity: ~95% Complete** - Most milestones are done!
+
+### Completed Milestones ✅
+
+| Milestone | Status | Notes |
+|-----------|--------|-------|
+| **M0: Foundation** | ✅ Complete | DevUI config, latency_ms, docs context |
+| **M1: Core APIs** | ✅ Complete | check_operation, run, current_context, dynamic_tool |
+| **M2: Sessions** | ✅ Complete | SessionStore, create/load_session, chat API |
+| **M3: Plugin Parity** | ✅ Complete | Anthropic ThinkingConfig, Google apiVersion/baseUrl |
+| **M4: Telemetry** | ✅ Complete | RealtimeSpanProcessor, flushTracing, AdjustingTraceExporter, GCP parity |
+| **M5: Advanced** | ⚠️ 80% | embed_many ✅, define_simple_retriever ✅, define_background_model ❌ |
+
+### Remaining Work
+
+| Priority | Task | Effort | Status |
+|----------|------|--------|--------|
+| **P0** | Testing Infrastructure (`genkit.testing`) | S | ✅ Complete |
+| **P0** | Context Caching (google-genai) | M | ✅ Complete |
+| **P1** | `define_background_model()` | M | ❌ Not Started |
+| **P1** | Live/Realtime API | L | ❌ Not Started |
+| **P2** | Multi-agent sample | M | ❌ Not Started |
+| **P2** | MCP sample | M | ❌ Not Started |
+
+---
+
+## Remaining Gaps (Prioritized)
 
 > [!NOTE]
-> These areas may require future analysis but are not yet covered in detail.
+> Most original gaps have been addressed. These are the remaining items.
 
-| Gap | Description | Priority |
-|-----|-------------|----------|
-| **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. Python equivalents need verification. | Medium |
-| **CLI/Tooling Parity** | `genkit` CLI commands and their behavior with Python projects (especially DevUI integration) | Medium |
-| **Error Types** | JS has `GenkitError`, `ModelError`, `UserFacingError`. Python error hierarchy needs parity check. | Low |
-| **Context Caching** | Listed as missing plugin feature but no detailed implementation analysis | High |
-| **Auth/Security Patterns** | How auth context flows through actions, middleware patterns for auth | Medium |
-| **Performance Benchmarks** | Streaming latency, memory usage, concurrent request handling | Low |
-| **Migration Guide** | Documentation for teams moving from JS to Python | Low |
-| **Go Parity** | This analysis is JS↔Python only. Go is a third implementation with its own gaps. | Low |
-| **Imagen/Veo Details** | Image/video generation model support specifics | Medium |
-| **Live/Realtime API** | Google GenAI Live API for real-time streaming | High |
+| Gap | Description | Priority | Status |
+|-----|-------------|----------|--------|
+| **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. | **P0** | 🔄 In Progress |
+| **Context Caching** | `ai.cacheContent()`, `cachedContent` option in generate | **P0** | 🔄 In Progress |
+| **define_background_model** | Needed for Veo, Imagen async operations | **P1** | ❌ Not Started |
+| **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
+| **CLI/Tooling Parity** | `genkit` CLI commands and Python project behavior | Medium | ⚠️ Mostly Working |
+| **Error Types** | Python error hierarchy parity check | Low | ⚠️ Needs Review |
+| **Auth/Security Patterns** | Auth context flow through actions | Medium | ⚠️ Needs Review |
+| **Performance Benchmarks** | Streaming latency, memory usage | Low | ❌ Not Started |
+| **Migration Guide** | Documentation for JS to Python migration | Low | ❌ Not Started |
 
-### Quick Notes on Key Gaps
+### Phase 1 Tasks ✅ COMPLETE (2026-01-26)
 
-**Testing Infrastructure:**
-- JS: `import { echoModel } from '@genkit-ai/ai/testing'`
-- Python: Needs `genkit.testing` module with equivalent utilities
+**1. Testing Infrastructure (`genkit.testing` module)** ✅
+- Location: `py/packages/genkit/src/genkit/testing.py`
+- Implemented:
+  - `EchoModel` / `define_echo_model()` - Returns input as output for testing
+  - `ProgrammableModel` / `define_programmable_model()` - Configurable responses
+  - `StaticResponseModel` / `define_static_response_model()` - Fixed responses
+  - Streaming support with countdown ("3", "2", "1")
+  - Request tracking (`last_request`, `request_count`)
 
-**Context Caching:**
-- JS: `ai.cacheContent()`, `cachedContent` option in generate
-- Python: Missing entirely from google-genai plugin
-
-**Live/Realtime API:**
-- JS: `ai.generate({ model: 'googleai/gemini-live' })` with real-time streaming
-- Python: Not implemented
+**2. Context Caching (google-genai plugin)** ✅
+- Location: `py/plugins/google-genai/src/.../models/context_caching/`
+- Already implemented:
+  - `_retrieve_cached_content()` - Cache lookup/creation
+  - `_build_messages()` - Extracts cache config from message metadata
+  - Model integration with `cached_content` option
+  - Supported models: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash, etc.
 
 ---
 
@@ -351,9 +384,9 @@ PHASE 5 (Roots - End Here)
 | **A3: docs context handling** | M | RAG + Chat API | `generate.py` |
 
 **Definition of Done:**
-- [ ] Model config shows in DevUI
-- [ ] latency_ms populated in GenerateResponse
-- [ ] `docs` field augments message history
+- [x] Model config shows in DevUI
+- [x] latency_ms populated in GenerateResponse
+- [x] `docs` field augments message history
 
 ---
 
@@ -368,10 +401,10 @@ PHASE 5 (Roots - End Here)
 | **B4: dynamicTool()** | S | Runtime tool creation | `_registry.py` |
 
 **Definition of Done:**
-- [ ] `await ai.check_operation(op)` returns updated Operation
-- [ ] `await ai.run('step', fn)` creates traced sub-span
-- [ ] `ai.current_context()` returns ActionContext
-- [ ] `ai.dynamic_tool(config, fn)` returns unregistered ToolAction
+- [x] `await ai.check_operation(op)` returns updated Operation
+- [x] `await ai.run('step', fn)` creates traced sub-span
+- [x] `ai.current_context()` returns ActionContext
+- [x] `ai.dynamic_tool(config, fn)` returns unregistered ToolAction
 
 ---
 
@@ -393,10 +426,10 @@ flowchart LR
 | **C3: chat() API** | M | C2, A3 | `_aio.py` |
 
 **Definition of Done:**
-- [ ] `SessionStore` abstract base class with `get/save/delete`
-- [ ] `session = await ai.create_session()` / `ai.load_session(id)`
-- [ ] `response = await session.chat('message')` maintains history
-- [ ] At least one store implementation (in-memory)
+- [x] `SessionStore` abstract base class with `get/save/delete`
+- [x] `session = await ai.create_session()` / `ai.load_session(id)`
+- [x] `response = await session.chat('message')` maintains history
+- [x] At least one store implementation (in-memory)
 
 ---
 
@@ -411,9 +444,9 @@ flowchart LR
 | **D4: plugin.model() factory** | M | All | All plugin `__init__.py` |
 
 **Definition of Done:**
-- [ ] `config={'thinking': {'enabled': True, 'budgetTokens': 10000}}` works
-- [ ] `tool_choice={'type': 'tool', 'name': 'myTool'}` supported
-- [ ] `GoogleGenAI(api_version='v1beta')` accepted
+- [x] `config={'thinking': {'enabled': True, 'budgetTokens': 10000}}` works
+- [x] `tool_choice={'type': 'tool', 'name': 'myTool'}` supported
+- [x] `GoogleGenAI(api_version='v1beta')` accepted
 - [ ] `google_ai.model('gemini-2.5-flash')` returns typed reference
 
 ---
@@ -429,10 +462,11 @@ flowchart LR
 | **E4: Logging instrumentation** | S | Log correlation | `google_cloud/telemetry/` |
 
 **Definition of Done:**
-- [ ] Spans appear in DevUI as they START (not just on completion)
-- [ ] `GENKIT_ENABLE_REALTIME_TELEMETRY=true` env var supported
-- [ ] `await ai.flush_tracing()` available
-- [ ] Model I/O redacted before Cloud Trace export
+- [x] Spans appear in DevUI as they START (not just on completion)
+- [x] `GENKIT_ENABLE_REALTIME_TELEMETRY=true` env var supported
+- [x] `await ai.flush_tracing()` available
+- [x] Model I/O redacted before Cloud Trace export (via AdjustingTraceExporter)
+- [x] Logging instrumentation enabled with trace correlation
 
 ---
 
@@ -445,6 +479,13 @@ flowchart LR
 | **F2: MCP Tool Host** | L | External tools | NEW: `mcp/host.py` |
 | **F3: embedMany()** | S | Batch embedding | `_aio.py` |
 | **F4: defineSimpleRetriever()** | S | Quick RAG setup | `_registry.py` |
+
+(Marking done for verified items)
+- [x] F3: embedMany() API
+- [x] F4: defineSimpleRetriever()
+- [x] S2: Chatbot sample (chat-demo)
+
+---
 
 ---
 
@@ -503,11 +544,11 @@ gantt
 
 These have no dependencies and provide immediate value:
 
-1. **A1: DevUI config_schema** - Uncomment and fix existing code
-2. **A2: latency_ms** - Add timing to model wrappers
-3. **B3: currentContext()** - Thread-local context access
-4. **D3: apiVersion/baseUrl** - Add to plugin options
-5. **E2: flushTracing()** - Simple exporter flush
+1. ~~**A1: DevUI config_schema** - Uncomment and fix existing code~~
+2. ~~**A2: latency_ms** - Add timing to model wrappers~~
+3. ~~**B3: currentContext()** - Thread-local context access~~
+4. ~~**D3: apiVersion/baseUrl** - Add to plugin options~~
+5. ~~**E2: flushTracing()** - Simple exporter flush~~
 
 ---
 

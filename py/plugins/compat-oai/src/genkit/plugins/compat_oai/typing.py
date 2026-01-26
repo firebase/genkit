@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class OpenAIConfig(BaseModel):
     """OpenAI configuration for Genkit."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
 
     model: str | None = None
     top_p: float | None = None

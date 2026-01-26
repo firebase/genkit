@@ -143,10 +143,11 @@ else:
     from enum import StrEnum
 
 from functools import cached_property
-from typing import cast
+from typing import Any, cast
 
 from google import genai
 from google.genai import types as genai_types
+from pydantic import ConfigDict, Field
 
 from genkit.ai import (
     ActionRunContext,
@@ -179,12 +180,20 @@ from genkit.types import (
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
     """Gemini Config Schema."""
 
+    model_config = ConfigDict(extra='allow')
+
     code_execution: bool | None = None
     response_modalities: list[str] | None = None
     thinking_config: dict[str, object] | None = None
     file_search: dict[str, object] | None = None
     url_context: dict[str, object] | None = None
     api_version: str | None = None
+
+    http_options: Any | None = Field(None, exclude=True)
+    tools: Any | None = Field(None, exclude=True)
+    tool_config: Any | None = Field(None, exclude=True)
+    response_schema: Any | None = Field(None, exclude=True)
+    response_json_schema: Any | None = Field(None, exclude=True)
 
 
 class GeminiTtsConfigSchema(GeminiConfigSchema):
@@ -220,6 +229,7 @@ GEMINI_1_5_PRO = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -238,6 +248,7 @@ GEMINI_1_5_FLASH = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -252,6 +263,7 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -264,6 +276,7 @@ GEMINI_2_0_FLASH = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -276,6 +289,7 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -288,6 +302,7 @@ GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -300,6 +315,7 @@ GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -312,6 +328,7 @@ GEMINI_2_0_FLASH_THINKING_EXP_01_21 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -324,6 +341,7 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -336,6 +354,7 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -348,6 +367,7 @@ GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -360,6 +380,7 @@ GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 

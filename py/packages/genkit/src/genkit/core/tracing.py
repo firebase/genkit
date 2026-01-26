@@ -33,6 +33,7 @@ from contextlib import contextmanager
 
 import structlog
 from opentelemetry import trace as trace_api
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
@@ -61,6 +62,7 @@ def init_provider() -> TracerProvider:
     if tracer_provider is None or not isinstance(tracer_provider, TracerProvider):
         tracer_provider = TracerProvider()
         trace_api.set_tracer_provider(tracer_provider)
+        LoggingInstrumentor().instrument(set_logging_format=True)
         logger.debug('Creating a new global tracer provider for telemetry.')
 
     if not isinstance(tracer_provider, TracerProvider):

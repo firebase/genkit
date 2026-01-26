@@ -37,8 +37,6 @@ Key features demonstrated in this sample:
 | Structured Output (Schema)                               | `generate_character`                   |
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
-| Multi-modal Output Configuration                         | `generate_images`                      |
-
 """
 
 import os
@@ -74,97 +72,84 @@ ai = Genkit(
 )
 
 
+class CurrencyExchangeInput(BaseModel):
+    """Currency exchange flow input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
+
+
+class CurrencyInput(BaseModel):
+    """Currency conversion input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
+
+
 class GablorkenInput(BaseModel):
     """The Pydantic model for tools."""
 
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool(name='gablorkenTool')
-def gablorken_tool(input_: GablorkenInput) -> int:
-    """Calculate a gablorken.
+class Skills(BaseModel):
+    """Skills for an RPG character."""
+
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+
+
+class RpgCharacter(BaseModel):
+    """An RPG character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
+
+
+@ai.tool()
+def convert_currency(input: CurrencyInput) -> str:
+    """Convert currency amount.
 
     Args:
-        input_: The input to calculate gablorken for.
+        input: Currency conversion parameters.
 
     Returns:
-        The calculated gablorken.
+        Converted amount.
     """
-    return input_.value * 3 - 5
+    # Mock conversion rates
+    rates = {
+        ('USD', 'EUR'): 0.85,
+        ('EUR', 'USD'): 1.18,
+        ('USD', 'GBP'): 0.73,
+        ('GBP', 'USD'): 1.37,
+    }
+
+    rate = rates.get((input.from_currency, input.to_currency), 1.0)
+    converted = input.amount * rate
+
+    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
-    """Generate a greeting for the given name.
+async def currency_exchange(input: CurrencyExchangeInput) -> str:
+    """Convert currency using tools.
 
     Args:
-        value: the integer to send to test function
+        input: Currency exchange parameters.
 
     Returns:
-        The generated response with a function.
+        Conversion result.
     """
     response = await ai.generate(
-        prompt=f'what is a gablorken of {value}',
-        tools=['gablorkenTool'],
+        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
+        tools=['convert_currency'],
     )
     return response.text
-
-
-@ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
-    """The user-defined tool function.
-
-    Args:
-        input_: the input to the tool
-        ctx: the tool run context
-
-    Returns:
-        The calculated gablorken.
-    """
-    ctx.interrupt()
-
-
-@ai.flow()
-async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        value: the integer to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    response1 = await ai.generate(
-        prompt=f'what is a gablorken of {value}',
-        tools=['gablorkenTool2'],
-    )
-    await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
-    if len(response1.tool_requests) == 0:
-        return response1.text
-
-    tr = tool_response(response1.tool_requests[0], 178)
-    response = await ai.generate(
-        messages=response1.messages,
-        tool_responses=[tr],
-        tools=['gablorkenTool'],
-    )
-    return response.text
-
-
-@ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        name: the name to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    resp = await ai.generate(
-        prompt=f'hi {name}',
-    )
-    return resp.text
 
 
 @ai.flow()
@@ -187,62 +172,31 @@ async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
     )
 
 
-@ai.flow()
-async def say_hi_with_configured_temperature(
-    data: Annotated[str, Field(default='Alice')] = 'Alice',
-) -> GenerateResponseWrapper:
-    """Generate a greeting for the given name.
+@ai.tool(name='gablorkenTool')
+def gablorken_tool(input_: GablorkenInput) -> int:
+    """Calculate a gablorken.
 
     Args:
-        data: the name to send to test function
+        input_: The input to calculate gablorken for.
 
     Returns:
-        The generated response with a function.
+        The calculated gablorken.
     """
-    return await ai.generate(
-        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
-        config=GenerationCommonConfig(temperature=0.1),
-    )
+    return input_.value * 3 - 5
 
 
-@ai.flow()
-async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
-) -> str:
-    """Generate a greeting for the given name.
+@ai.tool(name='gablorkenTool2')
+def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
+    """The user-defined tool function.
 
     Args:
-        name: the name to send to test function
-        ctx: the context of the tool
+        input_: the input to the tool
+        ctx: the tool run context
 
     Returns:
-        The generated response with a function.
+        The calculated gablorken.
     """
-    stream, _ = ai.generate_stream(prompt=f'hi {name}')
-    result: str = ''
-    async for data in stream:
-        ctx.send_chunk(data.text)
-        result += data.text
-
-    return result
-
-
-class Skills(BaseModel):
-    """Skills for an RPG character."""
-
-    strength: int = Field(description='strength (0-100)')
-    charisma: int = Field(description='charisma (0-100)')
-    endurance: int = Field(description='endurance (0-100)')
-
-
-class RpgCharacter(BaseModel):
-    """An RPG character."""
-
-    name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
-    abilities: list[str] = Field(description='list of abilities (3-4)')
-    skills: Skills
+    ctx.interrupt()
 
 
 @ai.flow()
@@ -297,6 +251,107 @@ async def generate_character_unconstrained(
         output_instructions=True,
     )
     return cast(RpgCharacter, result.output)
+
+
+@ai.flow()
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
+    resp = await ai.generate(
+        prompt=f'hi {name}',
+    )
+    return resp.text
+
+
+@ai.flow()
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+        ctx: the context of the tool
+
+    Returns:
+        The generated response with a function.
+    """
+    stream, _ = ai.generate_stream(prompt=f'hi {name}')
+    result: str = ''
+    async for data in stream:
+        ctx.send_chunk(data.text)
+        result += data.text
+
+    return result
+
+
+@ai.flow()
+async def say_hi_with_configured_temperature(
+    data: Annotated[str, Field(default='Alice')] = 'Alice',
+) -> GenerateResponseWrapper:
+    """Generate a greeting for the given name.
+
+    Args:
+        data: the name to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
+    return await ai.generate(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
+        config=GenerationCommonConfig(temperature=0.1),
+    )
+
+
+@ai.flow()
+async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        value: the integer to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
+    response1 = await ai.generate(
+        prompt=f'what is a gablorken of {value}',
+        tools=['gablorkenTool2'],
+    )
+    await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
+    if len(response1.tool_requests) == 0:
+        return response1.text
+
+    tr = tool_response(response1.tool_requests[0], 178)
+    response = await ai.generate(
+        messages=response1.messages,
+        tool_responses=[tr],
+        tools=['gablorkenTool'],
+    )
+    return response.text
+
+
+@ai.flow()
+async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        value: the integer to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
+    response = await ai.generate(
+        prompt=f'what is a gablorken of {value}',
+        tools=['gablorkenTool'],
+    )
+    return response.text
 
 
 async def main() -> None:

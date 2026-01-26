@@ -96,7 +96,7 @@ async def test_resolve_action_model() -> None:
 
 def test_supported_models() -> None:
     """Test that all supported models have proper metadata."""
-    assert len(SUPPORTED_MODELS) == 7
+    assert len(SUPPORTED_MODELS) == 8
     for _name, info in SUPPORTED_MODELS.items():
         assert info.label is not None
         assert info.label.startswith('Anthropic - ')
