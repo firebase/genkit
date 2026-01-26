@@ -78,7 +78,9 @@ import { defineFlow } from "..."; // INCORRECT pre-1.0 syntax
 
 ## References
 
-- [Using Gemini with Genkit](references/gemini.md): Read this to leverage Google's Gemini models with Genkit, including image generation with Nano Banana and Nano Banana Pro models.
+- [Using Gemini with Genkit](references/gemini.md): Read this to leverage Google's Gemini models with Genkit.
+- [Image Generation/Editing with Nano Banana](references/nano-banana.md): Read this to leverage Google's Nano Banana models for image generation and editing.
+- [Speech generation with Gemini](references/generating-speech.md): Read this to leverage Google's Gemini TTS models for speech generation.
 
 ## Online Documentation
 
