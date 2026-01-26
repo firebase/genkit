@@ -22,8 +22,12 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
+from genkit.types import ModelInfo, Supports
 
 MODELGARDEN_PLUGIN_NAME = 'modelgarden'
+
+
+
 
 
 def model_garden_name(name: str) -> str:

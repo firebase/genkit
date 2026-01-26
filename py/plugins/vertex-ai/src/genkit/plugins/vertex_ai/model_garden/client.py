@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from google import auth
+import google.auth.transport.requests
 from openai import OpenAI as _OpenAI
 
 

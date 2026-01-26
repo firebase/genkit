@@ -15,13 +15,129 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from anthropic import AsyncAnthropicVertex
+from typing import cast
+from anthropic import AsyncAnthropic, AsyncAnthropicVertex
 
 from genkit.ai import GenkitRegistry
 from genkit.plugins.anthropic.models import AnthropicModel
-from genkit.types import GenerationCommonConfig, ModelInfo
+from genkit.plugins.compat_oai.typing import SupportedOutputFormat
+from genkit.types import GenerationCommonConfig, ModelInfo, Supports
 
 from .model_garden import model_garden_name
+
+
+SUPPORTED_ANTHROPIC_MODELS: dict[str, ModelInfo] = {
+    'anthropic/claude-3-5-sonnet-v2@20241022': ModelInfo(
+        label='ModelGarden - Anthropic - claude-3-5-sonnet-v2',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-3-5-sonnet@20240620': ModelInfo(
+        label='ModelGarden - Anthropic - claude-3-5-sonnet',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-3-sonnet@20240229': ModelInfo(
+        label='ModelGarden - Anthropic - claude-3-sonnet',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-3-haiku@20240307': ModelInfo(
+        label='ModelGarden - Anthropic - claude-3-haiku',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-3-opus@20240229': ModelInfo(
+        label='ModelGarden - Anthropic - claude-3-opus',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-3-7-sonnet@20250219': ModelInfo(
+        label='ModelGarden - Anthropic - claude-3-7-sonnet',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-opus-4@20250514': ModelInfo(
+        label='ModelGarden - Anthropic - claude-opus-4',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-sonnet-4@20250514': ModelInfo(
+        label='ModelGarden - Anthropic - claude-sonnet-4',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+        ),
+    ),
+    'anthropic/claude-opus-4-1-20250805': ModelInfo(
+        label='ModelGarden - Anthropic - claude-opus-4-1',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT],
+        ),
+    ),
+    'anthropic/claude-sonnet-4-5-20250929': ModelInfo(
+        label='ModelGarden - Anthropic - claude-sonnet-4-5',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT],
+        ),
+    ),
+    'anthropic/claude-haiku-4-5-20251001': ModelInfo(
+        label='ModelGarden - Anthropic - claude-haiku-4-5',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.TEXT],
+        ),
+    ),
+}
 
 
 class AnthropicModelGarden:
@@ -56,7 +172,7 @@ class AnthropicModelGarden:
         clean_model_name = self.name.removeprefix('anthropic/')
 
         # AnthropicModel wrapper from genkit-anthropic expects the clean name (e.g. claude-3-5-sonnet...)
-        anthropic_model = AnthropicModel(model_name=clean_model_name, client=self.client)
+        anthropic_model = AnthropicModel(model_name=clean_model_name, client=cast(AsyncAnthropic, self.client))
 
         self.ai.define_model(
             name=model_garden_name(self.name),
@@ -65,13 +181,13 @@ class AnthropicModelGarden:
             metadata={
                 'model': ModelInfo(
                     label=f'ModelGarden - {self.name}',
-                    supports={
-                        'multiturn': True,
-                        'media': True,
-                        'tools': True,
-                        'systemRole': True,
-                        'output': ['text', 'json'],
-                    },
+                    supports=Supports(
+                        multiturn=True,
+                        media=True,
+                        tools=True,
+                        systemRole=True,
+                        output=['text', 'json'],
+                    ),
                 ).model_dump()
             },
         )
