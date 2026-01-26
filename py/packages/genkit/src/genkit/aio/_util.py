@@ -34,7 +34,7 @@ def ensure_async(fn: Callable[..., Any] | Callable[..., Awaitable[Any]]) -> Call
     if is_async:
         return fn
 
-    async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+    async def async_wrapper(*args: object, **kwargs: object) -> Any:  # noqa: ANN401
         """Wrap the function in an async function.
 
         Args:

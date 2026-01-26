@@ -16,8 +16,6 @@
 
 """Implementation of Array output format."""
 
-from typing import Any
-
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -71,7 +69,7 @@ class ArrayFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling JSON array data.
 
         Args:
@@ -89,12 +87,12 @@ class ArrayFormat(FormatDef):
                 message="Must supply an 'array' schema type when using the 'items' parser format.",
             )
 
-        def message_parser(msg: MessageWrapper):
+        def message_parser(msg: MessageWrapper) -> list[object]:
             """Parses a complete message into a list of items."""
             result = extract_items(msg.text, 0)
             return result.items
 
-        def chunk_parser(chunk: GenerateResponseChunkWrapper):
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> list[object]:
             """Parses a streaming chunk into a list of items."""
             # Calculate the length of text from previous chunks
             previous_text_len = len(chunk.accumulated_text) - len(chunk.text)

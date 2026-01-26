@@ -17,6 +17,7 @@
 """Unit tests for Ollama models package."""
 
 import unittest
+from collections.abc import AsyncIterator
 from typing import Any, cast
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -56,7 +57,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             total_tokens=30,
         ),
     )
-    async def test_generate_chat_non_streaming(self, mock_get_basic_usage_stats) -> None:
+    async def test_generate_chat_non_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method with CHAT API type in non-streaming mode."""
         model_def = ModelDefinition(
             name='chat-model',
@@ -118,7 +119,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             total_tokens=30,
         ),
     )
-    async def test_generate_generate_non_streaming(self, mock_get_basic_usage_stats) -> None:
+    async def test_generate_generate_non_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method with GENERATE API type in non-streaming mode."""
         model_def = ModelDefinition(
             name='generate-model',
@@ -169,7 +170,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
-    async def test_generate_chat_streaming(self, mock_get_basic_usage_stats) -> None:
+    async def test_generate_chat_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method with CHAT API type in streaming mode."""
         model_def = ModelDefinition(name='chat-model', api_type=OllamaAPITypes.CHAT)
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)
@@ -214,7 +215,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
-    async def test_generate_generate_streaming(self, mock_get_basic_usage_stats) -> None:
+    async def test_generate_generate_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method with GENERATE API type in streaming mode."""
         model_def = ModelDefinition(
             name='generate-model',
@@ -256,7 +257,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
-    async def test_generate_chat_api_response_none(self, mock_get_basic_usage_stats) -> None:
+    async def test_generate_chat_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method when _chat_with_ollama returns None."""
         model_def = ModelDefinition(name='chat-model', api_type=OllamaAPITypes.CHAT)
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)
@@ -280,7 +281,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         'genkit.blocks.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
-    async def test_generate_generate_api_response_none(self, mock_get_basic_usage_stats) -> None:
+    async def test_generate_generate_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method when _generate_ollama_response returns None."""
         model_def = ModelDefinition(name='generate-model', api_type=OllamaAPITypes.GENERATE)
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)
@@ -372,7 +373,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
         self.ctx.is_streaming = True
 
         # Simulate an async iterator of chunks
-        async def mock_streaming_chunks():
+        async def mock_streaming_chunks() -> AsyncIterator[ollama_api.ChatResponse]:
             yield ollama_api.ChatResponse(
                 message=ollama_api.Message(
                     role='',
@@ -539,7 +540,7 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
         self.mock_is_streaming_request.return_value = True
 
         # Simulate an async iterator of chunks
-        async def mock_streaming_chunks():
+        async def mock_streaming_chunks() -> AsyncIterator[ollama_api.GenerateResponse]:
             yield ollama_api.GenerateResponse(response='chunk1 ')
             yield ollama_api.GenerateResponse(response='chunk2')
 
@@ -660,7 +661,7 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
         ),
     ],
 )
-def test_convert_parameters(input_schema, expected_output) -> None:
+def test_convert_parameters(input_schema: dict[str, Any], expected_output: object) -> None:
     """Unit Tests for _convert_parameters function with various input schemas."""
     result = _convert_parameters(input_schema)
     assert result == expected_output

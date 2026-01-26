@@ -20,7 +20,7 @@ import inspect
 from typing import Any
 
 
-def noop_streaming_callback(chunk: Any) -> None:
+def noop_streaming_callback(chunk: Any) -> None:  # noqa: ANN401
     """A no-op streaming callback.
 
     This callback does nothing and is used when no streaming is desired.

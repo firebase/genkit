@@ -90,7 +90,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextvars import ContextVar
 from functools import cached_property
-from typing import Any
+from typing import Any, Protocol, cast
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
@@ -98,15 +98,29 @@ from genkit.aio import Channel, ensure_async
 from genkit.core.error import GenkitError
 from genkit.core.tracing import tracer
 
-from ._tracing import record_input_metadata, record_output_metadata
+from ._tracing import SpanAttributeValue, record_input_metadata, record_output_metadata
 from ._util import extract_action_args_and_types, noop_streaming_callback
 from .types import ActionKind, ActionMetadataKey, ActionResponse
 
-# TODO: add typing, generics
-StreamingCallback = Callable[[Any], None]
+# TODO: add generics
+StreamingCallback = Callable[[object], None]
 
-_action_context: ContextVar[dict[str, Any] | None] = ContextVar('context')
+_action_context: ContextVar[dict[str, object] | None] = ContextVar('context')
 _action_context.set(None)
+
+
+class _LatencyTrackable(Protocol):
+    """Protocol for objects that support latency tracking."""
+
+    latency_ms: float
+
+
+class _ModelCopyable(Protocol):
+    """Protocol for objects that support model_copy."""
+
+    def model_copy(self, *, update: dict[str, Any] | None = None) -> Any:  # noqa: ANN401
+        """Copy the model with optional updates."""
+        ...
 
 
 class ActionRunContext:
@@ -124,7 +138,7 @@ class ActionRunContext:
     def __init__(
         self,
         on_chunk: StreamingCallback | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
         on_trace_start: Callable[[str], None] | None = None,
     ) -> None:
         """Initializes an ActionRunContext instance.
@@ -146,7 +160,7 @@ class ActionRunContext:
         self._on_trace_start = on_trace_start if on_trace_start else lambda _: None
 
     @property
-    def context(self) -> dict[str, Any]:
+    def context(self) -> dict[str, object]:
         return self._context
 
     @cached_property
@@ -162,7 +176,7 @@ class ActionRunContext:
         """
         return self._on_chunk != noop_streaming_callback
 
-    def send_chunk(self, chunk: Any) -> None:
+    def send_chunk(self, chunk: object) -> None:
         """Send a chunk to from the action to the client.
 
         Args:
@@ -171,7 +185,7 @@ class ActionRunContext:
         self._on_chunk(chunk)
 
     @staticmethod
-    def _current_context() -> dict[str, Any] | None:
+    def _current_context() -> dict[str, object] | None:
         """Obtains current context if running within an action.
 
         Returns:
@@ -202,11 +216,11 @@ class Action:
         self,
         kind: ActionKind,
         name: str,
-        fn: Callable[..., Any],
-        metadata_fn: Callable[..., Any] | None = None,
+        fn: Callable[..., object],
+        metadata_fn: Callable[..., object] | None = None,
         description: str | None = None,
-        metadata: dict[str, Any] | None = None,
-        span_metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
+        span_metadata: dict[str, SpanAttributeValue] | None = None,
     ) -> None:
         """Initialize an Action.
 
@@ -226,7 +240,7 @@ class Action:
         self._description = description
         self._is_async = inspect.iscoroutinefunction(fn)
         # Optional matcher function for resource actions
-        self.matches: Callable[[Any], bool] | None = None
+        self.matches: Callable[[object], bool] | None = None
 
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
         action_args, arg_types = extract_action_args_and_types(input_spec)
@@ -247,19 +261,19 @@ class Action:
         return self._description
 
     @property
-    def metadata(self) -> dict[str, Any]:
+    def metadata(self) -> dict[str, object]:
         return self._metadata
 
     @cached_property
-    def input_type(self) -> TypeAdapter[Any] | None:
+    def input_type(self) -> TypeAdapter[object] | None:
         return self._input_type
 
     @cached_property
-    def input_schema(self) -> dict[str, Any]:
+    def input_schema(self) -> dict[str, object]:
         return self._input_schema
 
     @cached_property
-    def output_schema(self) -> dict[str, Any]:
+    def output_schema(self) -> dict[str, object]:
         return self._output_schema
 
     @property
@@ -268,10 +282,10 @@ class Action:
 
     def run(
         self,
-        input: Any = None,
+        input: object = None,
         on_chunk: StreamingCallback | None = None,
-        context: dict[str, Any] | None = None,
-        telemetry_labels: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
+        telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse:
         """Executes the action synchronously with the given input.
 
@@ -306,11 +320,11 @@ class Action:
 
     async def arun(
         self,
-        input: Any = None,
+        input: object = None,
         on_chunk: StreamingCallback | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
         on_trace_start: Callable[[str], None] | None = None,
-        telemetry_labels: dict[str, Any] | None = None,
+        telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse:
         """Executes the action asynchronously with the given input.
 
@@ -346,12 +360,12 @@ class Action:
 
     async def arun_raw(
         self,
-        raw_input: Any,
+        raw_input: object,
         on_chunk: StreamingCallback | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
         on_trace_start: Callable[[str], None] | None = None,
-        telemetry_labels: dict[str, Any] | None = None,
-    ):
+        telemetry_labels: dict[str, object] | None = None,
+    ) -> ActionResponse:
         """Executes the action asynchronously with raw, unvalidated input.
 
         This method bypasses the Pydantic input validation and calls the underlying
@@ -386,12 +400,12 @@ class Action:
 
     def stream(
         self,
-        input: Any = None,
-        context: dict[str, Any] | None = None,
-        telemetry_labels: dict[str, Any] | None = None,
+        input: object = None,
+        context: dict[str, object] | None = None,
+        telemetry_labels: dict[str, object] | None = None,
         timeout: float | None = None,
     ) -> tuple[
-        AsyncIterator,
+        AsyncIterator[object],  # noqa: ANN401
         asyncio.Future[ActionResponse],
     ]:
         """Executes the action asynchronously and provides a streaming response.
@@ -458,7 +472,7 @@ class Action:
             self._input_type = type_adapter
             self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
         else:
-            self._input_schema = TypeAdapter(Any).json_schema()
+            self._input_schema = TypeAdapter(object).json_schema()
             self._input_type = None
             self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
 
@@ -467,7 +481,7 @@ class Action:
             self._output_schema = type_adapter.json_schema()
             self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
         else:
-            self._output_schema = TypeAdapter(Any).json_schema()
+            self._output_schema = TypeAdapter(object).json_schema()
             self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
 
 
@@ -477,20 +491,24 @@ class ActionMetadata(BaseModel):
     kind: ActionKind
     name: str
     description: str | None = None
-    input_schema: Any | None = None
-    input_json_schema: dict[str, Any] | None = None
-    output_schema: Any | None = None
-    output_json_schema: dict[str, Any] | None = None
-    stream_schema: Any | None = None
-    metadata: dict[str, Any] | None = None
+    input_schema: object | None = None
+    input_json_schema: dict[str, object] | None = None
+    output_schema: object | None = None
+    output_json_schema: dict[str, object] | None = None
+    stream_schema: object | None = None
+    metadata: dict[str, object] | None = None
 
 
-_SyncTracingWrapper = Callable[[Any | None, ActionRunContext], ActionResponse]
-_AsyncTracingWrapper = Callable[[Any | None, ActionRunContext], Awaitable[ActionResponse]]
+_SyncTracingWrapper = Callable[[object | None, ActionRunContext], ActionResponse]
+_AsyncTracingWrapper = Callable[[object | None, ActionRunContext], Awaitable[ActionResponse]]
 
 
 def _make_tracing_wrappers(
-    name: str, kind: ActionKind, span_metadata: dict[str, Any], n_action_args: int, fn: Callable[..., Any]
+    name: str,
+    kind: ActionKind,
+    span_metadata: dict[str, SpanAttributeValue],
+    n_action_args: int,
+    fn: Callable[..., object],
 ) -> tuple[_SyncTracingWrapper, _AsyncTracingWrapper]:
     """Make the sync and async tracing wrappers for an action function.
 
@@ -502,7 +520,7 @@ def _make_tracing_wrappers(
         fn: The function to wrap.
     """
 
-    def _record_latency(output: Any, start_time: float) -> Any:
+    def _record_latency(output: object, start_time: float) -> object:
         """Record latency for the action if the output supports it.
 
         Args:
@@ -515,14 +533,14 @@ def _make_tracing_wrappers(
         latency_ms = (time.perf_counter() - start_time) * 1000
         if hasattr(output, 'latency_ms'):
             try:
-                output.latency_ms = latency_ms
+                cast(_LatencyTrackable, output).latency_ms = latency_ms
             except (TypeError, ValidationError, AttributeError):
                 # If immutable (e.g. Pydantic model with frozen=True), try model_copy
                 if hasattr(output, 'model_copy'):
-                    output = output.model_copy(update={'latency_ms': latency_ms})
+                    output = cast(_ModelCopyable, output).model_copy(update={'latency_ms': latency_ms})
         return output
 
-    async def async_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
+    async def async_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse:
         """Wrap the function in an async tracing wrapper.
 
         Args:
@@ -566,7 +584,7 @@ def _make_tracing_wrappers(
             record_output_metadata(span, output=output)
             return ActionResponse(response=output, trace_id=trace_id)
 
-    def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
+    def sync_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse:
         """Wrap the function in a sync tracing wrapper.
 
         Args:

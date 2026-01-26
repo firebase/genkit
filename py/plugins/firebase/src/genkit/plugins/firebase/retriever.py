@@ -18,8 +18,8 @@
 """Firestore retriever implementation for Genkit."""
 
 from collections.abc import Callable
-from typing import Any
 
+from google.cloud import firestore
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
@@ -52,8 +52,8 @@ class FirestoreRetriever:
         ai: Genkit,
         name: str,
         embedder: str,
-        embedder_options: dict[str, Any] | None,
-        firestore_client: Any,
+        embedder_options: dict[str, object] | None,
+        firestore_client: firestore.Client,
         collection: str,
         vector_field: str,
         content_field: str | Callable[[DocumentSnapshot], list[DocumentPart]],
@@ -117,7 +117,7 @@ class FirestoreRetriever:
             content = doc_snapshot.get(content_field)
             return [DocumentPart(root=TextPart(text=str(content)))] if content else []
 
-    def _to_metadata(self, doc_snapshot: DocumentSnapshot) -> dict[str, Any]:
+    def _to_metadata(self, doc_snapshot: DocumentSnapshot) -> dict[str, object]:
         """Convert a Firestore document snapshot to a list of metadata dictionaries.
 
         Args:
@@ -126,7 +126,7 @@ class FirestoreRetriever:
         Returns:
             A list of dictionaries containing the metadata of the document.
         """
-        metadata: dict[str, Any] = {}
+        metadata: dict[str, object] = {}
         metadata_fields = self.metadata_fields
         if metadata_fields:
             if callable(metadata_fields):

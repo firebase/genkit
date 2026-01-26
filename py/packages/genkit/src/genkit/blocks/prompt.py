@@ -209,7 +209,7 @@ class ExecutablePrompt:
 
     async def __call__(
         self,
-        input: Any | None = None,
+        input: Any | None = None,  # noqa: ANN401
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         on_chunk: ModelStreamingCallback | None = None,
         context: dict[str, Any] | None = None,
@@ -236,7 +236,7 @@ class ExecutablePrompt:
 
     def stream(
         self,
-        input: Any | None = None,
+        input: Any | None = None,  # noqa: ANN401
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
         timeout: float | None = None,
@@ -483,12 +483,12 @@ def define_prompt(
             },
         }
 
-        async def prompt_action_fn(input: Any = None) -> GenerateRequest:
+        async def prompt_action_fn(input: Any = None) -> GenerateRequest:  # noqa: ANN401
             """PROMPT action function - renders prompt and returns GenerateRequest."""
             options = await executable_prompt.render(input=input)
             return await to_generate_request(registry, options)
 
-        async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:
+        async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:  # noqa: ANN401
             """EXECUTABLE_PROMPT action function - renders prompt and returns GenerateActionOptions."""
             return await executable_prompt.render(input=input)
 
@@ -1055,7 +1055,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Create a lazy-loaded prompt definition
     # The prompt will only be fully loaded when first accessed
-    async def load_prompt_metadata():
+    async def load_prompt_metadata() -> dict[str, Any]:  # noqa: ANN401
         """Lazy loader for prompt metadata."""
         prompt_metadata = await registry.dotprompt.render_metadata(parsed_prompt)
 
@@ -1148,7 +1148,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Create a factory function that will create the ExecutablePrompt when accessed
     # Store metadata in a closure to avoid global state
-    async def create_prompt_from_file():
+    async def create_prompt_from_file() -> ExecutablePrompt:
         """Factory function to create ExecutablePrompt from file metadata."""
         metadata = await load_prompt_metadata()
 
@@ -1202,7 +1202,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     # 1. PROMPT action - returns GenerateRequest (for rendering prompts)
     # 2. EXECUTABLE_PROMPT action - returns GenerateActionOptions (for executing prompts)
 
-    async def prompt_action_fn(input: Any = None) -> GenerateRequest:
+    async def prompt_action_fn(input: Any = None) -> GenerateRequest:  # noqa: ANN401
         """PROMPT action function - renders prompt and returns GenerateRequest."""
         # Load the prompt (lazy loading)
         prompt = await create_prompt_from_file()
@@ -1213,7 +1213,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         # Convert GenerateActionOptions to GenerateRequest
         return await to_generate_request(registry, options)
 
-    async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:
+    async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:  # noqa: ANN401
         """EXECUTABLE_PROMPT action function - renders prompt and returns GenerateActionOptions."""
         # Load the prompt (lazy loading)
         prompt = await create_prompt_from_file()

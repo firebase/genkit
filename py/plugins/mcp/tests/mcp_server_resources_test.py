@@ -175,7 +175,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_fixed_uri(self) -> None:
         """Test reading a resource with fixed URI."""
 
-        def config_resource(req):
+        def config_resource(req: object) -> dict[str, list[dict[str, str]]]:
             return {'content': [{'text': 'Configuration data'}]}
 
         self.ai.define_resource(name='config', uri='app://config', fn=config_resource)
@@ -199,8 +199,8 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_template(self) -> None:
         """Test reading a resource with URI template."""
 
-        def file_resource(req):
-            uri = req.uri
+        def file_resource(req: object) -> dict[str, list[dict[str, str]]]:
+            uri = getattr(req, 'uri', '')
             # Extract path from URI
             path = uri.replace('file://', '')
             return {'content': [{'text': f'Contents of {path}'}]}
@@ -244,7 +244,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_multiple_content_parts(self) -> None:
         """Test reading a resource that returns multiple content parts."""
 
-        def multi_part_resource(req):
+        def multi_part_resource(req: object) -> dict[str, list[dict[str, str]]]:
             return {'content': [{'text': 'Part 1'}, {'text': 'Part 2'}, {'text': 'Part 3'}]}
 
         self.ai.define_resource(name='multi', uri='app://multi', fn=multi_part_resource)

@@ -51,7 +51,7 @@ if sys.version_info < (3, 11):
     from strenum import StrEnum
 else:
     from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, cast
 
 import structlog
 from pydantic import BaseModel, Field
@@ -308,13 +308,13 @@ async def generate_character(
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return (await result).output
+        return cast(RpgCharacter, (await result).output)
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
-        return result.output
+        return cast(RpgCharacter, result.output)
 
 
 @ai.flow()
@@ -337,7 +337,7 @@ async def generate_character_unconstrained(
         output_constrained=False,
         output_instructions=True,
     )
-    return result.output
+    return cast(RpgCharacter, result.output)
 
 
 class ThinkingLevel(StrEnum):

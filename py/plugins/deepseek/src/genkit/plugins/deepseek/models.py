@@ -19,6 +19,8 @@
 from collections.abc import Callable
 from typing import Any
 
+from openai import OpenAI
+
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.deepseek.client import DeepSeekClient
 from genkit.plugins.deepseek.model_info import (
@@ -56,7 +58,7 @@ class DeepSeekModel:
         self,
         model: str,
         api_key: str,
-        **deepseek_params: Any,
+        **deepseek_params: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the DeepSeek instance.
 
@@ -67,7 +69,7 @@ class DeepSeekModel:
         """
         self.name = model
         client_params = {'api_key': api_key, **deepseek_params}
-        self.client = DeepSeekClient(**client_params)
+        self.client: OpenAI = DeepSeekClient(**client_params)
 
     def get_model_info(self) -> dict[str, Any] | None:
         """Retrieve metadata and supported features for the specified model.

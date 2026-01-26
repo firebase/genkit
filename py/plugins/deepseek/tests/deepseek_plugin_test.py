@@ -56,7 +56,7 @@ def test_plugin_initialization_without_api_key() -> None:
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_initialize(mock_client) -> None:
+async def test_plugin_initialize(mock_client: MagicMock) -> None:
     """Test plugin init method."""
     plugin = DeepSeek(api_key='test-key', models=['deepseek-chat'])
 
@@ -68,7 +68,7 @@ async def test_plugin_initialize(mock_client) -> None:
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_resolve_action(mock_client) -> None:
+async def test_plugin_resolve_action(mock_client: MagicMock) -> None:
     """Test plugin resolves models dynamically."""
     plugin = DeepSeek(api_key='test-key', models=[])
 
@@ -92,7 +92,7 @@ async def test_plugin_list_actions() -> None:
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
-def test_plugin_with_custom_params(mock_client) -> None:
+def test_plugin_with_custom_params(mock_client: MagicMock) -> None:
     """Test plugin accepts custom parameters."""
     plugin = DeepSeek(
         api_key='test-key',
@@ -107,7 +107,7 @@ def test_plugin_with_custom_params(mock_client) -> None:
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_initialize_no_models(mock_client) -> None:
+async def test_plugin_initialize_no_models(mock_client: MagicMock) -> None:
     """Test plugin init returns empty list for lazy loading."""
     plugin = DeepSeek(api_key='test-key')
 
@@ -131,7 +131,7 @@ async def test_plugin_resolve_action_non_model_kind() -> None:
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')
 @pytest.mark.asyncio
-async def test_plugin_resolve_action_without_prefix(mock_client) -> None:
+async def test_plugin_resolve_action_without_prefix(mock_client: MagicMock) -> None:
     """Test plugin resolves models without plugin prefix."""
     plugin = DeepSeek(api_key='test-key', models=[])
 
@@ -143,7 +143,7 @@ async def test_plugin_resolve_action_without_prefix(mock_client) -> None:
 
 
 @patch('genkit.plugins.deepseek.client.DeepSeekClient.__new__')
-def test_deepseek_client_initialization(mock_new) -> None:
+def test_deepseek_client_initialization(mock_new: MagicMock) -> None:
     """Test DeepSeekClient creates OpenAI client with correct params."""
     from genkit.plugins.deepseek.client import DeepSeekClient
 

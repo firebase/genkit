@@ -21,9 +21,17 @@ in the Genkit framework. It covers static resources, template-based resources,
 dynamic resource matching, and metadata handling.
 """
 
+from typing import Any, cast
+
 import pytest
 
-from genkit.blocks.resource import define_resource, resolve_resources, resource
+from genkit.blocks.resource import (
+    ResourceInput,
+    define_resource,
+    resolve_resources,
+    resource,
+)
+from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.typing import Metadata, Part, TextPart
@@ -39,13 +47,16 @@ async def test_define_resource() -> None:
     """
     registry = Registry()
 
-    async def my_resource_fn(input, ctx):
+    async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': [Part(TextPart(text=f'Content for {input.uri}'))]}
 
     act = define_resource(registry, {'uri': 'http://example.com/foo'}, my_resource_fn)
 
     assert act.name == 'http://example.com/foo'
-    assert act.metadata['resource']['uri'] == 'http://example.com/foo'
+    assert act.metadata is not None
+    metadata = cast(dict[str, Any], act.metadata)
+    resource_meta = cast(dict[str, Any], metadata['resource'])
+    assert resource_meta['uri'] == 'http://example.com/foo'
 
     # Verify that the action can be resolved from the registry
     # Registry lookup for resources usually prepends /resource/ etc.
@@ -65,7 +76,7 @@ async def test_resolve_resources() -> None:
     """
     registry = Registry()
 
-    async def my_resource_fn(input, ctx):
+    async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': [Part(TextPart(text=f'Content for {input.uri}'))]}
 
     act = define_resource(registry, {'name': 'my-resource', 'uri': 'http://example.com/foo'}, my_resource_fn)
@@ -92,24 +103,25 @@ async def test_find_matching_resource() -> None:
     registry = Registry()
 
     # Static resource
-    async def static_fn(input, ctx):
+    async def static_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
     static_res = define_resource(registry, {'uri': 'bar://baz', 'name': 'staticRes'}, static_fn)
 
     # Template resource
-    async def template_fn(input, ctx):
+    async def template_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
     template_res = define_resource(registry, {'template': 'foo://bar/{baz}', 'name': 'templateRes'}, template_fn)
 
     # Dynamic resource list
-    async def dynamic_fn(input, ctx):
+    async def dynamic_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
     dynamic_res = resource({'uri': 'baz://qux'}, dynamic_fn)
 
-    from genkit.blocks.resource import ResourceInput, find_matching_resource
+    # Match static from registry
+    from genkit.blocks.resource import find_matching_resource
 
     # Match static from registry
     res = await find_matching_resource(registry, [], ResourceInput(uri='bar://baz'))
@@ -137,14 +149,14 @@ def test_is_dynamic_resource_action() -> None:
     """
     from genkit.blocks.resource import is_dynamic_resource_action
 
-    async def fn(input, ctx):
+    async def fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
     dynamic = resource({'uri': 'bar://baz'}, fn)
     assert is_dynamic_resource_action(dynamic)
 
     # Registered action (define_resource sets dynamic=False)
-    async def static_fn(input, ctx):
+    async def static_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
     static = define_resource(Registry(), {'uri': 'foo://bar'}, static_fn)
@@ -162,7 +174,7 @@ async def test_parent_metadata() -> None:
     """
     registry = Registry()
 
-    async def fn(input, ctx):
+    async def fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {
             'content': [
                 Part(TextPart(text='sub1', metadata=Metadata(root={'resource': {'uri': f'{input.uri}/sub1.txt'}})))
@@ -185,21 +197,14 @@ async def test_parent_metadata() -> None:
 def test_dynamic_resource_matching() -> None:
     """Verifies the matching logic for a simple static URI dynamic resource."""
 
-    async def my_resource_fn(input, ctx):
+    async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': [Part(TextPart(text='Match'))]}
 
     res = resource({'uri': 'http://example.com/foo'}, my_resource_fn)
     assert res.matches is not None
 
-    class MockInput:
-        uri = 'http://example.com/foo'
-
-    assert res.matches(MockInput())
-
-    class MockInputBad:
-        uri = 'http://example.com/bar'
-
-    assert not res.matches(MockInputBad())
+    assert res.matches(ResourceInput(uri='http://example.com/foo'))
+    assert not res.matches(ResourceInput(uri='http://example.com/bar'))
 
 
 def test_template_matching() -> None:
@@ -210,22 +215,16 @@ def test_template_matching() -> None:
     - Fails on paths extending beyond the template structure (strict matching).
     """
 
-    async def my_resource_fn(input, ctx):
+    async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
     res = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
     assert res.matches is not None
 
-    class MockInput:
-        uri = 'http://example.com/items/123'
-
-    assert res.matches(MockInput())
-
-    class MockInputBad:
-        uri = 'http://example.com/items/123/details'
+    assert res.matches(ResourceInput(uri='http://example.com/items/123'))
 
     # Should not match because of strict end anchor or slash handling in our regex
-    assert not res.matches(MockInputBad())
+    assert not res.matches(ResourceInput(uri='http://example.com/items/123/details'))
 
 
 def test_reserved_expansion_matching() -> None:
@@ -235,23 +234,17 @@ def test_reserved_expansion_matching() -> None:
     - Matches correct URI structure with slashes (reserved chars).
     """
 
-    async def my_resource_fn(input, ctx):
+    async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
     # Template with reserved expansion {+path} (matches slashes)
     res = resource({'template': 'http://example.com/files/{+path}'}, my_resource_fn)
     assert res.matches is not None
 
-    class MockInput:
-        uri = 'http://example.com/files/foo/bar/baz.txt'
-
-    assert res.matches(MockInput())
+    assert res.matches(ResourceInput(uri='http://example.com/files/foo/bar/baz.txt'))
 
     # Regular template {path} regex ([^/]+) should NOT match slashes
     res_simple = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
     assert res_simple.matches is not None
 
-    class MockInputComplex:
-        uri = 'http://example.com/items/foo/bar'
-
-    assert not res_simple.matches(MockInputComplex())
+    assert not res_simple.matches(ResourceInput(uri='http://example.com/items/foo/bar'))

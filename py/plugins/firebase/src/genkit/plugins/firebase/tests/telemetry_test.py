@@ -58,7 +58,7 @@ def _create_model_span(
 
 
 @patch('genkit.plugins.firebase.add_gcp_telemetry')
-def test_firebase_telemetry_delegates_to_gcp(mock_add_gcp_telemetry) -> None:
+def test_firebase_telemetry_delegates_to_gcp(mock_add_gcp_telemetry: MagicMock) -> None:
     """Test that Firebase telemetry delegates to GCP telemetry."""
     add_firebase_telemetry()
     mock_add_gcp_telemetry.assert_called_once_with(force_export=False)
@@ -70,11 +70,11 @@ def test_firebase_telemetry_delegates_to_gcp(mock_add_gcp_telemetry) -> None:
 @patch('genkit.plugins.google_cloud.telemetry.metrics._failures')
 @patch('genkit.plugins.google_cloud.telemetry.metrics._requests')
 def test_record_generate_metrics_with_model_action(
-    mock_requests,
-    mock_failures,
-    mock_latency,
-    mock_input_tokens,
-    mock_output_tokens,
+    mock_requests: MagicMock,
+    mock_failures: MagicMock,
+    mock_latency: MagicMock,
+    mock_input_tokens: MagicMock,
+    mock_output_tokens: MagicMock,
 ) -> None:
     """Test that metrics are recorded for model action spans with usage data."""
     # Setup mocks

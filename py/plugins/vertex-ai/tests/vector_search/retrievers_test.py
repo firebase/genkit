@@ -21,6 +21,7 @@ implementations like BigQueryRetriever and FirestoreRetriever.
 """
 
 import json
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -32,6 +33,7 @@ from google.cloud.aiplatform_v1 import (
     types,
 )
 
+from genkit.ai import Genkit
 from genkit.blocks.document import Document, DocumentData
 from genkit.core.typing import DocumentPart, Embedding
 from genkit.plugins.vertex_ai.vector_search import BigQueryRetriever, FirestoreRetriever
@@ -41,16 +43,26 @@ from genkit.types import ActionRunContext, RetrieverRequest, TextPart
 class FakeAI:
     """Fake AI instance for testing."""
 
-    async def embed(self, embedder, content=None, metadata=None, options=None):
+    async def embed(
+        self,
+        embedder: str,
+        content: object | None = None,
+        metadata: object | None = None,
+        options: object | None = None,
+    ) -> list[Embedding]:
         """Mock embed method."""
         return [Embedding(embedding=[0.1, 0.2, 0.3])]
 
 
 @pytest.fixture
-def bq_retriever_instance():
-    """Common initialization of bq retriever."""
+def bq_retriever_instance() -> Any:  # noqa: ANN401
+    """Common initialization of bq retriever.
+
+    Note: Returns Any because tests mock methods on this instance,
+    breaking type contracts that the type checker cannot represent.
+    """
     return BigQueryRetriever(
-        ai=FakeAI(),
+        ai=cast(Genkit, FakeAI()),
         name='test',
         embedder='test/embedder',
         match_service_client_generator=MagicMock(),
@@ -60,7 +72,7 @@ def bq_retriever_instance():
     )
 
 
-def test_bigquery_retriever__init__(bq_retriever_instance) -> None:
+def test_bigquery_retriever__init__(bq_retriever_instance: Any) -> None:  # noqa: ANN401
     """Init test."""
     bq_retriever = bq_retriever_instance
 
@@ -86,9 +98,9 @@ def test_bigquery_retriever__init__(bq_retriever_instance) -> None:
     ],
 )
 async def test_bigquery_retriever_retrieve(
-    bq_retriever_instance,
-    options,
-    top_k,
+    bq_retriever_instance: Any,  # noqa: ANN401
+    options: dict[str, Any] | None,
+    top_k: int,
 ) -> None:
     """Test retrieve method bq retriever."""
     # Mock _get_closest_documents
@@ -132,7 +144,9 @@ async def test_bigquery_retriever_retrieve(
 
 
 @pytest.mark.asyncio
-async def test_bigquery__get_closest_documents(bq_retriever_instance) -> None:
+async def test_bigquery__get_closest_documents(
+    bq_retriever_instance: Any,  # noqa: ANN401
+) -> None:
     """Test bigquery retriever _get_closest_documents."""
     # Mock find_neighbors method
     mock_vector_search_client = MagicMock(spec=MatchServiceAsyncClient)
@@ -228,8 +242,8 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance) -> None:
     ],
 )
 async def test_bigquery__get_closest_documents_fail(
-    bq_retriever_instance,
-    metadata,
+    bq_retriever_instance: Any,  # noqa: ANN401
+    metadata: dict[str, Any],
 ) -> None:
     """Test failures bigquery retriever _get_closest_documents."""
     with pytest.raises(AttributeError):
@@ -252,7 +266,7 @@ async def test_bigquery__get_closest_documents_fail(
 
 @pytest.mark.asyncio
 async def test_bigquery__retrieve_neighbors_data_from_db(
-    bq_retriever_instance,
+    bq_retriever_instance: Any,  # noqa: ANN401
 ) -> None:
     """Test bigquery retriver _retrieve_neighbors_data_from_db."""
     # Mock query job result from bigquery query
@@ -313,7 +327,7 @@ async def test_bigquery__retrieve_neighbors_data_from_db(
 
 @pytest.mark.asyncio
 async def test_bigquery_retrieve_neighbors_data_from_db_fail(
-    bq_retriever_instance,
+    bq_retriever_instance: Any,  # noqa: ANN401
 ) -> None:
     """Test bigquery retriver _retrieve_neighbors_data_from_db when fails."""
     # Mock exception from bigquery query
@@ -341,10 +355,14 @@ async def test_bigquery_retrieve_neighbors_data_from_db_fail(
 
 
 @pytest.fixture
-def fs_retriever_instance():
-    """Common initialization of firestore retriever."""
+def fs_retriever_instance() -> Any:  # noqa: ANN401
+    """Common initialization of firestore retriever.
+
+    Note: Returns Any because tests mock methods on this instance,
+    breaking type contracts that the type checker cannot represent.
+    """
     return FirestoreRetriever(
-        ai=FakeAI(),
+        ai=cast(Genkit, FakeAI()),
         name='test',
         embedder='test/embedder',
         match_service_client_generator=MagicMock(),
@@ -353,14 +371,14 @@ def fs_retriever_instance():
     )
 
 
-def test_firestore_retriever__init__(fs_retriever_instance) -> None:
+def test_firestore_retriever__init__(fs_retriever_instance: Any) -> None:  # noqa: ANN401
     """Init test."""
     assert fs_retriever_instance is not None
 
 
 @pytest.mark.asyncio
 async def test_firesstore__retrieve_neighbors_data_from_db(
-    fs_retriever_instance,
+    fs_retriever_instance: Any,  # noqa: ANN401
 ) -> None:
     """Test _retrieve_neighbors_data_from_db for firestore retriever."""
     # Mock storage of firestore
@@ -374,7 +392,7 @@ async def test_firesstore__retrieve_neighbors_data_from_db(
 
     # Mock get from firestore
     class MockCollection:
-        def document(self, document_id):
+        def document(self, document_id: str) -> MagicMock:
             doc_ref = MagicMock()
             doc_snapshot = MagicMock()
 

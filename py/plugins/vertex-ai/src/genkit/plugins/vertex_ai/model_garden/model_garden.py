@@ -19,7 +19,7 @@
 
 import typing
 from collections.abc import Callable
-from typing import Any, cast
+from typing import cast
 
 if typing.TYPE_CHECKING:
     from openai import OpenAI
@@ -80,7 +80,7 @@ class ModelGarden:
         openai_params = {'location': location, 'project_id': project_id}
         self.client: OpenAI = OpenAIClient(**openai_params)
 
-    def get_model_info(self) -> dict[str, Any] | None:
+    def get_model_info(self) -> dict[str, object] | None:
         """Retrieves metadata and supported features for the specified model.
 
         This method looks up the model's information from a predefined list

@@ -26,7 +26,7 @@ class MockResponse(BaseModel):
 async def test_action_latency_ms_population() -> None:
     """Verify that latency_ms is automatically populated for actions returning supporting objects."""
 
-    async def async_model_fn(input: str):
+    async def async_model_fn(input: str) -> MockResponse:
         # Simulate some work
         await asyncio.sleep(0.1)
         return MockResponse(value=f'hello {input}')
@@ -45,7 +45,7 @@ async def test_action_latency_ms_population() -> None:
 def test_sync_action_latency_ms_population() -> None:
     """Verify that latency_ms is automatically populated for sync actions."""
 
-    def sync_model_fn(input: str):
+    def sync_model_fn(input: str) -> MockResponse:
         time.sleep(0.1)
         return MockResponse(value=f'sync hello {input}')
 
@@ -71,7 +71,7 @@ class ImmutableMockResponse(BaseModel):
 async def test_immutable_action_latency_ms_population() -> None:
     """Verify that latency_ms is populated even for frozen Pydantic models."""
 
-    async def async_model_fn(input: str):
+    async def async_model_fn(input: str) -> ImmutableMockResponse:
         return ImmutableMockResponse(value=f'hello {input}')
 
     action = Action(name='testImmutableModel', kind=ActionKind.MODEL, fn=async_model_fn)
@@ -99,7 +99,7 @@ class ReadOnlyMockResponse(BaseModel):
 async def test_readonly_action_latency_ms_population() -> None:
     """Verify that latency_ms is handled correctly for read-only properties."""
 
-    async def async_model_fn(input: str):
+    async def async_model_fn(input: str) -> ReadOnlyMockResponse:
         return ReadOnlyMockResponse(value=f'hello {input}')
 
     action = Action(name='testReadOnlyModel', kind=ActionKind.MODEL, fn=async_model_fn)

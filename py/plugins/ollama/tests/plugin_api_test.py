@@ -17,6 +17,7 @@
 """Unit tests for Ollama Plugin."""
 
 import unittest
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -66,7 +67,7 @@ class TestOllamaInit(unittest.TestCase):
 
 
 @pytest.mark.asyncio
-async def test_initialize(ollama_plugin_instance) -> None:
+async def test_initialize(ollama_plugin_instance: Ollama) -> None:
     """Test init method of Ollama plugin."""
     model_ref = ModelDefinition(name='test_model')
     embedder_ref = EmbeddingDefinition(name='test_embedder')
@@ -93,21 +94,25 @@ async def test_initialize(ollama_plugin_instance) -> None:
     ],
 )
 @pytest.mark.asyncio
-async def test_resolve_action(kind, name, ollama_plugin_instance) -> None:
+async def test_resolve_action(kind: ActionKind, name: str, ollama_plugin_instance: Ollama) -> None:
     """Unit Tests for resolve action method."""
     action = await ollama_plugin_instance.resolve(kind, ollama_name(name))
 
     assert action is not None
     assert action.kind == kind
     assert action.name == ollama_name(name)
+    assert action.metadata is not None
+    metadata = cast(dict[str, Any], action.metadata)
 
     if kind == ActionKind.MODEL:
-        assert action.metadata['model']['label'] == f'Ollama - {name}'
-        assert action.metadata['model']['multiturn']
-        assert action.metadata['model']['system_role']
+        model_meta = cast(dict[str, Any], metadata['model'])
+        assert model_meta['label'] == f'Ollama - {name}'
+        assert model_meta['multiturn']
+        assert model_meta['system_role']
     else:
-        assert action.metadata['embedder']['label'] == f'Ollama Embedding - {name}'
-        assert action.metadata['embedder']['supports'] == {'input': ['text']}
+        embedder_meta = cast(dict[str, Any], metadata['embedder'])
+        assert embedder_meta['label'] == f'Ollama Embedding - {name}'
+        assert embedder_meta['supports'] == {'input': ['text']}
 
 
 # _define_ollama_model and _define_ollama_embedder methods no longer exist in new plugin architecture
@@ -115,7 +120,7 @@ async def test_resolve_action(kind, name, ollama_plugin_instance) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_actions(ollama_plugin_instance) -> None:
+async def test_list_actions(ollama_plugin_instance: Ollama) -> None:
     """Unit tests for list_actions method."""
 
     class MockModelResponse(BaseModel):
@@ -135,7 +140,7 @@ async def test_list_actions(ollama_plugin_instance) -> None:
         ]
     )
 
-    def mock_client():
+    def mock_client() -> MagicMock:
         return _client_mock
 
     ollama_plugin_instance.client = mock_client

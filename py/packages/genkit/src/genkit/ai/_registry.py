@@ -74,7 +74,7 @@ from genkit.blocks.reranker import (
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionResponse
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
@@ -161,7 +161,7 @@ class GenkitRegistry:
             )
 
             @wraps(func)
-            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
                 """Asynchronous wrapper for the flow function.
 
                 Args:
@@ -171,10 +171,12 @@ class GenkitRegistry:
                 Returns:
                     The response from the flow function.
                 """
-                return (await action.arun(*args, **kwargs)).response  # type: ignore[arg-type]
+                # Flows accept at most one input argument
+                input_arg = args[0] if args else None
+                return cast(T, (await action.arun(input_arg)).response)
 
             @wraps(func)
-            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 """Synchronous wrapper for the flow function.
 
                 Args:
@@ -184,7 +186,9 @@ class GenkitRegistry:
                 Returns:
                     The response from the flow function.
                 """
-                return action.run(*args, **kwargs).response  # type: ignore[arg-type]
+                # Flows accept at most one input argument
+                input_arg = args[0] if args else None
+                return cast(T, action.run(input_arg).response)
 
             return FlowWrapper(
                 fn=cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper),
@@ -290,7 +294,7 @@ class GenkitRegistry:
             )
 
             @wraps(func)
-            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
                 """Asynchronous wrapper for the tool function.
 
                 Args:
@@ -303,7 +307,7 @@ class GenkitRegistry:
                 return (await action.arun(*args, **kwargs)).response  # type: ignore[arg-type]
 
             @wraps(func)
-            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
                 """Synchronous wrapper for the tool function.
 
                 Args:
@@ -323,8 +327,8 @@ class GenkitRegistry:
         self,
         name: str,
         fn: RetrieverFn,
-        config_schema: type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a retriever action.
@@ -357,8 +361,8 @@ class GenkitRegistry:
         self,
         name: str,
         fn: IndexerFn,
-        config_schema: type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define an indexer action.
@@ -392,8 +396,8 @@ class GenkitRegistry:
         self,
         name: str,
         fn: RerankerFn,
-        config_schema: type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a reranker action.
@@ -420,13 +424,26 @@ class GenkitRegistry:
             ...     return RerankerResponse(documents=[...])
             >>> ai.define_reranker('my-reranker', my_reranker)
         """
-        reranker_meta = metadata.copy() if metadata else {}
-        if 'reranker' not in reranker_meta:
-            reranker_meta['reranker'] = {}
-        if 'label' not in reranker_meta['reranker'] or not reranker_meta['reranker']['label']:
-            reranker_meta['reranker']['label'] = name
+        # Extract label and config from metadata
+        reranker_label: str = name
+        reranker_config_schema: dict[str, object] | None = None
+
+        # Check if metadata has reranker info
+        if metadata and 'reranker' in metadata:
+            existing = metadata['reranker']
+            if isinstance(existing, dict):
+                if 'label' in existing and existing['label']:
+                    label_val = existing['label']
+                    if isinstance(label_val, str):
+                        reranker_label = label_val
+                if 'customOptions' in existing:
+                    opts_val = existing['customOptions']
+                    if isinstance(opts_val, dict):
+                        reranker_config_schema = opts_val
+
+        # Override with config_schema if provided
         if config_schema:
-            reranker_meta['reranker']['customOptions'] = to_json_schema(config_schema)
+            reranker_config_schema = to_json_schema(config_schema)
 
         reranker_description = get_func_description(fn, description)
         return define_reranker_block(
@@ -434,8 +451,8 @@ class GenkitRegistry:
             name=name,
             fn=fn,
             options=RerankerOptions(
-                config_schema=reranker_meta['reranker'].get('customOptions'),
-                label=reranker_meta['reranker'].get('label'),
+                config_schema=reranker_config_schema,
+                label=reranker_label,
             ),
             description=reranker_description,
         )
@@ -445,7 +462,7 @@ class GenkitRegistry:
         reranker: str | Action | RerankerRef,
         query: str | DocumentData,
         documents: list[DocumentData],
-        options: Any | None = None,
+        options: object | None = None,
     ) -> list[RankedDocument]:
         """Rerank documents based on their relevance to a query.
 
@@ -490,8 +507,8 @@ class GenkitRegistry:
         definition: str,
         fn: EvaluatorFn,
         is_billed: bool = False,
-        config_schema: type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define an evaluator action.
@@ -604,8 +621,8 @@ class GenkitRegistry:
         definition: str,
         fn: BatchEvaluatorFn,
         is_billed: bool = False,
-        config_schema: type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a batch evaluator action.
@@ -647,8 +664,8 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
-        config_schema: type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
     ) -> Action:
@@ -662,16 +679,36 @@ class GenkitRegistry:
             info: Optional ModelInfo for the model.
             description: Optional description for the model.
         """
-        model_meta: dict[str, Any] = metadata if metadata else {}
-        if info:
-            model_meta['model'] = dump_dict(info)
-        if 'model' not in model_meta:
-            model_meta['model'] = {}
-        if 'label' not in model_meta['model'] or not model_meta['model']['label']:
-            model_meta['model']['label'] = name
+        # Build model options dict
+        model_options: dict[str, object] = {}
 
+        # Start with info if provided
+        if info:
+            model_info_dict = dump_dict(info)
+            if isinstance(model_info_dict, dict):
+                for key, value in model_info_dict.items():
+                    if isinstance(key, str):
+                        model_options[key] = value
+
+        # Check if metadata has model info
+        if metadata and 'model' in metadata:
+            existing = metadata['model']
+            if isinstance(existing, dict):
+                for key, value in existing.items():
+                    if key not in model_options:  # Don't override info
+                        model_options[key] = value
+
+        # Default label to name if not set
+        if 'label' not in model_options or not model_options['label']:
+            model_options['label'] = name
+
+        # Add config schema if provided
         if config_schema:
-            model_meta['model']['customOptions'] = to_json_schema(config_schema)
+            model_options['customOptions'] = to_json_schema(config_schema)
+
+        # Build the final metadata dict
+        model_meta: dict[str, object] = metadata.copy() if metadata else {}
+        model_meta['model'] = model_options
 
         model_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -687,7 +724,7 @@ class GenkitRegistry:
         name: str,
         fn: EmbedderFn,
         options: EmbedderOptions | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
@@ -699,7 +736,7 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata or {}
+        embedder_meta: dict[str, object] = metadata or {}
         if 'embedder' not in embedder_meta:
             embedder_meta['embedder'] = {}
 
@@ -735,20 +772,20 @@ class GenkitRegistry:
         name: str | None = None,
         variant: str | None = None,
         model: str | None = None,
-        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
         description: str | None = None,
-        input_schema: type | dict[str, Any] | str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
         system: str | Part | list[Part] | Callable | None = None,
         prompt: str | Part | list[Part] | Callable | None = None,
         messages: str | list[Message] | Callable | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, Any] | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
         output_constrained: bool | None = None,
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
@@ -846,7 +883,7 @@ class GenkitRegistry:
         uri: str | None = None,
         template: str | None = None,
         description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> Action:
         """Define a resource action.
 
@@ -915,13 +952,13 @@ class FlowWrapper(Generic[P, T]):
 
     def stream(
         self,
-        input: Any = None,
-        context: dict[str, Any] | None = None,
-        telemetry_labels: dict[str, Any] | None = None,
+        input: object = None,
+        context: dict[str, object] | None = None,
+        telemetry_labels: dict[str, object] | None = None,
         timeout: float | None = None,
     ) -> tuple[
-        AsyncIterator,
-        asyncio.Future,
+        AsyncIterator[object],  # noqa: ANN401
+        asyncio.Future[ActionResponse],
     ]:
         """Run the flow and return an async iterator of the results.
 

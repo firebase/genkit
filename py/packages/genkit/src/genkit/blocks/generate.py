@@ -160,7 +160,7 @@ async def generate_action(
         prev_to_send = copy.copy(prev_chunks)
         prev_chunks.append(chunk)
 
-        def chunk_parser(chunk: GenerateResponseChunkWrapper):
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> Any:  # noqa: ANN401
             """Parse a chunk using the current formatter."""
             if formatter is None:
                 return None
@@ -173,7 +173,7 @@ async def generate_action(
             chunk_parser=chunk_parser if formatter else None,
         )
 
-    def wrap_chunks(role: Role | None = None):
+    def wrap_chunks(role: Role | None = None) -> Callable[[GenerateResponseChunk], None]:
         """Wrap and process a model response chunk.
 
         This function prepares model response chunks for the stream callback.
@@ -188,7 +188,7 @@ async def generate_action(
         if role is None:
             role = cast(Role, Role.MODEL)
 
-        def wrapper(chunk) -> None:
+        def wrapper(chunk: GenerateResponseChunk) -> None:
             if on_chunk is not None:
                 on_chunk(make_chunk(role, chunk))
 
@@ -201,9 +201,11 @@ async def generate_action(
     if model.metadata:
         model_info = model.metadata.get('model')
         if model_info and isinstance(model_info, dict):
-            supports_info = model_info.get('supports')
+            model_info_dict = cast(dict[str, object], model_info)
+            supports_info = model_info_dict.get('supports')
             if supports_info and isinstance(supports_info, dict):
-                supports_context = bool(supports_info.get('context'))
+                supports_dict = cast(dict[str, object], supports_info)
+                supports_context = bool(supports_dict.get('context'))
     # if it doesn't support contextm inject context middleware
     if raw_request.docs and not supports_context:
         middleware.append(augment_with_context())
@@ -231,7 +233,10 @@ async def generate_action(
 
         current_middleware = middleware[index]
 
-        async def next_fn(modified_req=None, modified_ctx=None):
+        async def next_fn(
+            modified_req: GenerateRequest | None = None,
+            modified_ctx: ActionRunContext | None = None,
+        ) -> GenerateResponse:
             return await dispatch(
                 index + 1,
                 modified_req if modified_req else req,
@@ -242,18 +247,23 @@ async def generate_action(
 
     # if resolving the 'resume' option above generated a tool message, stream it.
     if resumed_tool_message and on_chunk:
-        wrap_chunks(cast(Role, Role.TOOL))(resumed_tool_message)
+        wrap_chunks(cast(Role, Role.TOOL))(
+            GenerateResponseChunk(
+                role=cast(Role, resumed_tool_message.role),
+                content=resumed_tool_message.content,
+            )
+        )
 
     model_response = await dispatch(
         0,
         request,
         ActionRunContext(
-            on_chunk=wrap_chunks() if on_chunk else None,
+            on_chunk=cast(Callable[[object], None], wrap_chunks()) if on_chunk else None,
             context=context,
         ),
     )
 
-    def message_parser(msg: MessageWrapper):
+    def message_parser(msg: MessageWrapper) -> Any:  # noqa: ANN401
         """Parse a message using the current formatter.
 
         Args:
@@ -385,7 +395,7 @@ def apply_format(
     elif instructions:
         should_inject = True
 
-    if should_inject:
+    if should_inject and instructions is not None:
         out_request.messages = inject_instructions(out_request.messages, instructions)
 
     # Ensure output is set before modifying its properties
@@ -405,7 +415,7 @@ def apply_format(
     return (out_request, formatter)
 
 
-def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | None):
+def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | None) -> str | None:
     """Resolve instructions based on formatter and instruction options.
 
     Args:
@@ -427,7 +437,9 @@ def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | No
     return formatter.instructions
 
 
-def apply_transfer_preamble(next_request: GenerateActionOptions, preamble: GenerateActionOptions):
+def apply_transfer_preamble(
+    next_request: GenerateActionOptions, preamble: GenerateActionOptions
+) -> GenerateActionOptions:
     """Applies relevant properties from a preamble request to the next request.
 
     This function is intended to copy settings (like model, config, etc.)
@@ -447,7 +459,7 @@ def apply_transfer_preamble(next_request: GenerateActionOptions, preamble: Gener
     return next_request
 
 
-def _extract_resource_uri(resource_obj: Any) -> str | None:
+def _extract_resource_uri(resource_obj: Any) -> str | None:  # noqa: ANN401
     """Extract URI from a resource object.
 
     Handles various Pydantic wrapper structures (Resource, Resource1, RootModel, dict).
@@ -612,9 +624,10 @@ async def resolve_parameters(
 
     format_def: FormatDef | None = None
     if request.output and request.output.format:
-        format_def = registry.lookup_value('format', request.output.format)
-        if not format_def:
+        looked_up_format = registry.lookup_value('format', request.output.format)
+        if looked_up_format is None:
             raise ValueError(f'Unable to resolve format {request.output.format}')
+        format_def = cast(FormatDef, looked_up_format)
 
     return (model_action, tools, format_def)
 
@@ -817,7 +830,7 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-async def resolve_tool(registry: Registry, tool_name: str):
+async def resolve_tool(registry: Registry, tool_name: str) -> Action:
     """Resolve a tool by name from the registry.
 
     Args:
@@ -830,7 +843,10 @@ async def resolve_tool(registry: Registry, tool_name: str):
     Raises:
         ValueError: If the tool could not be resolved.
     """
-    return await registry.resolve_action(kind=cast(ActionKind, ActionKind.TOOL), name=tool_name)
+    tool = await registry.resolve_action(kind=cast(ActionKind, ActionKind.TOOL), name=tool_name)
+    if tool is None:
+        raise ValueError(f'Unable to resolve tool {tool_name}')
+    return tool
 
 
 async def _resolve_resume_options(

@@ -68,7 +68,7 @@ class OpenAI(Plugin):
 
     name = 'openai'
 
-    def __init__(self, **openai_params: Any) -> None:
+    def __init__(self, **openai_params: Any) -> None:  # noqa: ANN401
         """Initializes the OpenAI plugin with the specified parameters.
 
         Args:
@@ -79,7 +79,7 @@ class OpenAI(Plugin):
         self._openai_params = openai_params
         self._openai_client = OpenAIClient(**openai_params)
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize plugin.
 
         Returns:
@@ -123,7 +123,7 @@ class OpenAI(Plugin):
             'supports': supports,
         }
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -140,7 +140,7 @@ class OpenAI(Plugin):
 
         return None
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for an OpenAI model.
 
         Args:
@@ -168,7 +168,7 @@ class OpenAI(Plugin):
             },
         )
 
-    def _create_embedder_action(self, name: str):
+    def _create_embedder_action(self, name: str) -> Action:
         """Create an Action object for an OpenAI embedder.
 
         Args:

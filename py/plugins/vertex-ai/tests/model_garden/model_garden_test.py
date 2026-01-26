@@ -16,7 +16,8 @@
 
 """Unittests for VertexAI Model Garden Models."""
 
-from unittest.mock import patch
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,7 +26,7 @@ from genkit.plugins.vertex_ai.model_garden.model_garden import ModelGarden
 
 @pytest.fixture
 @patch('genkit.plugins.vertex_ai.model_garden.model_garden.OpenAIClient')
-def model_garden_instance(client):
+def model_garden_instance(client: MagicMock) -> ModelGarden:
     """Model Garden fixture."""
     return ModelGarden(model='test', location='us-central1', project_id='project')
 
@@ -78,7 +79,7 @@ def model_garden_instance(client):
 
     ],
 )
-def test_get_model_info(model_name, expected, model_garden_instance) -> None:
+def test_get_model_info(model_name: str, expected: dict[str, Any], model_garden_instance: ModelGarden) -> None:
     """Unittest for get_model_info."""
     model_garden_instance.name = model_name
 

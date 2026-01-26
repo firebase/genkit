@@ -62,7 +62,7 @@ async def test_resolve_action_from_plugin() -> None:
         async def init(self) -> list[Action]:
             return []
 
-        async def resolve(self, action_type: ActionKind, name: str):
+        async def resolve(self, action_type: ActionKind, name: str) -> Action:
             nonlocal resolver_calls
             resolver_calls.append([action_type, name])
 
