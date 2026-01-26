@@ -19,12 +19,11 @@
 import base64
 import json
 from collections.abc import Callable
-from typing import Any
 
 from pydantic import BaseModel
 
 
-def dump_dict(obj: Any, fallback: Callable[[Any], Any] | None = None):
+def dump_dict(obj: object, fallback: Callable[[object], object] | None = None) -> object:
     """Converts an object or Pydantic to a dictionary.
 
     If the input object is a Pydantic BaseModel, it returns a dictionary
@@ -46,7 +45,7 @@ def dump_dict(obj: Any, fallback: Callable[[Any], Any] | None = None):
         return obj
 
 
-def default_serializer(obj: Any) -> Any:
+def default_serializer(obj: object) -> object:
     """Default serializer for objects not handled by json.dumps.
 
     Args:
@@ -63,7 +62,11 @@ def default_serializer(obj: Any) -> Any:
     return str(obj)
 
 
-def dump_json(obj: Any, indent=None, fallback: Callable[[Any], Any] | None = None) -> str:
+def dump_json(
+    obj: object,
+    indent: int | None = None,
+    fallback: Callable[[object], object] | None = None,
+) -> str:
     """Dumps an object to a JSON string.
 
     If the object is a Pydantic BaseModel, it will be dumped using the

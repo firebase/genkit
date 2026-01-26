@@ -16,6 +16,7 @@
 
 """Tests for xAI models."""
 
+from collections.abc import Iterator
 from unittest.mock import MagicMock
 
 import pytest
@@ -191,7 +192,7 @@ async def test_streaming_generation() -> None:
         total_tokens=30,
     )
 
-    def mock_stream():
+    def mock_stream() -> Iterator:
         yield mock_response, mock_chunk1
         yield mock_response, mock_chunk2
         yield mock_response, mock_chunk3

@@ -89,7 +89,7 @@ class ToolInterruptError(Exception):
 
 def tool_response(
     interrupt: Part | ToolRequestPart,
-    response_data: Any | None = None,
+    response_data: object | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Part:
     """Constructs a ToolResponse Part, typically for an interrupted request.

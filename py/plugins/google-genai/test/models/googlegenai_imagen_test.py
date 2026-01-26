@@ -21,6 +21,7 @@ import urllib.request
 
 import pytest
 from google import genai
+from pytest_mock import MockerFixture
 
 from genkit.ai import ActionRunContext
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
@@ -37,7 +38,7 @@ from genkit.types import (
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in ImagenVersion])
-async def test_generate_media_response(mocker, version) -> None:
+async def test_generate_media_response(mocker: MockerFixture, version: ImagenVersion) -> None:
     """Test generate method for media responses."""
     request_text = 'response question'
     response_byte_string = b'\x89PNG\r\n\x1a\n'

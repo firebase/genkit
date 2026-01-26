@@ -357,7 +357,7 @@ def create_reflection_asgi_app(
     async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: Any,
+        action_input: object,
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
@@ -382,7 +382,7 @@ def create_reflection_asgi_app(
         # Capture trace_id from the runner task for cleanup
         run_trace_id: str | None = None
 
-        def wrapped_on_trace_start(tid) -> None:
+        def wrapped_on_trace_start(tid: str) -> None:
             nonlocal run_trace_id
             run_trace_id = tid
             on_trace_start(tid)
@@ -391,7 +391,7 @@ def create_reflection_asgi_app(
             """Run the action and put chunks on the queue."""
             try:
 
-                def send_chunk(chunk) -> None:
+                def send_chunk(chunk: Any) -> None:  # noqa: ANN401
                     """Callback that puts chunks on the queue."""
                     out = dump_json(chunk)
                     chunk_queue.put_nowait(f'{out}\n')
@@ -457,7 +457,7 @@ def create_reflection_asgi_app(
     async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: Any,
+        action_input: object,
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
@@ -477,7 +477,7 @@ def create_reflection_asgi_app(
         """
         run_trace_id: str | None = None
 
-        def wrapped_on_trace_start(tid) -> None:
+        def wrapped_on_trace_start(tid: str) -> None:
             nonlocal run_trace_id
             run_trace_id = tid
             on_trace_start(tid)

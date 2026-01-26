@@ -41,12 +41,14 @@ from genkit.core.typing import (
     ToolChoice,
 )
 from genkit.testing import (
+    EchoModel,
+    ProgrammableModel,
     define_echo_model,
     define_programmable_model,
 )
 
 
-def setup_test():
+def setup_test() -> tuple[Genkit, EchoModel, ProgrammableModel]:
     """Setup a test fixture for the prompt tests."""
     ai = Genkit(model='echoModel')
 
@@ -159,13 +161,13 @@ async def test_prompt_with_resolvers() -> None:
     """Test that the rendering works with resolvers."""
     ai, *_ = setup_test()
 
-    async def system_resolver(input, context) -> str:
+    async def system_resolver(input: dict[str, Any], context: object) -> str:
         return f'system {input["name"]}'
 
-    def prompt_resolver(input, context) -> str:
+    def prompt_resolver(input: dict[str, Any], context: object) -> str:
         return f'prompt {input["name"]}'
 
-    async def messages_resolver(input, context):
+    async def messages_resolver(input: dict[str, Any], context: object) -> list[Message]:
         return [Message(role=Role.USER, content=[Part(root=TextPart(text=f'msg {input["name"]}'))])]
 
     my_prompt = ai.define_prompt(
@@ -188,7 +190,7 @@ async def test_prompt_with_docs_resolver() -> None:
 
     pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))]
 
-    async def docs_resolver(input, context):
+    async def docs_resolver(input: dict[str, Any], context: object) -> list[DocumentData]:
         return [DocumentData(content=[DocumentPart(root=TextPart(text=f'doc {input["name"]}'))])]
 
     my_prompt = ai.define_prompt(
@@ -200,6 +202,7 @@ async def test_prompt_with_docs_resolver() -> None:
     await my_prompt(input={'name': 'world'})
 
     # Check that PM received the docs
+    assert pm.last_request.docs is not None
     assert pm.last_request.docs[0].content[0].root.text == 'doc world'
 
 
@@ -448,7 +451,7 @@ async def test_prompt_with_tools_list() -> None:
         value: int = Field(description='A value')
 
     @ai.tool(name='myTool')
-    def my_tool(input: ToolInput):
+    def my_tool(input: ToolInput) -> int:
         return input.value * 2
 
     my_prompt = ai.define_prompt(

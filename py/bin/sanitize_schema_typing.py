@@ -44,7 +44,7 @@ import ast
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 
 class ClassTransformer(ast.NodeTransformer):
@@ -75,7 +75,7 @@ class ClassTransformer(ast.NodeTransformer):
         found_populate = False
         found_frozen = False
 
-        # Preserve existing keywords if present, but override 'extra'
+        # Preserve existing keywords if present, but override 'extra' and 'alias_generator'
         if existing_config:
             for kw in existing_config.keywords:
                 if kw.arg == 'populate_by_name':
@@ -89,6 +89,9 @@ class ClassTransformer(ast.NodeTransformer):
                     found_populate = True
                 elif kw.arg == 'extra':
                     # Skip the existing 'extra', we will enforce 'forbid'
+                    continue
+                elif kw.arg == 'alias_generator':
+                    # Skip existing alias_generator, we will add our own
                     continue
                 elif kw.arg == 'frozen':
                     # Use the provided 'frozen' value
@@ -189,7 +192,7 @@ class ClassTransformer(ast.NodeTransformer):
 
         return node
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:  # noqa: N802
+    def visit_ClassDef(self, node: ast.ClassDef) -> object:  # noqa: N802
         """Visit and transform a class definition node.
 
         Args:

@@ -17,6 +17,7 @@
 
 """Tests for Genkit retrievers and indexers."""
 
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -74,12 +75,14 @@ def test_retriever_action_metadata_with_supports_and_config_schema() -> None:
     )
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata is not None
-    assert action_metadata.metadata.get('retriever') is not None
-    assert action_metadata.metadata['retriever']['label'] == 'Advanced Retriever'
-    assert action_metadata.metadata['retriever']['supports'] == {
+    metadata = cast(dict[str, Any], action_metadata.metadata)
+    assert metadata.get('retriever') is not None
+    retriever_meta = cast(dict[str, Any], metadata['retriever'])
+    assert retriever_meta['label'] == 'Advanced Retriever'
+    assert retriever_meta['supports'] == {
         'media': True,
     }
-    assert action_metadata.metadata['retriever']['customOptions'] == {
+    assert retriever_meta['customOptions'] == {
         'title': 'CustomConfig',
         'type': 'object',
         'properties': {

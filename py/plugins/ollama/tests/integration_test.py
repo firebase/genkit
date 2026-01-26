@@ -53,7 +53,7 @@ async def test_async_get_chat_model_response_from_llama_api_flow(
     """Test async get chat model response from llama api flow."""
     mock_response_message = 'Mocked response message'
 
-    async def fake_chat_response(*args, **kwargs):
+    async def fake_chat_response(*args: object, **kwargs: object) -> ollama_api.ChatResponse:
         return ollama_api.ChatResponse(
             message=ollama_api.Message(
                 content=mock_response_message,
@@ -63,7 +63,7 @@ async def test_async_get_chat_model_response_from_llama_api_flow(
 
     mock_ollama_api_async_client.return_value.chat.side_effect = fake_chat_response
 
-    async def _test_fun():
+    async def _test_fun() -> GenerateResponse:
         return await genkit_veneer_chat_model.generate(
             messages=[
                 Message(
@@ -94,7 +94,7 @@ async def test_async_get_generate_model_response_from_llama_api_flow(
         response=mock_response_message,
     )
 
-    async def _test_fun():
+    async def _test_fun() -> GenerateResponse:
         return await genkit_veneer_generate_model.generate(
             messages=[
                 Message(

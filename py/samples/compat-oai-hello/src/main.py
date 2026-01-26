@@ -39,7 +39,7 @@ Key features demonstrated in this sample:
 
 import os
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, cast
 
 import httpx
 import structlog
@@ -285,7 +285,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 
         prompt='hi ' + hi_input,
         output_schema=HelloSchema,
     )
-    return response.output
+    return cast(HelloSchema, response.output)
 
 
 @ai.flow()
@@ -312,7 +312,7 @@ async def generate_character(
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return (await result).output
+        return cast(RpgCharacter, (await result).output)
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name} with gablorken based on 13',
@@ -320,7 +320,7 @@ async def generate_character(
             config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
             tools=['gablorkenTool'],
         )
-        return result.output
+        return cast(RpgCharacter, result.output)
 
 
 async def main() -> None:

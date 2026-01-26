@@ -19,6 +19,7 @@
 from typing import Any
 
 from anthropic import AsyncAnthropic
+from anthropic.types import Message as AnthropicMessage
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.plugins.anthropic.model_info import get_model_info
@@ -149,7 +150,7 @@ class AnthropicModel:
 
         return params
 
-    async def _generate_streaming(self, params: dict[str, Any], ctx: ActionRunContext):
+    async def _generate_streaming(self, params: dict[str, Any], ctx: ActionRunContext) -> AnthropicMessage:
         """Handle streaming generation."""
         async with self.client.messages.stream(**params) as stream:
             async for chunk in stream:
@@ -221,7 +222,7 @@ class AnthropicModel:
             }
         return {'type': 'image', 'source': {'type': 'url', 'url': url}}
 
-    def _to_genkit_content(self, content_blocks: list) -> list[Part]:
+    def _to_genkit_content(self, content_blocks: list[Any]) -> list[Part]:
         """Convert Anthropic response to Genkit format."""
         parts = []
         for block in content_blocks:

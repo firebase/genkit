@@ -21,7 +21,7 @@ import json
 import os
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 import jsonata
 
@@ -84,7 +84,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
     match metric_type:
         case GenkitMetricType.ANSWER_RELEVANCY:
 
-            async def _relevancy_eval(datapoint: BaseDataPoint, options: Any | None):
+            async def _relevancy_eval(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
                 assert param.judge is not None, 'judge is required for ANSWER_RELEVANCY metric'
                 assert datapoint.output is not None, 'output is required'
                 output_string = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
@@ -102,10 +102,13 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     output_schema=AnswerRelevancyResponseSchema,
                 )
                 # TODO: embedding comparison between the input and the result of the llm
-                status = EvalStatusEnum.PASS_ if response.output and response.output.answered else EvalStatusEnum.FAIL
+                answered = False
+                if response.output and hasattr(response.output, 'answered'):
+                    answered = bool(response.output.answered)
+                status = EvalStatusEnum.PASS_ if answered else EvalStatusEnum.FAIL
                 return fill_scores(
                     datapoint,
-                    Score(score=response.output.answered if response.output else False, status=status),
+                    Score(score=answered, status=status),
                     param.status_override_fn,
                 )
 
@@ -118,7 +121,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
         case GenkitMetricType.FAITHFULNESS:
             _faithfulness_prompts = {}
 
-            async def _faithfulness_eval(datapoint: BaseDataPoint, options: Any | None):
+            async def _faithfulness_eval(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
                 assert param.judge is not None, 'judge is required for FAITHFULNESS metric'
                 assert datapoint.output is not None, 'output is required'
                 output_string = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
@@ -141,11 +144,11 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     config=param.judge_config,
                     output_schema=LongFormResponseSchema,
                 )
-                statements = (
-                    longform_response.output.get('statements', [])
-                    if isinstance(longform_response.output, dict)
-                    else (longform_response.output.statements if longform_response.output else [])
-                )
+                statements: list[str] = []
+                if isinstance(longform_response.output, dict):
+                    statements = longform_response.output.get('statements', [])  # type: ignore[assignment]
+                elif longform_response.output and hasattr(longform_response.output, 'statements'):
+                    statements = longform_response.output.statements  # type: ignore[union-attr]
                 if not statements:
                     raise ValueError('No statements returned')
 
@@ -163,17 +166,32 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                 )
 
                 nli_output = nli_response.output
+                responses: list[object] = []
                 if isinstance(nli_output, dict):
-                    responses = nli_output.get('responses', [])
-                else:
-                    responses = nli_output.responses if nli_output else []
+                    nli_dict = cast(dict[str, Any], nli_output)
+                    raw_resp = nli_dict.get('responses')
+                    responses = raw_resp if isinstance(raw_resp, list) else []
+                elif nli_output and hasattr(nli_output, 'responses'):
+                    responses = nli_output.responses  # type: ignore[union-attr]
 
                 if not responses:
                     raise ValueError('Evaluator response empty')
 
-                faithful_count = sum(1 for r in responses if (r.get('verdict') if isinstance(r, dict) else r.verdict))
+                def _get_verdict(r: object) -> bool:
+                    if isinstance(r, dict):
+                        r_dict = cast(dict[str, Any], r)
+                        return bool(r_dict.get('verdict'))
+                    return bool(getattr(r, 'verdict', False))
+
+                def _get_reason(r: object) -> str:
+                    if isinstance(r, dict):
+                        r_dict = cast(dict[str, Any], r)
+                        return str(r_dict.get('reason', ''))
+                    return str(getattr(r, 'reason', ''))
+
+                faithful_count = sum(1 for r in responses if _get_verdict(r))
                 score_val = faithful_count / len(responses)
-                reasoning = '; '.join([r.get('reason', '') if isinstance(r, dict) else r.reason for r in responses])
+                reasoning = '; '.join([_get_reason(r) for r in responses])
                 status = EvalStatusEnum.PASS_ if score_val > 0.5 else EvalStatusEnum.FAIL
 
                 return fill_scores(
@@ -191,7 +209,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
 
         case GenkitMetricType.MALICIOUSNESS:
 
-            async def _maliciousness_eval(datapoint: BaseDataPoint, options: Any | None):
+            async def _maliciousness_eval(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
                 assert param.judge is not None, 'judge is required for MALICIOUSNESS metric'
                 assert datapoint.output is not None, 'output is required'
                 output_string = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
@@ -208,7 +226,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     config=param.judge_config,
                     output_schema=MaliciousnessResponseSchema,
                 )
-                is_malicious = (
+                is_malicious = bool(
                     response.output.malicious if response.output and hasattr(response.output, 'malicious') else False
                 )
                 status = EvalStatusEnum.FAIL if is_malicious else EvalStatusEnum.PASS_
@@ -222,7 +240,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
             )
         case GenkitMetricType.REGEX:
 
-            async def _regex_eval(datapoint: BaseDataPoint, options: Any | None):
+            async def _regex_eval(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
                 assert datapoint.output is not None, 'output is required'
                 assert datapoint.reference is not None, 'reference is required'
                 assert isinstance(datapoint.reference, str), 'reference must be of string (regex)'
@@ -241,7 +259,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
 
         case GenkitMetricType.DEEP_EQUAL:
 
-            async def _deep_equal_eval(datapoint: BaseDataPoint, options: Any | None):
+            async def _deep_equal_eval(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
                 assert datapoint.reference is not None, 'reference is required'
                 assert datapoint.output is not None, 'output is required'
                 score = False
@@ -260,7 +278,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
 
         case GenkitMetricType.JSONATA:
 
-            async def _jsonata_eval(datapoint: BaseDataPoint, options: Any | None):
+            async def _jsonata_eval(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
                 assert datapoint.output is not None, 'output is required'
                 assert datapoint.reference is not None, 'reference is required'
                 assert isinstance(datapoint.reference, str), 'reference must be of string (jsonata)'

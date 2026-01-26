@@ -82,12 +82,12 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
 
 
 @pytest.mark.asyncio
-async def test_generate_stream_with_tool_calls(sample_request) -> None:
+async def test_generate_stream_with_tool_calls(sample_request: GenerateRequest) -> None:
     """Test generate_stream processes tool calls streamed in chunks correctly."""
     mock_client = MagicMock()
 
     class MockToolCall:
-        def __init__(self, id, index, name, args_chunk) -> None:
+        def __init__(self, id: str, index: int, name: str, args_chunk: str) -> None:
             self.id = id
             self.index = index
             self.function = MagicMock()
@@ -106,7 +106,7 @@ async def test_generate_stream_with_tool_calls(sample_request) -> None:
             ]
             self._current = 0
 
-        def _make_tool_chunk(self, id, index, name, args_chunk):
+        def _make_tool_chunk(self, id: str, index: int, name: str, args_chunk: str) -> object:
             delta_mock = MagicMock()
             delta_mock.content = None
             delta_mock.role = None
@@ -117,10 +117,10 @@ async def test_generate_stream_with_tool_calls(sample_request) -> None:
 
             return MagicMock(choices=[choice_mock])
 
-        def __iter__(self):
+        def __iter__(self) -> 'MockStream':
             return self
 
-        def __next__(self):
+        def __next__(self) -> object:
             if self._current >= len(self._chunks):
                 raise StopIteration
             chunk = self._chunks[self._current]

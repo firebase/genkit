@@ -217,7 +217,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         ],
     ),
 )
-def test_get_part_counts(test_parts, expected_part_counts) -> None:
+def test_get_part_counts(test_parts: list[Part], expected_part_counts: PartCounts) -> None:
     """Test get_part_counts utility."""
     assert get_part_counts(parts=test_parts) == expected_part_counts
 
@@ -378,7 +378,11 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
         ],
     ),
 )
-def test_get_basic_usage_stats(test_input, test_response, expected_output) -> None:
+def test_get_basic_usage_stats(
+    test_input: list[Message],
+    test_response: Message | list[Candidate],
+    expected_output: GenerationUsage,
+) -> None:
     """Test get_basic_usage_stats utility."""
     assert get_basic_usage_stats(input_=test_input, response=test_response) == expected_output
 

@@ -19,13 +19,14 @@
 
 """MCP Server implementation for exposing Genkit actions via Model Context Protocol."""
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.resource import matches_uri_template
+from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
 from genkit.core.schema import to_json_schema
@@ -64,6 +65,12 @@ from .util import (
 logger = structlog.get_logger(__name__)
 
 
+def _get_resource_meta(metadata: dict[str, object]) -> dict[str, Any]:
+    """Extract resource metadata from action metadata with proper typing."""
+    raw = metadata.get('resource', {})
+    return cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
+
+
 class McpServerOptions(BaseModel):
     """Options for creating an MCP server.
 
@@ -94,13 +101,13 @@ class McpServer:
         self.options = options
         self.server: Server | None = None
         self.actions_resolved = False
-        self.tool_actions: list[Any] = []
-        self.prompt_actions: list[Any] = []
-        self.resource_actions: list[Any] = []
-        self.tool_actions_map: dict[str, Any] = {}
-        self.prompt_actions_map: dict[str, Any] = {}
-        self.resource_uri_map: dict[str, Any] = {}
-        self.resource_templates: list[tuple[str, Any]] = []
+        self.tool_actions: list[Action] = []
+        self.prompt_actions: list[Action] = []
+        self.resource_actions: list[Action] = []
+        self.tool_actions_map: dict[str, Action] = {}
+        self.prompt_actions_map: dict[str, Action] = {}
+        self.resource_uri_map: dict[str, Action] = {}
+        self.resource_templates: list[tuple[str, Action]] = []
 
     async def setup(self) -> None:
         """Initialize the MCP server and register request handlers.
@@ -147,7 +154,7 @@ class McpServer:
                     elif kind == ActionKind.RESOURCE:
                         self.resource_actions.append(action)
                         metadata = action.metadata or {}
-                        resource_meta = metadata.get('resource', {})
+                        resource_meta = _get_resource_meta(metadata)
                         if resource_meta.get('uri'):
                             self.resource_uri_map[resource_meta['uri']] = action
                         if resource_meta.get('template'):
@@ -169,7 +176,7 @@ class McpServer:
                 elif kind == ActionKind.RESOURCE and action not in self.resource_actions:
                     self.resource_actions.append(action)
                     metadata = action.metadata or {}
-                    resource_meta = metadata.get('resource', {})
+                    resource_meta = _get_resource_meta(metadata)
                     if resource_meta.get('uri'):
                         self.resource_uri_map[resource_meta['uri']] = action
                     if resource_meta.get('template'):
@@ -312,7 +319,7 @@ class McpServer:
         resources: list[Resource] = []
         for action in self.resource_actions:
             metadata = action.metadata or {}
-            resource_meta = metadata.get('resource', {})
+            resource_meta = _get_resource_meta(metadata)
 
             # Only include resources with fixed URIs (not templates)
             if resource_meta.get('uri'):
@@ -340,7 +347,7 @@ class McpServer:
         templates: list[ResourceTemplate] = []
         for action in self.resource_actions:
             metadata = action.metadata or {}
-            resource_meta = metadata.get('resource', {})
+            resource_meta = _get_resource_meta(metadata)
 
             # Only include resources with templates
             if resource_meta.get('template'):
@@ -394,7 +401,7 @@ class McpServer:
 
         return ReadResourceResult(contents=contents)
 
-    async def start(self, transport: Any = None) -> None:
+    async def start(self, transport: object = None) -> None:
         """Start the MCP server with the specified transport.
 
         Args:
@@ -409,7 +416,7 @@ class McpServer:
                 await self.server.run(read, write, self.server.create_initialization_options())
         else:
             # Connect the transport
-            async with transport as (read, write):
+            async with transport as (read, write):  # type: ignore[union-attr]
                 assert self.server is not None
                 await self.server.run(read, write, self.server.create_initialization_options())
 

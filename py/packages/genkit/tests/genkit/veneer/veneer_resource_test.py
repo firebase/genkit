@@ -20,9 +20,12 @@ This test file verifies that `ai.define_resource` works correctly, mirroring the
 JS SDK's `ai.defineResource`.
 """
 
+from typing import Any, cast
+
 import pytest
 
-from genkit.ai import Genkit
+from genkit.ai import ActionRunContext, Genkit
+from genkit.blocks.resource import ResourceInput
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import Part, TextPart
 
@@ -32,13 +35,16 @@ async def test_define_resource_veneer() -> None:
     """Verifies ai.define_resource registers a resource correctly."""
     ai = Genkit(plugins=[])
 
-    async def my_resource_fn(input, ctx):
+    async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, list[Part]]:
         return {'content': [Part(root=TextPart(text=f'Content for {input.uri}'))]}
 
     act = ai.define_resource({'uri': 'http://example.com/foo'}, my_resource_fn)
 
     assert act.name == 'http://example.com/foo'
-    assert act.metadata['resource']['uri'] == 'http://example.com/foo'
+    assert act.metadata is not None
+    metadata = cast(dict[str, Any], act.metadata)
+    resource_meta = cast(dict[str, Any], metadata['resource'])
+    assert resource_meta['uri'] == 'http://example.com/foo'
 
     # Verify lookup via global registry (contained in ai.registry)
     looked_up = await ai.registry.resolve_action(ActionKind.RESOURCE, 'http://example.com/foo')

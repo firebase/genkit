@@ -27,13 +27,13 @@ from genkit.ai import Genkit
 class MockSchema:
     """Mock schema."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: object) -> None:
         """Initialize mock schema."""
         for k, v in kwargs.items():
             setattr(self, k, v)
 
 
-def mock_mcp_modules():
+def mock_mcp_modules() -> tuple[MagicMock, None]:
     """Sets up comprehensive MCP mocks in sys.modules."""
     # We only mock the runtime components that do I/O or logic we want to control
     # types are imported from the real library now
@@ -56,7 +56,7 @@ def define_echo_model(ai: Genkit) -> None:
     """Defines a fake echo model for testing."""
 
     @ai.tool(name='echoModel')
-    def echo_model(request: Any) -> None:
+    def echo_model(request: object) -> None:
         # This is a simplified mock of a model action
         # Real model action would handle GenerateRequest and return GenerateResponse
 

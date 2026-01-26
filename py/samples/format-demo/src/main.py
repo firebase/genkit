@@ -36,6 +36,7 @@ Example inputs for testing in the Dev UI (pre-populated with defaults):
 
 import asyncio
 import os
+from typing import Any, cast
 
 import structlog
 from pydantic import BaseModel, Field
@@ -111,7 +112,7 @@ async def get_country_info_json(input: CountryInfoInput) -> dict:
         prompt=f'Give me information about {input.country}',
         output=OutputConfig(format='json', schema=CountryInfo.model_json_schema()),
     )
-    return response.output
+    return cast(dict[str, Any], response.output)
 
 
 # --- 3. Array Format ---
@@ -153,7 +154,7 @@ async def recommend_books_array(input: RecommendBooksInput) -> list:
             },
         ),
     )
-    return response.output
+    return cast(list[Any], response.output)
 
 
 # --- 4. Enum Format ---
@@ -189,7 +190,7 @@ async def classify_sentiment_enum(input: ClassifySentimentInput) -> str:
             },
         ),
     )
-    return response.output
+    return cast(str, response.output)
 
 
 # --- 5. JSONL Format ---
@@ -235,7 +236,7 @@ async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> li
             },
         ),
     )
-    return response.output
+    return cast(list[Any], response.output)
 
 
 async def main() -> None:

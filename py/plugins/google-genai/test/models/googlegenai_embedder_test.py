@@ -18,6 +18,7 @@
 
 import pytest
 from google import genai
+from pytest_mock import MockerFixture
 
 from genkit.ai import Document
 from genkit.plugins.google_genai.models.embedder import (
@@ -32,7 +33,7 @@ from genkit.types import (
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in GeminiEmbeddingModels])
-async def test_embedding(mocker, version) -> None:
+async def test_embedding(mocker: MockerFixture, version: GeminiEmbeddingModels) -> None:
     """Test the embedding method."""
     request_text = 'request text'
     embedding_values = [0.0017063986, -0.044727605, 0.043327782, 0.00044852644]

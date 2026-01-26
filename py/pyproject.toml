@@ -83,7 +83,7 @@ addopts = [
   "-vv",
 ]
 asyncio_default_fixture_loop_scope = "session"
-python_files = ["test_*.py", "*_test.py"]
+python_files = ["*_test.py"]
 testpaths = ["packages", "plugins", "samples", "tests"]
 #asyncio_mode = "auto"
 asyncio_mode = "strict"
@@ -169,15 +169,15 @@ unsafe-fixes = true
 [tool.ruff.lint]
 fixable = ["ALL"]
 select = [
-  "E",  # pycodestyle (errors)
-  "W",  # pycodestyle (warnings)
-  "F",  # pyflakes
-  "I",  # isort (import sorting)
-  "UP", # pyupgrade (Python version upgrades)
-  "B",  # flake8-bugbear (common bugs)
-  "N",  # pep8-naming (naming conventions)
-  "D",  # pydocstyle
-  #"ANN",  # flake8-annotations (type hints)
+  "E",    # pycodestyle (errors)
+  "W",    # pycodestyle (warnings)
+  "F",    # pyflakes
+  "I",    # isort (import sorting)
+  "UP",   # pyupgrade (Python version upgrades)
+  "B",    # flake8-bugbear (common bugs)
+  "N",    # pep8-naming (naming conventions)
+  "D",    # pydocstyle
+  "ANN",  # flake8-annotations (type hints)
   "F401", # unused imports
   "F403", # wildcard imports
   "F841", # unused variables

@@ -17,7 +17,7 @@
 """ModelGarden API Compatible Plugin for Genkit."""
 
 import os
-from typing import Any, cast
+from typing import cast
 
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
@@ -77,7 +77,7 @@ class ModelGardenPlugin(Plugin):
         self.models = models
         self.model_locations = model_locations or {}
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize plugin.
 
         Returns:
@@ -85,7 +85,7 @@ class ModelGardenPlugin(Plugin):
         """
         return []
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -100,7 +100,7 @@ class ModelGardenPlugin(Plugin):
 
         return self._create_model_action(name)
 
-    def _create_model_action(self, name: str):
+    def _create_model_action(self, name: str) -> Action:
         """Create an Action object for a Model Garden Vertex AI model.
 
         Args:
@@ -161,9 +161,9 @@ class ModelGardenPlugin(Plugin):
             metadata={
                 'model': {
                     **(
-                        cast(Any, model_info).model_dump()
+                        model_info.model_dump()  # type: ignore[union-attr]
                         if hasattr(model_info, 'model_dump')
-                        else cast(dict[str, Any], model_info)
+                        else cast(dict[str, object], model_info)
                     ),
                     'customOptions': to_json_schema(OpenAIConfig),
                 },

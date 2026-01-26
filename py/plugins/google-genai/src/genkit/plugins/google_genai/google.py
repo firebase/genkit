@@ -125,7 +125,7 @@ class GoogleAI(Plugin):
             http_options=_inject_attribution_headers(http_options),
         )
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize the plugin.
 
         Returns:
@@ -171,7 +171,7 @@ class GoogleAI(Plugin):
             actions.append(self._resolve_embedder(googleai_name(embedder_name.value)))
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -187,7 +187,7 @@ class GoogleAI(Plugin):
             return self._resolve_embedder(name)
         return None
 
-    def _resolve_model(self, name: str):
+    def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Google AI model.
 
         Args:
@@ -211,7 +211,7 @@ class GoogleAI(Plugin):
             metadata=gemini_model.metadata,
         )
 
-    def _resolve_embedder(self, name: str):
+    def _resolve_embedder(self, name: str) -> Action:
         """Create an Action object for a Google AI embedder.
 
         Args:
@@ -330,7 +330,7 @@ class VertexAI(Plugin):
             http_options=_inject_attribution_headers(http_options),
         )
 
-    async def init(self) -> list:
+    async def init(self) -> list[Action]:
         """Initialize the plugin.
 
         Returns:
@@ -379,7 +379,7 @@ class VertexAI(Plugin):
             actions.append(self._resolve_embedder(vertexai_name(embedder_name.value)))
         return actions
 
-    async def resolve(self, action_type: ActionKind, name: str):
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by creating and returning an Action object.
 
         Args:
@@ -395,7 +395,7 @@ class VertexAI(Plugin):
             return self._resolve_embedder(name)
         return None
 
-    def _resolve_model(self, name: str):
+    def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Vertex AI model.
 
         Args:
@@ -423,7 +423,7 @@ class VertexAI(Plugin):
             metadata=model.metadata,
         )
 
-    def _resolve_embedder(self, name: str):
+    def _resolve_embedder(self, name: str) -> Action:
         """Create an Action object for a Vertex AI embedder.
 
         Args:

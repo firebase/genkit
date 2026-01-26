@@ -50,7 +50,7 @@ def chat_model_plugin(ollama_model: str) -> Ollama:
 
 @pytest.fixture
 def genkit_veneer_chat_model(
-    mock_ollama_api_async_client,
+    mock_ollama_api_async_client: MagicMock,
     ollama_model: str,
     chat_model_plugin: Ollama,
 ) -> Genkit:
@@ -92,7 +92,7 @@ def generate_model_plugin(ollama_model: str) -> Ollama:
 
 @pytest.fixture
 def genkit_veneer_generate_model(
-    mock_ollama_api_async_client,
+    mock_ollama_api_async_client: MagicMock,
     ollama_model: str,
     generate_model_plugin: Ollama,
 ) -> Genkit:
@@ -134,6 +134,6 @@ def mock_ollama_api_async_client() -> Generator[MagicMock | AsyncMock, None, Non
 
 @pytest.fixture
 @patch('ollama.AsyncClient')
-def ollama_plugin_instance(ollama_async_client):
+def ollama_plugin_instance(ollama_async_client: MagicMock) -> Ollama:
     """Common instance of ollama plugin."""
     return Ollama()

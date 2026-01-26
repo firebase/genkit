@@ -41,6 +41,8 @@ from mcp.types import (
     Tool,
 )
 
+from genkit.blocks.resource import ResourceInput
+
 # Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
 Genkit: Any = None
 McpClient: Any = None
@@ -287,7 +289,7 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         """Test that template resources match correctly."""
         server_ai = Genkit()
 
-        def file_resource(req):
+        def file_resource(req: ResourceInput) -> dict[str, list[dict[str, str]]]:
             uri = req.uri
             return {'content': [{'text': f'Contents of {uri}'}]}
 
