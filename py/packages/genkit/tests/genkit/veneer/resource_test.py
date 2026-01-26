@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the Genkit Resource API via the Genkit class (Veneer).
+
 This test file verifies that `ai.define_resource` works correctly, mirroring the
 JS SDK's `ai.defineResource`.
 """
@@ -22,11 +23,12 @@ JS SDK's `ai.defineResource`.
 import pytest
 
 from genkit.ai import Genkit
+from genkit.core.action.types import ActionKind
 from genkit.core.typing import Part, TextPart
 
 
 @pytest.mark.asyncio
-async def test_define_resource_veneer():
+async def test_define_resource_veneer() -> None:
     """Verifies ai.define_resource registers a resource correctly."""
     ai = Genkit(plugins=[])
 
@@ -39,7 +41,7 @@ async def test_define_resource_veneer():
     assert act.metadata['resource']['uri'] == 'http://example.com/foo'
 
     # Verify lookup via global registry (contained in ai.registry)
-    looked_up = await ai.registry.resolve_action('resource', 'http://example.com/foo')
+    looked_up = await ai.registry.resolve_action(ActionKind.RESOURCE, 'http://example.com/foo')
     assert looked_up == act
 
     # Verify execution

@@ -25,7 +25,6 @@ The module includes:
     - Utility functions for converting and formatting trace attributes
 """
 
-import json
 import os
 import sys
 from collections.abc import Sequence
@@ -100,7 +99,7 @@ class TelemetryServerSpanExporter(SpanExporter):
         telemetry_server_url: The URL of the telemetry server endpoint.
     """
 
-    def __init__(self, telemetry_server_url: str, telemetry_server_endpoint: str | None = None):
+    def __init__(self, telemetry_server_url: str, telemetry_server_endpoint: str | None = None) -> None:
         """Initializes the TelemetryServerSpanExporter.
 
         Args:

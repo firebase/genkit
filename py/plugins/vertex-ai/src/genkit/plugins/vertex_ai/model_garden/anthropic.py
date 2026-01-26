@@ -23,7 +23,10 @@ from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.plugins.compat_oai.typing import SupportedOutputFormat
 from genkit.types import GenerationCommonConfig, ModelInfo, Supports
 
-from .model_garden import model_garden_name
+from genkit.ai import ActionRunContext
+from genkit.core.typing import Supports
+from genkit.plugins.anthropic.models import AnthropicModel
+from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
 
 
 SUPPORTED_ANTHROPIC_MODELS: dict[str, ModelInfo] = {
@@ -148,7 +151,6 @@ class AnthropicModelGarden:
         model: str,
         location: str,
         project_id: str,
-        registry: GenkitRegistry,
     ) -> None:
         """Initializes the AnthropicModelGarden instance.
 
@@ -159,17 +161,15 @@ class AnthropicModelGarden:
                 is hosted (e.g., 'us-central1').
             project_id: The Google Cloud project ID where the Model Garden
                 model is deployed.
-            registry: An instance of `GenkitRegistry` to register the model with.
         """
         self.name = model
-        self.ai = registry
         self.client = AsyncAnthropicVertex(region=location, project_id=project_id)
+        # Strip 'anthropic/' prefix for the model passed to Anthropic SDK
+        clean_model_name = model.removeprefix('anthropic/')
+        self._anthropic_model = AnthropicModel(model_name=clean_model_name, client=cast(AsyncAnthropic, self.client))
 
-    def define_model(self) -> None:
-        """Defines and registers the Anthropic model with the Genkit registry."""
-        # Strip 'anthropic/' prefix if present for the model passed to Anthropic SDK
-        # But for model definition in Genkit, use the full name format we want to expose
-        clean_model_name = self.name.removeprefix('anthropic/')
+    def get_handler(self) -> Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]:
+        """Returns the generate handler function for this model.
 
         # AnthropicModel wrapper from genkit-anthropic expects the clean name (e.g. claude-3-5-sonnet...)
         anthropic_model = AnthropicModel(model_name=clean_model_name, client=cast(AsyncAnthropic, self.client))
@@ -191,3 +191,8 @@ class AnthropicModelGarden:
                 ).model_dump()
             },
         )
+
+    @staticmethod
+    def get_config_schema():
+        """Returns the config schema for this model type."""
+        return GenerationCommonConfig

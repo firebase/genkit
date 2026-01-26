@@ -131,22 +131,22 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
 """
 
-import sys  # noqa
-from datetime import datetime, timezone, timedelta
+import sys
+from datetime import datetime, timedelta, timezone
 
 from genkit.plugins.google_genai.models.context_caching.constants import DEFAULT_TTL
 from genkit.plugins.google_genai.models.context_caching.utils import generate_cache_key, validate_context_cache_request
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 from functools import cached_property
-from typing import Any
+from typing import Any, cast
 
 from google import genai
-from google.genai import types as genai_types  # type: ignore
+from google.genai import types as genai_types
 
 from genkit.ai import (
     ActionRunContext,
@@ -161,6 +161,7 @@ from genkit.lang.deprecations import (
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit.types import (
+    Constrained,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -218,7 +219,7 @@ GEMINI_1_5_PRO = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -236,7 +237,7 @@ GEMINI_1_5_FLASH = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -250,7 +251,7 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -262,7 +263,7 @@ GEMINI_2_0_FLASH = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -274,7 +275,7 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -286,7 +287,7 @@ GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -298,7 +299,7 @@ GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -310,7 +311,7 @@ GEMINI_2_0_FLASH_THINKING_EXP_01_21 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -322,7 +323,7 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -334,7 +335,7 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -346,7 +347,7 @@ GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -358,7 +359,7 @@ GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -370,7 +371,7 @@ GENERIC_GEMINI_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text', 'json'],
     ),
 )
@@ -383,7 +384,7 @@ GENERIC_TTS_MODEL = ModelInfo(
         tools=False,
         tool_choice=False,
         system_role=False,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -395,7 +396,7 @@ GENERIC_IMAGE_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text'],
     ),
 )
@@ -408,7 +409,7 @@ GENERIC_GEMMA_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text', 'json'],
     ),
 )
@@ -610,7 +611,7 @@ DEFAULT_SUPPORTS_MODEL = Supports(
     tools=True,
     tool_choice=True,
     system_role=True,
-    constrained='no-tools',
+    constrained=Constrained.NO_TOOLS,
 )
 
 
@@ -641,7 +642,7 @@ class GeminiModel:
         self,
         version: str | GoogleAIGeminiVersion | VertexAIGeminiVersion,
         client: genai.Client,
-    ):
+    ) -> None:
         """Initialize Gemini model.
 
         Args:
@@ -661,7 +662,7 @@ class GeminiModel:
              list of Gemini tools
         """
         tools = []
-        for tool in request.tools:
+        for tool in request.tools or []:
             genai_tool = self._create_tool(tool)
             tools.append(genai_tool)
 
@@ -691,7 +692,7 @@ class GeminiModel:
         return genai_types.Tool(function_declarations=[function])
 
     def _convert_schema_property(
-        self, input_schema: dict[str, Any], defs: dict[str, Any] | None = None
+        self, input_schema: dict[str, Any] | None, defs: dict[str, Any] | None = None
     ) -> genai_types.Schema | None:
         """Sanitizes a schema to be compatible with Gemini API.
 
@@ -706,7 +707,7 @@ class GeminiModel:
             return None
 
         if defs is None:
-            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
+            defs = input_schema.get('$defs') or {}
 
         if '$ref' in input_schema:
             ref_path = input_schema['$ref']
@@ -718,7 +719,7 @@ class GeminiModel:
 
             schema = self._convert_schema_property(defs[ref_name], defs)
 
-            if input_schema.get('description'):
+            if schema and input_schema.get('description'):
                 schema.description = input_schema['description']
 
             return schema
@@ -748,7 +749,8 @@ class GeminiModel:
                 properties = input_schema.get('properties', {})
                 for key in properties:
                     nested_schema = self._convert_schema_property(properties[key], defs)
-                    schema.properties[key] = nested_schema
+                    if nested_schema:
+                        schema.properties[key] = nested_schema
 
         return schema
 
@@ -782,16 +784,16 @@ class GeminiModel:
             if item.display_name == cache_key:
                 cache = item
                 break
-        if cache:
+        if cache and cache.name:
             updated_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=ttl)
             cache = await self._client.aio.caches.update(
-                name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
+                name=cache.name, config=genai_types.UpdateCachedContentConfig(expire_time=updated_expiration_time)
             )
         else:
             cache = await self._client.aio.caches.create(
                 model=model_name,
                 config=genai_types.CreateCachedContentConfig(
-                    contents=contents,
+                    contents=cast(genai_types.ContentListUnion, contents),
                     display_name=cache_key,
                     ttl=f'{ttl}s',
                 ),
@@ -819,7 +821,9 @@ class GeminiModel:
 
         request_contents, cached_content = await self._build_messages(request=request, model_name=model_name)
 
-        if cached_content:
+        if cached_content and cached_content.name:
+            if not request_cfg:
+                request_cfg = genai_types.GenerateContentConfig()
             request_cfg.cached_content = cached_content.name
 
         client = self._client
@@ -840,29 +844,36 @@ class GeminiModel:
             # If the library changes its internal structure (e.g. renames _api_client or _credentials),
             # this code WILL BREAK.
             api_client = self._client._api_client
-            kwargs = {
-                'vertexai': api_client.vertexai,
-                'http_options': {'api_version': api_version},
-            }
+            http_opts: genai_types.HttpOptionsDict = {'api_version': api_version}
             if api_client.vertexai:
-                # Vertex AI mode: requires project/location (api_key is optional/unlikely)
-                if api_client.project:
-                    kwargs['project'] = api_client.project
-                if api_client.location:
-                    kwargs['location'] = api_client.location
-                if api_client._credentials:
-                    kwargs['credentials'] = api_client._credentials
-                # Don't pass api_key if we are in Vertex AI mode with credentials/project
+                # Vertex AI mode: requires project/location
+                client = genai.Client(
+                    vertexai=True,
+                    http_options=http_opts,
+                    project=api_client.project,
+                    location=api_client.location,
+                    credentials=api_client._credentials,
+                )
             else:
                 # Google AI mode: primarily uses api_key
                 if api_client.api_key:
-                    kwargs['api_key'] = api_client.api_key
-                # Do NOT pass project/location/credentials if in Google AI mode to be safe
-                if api_client._credentials and not kwargs.get('api_key'):
-                    # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
-                    kwargs['credentials'] = api_client._credentials
-
-            client = genai.Client(**kwargs)
+                    client = genai.Client(
+                        vertexai=False,
+                        http_options=http_opts,
+                        api_key=api_client.api_key,
+                    )
+                elif api_client._credentials:
+                    # Fallback if no api_key but credentials present
+                    client = genai.Client(
+                        vertexai=False,
+                        http_options=http_opts,
+                        credentials=api_client._credentials,
+                    )
+                else:
+                    client = genai.Client(
+                        vertexai=False,
+                        http_options=http_opts,
+                    )
 
         if ctx.is_streaming:
             response = await self._streaming_generate(
@@ -884,7 +895,7 @@ class GeminiModel:
     async def _generate(
         self,
         request_contents: list[genai_types.Content],
-        request_cfg: genai_types.GenerateContentConfig,
+        request_cfg: genai_types.GenerateContentConfig | None,
         model_name: str,
         client: genai.Client | None = None,
     ) -> GenerateResponse:
@@ -894,6 +905,7 @@ class GeminiModel:
             request_contents: request contents
             request_cfg: request configuration
             model_name: name of generation model to use
+            client: optional client to use for the request
 
         Returns:
             genai response.
@@ -912,7 +924,9 @@ class GeminiModel:
             )
             client = client or self._client
             response = await client.aio.models.generate_content(
-                model=model_name, contents=request_contents, config=request_cfg
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
             span.set_attribute('genkit:output', dump_json(response))
 
@@ -940,6 +954,7 @@ class GeminiModel:
             request_cfg: request configuration
             ctx: action context
             model_name: name of generation model to use
+            client: optional client to use for the request
 
         Returns:
             empty genai response
@@ -955,7 +970,9 @@ class GeminiModel:
             )
             client = client or self._client
             generator = client.aio.models.generate_content_stream(
-                model=model_name, contents=request_contents, config=request_cfg
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
         accumulated_content = []
         async for response_chunk in await generator:
@@ -982,7 +999,11 @@ class GeminiModel:
         Returns:
             model metadata.
         """
-        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
+        model_info = SUPPORTED_MODELS.get(self._version)
+        if model_info and model_info.supports:
+            supports = model_info.supports.model_dump()
+        else:
+            supports = {}
         return {
             'model': {
                 'supports': supports,
@@ -991,7 +1012,7 @@ class GeminiModel:
 
     async def _build_messages(
         self, request: GenerateRequest, model_name: str
-    ) -> tuple[list[genai_types.Content], genai_types.CachedContent]:
+    ) -> tuple[list[genai_types.Content], genai_types.CachedContent | None]:
         """Build google-genai request contents from Genkit request.
 
         Args:
@@ -1041,7 +1062,7 @@ class GeminiModel:
         content = []
         if response.candidates:
             for candidate in response.candidates:
-                if candidate.content:
+                if candidate.content and candidate.content.parts:
                     for i, part in enumerate(candidate.content.parts):
                         content.append(PartConverter.from_gemini(part=part, ref=str(i)))
 
@@ -1126,6 +1147,8 @@ class GeminiModel:
             tools.extend(self._get_tools(request))
 
         if tools:
+            if not cfg:
+                cfg = genai_types.GenerateContentConfig()
             cfg.tools = tools
 
         system_messages = list(filter(lambda m: m.role == Role.SYSTEM, request.messages))
@@ -1136,7 +1159,11 @@ class GeminiModel:
 
             for msg in system_messages:
                 for p in msg.content:
-                    system_parts.append(PartConverter.to_gemini(p))
+                    converted = PartConverter.to_gemini(p)
+                    if isinstance(converted, list):
+                        system_parts.extend(converted)
+                    else:
+                        system_parts.append(converted)
             cfg.system_instruction = genai.types.Content(parts=system_parts)
 
         return cfg
@@ -1151,7 +1178,10 @@ class GeminiModel:
         Returns:
             usage statistics
         """
-        usage = get_basic_usage_stats(input_=request.messages, response=response.message)
+        if response.message:
+            usage = get_basic_usage_stats(input_=request.messages, response=response.message)
+        else:
+            usage = GenerationUsage()
         if response.usage:
             usage.input_tokens = response.usage.input_tokens
             usage.output_tokens = response.usage.output_tokens

@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Simple MCP client example."""
+
 import asyncio
 
 from genkit.ai import Genkit
@@ -22,11 +25,12 @@ from genkit.plugins.mcp import McpServerConfig, create_mcp_client
 try:
     from genkit.plugins.google_genai import GoogleAI
 except ImportError:
-    GoogleAI = None
+    GoogleAI = None  # type: ignore
 
 
 # Simple client example connecting to 'everything' server using npx
-async def main():
+async def main() -> None:
+    """Run the simple MCP client."""
     # Define the client plugin
     everything_client = create_mcp_client(
         name='everything', config=McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-everything'])

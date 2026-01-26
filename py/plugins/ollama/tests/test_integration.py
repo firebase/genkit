@@ -22,7 +22,7 @@ import ollama as ollama_api
 import pytest
 
 from genkit.ai import ActionKind, Genkit
-from genkit.types import GenerateResponse, Message, Role, TextPart
+from genkit.types import GenerateResponse, Message, Part, Role, TextPart
 
 
 @pytest.mark.asyncio
@@ -69,7 +69,7 @@ async def test_async_get_chat_model_response_from_llama_api_flow(
                 Message(
                     role=Role.USER,
                     content=[
-                        TextPart(text='Test message'),
+                        Part(root=TextPart(text='Test message')),
                     ],
                 )
             ]
@@ -100,7 +100,7 @@ async def test_async_get_generate_model_response_from_llama_api_flow(
                 Message(
                     role=Role.USER,
                     content=[
-                        TextPart(text='Test message'),
+                        Part(root=TextPart(text='Test message')),
                     ],
                 )
             ]

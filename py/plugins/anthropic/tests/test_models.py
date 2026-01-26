@@ -40,7 +40,7 @@ def _create_sample_request() -> GenerateRequest:
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text='Hello, how are you?')],
+                content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
         config=GenerationCommonConfig(),
@@ -59,7 +59,7 @@ def _create_sample_request() -> GenerateRequest:
 
 
 @pytest.mark.asyncio
-async def test_generate_basic():
+async def test_generate_basic() -> None:
     """Test basic generation."""
     sample_request = _create_sample_request()
 
@@ -74,18 +74,21 @@ async def test_generate_basic():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
     response = await model.generate(sample_request)
 
+    assert response.message is not None
+    assert response.message.content is not None
     assert len(response.message.content) == 1
     part = response.message.content[0]
     actual_part = part.root if isinstance(part, Part) else part
     assert isinstance(actual_part, TextPart)
     assert actual_part.text == "Hello! I'm doing well."
+    assert response.usage is not None
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 15
     assert response.finish_reason == 'stop'
 
 
 @pytest.mark.asyncio
-async def test_generate_with_tools():
+async def test_generate_with_tools() -> None:
     """Test generation with tool calls."""
     sample_request = _create_sample_request()
 
@@ -105,17 +108,20 @@ async def test_generate_with_tools():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
     response = await model.generate(sample_request)
 
+    assert response.message is not None
+    assert response.message.content is not None
     assert len(response.message.content) == 1
     part = response.message.content[0]
     actual_part = part.root if isinstance(part, Part) else part
     assert isinstance(actual_part, ToolRequestPart)
+    assert actual_part.tool_request is not None
     assert actual_part.tool_request.name == 'get_weather'
     assert actual_part.tool_request.ref == 'tool_123'
     assert actual_part.tool_request.input == {'location': 'Paris'}
 
 
 @pytest.mark.asyncio
-async def test_generate_with_config():
+async def test_generate_with_config() -> None:
     """Test generation with custom config."""
     mock_client = MagicMock()
     mock_response = MagicMock()
@@ -128,7 +134,7 @@ async def test_generate_with_config():
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
     request = GenerateRequest(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Test')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config=GenerationCommonConfig(
             temperature=0.7,
             max_output_tokens=100,
@@ -144,28 +150,28 @@ async def test_generate_with_config():
     assert call_args.kwargs['top_p'] == 0.9
 
 
-def test_extract_system():
+def test_extract_system() -> None:
     """Test system prompt extraction."""
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
     messages = [
-        Message(role=Role.SYSTEM, content=[TextPart(text='You are helpful.')]),
-        Message(role=Role.USER, content=[TextPart(text='Hello')]),
+        Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are helpful.'))]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
     ]
 
     system = model._extract_system(messages)
     assert system == 'You are helpful.'
 
 
-def test_to_anthropic_messages():
+def test_to_anthropic_messages() -> None:
     """Test message conversion."""
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
     messages = [
-        Message(role=Role.USER, content=[TextPart(text='Hello')]),
-        Message(role=Role.MODEL, content=[TextPart(text='Hi there')]),
+        Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
+        Message(role=Role.MODEL, content=[Part(root=TextPart(text='Hi there'))]),
     ]
 
     anthropic_messages = model._to_anthropic_messages(messages)
@@ -178,9 +184,12 @@ def test_to_anthropic_messages():
 
 
 class MockStreamManager:
+    """Mock stream manager for testing Anthropic streaming."""
+
     """Mock stream manager for testing streaming."""
 
-    def __init__(self, chunks, final_content=None):
+    def __init__(self, chunks, final_content=None) -> None:
+        """Initialize the MockStreamManager."""
         self.chunks = chunks
         self.final_message = MagicMock()
         self.final_message.content = final_content if final_content else []
@@ -188,25 +197,30 @@ class MockStreamManager:
         self.final_message.stop_reason = 'end_turn'
 
     async def __aenter__(self):
+        """Enter the async context manager."""
         return self
 
     async def __aexit__(self, *args):
+        """Exit the async context manager."""
         pass
 
     def __aiter__(self):
+        """Return the async iterator."""
         return self
 
     async def __anext__(self):
+        """Return the next chunk from the stream."""
         if not self.chunks:
             raise StopAsyncIteration
         return self.chunks.pop(0)
 
     async def get_final_message(self):
+        """Get the final message from the stream."""
         return self.final_message
 
 
 @pytest.mark.asyncio
-async def test_streaming_generation():
+async def test_streaming_generation() -> None:
     """Test streaming generation."""
     sample_request = _create_sample_request()
 
@@ -228,7 +242,7 @@ async def test_streaming_generation():
     ctx.is_streaming = True
     collected_chunks = []
 
-    def send_chunk(chunk: GenerateResponseChunk):
+    def send_chunk(chunk: GenerateResponseChunk) -> None:
         collected_chunks.append(chunk)
 
     ctx.send_chunk = send_chunk
@@ -248,10 +262,12 @@ async def test_streaming_generation():
     chunk2_actual = chunk2_part.root if isinstance(chunk2_part, Part) else chunk2_part
     assert chunk2_actual.text == '!'
 
+    assert response.usage is not None
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 20
 
     # Verify final response content is populated
+    assert response.message is not None
     assert len(response.message.content) == 1
     final_part = response.message.content[0]
     assert isinstance(final_part, Part)

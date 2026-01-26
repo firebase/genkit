@@ -14,23 +14,33 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Note: ty type checker has a known limitation with StrEnum where it sees
+# enum members as Literal values instead of the enum type. We use ty: ignore
+# comments to suppress these false positives. See: https://github.com/python/typing/issues/1367
+
+"""Tests for AI plugin functionality."""
 
 import pytest
 
 from genkit.ai import Genkit, Plugin
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
-from genkit.types import GenerateRequest, GenerateResponse, Message, Role, TextPart
+from genkit.core.typing import FinishReason
+from genkit.types import GenerateRequest, GenerateResponse, Message, Part, Role, TextPart
 
 
 class AsyncResolveOnlyPlugin(Plugin):
+    """Plugin that only implements async resolve."""
+
     name = 'async-resolve-only'
 
     async def init(self):
+        """Initialize the plugin."""
         # Intentionally register nothing eagerly.
         return []
 
     async def resolve(self, action_type: ActionKind, name: str):
+        """Resolve an action."""
         if action_type != ActionKind.MODEL:
             return None
         if name != f'{self.name}/lazy-model':
@@ -38,8 +48,8 @@ class AsyncResolveOnlyPlugin(Plugin):
 
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
-                message=Message(role=Role.MODEL, content=[TextPart(text='OK: lazy')]),
-                finish_reason='stop',
+                message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: lazy'))]),
+                finish_reason=FinishReason.STOP,
             )
 
         return Action(
@@ -49,6 +59,7 @@ class AsyncResolveOnlyPlugin(Plugin):
         )
 
     async def list_actions(self):
+        """List available actions."""
         return [
             ActionMetadata(
                 kind=ActionKind.MODEL,
@@ -58,13 +69,17 @@ class AsyncResolveOnlyPlugin(Plugin):
 
 
 class AsyncInitPlugin(Plugin):
+    """Plugin that implements async init."""
+
     name = 'async-init-plugin'
 
     async def init(self):
+        """Initialize the plugin."""
         action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')
         return [action]
 
     async def resolve(self, action_type: ActionKind, name: str):
+        """Resolve an action."""
         if action_type != ActionKind.MODEL:
             return None
         if name != f'{self.name}/init-model':
@@ -72,8 +87,8 @@ class AsyncInitPlugin(Plugin):
 
         async def _generate(req: GenerateRequest, ctx):
             return GenerateResponse(
-                message=Message(role=Role.MODEL, content=[TextPart(text='OK: resolve')]),
-                finish_reason='stop',
+                message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: resolve'))]),
+                finish_reason=FinishReason.STOP,
             )
 
         return Action(
@@ -83,6 +98,7 @@ class AsyncInitPlugin(Plugin):
         )
 
     async def list_actions(self):
+        """List available actions."""
         return [
             ActionMetadata(
                 kind=ActionKind.MODEL,
@@ -92,14 +108,16 @@ class AsyncInitPlugin(Plugin):
 
 
 @pytest.mark.asyncio
-async def test_async_resolve_is_awaited_via_generate():
+async def test_async_resolve_is_awaited_via_generate() -> None:
+    """Test that async resolve is awaited when calling generate."""
     ai = Genkit(plugins=[AsyncResolveOnlyPlugin()])
     resp = await ai.generate('async-resolve-only/lazy-model', prompt='hello')
     assert resp.text == 'OK: lazy'
 
 
 @pytest.mark.asyncio
-async def test_async_init_is_awaited_via_generate():
+async def test_async_init_is_awaited_via_generate() -> None:
+    """Test that async init is awaited when calling generate."""
     ai = Genkit(plugins=[AsyncInitPlugin()])
     resp = await ai.generate('async-init-plugin/init-model', prompt='hello')
     assert resp.text == 'OK: resolve'

@@ -16,7 +16,7 @@
 
 """OpenAI Compatible Model handlers for Genkit."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from openai import OpenAI
@@ -57,7 +57,8 @@ class OpenAIModelHandler:
                     Default source is openai.
 
         Returns:
-            Openai models if source is openai. Merges supported openai models with openai-compat models if source is model-garden.
+            Openai models if source is openai. Merges supported openai models
+            with openai-compat models if source is model-garden.
 
         """
         return SUPPORTED_OPENAI_COMPAT_MODELS if source == PluginSource.MODEL_GARDEN else SUPPORTED_OPENAI_MODELS
@@ -65,7 +66,7 @@ class OpenAIModelHandler:
     @classmethod
     def get_model_handler(
         cls, model: str, client: OpenAI, source: PluginSource = PluginSource.OPENAI
-    ) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
+    ) -> Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]:
         """Factory method to initialize the model handler for the specified OpenAI model.
 
         OpenAI models in this context are not instantiated as traditional
@@ -105,7 +106,7 @@ class OpenAIModelHandler:
         """
         supported_models = self._get_supported_models(self._source)
         model_info = supported_models[self._model.name]
-        if version not in model_info.versions:
+        if model_info.versions is not None and version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
@@ -123,7 +124,7 @@ class OpenAIModelHandler:
         """
         request.config = self._model.normalize_config(request.config)
 
-        if request.config.model:
+        if request.config and hasattr(request.config, 'model') and request.config.model:
             self._validate_version(request.config.model)
 
         return await self._model.generate(request, ctx)

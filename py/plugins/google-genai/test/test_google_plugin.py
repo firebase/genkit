@@ -63,7 +63,7 @@ class TestGoogleAIInit(unittest.TestCase):
     """Test cases for __init__ plugin."""
 
     @patch('google.genai.client.Client')
-    def test_init_with_api_key(self, mock_genai_client):
+    def test_init_with_api_key(self, mock_genai_client) -> None:
         """Test using api_key parameter."""
         api_key = 'test_api_key'
         plugin = GoogleAI(api_key=api_key)
@@ -80,7 +80,7 @@ class TestGoogleAIInit(unittest.TestCase):
 
     @patch('google.genai.client.Client')
     @patch.dict(os.environ, {'GEMINI_API_KEY': 'env_api_key'})
-    def test_init_from_env_var(self, mock_genai_client):
+    def test_init_from_env_var(self, mock_genai_client) -> None:
         """Test using env var for api_key."""
         plugin = GoogleAI()
         mock_genai_client.assert_called_once_with(
@@ -95,7 +95,7 @@ class TestGoogleAIInit(unittest.TestCase):
         self.assertIsInstance(plugin._client, MagicMock)
 
     @patch('google.genai.client.Client')
-    def test_init_with_credentials(self, mock_genai_client):
+    def test_init_with_credentials(self, mock_genai_client) -> None:
         """Test using credentials parameter."""
         mock_credentials = MagicMock(spec=Credentials)
         plugin = GoogleAI(credentials=mock_credentials)
@@ -110,7 +110,7 @@ class TestGoogleAIInit(unittest.TestCase):
         self.assertFalse(plugin._vertexai)
         self.assertIsInstance(plugin._client, MagicMock)
 
-    def test_init_raises_value_error_no_api_key(self):
+    def test_init_raises_value_error_no_api_key(self) -> None:
         """Test using credentials parameter."""
         with patch.dict(os.environ, {'GEMINI_API_KEY': ''}, clear=True):
             with self.assertRaisesRegex(
@@ -121,7 +121,7 @@ class TestGoogleAIInit(unittest.TestCase):
 
 
 @pytest.mark.asyncio
-async def test_googleai_initialize():
+async def test_googleai_initialize() -> None:
     """Unit tests for GoogleAI.init method."""
     api_key = 'test_api_key'
     plugin = GoogleAI(api_key=api_key)
@@ -145,7 +145,7 @@ async def test_googleai_initialize():
 
 @patch('genkit.plugins.google_genai.GoogleAI._resolve_model')
 @pytest.mark.asyncio
-async def test_googleai_resolve_action_model(mock_resolve_action, googleai_plugin_instance):
+async def test_googleai_resolve_action_model(mock_resolve_action, googleai_plugin_instance) -> None:
     """Test resolve action for model."""
     plugin = googleai_plugin_instance
 
@@ -155,7 +155,7 @@ async def test_googleai_resolve_action_model(mock_resolve_action, googleai_plugi
 
 @patch('genkit.plugins.google_genai.GoogleAI._resolve_embedder')
 @pytest.mark.asyncio
-async def test_googleai_resolve_action_embedder(mock_resolve_action, googleai_plugin_instance):
+async def test_googleai_resolve_action_embedder(mock_resolve_action, googleai_plugin_instance) -> None:
     """Test resolve action for embedder."""
     plugin = googleai_plugin_instance
 
@@ -185,7 +185,7 @@ def test_googleai__resolve_model(
     expected_model_name,
     key,
     googleai_plugin_instance,
-):
+) -> None:
     """Tests for GoogleAI._resolve_model method."""
     plugin = googleai_plugin_instance
 
@@ -214,7 +214,7 @@ def test_googleai__resolve_embedder(
     expected_model_name,
     clean_name,
     googleai_plugin_instance,
-):
+) -> None:
     """Tests for GoogleAI._resolve_embedder method."""
     plugin = googleai_plugin_instance
 
@@ -226,7 +226,7 @@ def test_googleai__resolve_embedder(
 
 
 @pytest.mark.asyncio
-async def test_googleai_list_actions(googleai_plugin_instance):
+async def test_googleai_list_actions(googleai_plugin_instance) -> None:
     """Unit test for list actions."""
 
     class MockModel(BaseModel):
@@ -380,7 +380,7 @@ async def test_googleai_list_actions(googleai_plugin_instance):
         ),
     ],
 )
-def test_inject_attribution_headers(input_options, expected_headers):
+def test_inject_attribution_headers(input_options, expected_headers) -> None:
     """Tests the _inject_attribution_headers function with various inputs."""
     result = _inject_attribution_headers(input_options)
     assert isinstance(result, HttpOptions)
@@ -392,7 +392,7 @@ class TestVertexAIInit(unittest.TestCase):
 
     @patch('google.genai.client.Client')
     @patch.dict(os.environ, {'GCLOUD_PROJECT': 'project'})
-    def test_init_with_api_key(self, mock_genai_client):
+    def test_init_with_api_key(self, mock_genai_client) -> None:
         """Test using api_key parameter."""
         api_key = 'test_api_key'
         plugin = VertexAI(api_key=api_key)
@@ -411,7 +411,7 @@ class TestVertexAIInit(unittest.TestCase):
 
     @patch('google.genai.client.Client')
     @patch.dict(os.environ, {'GCLOUD_PROJECT': 'project'})
-    def test_init_with_credentials(self, mock_genai_client):
+    def test_init_with_credentials(self, mock_genai_client) -> None:
         """Test using credentials parameter."""
         mock_credentials = MagicMock(spec=Credentials)
         plugin = VertexAI(credentials=mock_credentials)
@@ -429,7 +429,7 @@ class TestVertexAIInit(unittest.TestCase):
         self.assertIsInstance(plugin._client, MagicMock)
 
     @patch('google.genai.client.Client')
-    def test_init_with_all(self, mock_genai_client):
+    def test_init_with_all(self, mock_genai_client) -> None:
         """Test using credentials parameter."""
         mock_credentials = MagicMock(spec=Credentials)
         api_key = 'test_api_key'
@@ -461,7 +461,7 @@ def vertexai_plugin_instance(client):
 
 
 @pytest.mark.asyncio
-async def test_vertexai_initialize(vertexai_plugin_instance):
+async def test_vertexai_initialize(vertexai_plugin_instance) -> None:
     """Unit tests for VertexAI.init method."""
     plugin = vertexai_plugin_instance
 
@@ -484,7 +484,7 @@ async def test_vertexai_initialize(vertexai_plugin_instance):
 
 @patch('genkit.plugins.google_genai.VertexAI._resolve_model')
 @pytest.mark.asyncio
-async def test_vertexai_resolve_action_model(mock_resolve_action, vertexai_plugin_instance):
+async def test_vertexai_resolve_action_model(mock_resolve_action, vertexai_plugin_instance) -> None:
     """Test resolve action for model."""
     plugin = vertexai_plugin_instance
 
@@ -494,7 +494,7 @@ async def test_vertexai_resolve_action_model(mock_resolve_action, vertexai_plugi
 
 @patch('genkit.plugins.google_genai.VertexAI._resolve_embedder')
 @pytest.mark.asyncio
-async def test_vertexai_resolve_action_embedder(mock_resolve_action, vertexai_plugin_instance):
+async def test_vertexai_resolve_action_embedder(mock_resolve_action, vertexai_plugin_instance) -> None:
     """Test resolve action for embedder."""
     plugin = vertexai_plugin_instance
 
@@ -553,7 +553,7 @@ def test_vertexai__resolve_model(
     key,
     image,
     vertexai_plugin_instance,
-):
+) -> None:
     """Tests for VertexAI._resolve_model method."""
     plugin = vertexai_plugin_instance
     MagicMock(spec=Genkit)
@@ -600,7 +600,7 @@ def test_vertexai__resolve_embedder(
     expected_model_name,
     clean_name,
     vertexai_plugin_instance,
-):
+) -> None:
     """Tests for VertexAI._resolve_embedder method."""
     plugin = vertexai_plugin_instance
 
@@ -612,7 +612,7 @@ def test_vertexai__resolve_embedder(
 
 
 @pytest.mark.asyncio
-async def test_vertexai_list_actions(vertexai_plugin_instance):
+async def test_vertexai_list_actions(vertexai_plugin_instance) -> None:
     """Unit test for list actions."""
 
     class MockModel(BaseModel):

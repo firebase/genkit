@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the Genkit Resource API.
+
 This module verifies the functionality of defining, registering, and resolving resources
 in the Genkit framework. It covers static resources, template-based resources,
 dynamic resource matching, and metadata handling.
@@ -23,13 +24,15 @@ dynamic resource matching, and metadata handling.
 import pytest
 
 from genkit.blocks.resource import define_resource, resolve_resources, resource
+from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
-from genkit.core.typing import Part, TextPart
+from genkit.core.typing import Metadata, Part, TextPart
 
 
 @pytest.mark.asyncio
-async def test_define_resource():
+async def test_define_resource() -> None:
     """Verifies that a resource can be defined and registered correctly.
+
     Checks:
     - Resource name matches property.
     - Resource is retrievable from the registry by name.
@@ -48,13 +51,14 @@ async def test_define_resource():
     # Registry lookup for resources usually prepends /resource/ etc.
     # but define_resource registers it with name=uri
 
-    looked_up = await registry.resolve_action('resource', 'http://example.com/foo')
+    looked_up = await registry.resolve_action(ActionKind.RESOURCE, 'http://example.com/foo')
     assert looked_up == act
 
 
 @pytest.mark.asyncio
-async def test_resolve_resources():
+async def test_resolve_resources() -> None:
     """Verifies resolving resource references into Action objects.
+
     Checks:
     - Resolving by string name works.
     - Resolving by Action object passes through.
@@ -76,8 +80,9 @@ async def test_resolve_resources():
 
 
 @pytest.mark.asyncio
-async def test_find_matching_resource():
+async def test_find_matching_resource() -> None:
     """Verifies the logic for finding a matching resource given an input URI.
+
     Checks:
     - Exact match against registered static resources.
     - Template match against registered template resources.
@@ -123,8 +128,9 @@ async def test_find_matching_resource():
     assert res is None
 
 
-def test_is_dynamic_resource_action():
+def test_is_dynamic_resource_action() -> None:
     """Verifies identifying dynamic vs registered resource actions.
+
     Checks:
     - Unregistered resources created with `resource()` are dynamic.
     - Registered resources created with `define_resource()` are not dynamic.
@@ -146,8 +152,9 @@ def test_is_dynamic_resource_action():
 
 
 @pytest.mark.asyncio
-async def test_parent_metadata():
+async def test_parent_metadata() -> None:
     """Verifies that parent metadata is correctly attached to output items.
+
     When a resource is resolved via a template (e.g. `file://{id}`), the output parts
     should contain metadata referencing the parent resource URI and template.
     Checks:
@@ -156,7 +163,11 @@ async def test_parent_metadata():
     registry = Registry()
 
     async def fn(input, ctx):
-        return {'content': [Part(TextPart(text='sub1', metadata={'resource': {'uri': f'{input.uri}/sub1.txt'}}))]}
+        return {
+            'content': [
+                Part(TextPart(text='sub1', metadata=Metadata(root={'resource': {'uri': f'{input.uri}/sub1.txt'}})))
+            ]
+        }
 
     res = define_resource(registry, {'template': 'file://{id}'}, fn)
 
@@ -171,13 +182,14 @@ async def test_parent_metadata():
     assert part['metadata']['resource']['uri'] == 'file://dir/sub1.txt'
 
 
-def test_dynamic_resource_matching():
+def test_dynamic_resource_matching() -> None:
     """Verifies the matching logic for a simple static URI dynamic resource."""
 
     async def my_resource_fn(input, ctx):
         return {'content': [Part(TextPart(text='Match'))]}
 
     res = resource({'uri': 'http://example.com/foo'}, my_resource_fn)
+    assert res.matches is not None
 
     class MockInput:
         uri = 'http://example.com/foo'
@@ -190,8 +202,9 @@ def test_dynamic_resource_matching():
     assert not res.matches(MockInputBad())
 
 
-def test_template_matching():
+def test_template_matching() -> None:
     """Verifies URI template pattern matching.
+
     Checks:
     - Matches correct URI structure.
     - Fails on paths extending beyond the template structure (strict matching).
@@ -201,6 +214,7 @@ def test_template_matching():
         return {'content': []}
 
     res = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
+    assert res.matches is not None
 
     class MockInput:
         uri = 'http://example.com/items/123'
@@ -214,8 +228,9 @@ def test_template_matching():
     assert not res.matches(MockInputBad())
 
 
-def test_reserved_expansion_matching():
+def test_reserved_expansion_matching() -> None:
     """Verifies RFC 6570 reserved expansion {+var} pattern matching.
+
     Checks:
     - Matches correct URI structure with slashes (reserved chars).
     """
@@ -225,6 +240,7 @@ def test_reserved_expansion_matching():
 
     # Template with reserved expansion {+path} (matches slashes)
     res = resource({'template': 'http://example.com/files/{+path}'}, my_resource_fn)
+    assert res.matches is not None
 
     class MockInput:
         uri = 'http://example.com/files/foo/bar/baz.txt'
@@ -233,6 +249,7 @@ def test_reserved_expansion_matching():
 
     # Regular template {path} regex ([^/]+) should NOT match slashes
     res_simple = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
+    assert res_simple.matches is not None
 
     class MockInputComplex:
         uri = 'http://example.com/items/foo/bar'

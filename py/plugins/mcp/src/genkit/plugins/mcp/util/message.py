@@ -20,12 +20,12 @@ This module contains helper functions for converting between MCP message
 formats and Genkit message formats.
 """
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
 
 from genkit.core.typing import Message
-from mcp.types import ImageContent, PromptMessage, TextContent
+from mcp.types import ImageContent, PromptMessage, Role, TextContent
 
 logger = structlog.get_logger(__name__)
 
@@ -36,7 +36,7 @@ ROLE_MAP = {
 }
 
 
-def from_mcp_prompt_message(message: dict[str, Any]) -> dict[str, Any]:
+def from_mcp_prompt_message(message: dict[str, Any] | PromptMessage) -> dict[str, Any]:
     """Convert MCP PromptMessage to Genkit MessageData format.
 
     This involves mapping MCP roles (user, assistant) to Genkit roles (user, model)
@@ -48,9 +48,18 @@ def from_mcp_prompt_message(message: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Genkit MessageData object with 'role' and 'content' fields
     """
+    if isinstance(message, PromptMessage):
+        role = message.role
+        content = message.content
+        part_dict = content.model_dump() if hasattr(content, 'model_dump') else content
+    else:
+        role = message.get('role', 'user')
+        content = message.get('content', {})
+        part_dict = content
+
     return {
-        'role': ROLE_MAP.get(message.get('role', 'user'), 'user'),
-        'content': [from_mcp_part(message.get('content', {}))],
+        'role': ROLE_MAP.get(role, 'user'),
+        'content': [from_mcp_part(part_dict)],
     }
 
 
@@ -146,7 +155,7 @@ def to_mcp_prompt_message(message: Message) -> PromptMessage:
             f"MCP prompt messages do not support role '{message.role}'. Only 'user' and 'model' messages are supported."
         )
 
-    mcp_role = role_map[message.role]
+    mcp_role = cast(Role, role_map[message.role])
 
     # First, look for any media content as MCP content is currently single-part
     if message.content:

@@ -57,6 +57,7 @@ def test_genkit_error_to_json() -> None:
     assert isinstance(serializable, GenkitReflectionApiErrorWireFormat)
     assert serializable.code == 5
     assert serializable.message == 'Resource not found'
+    assert serializable.details is not None
     assert serializable.details.model_dump()['id'] == 123
 
 

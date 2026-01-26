@@ -14,27 +14,60 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for MCP host."""
+
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock
-
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-from fakes import mock_mcp_modules
-
-mock_mcp_modules()
-
 import unittest
-from unittest.mock import patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from genkit.ai import Genkit
+from mcp.types import Tool
 
-# Now import plugin
-from genkit.plugins.mcp import McpServerConfig, create_mcp_host
+# Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
+Genkit: Any = None
+McpServerConfig: Any = None
+create_mcp_host: Any = None
+
+
+def setup_mocks() -> None:
+    """Set up mocks for testing."""
+    global Genkit, McpServerConfig, create_mcp_host
+
+    # Add test directory to path for fakes
+    if os.path.dirname(__file__) not in sys.path:
+        sys.path.insert(0, os.path.dirname(__file__))
+
+    # Add src directory to path if not installed
+    src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'))
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+
+    try:
+        from fakes import mock_mcp_modules
+
+        mock_mcp_modules()
+
+        from genkit.ai import Genkit as _Genkit
+        from genkit.plugins.mcp import McpServerConfig as _McpServerConfig, create_mcp_host as _create_mcp_host
+
+        Genkit = _Genkit
+        McpServerConfig = _McpServerConfig
+        create_mcp_host = _create_mcp_host
+    except ImportError:
+        pass
 
 
 class TestMcpHost(unittest.IsolatedAsyncioTestCase):
-    async def test_connect_and_register(self):
+    """Tests for MCP host."""
+
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        setup_mocks()
+
+    async def test_connect_and_register(self) -> None:
+        """Test connect and register."""
         # Setup configs
         config1 = McpServerConfig(command='echo')
         config2 = McpServerConfig(url='http://localhost:8000')
@@ -48,9 +81,9 @@ class TestMcpHost(unittest.IsolatedAsyncioTestCase):
 
         # Mock session for registration
         host.clients['server1'].session = AsyncMock()
-        mock_tool = MagicMock()
-        mock_tool.name = 'tool1'
-        host.clients['server1'].session.list_tools.return_value.tools = [mock_tool]
+        host.clients['server1'].session = AsyncMock()
+        tool1 = Tool(name='tool1', description='tool desc', inputSchema={'type': 'object'})
+        host.clients['server1'].session.list_tools.return_value.tools = [tool1]
 
         ai = MagicMock(spec=Genkit)
         ai.registry = MagicMock()

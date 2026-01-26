@@ -49,12 +49,10 @@ from genkit.core.typing import (
     GenerationUsage,
     Media,
     MediaModel,
-    MediaPart,
     Message,
     ModelInfo,
     Part,
     Text,
-    TextPart,
     ToolRequestPart,
 )
 
@@ -102,7 +100,7 @@ class MessageWrapper(Message):
     def __init__(
         self,
         message: Message,
-    ):
+    ) -> None:
         """Initializes the MessageWrapper.
 
         Args:
@@ -161,7 +159,7 @@ class GenerateResponseWrapper(GenerateResponse):
         response: GenerateResponse,
         request: GenerateRequest,
         message_parser: MessageParser | None = None,
-    ):
+    ) -> None:
         """Initializes a GenerateResponseWrapper instance.
 
         Args:
@@ -178,14 +176,11 @@ class GenerateResponseWrapper(GenerateResponse):
                 else response.message
             )
 
-        # GenerateResponse uses camelCase aliases. Due to extra='forbid', we must
-        # use the alias names for ty type checker compatibility. The model has
-        # populate_by_name=True, so both aliases and Python names work at runtime.
         super().__init__(
             message=wrapped_message,
-            finishReason=response.finish_reason,
-            finishMessage=response.finish_message,
-            latencyMs=response.latency_ms,
+            finish_reason=response.finish_reason,
+            finish_message=response.finish_message,
+            latency_ms=response.latency_ms,
             usage=response.usage if response.usage is not None else GenerationUsage(),
             custom=response.custom if response.custom is not None else {},
             request=request,
@@ -194,7 +189,7 @@ class GenerateResponseWrapper(GenerateResponse):
         # Set subclass-specific field after parent initialization
         self.message_parser = message_parser
 
-    def assert_valid(self):
+    def assert_valid(self) -> None:
         """Validates the basic structure of the response.
 
         Note: This method is currently a placeholder (TODO).
@@ -205,7 +200,7 @@ class GenerateResponseWrapper(GenerateResponse):
         # TODO: implement
         pass
 
-    def assert_valid_schema(self):
+    def assert_valid_schema(self) -> None:
         """Validates that the response message conforms to any specified output schema.
 
         Note: This method is currently a placeholder (TODO).
@@ -294,7 +289,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         previous_chunks: list[GenerateResponseChunk],
         index: int,
         chunk_parser: ChunkParser | None = None,
-    ):
+    ) -> None:
         """Initializes the GenerateResponseChunkWrapper.
 
         Args:
@@ -431,18 +426,15 @@ def get_basic_usage_stats(input_: list[Message], response: Message | list[Candid
     input_counts = get_part_counts(parts=request_parts)
     output_counts = get_part_counts(parts=response_parts)
 
-    # GenerationUsage uses camelCase aliases. Due to extra='forbid', we must
-    # use the alias names for ty type checker compatibility. The model has
-    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerationUsage(
-        inputCharacters=input_counts.characters,
-        inputImages=input_counts.images,
-        inputVideos=input_counts.videos,
-        inputAudioFiles=input_counts.audio,
-        outputCharacters=output_counts.characters,
-        outputImages=output_counts.images,
-        outputVideos=output_counts.videos,
-        outputAudioFiles=output_counts.audio,
+        input_characters=input_counts.characters,
+        input_images=input_counts.images,
+        input_videos=input_counts.videos,
+        input_audio_files=input_counts.audio,
+        output_characters=output_counts.characters,
+        output_images=output_counts.images,
+        output_videos=output_counts.videos,
+        output_audio_files=output_counts.audio,
     )
 
 

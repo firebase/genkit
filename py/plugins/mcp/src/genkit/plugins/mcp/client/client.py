@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""MCP Client implementation for connecting to Model Context Protocol servers."""
+
 from typing import Any
 
 import structlog
@@ -25,12 +27,14 @@ from genkit.core.action.types import ActionKind
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import CallToolResult, Prompt, Resource, Tool
+from mcp.types import AnyUrl, CallToolResult, Prompt, Resource, TextContent, Tool
 
 logger = structlog.get_logger(__name__)
 
 
 class McpServerConfig(BaseModel):
+    """Configuration for an MCP server connection."""
+
     command: str | None = None
     args: list[str] | None = None
     env: dict[str, str] | None = None
@@ -41,7 +45,14 @@ class McpServerConfig(BaseModel):
 class McpClient(Plugin):
     """Client for connecting to a single MCP server."""
 
-    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
+    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None) -> None:
+        """Initialize the MCP client.
+
+        Args:
+            name: The plugin name.
+            config: The server configuration.
+            server_name: Optional display name for the server.
+        """
         self.name = name
         self.config = config
         self.server_name = server_name or name
@@ -51,6 +62,7 @@ class McpClient(Plugin):
         self.ai: Genkit | None = None
 
     def plugin_name(self) -> str:
+        """Returns the name of the plugin."""
         return self.name
 
     async def init(self) -> list[Action]:
@@ -87,7 +99,7 @@ class McpClient(Plugin):
         """
         return []
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connects to the MCP server."""
         if self.config.disabled:
             logger.info(f'MCP server {self.server_name} is disabled.')
@@ -118,6 +130,7 @@ class McpClient(Plugin):
                 self.session = await session_context.__aenter__()
                 self._session_context = session_context
 
+            assert self.session is not None
             await self.session.initialize()
             logger.info(f'Connected to MCP server: {self.server_name}')
 
@@ -128,7 +141,7 @@ class McpClient(Plugin):
             await self.close()
             raise e
 
-    async def close(self):
+    async def close(self) -> None:
         """Closes the connection."""
         if hasattr(self, '_session_context') and self._session_context:
             try:
@@ -142,12 +155,14 @@ class McpClient(Plugin):
                 logger.debug(f'Error closing transport: {e}')
 
     async def list_tools(self) -> list[Tool]:
+        """Lists tools available on the MCP server."""
         if not self.session:
             return []
         result = await self.session.list_tools()
         return result.tools
 
     async def call_tool(self, tool_name: str, arguments: dict) -> Any:
+        """Calls a tool on the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
         result: CallToolResult = await self.session.call_tool(tool_name, arguments)
@@ -156,32 +171,39 @@ class McpClient(Plugin):
             raise RuntimeError(f'Tool execution failed: {result.content}')
 
         # Simple text extraction for now
-        texts = [c.text for c in result.content if c.type == 'text']
+        texts = []
+        for c in result.content:
+            if c.type == 'text' and isinstance(c, TextContent):
+                texts.append(c.text)
         return ''.join(texts)
 
     async def list_prompts(self) -> list[Prompt]:
+        """Lists prompts available on the MCP server."""
         if not self.session:
             return []
         result = await self.session.list_prompts()
         return result.prompts
 
     async def get_prompt(self, name: str, arguments: dict | None = None) -> Any:
+        """Gets a prompt from the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
         return await self.session.get_prompt(name, arguments)
 
     async def list_resources(self) -> list[Resource]:
+        """Lists resources available on the MCP server."""
         if not self.session:
             return []
         result = await self.session.list_resources()
         return result.resources
 
     async def read_resource(self, uri: str) -> Any:
+        """Reads a resource from the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-        return await self.session.read_resource(uri)
+        return await self.session.read_resource(AnyUrl(uri))
 
-    async def register_tools(self, ai: Genkit | None = None):
+    async def register_tools(self, ai: Genkit | None = None) -> None:
         """Registers all tools from connected client to Genkit."""
         registry = ai.registry if ai else (self.ai.registry if self.ai else None)
         if not registry:
@@ -228,4 +250,5 @@ class McpClient(Plugin):
 
 
 def create_mcp_client(config: McpServerConfig, name: str = 'mcp-client') -> McpClient:
+    """Creates a new MCP client instance."""
     return McpClient(name, config)

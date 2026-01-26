@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""PDF RAG sample flows."""
+
 import os
+from typing import Annotated
 
 from genkit_demo import ai
+from pydantic import Field
 from pypdf import PdfReader
 
 from genkit.blocks.document import Document
@@ -24,6 +28,7 @@ pdf_chat_indexer = 'pdf_qa'
 
 
 def rag_template(context: str, question: str) -> str:
+    """Create a prompt for RAG."""
     return f"""Use the following pieces of context to answer the question at the end.
 If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
@@ -34,7 +39,19 @@ Helpful Answer:"""
 
 # Define a simple RAG flow, we will evaluate this flow
 @ai.flow(name='pdf_qa')
-async def pdf_qa(query: str) -> str:
+async def pdf_qa(query: Annotated[str, Field(default='What is in the PDF?')] = 'What is in the PDF?') -> str:
+    """Answer questions about PDF content.
+
+    Args:
+        query: The user question.
+
+    Returns:
+        The answer.
+
+    Example:
+        >>> await pdf_qa('What is in the PDF?')
+        "The PDF contains..."
+    """
     docs = await ai.retrieve(
         retriever=pdf_chat_retriever,
         query=query,
@@ -47,7 +64,9 @@ async def pdf_qa(query: str) -> str:
 
     augmented_prompt = rag_template(
         question=query,
-        context='\n\n'.join([d.text() for d in docs.documents]),
+        context='\n\n'.join([
+            d.content[0].root.text or '' for d in docs.documents if d.content and d.content[0].root.text
+        ]),
     )
     llm_response = await ai.generate(
         model='googleai/gemini-2.5-flash',
@@ -58,7 +77,19 @@ async def pdf_qa(query: str) -> str:
 
 # Define a simple structured flow, we will evaluate this flow
 @ai.flow(name='simple_structured')
-async def simple_structured(query: str) -> str:
+async def simple_structured(query: Annotated[str, Field(default='Tell me a joke')] = 'Tell me a joke') -> str:
+    """Generate a structured response (simple generation).
+
+    Args:
+        query: The prompt.
+
+    Returns:
+        Generated text.
+
+    Example:
+        >>> await simple_structured('Hello')
+        "Hi there"
+    """
     llm_response = await ai.generate(
         model='googleai/gemini-2.5-flash',
         prompt=query,
@@ -68,7 +99,19 @@ async def simple_structured(query: str) -> str:
 
 # Define a simple flow
 @ai.flow(name='simple_echo')
-async def simple_echo(i: str) -> str:
+async def simple_echo(i: Annotated[str, Field(default='Hello, echo!')] = 'Hello, echo!') -> str:
+    """Echo input using the model.
+
+    Args:
+        i: Input string.
+
+    Returns:
+        Generated response.
+
+    Example:
+        >>> await simple_echo('echo')
+        "echo"
+    """
     llm_response = await ai.generate(
         model='googleai/gemini-2.5-flash',
         prompt=i,
@@ -82,6 +125,7 @@ OVERLAP = 100
 
 
 def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
+    """Split text into chunks."""
     chunks = []
     start = 0
     while start < len(text):
@@ -95,6 +139,14 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
 # genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
 @ai.flow(name='index_pdf')
 async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf') -> None:
+    """Index a PDF file.
+
+    Args:
+        file_path: Path to the PDF.
+
+    Example:
+        >>> await index_pdf('doc.pdf')
+    """
     if not file_path:
         file_path = 'samples/evaluator-demo/docs/cat-wiki.pdf'
     file_path = os.path.abspath(file_path)
@@ -105,7 +157,7 @@ async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf')
     # Chunk text
     chunks = chunk_text(pdf_txt, CHUNK_SIZE, OVERLAP)
 
-    documents = [Document.from_text(text, {'filePath': file_path}) for text in chunks]
+    documents = [Document.from_text(text, metadata={'filePath': file_path}) for text in chunks]
 
     await ai.index(
         indexer=pdf_chat_indexer,
@@ -114,6 +166,7 @@ async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf')
 
 
 def extract_text(file_path: str) -> str:
+    """Extract text from a PDF file."""
     reader = PdfReader(file_path)
     pdf_txt = ''
     for i, page in enumerate(reader.pages):

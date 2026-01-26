@@ -14,9 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Prompt demo sample."""
+
 import os
 import weakref
 from pathlib import Path
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -37,7 +40,17 @@ prompts_path = current_dir.parent / 'prompts'
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-3-flash-preview', prompt_dir=prompts_path)
 
 
-def list_helper(data, *args, **kwargs):
+def list_helper(data: Any, *args: Any, **kwargs: Any) -> str:
+    """Format a list of strings as bullet points.
+
+    Args:
+        data: List of items to format.
+        *args: Variable length argument list.
+        **kwargs: Arbitrary keyword arguments.
+
+    Returns:
+        Formatted string or empty string if not a list.
+    """
     if not isinstance(data, list):
         return ''
     return '\n'.join(f'- {item}' for item in data)
@@ -47,11 +60,15 @@ ai.define_helper('list', list_helper)
 
 
 class Ingredient(BaseModel):
+    """An ingredient in a recipe."""
+
     name: str
     quantity: str
 
 
 class Recipe(BaseModel):
+    """A recipe."""
+
     title: str = Field(..., description='recipe title')
     ingredients: list[Ingredient]
     steps: list[str] = Field(..., description='the steps required to complete the recipe')
@@ -62,7 +79,7 @@ ai.define_schema('Recipe', Recipe)
 _sticky_prompts = {}
 
 
-async def get_sticky_prompt(name: str, variant: str | None = None):
+async def get_sticky_prompt(name: str, variant: str | None = None) -> Any:
     """Helper to get a prompt and keep it alive."""
     key = f'{name}:{variant}' if variant else name
     if key in _sticky_prompts:
@@ -86,11 +103,25 @@ async def get_sticky_prompt(name: str, variant: str | None = None):
 
 
 class ChefInput(BaseModel):
-    food: str
+    """Input for the chef flow."""
+
+    food: str = Field(default='banana bread', description='The food to create a recipe for')
 
 
 @ai.flow(name='chef_flow')
 async def chef_flow(input: ChefInput) -> Recipe:
+    """Generate a recipe for the given food.
+
+    Args:
+        input: Input containing the food item.
+
+    Returns:
+        A formatted recipe.
+
+    Example:
+        >>> await chef_flow(ChefInput(food='banana bread'))
+        Recipe(title='Banana Bread', ...)
+    """
     await logger.ainfo(f'chef_flow called with input: {input}')
     recipe_prompt = await get_sticky_prompt('recipe')
 
@@ -103,6 +134,18 @@ async def chef_flow(input: ChefInput) -> Recipe:
 
 @ai.flow(name='robot_chef_flow')
 async def robot_chef_flow(input: ChefInput) -> Recipe:
+    """Generate a robot-themed recipe for the given food.
+
+    Args:
+        input: Input containing the food item.
+
+    Returns:
+        A formatted robot recipe.
+
+    Example:
+        >>> await robot_chef_flow(ChefInput(food='cookie'))
+        Recipe(title='Robo-Cookie', ...)
+    """
     await logger.ainfo(f'robot_chef_flow called with input: {input}')
     recipe_prompt = await get_sticky_prompt('recipe', variant='robot')
     result = Recipe.model_validate((await recipe_prompt(input={'food': input.food})).output)
@@ -111,15 +154,30 @@ async def robot_chef_flow(input: ChefInput) -> Recipe:
 
 
 class StoryInput(BaseModel):
-    subject: str
-    personality: str | None = None
+    """Input for the story flow."""
+
+    subject: str = Field(default='a brave little toaster', description='The subject of the story')
+    personality: str | None = Field(default='courageous', description='Optional personality trait')
 
 
 @ai.flow(name='tell_story')
 async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
+    """Tell a story about the given subject.
+
+    Args:
+        input: Input containing the subject and optional personality.
+        ctx: Action context for streaming.
+
+    Returns:
+        The generated story text.
+
+    Example:
+        >>> await tell_story(StoryInput(subject='toaster', personality='courageous'), ctx)
+        'Once upon a time...'
+    """
     await logger.ainfo(f'tell_story called with input: {input}')
     story_prompt = await get_sticky_prompt('story')
-    stream, response = story_prompt.stream(input={'subject': input.subject, 'personality': input.personality})
+    stream, _response = story_prompt.stream(input={'subject': input.subject, 'personality': input.personality})
 
     full_text = ''
     async for chunk in stream:
@@ -131,7 +189,8 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
     return full_text
 
 
-async def main():
+async def main() -> None:
+    """Run the sample flows."""
     prompts = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
     executable_prompts = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
     all_prompts = list(prompts.keys()) + list(executable_prompts.keys())

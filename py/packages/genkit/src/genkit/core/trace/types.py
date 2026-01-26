@@ -50,7 +50,7 @@ class GenkitSpan:
     is_root: bool
     _span: trace_api.Span
 
-    def __init__(self, span: trace_api.Span, labels: dict[str, str] | None = None):
+    def __init__(self, span: trace_api.Span, labels: dict[str, str] | None = None) -> None:
         """Create GenkitSpan."""
         self._span = span
         parent = getattr(span, 'parent', None)

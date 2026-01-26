@@ -23,10 +23,11 @@ to accomplish a task.
 """
 
 import inspect
-from collections.abc import Callable
-from typing import Any, Awaitable, Generic, TypeVar, cast
+from collections.abc import Awaitable, Callable
+from typing import Any, Generic, TypeVar, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document
 from genkit.core.action import ActionMetadata
@@ -45,7 +46,7 @@ class Retriever(Generic[T]):
     def __init__(
         self,
         retriever_fn: RetrieverFn[T],
-    ):
+    ) -> None:
         """Initialize a Retriever.
 
         Args:
@@ -83,9 +84,9 @@ class RetrieverInfo(BaseModel):
 class RetrieverOptions(BaseModel):
     """Configuration options for a retriever."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    config_schema: dict[str, Any] | None = None
     label: str | None = None
     supports: RetrieverSupports | None = None
 
@@ -156,9 +157,9 @@ class IndexerInfo(BaseModel):
 class IndexerOptions(BaseModel):
     """Configuration options for an indexer."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    config_schema: dict[str, Any] | None = None
     label: str | None = None
     supports: RetrieverSupports | None = None
 

@@ -17,6 +17,7 @@
 """ModelGarden API Compatible Plugin for Genkit."""
 
 import os
+from typing import Any, cast
 
 from typing import cast
 
@@ -188,6 +189,8 @@ class ModelGardenPlugin(Plugin):
             )
 
         location = self.model_locations.get(clean_name, self.location)
+        if not self.project_id:
+            raise ValueError('project_id must be provided')
         model_proxy = ModelGarden(
             model=clean_name,
             location=location,

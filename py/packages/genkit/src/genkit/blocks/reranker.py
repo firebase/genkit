@@ -124,7 +124,8 @@ You can define custom rerankers for specific use cases:
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document
 from genkit.core.action import Action, ActionMetadata
@@ -218,9 +219,9 @@ class RerankerInfo(BaseModel):
 class RerankerOptions(BaseModel):
     """Configuration options for a reranker."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    config_schema: dict[str, Any] | None = None
     label: str | None = None
     supports: RerankerSupports | None = None
 

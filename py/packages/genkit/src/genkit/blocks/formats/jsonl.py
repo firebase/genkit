@@ -54,7 +54,7 @@ class JsonlFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the JsonlFormat.
 
         Configures the format with:
@@ -64,8 +64,7 @@ class JsonlFormat(FormatDef):
         super().__init__(
             'jsonl',
             FormatterConfig(
-                # NOTE: Using camelCase alias for ty type checker compatibility.
-                contentType='application/jsonl',
+                content_type='application/jsonl',
             ),
         )
 

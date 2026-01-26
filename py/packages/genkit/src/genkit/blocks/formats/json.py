@@ -46,7 +46,7 @@ class JsonFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes a JsonFormat instance.
 
         Sets up the format definition with configurations suitable for JSON,
@@ -56,8 +56,7 @@ class JsonFormat(FormatDef):
             'json',
             FormatterConfig(
                 format='json',
-                # NOTE: Using camelCase alias for ty type checker compatibility.
-                contentType='application/json',
+                content_type='application/json',
                 constrained=True,
                 default_instructions=False,
             ),

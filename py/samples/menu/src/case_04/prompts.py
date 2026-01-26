@@ -13,12 +13,14 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-from menu_ai import ai
-from menu_schemas import DataMenuQuestionInputSchema
+"""Prompts for case 04."""
 
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
-s04_ragDataMenuPrompt = ai.define_prompt(
+from ..menu_ai import ai
+from ..menu_schemas import DataMenuQuestionInputSchema
+
+s04_rag_data_menu_prompt = ai.define_prompt(
     variant='s04_ragDataMenu',
     model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=DataMenuQuestionInputSchema,

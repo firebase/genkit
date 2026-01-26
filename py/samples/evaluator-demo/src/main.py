@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Evaluator demo main entry point."""
+
 import argparse
 import asyncio
 import random
@@ -25,11 +28,20 @@ import pdf_rag  # noqa: F401
 import setup  # noqa: F401
 from genkit_demo import ai
 
-from genkit.core.typing import BaseEvalDataPoint, EvalStatusEnum, Score
+from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
 
 
 # Test evaluator that generates random scores and randomly fails
-async def random_eval(datapoint: BaseEvalDataPoint, options: dict | None = None):
+async def random_eval(datapoint: BaseDataPoint, options: dict | None = None) -> EvalFnResponse:
+    """Evaluate a datapoint with random results.
+
+    Args:
+        datapoint: The datapoint to evaluate.
+        options: Optional configuration.
+
+    Returns:
+        The evaluation response.
+    """
     score = random.random()
     # Throw if score is 0.5x (10% prob.)
     if 0.5 <= score < 0.6:
@@ -37,10 +49,13 @@ async def random_eval(datapoint: BaseEvalDataPoint, options: dict | None = None)
 
     # PASS if score > 0.5, else FAIL
     status = EvalStatusEnum.FAIL if score < 0.5 else EvalStatusEnum.PASS_
-    return Score(
-        score=score,
-        status=status,
-        details={'reasoning': 'Randomly failed' if status == EvalStatusEnum.FAIL else 'Randomly passed'},
+    return EvalFnResponse(
+        test_case_id=datapoint.test_case_id or '',
+        evaluation=Score(
+            score=score,
+            status=status,
+            details=Details(reasoning='Randomly failed' if status == EvalStatusEnum.FAIL else 'Randomly passed'),
+        ),
     )
 
 
@@ -52,7 +67,7 @@ ai.define_evaluator(
 )
 
 
-async def main():
+async def main() -> None:
     """Keep alive for Dev UI."""
     print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI

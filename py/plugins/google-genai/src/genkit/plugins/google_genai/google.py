@@ -14,8 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Google AI and Vertex AI plugin implementations."""
+
 import os
-from typing import Any
 
 from google import genai
 from google.auth.credentials import Credentials
@@ -250,8 +252,11 @@ class GoogleAI(Plugin):
         """
         actions_list = list()
         for m in self._client.models.list():
-            name = m.name.replace('models/', '')
-            if 'generateContent' in m.supported_actions:
+            model_name = m.name
+            if not model_name:
+                continue
+            name = model_name.replace('models/', '')
+            if m.supported_actions and 'generateContent' in m.supported_actions:
                 actions_list.append(
                     model_action_metadata(
                         name=googleai_name(name),
@@ -259,7 +264,7 @@ class GoogleAI(Plugin):
                     ),
                 )
 
-            if 'embedContent' in m.supported_actions:
+            if m.supported_actions and 'embedContent' in m.supported_actions:
                 embed_info = default_embedder_info(name)
                 actions_list.append(
                     embedder_action_metadata(
@@ -459,7 +464,10 @@ class VertexAI(Plugin):
         """
         actions_list = list()
         for m in self._client.models.list():
-            name = m.name.replace('publishers/google/models/', '')
+            model_name = m.name
+            if not model_name:
+                continue
+            name = model_name.replace('publishers/google/models/', '')
             if 'embed' in name.lower():
                 embed_info = default_embedder_info(name)
                 actions_list.append(
@@ -484,25 +492,29 @@ class VertexAI(Plugin):
         return actions_list
 
 
-def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
+def _inject_attribution_headers(http_options: HttpOptions | HttpOptionsDict | None = None) -> HttpOptions:
     """Adds genkit client info to the appropriate http headers."""
-    if not http_options:
-        http_options = HttpOptions()
+    # Normalize to HttpOptions instance
+    opts: HttpOptions
+    if http_options is None:
+        opts = HttpOptions()
+    elif isinstance(http_options, HttpOptions):
+        opts = http_options
     else:
-        if isinstance(http_options, dict):
-            http_options = HttpOptions(**http_options)
+        # HttpOptionsDict or other dict-like - use model_validate for proper type conversion
+        opts = HttpOptions.model_validate(http_options)
 
-    if not http_options.headers:
-        http_options.headers = {}
+    if not opts.headers:
+        opts.headers = {}
 
-    if 'x-goog-api-client' not in http_options.headers:
-        http_options.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
+    if 'x-goog-api-client' not in opts.headers:
+        opts.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
     else:
-        http_options.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
 
-    if 'user-agent' not in http_options.headers:
-        http_options.headers['user-agent'] = GENKIT_CLIENT_HEADER
+    if 'user-agent' not in opts.headers:
+        opts.headers['user-agent'] = GENKIT_CLIENT_HEADER
     else:
-        http_options.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
 
-    return http_options
+    return opts

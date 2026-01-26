@@ -15,27 +15,32 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Base API for dev-local-vectorstore."""
+
 import copy
 import json
 import os
-from abc import ABC
 from functools import cached_property
 from typing import Any
 
 from .constant import DbValue
 
 
-class LocalVectorStoreAPI(ABC):
+class LocalVectorStoreAPI:
+    """Base class for development local vector store operations."""
+
     _LOCAL_FILESTORE_TEMPLATE = '__db_{index_name}.json'
 
     def __init__(
         self,
         index_name: str,
-    ):
+    ) -> None:
+        """Initialize the LocalVectorStoreAPI."""
         self.index_name = index_name
 
     @cached_property
     def index_file_name(self):
+        """Get the filename of the index file."""
         return self._LOCAL_FILESTORE_TEMPLATE.format(index_name=self.index_name)
 
     def _load_filestore(self) -> dict[str, DbValue]:

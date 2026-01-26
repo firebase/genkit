@@ -14,13 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import base64
-import sys  # noqa
+"""Imagen model implementation for Google GenAI plugin."""
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+import base64
+import sys
+
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 from functools import cached_property
 
@@ -35,6 +37,7 @@ from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Media,
+    MediaPart,
     Message,
     ModelInfo,
     Part,
@@ -59,7 +62,7 @@ SUPPORTED_MODELS = {
             media=True,
             multiturn=False,
             tools=False,
-            systemRole=False,
+            system_role=False,
             output=['media'],
         ),
     ),
@@ -69,7 +72,7 @@ SUPPORTED_MODELS = {
             media=False,
             multiturn=False,
             tools=False,
-            systemRole=False,
+            system_role=False,
             output=['media'],
         ),
     ),
@@ -79,7 +82,7 @@ SUPPORTED_MODELS = {
             media=False,
             multiturn=False,
             tools=False,
-            systemRole=False,
+            system_role=False,
             output=['media'],
         ),
     ),
@@ -89,7 +92,7 @@ DEFAULT_IMAGE_SUPPORT = Supports(
     media=True,
     multiturn=False,
     tools=False,
-    systemRole=False,
+    system_role=False,
     output=['media'],
 )
 
@@ -117,7 +120,7 @@ def vertexai_image_model_info(
 class ImagenModel:
     """Imagen text-to-image model."""
 
-    def __init__(self, version: str | ImagenVersion, client: genai.Client):
+    def __init__(self, version: str | ImagenVersion, client: genai.Client) -> None:
         """Initialize Imagen model.
 
         Args:
@@ -179,7 +182,7 @@ class ImagenModel:
             )
         )
 
-    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict:
+    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict | None:
         cfg = None
 
         if request.config:
@@ -206,15 +209,18 @@ class ImagenModel:
         content = []
         if response.generated_images:
             for image in response.generated_images:
-                b64_data = base64.b64encode(image.image.image_bytes).decode('utf-8')
-                content.append(
-                    Part(
-                        media=Media(
-                            url=f'data:{image.image.mime_type};base64,{b64_data}',
-                            contentType=image.image.mime_type,
+                if image.image and image.image.image_bytes:
+                    b64_data = base64.b64encode(image.image.image_bytes).decode('utf-8')
+                    content.append(
+                        Part(
+                            root=MediaPart(
+                                media=Media(
+                                    url=f'data:{image.image.mime_type};base64,{b64_data}',
+                                    content_type=image.image.mime_type,
+                                )
+                            )
                         )
                     )
-                )
 
         return content
 
@@ -225,9 +231,11 @@ class ImagenModel:
         Returns:
             model metadata.
         """
-        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
-        return {
-            'model': {
-                'supports': supports,
+        supports = SUPPORTED_MODELS[self._version].supports
+        if supports:
+            return {
+                'model': {
+                    'supports': supports.model_dump(),
+                }
             }
-        }
+        return {'model': {'supports': {}}}

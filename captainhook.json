@@ -41,6 +41,9 @@
           "run": "bin/fmt"
         },
         {
+          "run": "bin/lint"
+        },
+        {
           "run": "py/bin/run_python_tests_with_tox p"
         },
         {
@@ -79,6 +82,9 @@
         },
         {
           "run": "bin/fmt"
+        },
+        {
+          "run": "bin/lint"
         },
         {
           "run": "py/bin/run_python_tests_with_tox p"

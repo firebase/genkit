@@ -31,21 +31,21 @@ from genkit.plugins.ollama.models import ModelDefinition
 class TestOllamaInit(unittest.TestCase):
     """Test cases for Ollama.__init__ plugin."""
 
-    def test_init_with_models(self):
+    def test_init_with_models(self) -> None:
         """Test correct propagation of models param."""
         model_ref = ModelDefinition(name='test_model')
         plugin = Ollama(models=[model_ref])
 
         assert plugin.models[0] == model_ref
 
-    def test_init_with_embedders(self):
+    def test_init_with_embedders(self) -> None:
         """Test correct propagation of embedders param."""
         embedder_ref = EmbeddingDefinition(name='test_embedder')
         plugin = Ollama(embedders=[embedder_ref])
 
         assert plugin.embedders[0] == embedder_ref
 
-    def test_init_with_options(self):
+    def test_init_with_options(self) -> None:
         """Test correct propagation of other options param."""
         model_ref = ModelDefinition(name='test_model')
         embedder_ref = EmbeddingDefinition(name='test_embedder')
@@ -66,7 +66,7 @@ class TestOllamaInit(unittest.TestCase):
 
 
 @pytest.mark.asyncio
-async def test_initialize(ollama_plugin_instance):
+async def test_initialize(ollama_plugin_instance) -> None:
     """Test init method of Ollama plugin."""
     model_ref = ModelDefinition(name='test_model')
     embedder_ref = EmbeddingDefinition(name='test_embedder')
@@ -93,7 +93,7 @@ async def test_initialize(ollama_plugin_instance):
     ],
 )
 @pytest.mark.asyncio
-async def test_resolve_action(kind, name, ollama_plugin_instance):
+async def test_resolve_action(kind, name, ollama_plugin_instance) -> None:
     """Unit Tests for resolve action method."""
     action = await ollama_plugin_instance.resolve(kind, ollama_name(name))
 
@@ -115,7 +115,7 @@ async def test_resolve_action(kind, name, ollama_plugin_instance):
 
 
 @pytest.mark.asyncio
-async def test_list_actions(ollama_plugin_instance):
+async def test_list_actions(ollama_plugin_instance) -> None:
     """Unit tests for list_actions method."""
 
     class MockModelResponse(BaseModel):

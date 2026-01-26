@@ -30,7 +30,7 @@ Example:
 import asyncio
 import threading
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any
 
 import structlog
 from dotpromptz.dotprompt import Dotprompt
@@ -78,7 +78,7 @@ class Registry:
 
     default_model: str | None = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize an empty Registry instance."""
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
@@ -173,7 +173,7 @@ class Registry:
         with self._lock:
             return self._entries.get(kind, {}).copy()
 
-    def register_value(self, kind: str, name: str, value: Any):
+    def register_value(self, kind: str, name: str, value: Any) -> None:
         """Registers a value with a given kind and name.
 
         This method stores a value in a nested dictionary, where the first level

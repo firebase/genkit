@@ -37,7 +37,7 @@ class TextFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes a TextFormat instance.
 
         Configures the format with:
@@ -47,8 +47,7 @@ class TextFormat(FormatDef):
         super().__init__(
             'text',
             FormatterConfig(
-                # NOTE: Using camelCase alias for ty type checker compatibility.
-                contentType='text/plain',
+                content_type='text/plain',
             ),
         )
 

@@ -55,7 +55,7 @@ class ArrayFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the ArrayFormat.
 
         Configures the format with:
@@ -66,8 +66,7 @@ class ArrayFormat(FormatDef):
         super().__init__(
             'array',
             FormatterConfig(
-                # NOTE: Using camelCase alias for ty type checker compatibility.
-                contentType='application/json',
+                content_type='application/json',
                 constrained=True,
             ),
         )

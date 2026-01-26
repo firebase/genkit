@@ -25,21 +25,34 @@ from typing import Any
 
 import structlog
 
-from mcp.types import CallToolResult, ImageContent, TextContent
+from mcp.types import (
+    AudioContent,
+    CallToolResult,
+    EmbeddedResource,
+    ImageContent,
+    ResourceLink,
+    TextContent,
+)
 
 logger = structlog.get_logger(__name__)
 
 
-def to_text(content: list[dict[str, Any]]) -> str:
+def to_text(content: list[Any]) -> str:
     """Extract text from MCP CallToolResult content.
 
     Args:
-        content: List of content parts from CallToolResult
+        content: List of content parts from CallToolResult (dict or Pydantic objects)
 
     Returns:
         Concatenated text from all text parts
     """
-    return ''.join(part.get('text', '') for part in content)
+    text_parts = []
+    for part in content:
+        if isinstance(part, dict):
+            text_parts.append(part.get('text', ''))
+        elif hasattr(part, 'text'):
+            text_parts.append(part.text)
+    return ''.join(text_parts)
 
 
 def process_result(result: CallToolResult) -> Any:
@@ -117,14 +130,16 @@ def convert_tool_schema(mcp_schema: dict[str, Any]) -> dict[str, Any]:
     return mcp_schema
 
 
-def to_mcp_tool_result(result: Any) -> list[TextContent | ImageContent]:
+def to_mcp_tool_result(
+    result: Any,
+) -> list[TextContent | ImageContent | AudioContent | ResourceLink | EmbeddedResource]:
     """Convert tool execution result to MCP CallToolResult content.
 
     Args:
         result: The result from tool execution (can be string, dict, or other).
 
     Returns:
-        List of MCP content items (TextContent or ImageContent).
+        List of MCP content items.
     """
     if isinstance(result, str):
         return [TextContent(type='text', text=result)]

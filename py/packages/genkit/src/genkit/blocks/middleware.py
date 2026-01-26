@@ -16,8 +16,6 @@
 
 """Middleware for the Genkit framework."""
 
-from collections.abc import Awaitable
-
 from genkit.blocks.model import (
     ModelMiddleware,
     ModelMiddlewareNext,

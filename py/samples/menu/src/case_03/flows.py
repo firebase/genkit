@@ -15,18 +15,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Flows for case 03."""
+
 import json
 import os
 
-from case_03.chats import (
+from genkit.core.typing import Message, Part, Role, TextPart
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion as GeminiVersion
+
+from ..menu_ai import ai
+from .chats import (
     ChatHistoryStore,
     ChatSessionInputSchema,
     ChatSessionOutputSchema,
 )
-from menu_ai import ai
-
-from genkit.core.typing import Message, Role, TextPart
-from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion as GeminiVersion
 
 menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
 with open(menu_json_path) as f:
@@ -38,19 +40,21 @@ preamble = [
     Message(
         role=Role.USER,
         content=[
-            TextPart(text="Hi. What's on the menu today?"),
+            Part(root=TextPart(text="Hi. What's on the menu today?")),
         ],
     ),
     Message(
         role=Role.MODEL,
         content=[
-            TextPart(
-                text=f"""I am Walt, a helpful AI assistant here at the restaurant.
+            Part(
+                root=TextPart(
+                    text=f"""I am Walt, a helpful AI assistant here at the restaurant.
 I can answer questions about the food on the menu or any other questions
 you have about food in general. I probably can't help you with anything else.
 Here is today's menu:
 {formatted_menu_data}
 Do you have any questions about the menu?"""
+                )
             ),
         ],
     ),
@@ -62,15 +66,27 @@ chat_history_store = ChatHistoryStore(
 
 
 @ai.flow(name='s03_multi_turn_chat')
-async def s03_multiTurnChatFlow(
+async def s03_multi_turn_chat_flow(
     my_input: ChatSessionInputSchema,
 ) -> ChatSessionOutputSchema:
+    """Run a multi-turn chat session about the menu.
+
+    Args:
+        my_input: Input containing session ID and question.
+
+    Returns:
+        The chat session history and ID.
+
+    Example:
+        >>> await s03_multi_turn_chat_flow(ChatSessionInputSchema(question='Hi', session_id='123'))
+        ChatSessionOutputSchema(session_id="123", history=[...])
+    """
     history = chat_history_store.read(my_input.session_id)
 
     llm_response = await ai.generate(
         model=f'googleai/{GeminiVersion.GEMINI_3_FLASH_PREVIEW}',
         messages=history,
-        prompt=[TextPart(text=my_input.question)],
+        prompt=[Part(root=TextPart(text=my_input.question))],
     )
 
     history = llm_response.messages

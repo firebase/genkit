@@ -44,13 +44,17 @@ Key features demonstrated in this sample:
 import argparse
 import asyncio
 import os
+from typing import Annotated
 
 import structlog
 import uvicorn
 from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.blocks.model import GenerateResponseWrapper
+from genkit.core.action import ActionRunContext
 from genkit.core.flows import create_flows_asgi_app
+from genkit.core.typing import Part
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -59,6 +63,7 @@ from genkit.plugins.google_genai import (
 )
 from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
+    Embedding,
     GenerationCommonConfig,
     Message,
     Role,
@@ -96,7 +101,7 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: int) -> str:
+async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -110,7 +115,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text=f'what is a gablorken of {value}')],
+                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
             ),
         ],
         tools=['gablorkenTool'],
@@ -119,7 +124,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
 
 
 @ai.tool(name='interruptingTool')
-def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext):
+def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -133,7 +138,7 @@ def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext):
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: int) -> str:
+async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -147,7 +152,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         messages=[
             Message(
                 role=Role.USER,
-                content=[TextPart(text=f'what is a gablorken of {value}')],
+                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
             ),
         ],
         tools=['interruptingTool'],
@@ -163,11 +168,11 @@ async def simple_generate_with_interrupts(value: int) -> str:
         tool_responses=[tr],
         tools=['gablorkenTool'],
     )
-    return response
+    return response.text
 
 
 @ai.flow()
-async def say_hi(name: str):
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -183,7 +188,7 @@ async def say_hi(name: str):
 
 
 @ai.flow()
-async def embed_docs(docs: list[str]):
+async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
     """Generate an embedding for the words in a list.
 
     Args:
@@ -192,16 +197,20 @@ async def embed_docs(docs: list[str]):
     Returns:
         The generated embedding.
     """
+    if docs is None:
+        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed(
+    return await ai.embed_many(
         embedder=f'googleai/{GeminiEmbeddingModels.TEXT_EMBEDDING_004}',
-        documents=[Document.from_text(doc) for doc in docs],
+        content=docs,
         options=options,
     )
 
 
 @ai.flow()
-async def say_hi_with_configured_temperature(data: str):
+async def say_hi_with_configured_temperature(
+    data: Annotated[str, Field(default='Alice')] = 'Alice',
+) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
     Args:
@@ -211,13 +220,16 @@ async def say_hi_with_configured_temperature(data: str):
         The generated response with a function.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
 
 @ai.flow()
-async def say_hi_stream(name: str, ctx):
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -228,17 +240,19 @@ async def say_hi_stream(name: str, ctx):
         The generated response with a function.
     """
     stream, _ = ai.generate_stream(prompt=f'hi {name}')
-    result = ''
+    result: str = ''
     async for data in stream:
         ctx.send_chunk(data.text)
-        for part in data.content:
-            result += part.root.text
+        result += data.text
 
     return result
 
 
 @ai.flow()
-async def stream_greeting(name: str, ctx) -> str:
+async def stream_greeting(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Stream a greeting for the given name.
 
     Args:
@@ -278,7 +292,10 @@ class RpgCharacter(BaseModel):
 
 
 @ai.flow()
-async def generate_character(name: str, ctx):
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
@@ -306,7 +323,10 @@ async def generate_character(name: str, ctx):
 
 
 @ai.flow()
-async def generate_character_unconstrained(name: str, ctx):
+async def generate_character_unconstrained(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
@@ -326,7 +346,10 @@ async def generate_character_unconstrained(name: str, ctx):
 
 
 @ai.flow()
-async def generate_images(name: str, ctx):
+async def generate_images(
+    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> GenerateResponseWrapper:
     """Generate images for the given name.
 
     Args:
@@ -336,11 +359,10 @@ async def generate_images(name: str, ctx):
     Returns:
         The generated response with a function.
     """
-    result = await ai.generate(
+    return await ai.generate(
         prompt='tell me a about the Eifel Tower with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image']),
+        config=GeminiConfigSchema(response_modalities=['text', 'image']).model_dump(),
     )
-    return result
 
 
 def parse_args() -> argparse.Namespace:

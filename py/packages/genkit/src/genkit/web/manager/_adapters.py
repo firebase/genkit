@@ -56,7 +56,7 @@ import structlog
 from genkit.web.typing import Application
 
 if sys.version_info < (3, 11):
-    from strenum import StrEnum  # type: ignore[import-untyped]
+    from strenum import StrEnum
 else:
     from enum import StrEnum
 

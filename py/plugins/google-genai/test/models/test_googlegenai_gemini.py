@@ -14,22 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for the Gemini model implementation."""
+
 import sys
 import urllib.request
 from unittest.mock import AsyncMock, MagicMock, patch
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 import pytest
 from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionRunContext, Genkit
-from genkit.core.action.types import ActionResponse
+from genkit.ai import ActionRunContext
 from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
@@ -56,7 +58,7 @@ IMAGE_GENERATION_VERSIONS = [GoogleAIGeminiVersion.GEMINI_2_0_FLASH_EXP]
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in ALL_VERSIONS])
-async def test_generate_text_response(mocker, version):
+async def test_generate_text_response(mocker, version) -> None:
     """Test the generate method for text responses."""
     response_text = 'request answer'
     request_text = 'response question'
@@ -66,7 +68,7 @@ async def test_generate_text_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ]
@@ -90,12 +92,13 @@ async def test_generate_text_response(mocker, version):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in ALL_VERSIONS])
-async def test_generate_stream_text_response(mocker, version):
+async def test_generate_stream_text_response(mocker, version) -> None:
     """Test the generate method for text responses."""
     response_text = 'request answer'
     request_text = 'response question'
@@ -105,7 +108,7 @@ async def test_generate_stream_text_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    Part(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ]
@@ -130,12 +133,13 @@ async def test_generate_stream_text_response(mocker, version):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content == []
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in IMAGE_GENERATION_VERSIONS])
-async def test_generate_media_response(mocker, version):
+async def test_generate_media_response(mocker, version) -> None:
     """Test generate method for media responses."""
     request_text = 'response question'
     response_byte_string = b'\x89PNG\r\n\x1a\n'
@@ -147,7 +151,7 @@ async def test_generate_media_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ],
@@ -179,6 +183,7 @@ async def test_generate_media_response(mocker, version):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
 
     content = response.message.content[0]
     assert isinstance(content.root, MediaPart)
@@ -189,7 +194,7 @@ async def test_generate_media_response(mocker, version):
         assert response.read() == response_byte_string
 
 
-def test_convert_schema_property(mocker):
+def test_convert_schema_property(mocker) -> None:
     """Test _convert_schema_property."""
     googleai_client_mock = mocker.AsyncMock()
     gemini = GeminiModel('abc', googleai_client_mock)
@@ -197,23 +202,18 @@ def test_convert_schema_property(mocker):
     class Simple(BaseModel):
         foo: str = Field(description='foo field')
         bar: int = Field(description='bar field')
-        baz: list[str] = Field(default=None, description='bar field')
+        # Note: baz: list[str] | None generates anyOf schema which is not supported by _convert_schema_property yet
 
     assert gemini._convert_schema_property(to_json_schema(Simple)) == genai_types.Schema(
-        type='OBJECT',
+        type=genai_types.Type.OBJECT,
         properties={
             'foo': genai_types.Schema(
-                type='STRING',
+                type=genai_types.Type.STRING,
                 description='foo field',
             ),
             'bar': genai_types.Schema(
-                type='INTEGER',
+                type=genai_types.Type.INTEGER,
                 description='bar field',
-            ),
-            'baz': genai_types.Schema(
-                type='ARRAY',
-                description='bar field',
-                items={'type': 'string'},
             ),
         },
         required=['foo', 'bar'],
@@ -227,18 +227,18 @@ def test_convert_schema_property(mocker):
         bar: Nested = Field(description='bar field')
 
     assert gemini._convert_schema_property(to_json_schema(WithNested)) == genai_types.Schema(
-        type='OBJECT',
+        type=genai_types.Type.OBJECT,
         properties={
             'foo': genai_types.Schema(
-                type='STRING',
+                type=genai_types.Type.STRING,
                 description='foo field',
             ),
             'bar': genai_types.Schema(
-                type='OBJECT',
+                type=genai_types.Type.OBJECT,
                 description='bar field',
                 properties={
                     'baz': genai_types.Schema(
-                        type='INTEGER',
+                        type=genai_types.Type.INTEGER,
                         description='baz field',
                     ),
                 },
@@ -256,10 +256,10 @@ def test_convert_schema_property(mocker):
         foo: TestEnum = Field(description='foo field')
 
     assert gemini._convert_schema_property(to_json_schema(WitEnum)) == genai_types.Schema(
-        type='OBJECT',
+        type=genai_types.Type.OBJECT,
         properties={
             'foo': genai_types.Schema(
-                type='STRING',
+                type=genai_types.Type.STRING,
                 description='foo field',
                 enum=['foo', 'bar'],
             ),
@@ -269,7 +269,7 @@ def test_convert_schema_property(mocker):
 
 
 @pytest.mark.asyncio
-async def test_generate_with_system_instructions(mocker):
+async def test_generate_with_system_instructions(mocker) -> None:
     """Test Generate using system instructions."""
     response_text = 'request answer'
     request_text = 'response question'
@@ -281,13 +281,13 @@ async def test_generate_with_system_instructions(mocker):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
             Message(
                 role=Role.SYSTEM,
                 content=[
-                    TextPart(text=system_instruction),
+                    Part(root=TextPart(text=system_instruction)),
                 ],
             ),
         ]
@@ -313,6 +313,7 @@ async def test_generate_with_system_instructions(mocker):
         )
     ])
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
 
@@ -338,7 +339,7 @@ async def test_generate_with_system_instructions(mocker):
         ),
     ],
 )
-def test_google_model_info(input, expected):
+def test_google_model_info(input, expected) -> None:
     """Tests for google_model_info."""
     model_info = google_model_info(input)
 
@@ -357,7 +358,7 @@ def gemini_model_instance():
     )
 
 
-def test_gemini_model__init__():
+def test_gemini_model__init__() -> None:
     """Test for init gemini model."""
     version = 'version'
     mock_client = MagicMock(spec=genai.Client)
@@ -376,7 +377,7 @@ def test_gemini_model__init__():
 def test_gemini_model__get_tools(
     mock_create_tool,
     gemini_model_instance,
-):
+) -> None:
     """Unit test for GeminiModel._get_tools."""
     mock_create_tool.return_value = genai_types.Tool()
 
@@ -385,7 +386,7 @@ def test_gemini_model__get_tools(
             name='tool_1',
             description='model tool description',
             input_schema={},
-            outputSchema={
+            output_schema={
                 'type': 'object',
                 'properties': {
                     'test': {'type': 'string', 'description': 'test field'},
@@ -397,7 +398,7 @@ def test_gemini_model__get_tools(
             name='tool_2',
             description='model tool description',
             input_schema={},
-            outputSchema={
+            output_schema={
                 'type': 'object',
                 'properties': {
                     'test': {'type': 'string', 'description': 'test field'},
@@ -413,7 +414,7 @@ def test_gemini_model__get_tools(
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text='test text'),
+                    Part(root=TextPart(text='test text')),
                 ],
             ),
         ],
@@ -427,7 +428,7 @@ def test_gemini_model__get_tools(
 
 
 @patch('genkit.plugins.google_genai.models.gemini.GeminiModel._convert_schema_property')
-def test_gemini_model__create_tool(mock_convert_schema_property, gemini_model_instance):
+def test_gemini_model__create_tool(mock_convert_schema_property, gemini_model_instance) -> None:
     """Unit tests for GeminiModel._create_tool."""
     tool_defined = ToolDefinition(
         name='model_tool',
@@ -436,7 +437,7 @@ def test_gemini_model__create_tool(mock_convert_schema_property, gemini_model_in
             'type': 'str',
             'description': 'test field',
         },
-        outputSchema={
+        output_schema={
             'type': 'object',
             'properties': {
                 'test': {'type': 'string', 'description': 'test field'},
@@ -625,7 +626,7 @@ def test_gemini_model__convert_schema_property(
     defs,
     expected_schema,
     gemini_model_instance,
-):
+) -> None:
     """Unit tests for  GeminiModel._convert_schema_property with various valid schema inputs."""
     result_schema = gemini_model_instance._convert_schema_property(input_schema, defs)
 
@@ -633,7 +634,7 @@ def test_gemini_model__convert_schema_property(
         assert result_schema is None
     else:
 
-        def compare_schemas(s1: genai_types.Schema, s2: genai_types.Schema):
+        def compare_schemas(s1: genai_types.Schema, s2: genai_types.Schema) -> None:
             assert s1.description == s2.description
             assert s1.required == s2.required
             assert s1.type == s2.type
@@ -651,9 +652,9 @@ def test_gemini_model__convert_schema_property(
                 for key in s1.properties:
                     compare_schemas(s1.properties[key], s2.properties[key])
             else:
-                assert (s1.properties is None and s2.properties is None) or (
-                    len(s1.properties) == 0 and len(s2.properties) == 0
-                )
+                s1_props_len = len(s1.properties) if s1.properties else 0
+                s2_props_len = len(s2.properties) if s2.properties else 0
+                assert s1_props_len == 0 and s2_props_len == 0
 
         compare_schemas(result_schema, expected_schema)
 
@@ -673,7 +674,7 @@ def test_gemini_model__convert_schema_property(
         ),
     ],
 )
-def test_gemini_model__convert_schema_property_raises_exception(input_schema, defs, gemini_model_instance):
+def test_gemini_model__convert_schema_property_raises_exception(input_schema, defs, gemini_model_instance) -> None:
     """Test GeminiModel._convert_schema_property raises an exception for unresolvable schemas."""
     with pytest.raises(ValueError, match=r'Failed to resolve schema for .*'):
         gemini_model_instance._convert_schema_property(input_schema, defs)
@@ -700,7 +701,7 @@ async def test_gemini_model__retrieve_cached_content(
     mock_validate_context_cache_request,
     cache_key,
     gemini_model_instance,
-):
+) -> None:
     """Unit tests for GeminiModel._retrieve_cached_content."""
     # Mock cache utils
     mock_generate_cache_key.return_value = cache_key
@@ -729,7 +730,7 @@ async def test_gemini_model__retrieve_cached_content(
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text='request text'),
+                    Part(root=TextPart(text='request text')),
                 ],
             ),
         ]

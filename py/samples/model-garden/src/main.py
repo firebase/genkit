@@ -18,6 +18,7 @@ import os
 import asyncio
 
 import structlog
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name

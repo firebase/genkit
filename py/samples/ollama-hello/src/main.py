@@ -33,6 +33,8 @@ Key features demonstrated in this sample:
 
 """
 
+from typing import Annotated
+
 import structlog
 from pydantic import BaseModel, Field
 
@@ -100,12 +102,14 @@ class GablorkenInput(BaseModel):
 
 
 @ai.tool()
-def gablorken_tool(input: GablorkenInput):
+def gablorken_tool(input: GablorkenInput) -> int:
     """Calculate a gablorken."""
     return input.value * 3 - 5
 
 
 class WeatherToolInput(BaseModel):
+    """Input for the weather tool."""
+
     location: str = Field(description='weather location')
 
 
@@ -116,7 +120,7 @@ def get_weather(input: WeatherToolInput) -> str:
 
 
 @ai.flow()
-async def say_hi(hi_input: str):
+async def say_hi(hi_input: Annotated[str, Field(default='World')] = 'World') -> str:
     """Generate a request to greet a user.
 
     Args:
@@ -133,14 +137,18 @@ async def say_hi(hi_input: str):
 
 
 @ai.flow()
-async def weather_flow(location: str):
+async def weather_flow(location: Annotated[str, Field(default='San Francisco')] = 'San Francisco') -> str:
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
-        value: Input data containing number
+        location: The location to get weather for.
 
     Returns:
         A GenerateRequest object with the evaluation output
+
+    Example:
+        >>> await weather_flow('San Francisco')
+        'Weather in San Francisco is 23°'
     """
     response = await ai.generate(
         prompt=f'Use the get_weather tool to tell me the weather in {location}',
@@ -151,7 +159,7 @@ async def weather_flow(location: str):
 
 
 @ai.flow()
-async def calculate_gablorken(value: int):
+async def calculate_gablorken(value: Annotated[int, Field(default=33)] = 33) -> str:
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
@@ -159,6 +167,10 @@ async def calculate_gablorken(value: int):
 
     Returns:
         A GenerateRequest object with the evaluation output
+
+    Example:
+        >>> await calculate_gablorken(33)
+        '94'
     """
     response = await ai.generate(
         prompt=f'Use the gablorken_tool to calculate the gablorken of {value}',
@@ -169,7 +181,7 @@ async def calculate_gablorken(value: int):
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: str) -> str:
+async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')] = 'John Doe') -> str:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:
@@ -177,6 +189,10 @@ async def say_hi_constrained(hi_input: str) -> str:
 
     Returns:
         The greeting text.
+
+    Example:
+        >>> await say_hi_constrained('John Doe')
+        'Hi John Doe'
     """
     response = await ai.generate(
         prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',

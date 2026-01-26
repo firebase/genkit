@@ -19,25 +19,80 @@
 import os
 import sys
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
-
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-from fakes import mock_mcp_modules
-
-mock_mcp_modules()
+from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from mcp.types import (
+    AnyUrl,
+    CallToolRequest,
+    CallToolRequestParams,
+    CallToolResult,
+    ListResourcesRequest,
+    ListResourcesResult,
+    ListResourceTemplatesRequest,
+    ListToolsResult,
+    ReadResourceRequest,
+    ReadResourceRequestParams,
+    ReadResourceResult,
+    Resource,
+    TextContent,
+    TextResourceContents,
+    Tool,
+)
 
-from genkit.ai import Genkit
-from genkit.plugins.mcp import McpClient, McpServerConfig, create_mcp_host, create_mcp_server
+# Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
+Genkit: Any = None
+McpClient: Any = None
+McpServerConfig: Any = None
+create_mcp_host: Any = None
+create_mcp_server: Any = None
+
+
+def setup_mocks() -> None:
+    """Set up mocks for testing."""
+    global Genkit, McpClient, McpServerConfig, create_mcp_host, create_mcp_server
+
+    # Add test directory to path for fakes
+    if os.path.dirname(__file__) not in sys.path:
+        sys.path.insert(0, os.path.dirname(__file__))
+
+    # Add src directory to path if not installed
+    src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'))
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+
+    try:
+        from fakes import mock_mcp_modules
+
+        mock_mcp_modules()
+
+        from genkit.ai import Genkit as _Genkit
+        from genkit.plugins.mcp import (
+            McpClient as _McpClient,
+            McpServerConfig as _McpServerConfig,
+            create_mcp_host as _create_mcp_host,
+            create_mcp_server as _create_mcp_server,
+        )
+
+        Genkit = _Genkit
+        McpClient = _McpClient
+        McpServerConfig = _McpServerConfig
+        create_mcp_host = _create_mcp_host
+        create_mcp_server = _create_mcp_server
+    except ImportError:
+        pass
 
 
 @pytest.mark.asyncio
 class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
     """Integration tests for MCP client-server communication."""
 
-    async def test_client_can_list_server_tools(self):
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        setup_mocks()
+
+    async def test_client_can_list_server_tools(self) -> None:
         """Test that a client can list tools from a server."""
         # Create server with tools
         server_ai = Genkit()
@@ -51,12 +106,8 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Mock the session to return tools
         mock_session = AsyncMock()
-        mock_tool = MagicMock()
-        mock_tool.name = 'add'
-        mock_tool.description = 'Add two numbers'
-        mock_tool.inputSchema = {'type': 'object'}
-
-        mock_session.list_tools.return_value.tools = [mock_tool]
+        mock_tool = Tool(name='add', description='Add two numbers', inputSchema={'type': 'object'})
+        mock_session.list_tools.return_value = ListToolsResult(tools=[mock_tool])
         client.session = mock_session
 
         # List tools
@@ -66,19 +117,15 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(tools), 1)
         self.assertEqual(tools[0].name, 'add')
 
-    async def test_client_can_call_server_tool(self):
+    async def test_client_can_call_server_tool(self) -> None:
         """Test that a client can call a tool on a server."""
         # Create client
         client = McpClient(name='test-client', config=McpServerConfig(command='echo'))
 
         # Mock the session
         mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.isError = False
-        mock_content = MagicMock()
-        mock_content.type = 'text'
-        mock_content.text = '8'
-        mock_result.content = [mock_content]
+        mock_content = TextContent(type='text', text='8')
+        mock_result = CallToolResult(content=[mock_content])
 
         mock_session.call_tool.return_value = mock_result
         client.session = mock_session
@@ -90,19 +137,16 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, '8')
         mock_session.call_tool.assert_called_once_with('add', {'a': 5, 'b': 3})
 
-    async def test_client_can_list_server_resources(self):
+    async def test_client_can_list_server_resources(self) -> None:
         """Test that a client can list resources from a server."""
         # Create client
         client = McpClient(name='test-client', config=McpServerConfig(command='echo'))
 
         # Mock the session
         mock_session = AsyncMock()
-        mock_resource = MagicMock()
-        mock_resource.name = 'config'
-        mock_resource.uri = 'app://config'
-        mock_resource.description = 'Configuration'
+        mock_resource = Resource(name='config', uri=AnyUrl('app://config'), description='Configuration')
 
-        mock_session.list_resources.return_value.resources = [mock_resource]
+        mock_session.list_resources.return_value = ListResourcesResult(resources=[mock_resource])
         client.session = mock_session
 
         # List resources
@@ -111,17 +155,18 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Verify
         self.assertEqual(len(resources), 1)
         self.assertEqual(resources[0].name, 'config')
-        self.assertEqual(resources[0].uri, 'app://config')
+        self.assertEqual(str(resources[0].uri), 'app://config')
 
-    async def test_client_can_read_server_resource(self):
+    async def test_client_can_read_server_resource(self) -> None:
         """Test that a client can read a resource from a server."""
         # Create client
         client = McpClient(name='test-client', config=McpServerConfig(command='echo'))
 
         # Mock the session
         mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.contents = [MagicMock(text='Resource content')]
+        mock_result = ReadResourceResult(
+            contents=[TextResourceContents(uri=AnyUrl('app://config'), mimeType='text/plain', text='Resource content')]
+        )
 
         mock_session.read_resource.return_value = mock_result
         client.session = mock_session
@@ -131,9 +176,9 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertIsNotNone(result)
-        mock_session.read_resource.assert_called_once_with('app://config')
+        mock_session.read_resource.assert_called_once_with(AnyUrl('app://config'))
 
-    async def test_host_manages_multiple_clients(self):
+    async def test_host_manages_multiple_clients(self) -> None:
         """Test that a host can manage multiple clients."""
         # Create host with multiple servers
         config1 = McpServerConfig(command='server1')
@@ -146,7 +191,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertIn('server1', host.clients)
         self.assertIn('server2', host.clients)
 
-    async def test_host_can_register_tools_from_multiple_servers(self):
+    async def test_host_can_register_tools_from_multiple_servers(self) -> None:
         """Test that a host can register tools from multiple servers."""
         # Create host
         host = create_mcp_host({'server1': McpServerConfig(command='s1'), 'server2': McpServerConfig(command='s2')})
@@ -154,12 +199,11 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Mock sessions for both clients
         for client_name, client in host.clients.items():
             mock_session = AsyncMock()
-            mock_tool = MagicMock()
-            mock_tool.name = f'{client_name}_tool'
-            mock_tool.description = f'Tool from {client_name}'
-            mock_tool.inputSchema = {'type': 'object'}
+            mock_tool = Tool(
+                name=f'{client_name}_tool', description=f'Tool from {client_name}', inputSchema={'type': 'object'}
+            )
 
-            mock_session.list_tools.return_value.tools = [mock_tool]
+            mock_session.list_tools.return_value = ListToolsResult(tools=[mock_tool])
             client.session = mock_session
 
         # Register tools
@@ -170,7 +214,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Each client should have registered one tool
         # Tool names should be prefixed with server name
 
-    async def test_client_handles_disabled_server(self):
+    async def test_client_handles_disabled_server(self) -> None:
         """Test that a client handles disabled servers correctly."""
         # Create client with disabled config
         config = McpServerConfig(command='echo', disabled=True)
@@ -182,7 +226,7 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
         # Should not have a session
         self.assertIsNone(client.session)
 
-    async def test_host_can_disable_and_enable_clients(self):
+    async def test_host_can_disable_and_enable_clients(self) -> None:
         """Test that a host can disable and enable clients."""
         host = create_mcp_host({'test': McpServerConfig(command='echo')})
 
@@ -205,7 +249,11 @@ class TestClientServerIntegration(unittest.IsolatedAsyncioTestCase):
 class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
     """Integration tests specifically for resource handling."""
 
-    async def test_end_to_end_resource_flow(self):
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        setup_mocks()
+
+    async def test_end_to_end_resource_flow(self) -> None:
         """Test complete flow: define resource → expose via server → consume via client."""
         # This is a conceptual test showing the flow
         # In practice, we'd need actual MCP transport for true end-to-end
@@ -223,17 +271,19 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # 3. Verify server can list resources
-        resources_result = await server.list_resources({})
+        resources_result = await server.list_resources(ListResourcesRequest(method='resources/list'))
         self.assertEqual(len(resources_result.resources), 1)
-        self.assertEqual(resources_result.resources[0].uri, 'app://config')
+        self.assertEqual(str(resources_result.resources[0].uri), 'app://config')
 
         # 4. Verify server can read resource
-        request = MagicMock()
-        request.params.uri = 'app://config'
+        request = ReadResourceRequest(
+            method='resources/read', params=ReadResourceRequestParams(uri=AnyUrl('app://config'))
+        )
         read_result = await server.read_resource(request)
+        assert isinstance(read_result.contents[0], TextResourceContents)
         self.assertEqual(read_result.contents[0].text, 'config data')
 
-    async def test_template_resource_matching(self):
+    async def test_template_resource_matching(self) -> None:
         """Test that template resources match correctly."""
         server_ai = Genkit()
 
@@ -250,15 +300,19 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List templates
-        templates_result = await server.list_resource_templates({})
+        templates_result = await server.list_resource_templates(
+            ListResourceTemplatesRequest(method='resources/templates/list')
+        )
         self.assertEqual(len(templates_result.resourceTemplates), 1)
         self.assertEqual(templates_result.resourceTemplates[0].uriTemplate, 'file://{+path}')
 
         # Read with different URIs
         for test_uri in ['file:///path/to/file.txt', 'file:///another/file.md', 'file:///deep/nested/path/doc.pdf']:
-            request = MagicMock()
-            request.params.uri = test_uri
+            request = ReadResourceRequest(
+                method='resources/read', params=ReadResourceRequestParams(uri=AnyUrl(test_uri))
+            )
             result = await server.read_resource(request)
+            assert isinstance(result.contents[0], TextResourceContents)
             self.assertIn(test_uri, result.contents[0].text)
 
 
@@ -266,7 +320,11 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
 class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
     """Tests for error handling in client-server communication."""
 
-    async def test_server_handles_missing_tool(self):
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        setup_mocks()
+
+    async def test_server_handles_missing_tool(self) -> None:
         """Test that server properly handles requests for non-existent tools."""
         server_ai = Genkit()
 
@@ -280,9 +338,10 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # Try to call non-existent tool
-        request = MagicMock()
-        request.params.name = 'nonexistent_tool'
-        request.params.arguments = {}
+        request = CallToolRequest(
+            method='tools/call',
+            params=CallToolRequestParams(name='nonexistent_tool', arguments={}),
+        )
 
         from genkit.core.error import GenkitError
 
@@ -291,7 +350,7 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('NOT_FOUND', str(context.exception.status))
 
-    async def test_client_handles_connection_failure(self):
+    async def test_client_handles_connection_failure(self) -> None:
         """Test that client handles connection failures gracefully."""
         client = McpClient(name='test-client', config=McpServerConfig(command='nonexistent_command'))
 
@@ -299,7 +358,7 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         with patch('genkit.plugins.mcp.client.client.stdio_client') as mock_stdio:
             mock_stdio.side_effect = Exception('Connection failed')
 
-            with self.assertRaises(Exception):
+            with self.assertRaisesRegex(Exception, 'Connection failed'):
                 await client.connect()
 
             # Client should mark server as disabled

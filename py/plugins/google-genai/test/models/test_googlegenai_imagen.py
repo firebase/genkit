@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for the Imagen model implementation."""
+
 import urllib.request
 
 import pytest
@@ -26,6 +29,7 @@ from genkit.types import (
     GenerateResponse,
     MediaPart,
     Message,
+    Part,
     Role,
     TextPart,
 )
@@ -33,7 +37,7 @@ from genkit.types import (
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in ImagenVersion])
-async def test_generate_media_response(mocker, version):
+async def test_generate_media_response(mocker, version) -> None:
     """Test generate method for media responses."""
     request_text = 'response question'
     response_byte_string = b'\x89PNG\r\n\x1a\n'
@@ -44,7 +48,7 @@ async def test_generate_media_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(root=TextPart(text=request_text)),
                 ],
             ),
         ],
@@ -70,7 +74,7 @@ async def test_generate_media_response(mocker, version):
         mocker.call.aio.models.generate_images(model=version, prompt=request_text, config=None)
     ])
     assert isinstance(response, GenerateResponse)
-
+    assert response.message is not None
     content = response.message.content[0]
     assert isinstance(content.root, MediaPart)
 

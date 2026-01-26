@@ -33,7 +33,7 @@ class ProgrammableModel:
         last_request: The most recent request received.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a new ProgrammableModel instance."""
         self.request_idx = 0
         self.responses: list[GenerateResponse] = []
@@ -84,7 +84,7 @@ class EchoModel:
         last_request: The most recent request received.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a new EchoModel instance."""
         self.last_request: GenerateRequest = None
 

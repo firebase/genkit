@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Tests for the Flask plugin."""
+
 from flask import Flask
 
 from genkit.ai import Genkit
@@ -21,6 +24,7 @@ from genkit.plugins.flask import genkit_flask_handler
 
 
 def create_app():
+    """Create a Flask application for testing."""
     ai = Genkit()
 
     app = Flask(__name__)
@@ -44,7 +48,8 @@ def create_app():
     return app
 
 
-def test_simple_post():
+def test_simple_post() -> None:
+    """Test a simple POST request to the chat endpoint."""
     client = create_app().test_client()
     response = client.post(
         '/chat', json={'data': 'banana'}, headers={'Authorization': 'Pavel', 'content-Type': 'application/json'}
@@ -57,7 +62,8 @@ def test_simple_post():
     }
 
 
-def test_streaming():
+def test_streaming() -> None:
+    """Test a streaming POST request to the chat endpoint."""
     client = create_app().test_client()
     response = client.post(
         '/chat',

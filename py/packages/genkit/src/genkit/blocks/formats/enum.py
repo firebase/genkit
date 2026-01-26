@@ -50,7 +50,7 @@ class EnumFormat(FormatDef):
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the EnumFormat.
 
         Configures the format with:
@@ -61,8 +61,7 @@ class EnumFormat(FormatDef):
         super().__init__(
             'enum',
             FormatterConfig(
-                # NOTE: Using camelCase alias for ty type checker compatibility.
-                contentType='text/enum',
+                content_type='text/enum',
                 constrained=True,
             ),
         )

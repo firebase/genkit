@@ -62,7 +62,7 @@ class Formatter(Generic[OutputT, ChunkT]):
         message_parser: MessageParser[OutputT],
         chunk_parser: ChunkParser[ChunkT],
         instructions: str | None,
-    ):
+    ) -> None:
         """Initializes a Formatter.
 
         Args:
@@ -105,7 +105,7 @@ class FormatDef:
     an optional schema.
     """
 
-    def __init__(self, name: str, config: FormatterConfig):
+    def __init__(self, name: str, config: FormatterConfig) -> None:
         """Initializes a FormatDef.
 
         Args:

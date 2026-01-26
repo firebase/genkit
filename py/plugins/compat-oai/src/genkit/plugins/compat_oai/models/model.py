@@ -19,7 +19,6 @@
 from collections.abc import Callable
 from typing import Any
 
-from openai import OpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.core.action._action import ActionRunContext
@@ -41,7 +40,7 @@ from genkit.types import (
 class OpenAIModel:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: str, client: OpenAI):
+    def __init__(self, model: str, client: Any) -> None:
         """Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
 
         Args:
@@ -127,7 +126,7 @@ class OpenAIModel:
                 }
 
             model = SUPPORTED_OPENAI_MODELS[self._model]
-            if SupportedOutputFormat.JSON_MODE in model.supports.output:
+            if model.supports and model.supports.output and SupportedOutputFormat.JSON_MODE in model.supports.output:
                 return {'type': 'json_object'}
 
         return {'type': 'text'}

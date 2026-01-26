@@ -94,4 +94,4 @@ def define_dev_local_vector_store(
     return (name, name)
 
 
-defineDevLocalVectorStore = define_dev_local_vector_store
+define_dev_local_vector_store_deprecated = define_dev_local_vector_store

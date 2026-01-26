@@ -38,6 +38,7 @@ from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
+    FinishReason,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -61,7 +62,7 @@ DEFAULT_MAX_TURNS = 5
 logger = structlog.get_logger(__name__)
 
 
-def define_generate_action(registry: Registry):
+def define_generate_action(registry: Registry) -> None:
     """Registers generate action in the provided registry."""
 
     async def generate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> GenerateResponse:
@@ -172,7 +173,7 @@ async def generate_action(
             chunk_parser=chunk_parser if formatter else None,
         )
 
-    def wrap_chunks(role: Role = cast(Role, Role.MODEL)):
+    def wrap_chunks(role: Role | None = None):
         """Wrap and process a model response chunk.
 
         This function prepares model response chunks for the stream callback.
@@ -184,8 +185,10 @@ async def generate_action(
         Returns:
             The result of passing the processed chunk to the callback.
         """
+        if role is None:
+            role = cast(Role, Role.MODEL)
 
-        def wrapper(chunk):
+        def wrapper(chunk) -> None:
             if on_chunk is not None:
                 on_chunk(make_chunk(role, chunk))
 
@@ -307,7 +310,7 @@ async def generate_action(
             request,
             message_parser=message_parser if formatter else None,
         )
-        interrupted_resp.finish_reason = 'interrupted'
+        interrupted_resp.finish_reason = FinishReason.INTERRUPTED
         interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
         interrupted_resp.message = MessageWrapper(revised_model_msg)
         return interrupted_resp
@@ -565,7 +568,7 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
     return new_request
 
 
-def assert_valid_tool_names(raw_request: GenerateActionOptions):
+def assert_valid_tool_names(raw_request: GenerateActionOptions) -> None:
     """Assert that tool names in the request are valid.
 
     Args:
@@ -633,17 +636,14 @@ async def action_to_generate_request(
     # TODO: add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
-    # GenerateRequest and OutputConfig use camelCase aliases. Due to extra='forbid', we must
-    # use the alias names for ty type checker compatibility. The models have
-    # populate_by_name=True, so both aliases and Python names work at runtime.
     return GenerateRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
         docs=options.docs,
         tools=tool_defs,
-        toolChoice=options.tool_choice,
+        tool_choice=options.tool_choice,
         output=OutputConfig(
-            contentType=options.output.content_type if options.output else None,
+            content_type=options.output.content_type if options.output else None,
             format=options.output.format if options.output else None,
             schema=options.output.json_schema if options.output else None,
             constrained=options.output.constrained if options.output else None,
@@ -668,8 +668,8 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
     tdef = ToolDefinition(
         name=tool.name,
         description=tool.description or '',
-        inputSchema=tool.input_schema,
-        outputSchema=tool.output_schema,
+        input_schema=tool.input_schema,
+        output_schema=tool.output_schema,
     )
     return tdef
 
@@ -749,10 +749,12 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
     metadata = request.metadata.root if request.metadata else {}
     metadata['pendingOutput'] = response.tool_response.output
     # Part is a RootModel, so we pass content via 'root' parameter
-    return Part(root=ToolRequestPart(
-        toolRequest=request.tool_request,
-        metadata=Metadata(root=metadata),
-    ))
+    return Part(
+        root=ToolRequestPart(
+            tool_request=request.tool_request,
+            metadata=Metadata(root=metadata),
+        )
+    )
 
 
 async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart) -> tuple[Part | None, Part | None]:
@@ -778,13 +780,15 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         tool_response = (await tool.arun_raw(tool_request_part.tool_request.input)).response
         # Part is a RootModel, so we pass content via 'root' parameter
         return (
-            Part(root=ToolResponsePart(
-                toolResponse=ToolResponse(
-                    name=tool_request_part.tool_request.name,
-                    ref=tool_request_part.tool_request.ref,
-                    output=dump_dict(tool_response),
+            Part(
+                root=ToolResponsePart(
+                    tool_response=ToolResponse(
+                        name=tool_request_part.tool_request.name,
+                        ref=tool_request_part.tool_request.ref,
+                        output=dump_dict(tool_response),
+                    )
                 )
-            )),
+            ),
             None,
         )
     except GenkitError as e:
@@ -793,17 +797,21 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
             # Part is a RootModel, so we pass content via 'root' parameter
             return (
                 None,
-                Part(root=ToolRequestPart(
-                    toolRequest=tool_request_part.tool_request,
-                    metadata=Metadata(root={
-                        **(
-                            tool_request_part.metadata.root
-                            if isinstance(tool_request_part.metadata, Metadata)
-                            else (tool_request_part.metadata or {})
+                Part(
+                    root=ToolRequestPart(
+                        tool_request=tool_request_part.tool_request,
+                        metadata=Metadata(
+                            root={
+                                **(
+                                    tool_request_part.metadata.root
+                                    if isinstance(tool_request_part.metadata, Metadata)
+                                    else (tool_request_part.metadata or {})
+                                ),
+                                'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
+                            }
                         ),
-                        'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
-                    }),
-                )),
+                    )
+                ),
             )
 
         raise e
@@ -930,9 +938,9 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
             status='INVALID_ARGUMENT',
             message='Expected a ToolRequestPart, got a different part type.',
         )
-    
+
     tool_req_root = tool_request_part.root
-    
+
     if tool_req_root.metadata and 'pendingOutput' in tool_req_root.metadata.root:
         metadata = tool_req_root.metadata.root.copy()
         pending_output = metadata['pendingOutput']
@@ -941,14 +949,16 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
         return (
             tool_request_part,
             # Part is a RootModel, so we pass content via 'root' parameter
-            Part(root=ToolResponsePart(
-                toolResponse=ToolResponse(
-                    name=tool_req_root.tool_request.name,
-                    ref=tool_req_root.tool_request.ref,
-                    output=dump_dict(pending_output),
-                ),
-                metadata=Metadata(root=metadata),
-            )),
+            Part(
+                root=ToolResponsePart(
+                    tool_response=ToolResponse(
+                        name=tool_req_root.tool_request.name,
+                        ref=tool_req_root.tool_request.ref,
+                        output=dump_dict(pending_output),
+                    ),
+                    metadata=Metadata(root=metadata),
+                )
+            ),
         )
 
     # if there's a corresponding reply, append it to toolResponses
@@ -964,14 +974,16 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
             del metadata['interrupt']
         return (
             # Part is a RootModel, so we pass content via 'root' parameter
-            Part(root=ToolRequestPart(
-                toolRequest=ToolRequest(
-                    name=tool_req_root.tool_request.name,
-                    ref=tool_req_root.tool_request.ref,
-                    input=tool_req_root.tool_request.input,
-                ),
-                metadata=Metadata(root={**metadata, 'resolvedInterrupt': interrupt}),
-            )),
+            Part(
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(
+                        name=tool_req_root.tool_request.name,
+                        ref=tool_req_root.tool_request.ref,
+                        input=tool_req_root.tool_request.input,
+                    ),
+                    metadata=Metadata(root={**metadata, 'resolvedInterrupt': interrupt}),
+                )
+            ),
             provided_response,
         )
 
@@ -1010,7 +1022,7 @@ class GenerationResponseError(Exception):
         message: str,
         status: str,
         details: dict[str, Any],
-    ):
+    ) -> None:
         """Initialize the GenerationResponseError.
 
         Args:

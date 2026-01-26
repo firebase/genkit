@@ -14,21 +14,25 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Integration tests for Genkit resources."""
+
 import pytest
 
 from genkit.blocks.generate import generate_action
 from genkit.blocks.resource import ResourceInput, ResourceOutput, define_resource
 from genkit.core.registry import ActionKind, Registry
-from genkit.core.typing import GenerateActionOptions, GenerateResponse, Message, Part, Role
+from genkit.core.typing import GenerateActionOptions, GenerateResponse, Message, Part, Role, TextPart
 
 
 @pytest.mark.asyncio
-async def test_generate_with_resources():
+async def test_generate_with_resources() -> None:
+    """Test calling generate with resources."""
     registry = Registry()
 
     # 1. Register a resource
     async def my_resource(input: ResourceInput, ctx):
-        return ResourceOutput(content=[Part(text=f'Resource content for {input.uri}')])
+        return ResourceOutput(content=[Part(root=TextPart(text=f'Resource content for {input.uri}'))])
 
     define_resource(registry, {'uri': 'test://foo'}, my_resource)
 
@@ -39,7 +43,7 @@ async def test_generate_with_resources():
         # Access via root because DocumentPart is a RootModel
         # Verify the message content was hydrated (replaced resource part with text part)
         assert input.messages[0].content[0].root.text == 'Resource content for test://foo'
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(text='Done')]))
+        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='Done'))]))
 
     registry.register_action(ActionKind.MODEL, 'mock-model', mock_model)
 
@@ -48,17 +52,19 @@ async def test_generate_with_resources():
 
     options = GenerateActionOptions(
         model='mock-model',
-        messages=[Message(role=Role.USER, content=[Part(resource=ResourcePart(resource=Resource1(uri='test://foo')))])],
+        messages=[Message(role=Role.USER, content=[Part(root=ResourcePart(resource=Resource1(uri='test://foo')))])],
         resources=['test://foo'],
     )
 
     response = await generate_action(registry, options)
     # Part also uses RootModel, access via root
+    assert response.message is not None
     assert response.message.content[0].root.text == 'Done'
 
 
 @pytest.mark.asyncio
-async def test_dynamic_action_provider_resource():
+async def test_dynamic_action_provider_resource() -> None:
+    """Test dynamic action provider with resources."""
     registry = Registry()
 
     # Register a dynamic provider that handles any "dynamic://*" uri
@@ -69,7 +75,7 @@ async def test_dynamic_action_provider_resource():
             from genkit.core.action import Action
 
             async def dyn_res_fn(input, ctx):
-                return ResourceOutput(content=[Part(text=f'Dynamic content for {input.uri}')])
+                return ResourceOutput(content=[Part(root=TextPart(text=f'Dynamic content for {input.uri}'))])
 
             return Action(kind=ActionKind.RESOURCE, name=name, fn=dyn_res_fn)
         return None
@@ -86,7 +92,7 @@ async def test_dynamic_action_provider_resource():
         assert not input.docs
         # Verify dynamic hydration
         assert input.messages[0].content[0].root.text == 'Dynamic content for dynamic://bar'
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(text='Done')]))
+        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='Done'))]))
 
     registry.register_action(ActionKind.MODEL, 'mock-model', mock_model)
 
@@ -95,11 +101,10 @@ async def test_dynamic_action_provider_resource():
 
     options = GenerateActionOptions(
         model='mock-model',
-        messages=[
-            Message(role=Role.USER, content=[Part(resource=ResourcePart(resource=Resource1(uri='dynamic://bar')))])
-        ],
+        messages=[Message(role=Role.USER, content=[Part(root=ResourcePart(resource=Resource1(uri='dynamic://bar')))])],
         resources=['dynamic://bar'],
     )
 
     response = await generate_action(registry, options)
+    assert response.message is not None
     assert response.message.content[0].root.text == 'Done'

@@ -23,8 +23,8 @@ GO_DIR="${TOP_DIR}/go"
 PY_DIR="${TOP_DIR}/py"
 JS_DIR="${TOP_DIR}/js"j
 
-uv run --directory "${PY_DIR}" ruff check --select I --fix --preview --unsafe-fixes .
-uv run --directory "${PY_DIR}" ty check --exclude samples .
+uv run --directory "${PY_DIR}" ruff check --fix --preview --unsafe-fixes .
+uv run --directory "${PY_DIR}" ty check .
 
 # Disabled because there are many lint errors.
 #pushd "${GO_DIR}" &>/dev/null

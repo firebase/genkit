@@ -6,6 +6,7 @@
 """Tests for the action module."""
 
 import pathlib
+from typing import Any
 
 import pytest
 import yaml
@@ -25,8 +26,10 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     Message,
+    Metadata,
     Part,
     Role,
+    TextPart,
 )
 from genkit.testing import (
     define_echo_model,
@@ -42,8 +45,8 @@ def setup_test():
     pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='testTool')
-    def test_tool():
-        """description"""
+    def test_tool() -> Any:
+        """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
     return (ai, pm)
@@ -56,8 +59,8 @@ async def test_simple_text_generate_request(setup_test) -> None:
 
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
 
@@ -68,7 +71,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -79,12 +82,13 @@ async def test_simple_text_generate_request(setup_test) -> None:
 
 @pytest.mark.asyncio
 async def test_simulates_doc_grounding(setup_test) -> None:
+    """Test that docs are correctly grounded and injected into prompt."""
     ai, pm = setup_test
 
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
 
@@ -95,20 +99,24 @@ async def test_simulates_doc_grounding(setup_test) -> None:
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
-            docs=[DocumentData(content=[DocumentPart(text='doc content 1')])],
+            docs=[DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
         ),
     )
 
+    assert response.request is not None
+    assert response.request.messages is not None
     assert response.request.messages[0] == Message(
         role=Role.USER,
         content=[
-            Part(text='hi'),
+            Part(root=TextPart(text='hi')),
             Part(
-                text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
-                metadata={'purpose': 'context'},
+                root=TextPart(
+                    text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
+                    metadata=Metadata(root={'purpose': 'context'}),
+                )
             ),
         ],
     )
@@ -127,7 +135,7 @@ async def test_generate_applies_middleware(
         return await next(
             GenerateRequest(
                 messages=[
-                    Message(role=Role.USER, content=[Part(text=f'PRE {txt}')]),
+                    Message(role=Role.USER, content=[Part(root=TextPart(text=f'PRE {txt}'))]),
                 ],
             ),
             ctx,
@@ -137,8 +145,8 @@ async def test_generate_applies_middleware(
         resp: GenerateResponse = await next(req, ctx)
         txt = text_from_message(resp.message)
         return GenerateResponse(
-            finishReason=resp.finish_reason,
-            message=Message(role=Role.USER, content=[Part(text=f'{txt} POST')]),
+            finish_reason=resp.finish_reason,
+            message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
 
     response = await generate_action(
@@ -148,7 +156,7 @@ async def test_generate_applies_middleware(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -170,8 +178,8 @@ async def test_generate_middleware_next_fn_args_optional(
         resp: GenerateResponse = await next()
         txt = text_from_message(resp.message)
         return GenerateResponse(
-            finishReason=resp.finish_reason,
-            message=Message(role=Role.USER, content=[Part(text=f'{txt} POST')]),
+            finish_reason=resp.finish_reason,
+            message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
 
     response = await generate_action(
@@ -181,7 +189,7 @@ async def test_generate_middleware_next_fn_args_optional(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -209,7 +217,7 @@ async def test_generate_middleware_can_modify_context(
                 messages=[
                     Message(
                         role=Role.USER,
-                        content=[Part(text=f'{txt} {ctx.context}')],
+                        content=[Part(root=TextPart(text=f'{txt} {ctx.context}'))],
                     ),
                 ],
             ),
@@ -223,7 +231,7 @@ async def test_generate_middleware_can_modify_context(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -243,15 +251,15 @@ async def test_generate_middleware_can_modify_stream(
 
     pm.responses.append(
         GenerateResponse(
-            finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='1')]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='2')]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='3')]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
         ]
     ]
 
@@ -259,30 +267,30 @@ async def test_generate_middleware_can_modify_stream(
         ctx.send_chunk(
             GenerateResponseChunk(
                 role=Role.MODEL,
-                content=[Part(text='something extra before')],
+                content=[Part(root=TextPart(text='something extra before'))],
             )
         )
 
-        def chunk_handler(chunk):
+        def chunk_handler(chunk) -> None:
             ctx.send_chunk(
                 GenerateResponseChunk(
                     role=Role.MODEL,
-                    content=[Part(text=f'intercepted: {text_from_content(chunk.content)}')],
+                    content=[Part(root=TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
                 )
             )
 
         resp = await next(req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler))
         ctx.send_chunk(
             GenerateResponseChunk(
-                role='model',
-                content=[Part(text='something extra after')],
+                role=Role.MODEL,
+                content=[Part(root=TextPart(text='something extra after'))],
             )
         )
         return resp
 
     got_chunks = []
 
-    def collect_chunks(c):
+    def collect_chunks(c) -> None:
         got_chunks.append(text_from_content(c.content))
 
     response = await generate_action(
@@ -292,7 +300,7 @@ async def test_generate_middleware_can_modify_stream(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(text='hi')],
+                    content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -316,9 +324,9 @@ async def test_generate_middleware_can_modify_stream(
 
 specs = []
 with open(pathlib.Path(__file__).parent.joinpath('../../../../../../tests/specs/generate.yaml').resolve()) as stream:
-    testsSpec = yaml.safe_load(stream)
-    specs = testsSpec['tests']
-    specs = [x for x in testsSpec['tests'] if x['name'] == 'calls tools']
+    tests_spec = yaml.safe_load(stream)
+    specs = tests_spec['tests']
+    specs = [x for x in tests_spec['tests'] if x['name'] == 'calls tools']
 
 
 @pytest.mark.parametrize(
@@ -327,13 +335,14 @@ with open(pathlib.Path(__file__).parent.joinpath('../../../../../../tests/specs/
 )
 @pytest.mark.asyncio
 async def test_generate_action_spec(spec) -> None:
+    """Run tests based on external generate action specifications."""
     ai = Genkit()
 
     pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='testTool')
-    def test_tool():
-        """description"""
+    def test_tool() -> Any:
+        """description"""  # noqa: D400, D403, D415
         return 'tool called'
 
     if 'modelResponses' in spec:
@@ -348,19 +357,20 @@ async def test_generate_action_spec(spec) -> None:
             pm.chunks.append(converted)
 
     action = await ai.registry.resolve_action(kind=ActionKind.UTIL, name='generate')
+    assert action is not None
 
     response = None
     chunks = None
     if 'stream' in spec and spec['stream']:
         chunks = []
 
-        def on_chunk(chunk):
+        def on_chunk(chunk) -> None:
             chunks.append(chunk)
 
         action_response = await action.arun(
             ai.registry,
-            TypeAdapter(GenerateActionOptions).validate_python(spec['input']),
-            on_chunk=on_chunk,
+            TypeAdapter(GenerateActionOptions).validate_python(spec['input']),  # type: ignore[arg-type]
+            on_chunk=on_chunk,  # type: ignore[misc]
         )
         response = action_response.response
     else:
@@ -386,7 +396,8 @@ async def test_generate_action_spec(spec) -> None:
             )
 
 
-def is_equal_lists(a, b):
+def is_equal_lists(a, b) -> bool:
+    """Deep compare two lists of actions."""
     if len(a) != len(b):
         return False
 
@@ -401,16 +412,19 @@ primitives = (bool, str, int, float, type(None))
 
 
 def is_primitive(obj):
+    """Check if an object is a primitive type."""
     return isinstance(obj, primitives)
 
 
 def clean_schema(d):
+    """Remove $schema keys and other non-relevant parts from a dict recursively."""
     if is_primitive(d):
         return d
     if isinstance(d, dict):
         out = {}
         for key in d:
-            if key != '$schema':
+            # Skip $schema and latencyMs (dynamic value that varies between runs)
+            if key not in ('$schema', 'latencyMs'):
                 out[key] = clean_schema(d[key])
         return out
     elif hasattr(d, '__len__'):

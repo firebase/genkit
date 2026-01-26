@@ -16,8 +16,9 @@
 
 """Models package for Ollama plugin."""
 
+import mimetypes
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import structlog
 from pydantic import BaseModel
@@ -58,7 +59,7 @@ class ModelDefinition(BaseModel):
     """Meta definition for Ollama models."""
 
     name: str
-    api_type: OllamaAPITypes = 'chat'
+    api_type: OllamaAPITypes = OllamaAPITypes.CHAT
     supports: OllamaSupports = OllamaSupports()
 
 
@@ -93,7 +94,7 @@ class OllamaModel:
         Returns:
             The generated response.
         """
-        content = [TextPart(text='Failed to get response from Ollama API')]
+        content = [Part(root=TextPart(text='Failed to get response from Ollama API'))]
 
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
             api_response = await self._chat_with_ollama(request=request, ctx=ctx)
@@ -104,7 +105,7 @@ class OllamaModel:
         elif self.model_definition.api_type == OllamaAPITypes.GENERATE:
             api_response = await self._generate_ollama_response(request=request, ctx=ctx)
             if api_response:
-                content = [TextPart(text=api_response.response)]
+                content = [Part(root=TextPart(text=api_response.response))]
         else:
             raise ValueError(f'Unresolved API type: {self.model_definition.api_type}')
 
@@ -166,7 +167,7 @@ class OllamaModel:
                     function=ollama_api.Tool.Function(
                         name=tool.name,
                         description=tool.description,
-                        parameters=_convert_parameters(tool.input_schema),
+                        parameters=_convert_parameters(tool.input_schema or {}),
                     )
                 )
                 for tool in request.tools or []
@@ -181,13 +182,14 @@ class OllamaModel:
             async for chunk in chat_response:
                 idx += 1
                 role = Role.MODEL if chunk.message.role == 'assistant' else Role.TOOL
-                ctx.send_chunk(
-                    chunk=GenerateResponseChunk(
-                        role=role,
-                        index=idx,
-                        content=self._build_multimodal_chat_response(chat_response=chunk),
+                if ctx:
+                    ctx.send_chunk(
+                        chunk=GenerateResponseChunk(
+                            role=role,
+                            index=idx,
+                            content=self._build_multimodal_chat_response(chat_response=chunk),
+                        )
                     )
-                )
             return chat_response
         else:
             return chat_response
@@ -220,13 +222,14 @@ class OllamaModel:
             idx = 0
             async for chunk in generate_response:
                 idx += 1
-                ctx.send_chunk(
-                    chunk=GenerateResponseChunk(
-                        role=Role.MODEL,
-                        index=idx,
-                        content=[TextPart(text=chunk.response)],
+                if ctx:
+                    ctx.send_chunk(
+                        chunk=GenerateResponseChunk(
+                            role=Role.MODEL,
+                            index=idx,
+                            content=[Part(root=TextPart(text=chunk.response))],
+                        )
                     )
-                )
             return generate_response
         else:
             return generate_response
@@ -246,24 +249,29 @@ class OllamaModel:
         content = []
         chat_response_message = chat_response.message
         if chat_response_message.content:
-            content.append(TextPart(text=chat_response.message.content))
+            content.append(Part(root=TextPart(text=chat_response.message.content or '')))
         if chat_response_message.images:
             for image in chat_response_message.images:
                 content.append(
-                    MediaPart(
-                        media=Media(
-                            content_type=mimetypes.guess_type(image.value, strict=False)[0],
-                            url=image.value,
+                    Part(
+                        root=MediaPart(
+                            media=Media(
+                                content_type=mimetypes.guess_type(str(image.value), strict=False)[0]
+                                or 'application/octet-stream',
+                                url=str(image.value),
+                            )
                         )
                     )
                 )
         if chat_response_message.tool_calls:
             for tool_call in chat_response_message.tool_calls:
                 content.append(
-                    ToolRequestPart(
-                        tool_request=ToolRequest(
-                            name=tool_call.function.name,
-                            input=tool_call.function.arguments,
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(
+                                name=tool_call.function.name,
+                                input=tool_call.function.arguments,
+                            )
                         )
                     )
                 )
@@ -271,7 +279,7 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: GenerationCommonConfig | ollama_api.Options | dict,
+        config: GenerationCommonConfig | ollama_api.Options | dict[str, Any] | None,
     ) -> ollama_api.Options:
         """Build request options for the generate API.
 
@@ -281,10 +289,12 @@ class OllamaModel:
         Returns:
             The request options for the generate API.
         """
+        if config is None:
+            return ollama_api.Options()
         if isinstance(config, GenerationCommonConfig):
             config = dict(
                 top_k=config.top_k,
-                top_p=config.top_p,
+                topP=config.top_p,
                 stop=config.stop_sequences,
                 temperature=config.temperature,
                 num_predict=config.max_output_tokens,
@@ -326,15 +336,15 @@ class OllamaModel:
         messages = []
         for message in request.messages:
             item = ollama_api.Message(
-                role=cls._to_ollama_role(role=message.role),
+                role=cls._to_ollama_role(role=cast(Role, message.role)),
                 content='',
                 images=[],
             )
             for text_part in message.content:
                 if isinstance(text_part.root, TextPart):
-                    item.content += text_part.root.text
+                    item.content = (item.content or '') + text_part.root.text
                 if isinstance(text_part.root, ToolResponsePart):
-                    item.content += str(text_part.root.tool_response.output)
+                    item.content = (item.content or '') + str(text_part.root.tool_response.output)
                 if isinstance(text_part.root, MediaPart):
                     item['images'].append(
                         ollama_api.Image(
@@ -363,12 +373,12 @@ class OllamaModel:
     @staticmethod
     def is_streaming_request(ctx: ActionRunContext | None) -> bool:
         """Determines if streaming mode is requested."""
-        return ctx and ctx.is_streaming
+        return bool(ctx and ctx.is_streaming)
 
     @staticmethod
     def get_usage_info(
         basic_generation_usage: GenerationUsage,
-        api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse,
+        api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse | None,
     ) -> GenerationUsage:
         """Extracts and calculates token usage information from an Ollama API response.
 

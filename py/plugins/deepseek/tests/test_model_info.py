@@ -19,20 +19,20 @@
 from genkit.plugins.deepseek.model_info import SUPPORTED_DEEPSEEK_MODELS, get_default_model_info
 
 
-def test_supported_models_exist():
+def test_supported_models_exist() -> None:
     """Test that supported models are defined."""
     assert 'deepseek-reasoner' in SUPPORTED_DEEPSEEK_MODELS
     assert 'deepseek-chat' in SUPPORTED_DEEPSEEK_MODELS
 
 
-def test_model_order():
+def test_model_order() -> None:
     """Test models are in correct order (matching JS)."""
     keys = list(SUPPORTED_DEEPSEEK_MODELS.keys())
     assert keys[0] == 'deepseek-reasoner'
     assert keys[1] == 'deepseek-chat'
 
 
-def test_model_info_structure():
+def test_model_info_structure() -> None:
     """Test model info has required fields."""
     for _model_name, model_info in SUPPORTED_DEEPSEEK_MODELS.items():
         assert model_info.label
@@ -41,13 +41,15 @@ def test_model_info_structure():
         assert model_info.supports.tools is True
         assert model_info.supports.media is False
         assert model_info.supports.system_role is True
+        assert model_info.supports.output is not None
         assert 'text' in model_info.supports.output
         assert 'json' in model_info.supports.output
 
 
-def test_get_default_model_info():
+def test_get_default_model_info() -> None:
     """Test getting default info for unknown models."""
     info = get_default_model_info('deepseek-future-model')
-    assert 'deepseek-future-model' in info.label
+    assert 'deepseek-future-model' in str(info.label)
+    assert info.supports is not None
     assert info.supports.multiturn is True
     assert info.supports.tools is True

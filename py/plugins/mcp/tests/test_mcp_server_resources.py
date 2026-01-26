@@ -19,29 +19,70 @@
 import os
 import sys
 import unittest
+from typing import Any
 from unittest.mock import MagicMock
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-from fakes import mock_mcp_modules
-
-mock_mcp_modules()
-
 import pytest
+from mcp.types import (
+    ListPromptsRequest,
+    ListResourcesRequest,
+    ListResourceTemplatesRequest,
+    ListToolsRequest,
+    TextContent,
+    TextResourceContents,
+)
 
-from genkit.ai import Genkit
-from genkit.plugins.mcp import McpServerOptions, create_mcp_server
+# Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
+Genkit: Any = None
+McpServerOptions: Any = None
+create_mcp_server: Any = None
+
+
+def setup_mocks() -> None:
+    """Set up mocks for testing."""
+    global Genkit, McpServerOptions, create_mcp_server
+
+    # Add test directory to path for fakes
+    if os.path.dirname(__file__) not in sys.path:
+        sys.path.insert(0, os.path.dirname(__file__))
+
+    # Add src directory to path if not installed
+    src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'))
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+
+    try:
+        from fakes import mock_mcp_modules
+
+        mock_mcp_modules()
+
+        from genkit.ai import Genkit as _Genkit
+        from genkit.plugins.mcp import McpServerOptions as _McpServerOptions, create_mcp_server as _create_mcp_server
+
+        Genkit = _Genkit
+        McpServerOptions = _McpServerOptions
+        create_mcp_server = _create_mcp_server
+    except ImportError:
+        # Fallback if dependencies missing
+        pass
+
+
+# Call setup at module level but wrapped? No, still E402 if statements are here.
+# But we can call it in setUpClass or invoke it.
+# However, for the classes to use these types, they need to be defined.
+# If I use lazy imports inside tests, E402 is solved.
 
 
 @pytest.mark.asyncio
 class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     """Tests for MCP server resource handling."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
+        setup_mocks()
         self.ai = Genkit()
 
-    async def test_list_resources_with_fixed_uri(self):
+    async def test_list_resources_with_fixed_uri(self) -> None:
         """Test listing resources with fixed URIs."""
         # Define resources
         self.ai.define_resource(name='config', uri='app://config', fn=lambda req: {'content': [{'text': 'config'}]})
@@ -53,7 +94,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resources
-        result = await server.list_resources({})
+        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
 
         # Verify
         self.assertEqual(len(result.resources), 2)
@@ -63,9 +104,9 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify URIs
         config_resource = next(r for r in result.resources if r.name == 'config')
-        self.assertEqual(config_resource.uri, 'app://config')
+        self.assertEqual(str(config_resource.uri), 'app://config')
 
-    async def test_list_resource_templates(self):
+    async def test_list_resource_templates(self) -> None:
         """Test listing resources with URI templates."""
         # Define template resources
         self.ai.define_resource(
@@ -81,7 +122,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resource templates
-        result = await server.list_resource_templates({})
+        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
 
         # Verify
         self.assertEqual(len(result.resourceTemplates), 2)
@@ -93,7 +134,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         file_template = next(t for t in result.resourceTemplates if t.name == 'file')
         self.assertEqual(file_template.uriTemplate, 'file://{+path}')
 
-    async def test_list_resources_excludes_templates(self):
+    async def test_list_resources_excludes_templates(self) -> None:
         """Test that list_resources excludes template resources."""
         # Define mixed resources
         self.ai.define_resource(name='fixed', uri='app://fixed', fn=lambda req: {'content': [{'text': 'fixed'}]})
@@ -107,12 +148,12 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resources (should only include fixed URI)
-        result = await server.list_resources({})
+        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
 
         self.assertEqual(len(result.resources), 1)
         self.assertEqual(result.resources[0].name, 'fixed')
 
-    async def test_list_resource_templates_excludes_fixed(self):
+    async def test_list_resource_templates_excludes_fixed(self) -> None:
         """Test that list_resource_templates excludes fixed URI resources."""
         # Define mixed resources
         self.ai.define_resource(name='fixed', uri='app://fixed', fn=lambda req: {'content': [{'text': 'fixed'}]})
@@ -126,12 +167,12 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List templates (should only include template)
-        result = await server.list_resource_templates({})
+        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
 
         self.assertEqual(len(result.resourceTemplates), 1)
         self.assertEqual(result.resourceTemplates[0].name, 'template')
 
-    async def test_read_resource_with_fixed_uri(self):
+    async def test_read_resource_with_fixed_uri(self) -> None:
         """Test reading a resource with fixed URI."""
 
         def config_resource(req):
@@ -152,9 +193,10 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
+        assert isinstance(result.contents[0], TextResourceContents)
         self.assertEqual(result.contents[0].text, 'Configuration data')
 
-    async def test_read_resource_with_template(self):
+    async def test_read_resource_with_template(self) -> None:
         """Test reading a resource with URI template."""
 
         def file_resource(req):
@@ -177,9 +219,10 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
+        assert isinstance(result.contents[0], TextResourceContents)
         self.assertIn('/home/user/document.txt', result.contents[0].text)
 
-    async def test_read_resource_not_found(self):
+    async def test_read_resource_not_found(self) -> None:
         """Test reading a non-existent resource."""
         self.ai.define_resource(name='existing', uri='app://existing', fn=lambda req: {'content': [{'text': 'data'}]})
 
@@ -198,7 +241,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('NOT_FOUND', str(context.exception.status))
 
-    async def test_read_resource_with_multiple_content_parts(self):
+    async def test_read_resource_with_multiple_content_parts(self) -> None:
         """Test reading a resource that returns multiple content parts."""
 
         def multi_part_resource(req):
@@ -218,8 +261,11 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 3)
+        assert isinstance(result.contents[0], TextResourceContents)
         self.assertEqual(result.contents[0].text, 'Part 1')
+        assert isinstance(result.contents[1], TextResourceContents)
         self.assertEqual(result.contents[1].text, 'Part 2')
+        assert isinstance(result.contents[2], TextResourceContents)
         self.assertEqual(result.contents[2].text, 'Part 3')
 
 
@@ -227,11 +273,12 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
     """Tests for MCP server tool and prompt handling."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
+        setup_mocks()
         self.ai = Genkit()
 
-    async def test_list_tools(self):
+    async def test_list_tools(self) -> None:
         """Test listing tools."""
 
         @self.ai.tool(description='Add two numbers')
@@ -247,7 +294,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List tools
-        result = await server.list_tools({})
+        result = await server.list_tools(ListToolsRequest(method='tools/list'))
 
         # Verify
         self.assertEqual(len(result.tools), 2)
@@ -255,7 +302,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         self.assertIn('add', tool_names)
         self.assertIn('multiply', tool_names)
 
-    async def test_call_tool(self):
+    async def test_call_tool(self) -> None:
         """Test calling a tool."""
 
         @self.ai.tool()
@@ -275,9 +322,10 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.content), 1)
+        assert isinstance(result.content[0], TextContent)
         self.assertEqual(result.content[0].text, '8')
 
-    async def test_list_prompts(self):
+    async def test_list_prompts(self) -> None:
         """Test listing prompts."""
         self.ai.define_prompt(name='greeting', prompt='Hello {{name}}!')
 
@@ -288,7 +336,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List prompts
-        result = await server.list_prompts({})
+        result = await server.list_prompts(ListPromptsRequest(method='prompts/list'))
 
         # Verify
         self.assertGreaterEqual(len(result.prompts), 2)
@@ -300,8 +348,9 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 class TestMcpServerIntegration(unittest.IsolatedAsyncioTestCase):
     """Integration tests for MCP server."""
 
-    async def test_server_exposes_all_action_types(self):
+    async def test_server_exposes_all_action_types(self) -> None:
         """Test that server exposes tools, prompts, and resources."""
+        setup_mocks()
         ai = Genkit()
 
         # Define tool
@@ -324,8 +373,9 @@ class TestMcpServerIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(server.prompt_actions), 0)
         self.assertGreater(len(server.resource_actions), 0)
 
-    async def test_server_initialization_idempotent(self):
+    async def test_server_initialization_idempotent(self) -> None:
         """Test that server setup is idempotent."""
+        setup_mocks()
         ai = Genkit()
 
         @ai.tool()

@@ -21,10 +21,11 @@ Evaluators are used for assessint the quality of output of a Genkit flow or
 model.
 """
 
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.core.typing import (
     BaseDataPoint,
@@ -45,10 +46,10 @@ BatchEvaluatorFn = Callable[[EvalRequest, T], Coroutine[Any, Any, list[EvalFnRes
 class EvaluatorRef(BaseModel):
     """Reference to an evaluator."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     name: str
-    config_schema: Any | None = Field(None, alias='configSchema')
+    config_schema: Any | None = None
 
 
 def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
@@ -61,7 +62,4 @@ def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
     Returns:
         An EvaluatorRef instance.
     """
-    # NOTE: Using camelCase alias (configSchema) because Pydantic models have
-    # populate_by_name=True. The ty type checker only recognizes aliases, so we
-    # use them to pass both ty check and runtime validation.
-    return EvaluatorRef(name=name, configSchema=config_schema)
+    return EvaluatorRef(name=name, config_schema=config_schema)

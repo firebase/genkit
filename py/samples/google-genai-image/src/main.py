@@ -21,12 +21,15 @@ import base64
 import logging
 import os
 import pathlib
-from typing import Any
+from typing import Annotated, Any
 
 from google import genai
 from google.genai import types as genai_types
+from pydantic import Field
 
 from genkit.ai import Genkit
+from genkit.blocks.model import GenerateResponseWrapper
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import (
     GeminiConfigSchema,
     GeminiImageConfigSchema,
@@ -37,6 +40,8 @@ from genkit.types import (
     Media,
     MediaPart,
     Message,
+    Metadata,
+    Part,
     Role,
     TextPart,
 )
@@ -48,7 +53,9 @@ ai = Genkit(plugins=[GoogleAI()])
 
 
 @ai.flow()
-async def draw_image_with_gemini(prompt: str = '') -> str:
+async def draw_image_with_gemini(
+    prompt: Annotated[str, Field(default='Draw a cat in a hat.')] = 'Draw a cat in a hat.',
+) -> GenerateResponseWrapper:
     """Draw an image.
 
     Args:
@@ -57,9 +64,6 @@ async def draw_image_with_gemini(prompt: str = '') -> str:
     Returns:
         The image.
     """
-    if not prompt:
-        prompt = 'Draw a cat in a hat.'
-
     return await ai.generate(
         prompt=prompt,
         config={'response_modalities': ['Text', 'Image']},
@@ -96,8 +100,8 @@ async def describe_image_with_gemini(data: str = '') -> str:
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text='What is shown in this image?'),
-                    MediaPart(media=Media(content_type='image/jpeg', url=data)),
+                    Part(root=TextPart(text='What is shown in this image?')),
+                    Part(root=MediaPart(media=Media(content_type='image/jpeg', url=data))),
                 ],
             ),
         ],
@@ -107,7 +111,10 @@ async def describe_image_with_gemini(data: str = '') -> str:
 
 
 @ai.flow()
-async def generate_images(name: str, ctx):
+async def generate_images(
+    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> GenerateResponseWrapper:
     """Generate images for the given name.
 
     Args:
@@ -117,14 +124,13 @@ async def generate_images(name: str, ctx):
     Returns:
         The generated response with a function.
     """
-    result = await ai.generate(
+    return await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=f'tell me about {name} with photos',
         config=GeminiConfigSchema(response_modalities=['text', 'image'], api_version='v1alpha').model_dump(
             exclude_none=True
         ),
     )
-    return result
 
 
 @ai.tool(name='screenshot')
@@ -141,7 +147,7 @@ def screenshot() -> dict:
 
 
 @ai.flow()
-async def multipart_tool_calling():
+async def multipart_tool_calling() -> str:
     """Multipart tool calling."""
     response = await ai.generate(
         model='googleai/gemini-3-pro-preview',
@@ -153,7 +159,7 @@ async def multipart_tool_calling():
 
 
 @ai.flow()
-async def gemini_image_editing():
+async def gemini_image_editing() -> Media | None:
     """Image editing with Gemini."""
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
@@ -166,9 +172,9 @@ async def gemini_image_editing():
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=[
-            TextPart(text='add the plant to my room'),
-            MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}')),
-            MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}')),
+            Part(root=TextPart(text='add the plant to my room')),
+            Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}'))),
+            Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}'))),
         ],
         config=GeminiImageConfigSchema(
             response_modalities=['TEXT', 'IMAGE'],
@@ -176,7 +182,7 @@ async def gemini_image_editing():
             api_version='v1alpha',
         ).model_dump(exclude_none=True),
     )
-    for part in response.message.content:
+    for part in response.message.content if response.message else []:
         if isinstance(part.root, MediaPart):
             return part.root.media
 
@@ -184,7 +190,7 @@ async def gemini_image_editing():
 
 
 @ai.flow()
-async def nano_banana_pro():
+async def nano_banana_pro() -> Media | None:
     """Nano banana pro config."""
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
@@ -198,14 +204,14 @@ async def nano_banana_pro():
             'api_version': 'v1alpha',
         },
     )
-    for part in response.message.content:
+    for part in response.message.content if response.message else []:
         if isinstance(part.root, MediaPart):
             return part.root.media
-    return response.media
+    return None
 
 
 @ai.flow()
-async def photo_move_veo(_: Any, context: Any = None):
+async def photo_move_veo(_: Any, context: ActionRunContext | None = None) -> Any:
     """An example of using Ver 3 model to make a static photo move."""
     # Find photo.jpg (or my_room.png)
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
@@ -258,15 +264,17 @@ async def photo_move_veo(_: Any, context: Any = None):
             await asyncio.sleep(5)
 
         if operation.error:
+            error_msg = getattr(operation.error, 'message', str(operation.error))
             if context:
-                context.send_chunk(f'Error: {operation.error.message}')
-            raise ValueError(f'Failed to generate video: {operation.error.message}')
+                context.send_chunk(f'Error: {error_msg}')
+            raise ValueError(f'Failed to generate video: {error_msg}')
 
         # Done
         result_info = 'Video generated successfully.'
         if hasattr(operation, 'result') and operation.result:
-            if hasattr(operation.result, 'generated_videos') and operation.result.generated_videos:
-                vid = operation.result.generated_videos[0]
+            generated_videos = getattr(operation.result, 'generated_videos', None)
+            if generated_videos:
+                vid = generated_videos[0]
                 if vid.video and vid.video.uri:
                     result_info += f' URI: {vid.video.uri}'
 
@@ -280,7 +288,7 @@ async def photo_move_veo(_: Any, context: Any = None):
 
 
 @ai.flow()
-async def gemini_media_resolution():
+async def gemini_media_resolution() -> str:
     """Media resolution."""
     # Placeholder base64 for sample
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
@@ -289,10 +297,12 @@ async def gemini_media_resolution():
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=[
-            TextPart(text='What is in this picture?'),
-            MediaPart(
-                media=Media(url=f'data:image/png;base64,{plant_b64}'),
-                metadata={'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}},
+            Part(root=TextPart(text='What is in this picture?')),
+            Part(
+                root=MediaPart(
+                    media=Media(url=f'data:image/png;base64,{plant_b64}'),
+                    metadata=Metadata({'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}}),
+                )
             ),
         ],
         config={'api_version': 'v1alpha'},
@@ -301,7 +311,7 @@ async def gemini_media_resolution():
 
 
 @ai.flow()
-async def multimodal_input():
+async def multimodal_input() -> str:
     """Multimodal input."""
     photo_path = pathlib.Path(__file__).parent.parent / 'photo.jpg'
     with open(photo_path, 'rb') as f:
@@ -310,8 +320,8 @@ async def multimodal_input():
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=[
-            TextPart(text='describe this photo'),
-            MediaPart(media=Media(url=f'data:image/jpeg;base64,{photo_b64}', content_type='image/jpeg')),
+            Part(root=TextPart(text='describe this photo')),
+            Part(root=MediaPart(media=Media(url=f'data:image/jpeg;base64,{photo_b64}', content_type='image/jpeg'))),
         ],
     )
     return response.text
