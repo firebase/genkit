@@ -190,7 +190,10 @@ class OllamaModel:
                             content=self._build_multimodal_chat_response(chat_response=chunk),
                         )
                     )
-            return chat_response
+            # For streaming requests, we return None because the response chunks
+            # have already been sent via ctx.send_chunk() above. The async generator
+            # is now exhausted, and the caller should not expect a return value.
+            return None
         else:
             return chat_response
 
@@ -230,7 +233,10 @@ class OllamaModel:
                             content=[Part(root=TextPart(text=chunk.response))],
                         )
                     )
-            return generate_response
+            # For streaming requests, we return None because the response chunks
+            # have already been sent via ctx.send_chunk() above. The async generator
+            # is now exhausted, and the caller should not expect a return value.
+            return None
         else:
             return generate_response
 

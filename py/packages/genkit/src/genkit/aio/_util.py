@@ -24,6 +24,11 @@ from typing import Any
 def ensure_async(fn: Callable[..., Any] | Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
     """Ensure the function is async.
 
+    This function handles three cases:
+    1. `fn` is already an async function -> return as-is
+    2. `fn` is a sync function that returns a regular value -> wrap in async
+    3. `fn` is a sync function (e.g., lambda) that returns a coroutine -> await it
+
     Args:
         fn: The function to ensure is async.
 
@@ -44,6 +49,10 @@ def ensure_async(fn: Callable[..., Any] | Callable[..., Awaitable[Any]]) -> Call
         Returns:
             The result of the function.
         """
-        return fn(*args, **kwargs)
+        result = fn(*args, **kwargs)
+        # Handle case where a sync function (e.g., lambda) returns a coroutine
+        if inspect.iscoroutine(result):
+            return await result
+        return result
 
     return async_wrapper

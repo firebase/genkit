@@ -21,10 +21,14 @@ It provides a way to initialize and register plugin functionality.
 """
 
 import abc
-from typing import cast
+from typing import TYPE_CHECKING
 
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
+
+if TYPE_CHECKING:
+    from genkit.blocks.embedding import EmbedderRef
+    from genkit.blocks.model import ModelReference
 
 
 class Plugin(abc.ABC):
@@ -78,22 +82,34 @@ class Plugin(abc.ABC):
         """
         ...
 
-    async def model(self, name: str) -> Action:
-        """Convenience method to resolve a model without using the registry.
+    def model(self, name: str) -> 'ModelReference':
+        """Creates a model reference.
 
-        Prefixes local name with plugin namespace before calling resolve.
+        Prefixes local name with plugin namespace.
 
         Args:
             name: The model name (local or namespaced).
 
         Returns:
-            Action: The resolved model action.
-
-        Raises:
-            ValueError: If the model is not found.
+            ModelReference: A reference to the model.
         """
+        from genkit.blocks.model import ModelReference
+
         target = name if '/' in name else f'{self.name}/{name}'
-        action = await self.resolve(cast(ActionKind, ActionKind.MODEL), target)
-        if action is None:
-            raise ValueError(f'Model not found: {target}')
-        return action
+        return ModelReference(name=target)
+
+    def embedder(self, name: str) -> 'EmbedderRef':
+        """Creates an embedder reference.
+
+        Prefixes local name with plugin namespace.
+
+        Args:
+            name: The embedder name (local or namespaced).
+
+        Returns:
+            EmbedderRef: A reference to the embedder.
+        """
+        from genkit.blocks.embedding import EmbedderRef
+
+        target = name if '/' in name else f'{self.name}/{name}'
+        return EmbedderRef(name=target)

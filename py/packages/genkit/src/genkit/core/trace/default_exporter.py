@@ -25,10 +25,12 @@ The module includes:
     - Utility functions for converting and formatting trace attributes
 """
 
+from __future__ import annotations
+
 import os
 import sys
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import httpx
@@ -39,6 +41,9 @@ from opentelemetry.sdk.trace.export import (
     SpanExporter,
     SpanExportResult,
 )
+
+if TYPE_CHECKING:
+    from opentelemetry.sdk.trace import SpanProcessor
 
 ATTR_PREFIX = 'genkit'
 logger = structlog.get_logger(__name__)
@@ -158,7 +163,17 @@ class TelemetryServerSpanExporter(SpanExporter):
 
 
 def init_telemetry_server_exporter() -> SpanExporter | None:
-    """Initializes tracing with a provider and optional exporter."""
+    """Initializes tracing with a provider and optional exporter.
+
+    Returns:
+        A SpanExporter configured for the telemetry server, or None if
+        GENKIT_TELEMETRY_SERVER is not set.
+
+    Environment Variables:
+        GENKIT_TELEMETRY_SERVER: URL of the telemetry server.
+        GENKIT_ENABLE_REALTIME_TELEMETRY: Set to 'true' to enable realtime
+            span processing (exports spans on start and end).
+    """
     telemetry_server_url = os.environ.get('GENKIT_TELEMETRY_SERVER')
     processor = None
 
@@ -172,3 +187,42 @@ def init_telemetry_server_exporter() -> SpanExporter | None:
         )
 
     return processor
+
+
+def is_realtime_telemetry_enabled() -> bool:
+    """Check if realtime telemetry is enabled.
+
+    Returns:
+        True if GENKIT_ENABLE_REALTIME_TELEMETRY is set to 'true'.
+    """
+    return os.environ.get('GENKIT_ENABLE_REALTIME_TELEMETRY', '').lower() == 'true'
+
+
+def create_span_processor(exporter: SpanExporter) -> SpanProcessor:
+    """Create an appropriate SpanProcessor for the given exporter.
+
+    Uses RealtimeSpanProcessor when in dev mode AND GENKIT_ENABLE_REALTIME_TELEMETRY
+    is set to 'true'. Otherwise uses SimpleSpanProcessor for dev or BatchSpanProcessor
+    for production.
+
+    This matches the JavaScript implementation in node-telemetry-provider.ts.
+
+    Args:
+        exporter: The SpanExporter to wrap.
+
+    Returns:
+        A SpanProcessor configured for the current environment.
+    """
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+
+    from genkit.core.environment import is_dev_environment
+
+    from .realtime_processor import RealtimeSpanProcessor
+
+    # Match JS: RealtimeSpanProcessor requires BOTH dev mode AND env var
+    if is_dev_environment() and is_realtime_telemetry_enabled():
+        return RealtimeSpanProcessor(exporter)
+    elif is_dev_environment():
+        return SimpleSpanProcessor(exporter)
+    else:
+        return BatchSpanProcessor(exporter)

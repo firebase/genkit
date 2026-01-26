@@ -182,9 +182,24 @@ class Channel(Generic[T]):
         if future is None:
             raise ValueError('Cannot set a None future')
 
+        def _handle_done(v: asyncio.Future[T]) -> None:
+            """Handle future completion, propagating results or errors to self.closed.
+
+            This callback ensures proper propagation of the future's final state
+            (success, exception, or cancellation) to the channel's closed future,
+            allowing consumers to properly handle completion or errors.
+            """
+            # Propagate cancellation to notify consumers that the operation was cancelled
+            if v.cancelled():
+                self.closed.cancel()
+            elif v.exception() is not None:
+                self.closed.set_exception(v.exception())  # type: ignore[arg-type]
+            else:
+                self.closed.set_result(v.result())
+
         self._close_future = asyncio.ensure_future(future)
         if self._close_future is not None:
-            self._close_future.add_done_callback(lambda v: self.closed.set_result(v.result()))
+            self._close_future.add_done_callback(_handle_done)
 
     async def _pop(self) -> T:
         """Asynchronously retrieves a value from the internal queue.
