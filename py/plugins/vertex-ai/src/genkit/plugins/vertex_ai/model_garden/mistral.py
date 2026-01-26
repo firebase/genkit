@@ -320,7 +320,7 @@ class MistralModel:
 """Mistral Models for VertexAI Model Garden."""
 
 import json
-from typing import Any
+from typing import Any, cast
 
 from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
@@ -338,6 +338,7 @@ from genkit.types import (
     Supports,
     Supports,
     TextPart,
+    ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
 )
@@ -532,6 +533,8 @@ class MistralModel:
     def _from_mistral_response(
         self, request: GenerateRequest, response: ChatCompletionResponse
     ) -> GenerateResponse:
+        if not response.choices:
+            raise ValueError("Mistral response contains no choices")
         choice = response.choices[0]
         message = choice.message
         content_parts = []
@@ -559,7 +562,7 @@ class MistralModel:
                 content_parts.append(
                     Part(
                         root=ToolRequestPart(
-                            tool_request=ToolRequest(
+                            toolRequest=ToolRequest(
                                 ref=tc.id,
                                 name=tc.function.name,
                                 input=tool_input,
@@ -578,11 +581,11 @@ class MistralModel:
 
         return GenerateResponse(
             message=Message(role=Role.MODEL, content=content_parts),
-            finish_reason=finish_reason,
+            finishReason=cast(FinishReason, finish_reason),
             usage=GenerationUsage(
-                input_tokens=response.usage.prompt_tokens,
-                output_tokens=response.usage.completion_tokens,
-                total_tokens=response.usage.total_tokens,
+                inputTokens=response.usage.prompt_tokens,
+                outputTokens=response.usage.completion_tokens,
+                totalTokens=response.usage.total_tokens,
             ),
         )
     
