@@ -176,7 +176,7 @@ class AnthropicModelGarden:
 
         self.ai.define_model(
             name=model_garden_name(self.name),
-            fn=anthropic_model.generate,
+            fn=lambda r, c: anthropic_model.generate(r, c),
             config_schema=GenerationCommonConfig,
             metadata={
                 'model': ModelInfo(

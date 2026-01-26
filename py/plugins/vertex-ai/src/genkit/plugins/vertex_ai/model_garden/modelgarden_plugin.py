@@ -120,8 +120,13 @@ class ModelGardenPlugin(Plugin):
             name.replace(MODELGARDEN_PLUGIN_NAME + '/', '') if name.startswith(MODELGARDEN_PLUGIN_NAME) else name
         )
 
+        if not self.project_id:
+            raise ValueError("Project ID is required.")
+        if not self.location:
+            raise ValueError("Location is required.")
+
         if clean_name.startswith('anthropic/'):
-            from anthropic import AsyncAnthropicVertex
+            from anthropic import AsyncAnthropic, AsyncAnthropicVertex
 
             from genkit.plugins.anthropic.models import AnthropicModel
             # Uses global imports now
@@ -132,7 +137,7 @@ class ModelGardenPlugin(Plugin):
 
             # Strip 'anthropic/' prefix for the model passed to Anthropic SDK
             anthropic_model_name = clean_name.removeprefix('anthropic/')
-            anthropic_model = AnthropicModel(model_name=anthropic_model_name, client=client)
+            anthropic_model = AnthropicModel(model_name=anthropic_model_name, client=cast(AsyncAnthropic, client))
 
             return Action(
                 kind=cast(ActionKind, ActionKind.MODEL),

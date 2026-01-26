@@ -78,7 +78,7 @@ class ModelGarden:
         """
         self.name = model
         openai_params = {'location': location, 'project_id': project_id}
-        self.client = OpenAIClient(**openai_params)
+        self.client: OpenAI = OpenAIClient(**openai_params)
 
     def get_model_info(self) -> dict[str, Any] | None:
         """Retrieves metadata and supported features for the specified model.
@@ -96,6 +96,7 @@ class ModelGarden:
         supports = model_info.supports
         return {
             'name': model_info.label,
+            'supports': model_info.supports.model_dump() if model_info.supports else None,
             'supports': supports.model_dump() if supports and hasattr(supports, 'model_dump') else {},
         }
 
