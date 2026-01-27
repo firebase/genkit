@@ -42,10 +42,8 @@ from opentelemetry.sdk.trace.export import (
 )
 
 from genkit.core.environment import is_dev_environment
-from genkit.core.trace import (
-    GenkitSpan,
-    init_telemetry_server_exporter,
-)
+from genkit.core.trace.default_exporter import init_telemetry_server_exporter
+from genkit.core.trace.types import GenkitSpan
 from genkit.core.typing import SpanMetadata
 
 ATTR_PREFIX = 'genkit'
