@@ -89,7 +89,7 @@ func TestReflectionV2(t *testing.T) {
 
 	// Start V2 Client
 	errCh := make(chan error, 10)
-	client := startReflectionServerV2(ctx, g, wsURL, errCh)
+	client := startReflectionClientV2(ctx, g, wsURL, errCh)
 	defer func() {
 		// Cleanup if needed
 		_ = client

@@ -253,7 +253,7 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 		if v2URL := os.Getenv("GENKIT_REFLECTION_V2_SERVER"); v2URL != "" {
 			// Start V2 Client in background
 			// We don't block Init on it because it runs a reconnection loop.
-			startReflectionServerV2(ctx, g, v2URL, errCh)
+			startReflectionClientV2(ctx, g, v2URL, errCh)
 
 			// If we wanted to bubble up immediate errors we could, but startReflectionServerV2
 			// retries by default. We should drain errCh if it's used, but currently it's not writing.

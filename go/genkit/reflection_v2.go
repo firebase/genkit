@@ -65,9 +65,9 @@ type reflectionClientV2 struct {
 	mu            sync.Mutex
 }
 
-// startReflectionServerV2 starts the Reflection API V2 client.
+// startReflectionClientV2 starts the Reflection API V2 client.
 // It connects to the runtime manager via WebSocket.
-func startReflectionServerV2(ctx context.Context, g *Genkit, url string, errCh chan<- error) *reflectionClientV2 {
+func startReflectionClientV2(ctx context.Context, g *Genkit, url string, errCh chan<- error) *reflectionClientV2 {
 	if g == nil {
 		errCh <- fmt.Errorf("nil Genkit provided")
 		return nil
@@ -173,8 +173,7 @@ func (c *reflectionClientV2) handleMessage(ctx context.Context, data []byte) {
 		}
 	} else if req.ID != nil {
 		// Response to our request
-		// TODO: Handle responses to our requests (e.g. from register or tool calls)
-		// For now, just log debug
+		// For now, just log debug. We don't currently send requests that expect responses (except register, which we ignore).
 		slog.Debug("Received response", "id", req.ID)
 	}
 }
@@ -373,38 +372,34 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 	// but handleRequest is already in a goroutine.
 	// However, we want to ensure responses are sent correctly.
 
-	go func() {
-		defer cancel()
+	resp, err := runAction(actionCtx, c.g, params.Key, params.Input, params.TelemetryLabels, cb, contextMap)
+	
+	if resp != nil && resp.Telemetry.TraceID != "" {
+		c.activeActions.Delete(resp.Telemetry.TraceID)
+	}
 
-		resp, err := runAction(actionCtx, c.g, params.Key, params.Input, params.TelemetryLabels, cb, contextMap)
-
+	if err != nil {
+		// Handle error
+		details := &core.ReflectionErrorDetails{}
 		if resp != nil && resp.Telemetry.TraceID != "" {
-			c.activeActions.Delete(resp.Telemetry.TraceID)
+			details.TraceID = &resp.Telemetry.TraceID
 		}
 
-		if err != nil {
-			// Handle error
-			details := &core.ReflectionErrorDetails{}
-			if resp != nil && resp.Telemetry.TraceID != "" {
-				details.TraceID = &resp.Telemetry.TraceID
-			}
+		// Massage error similar to V1
+		refErr := core.ToReflectionError(err)
+		refErr.Details.TraceID = details.TraceID
 
-			// Massage error similar to V1
-			refErr := core.ToReflectionError(err)
-			refErr.Details.TraceID = details.TraceID
+		c.sendError(req.ID, -32000, refErr.Message, refErr)
+		return
+	}
 
-			c.sendError(req.ID, -32000, refErr.Message, refErr)
-			return
-		}
-
-		// Success
-		c.sendResponse(req.ID, map[string]interface{}{
-			"result": resp.Result,
-			"telemetry": map[string]string{
-				"traceId": resp.Telemetry.TraceID,
-			},
-		})
-	}()
+	// Success
+	c.sendResponse(req.ID, map[string]interface{}{
+		"result": resp.Result,
+		"telemetry": map[string]string{
+			"traceId": resp.Telemetry.TraceID,
+		},
+	})
 }
 
 func (c *reflectionClientV2) handleCancelAction(ctx context.Context, params json.RawMessage) (interface{}, *jsonRpcError) {
