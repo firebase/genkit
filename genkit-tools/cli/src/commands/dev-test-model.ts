@@ -495,7 +495,6 @@ async function runTest(
     const modelKey = model.startsWith('/') ? model : `/model/${model}`;
     const shouldStream = !!testCase.stream;
 
-    let chunks = 0;
     const collectedChunks: any[] = [];
 
     const actionResponse = await manager.runAction(
@@ -506,12 +505,11 @@ async function runTest(
       shouldStream
         ? (chunk) => {
             collectedChunks.push(chunk);
-            chunks++;
           }
         : undefined
     );
 
-    if (shouldStream && chunks === 0) {
+    if (shouldStream && collectedChunks.length === 0) {
       throw new Error('Streaming requested but no chunks received.');
     }
     const response = GenerateResponseSchema.parse(actionResponse.result);
