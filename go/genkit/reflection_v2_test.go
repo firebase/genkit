@@ -161,3 +161,30 @@ func TestHandleListValues(t *testing.T) {
 	resMap = res.(map[string]interface{})
 	assert.Equal(t, "foo", resMap[api.DefaultModelKey])
 }
+
+func TestHandleListActions(t *testing.T) {
+	ctx := context.Background()
+	g := Init(ctx)
+	client := &reflectionClientV2{g: g}
+
+	// Define a flow
+	DefineFlow(g, "myFlow", func(ctx context.Context, input string) (string, error) {
+		return "bar", nil
+	})
+
+	// List actions
+	res := client.handleListActions(ctx)
+	resMap, ok := res.(map[string]api.ActionDesc)
+	assert.True(t, ok)
+	
+	// Check if flow is present
+	found := false
+	for key, desc := range resMap {
+		if key == "myFlow" || strings.HasSuffix(key, "/myFlow") {
+			assert.Equal(t, api.ActionTypeFlow, desc.Type)
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Flow 'myFlow' not found in listActions response")
+}

@@ -134,15 +134,6 @@ func (c *reflectionClientV2) run(ctx context.Context, errCh chan<- error) {
 	}
 }
 
-func (c *reflectionClientV2) send(msg interface{}) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.ws == nil {
-		return fmt.Errorf("websocket not connected")
-	}
-	return c.ws.WriteJSON(msg)
-}
-
 func (c *reflectionClientV2) register() error {
 	req := jsonRpcRequest{
 		JSONRPC: "2.0",
@@ -165,6 +156,7 @@ func (c *reflectionClientV2) runtimeID() string {
 }
 
 func (c *reflectionClientV2) handleMessage(ctx context.Context, data []byte) {
+	slog.Debug("Received V2 Message", "data", string(data))
 	var req jsonRpcRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		slog.Error("Failed to unmarshal JSON-RPC message", "error", err)
@@ -185,6 +177,20 @@ func (c *reflectionClientV2) handleMessage(ctx context.Context, data []byte) {
 		// For now, just log debug
 		slog.Debug("Received response", "id", req.ID)
 	}
+}
+
+func (c *reflectionClientV2) send(msg interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.ws == nil {
+		return fmt.Errorf("websocket not connected")
+	}
+	
+	bytes, _ := json.Marshal(msg)
+	slog.Debug("Sending V2 Message", "data", string(bytes))
+	
+	// Write JSON directly assumes msg is marshallable
+	return c.ws.WriteJSON(msg)
 }
 
 func (c *reflectionClientV2) handleRequest(ctx context.Context, req *jsonRpcRequest) {
@@ -323,7 +329,18 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 	}
 	
 	// Telemetry callback
+	var mu sync.Mutex
+	sentTraceIDs := make(map[string]bool)
+
 	telemetryCb := func(tid string, sid string) {
+		mu.Lock()
+		if sentTraceIDs[tid] {
+			mu.Unlock()
+			return
+		}
+		sentTraceIDs[tid] = true
+		mu.Unlock()
+
 		// Notify runActionState
 		c.activeActions.Set(tid, &activeAction{
 			cancel:    cancel,
