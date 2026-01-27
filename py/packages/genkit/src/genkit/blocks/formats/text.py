@@ -16,6 +16,8 @@
 
 """Implementation of text output format."""
 
+from typing import override
+
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -49,6 +51,7 @@ class TextFormat(FormatDef):
             ),
         )
 
+    @override
     def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling text data.
 

@@ -294,7 +294,7 @@ def create_reflection_asgi_app(
 
             task = active_actions.get(trace_id)
             if task:
-                task.cancel()
+                _ = task.cancel()
                 return JSONResponse(content={'message': 'Action cancelled'}, status_code=200)
             else:
                 return JSONResponse(content={'message': 'Action not found or already completed'}, status_code=404)
@@ -431,13 +431,13 @@ def create_reflection_asgi_app(
                 # Signal end of stream
                 chunk_queue.put_nowait(None)
                 if run_trace_id:
-                    active_actions.pop(run_trace_id, None)
+                    _ = active_actions.pop(run_trace_id, None)
 
         # Start the action task immediately so trace ID becomes available ASAP
         action_task = asyncio.create_task(run_action_task())
 
         # Wait for trace ID before returning response - this enables early header flushing
-        await trace_id_event.wait()
+        _ = await trace_id_event.wait()
 
         # Now we have the trace ID, include it in headers
         headers = {
@@ -457,7 +457,7 @@ def create_reflection_asgi_app(
                     yield chunk
             finally:
                 # Cancel task if still running (no-op if already done)
-                action_task.cancel()
+                _ = action_task.cancel()
 
         return StreamingResponse(
             stream_generator(),
@@ -526,7 +526,7 @@ def create_reflection_asgi_app(
         action_task = asyncio.create_task(run_action_and_get_result())
 
         # Wait for trace ID before returning response
-        await trace_id_event.wait()
+        _ = await trace_id_event.wait()
 
         # Now return streaming response - headers will include trace ID
         async def body_generator() -> AsyncGenerator[bytes, None]:
@@ -541,7 +541,7 @@ def create_reflection_asgi_app(
                 yield json.dumps(action_result).encode('utf-8')
 
             if run_trace_id:
-                active_actions.pop(run_trace_id, None)
+                _ = active_actions.pop(run_trace_id, None)
 
         headers = {
             'x-genkit-version': version,

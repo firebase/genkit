@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import Protocol, cast, override
 
 from genkit.web.typing import Application
 
@@ -56,6 +56,7 @@ class ServerConfig:
     log_level: str = DEFAULT_LOG_LEVEL
     start_time: float | None = None
 
+    @override
     def __repr__(self) -> str:
         """Return a string representation of the server configuration.
 

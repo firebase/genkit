@@ -50,6 +50,7 @@ from __future__ import annotations
 import abc
 import socket
 import sys
+from typing import override
 
 import structlog
 
@@ -164,6 +165,7 @@ class UvicornAdapter(ASGIServerAdapter):
     unnecessary imports when the adapter is not being used.
     """
 
+    @override
     async def serve(
         self,
         app: Application,
@@ -218,6 +220,7 @@ class GranianAdapter(ASGIServerAdapter):
     available, an ImportError will be raised when the serve method is called.
     """
 
+    @override
     async def serve(
         self,
         app: Application,

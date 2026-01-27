@@ -73,7 +73,7 @@ def define_generate_action(registry: Registry) -> None:
             context=ctx.context,
         )
 
-    registry.register_action(
+    _ = registry.register_action(
         kind=cast(ActionKind, ActionKind.UTIL),
         name='generate',
         fn=generate_action_fn,

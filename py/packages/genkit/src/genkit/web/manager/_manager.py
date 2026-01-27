@@ -217,7 +217,7 @@ class ServerManager:
         self._servers.append(server)
         # If we're already running, add to the queue
         if self._is_running:
-            asyncio.create_task(self._server_queue.put(server))
+            _ = asyncio.create_task(self._server_queue.put(server))
 
     async def queue_server(self, server: Server) -> None:
         """Queue a server to be started.
@@ -322,13 +322,13 @@ class ServerManager:
         # Add tasks to monitor:
         # - shutdown event and server errors.
         # - server queue.
-        asyncio.create_task(self._monitor_shutdown())
-        asyncio.create_task(self._monitor_server_tasks())
-        asyncio.create_task(self._monitor_server_queue())
+        _ = asyncio.create_task(self._monitor_shutdown())
+        _ = asyncio.create_task(self._monitor_server_tasks())
+        _ = asyncio.create_task(self._monitor_server_queue())
 
         try:
             # Wait for shutdown.
-            await self._signal_handler.shutdown_event.wait()
+            _ = await self._signal_handler.shutdown_event.wait()
         except asyncio.CancelledError:
             await logger.adebug('ServersManager.start_all was cancelled')
             raise
@@ -395,7 +395,7 @@ class ServerManager:
 
     async def _monitor_shutdown(self) -> None:
         """Monitor for shutdown events."""
-        await self._signal_handler.shutdown_event.wait()
+        _ = await self._signal_handler.shutdown_event.wait()
         await logger.ainfo('Shutdown event detected')
 
     async def stop_all(self) -> None:
@@ -421,11 +421,11 @@ class ServerManager:
         # Cancel all server tasks.
         for task in self._server_tasks:
             if not task.done():
-                task.cancel()
+                _ = task.cancel()
 
         # Wait for all tasks to complete.
         if self._server_tasks:
-            await asyncio.gather(*self._server_tasks, return_exceptions=True)
+            _ = await asyncio.gather(*self._server_tasks, return_exceptions=True)
 
         await logger.ainfo('All servers stopped')
 
@@ -486,7 +486,7 @@ class ServerManager:
                 if stopping is not None:
                     await stopping
                 # Block until shutdown is triggered.
-                await self._signal_handler.shutdown_event.wait()
+                _ = await self._signal_handler.shutdown_event.wait()
         except asyncio.CancelledError:
             logger.debug('Servers task was cancelled')
             raise

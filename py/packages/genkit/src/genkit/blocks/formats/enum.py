@@ -17,6 +17,7 @@
 """Implementation of Enum output format."""
 
 import re
+from typing import override
 
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
@@ -65,6 +66,7 @@ class EnumFormat(FormatDef):
             ),
         )
 
+    @override
     def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling Enum values.
 

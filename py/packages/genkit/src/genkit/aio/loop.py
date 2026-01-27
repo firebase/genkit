@@ -65,7 +65,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
         output: Any = None
         error: Exception | None = None
         lock = threading.Lock()
-        lock.acquire()
+        _ = lock.acquire()
 
         async def run_fn() -> Any:  # noqa: ANN401
             nonlocal lock
@@ -79,11 +79,11 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
             finally:
                 lock.release()
 
-        asyncio.run_coroutine_threadsafe(run_fn(), loop=loop)
+        _ = asyncio.run_coroutine_threadsafe(run_fn(), loop=loop)
 
         def wait_for_done() -> None:
             nonlocal lock
-            lock.acquire()
+            _ = lock.acquire()
 
         thread = threading.Thread(target=wait_for_done)
         thread.start()

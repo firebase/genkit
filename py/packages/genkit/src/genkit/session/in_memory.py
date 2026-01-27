@@ -16,6 +16,8 @@
 
 """In-memory session store implementation."""
 
+from typing import override
+
 from .store import SessionData, SessionStore
 
 
@@ -37,14 +39,17 @@ class InMemorySessionStore(SessionStore):
         """
         self._data: dict[str, SessionData] = data or {}
 
+    @override
     async def get(self, session_id: str) -> SessionData | None:
         """Retrieve a session by ID."""
         return self._data.get(session_id)
 
+    @override
     async def save(self, session_id: str, session_data: SessionData) -> None:
         """Save a session."""
         self._data[session_id] = session_data
 
+    @override
     async def delete(self, session_id: str) -> None:
         """Delete a session by ID."""
         if session_id in self._data:

@@ -141,7 +141,7 @@ class Channel(Generic[T]):
         # If the close future completed, raise StopAsyncIteration.
         if self._close_future in finished:
             # Cancel pop task if we're done, avoid warnings.
-            pop_task.cancel()
+            _ = pop_task.cancel()
             raise StopAsyncIteration
 
         # Wait for the pop task with a timeout, raise TimeoutError if a timeout
@@ -191,7 +191,7 @@ class Channel(Generic[T]):
             """
             # Propagate cancellation to notify consumers that the operation was cancelled
             if v.cancelled():
-                self.closed.cancel()
+                _ = self.closed.cancel()
             elif v.exception() is not None:
                 self.closed.set_exception(v.exception())  # type: ignore[arg-type]
             else:
