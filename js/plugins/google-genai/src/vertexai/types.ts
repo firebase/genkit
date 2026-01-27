@@ -97,6 +97,8 @@ export interface VertexPluginOptions {
   googleAuth?: GoogleAuthOptions;
   /** Enables additional debug traces (e.g. raw model API call details). */
   experimental_debugTraces?: boolean;
+  /** Use `responseSchema` field instead of `responseJsonSchema`. */
+  legacyResponseSchema?: boolean;
 }
 
 interface BaseClientOptions {

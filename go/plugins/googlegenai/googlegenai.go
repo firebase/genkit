@@ -15,6 +15,7 @@ import (
 	"cloud.google.com/go/auth/credentials"
 	"cloud.google.com/go/auth/httptransport"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 
@@ -282,14 +283,19 @@ func (v *VertexAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 	return genkit.LookupEmbedder(g, api.NewName(vertexAIProvider, name)) != nil
 }
 
-// GoogleAIModelRef creates a new ModelRef for a Google AI model with the given name and configuration.
-func GoogleAIModelRef(name string, config *genai.GenerateContentConfig) ai.ModelRef {
-	return ai.NewModelRef(googleAIProvider+"/"+name, config)
+// ModelRef creates a new ModelRef for a Google Gen AI model with the given name and configuration.
+func ModelRef(name string, config *genai.GenerateContentConfig) ai.ModelRef {
+	return ai.NewModelRef(name, config)
 }
 
-// VertexAIModelRef creates a new ModelRef for a Vertex AI model with the given name and configuration.
-func VertexAIModelRef(name string, config *genai.GenerateContentConfig) ai.ModelRef {
-	return ai.NewModelRef(vertexAIProvider+"/"+name, config)
+// GoogleAIModelRef creates a new ModelRef for a Google AI model with the given ID and configuration.
+func GoogleAIModelRef(id string, config *genai.GenerateContentConfig) ai.ModelRef {
+	return ai.NewModelRef(googleAIProvider+"/"+id, config)
+}
+
+// VertexAIModelRef creates a new ModelRef for a Vertex AI model with the given ID and configuration.
+func VertexAIModelRef(id string, config *genai.GenerateContentConfig) ai.ModelRef {
+	return ai.NewModelRef(vertexAIProvider+"/"+id, config)
 }
 
 // GoogleAIModel returns the [ai.Model] with the given name.
@@ -404,6 +410,64 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 			Supports:     supports,
 			ConfigSchema: configToMap(config),
 		}).(api.Action)
+	case api.ActionTypeBackgroundModel:
+		// Handle VEO models as background models
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeBackgroundModel, nil, nil,
+				func(ctx context.Context, input *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
+					op, err := veoModel.Start(ctx, input)
+					if err != nil {
+						return nil, err
+					}
+					op.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
+					return op, nil
+				})
+		}
+		return nil
+	case api.ActionTypeCheckOperation:
+		// Handle VEO model check operations
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeCheckOperation,
+				map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)}, nil,
+				func(ctx context.Context, op *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
+					updatedOp, err := veoModel.Check(ctx, op)
+					if err != nil {
+						return nil, err
+					}
+					updatedOp.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
+					return updatedOp, nil
+				})
+		}
+		return nil
 	}
 	return nil
 }

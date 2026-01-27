@@ -13,18 +13,19 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-from menu_ai import ai
-from menu_schemas import MenuQuestionInputSchema
+"""Prompts for case 02."""
 
-from genkit.plugins.google_genai import google_genai_name
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
-s02_dataMenuPrompt = ai.define_prompt(
+from ..menu_ai import ai
+from ..menu_schemas import MenuQuestionInputSchema
+
+s02_data_menu_prompt = ai.define_prompt(
     variant='s02_dataMenu',
-    model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=MenuQuestionInputSchema,
-    tools=['menu_tool'],
-    system="""You are acting as a helpful AI assistant named Walt that can answer
+    tools=['todaysMenu'],
+    prompt="""You are acting as a helpful AI assistant named Walt that can answer
 questions about the food available on the menu at Walt's Burgers.
 
 Answer this customer's question, in a concise and helpful manner,

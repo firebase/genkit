@@ -15,11 +15,7 @@
  */
 
 import { vertexAI } from '@genkit-ai/google-genai';
-import {
-  mistralLarge,
-  vertexAIModelGarden,
-  vertexModelGarden,
-} from '@genkit-ai/vertexai/modelgarden';
+import { vertexModelGarden } from '@genkit-ai/vertexai/modelgarden';
 // Import the Genkit core libraries and plugins.
 import { genkit, z } from 'genkit';
 
@@ -36,10 +32,6 @@ const ai = genkit({
     }),
     vertexModelGarden({
       location: 'us-central1',
-    }),
-    vertexAIModelGarden({
-      location: 'us-central1',
-      models: [mistralLarge],
     }),
   ],
 });
@@ -99,7 +91,7 @@ export const llamaModel = ai.defineFlow(
 // Mistral Large for detailed explanations
 export const mistralExplainConcept = ai.defineFlow(
   {
-    name: 'mistral-large - explainConcept',
+    name: 'mistral-medium - explainConcept',
     inputSchema: z.object({
       concept: z.string().default('concurrency'),
     }),
@@ -110,40 +102,9 @@ export const mistralExplainConcept = ai.defineFlow(
   },
   async ({ concept }) => {
     const explanation = await ai.generate({
-      model: vertexModelGarden.model('mistral-large-2411'),
+      model: vertexModelGarden.model('mistral-medium-3'),
       prompt: `Explain ${concept} in programming. Include practical examples.`,
       config: {
-        temperature: 0.7,
-      },
-      output: {
-        schema: z.object({
-          explanation: z.string(),
-          examples: z.array(z.string()),
-        }),
-      },
-    });
-
-    return explanation.output || { explanation: '', examples: [] };
-  }
-);
-
-export const legacyMistralExplainConcept = ai.defineFlow(
-  {
-    name: 'legacy-mistral-large - explainConcept',
-    inputSchema: z.object({
-      concept: z.string().default('concurrency'),
-    }),
-    outputSchema: z.object({
-      explanation: z.string(),
-      examples: z.array(z.string()),
-    }),
-  },
-  async ({ concept }) => {
-    const explanation = await ai.generate({
-      model: mistralLarge,
-      prompt: `Explain ${concept} in programming. Include practical examples.`,
-      config: {
-        version: 'mistral-large-2411',
         temperature: 0.7,
       },
       output: {
@@ -189,7 +150,7 @@ export const generateFunction = ai.defineFlow(
   },
   async ({ description }) => {
     const result = await ai.generate({
-      model: vertexModelGarden.model('codestral-2501'),
+      model: vertexModelGarden.model('codestral-2'),
       prompt: `Create a TypeScript function that ${description}. Include error handling and types.`,
     });
 

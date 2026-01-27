@@ -116,7 +116,6 @@ const GENERIC_MODEL = commonRef('imagen', {
 });
 
 const KNOWN_MODELS = {
-  'imagen-3.0-generate-002': commonRef('imagen-3.0-generate-002'),
   'imagen-4.0-fast-generate-001': commonRef('imagen-4.0-fast-generate-001'),
   'imagen-4.0-generate-001': commonRef('imagen-4.0-generate-001'),
   'imagen-4.0-ultra-generate-001': commonRef('imagen-4.0-ultra-generate-001'),
@@ -181,6 +180,7 @@ export function defineModel(
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,
+    customHeaders: pluginOptions?.customHeaders,
   };
 
   return pluginModel(

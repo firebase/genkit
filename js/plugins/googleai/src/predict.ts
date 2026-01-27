@@ -16,8 +16,14 @@
 
 import { getGenkitClientHeader } from './common';
 
+/**
+ * @deprecated
+ */
 export type PredictMethod = 'predict' | 'predictLongRunning';
 
+/**
+ * @deprecated
+ */
 export interface Operation {
   name: string;
   done?: boolean;
@@ -48,11 +54,17 @@ function opCheckEndpoint(options: {
   return `https://generativelanguage.googleapis.com/${options.apiVersion}/${options.operation}?key=${options.apiKey}`;
 }
 
+/**
+ * @deprecated
+ */
 export type PredictClient<I = unknown, R = unknown, P = unknown> = (
   instances: I[],
   parameters: P
 ) => Promise<R>;
 
+/**
+ * @deprecated
+ */
 export function predictModel<I = unknown, R = unknown, P = unknown>(
   model: string,
   apiKey: string,
@@ -95,6 +107,9 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
   };
 }
 
+/**
+ * @deprecated
+ */
 export async function checkOp(
   operation: string,
   apiKey: string

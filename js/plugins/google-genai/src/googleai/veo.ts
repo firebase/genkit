@@ -176,6 +176,7 @@ export function defineModel(
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,
+    customHeaders: pluginOptions?.customHeaders,
   };
 
   return pluginBackgroundModel({

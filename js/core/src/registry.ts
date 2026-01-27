@@ -53,6 +53,7 @@ const ACTION_TYPES = [
   'reranker',
   'retriever',
   'tool',
+  'tool.v2',
   'util',
   'resource',
 ] as const;
@@ -291,9 +292,8 @@ export class Registry {
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
     if (this.actionsById.hasOwnProperty(key)) {
-      // TODO: Make this an error!
-      logger.warn(
-        `WARNING: ${key} already has an entry in the registry. Overwriting.`
+      logger.error(
+        `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
     }
     this.actionsById[key] = action;
@@ -318,9 +318,8 @@ export class Registry {
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
     if (this.actionsById.hasOwnProperty(key)) {
-      // TODO: Make this an error!
-      logger.warn(
-        `WARNING: ${key} already has an entry in the registry. Overwriting.`
+      logger.error(
+        `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
     }
     this.actionsById[key] = action;
@@ -354,7 +353,7 @@ export class Registry {
    * @returns All resolvable action metadata as a map of <key, action metadata>.
    */
   async listResolvableActions(): Promise<ActionMetadataRecord> {
-    const resolvableActions = {} as ActionMetadataRecord;
+    let resolvableActions = {} as ActionMetadataRecord;
     // We listActions for all plugins in parallel.
     await Promise.all(
       Object.entries(this.pluginsByName).map(async ([pluginName, plugin]) => {
@@ -381,9 +380,22 @@ export class Registry {
         }
       })
     );
-    // Also add actions that are already registered.
+    // Also add actions that are already registered, and expand DAP actions
     for (const [key, action] of Object.entries(await this.listActions())) {
       resolvableActions[key] = action.__action;
+      if (isDynamicActionProvider(action)) {
+        try {
+          // Include the dynamic actions
+          const dapPrefix = `/${action.__action.actionType}/${action.__action.name}`;
+          const dapMetadataRecord =
+            await action.getActionMetadataRecord(dapPrefix);
+          resolvableActions = { ...resolvableActions, ...dapMetadataRecord };
+        } catch (e) {
+          logger.error(
+            `Error listing actions for Dynamic Action Provider ${action.__action.name}`
+          );
+        }
+      }
     }
     return {
       ...(await this.parent?.listResolvableActions()),

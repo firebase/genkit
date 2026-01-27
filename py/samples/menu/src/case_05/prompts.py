@@ -13,18 +13,19 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-from menu_ai import ai
-from menu_schemas import ReadMenuImagePromptSchema, TextMenuQuestionInputSchema
+"""Prompts for case 05."""
 
-from genkit.plugins.google_genai import google_genai_name
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
-s05_readMenuPrompt = ai.define_prompt(
+from ..menu_ai import ai
+from ..menu_schemas import ReadMenuImagePromptSchema, TextMenuQuestionInputSchema
+
+s05_read_menu_prompt = ai.define_prompt(
     variant='s05_readMenu',
-    model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=ReadMenuImagePromptSchema,
     config={'temperature': 0.1},
-    system="""
+    prompt="""
 Extract _all_ of the text, in order,
 from the following image of a restaurant menu.
 
@@ -32,18 +33,18 @@ from the following image of a restaurant menu.
 """,
 )
 
-s05_textMenuPrompt = ai.define_prompt(
+s05_text_menu_prompt = ai.define_prompt(
     variant='s05_textMenu',
-    model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=TextMenuQuestionInputSchema,
     config={'temperature': 0.3},
-    system="""
+    prompt="""
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.
 
 Here is the text of today's menu to help you answer the customer's question:
-{{menu_text}}
+{{menuText}}
 
 Answer this customer's question:
 {{question}}?

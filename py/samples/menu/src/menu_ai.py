@@ -15,18 +15,28 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
-from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai import EmbeddingModels
+"""AI flows and tools for the menu sample."""
 
-ai = Genkit(
-    plugins=[
-        VertexAI(),
-        DevLocalVectorStore(
-            index_name='menu-items',
-            embedder=EmbeddingModels.TEXT_EMBEDDING_004_ENG,
-            embedder_options={'taskType': 'RETRIEVAL_DOCUMENT'},
-        ),
-    ]
+import os
+
+from genkit.ai import Genkit
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
+from genkit.plugins.google_genai import GoogleAI
+
+if 'GEMINI_API_KEY' not in os.environ:
+    raise ValueError(
+        'GEMINI_API_KEY environment variable is required to run this sample.\n'
+        'Please set it before starting the application:\n'
+        '  export GEMINI_API_KEY=your_api_key_here\n'
+        'You can get an API key from https://aistudio.google.com/'
+    )
+
+
+ai = Genkit(plugins=[GoogleAI()])
+
+# Define dev local vector store
+define_dev_local_vector_store(
+    ai,
+    name='menu-items',
+    embedder='googleai/text-embedding-004',
 )

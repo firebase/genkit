@@ -283,6 +283,9 @@ function vertexAIPlugin(options?: PluginOptions): GenkitPlugin {
   );
 }
 
+/**
+ * @deprecated
+ */
 export type VertexAIPlugin = {
   (params?: PluginOptions): GenkitPlugin;
   model(
@@ -303,6 +306,7 @@ export type VertexAIPlugin = {
 /**
  * Google Cloud Vertex AI plugin for Genkit.
  * Includes Gemini and Imagen models and text embedder.
+ * @deprecated Please use `import { vertexAI } from '@genkit-ai/google-genai';` instead. Replace model constants with e.g. vertexAI.model('gemini-2.5-pro')
  */
 export const vertexAI = vertexAIPlugin as VertexAIPlugin;
 // provide generic implementation for the model function overloads.

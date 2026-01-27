@@ -1,7 +1,6 @@
 # OpenAI Compatible API plugin for Genkit
 
-**`@genkit-ai/compat-oai`** is a community plugin for using OpenAI APIs with
-[Firebase Genkit](https://github.com/firebase/genkit).
+**`@genkit-ai/compat-oai`** is a plugin for using OpenAI Compatible APIs with [Genkit](https://genkit.dev).
 
 This Genkit plugin allows to use OpenAI models through their official APIs.
 
@@ -195,10 +194,10 @@ export const customModelFlow = ai.defineFlow(
 
 Want to contribute to the project? That's awesome! Head over to our [Contribution Guidelines](https://github.com/firebase/genkit/blob/main/CONTRIBUTING.md).
 
-## Need support?
+## Need help?
 
-Reach out by opening a discussion on [Github Discussions](https://github.com/firebase/genkit/discussions).
-
+ - [Genkit Discord](https://genkit.dev/discord)
+ - [Github Issues](https://github.com/firebase/genkit/issues)
 
 ## License
 

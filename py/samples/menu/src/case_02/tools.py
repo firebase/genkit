@@ -15,20 +15,29 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Tools for case 02."""
+
 import json
 import os
 
-from menu_ai import ai
-from menu_schemas import MenuToolOutputSchema
+from ..menu_ai import ai
+from ..menu_schemas import MenuToolOutputSchema
 
 menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
 with open(menu_json_path) as f:
     menu_data = json.load(f)
 
 
-@ai.tool(name='menu_tool')
-def menu_tool(input=None) -> MenuToolOutputSchema:
-    """Use this tool to retrieve all the items on today's menu."""
+@ai.tool(name='todaysMenu')
+def todays_menu(input: object | None = None) -> MenuToolOutputSchema:
+    """Use this tool to retrieve all the items on today's menu.
+
+    Args:
+        input: Optional input.
+
+    Returns:
+        The menu items.
+    """
     return MenuToolOutputSchema(
         menu_data=menu_data,
     )

@@ -15,17 +15,30 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from menu_ai import ai
-from menu_schemas import AnswerOutputSchema, MenuQuestionInputSchema
+"""Flows for case 02."""
 
-from .prompts import s02_dataMenuPrompt
+from ..menu_ai import ai
+from ..menu_schemas import AnswerOutputSchema, MenuQuestionInputSchema
+from .prompts import s02_data_menu_prompt
 
 
-@ai.flow(name='s02_menuQuestion')
-async def s02_menuQuestionFlow(
+@ai.flow(name='s02_menu_question')
+async def s02_menu_question_flow(
     my_input: MenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
-    text = await s02_dataMenuPrompt({'question': my_input.question})
+    """Answer a question about the menu.
+
+    Args:
+        my_input: Input containing the question.
+
+    Returns:
+        The answer from the model.
+
+    Example:
+        >>> await s02_menu_question_flow(MenuQuestionInputSchema(question='What is the special?'))
+        AnswerOutputSchema(answer="Today's special is...")
+    """
+    text = await s02_data_menu_prompt({'question': my_input.question})
     return AnswerOutputSchema(
-        answer=text,
+        answer=text.text,
     )

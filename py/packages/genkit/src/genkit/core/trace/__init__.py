@@ -16,16 +16,24 @@
 
 """Trace module for defining opentelemetry managing."""
 
+from .adjusting_exporter import AdjustingTraceExporter
 from .default_exporter import (
     TelemetryServerSpanExporter,
+    create_span_processor,
     init_telemetry_server_exporter,
+    is_realtime_telemetry_enabled,
 )
+from .realtime_processor import RealtimeSpanProcessor
 from .types import (
     GenkitSpan,
 )
 
 __all__ = [
-    TelemetryServerSpanExporter.__name__,
-    init_telemetry_server_exporter.__name__,
+    AdjustingTraceExporter.__name__,
     GenkitSpan.__name__,
+    RealtimeSpanProcessor.__name__,
+    TelemetryServerSpanExporter.__name__,
+    create_span_processor.__name__,
+    init_telemetry_server_exporter.__name__,
+    is_realtime_telemetry_enabled.__name__,
 ]

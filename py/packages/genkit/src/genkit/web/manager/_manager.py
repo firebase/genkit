@@ -444,7 +444,7 @@ class ServerManager:
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any | None,
+        exc_tb: Any | None,  # noqa: ANN401
     ) -> None:
         """Exit the async context, stopping all servers.
 

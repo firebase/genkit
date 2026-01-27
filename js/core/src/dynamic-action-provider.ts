@@ -16,7 +16,8 @@
 
 import type * as z from 'zod';
 import { Action, ActionMetadata, defineAction } from './action.js';
-import { ActionType, Registry } from './registry.js';
+import { GenkitError } from './error.js';
+import { ActionMetadataRecord, ActionType, Registry } from './registry.js';
 
 type DapValue = {
   [K in ActionType]?: Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>[];
@@ -42,7 +43,12 @@ class SimpleCache {
       : config.cacheConfig?.ttlMillis;
   }
 
-  async getOrFetch(): Promise<DapValue> {
+  /**
+   * Gets or fetches the DAP data.
+   * @param skipTrace Don't run the action. i.e. don't create a trace log.
+   * @returns The DAP data
+   */
+  async getOrFetch(params?: { skipTrace?: boolean }): Promise<DapValue> {
     const isStale =
       !this.value ||
       !this.expiresAt ||
@@ -59,9 +65,14 @@ class SimpleCache {
           this.value = await this.dapFn(); // this returns the actual actions
           this.expiresAt = Date.now() + this.ttlMillis;
 
-          // Also run the action
-          this.dap.run(this.value); // This returns metadata and shows up in dev UI
-
+          if (!params?.skipTrace) {
+            // Also run the action
+            // This action actually does nothing, with the important side
+            // effect of logging its input and output (which are the same).
+            // It does not change what we return, it just makes
+            // the content of the DAP visible in the DevUI and logging trace.
+            await this.dap.run(transformDapValue(this.value));
+          }
           return this.value;
         } catch (error) {
           console.error('Error fetching Dynamic Action Provider value:', error);
@@ -92,6 +103,7 @@ export interface DynamicRegistry {
     actionType: string,
     actionName: string
   ): Promise<ActionMetadata[]>;
+  getActionMetadataRecord(dapPrefix: string): Promise<ActionMetadataRecord>;
 }
 
 export type DynamicActionProviderAction = Action<
@@ -159,12 +171,16 @@ export function defineDynamicActionProvider(
       metadata: { ...(cfg.metadata || {}), type: 'dynamic-action-provider' },
     },
     async (i, _options) => {
-      // The actions are retrieved and saved in a cache and then passed in here.
-      // We run this action to return the metadata for the actions only.
-      // We pass the actions in here to prevent duplicate calls to the mcp
-      // and also so we are guaranteed the same actions since there is only a
-      // single call to mcp client/host.
-      return transformDapValue(i);
+      // The actions are retrieved, saved in a cache, formatted nicely and
+      // then passed in here so they can be automatically logged by the action
+      // call. This action is for logging only. We cannot run the actual
+      // 'getting the data from the DAP' here because the DAP data is required
+      // to resolve tools/resources etc. And there can be a LOT of tools etc.
+      // for a single generate. Which would log one DAP action per resolve,
+      // and unnecessarily overwhelm the Dev UI with DAP actions that all have
+      // the same information. So we only run this action (for the logging) when
+      // we go get new data from the DAP (so we can see what it returned).
+      return i;
     }
   );
   implementDap(a as DynamicActionProviderAction, cfg, fn);
@@ -209,5 +225,30 @@ function implementDap(
 
     // Single match or empty array
     return metadata.filter((m) => m.name == actionName);
+  };
+
+  // This is called by listResolvableActions which is used by the
+  // reflection API.
+  dap.getActionMetadataRecord = async (dapPrefix: string) => {
+    const dapActions = {} as ActionMetadataRecord;
+    // We want to skip traces so we don't get a new action trace
+    // every time the DevUI requests the list of actions.
+    // This is ok, because the DevUI will show the actions, so
+    // not having them in the trace is fine.
+    const result = await dap.__cache.getOrFetch({ skipTrace: true });
+    for (const [actionType, actions] of Object.entries(result)) {
+      const metadataList = actions.map((a) => a.__action);
+      for (const metadata of metadataList) {
+        if (!metadata.name) {
+          throw new GenkitError({
+            status: 'INVALID_ARGUMENT',
+            message: `Invalid metadata when listing dynamic actions from ${dapPrefix} - name required`,
+          });
+        }
+        const key = `${dapPrefix}:${actionType}/${metadata.name}`;
+        dapActions[key] = metadata;
+      }
+    }
+    return dapActions;
   };
 }

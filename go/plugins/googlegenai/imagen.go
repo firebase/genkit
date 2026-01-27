@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
 	"google.golang.org/genai"
 )
 
@@ -45,7 +46,9 @@ func imagenConfigFromRequest(input *ai.ModelRequest) (*genai.GenerateImagesConfi
 	case *genai.GenerateImagesConfig:
 		result = *config
 	case map[string]any:
-		if err := mapToStruct(config, &result); err != nil {
+		var err error
+		result, err = base.MapToStruct[genai.GenerateImagesConfig](config)
+		if err != nil {
 			return nil, err
 		}
 	case nil:

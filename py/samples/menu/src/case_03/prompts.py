@@ -14,15 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from menu_ai import ai
-from menu_schemas import DataMenuQuestionInputSchema
+"""Prompts for case 03."""
 
-from genkit.plugins.google_genai import google_genai_name
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
-s03_chatPreamblePrompt = ai.define_prompt(
+from ..menu_ai import ai
+from ..menu_schemas import DataMenuQuestionInputSchema
+
+s03_chat_preamble_prompt = ai.define_prompt(
     variant='s03_chatPreamble',
-    model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=DataMenuQuestionInputSchema,
     config={'temperature': 0.3},
     system="""{{ role "user" }}

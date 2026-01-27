@@ -14,10 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
+"""Tool-specific types and utilities for the Genkit framework.
+
+Genkit tools are actions that can be called by models during a generation
+process. This module provides context and error types for tool execution,
+allowing for controlled interruptions and specific response formatting.
+"""
+
+from typing import Any, NoReturn, Protocol, cast
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import Part, ToolRequestPart, ToolResponse
+from genkit.core.typing import Metadata, Part, ToolRequestPart, ToolResponse, ToolResponsePart
+
+
+class ToolRequestLike(Protocol):
+    """Protocol for objects that look like a ToolRequest."""
+
+    name: str
+    ref: str | None
 
 
 class ToolRunContext(ActionRunContext):
@@ -30,7 +44,7 @@ class ToolRunContext(ActionRunContext):
     def __init__(
         self,
         ctx: ActionRunContext,
-    ):
+    ) -> None:
         """Initializes the ToolRunContext.
 
         Args:
@@ -41,7 +55,7 @@ class ToolRunContext(ActionRunContext):
             context=ctx.context,
         )
 
-    def interrupt(self, metadata: dict[str, Any] | None = None):
+    def interrupt(self, metadata: dict[str, Any] | None = None) -> NoReturn:
         """Interrupts the current tool execution.
 
         Raises a ToolInterruptError, which can be caught by the generation
@@ -64,18 +78,18 @@ class ToolInterruptError(Exception):
     causing a hard failure.
     """
 
-    def __init__(self, metadata: dict[str, Any]):
+    def __init__(self, metadata: dict[str, Any] | None = None) -> None:
         """Initializes the ToolInterruptError.
 
         Args:
             metadata: Metadata associated with the interruption.
         """
-        self.metadata = metadata
+        self.metadata = metadata or {}
 
 
 def tool_response(
     interrupt: Part | ToolRequestPart,
-    response_data: Any | None = None,
+    response_data: object | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Part:
     """Constructs a ToolResponse Part, typically for an interrupted request.
@@ -96,13 +110,25 @@ def tool_response(
     """
     # TODO: validate against tool schema
     tool_request = interrupt.root.tool_request if isinstance(interrupt, Part) else interrupt.tool_request
+
+    interrupt_metadata = True
+    if isinstance(metadata, Metadata):
+        interrupt_metadata = metadata.root
+    elif metadata:
+        interrupt_metadata = metadata
+
+    tr = cast(ToolRequestLike, tool_request)
     return Part(
-        tool_response=ToolResponse(
-            name=tool_request.name,
-            ref=tool_request.ref,
-            output=response_data,
-        ),
-        metadata={
-            'interruptResponse': metadata if metadata else True,
-        },
+        root=ToolResponsePart(
+            tool_response=ToolResponse(
+                name=tr.name,
+                ref=tr.ref,
+                output=response_data,
+            ),
+            metadata=Metadata(
+                root={
+                    'interruptResponse': interrupt_metadata,
+                }
+            ),
+        )
     )

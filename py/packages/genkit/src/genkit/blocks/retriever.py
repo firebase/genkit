@@ -22,20 +22,246 @@ query. These documents can then be used to provide additional context to models
 to accomplish a task.
 """
 
-from collections.abc import Callable
-from typing import Generic, TypeVar
+import inspect
+from collections.abc import Awaitable, Callable
+from typing import Any, Generic, TypeVar, cast
+
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document
-from genkit.core.typing import RetrieverResponse
+from genkit.core.action import ActionMetadata
+from genkit.core.action.types import ActionKind
+from genkit.core.registry import Registry
+from genkit.core.schema import to_json_schema
+from genkit.core.typing import DocumentData, RetrieverResponse
 
 T = TypeVar('T')
-# type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
-RetrieverFn = Callable[[Document, T], RetrieverResponse]
+# type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse | Awaitable[RetrieverResponse]]
+RetrieverFn = Callable[[Document, T], RetrieverResponse | Awaitable[RetrieverResponse]]
 
 
 class Retriever(Generic[T]):
+    """Base class for retrievers in the Genkit framework."""
+
     def __init__(
         self,
         retriever_fn: RetrieverFn[T],
-    ):
+    ) -> None:
+        """Initialize a Retriever.
+
+        Args:
+            retriever_fn: The function that performs the retrieval.
+        """
         self.retriever_fn = retriever_fn
+
+
+class RetrieverRequest(BaseModel):
+    """Request model for a retriever execution."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    query: DocumentData
+    options: Any | None = None
+
+
+class RetrieverSupports(BaseModel):
+    """Retriever capability support."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    media: bool | None = None
+
+
+class RetrieverInfo(BaseModel):
+    """Information about a retriever."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    label: str | None = None
+    supports: RetrieverSupports | None = None
+
+
+class RetrieverOptions(BaseModel):
+    """Configuration options for a retriever."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+
+    config_schema: dict[str, Any] | None = None
+    label: str | None = None
+    supports: RetrieverSupports | None = None
+
+
+class RetrieverRef(BaseModel):
+    """Reference to a retriever with configuration."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    name: str
+    config: Any | None = None
+    version: str | None = None
+    info: RetrieverInfo | None = None
+
+
+def retriever_action_metadata(
+    name: str,
+    options: RetrieverOptions | None = None,
+) -> ActionMetadata:
+    """Creates action metadata for a retriever."""
+    options = options if options is not None else RetrieverOptions()
+    retriever_metadata_dict = {'retriever': {}}
+
+    if options.label:
+        retriever_metadata_dict['retriever']['label'] = options.label
+
+    if options.supports:
+        retriever_metadata_dict['retriever']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+
+    retriever_metadata_dict['retriever']['customOptions'] = options.config_schema if options.config_schema else None
+    return ActionMetadata(
+        kind=cast(ActionKind, ActionKind.RETRIEVER),
+        name=name,
+        input_json_schema=to_json_schema(RetrieverRequest),
+        output_json_schema=to_json_schema(RetrieverResponse),
+        metadata=retriever_metadata_dict,
+    )
+
+
+def create_retriever_ref(
+    name: str,
+    config: dict[str, Any] | None = None,
+    version: str | None = None,
+    info: RetrieverInfo | None = None,
+) -> RetrieverRef:
+    """Creates a RetrieverRef instance."""
+    return RetrieverRef(name=name, config=config, version=version, info=info)
+
+
+class IndexerRequest(BaseModel):
+    """Request model for an indexer execution."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    documents: list[DocumentData]
+    options: Any | None = None
+
+
+class IndexerInfo(BaseModel):
+    """Information about an indexer."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    label: str | None = None
+    supports: RetrieverSupports | None = None
+
+
+class IndexerOptions(BaseModel):
+    """Configuration options for an indexer."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+
+    config_schema: dict[str, Any] | None = None
+    label: str | None = None
+    supports: RetrieverSupports | None = None
+
+
+class IndexerRef(BaseModel):
+    """Reference to an indexer with configuration."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+    name: str
+    config: Any | None = None
+    version: str | None = None
+    info: IndexerInfo | None = None
+
+
+def indexer_action_metadata(
+    name: str,
+    options: IndexerOptions | None = None,
+) -> ActionMetadata:
+    """Creates action metadata for an indexer."""
+    options = options if options is not None else IndexerOptions()
+    indexer_metadata_dict = {'indexer': {}}
+
+    if options.label:
+        indexer_metadata_dict['indexer']['label'] = options.label
+
+    if options.supports:
+        indexer_metadata_dict['indexer']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+
+    indexer_metadata_dict['indexer']['customOptions'] = options.config_schema if options.config_schema else None
+
+    return ActionMetadata(
+        kind=cast(ActionKind, ActionKind.INDEXER),
+        name=name,
+        input_json_schema=to_json_schema(IndexerRequest),
+        output_json_schema=to_json_schema(None),
+        metadata=indexer_metadata_dict,
+    )
+
+
+def create_indexer_ref(
+    name: str,
+    config: dict[str, Any] | None = None,
+    version: str | None = None,
+    info: IndexerInfo | None = None,
+) -> IndexerRef:
+    """Creates a IndexerRef instance."""
+    return IndexerRef(name=name, config=config, version=version, info=info)
+
+
+def define_retriever(
+    registry: Registry,
+    name: str,
+    fn: RetrieverFn,
+    options: RetrieverOptions | None = None,
+) -> None:
+    """Defines and registers a retriever action."""
+    metadata = retriever_action_metadata(name, options)
+
+    async def wrapper(
+        request: RetrieverRequest,
+        ctx: Any,  # noqa: ANN401
+    ) -> RetrieverResponse:
+        query = Document.from_document_data(request.query)
+        res = fn(query, request.options)
+        return await res if inspect.isawaitable(res) else res
+
+    registry.register_action(
+        kind=cast(ActionKind, ActionKind.RETRIEVER),
+        name=name,
+        fn=wrapper,
+        metadata=metadata.metadata,
+        span_metadata={'genkit:metadata:retriever:name': name},
+    )
+
+
+IndexerFn = Callable[[list[Document], T], None | Awaitable[None]]
+
+
+def define_indexer(
+    registry: Registry,
+    name: str,
+    fn: IndexerFn,
+    options: IndexerOptions | None = None,
+) -> None:
+    """Defines and registers an indexer action."""
+    metadata = indexer_action_metadata(name, options)
+
+    async def wrapper(
+        request: IndexerRequest,
+        ctx: Any,  # noqa: ANN401
+    ) -> None:
+        docs = [Document.from_document_data(d) for d in request.documents]
+        res = fn(docs, request.options)
+        if inspect.isawaitable(res):
+            await res
+
+    registry.register_action(
+        kind=cast(ActionKind, ActionKind.INDEXER),
+        name=name,
+        fn=wrapper,
+        metadata=metadata.metadata,
+        span_metadata={'genkit:metadata:indexer:name': name},
+    )

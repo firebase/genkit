@@ -208,10 +208,10 @@ export async function runEvaluation(params: {
       evalRunId,
       createdAt: new Date().toISOString(),
       metricSummaries,
+      metricsMetadata: metadata,
       ...augments,
     },
     results: scoredResults,
-    metricsMetadata: metadata,
   };
 
   logger.info('Finished evaluation, writing key...');
@@ -491,6 +491,8 @@ async function gatherEvalInput(params: {
 
   // Only the last collected trace to be used for evaluation.
   const traceId = traceIds.at(-1)!;
+  // Sleep to let traces persist.
+  await new Promise((resolve) => setTimeout(resolve, 2000));
   const trace = await manager.getTrace({
     traceId,
   });

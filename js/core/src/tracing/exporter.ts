@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-import { SpanKind, type HrTime } from '@opentelemetry/api';
+import { context, SpanKind, type HrTime } from '@opentelemetry/api';
 import {
   ExportResultCode,
   hrTimeToMilliseconds,
+  suppressTracing,
   type ExportResult,
 } from '@opentelemetry/core';
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
@@ -157,14 +158,19 @@ export class TraceServerExporter implements SpanExporter {
         data.endTime = convertedSpan.endTime;
       }
     }
-    await fetch(`${telemetryServerUrl}/api/traces`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    // Suppress tracing to prevent infinite loops when auto-instrumentation
+    // (e.g., undici) is enabled. Without this, the fetch call would be traced,
+    // creating new spans that trigger more exports, causing stack overflow.
+    await context.with(suppressTracing(context.active()), () =>
+      fetch(`${telemetryServerUrl}/api/traces`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+    );
   }
 }
 

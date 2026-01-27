@@ -171,6 +171,25 @@ describe('dynamic action provider', () => {
     assert.strictEqual(callCount, 1);
   });
 
+  it('gets action metadata record', async () => {
+    let callCount = 0;
+    const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
+      callCount++;
+      return {
+        tool: [tool1, tool2],
+        flow: [tool1],
+      };
+    });
+
+    const record = await dap.getActionMetadataRecord('dap/my-dap');
+    assert.deepStrictEqual(record, {
+      'dap/my-dap:tool/tool1': tool1.__action,
+      'dap/my-dap:tool/tool2': tool2.__action,
+      'dap/my-dap:flow/tool1': tool1.__action,
+    });
+    assert.strictEqual(callCount, 1);
+  });
+
   it('handles concurrent requests', async () => {
     let callCount = 0;
     const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
@@ -211,17 +230,52 @@ describe('dynamic action provider', () => {
     assert.strictEqual(callCount, 2);
   });
 
-  it('returns metadata when run', async () => {
+  it('runs the action with transformed metadata when fetching', async () => {
     const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
       return {
         tool: [tool1, tool2],
       };
     });
 
-    const result = await dap.run({ tool: [tool1, tool2] });
-    assert.deepStrictEqual(result.result, {
+    let runInput: any;
+    const originalRun = dap.run.bind(dap);
+    dap.run = async (input, options) => {
+      runInput = input;
+      return originalRun(input, options);
+    };
+
+    await dap.__cache.getOrFetch();
+
+    assert.deepStrictEqual(runInput, {
       tool: [tool1.__action, tool2.__action],
     });
+  });
+
+  it('skips trace when requested', async () => {
+    let callCount = 0;
+    const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
+      callCount++;
+      return {
+        tool: [tool1, tool2],
+      };
+    });
+
+    const originalRun = dap.run.bind(dap);
+    let runCalled = false;
+    dap.run = async (input, options) => {
+      runCalled = true;
+      return originalRun(input, options);
+    };
+
+    await dap.__cache.getOrFetch({ skipTrace: true });
+    assert.strictEqual(runCalled, false);
+    assert.strictEqual(callCount, 1);
+
+    dap.invalidateCache();
+
+    await dap.__cache.getOrFetch();
+    assert.strictEqual(runCalled, true);
+    assert.strictEqual(callCount, 2);
   });
 
   it('identifies dynamic action providers', async () => {

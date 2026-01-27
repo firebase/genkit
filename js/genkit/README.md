@@ -26,7 +26,25 @@ const ai = genkit({ plugins: [googleAI()] });
 
 const { text } = await ai.generate({
     model: googleAI.model('gemini-2.5-flash'),
-    prompt: 'Why is Firebase awesome?'
+    prompt: 'Why is Genkit awesome?'
+});
+```
+
+Genkit also provides middleware to add common functionality to your AI requests. For example, you can use the `retry` middleware to automatically retry failed requests:
+
+```ts
+import { retry } from 'genkit/model/middleware';
+
+const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: 'Why is Genkit awesome?',
+    use: [
+      retry({
+        maxRetries: 3,
+        initialDelayMs: 1000,
+        backoffFactor: 2,
+      }),
+    ],
 });
 ```
 

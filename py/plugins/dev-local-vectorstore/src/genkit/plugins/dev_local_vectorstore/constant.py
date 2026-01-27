@@ -15,11 +15,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Constants for dev-local-vectorstore."""
+
 from pydantic import BaseModel
 
 from genkit.types import DocumentData, Embedding
 
 
 class DbValue(BaseModel):
+    """Value stored in the local filestore."""
+
     doc: DocumentData
     embedding: Embedding

@@ -24,6 +24,7 @@ import {
 import {
   TEST_ONLY as GEMINI_TEST_ONLY,
   GeminiConfigSchema,
+  GeminiImageConfigSchema,
   GeminiTtsConfigSchema,
   GemmaConfigSchema,
 } from '../../src/googleai/gemini.js';
@@ -316,6 +317,54 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
+    it('should return an image model reference for new models', () => {
+      const modelRef = googleAI.model('gemini-new-image-foo');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.multiturn,
+        'Gemini Image model should support multiturn'
+      );
+    });
+
+    it('should return an Image model reference with correct schema', () => {
+      const modelRef = googleAI.model('gemini-2.5-flash-image');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.multiturn,
+        'Gemini Image model should support multiturn'
+      );
+    });
+
+    it('should have config values for image model', () => {
+      const modelRef = googleAI.model('gemini-2.5-flash-image', {
+        imageConfig: {
+          aspectRatio: '16:9',
+          imageSize: '1K',
+        },
+      });
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.deepStrictEqual(
+        modelRef.config?.imageConfig,
+        {
+          aspectRatio: '16:9',
+          imageSize: '1K',
+        },
+        'should have correct imageConfig'
+      );
+    });
+
     it('should return a Veo model reference with correct schema', () => {
       const modelRef = googleAI.model('veo-new-model');
       assert.strictEqual(
@@ -381,7 +430,7 @@ describe('GoogleAI Plugin', () => {
 
   describe('googleAI.embedder', () => {
     it('should return an EmbedderReference with correct schema', () => {
-      const embedderName = 'text-embedding-004';
+      const embedderName = 'gemini-embedding-001';
       const embedderRef = googleAI.embedder(embedderName);
       assert.strictEqual(embedderRef.name, `googleai/${embedderName}`);
       assert.ok(embedderRef.info, 'Should have info');
@@ -430,7 +479,7 @@ describe('GoogleAI Plugin', () => {
           supportedGenerationMethods: ['generateContent'],
         },
         {
-          name: 'models/text-embedding-004',
+          name: 'models/gemini-embedding-001',
           supportedGenerationMethods: ['embedContent'],
         },
         {
@@ -458,7 +507,7 @@ describe('GoogleAI Plugin', () => {
         [
           'googleai/gemini-2.5-pro',
           'googleai/imagen-4.0-generate-001',
-          'googleai/text-embedding-004',
+          'googleai/gemini-embedding-001',
           'googleai/veo-3.1-generate-preview',
         ].sort()
       );
@@ -469,7 +518,7 @@ describe('GoogleAI Plugin', () => {
       assert.strictEqual(modelAction?.actionType, 'model');
 
       const embedderAction = actions.find(
-        (a) => a.name === 'googleai/text-embedding-004'
+        (a) => a.name === 'googleai/gemini-embedding-001'
       );
       assert.strictEqual(embedderAction?.actionType, 'embedder');
 
@@ -539,7 +588,7 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('should return empty array if API key is missing for listActions', async () => {
+    it('should return empty list if API key is missing for listActions', async () => {
       delete process.env.GOOGLE_API_KEY;
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_GENAI_API_KEY;
@@ -551,11 +600,7 @@ describe('GoogleAI Plugin', () => {
         [],
         'Should return empty array if API key is not found'
       );
-      assert.strictEqual(
-        fetchMock.mock.callCount(),
-        0,
-        'Fetch should not be called'
-      );
+      assert.strictEqual(fetchMock.mock.callCount(), 0);
     });
 
     it('should use listActions cache', async () => {

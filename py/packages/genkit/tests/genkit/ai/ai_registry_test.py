@@ -32,7 +32,7 @@ class TestGetFuncDescription(unittest.TestCase):
     def test_get_func_description_with_explicit_description(self) -> None:
         """Test that explicit description takes precedence over docstring."""
 
-        def test_func():
+        def test_func() -> None:
             """This docstring should be ignored."""
             pass
 
@@ -42,7 +42,7 @@ class TestGetFuncDescription(unittest.TestCase):
     def test_get_func_description_with_docstring(self) -> None:
         """Test that docstring is used when no explicit description is provided."""
 
-        def test_func():
+        def test_func() -> None:
             """This is the function's docstring."""
             pass
 
@@ -52,7 +52,7 @@ class TestGetFuncDescription(unittest.TestCase):
     def test_get_func_description_without_docstring(self) -> None:
         """Test that empty string is returned when no docstring is present."""
 
-        def test_func():
+        def test_func() -> None:
             pass
 
         description = get_func_description(test_func)
@@ -61,7 +61,7 @@ class TestGetFuncDescription(unittest.TestCase):
     def test_get_func_description_with_none_docstring(self) -> None:
         """Test that empty string is returned when docstring is None."""
 
-        def test_func():
+        def test_func() -> None:
             pass
 
         test_func.__doc__ = None

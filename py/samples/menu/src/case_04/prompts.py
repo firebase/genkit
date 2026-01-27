@@ -13,18 +13,19 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-from menu_ai import ai
-from menu_schemas import DataMenuQuestionInputSchema
+"""Prompts for case 04."""
 
-from genkit.plugins.google_genai import google_genai_name
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
-s04_ragDataMenuPrompt = ai.define_prompt(
+from ..menu_ai import ai
+from ..menu_schemas import DataMenuQuestionInputSchema
+
+s04_rag_data_menu_prompt = ai.define_prompt(
     variant='s04_ragDataMenu',
-    model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=DataMenuQuestionInputSchema,
     config={'temperature': 0.3},
-    system="""
+    prompt="""
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.

@@ -142,6 +142,9 @@ const VoiceConfigSchema = z
   .describe('Configuration for the voice to use')
   .passthrough();
 
+/**
+ * @deprecated
+ */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   temperature: z
     .number()
@@ -235,6 +238,9 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
+/**
+ * @deprecated
+ */
 export const GeminiGemmaConfigSchema = GeminiConfigSchema.extend({
   temperature: z
     .number()
@@ -247,6 +253,9 @@ export const GeminiGemmaConfigSchema = GeminiConfigSchema.extend({
     .optional(),
 }).passthrough();
 
+/**
+ * @deprecated
+ */
 export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
   speechConfig: z
     .object({
@@ -276,6 +285,9 @@ export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
     .optional(),
 }).passthrough();
 
+/**
+ * @deprecated
+ */
 export const gemini10Pro = modelRef({
   name: 'googleai/gemini-1.0-pro',
   info: {
@@ -293,6 +305,9 @@ export const gemini10Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini15Pro = modelRef({
   name: 'googleai/gemini-1.5-pro',
   info: {
@@ -314,6 +329,9 @@ export const gemini15Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini15Flash = modelRef({
   name: 'googleai/gemini-1.5-flash',
   info: {
@@ -337,6 +355,9 @@ export const gemini15Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini15Flash8b = modelRef({
   name: 'googleai/gemini-1.5-flash-8b',
   info: {
@@ -354,6 +375,9 @@ export const gemini15Flash8b = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini20Flash = modelRef({
   name: 'googleai/gemini-2.0-flash',
   info: {
@@ -371,6 +395,9 @@ export const gemini20Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini20FlashExp = modelRef({
   name: 'googleai/gemini-2.0-flash-exp',
   info: {
@@ -388,6 +415,9 @@ export const gemini20FlashExp = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini20FlashLite = modelRef({
   name: 'googleai/gemini-2.0-flash-lite',
   info: {
@@ -405,6 +435,9 @@ export const gemini20FlashLite = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini20ProExp0205 = modelRef({
   name: 'googleai/gemini-2.0-pro-exp-02-05',
   info: {
@@ -422,6 +455,9 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25FlashPreview0417 = modelRef({
   name: 'googleai/gemini-2.5-flash-preview-04-17',
   info: {
@@ -439,6 +475,9 @@ export const gemini25FlashPreview0417 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25FlashPreviewTts = modelRef({
   name: 'googleai/gemini-2.5-flash-preview-tts',
   info: {
@@ -456,6 +495,9 @@ export const gemini25FlashPreviewTts = modelRef({
   configSchema: GeminiTtsConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25ProExp0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-exp-03-25',
   info: {
@@ -473,6 +515,9 @@ export const gemini25ProExp0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25ProPreview0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-preview-03-25',
   info: {
@@ -490,6 +535,9 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25ProPreviewTts = modelRef({
   name: 'googleai/gemini-2.5-pro-preview-tts',
   info: {
@@ -507,6 +555,9 @@ export const gemini25ProPreviewTts = modelRef({
   configSchema: GeminiTtsConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25Pro = modelRef({
   name: 'googleai/gemini-2.5-pro',
   info: {
@@ -524,6 +575,9 @@ export const gemini25Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25Flash = modelRef({
   name: 'googleai/gemini-2.5-flash',
   info: {
@@ -541,6 +595,9 @@ export const gemini25Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemini25FlashLite = modelRef({
   name: 'googleai/gemini-2.5-flash-lite',
   info: {
@@ -558,6 +615,9 @@ export const gemini25FlashLite = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemma312bit = modelRef({
   name: 'googleai/gemma-3-12b-it',
   info: {
@@ -575,6 +635,9 @@ export const gemma312bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemma31bit = modelRef({
   name: 'googleai/gemma-3-1b-it',
   info: {
@@ -592,6 +655,9 @@ export const gemma31bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemma327bit = modelRef({
   name: 'googleai/gemma-3-27b-it',
   info: {
@@ -609,6 +675,9 @@ export const gemma327bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemma34bit = modelRef({
   name: 'googleai/gemma-3-4b-it',
   info: {
@@ -626,6 +695,9 @@ export const gemma34bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const gemma3ne4bit = modelRef({
   name: 'googleai/gemma-3n-e4b-it',
   info: {
@@ -643,6 +715,9 @@ export const gemma3ne4bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const SUPPORTED_GEMINI_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
@@ -666,6 +741,9 @@ export const SUPPORTED_GEMINI_MODELS = {
   'gemma-3n-e4b-it': gemma3ne4bit,
 };
 
+/**
+ * @deprecated
+ */
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'googleai/gemini',
   configSchema: GeminiConfigSchema,
@@ -694,6 +772,7 @@ function longestMatchingPrefix(version: string, potentialMatches: string[]) {
 
 /**
  * Known model names, to allow code completion for convenience. Allows other model names.
+ * @deprecated
  */
 export type GeminiVersionString =
   | keyof typeof SUPPORTED_GEMINI_MODELS
@@ -708,6 +787,7 @@ export type GeminiVersionString =
  *   model: gemini('gemini-1.5-flash')
  * });
  * ```
+ * @deprecated
  */
 export function gemini(
   version: GeminiVersionString,
@@ -832,7 +912,10 @@ function convertSchemaProperty(property) {
   }
 }
 
-/** @hidden */
+/**
+ * @hidden
+ * @deprecated
+ */
 export function toGeminiTool(
   tool: z.infer<typeof ToolDefinitionSchema>
 ): FunctionDeclaration {
@@ -1026,6 +1109,9 @@ function fromGeminiPart(
   throw new Error('Unsupported GeminiPart type: ' + JSON.stringify(part));
 }
 
+/**
+ * @deprecated
+ */
 export function toGeminiMessage(
   message: MessageData,
   model?: ModelReference<z.ZodTypeAny>
@@ -1047,6 +1133,9 @@ export function toGeminiMessage(
   };
 }
 
+/**
+ * @deprecated
+ */
 export function toGeminiSystemInstruction(message: MessageData): GeminiMessage {
   return {
     role: 'user',
@@ -1054,6 +1143,9 @@ export function toGeminiSystemInstruction(message: MessageData): GeminiMessage {
   };
 }
 
+/**
+ * @deprecated
+ */
 function fromGeminiFinishReason(
   reason: GeminiCandidate['finishReason']
 ): CandidateData['finishReason'] {
@@ -1071,6 +1163,9 @@ function fromGeminiFinishReason(
   }
 }
 
+/**
+ * @deprecated
+ */
 export function fromGeminiCandidate(
   candidate: GeminiCandidate,
   jsonMode = false
@@ -1094,6 +1189,10 @@ export function fromGeminiCandidate(
 
   return genkitCandidate;
 }
+
+/**
+ * @deprecated
+ */
 export function cleanSchema(schema: JSONSchema): JSONSchema {
   const out = structuredClone(schema);
   for (const key in out) {
@@ -1116,6 +1215,7 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
 
 /**
  * Defines a new GoogleAI model.
+ * @deprecated
  */
 export function defineGoogleAIModel({
   ai,
@@ -1507,6 +1607,7 @@ function toGeminiFunctionModeEnum(
  *
  * This code is copy-pasted from https://github.com/google-gemini/deprecated-generative-ai-js/blob/8b14949a5e8f1f3dfc35c394ebf5b19e68f92a22/src/requests/stream-reader.ts#L153
  * with a small (but critical) bug fix.
+ * @deprecated
  */
 export function aggregateResponses(
   responses: GenerateContentResponse[]

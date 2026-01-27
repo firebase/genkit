@@ -92,6 +92,9 @@ export {
   type GeminiVersionString,
 };
 
+/**
+ * @deprecated
+ */
 export interface PluginOptions {
   /**
    * Provide the API key to use to authenticate with the Gemini API. By
@@ -327,6 +330,7 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
 
 /**
  * Google Gemini Developer API plugin.
+ * @deprecated
  */
 export function googleAIPlugin(options?: PluginOptions): GenkitPlugin {
   let listActionsCache;
@@ -343,6 +347,9 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPlugin {
   );
 }
 
+/**
+ * @deprecated
+ */
 export type GoogleAIPlugin = {
   (params?: PluginOptions): GenkitPlugin;
   model(
@@ -366,6 +373,7 @@ export type GoogleAIPlugin = {
 
 /**
  * Google Gemini Developer API plugin.
+ * @deprecated Please use `import { googleAI } from '@genkit-ai/google-genai';` instead. Replace model constants with e.g. googleAI.model('gemini-2.5-pro')
  */
 export const googleAI = googleAIPlugin as GoogleAIPlugin;
 // provide generic implementation for the model function overloads.

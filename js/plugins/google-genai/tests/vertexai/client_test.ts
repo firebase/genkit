@@ -577,7 +577,15 @@ describe('Vertex AI Client', () => {
 
             await assert.rejects(
               generateContent(model, request, currentOptions),
-              /Failed to fetch from .* \[403 Forbidden\] Permission denied/
+              (err: any) => {
+                assert.strictEqual(err.name, 'GenkitError');
+                assert.strictEqual(err.status, 'UNKNOWN');
+                assert.match(
+                  err.message,
+                  /Error fetching from .* \[403 Forbidden\] Permission denied/
+                );
+                return true;
+              }
             );
           });
         });
@@ -822,19 +830,26 @@ describe('Vertex AI Client', () => {
         'text/html'
       );
 
-      await assert.rejects(
-        listModels(regionalClientOptions),
-        /Failed to fetch from .* \[504 Gateway Timeout\] <h1>Gateway Timeout<\/h1>/
-      );
+      await assert.rejects(listModels(regionalClientOptions), (err: any) => {
+        assert.strictEqual(err.name, 'GenkitError');
+        assert.strictEqual(err.status, 'UNKNOWN');
+        assert.match(
+          err.message,
+          /Error fetching from .* \[504 Gateway Timeout\] <h1>Gateway Timeout<\/h1>/
+        );
+        return true;
+      });
     });
 
     it('listModels should throw an error if fetch fails with empty response body', async () => {
       mockFetchResponse(null, false, 502, 'Bad Gateway');
 
-      await assert.rejects(
-        listModels(regionalClientOptions),
-        /Failed to fetch from .* \[502 Bad Gateway\] $/
-      );
+      await assert.rejects(listModels(regionalClientOptions), (err: any) => {
+        assert.strictEqual(err.name, 'GenkitError');
+        assert.strictEqual(err.status, 'UNKNOWN');
+        assert.match(err.message, /Error fetching from .* \[502 Bad Gateway\]/);
+        return true;
+      });
     });
 
     it('listModels should throw an error on network failure', async () => {
@@ -843,6 +858,21 @@ describe('Vertex AI Client', () => {
         listModels(regionalClientOptions),
         /Failed to fetch from .* Network Error/
       );
+    });
+
+    it('should throw a resource exhausted error on 429', async () => {
+      const errorResponse = { error: { message: 'Too many requests' } };
+      mockFetchResponse(errorResponse, false, 429, 'Too Many Requests');
+
+      await assert.rejects(listModels(regionalClientOptions), (err: any) => {
+        assert.strictEqual(err.name, 'GenkitError');
+        assert.strictEqual(err.status, 'RESOURCE_EXHAUSTED');
+        assert.match(
+          err.message,
+          /Error fetching from .* \[429 Too Many Requests\] Too many requests/
+        );
+        return true;
+      });
     });
   });
 

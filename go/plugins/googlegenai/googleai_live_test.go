@@ -170,12 +170,40 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		out := resp.Message.Content[0].Text
+		out := resp.Text()
 		const want = "11.31"
 		if !strings.Contains(out, want) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool stream", func(t *testing.T) {
+		parts := 0
+		out := ""
+		final, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				parts++
+				out += c.Content[0].Text
+				return nil
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+
+		const want = "11.31"
+		if !strings.Contains(final.Text(), want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
+
 	t.Run("tool with thinking", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
@@ -191,7 +219,7 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		out := resp.Message.Content[0].Text
+		out := resp.Text()
 		const want = "11.31"
 		if !strings.Contains(out, want) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
@@ -212,9 +240,13 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Run("api and custom tools", func(t *testing.T) {
+	t.Run("api and custom tools with GoogleSearch", func(t *testing.T) {
+		// Note: The Gemini API does not support combining GoogleSearch with function calling.
+		// This test verifies that tools are properly merged (not silently dropped),
+		// even though the API will reject this specific combination.
+		// See: https://github.com/google/adk-python/issues/53
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
-		resp, err := genkit.Generate(ctx, g,
+		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Tools: []*genai.Tool{
 					{GoogleSearch: &genai.GoogleSearch{}},
@@ -223,15 +255,13 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithModel(m),
 			ai.WithTools(gablorkenTool, answerOfEverythingTool),
 			ai.WithPrompt("What is the answer of life?"))
-		if err != nil {
-			t.Fatal(err)
+		// Expect API error because GoogleSearch + function calling is unsupported
+		if err == nil {
+			t.Fatal("expected error combining GoogleSearch with function calling, but got none")
 		}
-		// api tools should not be used when custom tools are present
-		if len(resp.Request.Tools) != 2 {
-			t.Fatalf("got %d tools, want: 2", len(resp.Request.Tools))
-		}
-		if !strings.Contains(resp.Text(), "42") {
-			t.Fatalf("got %s, want: 42", resp.Text())
+		if !strings.Contains(err.Error(), "Tool use with function calling is unsupported") &&
+			!strings.Contains(err.Error(), "INVALID_ARGUMENT") {
+			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 	t.Run("tool with json output", func(t *testing.T) {
@@ -277,7 +307,7 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		out := resp.Message.Content[0].Text
+		out := resp.Text()
 		const doNotWant = "11.31"
 		if strings.Contains(out, doNotWant) {
 			t.Errorf("got %q, expecting it NOT to contain %q", out, doNotWant)
@@ -550,6 +580,37 @@ func TestGoogleAILive(t *testing.T) {
 		}
 		if resp.Usage.ThoughtsTokens > 0 {
 			t.Fatal("thoughts tokens should be zero")
+		}
+	})
+	t.Run("multipart tool", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-3-pro-preview")
+		img64, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tool := genkit.DefineMultipartTool(g, "getImage", "returns a misterious image",
+			func(ctx *ai.ToolContext, input any) (*ai.MultipartToolResponse, error) {
+				return &ai.MultipartToolResponse{
+					Output: map[string]any{"status": "success"},
+					Content: []*ai.Part{
+						ai.NewMediaPart("image/jpeg", "data:image/jpeg;base64,"+img64),
+					},
+				}, nil
+			},
+		)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithTools(tool),
+			ai.WithPrompt("get an image and tell me what is in it"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Errorf("expected response to contain 'cat', got: %s", resp.Text())
 		}
 	})
 }

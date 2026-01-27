@@ -58,3 +58,68 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 	}
 	return n, nil
 }
+
+func TestDefineSchemaWithType(t *testing.T) {
+	g := Init(context.Background())
+
+	type UserInfo struct {
+		Name string `json:"name"`
+		Age  int    `json:"age,omitempty"`
+	}
+
+	DefineSchemaFor[UserInfo](g)
+
+	schema := g.reg.LookupSchema("UserInfo")
+	if schema == nil {
+		t.Fatal("Schema UserInfo not found")
+	}
+
+	if schema["type"] != "object" {
+		t.Errorf("Expected type object, got %v", schema["type"])
+	}
+
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("Properties not found or invalid type")
+	}
+
+	if _, ok := props["name"]; !ok {
+		t.Error("Property 'name' not found")
+	}
+	if _, ok := props["age"]; !ok {
+		t.Error("Property 'age' not found")
+	}
+
+	required, ok := schema["required"].([]any)
+	if !ok {
+		t.Fatal("Required fields not found or invalid type")
+	}
+	// jsonschema reflection makes fields required by default unless omitempty
+	foundName := false
+	for _, r := range required {
+		if r == "name" {
+			foundName = true
+			break
+		}
+	}
+	if !foundName {
+		t.Error("Expected 'name' to be required")
+	}
+}
+
+func TestDefineSchemaWithType_Error(t *testing.T) {
+	g := Init(context.Background())
+
+	// We expect a panic because DefineSchemaWithType panics on error
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	type Invalid struct {
+		Foo func() `json:"foo"`
+	}
+
+	DefineSchemaFor[Invalid](g)
+}

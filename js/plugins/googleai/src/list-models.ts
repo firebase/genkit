@@ -15,6 +15,9 @@
  */
 
 // Gemini  model definition
+/**
+ * @deprecated
+ */
 export interface Model {
   name: string;
   baseModelId: string;
@@ -40,6 +43,7 @@ interface ListModelsResponse {
  * List Gemini models by making an RPC call to the API.
  *
  * https://ai.google.dev/api/models#method:-models.list
+ * @deprecated
  */
 export async function listModels(
   baseUrl: string,

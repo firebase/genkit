@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { GenerateRequest, GenkitError } from 'genkit';
+import { GenerateRequest, GenkitError, z } from 'genkit';
 import process from 'process';
 import { extractMedia } from '../common/utils.js';
-import { ImagenInstance, VeoImage, VeoVideo } from './types.js';
+import { ClientOptions, ImagenInstance, VeoImage, VeoVideo } from './types.js';
 
 export {
   checkModelName,
@@ -102,7 +102,7 @@ export function checkApiKey(
 export function calculateApiKey(
   pluginApiKey: string | false | undefined,
   requestApiKey: string | undefined
-): string {
+): string | undefined {
   let apiKey: string | undefined;
 
   // Don't get the key from the environment if pluginApiKey is false
@@ -113,7 +113,7 @@ export function calculateApiKey(
   apiKey = requestApiKey || apiKey;
 
   if (pluginApiKey === false && !requestApiKey) {
-    throw API_KEY_FALSE_ERROR;
+    return undefined;
   }
 
   if (!apiKey) {
@@ -163,4 +163,65 @@ export function extractImagenImage(
     return { bytesBase64Encoded: image };
   }
   return undefined;
+}
+
+/**
+ * For each field in ClientOptions, if the request config object has
+ * a matching non-empty/non-null field, it overrides the original.
+ */
+export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
+  clientOptions: ClientOptions,
+  reqConfig?: z.infer<T>
+): ClientOptions {
+  if (!reqConfig) {
+    return clientOptions;
+  }
+
+  let newOptions = { ...clientOptions };
+
+  if (typeof reqConfig.timeout == 'number') {
+    newOptions.timeout = reqConfig.timeout;
+  }
+
+  if (typeof reqConfig.apiKey == 'string') {
+    newOptions.apiKey = reqConfig.apiKey;
+  }
+
+  if (typeof reqConfig.apiVersion == 'string') {
+    newOptions.apiVersion = reqConfig.apiVersion;
+  }
+
+  if (typeof reqConfig.apiClient == 'string') {
+    newOptions.apiClient = reqConfig.apiClient;
+  }
+
+  if (typeof reqConfig.baseUrl == 'string') {
+    newOptions.baseUrl = reqConfig.baseUrl;
+  }
+
+  if (reqConfig.customHeaders && typeof reqConfig.customHeaders === 'object') {
+    newOptions.customHeaders = reqConfig.customHeaders;
+  }
+
+  return newOptions;
+}
+
+/**
+ * The config can have client option overrides, but they should not
+ * be sent with the request like normal config.
+ * @param requestConfig
+ */
+export function removeClientOptionOverrides<
+  T extends z.ZodObject<any, any, any>,
+>(requestConfig?: z.infer<T>): z.infer<T> {
+  let newConfig = { ...requestConfig };
+
+  delete newConfig?.timeout;
+  delete newConfig?.apiKey;
+  delete newConfig?.apiVersion;
+  delete newConfig?.apiClient;
+  delete newConfig?.baseUrl;
+  delete newConfig?.customHeaders;
+
+  return newConfig;
 }

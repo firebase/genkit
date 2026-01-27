@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GenkitError, stripUndefinedProps } from '@genkit-ai/core';
+import { GenkitError, stripUndefinedProps, z } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import type {
@@ -25,6 +25,7 @@ import type {
   ToolRequestPart,
   ToolResponsePart,
 } from '../model.js';
+import { MultipartToolResponseSchema, ToolResponse } from '../parts.js';
 import { isPromptAction } from '../prompt.js';
 import {
   ToolInterruptError,
@@ -101,7 +102,11 @@ export async function resolveToolRequest(
 
   // if it's a prompt action, go ahead and render the preamble
   if (isPromptAction(tool)) {
-    const preamble = await tool(part.toolRequest.input);
+    const metadata = tool.__action.metadata as Record<string, any>;
+    const preamble = {
+      ...(await tool(part.toolRequest.input)),
+      model: metadata.prompt?.model,
+    };
     const response = {
       toolResponse: {
         name: part.toolRequest.name,
@@ -116,15 +121,31 @@ export async function resolveToolRequest(
   // otherwise, execute the tool and catch interrupts
   try {
     const output = await tool(part.toolRequest.input, toRunOptions(part));
-    const response = stripUndefinedProps({
-      toolResponse: {
-        name: part.toolRequest.name,
-        ref: part.toolRequest.ref,
-        output,
-      },
-    });
+    if (tool.__action.actionType === 'tool.v2') {
+      const multipartResponse = output as z.infer<
+        typeof MultipartToolResponseSchema
+      >;
+      const response = stripUndefinedProps({
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output: multipartResponse.output,
+          content: multipartResponse.content,
+        } as ToolResponse,
+      });
 
-    return { response };
+      return { response };
+    } else {
+      const response = stripUndefinedProps({
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output,
+        },
+      });
+
+      return { response };
+    }
   } catch (e) {
     if (
       e instanceof ToolInterruptError ||
