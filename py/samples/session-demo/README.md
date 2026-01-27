@@ -32,3 +32,20 @@ This sample demonstrates how to use Genkit's advanced session management feature
 ```
 
 This will launch the Streamlit app. Follow the interactive buttons to step through the session flow and watch the state update in real-time.
+
+## Testing This Demo
+
+1. **Open the Streamlit UI** at http://localhost:8501
+
+2. **Test the following**:
+   - [ ] Create a new session and note the session ID
+   - [ ] Send messages and verify they're stored in session
+   - [ ] Check that session state is displayed/updated
+   - [ ] Reload the page and verify session persists (in-memory)
+   - [ ] Create multiple sessions and switch between them
+   - [ ] Test with different model providers
+
+3. **Expected behavior**:
+   - Sessions maintain conversation history
+   - State changes persist within session lifetime
+   - Each session has unique ID for identification

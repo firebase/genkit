@@ -14,10 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tool interrupts sample.
+"""Tool interrupts sample - Human-in-the-loop with tool interruptions.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use tool interruptions to pause AI execution
+and wait for human input before continuing, enabling interactive experiences.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Tool Interruption                       | `ctx.interrupt(payload)`            |

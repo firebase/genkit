@@ -12,26 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Format demo sample.
+"""Format demo sample - Output format options in Genkit.
 
-This sample demonstrates the various output formats available in Genkit:
+This sample demonstrates the various output formats available in Genkit for
+structured and unstructured AI-generated content.
 
-1. **text** - Raw text output (default)
-2. **json** - Structured JSON object output
-3. **array** - JSON array of items
-4. **enum** - Single value from a predefined set
-5. **jsonl** - Newline-delimited JSON (streaming friendly)
+See README.md for testing instructions.
 
-Run with: genkit start -- uv run --package format-demo src/main.py
-Then use the Dev UI to test each flow.
-
-Example inputs for testing in the Dev UI (pre-populated with defaults):
-
-- generate_haiku_text: {"topic": "coding"}
-- get_country_info_json: {"country": "Japan"}
-- recommend_books_array: {"genre": "Fantasy"}
-- classify_sentiment_enum: {"review": "This product is terrible and broke after one day"}
-- create_story_characters_jsonl: {"theme": "Space Opera"}
+Output Formats
+==============
+| Format   | Description                              | Use Case                    |
+|----------|------------------------------------------|-----------------------------|
+| `text`   | Raw text output (default)                | Free-form responses         |
+| `json`   | Structured JSON object output            | API responses, data objects |
+| `array`  | JSON array of items                      | Lists, collections          |
+| `enum`   | Single value from a predefined set       | Classification, categories  |
+| `jsonl`  | Newline-delimited JSON (streaming)       | Large datasets, streaming   |
 """
 
 import asyncio

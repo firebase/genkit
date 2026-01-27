@@ -14,10 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hello Google GenAI sample (long-running / server mode).
+r"""Long-running server mode sample - ASGI deployment with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to deploy Genkit flows as a production-ready
+ASGI application using uvicorn, with proper lifecycle management.
 
+Key Features
+============
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
 | Deployment as ASGI App                                   | `create_flows_asgi_app`                |
@@ -41,6 +44,8 @@ Key features demonstrated in this sample:
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
+
+See README.md for testing instructions.
 """
 
 import argparse

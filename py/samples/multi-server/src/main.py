@@ -14,7 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Testing sample for multi server."""
+"""Multi-server sample - Running multiple ASGI servers with Genkit.
+
+This sample demonstrates how to run multiple ASGI servers (Litestar, Starlette)
+alongside Genkit's reflection server for complex deployment scenarios.
+
+See README.md for testing instructions.
+"""
 
 from __future__ import annotations
 

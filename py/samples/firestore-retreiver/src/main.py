@@ -15,16 +15,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Firestore retriever sample.
+"""Firestore retriever sample - Vector search with Firestore.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use Firestore as a vector store for
+retrieval-augmented generation (RAG) with Genkit.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Firestore Vector Store Definition       | `define_firestore_vector_store`     |
 | Embed Many                              | `ai.embed_many()`                   |
 | Document Retrieval                      | `ai.retrieve()`                     |
 | Firestore Integration                   | `firestore.Client()`                |
+
+See README.md for testing instructions.
 """
 
 import os
