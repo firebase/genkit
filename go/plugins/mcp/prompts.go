@@ -29,6 +29,9 @@ func (c *GenkitMCPClient) GetPrompt(ctx context.Context, g *genkit.Genkit, promp
 	if !c.IsEnabled() || c.server == nil {
 		return nil, fmt.Errorf("MCP client is disabled or not connected")
 	}
+	if c.server.Error != nil {
+		return nil, fmt.Errorf("client is in error state: %w", c.server.Error)
+	}
 
 	// Check if prompt already exists
 	namespacedPromptName := c.GetPromptNameWithNamespace(promptName)
@@ -108,6 +111,9 @@ func (c *GenkitMCPClient) convertMCPMessages(mcpMessages []mcp.PromptMessage) []
 func (c *GenkitMCPClient) GetActivePrompts(ctx context.Context) ([]mcp.Prompt, error) {
 	if !c.IsEnabled() || c.server == nil {
 		return nil, nil
+	}
+	if c.server.Error != nil {
+		return nil, fmt.Errorf("client is in error state: %w", c.server.Error)
 	}
 
 	// Get all MCP prompts

@@ -75,7 +75,7 @@ type MCPClientOptions struct {
 type ServerRef struct {
 	Client    *client.Client
 	Transport transport.Interface
-	Error     string
+	Error     error
 }
 
 // GenkitMCPClient represents a client for interacting with MCP servers.
@@ -103,6 +103,10 @@ func NewGenkitMCPClient(options MCPClientOptions) (*GenkitMCPClient, error) {
 		return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
 	}
 
+	if client.server.Error != nil {
+		return nil, fmt.Errorf("failed to initialize MCP client: %w", client.server.Error)
+	}
+
 	return client, nil
 }
 
@@ -119,20 +123,24 @@ func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 	// Create and configure transport
 	transport, err := c.createTransport(options)
 	if err != nil {
+		// no transport means no ability to create a server
+		c.server = &ServerRef{Error: err}
 		return err
 	}
 
 	// Start the transport
 	ctx := context.Background()
 	if err := transport.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start transport: %w", err)
+		wrappedErr := fmt.Errorf("failed to start transport: %w", err)
+		c.server = &ServerRef{Error: err}
+		return wrappedErr
 	}
 
 	// Create MCP client
 	mcpClient := client.NewClient(transport)
 
 	// Initialize the client if not disabled
-	var serverError string
+	var serverError error
 	if !options.Disabled {
 		serverError = c.initializeClient(ctx, mcpClient, options.Version)
 	}
@@ -184,7 +192,7 @@ func (c *GenkitMCPClient) createTransport(options MCPClientOptions) (transport.I
 }
 
 // initializeClient initializes the MCP client connection
-func (c *GenkitMCPClient) initializeClient(ctx context.Context, mcpClient *client.Client, version string) string {
+func (c *GenkitMCPClient) initializeClient(ctx context.Context, mcpClient *client.Client, version string) error {
 	initReq := mcp.InitializeRequest{
 		Params: struct {
 			ProtocolVersion string                 `json:"protocolVersion"`
@@ -202,10 +210,10 @@ func (c *GenkitMCPClient) initializeClient(ctx context.Context, mcpClient *clien
 
 	_, err := mcpClient.Initialize(ctx, initReq)
 	if err != nil {
-		return err.Error()
+		return err
 	}
 
-	return ""
+	return nil
 }
 
 // Name returns the client name
@@ -239,7 +247,14 @@ func (c *GenkitMCPClient) Restart(ctx context.Context) error {
 	if err := c.Disconnect(); err != nil {
 		logger.FromContext(ctx).Warn("Error closing MCP transport during restart", "client", c.options.Name, "error", err)
 	}
-	return c.connect(c.options)
+
+	if err := c.connect(c.options); err != nil {
+		return err
+	}
+	if c.server.Error != nil {
+		return fmt.Errorf("failed to restart MCP client: %w", c.server.Error)
+	}
+	return nil
 }
 
 // Disconnect closes the connection to the MCP server
