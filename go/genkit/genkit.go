@@ -249,22 +249,37 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 		errCh := make(chan error, 1)
 		serverStartCh := make(chan struct{})
 
-		go func() {
-			if s := startReflectionServer(ctx, g, errCh, serverStartCh); s == nil {
-				return
+		// Check for V2 Reflection
+		if v2URL := os.Getenv("GENKIT_REFLECTION_V2_SERVER"); v2URL != "" {
+			go func() {
+				startReflectionServerV2(ctx, g, v2URL, errCh)
+			}()
+			
+			select {
+			case err := <-errCh:
+				slog.Error("reflection V2 client error", "err", err)
+			case <-ctx.Done():
+				// context cancelled
 			}
-			if err := <-errCh; err != nil {
-				slog.Error("reflection server error", "err", err)
-			}
-		}()
+		} else {
+			// Start V1 Reflection Server
+			go func() {
+				if s := startReflectionServer(ctx, g, errCh, serverStartCh); s == nil {
+					return
+				}
+				if err := <-errCh; err != nil {
+					slog.Error("reflection server error", "err", err)
+				}
+			}()
 
-		select {
-		case err := <-errCh:
-			panic(fmt.Errorf("genkit.Init: reflection server startup failed: %w", err))
-		case <-serverStartCh:
-			slog.Debug("reflection server started successfully")
-		case <-ctx.Done():
-			panic(ctx.Err())
+			select {
+			case err := <-errCh:
+				panic(fmt.Errorf("genkit.Init: reflection server startup failed: %w", err))
+			case <-serverStartCh:
+				slog.Debug("reflection server started successfully")
+			case <-ctx.Done():
+				panic(ctx.Err())
+			}
 		}
 	}
 
