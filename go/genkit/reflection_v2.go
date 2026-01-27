@@ -372,7 +372,7 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 	// Panic recovery is handled by handleRequest's defer.
 
 	resp, err := runAction(actionCtx, c.g, params.Key, params.Input, params.TelemetryLabels, cb, contextMap)
-	
+
 	if resp != nil && resp.Telemetry.TraceID != "" {
 		c.activeActions.Delete(resp.Telemetry.TraceID)
 	}
