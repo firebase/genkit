@@ -137,7 +137,7 @@ export async function startDevProcessManager(
  * Rejects if the process exits or if the timeout is reached.
  */
 export async function waitForRuntime(
-  manager: RuntimeManager,
+  manager: BaseRuntimeManager,
   processPromise: Promise<void>,
   timeoutMs: number = 30000
 ): Promise<void> {
