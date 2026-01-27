@@ -35,17 +35,14 @@ import structlog
 from opentelemetry import trace as trace_api
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
-    SimpleSpanProcessor,
-    SpanExporter,
-)
+from opentelemetry.sdk.trace.export import SpanExporter
 
 from genkit.core.environment import is_dev_environment
 from genkit.core.trace import (
     GenkitSpan,
     init_telemetry_server_exporter,
 )
+from genkit.core.trace.default_exporter import create_span_processor
 from genkit.core.typing import SpanMetadata
 
 ATTR_PREFIX = 'genkit'
@@ -87,20 +84,15 @@ def add_custom_exporter(exporter: SpanExporter | None, name: str = 'last') -> No
             logger.warn(f'{name} exporter is None')
             return
 
-        span_processor = SimpleSpanProcessor if is_dev_environment() else BatchSpanProcessor
-        processor = span_processor(
-            exporter,
-        )
-
+        processor = create_span_processor(exporter)
         current_provider.add_span_processor(processor)
-        logger.debug(f'{name} exporter added succesfully.')
+        logger.debug(f'{name} exporter added successfully.')
     except Exception as e:
         logger.error(f'tracing.add_custom_exporter: failed to add exporter {name}')
         logger.exception(e)
 
 
 if is_dev_environment():
-    # If dev mode, set a simple span processor
     add_custom_exporter(init_telemetry_server_exporter(), 'local_telemetry_server')
 
 
