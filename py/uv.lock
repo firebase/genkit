@@ -3952,6 +3952,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "pydantic" },
+    { name = "structlog" },
     { name = "uvloop" },
 ]
 
@@ -3965,6 +3966,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]

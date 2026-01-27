@@ -118,10 +118,12 @@ class TestMistralIntegration:
     """Test Mistral integration."""
 
     @patch('mistralai_gcp.MistralGoogleCloud')
+    @patch('mistralai_gcp.MistralGoogleCloud')
+    @patch('mistralai_gcp.MistralGoogleCloud')
     def test_mistral_model_lookup_native(self, mock_client_cls: MagicMock) -> None:
         """Test that Mistral models trigger native client path."""
         plugin = ModelGardenPlugin(project_id='test-project', location='us-central1')
-        model_name = 'modelgarden/mistral-medium-3'
+        model_name = 'modelgarden/mistral-large-3'
 
         action = plugin._create_model_action(model_name)
 
@@ -133,7 +135,7 @@ class TestMistralIntegration:
 
         metadata = cast(dict[str, Any], action.metadata['model'])
         # Check supports from mistral.py
-        supports = SUPPORTED_MISTRAL_MODELS['mistral-medium-3'].supports
+        supports = SUPPORTED_MISTRAL_MODELS['mistral-large-3'].supports
         assert supports is not None
         expected = supports.model_dump()
         assert metadata['supports'] == expected

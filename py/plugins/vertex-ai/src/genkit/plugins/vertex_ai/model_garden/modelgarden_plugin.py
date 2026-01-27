@@ -167,7 +167,11 @@ class ModelGardenPlugin(Plugin):
             location = self.model_locations.get(clean_name, self.location)
             client = MistralGoogleCloud(project_id=self.project_id, region=location)
 
-            mistral_model = MistralModel(client=client, model_name=clean_name)
+            mistral_model_name = clean_name
+            if mistral_model_name.startswith('mistralai/'):
+                mistral_model_name = mistral_model_name.replace('mistralai/', '')
+
+            mistral_model = MistralModel(client=client, model_name=mistral_model_name)
 
             model_info = SUPPORTED_MISTRAL_MODELS.get(
                 clean_name,

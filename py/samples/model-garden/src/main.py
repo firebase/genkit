@@ -14,21 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Model Garden sample.
+"""Model Garden sample."""
 
+import asyncio
 import os
 
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-<<<<<<< HEAD
-from genkit.core.action import ActionRunContext
-from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
-||||||| parent of a4020e5c6 (fix(py): revised the flow and fixed ty errors)
-from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
-=======
->>>>>>> a4020e5c6 (fix(py): revised the flow and fixed ty errors)
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
@@ -76,6 +70,9 @@ ai = Genkit(
             model_locations={
                 'anthropic/claude-sonnet-4@20250514': 'us-east5',
                 'meta/llama-3.2-90b-vision-instruct-maas': 'us-central1',
+                'mistralai/ministral-3-14b-instruct-2512': 'us-central1',
+                'mistralai/mistral-large-3-instruct-2512': 'us-central1',
+                'Mistral-Nemo-Instruct-2407': 'us-central1',
             },
         ),
         VertexAI(location=location),
@@ -170,9 +167,10 @@ async def anthropic_model(input: ToolFlowInput) -> str:
     )
     return response.text
 
-    amount: float = Field(description='Amount to convert', default=100)
-    from_curr: str = Field(description='Source currency code', default='USD')
-    to_curr: str = Field(description='Target currency code', default='EUR')
+    Field(description='Amount to convert', default=100)
+    Field(description='Source currency code', default='USD')
+    Field(description='Target currency code', default='EUR')
+
 
 class MistralMediumInput(BaseModel):
     """Input for Mistral Medium flow."""
@@ -180,15 +178,15 @@ class MistralMediumInput(BaseModel):
     concept: str = Field('concurrency', description='Programming concept to explain')
 
 
-@ai.flow(name='mistral-medium - explain_concept')
+@ai.flow(name='ministral-3 - explain_concept')
 async def explain_concept(input: MistralMediumInput) -> str:
-    """Explain a concept using Mistral Medium.
+    """Explain a concept using Ministral 3 .
 
     Args:
         input: The input object.
     """
     response = await ai.generate(
-        model=model_garden_name('mistral-medium-3'),
+        model=model_garden_name('mistralai/ministral-3-14b-instruct-2512'),
         prompt=f'Explain {input.concept} in programming. Include practical examples.',
         config={'temperature': 0.7},
     )
@@ -201,15 +199,15 @@ class MistralAnalyzeInput(BaseModel):
     code: str = Field("console.log('hello world');", description='Code to analyze')
 
 
-@ai.flow(name='mistral-small - analyze_code')
+@ai.flow(name='mistral-large-3 - analyze_code')
 async def analyze_code(input: MistralAnalyzeInput) -> str:
-    """Analyze code using Mistral Small.
+    """Analyze code using Mistral Large 3.
 
     Args:
         input: The input object.
     """
     response = await ai.generate(
-        model=model_garden_name('mistral-small-2503'),
+        model=model_garden_name('mistralai/mistral-large-3-instruct-2512'),
         prompt=f'Analyze this code for potential issues and suggest improvements:\n{input.code}',
     )
     return response.text
@@ -224,101 +222,40 @@ class GenerateFunctionInput(BaseModel):
     )
 
 
-@ai.flow(name='codestral - generate_function')
+@ai.flow(name='mistral-nemo - generate_function')
 async def generate_function(input: GenerateFunctionInput) -> str:
-    """Generate a function using Codestral.
+    """Generate a function using Mistral Nemo.
 
     Args:
         input: The input object containing the description.
     """
     response = await ai.generate(
-        model=model_garden_name('codestral-2'),
+        model=model_garden_name('Mistral-Nemo-Instruct-2407'),
         prompt=f'Create a Python function that {input.description}. Include error handling and types.',
     )
     return response.text
 
 
-@ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        name: The name of the person to greet.
-
-    Returns:
-        The generated greeting response.
-    """
+@ai.flow(name='mistral-nemo - jokes_flow')
+async def jokes_flow(subject: str) -> str:
+    """Tell a joke about the subject using Mistral Nemo."""
     response = await ai.generate(
-        # model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
-        # Using Anthropic for Model Garden example as it is reliably available
-        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
-        config={'temperature': 1},
-        prompt=f'hi {name}',
-    )
-
-    return response.text
-
-
-@ai.flow()
-async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
-) -> str:
-    """Say hi to a name and stream the response.
-
-    Args:
-        name: The name to say hi to.
-        ctx: Action context for streaming.
-
-    Returns:
-        The response from the model.
-    """
-    stream, _ = ai.generate_stream(
-        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
-        config={'temperature': 1},
-        prompt=f'hi {name}',
-    )
-    result = ''
-    async for data in stream:
-        ctx.send_chunk(data.text)
-        result += data.text
-    return result
-
-
-@ai.flow()
-async def weather_flow(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
-    """Tool calling with Model Garden."""
-    response = await ai.generate(
-        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
-        tools=['getWeather'],
-        prompt=f"What's the weather in {location}?",
-        config={'temperature': 1},
+        model=model_garden_name('Mistral-Nemo-Instruct-2407'),
+        prompt=f'Tell a clean joke about {subject}.',
     )
     return response.text
 
 
 async def main() -> None:
-<<<<<<< HEAD
     """Main entry point for the Model Garden sample - keep alive for Dev UI."""
-    import asyncio
+    """Main entry point for the Model Garden sample - keep alive for Dev UI."""
 
     # For testing/demo purposes, you can uncomment these to run them on startup:
-    # await logger.ainfo(await say_hi('Alice'))
     # await logger.ainfo(await jokes_flow('banana'))
 
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
-||||||| parent of a4020e5c6 (fix(py): revised the flow and fixed ty errors)
-    """Run the sample flows."""
-    # await logger.ainfo(await say_hi('John Doe'))
-    # await logger.ainfo(await say_hi_stream('John Doe'))
-    await logger.ainfo(await jokes_flow('banana'))
-=======
-    """Run the sample flows."""
-    # await logger.ainfo(await say_hi('John Doe'))
-    # await logger.ainfo(await say_hi_stream('John Doe'))
->>>>>>> a4020e5c6 (fix(py): revised the flow and fixed ty errors)
 
 
 if __name__ == '__main__':
