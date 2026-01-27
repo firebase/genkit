@@ -489,14 +489,13 @@ async function runTest(
   model: string,
   testCase: TestCase
 ): Promise<boolean> {
-  logger.info(`Running test: ${testCase.name}`);
+  logger.info(`Running test: ${testCase.name}...`);
   try {
     // Adjust model name if needed (e.g. /model/ prefix)
     const modelKey = model.startsWith('/') ? model : `/model/${model}`;
     const shouldStream = !!testCase.stream;
 
     let chunks = 0;
-    let streamedText = '';
     const collectedChunks: any[] = [];
 
     const actionResponse = await manager.runAction(
@@ -507,11 +506,6 @@ async function runTest(
       shouldStream
         ? (chunk) => {
             collectedChunks.push(chunk);
-
-            const chunkText = chunk.content?.find((p: any) => p.text)?.text;
-            if (chunkText) {
-              streamedText += chunkText;
-            }
             chunks++;
           }
         : undefined
@@ -521,15 +515,6 @@ async function runTest(
       throw new Error('Streaming requested but no chunks received.');
     }
     const response = GenerateResponseSchema.parse(actionResponse.result);
-    if (shouldStream && streamedText) {
-      const message = response.message || response.candidates?.[0]?.message;
-      if (message?.content) {
-        const textPart = message.content.find((p) => 'text' in p);
-        if (textPart) {
-          (textPart as { text: string }).text = streamedText;
-        }
-      }
-    }
 
     for (const v of testCase.validators) {
       const [valName, ...args] = v.split(':');
