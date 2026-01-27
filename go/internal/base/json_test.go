@@ -17,6 +17,7 @@
 package base
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -230,5 +231,41 @@ func TestInferJSONSchema_SharedType(t *testing.T) {
 	}
 	if second["additionalProperties"] != true {
 		t.Errorf("expected additionalProperties: true for shared type occurrence, got %v", second["additionalProperties"])
+	}
+}
+
+type testStringer struct {
+	Value string
+}
+
+func (s testStringer) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.Value)
+}
+
+func TestInferJSONSchema_SharedTypeWithMarshaler(t *testing.T) {
+	type Container struct {
+		A testStringer
+		B testStringer
+	}
+	schema := SchemaAsMap(InferJSONSchema(Container{}))
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("expected properties in schema")
+	}
+
+	second, ok := properties["B"].(map[string]any)
+	if !ok {
+		t.Fatal("expected 'B' property in schema")
+	}
+
+	// type should be non-object because it implements json.Marshaler
+	if typ, hasType := second["type"]; hasType {
+		if typ == "object" {
+			t.Errorf("expected type to NOT be object for shared type with marshaler, got %v", typ)
+		}
+	}
+
+	if val, ok := second["additionalProperties"]; !ok || val != true {
+		t.Errorf("expected additionalProperties: true, got %v", val)
 	}
 }
