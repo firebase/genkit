@@ -254,8 +254,8 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 			// Start V2 Client in background
 			// We don't block Init on it because it runs a reconnection loop.
 			startReflectionServerV2(ctx, g, v2URL, errCh)
-			
-			// If we wanted to bubble up immediate errors we could, but startReflectionServerV2 
+
+			// If we wanted to bubble up immediate errors we could, but startReflectionServerV2
 			// retries by default. We should drain errCh if it's used, but currently it's not writing.
 			// Just ensure we don't block.
 			go func() {

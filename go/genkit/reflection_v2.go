@@ -43,10 +43,10 @@ type jsonRpcRequest struct {
 
 // jsonRpcResponse represents a JSON-RPC 2.0 response.
 type jsonRpcResponse struct {
-	JSONRPC string          `json:"jsonrpc"`
-	Result  interface{}     `json:"result,omitempty"`
-	Error   *jsonRpcError   `json:"error,omitempty"`
-	ID      interface{}     `json:"id"`
+	JSONRPC string        `json:"jsonrpc"`
+	Result  interface{}   `json:"result,omitempty"`
+	Error   *jsonRpcError `json:"error,omitempty"`
+	ID      interface{}   `json:"id"`
 }
 
 // jsonRpcError represents a JSON-RPC 2.0 error.
@@ -140,7 +140,7 @@ func (c *reflectionClientV2) register() error {
 		Method:  "register",
 		Params: mustMarshal(map[string]interface{}{
 			"id":                       c.runtimeID(),
-			"name":                       c.runtimeID(),
+			"name":                     c.runtimeID(),
 			"pid":                      os.Getpid(),
 			"genkitVersion":            "go/" + internal.Version,
 			"reflectionApiSpecVersion": internal.GENKIT_REFLECTION_API_SPEC_VERSION,
@@ -185,10 +185,10 @@ func (c *reflectionClientV2) send(msg interface{}) error {
 	if c.ws == nil {
 		return fmt.Errorf("websocket not connected")
 	}
-	
+
 	bytes, _ := json.Marshal(msg)
 	slog.Debug("Sending V2 Message", "data", string(bytes))
-	
+
 	// Write JSON directly assumes msg is marshallable
 	return c.ws.WriteJSON(msg)
 }
@@ -276,19 +276,19 @@ func (c *reflectionClientV2) handleListValues(ctx context.Context, params json.R
 			api.DefaultModelKey: defaultModel,
 		}, nil
 	}
-	
+
 	// Support for other values can be added here
-	
+
 	// Return empty map if not found/supported, or we could return all values if type is empty?
 	// For now, consistent with JS, we might want to just list what resides in registry for that type.
 	// But Genkit Go registry uses string keys for values, not strictly typed buckets.
 	// If the user asks for random type, we return empty.
-	
+
 	vals := c.g.reg.ListValues()
 	// Filter if needed, but registry just gives all currently.
 	// Since JS impl specific code for "model", "prompt" etc in listValues is distinct from registry.listValues,
 	// checking strictly for defaultModel is what was requested in the plan.
-	
+
 	return vals, nil
 }
 
@@ -307,7 +307,7 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 
 	// Create cancellable context
 	actionCtx, cancel := context.WithCancel(ctx)
-	
+
 	// We wrap sending in a mutex to ensure thread safety
 	// But `c.send` is already mutex protected.
 
@@ -327,7 +327,7 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 			return c.send(notif)
 		}
 	}
-	
+
 	// Telemetry callback
 	var mu sync.Mutex
 	sentTraceIDs := make(map[string]bool)
@@ -347,7 +347,7 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 			startTime: time.Now(),
 			traceID:   tid,
 		})
-		
+
 		notif := jsonRpcRequest{
 			JSONRPC: "2.0",
 			Method:  "runActionState",
@@ -360,24 +360,24 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 		}
 		c.send(notif)
 	}
-	
+
 	actionCtx = tracing.WithTelemetryCallback(actionCtx, telemetryCb)
-	
+
 	var contextMap core.ActionContext = nil
 	if params.Context != nil {
 		json.Unmarshal(params.Context, &contextMap)
 	}
 
 	// Run action
-	// Note: We are launching this in a goroutine so it doesn't block the listener, 
+	// Note: We are launching this in a goroutine so it doesn't block the listener,
 	// but handleRequest is already in a goroutine.
 	// However, we want to ensure responses are sent correctly.
-	
+
 	go func() {
 		defer cancel()
-		
+
 		resp, err := runAction(actionCtx, c.g, params.Key, params.Input, params.TelemetryLabels, cb, contextMap)
-		
+
 		if resp != nil && resp.Telemetry.TraceID != "" {
 			c.activeActions.Delete(resp.Telemetry.TraceID)
 		}

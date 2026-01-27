@@ -64,7 +64,7 @@ func TestReflectionV2(t *testing.T) {
 				}
 				c.WriteJSON(resp)
 			}
-			
+
 			// Check if we have pending commands to send to client
 			select {
 			case cmd := <-serverRespCh:
@@ -81,12 +81,12 @@ func TestReflectionV2(t *testing.T) {
 	// Setup Genkit
 	ctx := context.Background()
 	g := Init(ctx)
-	
+
 	valSchema := map[string]interface{}{"type": "string"}
 	ai.DefineToolWithInputSchema(g.reg, "myTool", "my tool", valSchema, func(ctx *ai.ToolContext, input any) (string, error) {
 		return "ok", nil
 	})
-	
+
 	// Start V2 Client
 	errCh := make(chan error, 10)
 	client := startReflectionServerV2(ctx, g, wsURL, errCh)
@@ -105,25 +105,25 @@ func TestReflectionV2(t *testing.T) {
 
 	// Test listActions (Client handles request)
 	// We need to inject a request into the client.
-	// Since our mock server implementation above is simple and passive loop, 
+	// Since our mock server implementation above is simple and passive loop,
 	// we can't easily inject a message from "outside" the loop unless we restructure.
-	// Let's rely on internal methods of client for unit testing logic, 
-	// or make the mock server improved. 
-	
+	// Let's rely on internal methods of client for unit testing logic,
+	// or make the mock server improved.
+
 	// Actually, `handleListValues` is what we want to test specifically as per side quest.
 	// let's test `c.handleListValues` directly for unit test speed.
-	
+
 	params := json.RawMessage(`{"type": "defaultModel"}`)
 	res, err := client.handleListValues(ctx, params)
 	assert.Nil(t, err)
 	// Default model might be empty if not set
 	assert.NotNil(t, res)
-	
+
 	// Register a default model and try again
 	// Re-init with default model or just assume it works if we passed it.
 	// We can't easily re-init since it returns a new instance and we'd need to attach client to it.
 	// For testing, let's just make a new client/genkit pair for the second part.
-	
+
 	g2 := Init(ctx, WithDefaultModel("my-model"))
 	client2 := &reflectionClientV2{g: g2}
 	res, err = client.handleListValues(ctx, params) // Oops using client (old) with params
@@ -132,7 +132,7 @@ func TestReflectionV2(t *testing.T) {
 	resMap, ok := res.(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, "my-model", resMap[api.DefaultModelKey])
-	
+
 	// Test runAction logic wrapper
 	// We can't easily test the full async flow without a real conversation.
 }
@@ -176,7 +176,7 @@ func TestHandleListActions(t *testing.T) {
 	res := client.handleListActions(ctx)
 	resMap, ok := res.(map[string]api.ActionDesc)
 	assert.True(t, ok)
-	
+
 	// Check if flow is present
 	found := false
 	for key, desc := range resMap {
