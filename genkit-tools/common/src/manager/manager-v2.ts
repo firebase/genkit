@@ -441,7 +441,9 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
               chunk,
             });
           }
-          this.sendNotification(runtimeId!, 'endStreamInput', { requestId: id });
+          this.sendNotification(runtimeId!, 'endStreamInput', {
+            requestId: id,
+          });
         } catch (e) {
           logger.error(`Error streaming input: ${e}`);
         }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { BaseRuntimeManager, RuntimeManager } from '@genkit-ai/tools-common/manager';
+import { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import { z } from 'zod';
 import { startDevProcessManager, startManager } from '../utils/manager-utils';
 
