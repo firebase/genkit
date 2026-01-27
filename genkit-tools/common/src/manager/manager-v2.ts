@@ -385,9 +385,9 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     inputStream?: AsyncIterable<any>
   ): Promise<RunActionResponse> {
     const runtimeId = input.runtimeId || this.getMostRecentRuntime()?.id;
-    if (!runtimeId) {
-      throw new Error('No runtime found');
-    }
+      throw new Error(
+        'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
+      );
 
     const runtime = this.runtimes.get(runtimeId);
     if (!runtime) {
