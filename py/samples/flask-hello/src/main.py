@@ -14,10 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A simple flow served via a flask server.
+"""Flask integration sample - Serve Genkit flows via Flask.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to integrate Genkit flows with a Flask web server,
+enabling HTTP API endpoints that leverage AI capabilities.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Flask Integration                       | `genkit_flask_handler`              |

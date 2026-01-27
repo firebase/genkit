@@ -15,16 +15,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Dev local vector store sample.
+"""Dev local vector store sample - Local RAG without external services.
 
-Key features demonstrated in this sample:
+This sample demonstrates Genkit's local vector store for development,
+which allows testing RAG (Retrieval Augmented Generation) without
+setting up external vector databases.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Local Vector Store Definition           | `define_dev_local_vector_store`     |
 | Document Indexing                       | `ai.index()`                        |
 | Document Retrieval                      | `ai.retrieve()`                     |
 | Document Structure                      | `Document.from_text()`              |
+
+See README.md for testing instructions.
 """
 
 import os

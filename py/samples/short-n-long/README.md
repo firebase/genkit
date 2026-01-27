@@ -67,3 +67,43 @@ genkit start -- uv run src/main.py --server
 ```bash
 genkit start -- uv run --python python3.10 src/main.py
 ```
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   export GEMINI_API_KEY=your_api_key
+   ```
+
+2. **Run the server** (two modes):
+   ```bash
+   cd py/samples/short-n-long
+
+   # Short mode (development with DevUI)
+   ./run.sh
+
+   # Long mode (production server)
+   uv run python src/main.py --mode=long
+   ```
+
+3. **Test the API directly**:
+   ```bash
+   # Call a flow via HTTP
+   curl -X POST http://localhost:8000/say_hi \\
+     -H "Content-Type: application/json" \\
+     -d '{"name": "World"}'
+   ```
+
+4. **Open DevUI** (short mode) at http://localhost:4000
+
+5. **Test the flows**:
+   - [ ] `say_hi` - Simple generation
+   - [ ] `say_hi_stream` - Streaming response
+   - [ ] `simple_generate_with_tools_flow` - Tool calling
+   - [ ] `generate_character` - Structured output
+
+6. **Expected behavior**:
+   - Server starts and accepts HTTP requests
+   - Lifecycle hooks run on startup/shutdown
+   - All flows work via HTTP API
+   - Proper graceful shutdown on SIGTERM

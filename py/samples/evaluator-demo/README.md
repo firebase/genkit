@@ -66,3 +66,24 @@ Choose any flow of interest and run in the Dev UI.
 ## Reference
 
 For more details on using Genkit evaluations, please refer to the official [Genkit documentation](https://firebase.google.com/docs/genkit/evaluation).
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test the flows**:
+   - [ ] Go to the Evaluators tab in DevUI
+   - [ ] Find `custom/test_evaluator` (Random Eval)
+   - [ ] Run evaluation on sample data
+   - [ ] Check that scores are generated (0.0-1.0 range)
+   - [ ] Verify ~10% of evaluations fail (simulated errors)
+
+3. **Test the PDF RAG flow**:
+   - [ ] Run `setup` flow first to index documents
+   - [ ] Test the `pdf_qa` flow
+   - [ ] Check evaluation metrics for relevance
+
+4. **Expected behavior**:
+   - Evaluators appear in DevUI Evaluators tab
+   - Random evaluator produces varied scores
+   - PASS/FAIL status based on score threshold (0.5)

@@ -48,3 +48,21 @@ uv run src/main.py
 - Streaming generation
 - Custom configuration (temperature, max_output_tokens)
 - xAI-specific parameters (reasoning_effort)
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test basic flows**:
+   - [ ] `say_hi` - Simple text generation
+   - [ ] `say_hi_stream` - Streaming response
+   - [ ] `say_hi_with_config` - Custom temperature
+
+3. **Test tools**:
+   - [ ] `weather_flow` - Weather tool calling
+   - [ ] `calculate` - Math calculation tool
+
+4. **Expected behavior**:
+   - Grok responds with characteristic wit
+   - Streaming shows incremental output
+   - Tools are invoked correctly

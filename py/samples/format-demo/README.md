@@ -37,3 +37,26 @@ export GEMINI_API_KEY=your-key
 ```
 
 Then use the Genkit Developer UI to test the flows.
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test each format** (inputs pre-populated with defaults):
+   - [ ] `generate_haiku_text` - Text format (topic: "coding")
+   - [ ] `get_country_info_json` - JSON format (country: "Japan")
+   - [ ] `recommend_books_array` - Array format (genre: "Fantasy")
+   - [ ] `classify_sentiment_enum` - Enum format (review text)
+   - [ ] `create_story_characters_jsonl` - JSONL format (theme: "Space Opera")
+
+3. **Expected behavior**:
+   - Text: Returns plain haiku text
+   - JSON: Returns structured country info object
+   - Array: Returns list of book recommendations
+   - Enum: Returns single sentiment classification
+   - JSONL: Returns newline-delimited character objects
+
+4. **Verify output structure**:
+   - JSON outputs should be valid JSON
+   - Array outputs should be valid JSON arrays
+   - Enum outputs should match predefined values
