@@ -16,4 +16,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 export GENKIT_ENV=dev
-exec uv run src/main.py "$@"
+uv tool run --from watchdog watchmedo auto-restart \
+  -d src \
+  -d ../../packages \
+  -d ../../plugins \
+  -p '*.py;*.prompt;*.json' \
+  -R \
+  -- uv run src/main.py "$@"

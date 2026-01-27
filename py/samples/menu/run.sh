@@ -15,4 +15,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-exec genkit start -- uv run src/main.py "$@"
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run python -m src.main "$@"

@@ -14,7 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from genkit.plugins.google_genai.google import GoogleAI, VertexAI, googleai_name, vertexai_name
+
+"""Google GenAI plugin for Genkit."""
+
+from genkit.plugins.google_genai.google import (
+    GoogleAI,
+    VertexAI,
+)
 from genkit.plugins.google_genai.models.embedder import (
     EmbeddingTaskType,
     GeminiEmbeddingModels,
@@ -42,8 +48,6 @@ __all__ = [
     package_name.__name__,
     GoogleAI.__name__,
     VertexAI.__name__,
-    googleai_name.__name__,
-    vertexai_name.__name__,
     GeminiEmbeddingModels.__name__,
     VertexEmbeddingModels.__name__,
     GoogleAIGeminiVersion.__name__,

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Evaluation in code sample."""
+
 import json
 import os
 
@@ -30,7 +32,12 @@ else:
 
 # Run this flow to programatically execute the evaluator on the dog dataset.
 @ai.flow(name='dog_facts_eval')
-async def dog_facts_eval_flow() -> list[EvalResponse]:
+async def dog_facts_eval_flow() -> EvalResponse:
+    """Run dog facts evaluation.
+
+    Returns:
+        The evaluation response.
+    """
     # Ensure dataset is loaded as list of BaseDataPoint (or dicts which evaluate() accepts)
     # The dataset in dogfacts.json usually matches the structure needed.
 

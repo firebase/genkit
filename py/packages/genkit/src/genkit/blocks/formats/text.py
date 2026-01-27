@@ -16,11 +16,9 @@
 
 """Implementation of text output format."""
 
-from typing import Any
-
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
-    GenerateResponseWrapper,
+    GenerateResponseChunkWrapper,
     MessageWrapper,
 )
 
@@ -28,23 +26,30 @@ from genkit.blocks.model import (
 class TextFormat(FormatDef):
     """Defines a text format for use with AI models.
 
-    This class provides functionality for parsing and formatting text data
-    to interact with AI models.
+    This is the simplest format, returning the raw text content from the model's response.
+    It does not enforce any schema or structural constraints.
+
+    Usage:
+        ai.generate(
+            output=OutputConfig(format='text')
+        )
     """
 
-    def __init__(self):
-        """Initializes a TextFormat instance."""
+    def __init__(self) -> None:
+        """Initializes a TextFormat instance.
+
+        Configures the format with:
+        - name: 'text'
+        - content_type: 'text/plain'
+        """
         super().__init__(
             'text',
             FormatterConfig(
-                format='text',
                 content_type='text/plain',
-                constrained=None,
-                default_instructions=False,
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling text data.
 
         Args:
@@ -54,13 +59,27 @@ class TextFormat(FormatDef):
             A Formatter instance configured for text handling.
         """
 
-        def message_parser(msg: MessageWrapper):
-            """Extracts text from a Message object."""
+        def message_parser(msg: MessageWrapper) -> str:
+            """Extracts text from a Message object.
+
+            Args:
+                msg: The Message object.
+
+            Returns:
+                The raw text content of the message.
+            """
             return msg.text
 
-        def chunk_parser(chunk: GenerateResponseWrapper):
-            """Extracts text from a GenerateResponseWrapper object."""
-            return chunk.accumulated_text
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> str:
+            """Extracts text from a GenerateResponseChunkWrapper object.
+
+            Args:
+                chunk: The GenerateResponseChunkWrapper object.
+
+            Returns:
+                The text content from the current chunk only.
+            """
+            return chunk.text
 
         return Formatter(
             chunk_parser=chunk_parser,

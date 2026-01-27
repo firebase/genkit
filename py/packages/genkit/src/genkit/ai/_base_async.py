@@ -16,6 +16,8 @@
 
 """Asynchronous server gateway interface implementation for Genkit."""
 
+import signal
+import urllib.request
 from collections.abc import Coroutine
 from typing import Any, TypeVar
 
@@ -25,11 +27,13 @@ import uvicorn
 
 from genkit.aio.loop import run_loop
 from genkit.blocks.formats import built_in_formats
+from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
+from genkit.core.plugin import Plugin
 from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.registry import Registry
 from genkit.web.manager import find_free_port_sync
 
-from ._plugin import Plugin
 from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
 from ._server import ServerSpec
@@ -59,6 +63,8 @@ class GenkitBase(GenkitRegistry):
         super().__init__()
         self._reflection_server_spec = reflection_server_spec
         self._initialize_registry(model, plugins)
+        # Ensure the default generate action is registered for async usage.
+        define_generate_action(self.registry)
 
     def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None) -> None:
         """Initialize the registry for the Genkit instance.
@@ -82,12 +88,7 @@ class GenkitBase(GenkitRegistry):
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    plugin.initialize(ai=self)
-
-                    def resolver(kind, name, plugin=plugin):
-                        return plugin.resolve_action(self, kind, name)
-
-                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
+                    self.registry.register_plugin(plugin)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 
@@ -119,12 +120,12 @@ class GenkitBase(GenkitRegistry):
         if not spec:
             spec = ServerSpec(scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999))
 
-        async def dev_runner():
+        async def dev_runner() -> T | None:
             """Internal async function to run tasks using AnyIO TaskGroup."""
             user_result: T | None = None
             user_task_finished_event = anyio.Event()
 
-            async def run_user_coro_wrapper():
+            async def run_user_coro_wrapper() -> None:
                 """Wraps user coroutine to capture result and signal completion."""
                 nonlocal user_result
                 try:
@@ -141,8 +142,23 @@ class GenkitBase(GenkitRegistry):
 
             reflection_server = _make_reflection_server(self.registry, spec)
 
+            # Setup signal handlers for graceful shutdown (parity with JS)
+
+            # Actually, anyio.run handles Ctrl+C (SIGINT) by raising KeyboardInterrupt/CancelledError
+            # For SIGTERM, we might need to be explicit if we run in a container/process manager.
+            # JS uses: process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
+
+            # Since anyio/asyncio handles SIGINT well, let's add a task to catch SIGTERM
+            async def handle_sigterm(tg_to_cancel: anyio.abc.TaskGroup) -> None:  # type: ignore[name-defined]
+                with anyio.open_signal_receiver(signal.SIGTERM) as signals:
+                    async for _signum in signals:
+                        logger.info('Received SIGTERM, cancelling tasks...')
+                        tg_to_cancel.cancel_scope.cancel()
+                        return
+
             try:
-                async with RuntimeManager(spec):
+                # Use lazy_write=True to prevent race condition where file exists before server is up
+                async with RuntimeManager(spec, lazy_write=True) as runtime_manager:
                     # We use anyio.TaskGroup because it is compatible with
                     # asyncio's event loop and works with Python 3.10
                     # (asyncio.TaskGroup was added in 3.11, and we can switch to
@@ -151,6 +167,46 @@ class GenkitBase(GenkitRegistry):
                         # Start reflection server in the background.
                         tg.start_soon(reflection_server.serve, name='genkit-reflection-server')
                         await logger.ainfo(f'Started Genkit reflection server at {spec.url}')
+
+                        # Start SIGTERM handler
+                        tg.start_soon(handle_sigterm, tg, name='genkit-sigterm-handler')
+
+                        # Wait for server to be responsive
+                        # We need to loop and poll the health endpoint or wait for uvicorn to be ready
+                        # Since uvicorn run is blocking (but we are in a task), we can't easily hook into its startup
+                        # unless we use uvicorn's server object directly which we do.
+                        # reflection_server.started is set when uvicorn starts.
+
+                        # Simple polling loop
+
+                        max_retries = 20  # 2 seconds total roughly
+                        for _i in range(max_retries):
+                            try:
+                                # TODO: Use async http client if available to avoid blocking loop?
+                                # But we are in dev mode, so maybe okay.
+                                # Actually we should use anyio.to_thread to avoid blocking event loop
+                                # or assume standard lib urllib is fast enough for localhost.
+
+                                # Using sync urllib in async loop blocks the loop!
+                                # We must use anyio.to_thread or a non-blocking check.
+                                # But let's check if reflection_server object has a 'started' flag we can trust.
+                                # uvicorn.Server has 'started' attribute but it might be internal state.
+
+                                # Let's stick to simple polling with to_thread for safety
+                                def check_health() -> bool:
+                                    with urllib.request.urlopen(f'{spec.url}/api/__health', timeout=0.5) as response:
+                                        return response.status == 200
+
+                                is_healthy = await anyio.to_thread.run_sync(check_health)  # type: ignore[attr-defined]
+                                if is_healthy:
+                                    break
+                            except Exception:
+                                await anyio.sleep(0.1)
+                        else:
+                            logger.warning(f'Reflection server at {spec.url} did not become healthy in time.')
+
+                        # Now write the file (or verify it persisted)
+                        runtime_manager.write_runtime_file()
 
                         # Start the (potentially short-lived) user coroutine wrapper
                         tg.start_soon(run_user_coro_wrapper, name='genkit-user-coroutine')
@@ -178,7 +234,7 @@ class GenkitBase(GenkitRegistry):
         return anyio.run(dev_runner)
 
 
-def _make_reflection_server(registry: GenkitRegistry, spec: ServerSpec) -> uvicorn.Server:
+def _make_reflection_server(registry: Registry, spec: ServerSpec) -> uvicorn.Server:
     """Make a reflection server for the given registry and spec.
 
     This is a helper function to make it easier to test the reflection server

@@ -14,18 +14,56 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Entry point for the menu AI sample - Restaurant menu analysis with AI.
+
+This sample demonstrates a multi-file Genkit application with prompts, flows,
+and tools organized into separate modules, simulating a restaurant menu
+analysis system.
+
+See README.md for testing instructions.
+
+Key Features
+============
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Multi-file Flow Organization            | `case_01`, `case_02`, etc. imports  |
+| Prompt Management                       | `prompts` module imports            |
+| Tool Integration                        | `tools` module imports              |
+"""
+
 # Import all of the example prompts and flows to ensure they are registered
-import case_01.prompts
-import case_02.flows
-import case_02.prompts
-import case_02.tools
-import case_03.flows
-import case_03.prompts
-import case_04.flows
-import case_04.prompts
-import case_05.flows
-import case_05.prompts
-from menu_ai import ai
+import asyncio
+
+# Import case modules to register flows and prompts with the ai instance
+from .case_01 import prompts as case_01_prompts  # noqa: F401
+from .case_02 import (
+    flows as case_02_flows,  # noqa: F401
+    prompts as case_02_prompts,  # noqa: F401
+    tools as case_02_tools,  # noqa: F401
+)
+from .case_03 import (
+    flows as case_03_flows,  # noqa: F401
+    prompts as case_03_prompts,  # noqa: F401
+)
+from .case_04 import (
+    flows as case_04_flows,  # noqa: F401
+    prompts as case_04_prompts,  # noqa: F401
+)
+from .case_05 import (
+    flows as case_05_flows,  # noqa: F401
+    prompts as case_05_prompts,  # noqa: F401
+)
+from .menu_ai import ai
+
+print('All prompts and flows loaded, use the Developer UI to test them out')
+
+
+async def main() -> None:
+    """Keep alive for Dev UI."""
+    print('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
+
 
 if __name__ == '__main__':
-    ai.run_main()
+    ai.run_main(main())

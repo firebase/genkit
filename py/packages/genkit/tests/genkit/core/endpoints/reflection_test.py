@@ -36,24 +36,26 @@ each endpoint's behavior.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import AsyncIterator
+from typing import Any
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-import pytest  # type: ignore
-import pytest_asyncio  # type: ignore
-from httpx import ASGITransport, AsyncClient  # type: ignore
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 
-from genkit.core.reflection import create_reflection_asgi_app  # type: ignore
-from genkit.core.registry import Registry  # type: ignore
+from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.registry import Registry
 
 
 @pytest.fixture
-def mock_registry():
+def mock_registry() -> MagicMock:
     """Create a mock Registry for testing."""
     return MagicMock(spec=Registry)
 
 
 @pytest_asyncio.fixture
-async def asgi_client(mock_registry):
+async def asgi_client(mock_registry: MagicMock) -> AsyncIterator[AsyncClient]:
     """Create an ASGI test client with a mock registry.
 
     Args:
@@ -63,7 +65,7 @@ async def asgi_client(mock_registry):
         An AsyncClient configured to make requests to the test ASGI app.
     """
     app = create_reflection_asgi_app(mock_registry)
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     client = AsyncClient(transport=transport, base_url='http://test')
     try:
         yield client
@@ -72,33 +74,51 @@ async def asgi_client(mock_registry):
 
 
 @pytest.mark.asyncio
-async def test_health_check(asgi_client):
+async def test_health_check(asgi_client: AsyncClient) -> None:
     """Test that the health check endpoint returns 200 OK."""
     response = await asgi_client.get('/api/__health')
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_list_actions(asgi_client, mock_registry):
+async def test_list_actions(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
     """Test that the actions list endpoint returns registered actions."""
-    mock_registry.list_serializable_actions.return_value = {'action1': {'name': 'Action 1'}}
-    mock_registry.list_actions.return_value = {'action1': {'name': 'Action 1'}}
+    from genkit.core.action import ActionMetadata
+    from genkit.core.action.types import ActionKind
+
+    # Mock the async list_actions method to return a list of ActionMetadata
+    async def mock_list_actions_async(allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
+        return [
+            ActionMetadata(
+                kind=ActionKind.CUSTOM,
+                name='action1',
+            )
+        ]
+
+    mock_registry.list_actions = mock_list_actions_async
     response = await asgi_client.get('/api/actions')
     assert response.status_code == 200
-    assert response.json() == {'action1': {'name': 'Action 1'}}
+    result = response.json()
+    assert '/custom/action1' in result
+    assert result['/custom/action1']['name'] == 'action1'
+    assert result['/custom/action1']['type'] == 'custom'
 
 
 @pytest.mark.asyncio
-async def test_notify_endpoint(asgi_client):
+async def test_notify_endpoint(asgi_client: AsyncClient) -> None:
     """Test that the notify endpoint returns 200 OK."""
     response = await asgi_client.post('/api/notify')
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_run_action_not_found(asgi_client, mock_registry):
+async def test_run_action_not_found(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
     """Test that requesting a non-existent action returns a 404 error."""
-    mock_registry.lookup_action_by_key.return_value = None
+
+    async def mock_resolve_action_by_key(key: str) -> None:
+        return None
+
+    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
     response = await asgi_client.post(
         '/api/runAction',
         json={'key': 'non_existent_action', 'input': {'data': 'test'}},
@@ -108,7 +128,7 @@ async def test_run_action_not_found(asgi_client, mock_registry):
 
 
 @pytest.mark.asyncio
-async def test_run_action_standard(asgi_client, mock_registry):
+async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
     """Test that a standard (non-streaming) action works correctly."""
     mock_action = AsyncMock()
     mock_output = MagicMock()
@@ -116,7 +136,10 @@ async def test_run_action_standard(asgi_client, mock_registry):
     mock_output.trace_id = 'test_trace_id'
     mock_action.arun_raw.return_value = mock_output
 
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    async def mock_resolve_action_by_key(key: str) -> AsyncMock:
+        return mock_action
+
+    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
 
     response = await asgi_client.post('/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}})
 
@@ -125,11 +148,11 @@ async def test_run_action_standard(asgi_client, mock_registry):
     assert 'result' in response_data
     assert 'telemetry' in response_data
     assert response_data['telemetry']['traceId'] == 'test_trace_id'
-    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={})
+    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={}, on_trace_start=ANY)
 
 
 @pytest.mark.asyncio
-async def test_run_action_with_context(asgi_client, mock_registry):
+async def test_run_action_with_context(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
     """Test that an action with context works correctly."""
     mock_action = AsyncMock()
     mock_output = MagicMock()
@@ -137,7 +160,10 @@ async def test_run_action_with_context(asgi_client, mock_registry):
     mock_output.trace_id = 'test_trace_id'
     mock_action.arun_raw.return_value = mock_output
 
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    async def mock_resolve_action_by_key(key: str) -> AsyncMock:
+        return mock_action
+
+    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
 
     response = await asgi_client.post(
         '/api/runAction',
@@ -149,17 +175,30 @@ async def test_run_action_with_context(asgi_client, mock_registry):
     )
 
     assert response.status_code == 200
-    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={'user': 'test_user'})
+    mock_action.arun_raw.assert_called_once_with(
+        raw_input={'data': 'test'},
+        context={'user': 'test_user'},
+        on_trace_start=ANY,
+    )
 
 
 @pytest.mark.asyncio
 @patch('genkit.core.reflection.is_streaming_requested')
-async def test_run_action_streaming(mock_is_streaming, asgi_client, mock_registry):
+async def test_run_action_streaming(
+    mock_is_streaming: MagicMock,
+    asgi_client: AsyncClient,
+    mock_registry: MagicMock,
+) -> None:
     """Test that streaming actions work correctly."""
     mock_is_streaming.return_value = True
     mock_action = AsyncMock()
 
-    async def mock_streaming(raw_input, on_chunk=None, context=None):
+    async def mock_streaming(
+        raw_input: object,
+        on_chunk: object | None = None,
+        context: object | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> MagicMock:
         if on_chunk:
             await on_chunk({'chunk': 1})
             await on_chunk({'chunk': 2})
@@ -169,7 +208,7 @@ async def test_run_action_streaming(mock_is_streaming, asgi_client, mock_registr
         return mock_output
 
     mock_action.arun_raw.side_effect = mock_streaming
-    mock_registry.lookup_action_by_key.return_value = mock_action
+    mock_registry.resolve_action_by_key.return_value = mock_action
 
     response = await asgi_client.post(
         '/api/runAction?stream=true',

@@ -497,6 +497,37 @@ async function waitForOperation(
   return operation;
 }
 
+// Imagen Try-on
+ai.defineFlow('imagen-try-on', async (_) => {
+  const person = await fs.promises.readFile('woman.png', {
+    encoding: 'base64',
+  });
+  const product = await fs.promises.readFile('coat.png', {
+    encoding: 'base64',
+  });
+
+  const { media } = await ai.generate({
+    model: vertexAI.model('virtual-try-on-preview-08-04'),
+    prompt: [
+      {
+        media: {
+          url: `data:image/png;base64,${person}`,
+          contentType: 'image/png',
+        },
+        metadata: { type: 'personImage' },
+      },
+      {
+        media: {
+          url: `data:image/png;base64,${product}`,
+          contentType: 'image/png',
+        },
+        metadata: { type: 'productImage' },
+      },
+    ],
+  });
+  return media;
+});
+
 ai.defineFlow('veo-text-prompt', async (_, { sendChunk }) => {
   let { operation } = await ai.generate({
     model: vertexAI.model('veo-3.0-generate-001'),

@@ -14,27 +14,48 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample that demonstrates caching of generation context in Genkit
+"""Context caching sample - Efficient handling of large contexts.
 
-In this sample user actor supplies "Tom Sawyer" book content from Gutenberg library archive
-and model caches this context.
-As a result, model is capable to quickly relate to the book's content and answer the follow-up questions.
+This sample demonstrates Genkit's context caching feature, which allows
+expensive large context (like entire books) to be cached and reused across
+multiple queries, significantly improving response time and cost.
+
+Key Features
+============
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Context Caching Config                  | `metadata={'cache': {'ttl_seconds': 300}}` |
+| URL Content Fetching                    | `httpx.AsyncClient().get()`         |
+| Message History Reuse                   | `messages=messages_history`         |
+| Large Context Handling                  | Processing full book text           |
+
+How Context Caching Works
+=========================
+1. First request: Full book is sent to model, context is cached (TTL: 5 min)
+2. Follow-up requests: Use cached context, much faster response
+3. Cache expires after TTL, next request re-caches
+
+See README.md for testing instructions.
 """
+
+import os
 
 import httpx
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleAI, googleai_name
-from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
-from genkit.types import GenerationCommonConfig, Media, MediaPart, Message, Role, TextPart
+from genkit.plugins.google_genai import GoogleAI
+from genkit.types import GenerationCommonConfig, Message, Part, Role, TextPart
 
-logger = structlog.getLogger(__name__)
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model='googleai/gemini-2.0-flash-001',
 )
 
 
@@ -44,6 +65,8 @@ DEFAULT_QUERY = "What are Huck Finn's views on society, and how do they contrast
 
 
 class BookContextInputSchema(BaseModel):
+    """Input for book context flow."""
+
     query: str = Field(default=DEFAULT_QUERY, description='A question about the supplied text file')
     text_file_path: str = Field(
         default=DEFAULT_TEXT_FILE, description='Incoming reference to the text file (local or web)'
@@ -52,18 +75,26 @@ class BookContextInputSchema(BaseModel):
 
 @ai.flow(name='text_context_flow')
 async def text_context_flow(_input: BookContextInputSchema) -> str:
+    """Flow demonstrating context caching.
+
+    Args:
+        _input: The input schema.
+
+    Returns:
+        The generated response.
+    """
     logger.info(f'Starting flow with file: {_input.text_file_path}')
 
     if _input.text_file_path.startswith('http'):
         async with httpx.AsyncClient() as client:
             res = await client.get(_input.text_file_path)
             res.raise_for_status()
-            content_part = TextPart(text=res.text)
+            content_part = Part(root=TextPart(text=res.text))
             print(f'Fetched content from URL. Length: {len(res.text)} chars')
     else:
         # Fallback for local text files
-        with open(_input.text_file_path, 'r', encoding='utf-8') as text_file:
-            content_part = TextPart(text=text_file.read())
+        with open(_input.text_file_path, encoding='utf-8') as text_file:
+            content_part = Part(root=TextPart(text=text_file.read()))
 
     print('Generating first response (with cache)...')
     llm_response = await ai.generate(
@@ -74,7 +105,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
             Message(
                 role=Role.MODEL,
-                content=[TextPart(text=f'Here is some analysis based on the text provided.')],
+                content=[Part(root=TextPart(text='Here is some analysis based on the text provided.'))],
                 metadata={
                     'cache': {
                         'ttl_seconds': 300,
@@ -83,12 +114,12 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
         ],
         config=GenerationCommonConfig(
-            version='gemini-3-flash-preview',
+            version='gemini-2.0-flash-001',
             temperature=0.7,
-            maxOutputTokens=1000,
-            topK=50,
-            topP=0.9,
-            stopSequences=['END'],
+            max_output_tokens=1000,
+            top_k=50,
+            top_p=0.9,
+            stop_sequences=['END'],
         ),
         prompt=_input.query,
         return_tool_requests=False,
@@ -112,10 +143,10 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
         config=GenerationCommonConfig(
             version='gemini-3-flash-preview',
             temperature=0.7,
-            maxOutputTokens=1000,
-            topK=50,
-            topP=0.9,
-            stopSequences=['END'],
+            max_output_tokens=1000,
+            top_k=50,
+            top_p=0.9,
+            stop_sequences=['END'],
         ),
     )
     print('Second response received.')
@@ -131,13 +162,16 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
 
 
 async def main() -> None:
-    """Main entry point for the context caching sample.
+    """Main entry point for the context caching sample - keep alive for Dev UI.
 
     This function demonstrates how to use context caching in Genkit for
     improved performance.
     """
-    res = await text_context_flow(BookContextInputSchema())
-    await logger.ainfo('foo', result=res)
+    import asyncio
+
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

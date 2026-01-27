@@ -14,31 +14,57 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample demonstrating code execution using the Google Gemini API with GenAI."""
+"""Code execution sample - Running code with Gemini.
+
+This sample demonstrates how to use Gemini's server-side code execution
+feature, which allows the model to write and execute Python code.
+
+Key Features
+============
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Code Execution Config                   | `code_execution=True`               |
+| Executable Code Part Handling           | `PartConverter.EXECUTABLE_CODE`     |
+| Code Execution Result Handling          | `PartConverter.CODE_EXECUTION_RESULT`|
+| Custom Part Parsing                     | `CustomPart` processing             |
+
+See README.md for testing instructions.
+"""
+
+import os
+from typing import Annotated
 
 import structlog
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
 from genkit.core.typing import CustomPart, Message, TextPart
-from genkit.plugins.google_genai import GoogleAI, googleai_name
-from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema
+from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 from genkit.plugins.google_genai.models.utils import PartConverter
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-3-flash-preview'),
+    model='googleai/gemini-3-flash-preview',
 )
 
 
+DEFAULT_CODE_TASK = 'What is the sum of the first 50 prime numbers?'
+
+
 @ai.flow()
-async def execute_code(task: str) -> MessageWrapper:
+async def execute_code(
+    task: Annotated[str, Field(default=DEFAULT_CODE_TASK)] = DEFAULT_CODE_TASK,
+) -> MessageWrapper:
     """Execute code for the given task.
 
     Args:
-        name: the task to send to test function
+        task: the task to send to test function
 
     Returns:
         The generated response enclosed in a MessageWrapper. The content field should contain the following:
@@ -50,10 +76,12 @@ async def execute_code(task: str) -> MessageWrapper:
         prompt=f'Generate and run code for the task: {task}',
         config=GeminiConfigSchema(temperature=1, code_execution=True).model_dump(),
     )
+    if not response.message:
+        raise ValueError('No message returned from model')
     return response.message
 
 
-def display_code_execution(message: Message):
+def display_code_execution(message: Message) -> None:
     """Display the code execution results from a message."""
     print('\n=== INTERNAL CODE EXECUTION ===')
     for part in message.content:
@@ -82,7 +110,7 @@ def display_code_execution(message: Message):
 
 
 async def main() -> None:
-    """Main entry point for the  Google genai code execution sample.
+    """Main entry point for the Google genai code execution sample - keep alive for Dev UI.
 
     This function demonstrates how to perform code execution using the
     Genkit framework.

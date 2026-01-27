@@ -24,7 +24,7 @@ from partial_json_parser import loads
 CHAR_NON_BREAKING_SPACE = '\u00a0'
 
 
-def parse_partial_json(json_string: str) -> Any:
+def parse_partial_json(json_string: str) -> Any:  # noqa: ANN401
     """Parses a partially complete JSON string and returns the parsed object.
 
     This function attempts to parse the given JSON string, even if it is not
@@ -43,7 +43,7 @@ def parse_partial_json(json_string: str) -> Any:
     return loads(json_string)
 
 
-def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
+def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:  # noqa: ANN401
     """Extracts JSON from a string with lenient parsing.
 
     This function attempts to extract a valid JSON object or array from a
@@ -126,10 +126,10 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
         try:
             # Parse the incomplete JSON structure using partial-json for lenient parsing
             return parse_partial_json(text[start_pos:])
-        except:
+        except Exception as e:
             # If parsing fails, throw an error
             if throw_on_bad_json:
-                raise ValueError(f'Invalid JSON extracted from model output: {text}')
+                raise ValueError(f'Invalid JSON extracted from model output: {text}') from e
             return None
 
     if throw_on_bad_json:
@@ -146,7 +146,13 @@ class ExtractItemsResult:
                 processed character.
     """
 
-    def __init__(self, items: list[Any], cursor: int):
+    def __init__(self, items: list[Any], cursor: int) -> None:
+        """Initialize an ExtractItemsResult.
+
+        Args:
+            items: A list of the extracted JSON objects.
+            cursor: The updated cursor position.
+        """
         self.items = items
         self.cursor = cursor
 
@@ -246,7 +252,7 @@ def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:
                     items.append(obj)
                     current_cursor = i + 1
                     object_start = -1
-                except:
+                except Exception:
                     # If parsing fails, continue
                     pass
         elif char == ']' and brace_count == 0:

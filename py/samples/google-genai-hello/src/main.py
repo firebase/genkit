@@ -14,13 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hello Google GenAI sample.
+"""Hello Google GenAI sample - Comprehensive Google AI features demo.
 
-Key features demonstrated in this sample:
+This sample demonstrates the full range of Google GenAI plugin capabilities,
+from basic generation to advanced features like tool calling, streaming,
+structured output, and multimodal inputs.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
-| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])` |
+| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])`    |
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
@@ -39,39 +45,37 @@ Key features demonstrated in this sample:
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
 | GCP Telemetry (Traces and Metrics)                       | `add_gcp_telemetry()`                  |
-
+| Thinking Mode (CoT)                                      | `thinking_level_pro`, `thinking_level_flash` |
+| Search Grounding                                         | `search_grounding`                     |
+| URL Context                                              | `url_context`                          |
+| Multimodal Generation (Video input)                      | `youtube_videos`                       |
 """
 
 import argparse
 import asyncio
-import base64
 import os
-import pathlib
 import sys
-from enum import Enum
+
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
+from typing import Annotated, cast
 
 import structlog
-from google import genai
-from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
-from genkit.plugins.evaluators import (
-    GenkitEvaluators,
-    GenkitMetricType,
-    MetricConfig,
-    PluginOptions,
-)
+from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
-    GeminiConfigSchema,
-    GeminiImageConfigSchema,
     GoogleAI,
 )
 from genkit.types import (
-    GenerateRequest,
+    Embedding,
     GenerationCommonConfig,
     Media,
     MediaPart,
@@ -84,25 +88,228 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+
+
 ai = Genkit(
-    plugins=[
-        GoogleAI(),
-        GenkitEvaluators(
-            PluginOptions([
-                MetricConfig(metric_type=GenkitMetricType.REGEX),
-                MetricConfig(metric_type=GenkitMetricType.DEEP_EQUAL),
-                MetricConfig(metric_type=GenkitMetricType.JSONATA),
-            ])
-        ),
-    ],
-    model='googleai/gemini-flash-latest',
+    plugins=[GoogleAI()],
+    model='googleai/gemini-3-flash-preview',
 )
+
+define_genkit_evaluators(
+    ai,
+    [
+        MetricConfig(metric_type=GenkitMetricType.REGEX),
+        MetricConfig(metric_type=GenkitMetricType.DEEP_EQUAL),
+        MetricConfig(metric_type=GenkitMetricType.JSONATA),
+    ],
+)
+
+
+class CurrencyExchangeInput(BaseModel):
+    """Currency exchange flow input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
+
+
+class CurrencyInput(BaseModel):
+    """Currency conversion input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
 
 
 class GablorkenInput(BaseModel):
     """The Pydantic model for tools."""
 
     value: int = Field(description='value to calculate gablorken for')
+
+
+class Skills(BaseModel):
+    """Skills for an RPG character."""
+
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+
+
+class RpgCharacter(BaseModel):
+    """An RPG character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
+
+
+class ThinkingLevel(StrEnum):
+    """Thinking level enum."""
+
+    LOW = 'LOW'
+    HIGH = 'HIGH'
+
+
+class ThinkingLevelFlash(StrEnum):
+    """Thinking level flash enum."""
+
+    MINIMAL = 'MINIMAL'
+    LOW = 'LOW'
+    MEDIUM = 'MEDIUM'
+    HIGH = 'HIGH'
+
+
+class WeatherInput(BaseModel):
+    """Input for getting weather."""
+
+    location: str = Field(description='The city and state, e.g. San Francisco, CA')
+
+
+@ai.tool(name='celsiusToFahrenheit')
+def celsius_to_fahrenheit(celsius: float) -> float:
+    """Converts Celsius to Fahrenheit."""
+    return (celsius * 9) / 5 + 32
+
+
+@ai.tool()
+def convert_currency(input: CurrencyInput) -> str:
+    """Convert currency amount.
+
+    Args:
+        input: Currency conversion parameters.
+
+    Returns:
+        Converted amount.
+    """
+    # Mock conversion rates
+    rates = {
+        ('USD', 'EUR'): 0.85,
+        ('EUR', 'USD'): 1.18,
+        ('USD', 'GBP'): 0.73,
+        ('GBP', 'USD'): 1.37,
+    }
+
+    rate = rates.get((input.from_currency, input.to_currency), 1.0)
+    converted = input.amount * rate
+
+    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
+
+
+@ai.flow()
+async def currency_exchange(input: CurrencyExchangeInput) -> str:
+    """Convert currency using tools.
+
+    Args:
+        input: Currency exchange parameters.
+
+    Returns:
+        Conversion result.
+    """
+    response = await ai.generate(
+        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
+        tools=['convert_currency'],
+    )
+    return response.text
+
+
+@ai.flow()
+async def demo_dynamic_tools(
+    input_val: Annotated[str, Field(default='Dynamic tools demo')] = 'Dynamic tools demo',
+) -> dict:
+    """Demonstrates advanced Genkit features: ai.run() and ai.dynamic_tool().
+
+    This flow shows how to:
+    1. Use `ai.run()` to create sub-spans (steps) within a flow trace.
+    2. Use `ai.dynamic_tool()` to create tools on-the-fly without registration.
+
+    To test this in the Dev UI:
+    1. Select 'demo_dynamic_tools' from the flows list.
+    2. Run it with the default input or provide a custom string.
+    3. Click 'View trace' to see the 'process_data_step' sub-span and tool execution.
+    """
+
+    # ai.run() allows you to wrap any function in a trace span, which is visible
+    # in the Dev UI. It supports an optional input argument as the second parameter.
+    def process_data(data: str) -> str:
+        return f'processed: {data}'
+
+    run_result = await ai.run('process_data_step', input_val, process_data)
+
+    # ai.dynamic_tool() creates a tool that isn't globally registered but can be
+    # used immediately or passed to generate() calls.
+    def multiplier_fn(x: int) -> int:
+        return x * 10
+
+    dynamic_multiplier = ai.dynamic_tool('dynamic_multiplier', multiplier_fn, description='Multiplies by 10')
+    tool_res = await dynamic_multiplier.arun(5)
+
+    return {
+        'step_result': run_result,
+        'dynamic_tool_result': tool_res.response,
+        'tool_metadata': dynamic_multiplier.metadata,
+    }
+
+
+@ai.flow()
+async def describe_image(
+    image_url: Annotated[
+        str, Field(default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png')
+    ] = 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+) -> str:
+    """Describe an image."""
+    response = await ai.generate(
+        model='googleai/gemini-3-flash-preview',
+        prompt=[
+            Part(root=TextPart(text='Describe this image')),
+            Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
+        ],
+        config={'api_version': 'v1alpha'},
+    )
+    return response.text
+
+
+@ai.flow()
+async def embed_docs(
+    docs: list[str] | None = None,
+) -> list[Embedding]:
+    """Generate an embedding for the words in a list.
+
+    Args:
+        docs: list of texts (string)
+
+    Returns:
+        The generated embedding.
+    """
+    if docs is None:
+        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
+    options = {'task_type': EmbeddingTaskType.CLUSTERING}
+    return await ai.embed_many(
+        embedder='googleai/text-embedding-004',
+        content=docs,
+        options=options,
+    )
+
+
+@ai.flow()
+async def file_search() -> str:
+    """File Search."""
+    # TODO: add file search store
+    store_name = 'fileSearchStores/sample-store'
+    response = await ai.generate(
+        model='googleai/gemini-3-flash-preview',
+        prompt="What is the character's name in the story?",
+        config={
+            'file_search': {
+                'file_search_store_names': [store_name],
+                'metadata_filter': 'author=foo',
+            },
+            'api_version': 'v1alpha',
+        },
+    )
+    return response.text
 
 
 @ai.tool(name='gablorkenTool')
@@ -115,26 +322,8 @@ def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
     return {'result': input_.value * 3 - 5}
 
 
-@ai.flow()
-async def simple_generate_with_tools_flow(value: int, ctx: ActionRunContext) -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        value: the integer to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    response = await ai.generate(
-        prompt=f'what is a gablorken of {value}',
-        tools=['gablorkenTool'],
-        on_chunk=ctx.send_chunk,
-    )
-    return response.text
-
-
 @ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
+def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -148,39 +337,71 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: int) -> str:
-    """Generate a greeting for the given name.
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
+    """Generate an RPG character.
 
     Args:
-        value: the integer to send to test function
+        name: the name of the character
+        ctx: the context of the tool
 
     Returns:
-        The generated response with a function.
+        The generated RPG character.
     """
-    response1 = await ai.generate(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[TextPart(text=f'what is a gablorken of {value}')],
-            ),
-        ],
-        tools=['gablorkenTool2'],
-    )
-    await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
-    if len(response1.interrupts) == 0:
-        return response1.text
+    if ctx.is_streaming:
+        stream, result = ai.generate_stream(
+            prompt=f'generate an RPG character named {name}',
+            output_schema=RpgCharacter,
+        )
+        async for data in stream:
+            ctx.send_chunk(data.output)
 
-    tr = tool_response(response1.interrupts[0], {'output': 178})
-    response = await ai.generate(
-        messages=response1.messages,
-        tool_responses=[tr],
-        tools=['gablorkenTool'],
-    )
-    return response
+        return cast(RpgCharacter, (await result).output)
+    else:
+        result = await ai.generate(
+            prompt=f'generate an RPG character named {name}',
+            output_schema=RpgCharacter,
+        )
+        return cast(RpgCharacter, result.output)
 
 
 @ai.flow()
-async def say_hi(name: str):
+async def generate_character_unconstrained(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
+    """Generate an unconstrained RPG character.
+
+    Args:
+        name: the name of the character
+        ctx: the context of the tool
+
+    Returns:
+        The generated RPG character.
+    """
+    result = await ai.generate(
+        prompt=f'generate an RPG character named {name}',
+        output_schema=RpgCharacter,
+        output_constrained=False,
+        output_instructions=True,
+    )
+    return cast(RpgCharacter, result.output)
+
+
+@ai.tool(name='getWeather')
+def get_weather(input_: WeatherInput) -> dict:
+    """Used to get current weather for a location."""
+    return {
+        'location': input_.location,
+        'temperature_celcius': 21.5,
+        'conditions': 'cloudy',
+    }
+
+
+@ai.flow()
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -203,47 +424,11 @@ async def say_hi(name: str):
     return resp.text
 
 
-from typing import Annotated
-
-from pydantic import Field
-
-
 @ai.flow()
-async def embed_docs(docs: Annotated[list[str], Field(default=[''], description='List of texts to embed')] = ['']):
-    """Generate an embedding for the words in a list.
-
-    Args:
-        docs: list of texts (string)
-
-    Returns:
-        The generated embedding.
-    """
-    options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed(
-        embedder='googleai/text-embedding-004',
-        documents=[Document.from_text(doc) for doc in docs],
-        options=options,
-    )
-
-
-@ai.flow()
-async def say_hi_with_configured_temperature(data: str):
-    """Generate a greeting for the given name.
-
-    Args:
-        data: the name to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    return await ai.generate(
-        messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
-        config=GenerationCommonConfig(temperature=0.1),
-    )
-
-
-@ai.flow()
-async def say_hi_stream(name: str, ctx):
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -254,165 +439,99 @@ async def say_hi_stream(name: str, ctx):
         The generated response with a function.
     """
     stream, _ = ai.generate_stream(prompt=f'hi {name}')
-    result = ''
+    result: str = ''
     async for data in stream:
         ctx.send_chunk(data.text)
-        for part in data.content:
-            result += part.root.text
+        result += data.text
 
     return result
 
 
-class Skills(BaseModel):
-    """Skills for an RPG character."""
-
-    strength: int = Field(description='strength (0-100)')
-    charisma: int = Field(description='charisma (0-100)')
-    endurance: int = Field(description='endurance (0-100)')
-
-
-class RpgCharacter(BaseModel):
-    """An RPG character."""
-
-    name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
-    abilities: list[str] = Field(description='list of abilities (3-4)')
-    skills: Skills
-
-
 @ai.flow()
-async def generate_character(name: str, ctx):
-    """Generate an RPG character.
+async def say_hi_with_configured_temperature(
+    data: Annotated[str, Field(default='Alice')] = 'Alice',
+) -> GenerateResponseWrapper:
+    """Generate a greeting for the given name.
 
     Args:
-        name: the name of the character
-        ctx: the context of the tool
-
-    Returns:
-        The generated RPG character.
-    """
-    if ctx.is_streaming:
-        stream, result = ai.generate_stream(
-            prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
-        )
-        async for data in stream:
-            ctx.send_chunk(data.output)
-
-        return (await result).output
-    else:
-        result = await ai.generate(
-            prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
-        )
-        return result.output
-
-
-@ai.flow()
-async def generate_character_unconstrained(name: str, ctx):
-    """Generate an unconstrained RPG character.
-
-    Args:
-        name: the name of the character
-        ctx: the context of the tool
-
-    Returns:
-        The generated RPG character.
-    """
-    result = await ai.generate(
-        prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
-        output_constrained=False,
-        output_instructions=True,
-    )
-    return result.output
-
-
-@ai.flow()
-async def generate_images(name: str, ctx):
-    """Generate images for the given name.
-
-    Args:
-        name: the name to send to test function
-        ctx: the context of the tool
+        data: the name to send to test function
 
     Returns:
         The generated response with a function.
     """
-
-    result = await ai.generate(
-        model='googleai/gemini-3-flash-image-preview',
-        prompt=f'tell me about {name} with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image'], api_version='v1alpha').model_dump(
-            exclude_none=True
-        ),
+    return await ai.generate(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
+        config=GenerationCommonConfig(temperature=0.1),
     )
-    return result
-
-
-@ai.tool(name='screenshot')
-def screenshot() -> dict:
-    """Takes a screenshot."""
-    room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
-    with open(room_path, 'rb') as f:
-        room_b64 = base64.b64encode(f.read()).decode('utf-8')
-
-    return {
-        'output': 'success',
-        'content': [{'media': {'url': f'data:image/png;base64,{room_b64}', 'contentType': 'image/png'}}],
-    }
 
 
 @ai.flow()
-async def multipart_tool_calling():
-    """Multipart tool calling."""
+async def search_grounding() -> str:
+    """Search grounding."""
     response = await ai.generate(
-        model='googleai/gemini-3-pro-preview',
-        tools=['screenshot'],
-        config=GenerationCommonConfig(temperature=1),
-        prompt="Tell me what I'm seeing on the screen.",
+        model='googleai/gemini-3-flash-preview',
+        prompt='Who is Albert Einstein?',
+        config={'tools': [{'googleSearch': {}}], 'api_version': 'v1alpha'},
     )
     return response.text
 
 
-class ThinkingLevel(str, Enum):
-    LOW = 'LOW'
-    HIGH = 'HIGH'
-
-
 @ai.flow()
-async def thinking_level_pro(level: ThinkingLevel):
-    """Gemini 3.0 thinkingLevel config (Pro)."""
+async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        value: the integer to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
+    response1 = await ai.generate(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
+            ),
+        ],
+        tools=['gablorkenTool2'],
+    )
+    await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
+    if len(response1.interrupts) == 0:
+        return response1.text
+
+    tr = tool_response(response1.interrupts[0], {'output': 178})
     response = await ai.generate(
-        model='googleai/gemini-3-pro-preview',
-        prompt=(
-            'Alice, Bob, and Carol each live in a different house on the '
-            'same street: red, green, and blue. The person who lives in the red house '
-            'owns a cat. Bob does not live in the green house. Carol owns a dog. The '
-            'green house is to the left of the red house. Alice does not own a cat. '
-            'The person in the blue house owns a fish. '
-            'Who lives in each house, and what pet do they own? Provide your '
-            'step-by-step reasoning.'
-        ),
-        config={
-            'thinking_config': {
-                'include_thoughts': True,
-                'thinking_level': level.value,
-            }
-        },
+        messages=response1.messages,
+        tool_responses=[tr],
+        tools=['gablorkenTool'],
     )
     return response.text
 
 
-class ThinkingLevelFlash(str, Enum):
-    MINIMAL = 'MINIMAL'
-    LOW = 'LOW'
-    MEDIUM = 'MEDIUM'
-    HIGH = 'HIGH'
+@ai.flow()
+async def simple_generate_with_tools_flow(
+    value: Annotated[int, Field(default=42)] = 42,
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        value: the integer to send to test function
+        ctx: the flow context
+
+    Returns:
+        The generated response with a function.
+    """
+    response = await ai.generate(
+        prompt=f'what is a gablorken of {value}',
+        tools=['gablorkenTool'],
+        on_chunk=ctx.send_chunk,
+    )
+    return response.text
 
 
 @ai.flow()
-async def thinking_level_flash(level: ThinkingLevelFlash):
+async def thinking_level_flash(level: ThinkingLevelFlash) -> str:
     """Gemini 3.0 thinkingLevel config (Flash)."""
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
@@ -428,7 +547,6 @@ async def thinking_level_flash(level: ThinkingLevelFlash):
         config={
             'thinking_config': {
                 'include_thoughts': True,
-                'thinking_level': level.value,
             }
         },
     )
@@ -436,259 +554,30 @@ async def thinking_level_flash(level: ThinkingLevelFlash):
 
 
 @ai.flow()
-async def gemini_image_editing():
-    """Image editing with Gemini."""
-    plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
-    room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
-
-    with open(plant_path, 'rb') as f:
-        plant_b64 = base64.b64encode(f.read()).decode('utf-8')
-    with open(room_path, 'rb') as f:
-        room_b64 = base64.b64encode(f.read()).decode('utf-8')
-
-    response = await ai.generate(
-        model='googleai/gemini-2.5-flash-image-preview',
-        prompt=[
-            TextPart(text='add the plant to my room'),
-            MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}')),
-            MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}')),
-        ],
-        config=GeminiImageConfigSchema(
-            response_modalities=['TEXT', 'IMAGE'],
-            image_config={'aspect_ratio': '1:1'},
-            api_version='v1alpha',
-        ).model_dump(exclude_none=True),
-    )
-    for part in response.message.content:
-        if isinstance(part.root, MediaPart):
-            return part.root.media
-
-    return None
-
-
-@ai.flow()
-async def nano_banana_pro():
-    """Nano banana pro config."""
-    response = await ai.generate(
-        model='googleai/gemini-3-pro-image-preview',
-        prompt='Generate a picture of a sunset in the mountains by a lake',
-        config={
-            'response_modalities': ['TEXT', 'IMAGE'],
-            'image_config': {
-                'aspect_ratio': '21:9',
-                'image_size': '4K',
-            },
-            'api_version': 'v1alpha',
-        },
-    )
-    for part in response.message.content:
-        if isinstance(part.root, MediaPart):
-            return part.root.media
-    return response.media
-
-
-from typing import Any
-
-
-@ai.flow()
-async def photo_move_veo(_: Any, context: Any = None):
-    """An example of using Ver 3 model to make a static photo move."""
-    # Find photo.jpg (or my_room.png)
-    room_path = pathlib.Path(__file__).parent / 'my_room.png'
-    if not room_path.exists():
-        # Fallback search
-        room_path = pathlib.Path('samples/google-genai-hello/src/my_room.png')
-        if not room_path.exists():
-            room_path = pathlib.Path('my_room.png')
-
-    encoded_image = ''
-    if room_path.exists():
-        with open(room_path, 'rb') as f:
-            encoded_image = base64.b64encode(f.read()).decode('utf-8')
-    else:
-        # Fallback dummy
-        encoded_image = (
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
-        )
-
-    api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_GENAI_API_KEY')
-    if not api_key:
-        raise ValueError('GEMINI_API_KEY not set')
-
-    # Use v1alpha for Veo
-    client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
-
-    # Prompt construction
-    prompt_parts = [
-        genai_types.Part(text='make the subject in the photo move'),
-        genai_types.Part(inline_data=genai_types.Blob(mime_type='image/jpeg', data=base64.b64decode(encoded_image))),
-    ]
-
-    # Send chunk equivalent
-    if context:
-        context.send_chunk(f'Starting generation with veo-3.0-generate-001...')
-
-    try:
-        operation = await client.aio.models.generate_videos(
-            model='veo-3.0-generate-001',
-            prompt='make the subject in the photo move',
-            image=genai_types.Image(image_bytes=base64.b64decode(encoded_image), mime_type='image/png'),
-            config={
-                # 'aspect_ratio': '9:16',
-            },
-        )
-
-        if not operation:
-            raise ValueError('Expected operation to be returned')
-
-        while not operation.done:
-            op_id = operation.name.split('/')[-1] if operation.name else 'unknown'
-            if context:
-                context.send_chunk(f'check status of operation {op_id}')
-
-            # Poll
-            operation = await client.aio.operations.get(operation)
-            await asyncio.sleep(5)
-
-        if operation.error:
-            if context:
-                context.send_chunk(f'Error: {operation.error.message}')
-            raise ValueError(f'Failed to generate video: {operation.error.message}')
-
-        # Done
-        result_info = 'Video generated successfully.'
-        if hasattr(operation, 'result') and operation.result:
-            if hasattr(operation.result, 'generated_videos') and operation.result.generated_videos:
-                vid = operation.result.generated_videos[0]
-                if vid.video and vid.video.uri:
-                    result_info += f' URI: {vid.video.uri}'
-
-        if context:
-            context.send_chunk(f'Done! {result_info}')
-
-        return operation
-
-    except Exception as e:
-        raise ValueError(f'Flow failed: {e}')
-
-
-@ai.flow()
-async def gemini_media_resolution():
-    """Media resolution."""
-    # Placeholder base64 for sample
-    plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
-    with open(plant_path, 'rb') as f:
-        plant_b64 = base64.b64encode(f.read()).decode('utf-8')
+async def thinking_level_pro(level: ThinkingLevel) -> str:
+    """Gemini 3.0 thinkingLevel config (Pro)."""
     response = await ai.generate(
         model='googleai/gemini-3-pro-preview',
-        prompt=[
-            TextPart(text='What is in this picture?'),
-            MediaPart(
-                media=Media(url=f'data:image/png;base64,{plant_b64}'),
-                metadata={'mediaResolution': {'level': 'MEDIA_RESOLUTION_HIGH'}},
-            ),
-        ],
-        config={'api_version': 'v1alpha'},
-    )
-    return response.text
-
-
-@ai.flow()
-async def search_grounding():
-    """Search grounding."""
-    response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
-        prompt='Who is Albert Einstein?',
-        config={'tools': [{'googleSearch': {}}], 'api_version': 'v1alpha'},
-    )
-    return response.text
-
-
-@ai.flow()
-async def url_context():
-    """Url context."""
-    response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
-        prompt='Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/simple-whole-roasted-chicken/',
-        config={'url_context': {}, 'api_version': 'v1alpha'},
-    )
-    return response.text
-
-
-@ai.flow()
-async def file_search():
-    """File Search."""
-    # TODO: add file search store
-    store_name = 'fileSearchStores/sample-store'
-    response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
-        prompt="What is the character's name in the story?",
+        prompt=(
+            'Alice, Bob, and Carol each live in a different house on the '
+            'same street: red, green, and blue. The person who lives in the red house '
+            'owns a cat. Bob does not live in the green house. Carol owns a dog. The '
+            'green house is to the left of the red house. Alice does not own a cat. '
+            'The person in the blue house owns a fish. '
+            'Who lives in each house, and what pet do they own? Provide your '
+            'step-by-step reasoning.'
+        ),
         config={
-            'file_search': {
-                'file_search_store_names': [store_name],
-                'metadata_filter': 'author=foo',
-            },
-            'api_version': 'v1alpha',
+            'thinking_config': {
+                'include_thoughts': True,
+            }
         },
     )
     return response.text
 
 
 @ai.flow()
-async def multimodal_input():
-    """Multimodal input."""
-    photo_path = pathlib.Path(__file__).parent.parent / 'photo.jpg'
-    with open(photo_path, 'rb') as f:
-        photo_b64 = base64.b64encode(f.read()).decode('utf-8')
-
-    response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
-        prompt=[
-            TextPart(text='describe this photo'),
-            MediaPart(media=Media(url=f'data:image/jpeg;base64,{photo_b64}', content_type='image/jpeg')),
-        ],
-    )
-    return response.text
-
-
-@ai.flow()
-async def youtube_videos():
-    """YouTube videos."""
-    response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
-        prompt=[
-            TextPart(text='transcribe this video'),
-            MediaPart(media=Media(url='https://www.youtube.com/watch?v=3p1P5grjXIQ', content_type='video/mp4')),
-        ],
-        config={'api_version': 'v1alpha'},
-    )
-    return response.text
-
-
-class WeatherInput(BaseModel):
-    """Input for getting weather."""
-
-    location: str = Field(description='The city and state, e.g. San Francisco, CA')
-
-
-@ai.tool(name='getWeather')
-def get_weather(input_: WeatherInput) -> dict:
-    """Used to get current weather for a location."""
-    return {
-        'location': input_.location,
-        'temperature_celcius': 21.5,
-        'conditions': 'cloudy',
-    }
-
-
-@ai.tool(name='celsiusToFahrenheit')
-def celsius_to_fahrenheit(celsius: float) -> float:
-    """Converts Celsius to Fahrenheit."""
-    return (celsius * 9) / 5 + 32
-
-
-@ai.flow()
-async def tool_calling(location: Annotated[str, Field(default='Paris, France')]):
+async def tool_calling(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
     """Tool calling with Gemini."""
     response = await ai.generate(
         model='googleai/gemini-2.5-flash',
@@ -699,9 +588,40 @@ async def tool_calling(location: Annotated[str, Field(default='Paris, France')])
     return response.text
 
 
+@ai.flow()
+async def url_context() -> str:
+    """Url context."""
+    response = await ai.generate(
+        model='googleai/gemini-3-flash-preview',
+        prompt='Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/'
+        'perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/'
+        'simple-whole-roasted-chicken/',
+        config={'url_context': {}, 'api_version': 'v1alpha'},
+    )
+    return response.text
+
+
+@ai.flow()
+async def youtube_videos() -> str:
+    """YouTube videos."""
+    response = await ai.generate(
+        model='googleai/gemini-3-flash-preview',
+        prompt=[
+            Part(root=TextPart(text='transcribe this video')),
+            Part(
+                root=MediaPart(media=Media(url='https://www.youtube.com/watch?v=3p1P5grjXIQ', content_type='video/mp4'))
+            ),
+        ],
+        config={'api_version': 'v1alpha'},
+    )
+    return response.text
+
+
 async def main() -> None:
-    """Main function."""
-    await logger.ainfo(await say_hi(', tell me a joke'))
+    """Main function - keep alive for Dev UI."""
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

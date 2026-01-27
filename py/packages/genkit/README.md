@@ -15,8 +15,8 @@ pip install genkit
 pip install genkit-plugin-google-genai
 ```
 
+
 ```python
-import json
 from pydantic import BaseModel, Field
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
@@ -44,9 +44,11 @@ async def generate_character(name: str):
 
 async def main() -> None:
     """Main function."""
-    print(json.dumps(await generate_character('Goblorb')))
+    character = await generate_character('Goblorb')
+    print(character.model_dump_json(indent=2))
 
-ai.run_main(main())
+if __name__ == '__main__':
+    ai.run_main(main())
 ```
 
 See https://python.api.genkit.dev for more details.

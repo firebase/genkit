@@ -14,8 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-MCP Plugin Index
+"""MCP Plugin Index.
 
 This module serves as the main entry point for the MCP plugin,
 similar to js/plugins/mcp/src/index.ts.

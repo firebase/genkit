@@ -22,31 +22,43 @@ query. These documents can then be used to provide additional context to models
 to accomplish a task.
 """
 
-from collections.abc import Callable
-from typing import Any, Generic, TypeVar
+import inspect
+from collections.abc import Awaitable, Callable
+from typing import Any, Generic, TypeVar, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import DocumentData, RetrieverResponse
 
 T = TypeVar('T')
-# type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
-RetrieverFn = Callable[[Document, T], RetrieverResponse]
+# type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse | Awaitable[RetrieverResponse]]
+RetrieverFn = Callable[[Document, T], RetrieverResponse | Awaitable[RetrieverResponse]]
 
 
 class Retriever(Generic[T]):
+    """Base class for retrievers in the Genkit framework."""
+
     def __init__(
         self,
         retriever_fn: RetrieverFn[T],
-    ):
+    ) -> None:
+        """Initialize a Retriever.
+
+        Args:
+            retriever_fn: The function that performs the retrieval.
+        """
         self.retriever_fn = retriever_fn
 
 
 class RetrieverRequest(BaseModel):
+    """Request model for a retriever execution."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     query: DocumentData
@@ -62,6 +74,8 @@ class RetrieverSupports(BaseModel):
 
 
 class RetrieverInfo(BaseModel):
+    """Information about a retriever."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     label: str | None = None
@@ -71,9 +85,9 @@ class RetrieverInfo(BaseModel):
 class RetrieverOptions(BaseModel):
     """Configuration options for a retriever."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    config_schema: dict[str, Any] | None = None
     label: str | None = None
     supports: RetrieverSupports | None = None
 
@@ -104,9 +118,8 @@ def retriever_action_metadata(
         retriever_metadata_dict['retriever']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
 
     retriever_metadata_dict['retriever']['customOptions'] = options.config_schema if options.config_schema else None
-
     return ActionMetadata(
-        kind=ActionKind.RETRIEVER,
+        kind=cast(ActionKind, ActionKind.RETRIEVER),
         name=name,
         input_json_schema=to_json_schema(RetrieverRequest),
         output_json_schema=to_json_schema(RetrieverResponse),
@@ -125,6 +138,8 @@ def create_retriever_ref(
 
 
 class IndexerRequest(BaseModel):
+    """Request model for an indexer execution."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     documents: list[DocumentData]
@@ -132,6 +147,8 @@ class IndexerRequest(BaseModel):
 
 
 class IndexerInfo(BaseModel):
+    """Information about an indexer."""
+
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     label: str | None = None
@@ -139,9 +156,11 @@ class IndexerInfo(BaseModel):
 
 
 class IndexerOptions(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    """Configuration options for an indexer."""
 
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+
+    config_schema: dict[str, Any] | None = None
     label: str | None = None
     supports: RetrieverSupports | None = None
 
@@ -174,7 +193,7 @@ def indexer_action_metadata(
     indexer_metadata_dict['indexer']['customOptions'] = options.config_schema if options.config_schema else None
 
     return ActionMetadata(
-        kind=ActionKind.INDEXER,
+        kind=cast(ActionKind, ActionKind.INDEXER),
         name=name,
         input_json_schema=to_json_schema(IndexerRequest),
         output_json_schema=to_json_schema(None),
@@ -193,7 +212,7 @@ def create_indexer_ref(
 
 
 def define_retriever(
-    registry: Any,
+    registry: Registry,
     name: str,
     fn: RetrieverFn,
     options: RetrieverOptions | None = None,
@@ -203,24 +222,26 @@ def define_retriever(
 
     async def wrapper(
         request: RetrieverRequest,
-        ctx: Any,
+        ctx: Any,  # noqa: ANN401
     ) -> RetrieverResponse:
-        return await fn(request.query, request.options)
+        query = Document.from_document_data(request.query)
+        res = fn(query, request.options)
+        return await res if inspect.isawaitable(res) else res
 
     registry.register_action(
-        kind=ActionKind.RETRIEVER,
+        kind=cast(ActionKind, ActionKind.RETRIEVER),
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
-        span_metadata=metadata.metadata,
+        span_metadata={'genkit:metadata:retriever:name': name},
     )
 
 
-IndexerFn = Callable[[list[Document], T], None]
+IndexerFn = Callable[[list[Document], T], None | Awaitable[None]]
 
 
 def define_indexer(
-    registry: Any,
+    registry: Registry,
     name: str,
     fn: IndexerFn,
     options: IndexerOptions | None = None,
@@ -230,15 +251,17 @@ def define_indexer(
 
     async def wrapper(
         request: IndexerRequest,
-        ctx: Any,
+        ctx: Any,  # noqa: ANN401
     ) -> None:
-        docs = [Document.from_data(d) for d in request.documents]
-        await fn(docs, request.options)
+        docs = [Document.from_document_data(d) for d in request.documents]
+        res = fn(docs, request.options)
+        if inspect.isawaitable(res):
+            await res
 
     registry.register_action(
-        kind=ActionKind.INDEXER,
+        kind=cast(ActionKind, ActionKind.INDEXER),
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
-        span_metadata=metadata.metadata,
+        span_metadata={'genkit:metadata:indexer:name': name},
     )

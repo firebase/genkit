@@ -14,21 +14,27 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Testing sample for multi server."""
+"""Multi-server sample - Running multiple ASGI servers with Genkit.
+
+This sample demonstrates how to run multiple ASGI servers (Litestar, Starlette)
+alongside Genkit's reflection server for complex deployment scenarios.
+
+See README.md for testing instructions.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
+from typing import Any, cast
 
 import structlog
-from litestar import Controller, Litestar, get, post
-from litestar.datastructures import State
-from litestar.logging.config import LoggingConfig
-from litestar.middleware.base import AbstractMiddleware
-from litestar.plugins.structlog import StructlogPlugin
-from litestar.types import Message
+from litestar import Controller, Litestar, get, post  # type: ignore
+from litestar.datastructures import State  # type: ignore
+from litestar.logging.config import LoggingConfig  # type: ignore
+from litestar.middleware.base import AbstractMiddleware  # type: ignore
+from litestar.plugins.structlog import StructlogPlugin  # type: ignore
+from litestar.types import Message  # type: ignore
 from starlette.applications import Starlette
 
 from genkit.aio.loop import run_loop
@@ -238,10 +244,13 @@ class ReflectionServerStarletteLifecycle(AbstractBaseServer):
             """Handle application shutdown."""
             await logger.ainfo('[LIFESPAN] Shutting down Starlette Reflection API server...')
 
-        return create_reflection_asgi_app(
-            registry=Registry(),
-            on_app_startup=on_app_startup,
-            on_app_shutdown=on_app_shutdown,
+        return cast(
+            Starlette,
+            create_reflection_asgi_app(
+                registry=Registry(),
+                on_app_startup=on_app_startup,
+                on_app_shutdown=on_app_shutdown,
+            ),
         )
 
 

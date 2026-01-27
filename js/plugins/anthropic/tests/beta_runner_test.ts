@@ -26,7 +26,6 @@ describe('BetaRunner.toAnthropicMessageContent', () => {
     return new BetaRunner({
       name: 'anthropic/claude-3-5-haiku',
       client: createMockAnthropicClient(),
-      cacheSystemPrompt: false,
     });
   }
 
@@ -460,7 +459,6 @@ describe('BetaRunner', () => {
     const runner = new BetaRunner({
       name: 'claude-3-5-haiku',
       client: mockClient as Anthropic,
-      cacheSystemPrompt: true,
     }) as any;
 
     const request = {
@@ -540,77 +538,6 @@ describe('BetaRunner', () => {
       false
     );
     assert.deepStrictEqual(disabledBody.thinking, { type: 'disabled' });
-  });
-
-  it('should concatenate multiple text parts in system message', () => {
-    const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient as Anthropic,
-    }) as any;
-
-    const request = {
-      messages: [
-        {
-          role: 'system',
-          content: [
-            { text: 'You are a helpful assistant.' },
-            { text: 'Always be concise.' },
-            { text: 'Use proper grammar.' },
-          ],
-        },
-        { role: 'user', content: [{ text: 'Hi' }] },
-      ],
-      output: { format: 'text' },
-    } satisfies any;
-
-    const body = runner.toAnthropicRequestBody(
-      'claude-3-5-haiku',
-      request,
-      false
-    );
-
-    assert.strictEqual(
-      body.system,
-      'You are a helpful assistant.\n\nAlways be concise.\n\nUse proper grammar.'
-    );
-  });
-
-  it('should concatenate multiple text parts in system message with caching', () => {
-    const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient as Anthropic,
-    }) as any;
-
-    const request = {
-      messages: [
-        {
-          role: 'system',
-          content: [
-            { text: 'You are a helpful assistant.' },
-            { text: 'Always be concise.' },
-          ],
-        },
-        { role: 'user', content: [{ text: 'Hi' }] },
-      ],
-      output: { format: 'text' },
-    } satisfies any;
-
-    const body = runner.toAnthropicRequestBody(
-      'claude-3-5-haiku',
-      request,
-      true
-    );
-
-    assert.ok(Array.isArray(body.system));
-    assert.deepStrictEqual(body.system, [
-      {
-        type: 'text',
-        text: 'You are a helpful assistant.\n\nAlways be concise.',
-        cache_control: { type: 'ephemeral' },
-      },
-    ]);
   });
 
   it('should throw error if system message contains media', () => {

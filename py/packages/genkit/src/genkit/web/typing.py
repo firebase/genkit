@@ -42,7 +42,7 @@ except ImportError:
 
 
 try:
-    import starlette
+    import starlette.types  # Explicit import for ty type checker
 
     # Import the actual application class
     from starlette.applications import Starlette as StarletteApp
@@ -83,5 +83,8 @@ else:
     Send = atyping.ASGISendCallable
 
 # Type aliases for the web framework.
-# type LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]
 LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]
+
+# Type alias for Starlette/Litestar on_startup/on_shutdown handlers (0-argument async functions)
+# This is distinct from LifespanHandler which is the full ASGI lifespan protocol handler.
+StartupHandler = Callable[[], Awaitable[None]]

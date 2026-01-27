@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GenkitToolsError } from '@genkit-ai/tools-common/manager';
 import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
@@ -58,8 +59,16 @@ export function defineTraceTools(server: McpServer, options: McpToolOptions) {
           ],
         };
       } catch (e) {
+        const errStr =
+          e instanceof GenkitToolsError ? e.formatError() : JSON.stringify(e);
         return {
-          content: [{ type: 'text', text: `Error: ${e}` }],
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${errStr}`,
+            },
+          ],
         };
       }
     }

@@ -14,10 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""DeepSeek hello sample.
+"""DeepSeek hello sample - DeepSeek models with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use DeepSeek's models with Genkit,
+including the powerful reasoning model (deepseek-reasoner).
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet         |
 |-----------------------------------------|-----------------------------------------|
 | Plugin Initialization                   | `ai = Genkit(plugins=[DeepSeek(...)])`  |
@@ -33,13 +38,19 @@ Key features demonstrated in this sample:
 | Multi-turn Chat                         | `chat_flow`                             |
 """
 
+import os
+from typing import Annotated, cast
+
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
+from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
-from genkit.types import Message, Part, Role, TextPart, ToolResponse
+
+if 'DEEPSEEK_API_KEY' not in os.environ:
+    os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 
@@ -49,102 +60,130 @@ ai = Genkit(
 )
 
 
+class CurrencyExchangeInput(BaseModel):
+    """Currency exchange flow input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
+
+
+class CurrencyInput(BaseModel):
+    """Currency conversion input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
+
+
+class Skills(BaseModel):
+    """A set of core character skills for an RPG character."""
+
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+
+
+class RpgCharacter(BaseModel):
+    """An RPG character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
+
+
 class WeatherInput(BaseModel):
     """Input schema for the weather tool."""
 
     location: str = Field(description='The city and state, e.g. San Francisco, CA')
 
 
-@ai.tool()
-def get_weather(input: WeatherInput) -> str:
-    """Get weather of a location, the user should supply a location first.
-
-    Args:
-        input: Weather input with location (city and state, e.g. San Francisco, CA).
+@ai.flow()
+async def chat_flow() -> str:
+    """Multi-turn chat example demonstrating context retention.
 
     Returns:
-        Weather information with temperature in degrees Fahrenheit.
+        Final chat response.
     """
-    # Mocked weather data
-    weather_data = {
-        'San Francisco, CA': {'temp': 72, 'condition': 'sunny', 'humidity': 65},
-        'Seattle, WA': {'temp': 55, 'condition': 'rainy', 'humidity': 85},
+    history = []
+
+    # First turn - User shares information
+    prompt1 = (
+        "Hi! I'm planning a trip to Tokyo next month. I'm really excited because I love Japanese cuisine, "
+        'especially ramen and sushi.'
+    )
+    response1 = await ai.generate(
+        prompt=prompt1,
+        system='You are a helpful travel assistant.',
+    )
+    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text=prompt1))]))
+    if response1.message:
+        history.append(response1.message)
+    await logger.ainfo('chat_flow turn 1', result=response1.text)
+
+    # Second turn - Ask question requiring context from first turn
+    response2 = await ai.generate(
+        messages=history
+        + [Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))])],
+        system='You are a helpful travel assistant.',
+    )
+    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))]))
+    if response2.message:
+        history.append(response2.message)
+    await logger.ainfo('chat_flow turn 2', result=response2.text)
+
+    # Third turn - Ask question requiring context from both previous turns
+    response3 = await ai.generate(
+        messages=history
+        + [
+            Message(
+                role=Role.USER,
+                content=[Part(root=TextPart(text='Based on our conversation, suggest one restaurant I should visit.'))],
+            )
+        ],
+        system='You are a helpful travel assistant.',
+    )
+    return response3.text
+
+
+@ai.tool()
+def convert_currency(input: CurrencyInput) -> str:
+    """Convert currency amount.
+
+    Args:
+        input: Currency conversion parameters.
+
+    Returns:
+        Converted amount.
+    """
+    # Mock conversion rates
+    rates = {
+        ('USD', 'EUR'): 0.85,
+        ('EUR', 'USD'): 1.18,
+        ('USD', 'GBP'): 0.73,
+        ('GBP', 'USD'): 1.37,
     }
 
-    location = input.location
-    data = weather_data.get(location, {'temp': 70, 'condition': 'partly cloudy', 'humidity': 55})
+    rate = rates.get((input.from_currency, input.to_currency), 1.0)
+    converted = input.amount * rate
 
-    return f'The weather in {location} is {data["temp"]}°F and {data["condition"]}. Humidity is {data["humidity"]}%.'
+    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
 
 
 @ai.flow()
-async def say_hi(name: str) -> str:
-    """Generate a simple greeting.
+async def currency_exchange(input: CurrencyExchangeInput) -> str:
+    """Convert currency using tools.
 
     Args:
-        name: Name to greet.
+        input: Currency exchange parameters.
 
     Returns:
-        Greeting message.
-    """
-    response = await ai.generate(prompt=f'Say hello to {name}!')
-    return response.text
-
-
-@ai.flow()
-async def streaming_flow(topic: str, ctx: ActionRunContext) -> str:
-    """Generate with streaming response.
-
-    Args:
-        topic: Topic to generate about.
-        ctx: Action run context for streaming chunks to client.
-
-    Returns:
-        Generated text.
+        Conversion result.
     """
     response = await ai.generate(
-        prompt=f'Tell me a fun fact about {topic}',
-        on_chunk=ctx.send_chunk,
-    )
-    return response.text
-
-
-@ai.flow()
-async def weather_flow(location: str) -> str:
-    """Get weather using compat-oai auto tool calling."""
-
-    response = await ai.generate(
-        model=deepseek_name('deepseek-chat'),
-        prompt=f'What is the weather in {location}?',
-        system=(
-            'You have a tool called get_weather. '
-            "It takes an object with a 'location' field. "
-            'Always use this tool when asked about weather.'
-        ),
-        tools=['get_weather'],
-        tool_choice='required',
-        max_turns=2,
-    )
-
-    return response.text
-
-
-@ai.flow()
-async def reasoning_flow(prompt: str | None = None) -> str:
-    """Solve reasoning problems using deepseek-reasoner model.
-
-    Args:
-        prompt: The reasoning question to solve. Defaults to a classic logic problem.
-
-    Returns:
-        The reasoning and answer.
-    """
-    if prompt is None:
-        prompt = 'What is heavier, one kilo of steel or one kilo of feathers?'
-
-    response = await ai.generate(
-        model=deepseek_name('deepseek-reasoner'),
-        prompt=prompt,
+        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
+        tools=['convert_currency'],
     )
     return response.text
 
@@ -202,77 +241,128 @@ async def custom_config_flow(task: str | None = None) -> str:
 
 
 @ai.flow()
-async def chat_flow() -> str:
-    """Multi-turn chat example demonstrating context retention.
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+) -> RpgCharacter:
+    """Generate an RPG character.
+
+    Args:
+        name: the name of the character
 
     Returns:
-        Final chat response.
+        The generated RPG character.
     """
-    history = []
-
-    # First turn - User shares information
-    prompt1 = "Hi! I'm planning a trip to Tokyo next month. I'm really excited because I love Japanese cuisine, especially ramen and sushi."
-    response1 = await ai.generate(
-        prompt=prompt1,
-        system='You are a helpful travel assistant.',
+    result = await ai.generate(
+        model=deepseek_name('deepseek-chat'),
+        prompt=f'generate an RPG character named {name}',
+        output_schema=RpgCharacter,
     )
-    history.append(Message(role=Role.USER, content=[TextPart(text=prompt1)]))
-    history.append(response1.message)
-    await logger.ainfo('chat_flow turn 1', result=response1.text)
+    return cast(RpgCharacter, result.output)
 
-    # Second turn - Ask question requiring context from first turn
-    response2 = await ai.generate(
-        messages=history + [Message(role=Role.USER, content=[TextPart(text='What foods did I say I enjoy?')])],
-        system='You are a helpful travel assistant.',
-    )
-    history.append(Message(role=Role.USER, content=[TextPart(text='What foods did I say I enjoy?')]))
-    history.append(response2.message)
-    await logger.ainfo('chat_flow turn 2', result=response2.text)
 
-    # Third turn - Ask question requiring context from both previous turns
-    response3 = await ai.generate(
-        messages=history
-        + [
-            Message(
-                role=Role.USER,
-                content=[TextPart(text='Based on our conversation, suggest one restaurant I should visit.')],
-            )
-        ],
-        system='You are a helpful travel assistant.',
+@ai.tool()
+def get_weather(input: WeatherInput) -> str:
+    """Get weather of a location, the user should supply a location first.
+
+    Args:
+        input: Weather input with location (city and state, e.g. San Francisco, CA).
+
+    Returns:
+        Weather information with temperature in degrees Fahrenheit.
+    """
+    # Mocked weather data
+    weather_data = {
+        'San Francisco, CA': {'temp': 72, 'condition': 'sunny', 'humidity': 65},
+        'Seattle, WA': {'temp': 55, 'condition': 'rainy', 'humidity': 85},
+    }
+
+    location = input.location
+    data = weather_data.get(location, {'temp': 70, 'condition': 'partly cloudy', 'humidity': 55})
+
+    return f'The weather in {location} is {data["temp"]}°F and {data["condition"]}. Humidity is {data["humidity"]}%.'
+
+
+@ai.flow()
+async def reasoning_flow(prompt: str | None = None) -> str:
+    """Solve reasoning problems using deepseek-reasoner model.
+
+    Args:
+        prompt: The reasoning question to solve. Defaults to a classic logic problem.
+
+    Returns:
+        The reasoning and answer.
+    """
+    if prompt is None:
+        prompt = 'What is heavier, one kilo of steel or one kilo of feathers?'
+
+    response = await ai.generate(
+        model=deepseek_name('deepseek-reasoner'),
+        prompt=prompt,
     )
-    return response3.text
+    return response.text
+
+
+@ai.flow()
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+    """Generate a simple greeting.
+
+    Args:
+        name: Name to greet.
+
+    Returns:
+        Greeting message.
+    """
+    response = await ai.generate(prompt=f'Say hello to {name}!')
+    return response.text
+
+
+@ai.flow()
+async def streaming_flow(
+    topic: Annotated[str, Field(default='pandas')] = 'pandas',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
+    """Generate with streaming response.
+
+    Args:
+        topic: Topic to generate about.
+        ctx: Action run context for streaming chunks to client.
+
+    Returns:
+        Generated text.
+    """
+    response = await ai.generate(
+        prompt=f'Tell me a fun fact about {topic}',
+        on_chunk=ctx.send_chunk,
+    )
+    return response.text
+
+
+@ai.flow()
+async def weather_flow(location: Annotated[str, Field(default='San Francisco, CA')] = 'San Francisco, CA') -> str:
+    """Get weather using compat-oai auto tool calling."""
+    response = await ai.generate(
+        model=deepseek_name('deepseek-chat'),
+        prompt=f'What is the weather in {location}?',
+        system=(
+            'You have a tool called get_weather. '
+            "It takes an object with a 'location' field. "
+            'Always use this tool when asked about weather.'
+        ),
+        tools=['get_weather'],
+        tool_choice=ToolChoice.REQUIRED,
+        max_turns=2,
+    )
+
+    return response.text
 
 
 async def main() -> None:
-    """Main entry point for the DeepSeek sample."""
-    # Simple greeting
-    result = await say_hi('World')
-    await logger.ainfo('say_hi', result=result)
+    """Main entry point for the DeepSeek sample - keep alive for Dev UI."""
+    import asyncio
 
-    # Streaming response
-    result = await streaming_flow('apple')
-    await logger.ainfo('streaming_flow', result=result)
-
-    # Weather with tools
-    result = await weather_flow('Seattle, WA')
-    await logger.ainfo('weather_flow', result=result)
-
-    # Reasoning model
-    result = await reasoning_flow()
-    await logger.ainfo('reasoning_flow', result=result)
-
-    # Custom config - demonstrate different configurations
-    await logger.ainfo('Testing creative config...')
-    result = await custom_config_flow('creative')
-    await logger.ainfo('custom_config_flow (creative)', result=result)
-
-    await logger.ainfo('Testing precise config...')
-    result = await custom_config_flow('precise')
-    await logger.ainfo('custom_config_flow (precise)', result=result)
-
-    # Multi-turn chat
-    result = await chat_flow()
-    await logger.ainfo('chat_flow', result=result)
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

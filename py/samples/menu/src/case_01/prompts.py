@@ -13,15 +13,16 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-from menu_ai import ai
-from menu_schemas import MenuQuestionInputSchema
+"""Prompts for case 01."""
 
-from genkit.plugins.google_genai import googleai_name
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
-s01_vanillaPrompt = ai.define_prompt(
+from ..menu_ai import ai
+from ..menu_schemas import MenuQuestionInputSchema
+
+s01_vanilla_prompt = ai.define_prompt(
     variant='s01_vanillaPrompt',
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=MenuQuestionInputSchema,
     prompt="""You are acting as a helpful AI assistant named "Walt" that can answer
 questions about the food available on the menu at Walt's Burgers.
@@ -29,9 +30,9 @@ Customer says: {{question}}""",
     config={'temperature': 0.3},
 )
 
-s01_staticMenuDotPrompt = ai.define_prompt(
+s01_static_menu_dot_prompt = ai.define_prompt(
     variant='s01_staticMenuDotPrompt',
-    model=googleai_name(GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW),
+    model=f'googleai/{GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
     input_schema=MenuQuestionInputSchema,
     prompt="""
     You are acting as a helpful AI assistant named "Walt" that can answer

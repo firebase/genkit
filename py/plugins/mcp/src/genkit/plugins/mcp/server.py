@@ -19,21 +19,21 @@
 
 """MCP Server implementation for exposing Genkit actions via Model Context Protocol."""
 
-import asyncio
-from typing import Any, Optional
+from typing import Any, cast
 
 import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.resource import matches_uri_template
-from genkit.core.action._key import parse_action_key
+from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
 from genkit.core.schema import to_json_schema
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import (
+    AnyUrl,
     CallToolRequest,
     CallToolResult,
     GetPromptRequest,
@@ -47,6 +47,7 @@ from mcp.types import (
     ListToolsRequest,
     ListToolsResult,
     Prompt,
+    PromptArgument,
     ReadResourceRequest,
     ReadResourceResult,
     Resource,
@@ -62,6 +63,12 @@ from .util import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _get_resource_meta(metadata: dict[str, object]) -> dict[str, Any]:
+    """Extract resource metadata from action metadata with proper typing."""
+    raw = metadata.get('resource', {})
+    return cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
 
 
 class McpServerOptions(BaseModel):
@@ -83,7 +90,7 @@ class McpServer:
     (tools, prompts, resources) available to MCP clients via the Model Context Protocol.
     """
 
-    def __init__(self, ai: Genkit, options: McpServerOptions):
+    def __init__(self, ai: Genkit, options: McpServerOptions) -> None:
         """Initialize the MCP server.
 
         Args:
@@ -92,15 +99,15 @@ class McpServer:
         """
         self.ai = ai
         self.options = options
-        self.server: Optional[Server] = None
+        self.server: Server | None = None
         self.actions_resolved = False
-        self.tool_actions: list[Any] = []
-        self.prompt_actions: list[Any] = []
-        self.resource_actions: list[Any] = []
-        self.tool_actions_map: dict[str, Any] = {}
-        self.prompt_actions_map: dict[str, Any] = {}
-        self.resource_uri_map: dict[str, Any] = {}
-        self.resource_templates: list[tuple[str, Any]] = []
+        self.tool_actions: list[Action] = []
+        self.prompt_actions: list[Action] = []
+        self.resource_actions: list[Action] = []
+        self.tool_actions_map: dict[str, Action] = {}
+        self.prompt_actions_map: dict[str, Action] = {}
+        self.resource_uri_map: dict[str, Action] = {}
+        self.resource_templates: list[tuple[str, Action]] = []
 
     async def setup(self) -> None:
         """Initialize the MCP server and register request handlers.
@@ -137,7 +144,7 @@ class McpServer:
         # We use the internal _entries for local actions and plugins
         with self.ai.registry._lock:
             for kind, entries in self.ai.registry._entries.items():
-                for name, action in entries.items():
+                for _name, action in entries.items():
                     if kind == ActionKind.TOOL:
                         self.tool_actions.append(action)
                         self.tool_actions_map[action.name] = action
@@ -147,7 +154,7 @@ class McpServer:
                     elif kind == ActionKind.RESOURCE:
                         self.resource_actions.append(action)
                         metadata = action.metadata or {}
-                        resource_meta = metadata.get('resource', {})
+                        resource_meta = _get_resource_meta(metadata)
                         if resource_meta.get('uri'):
                             self.resource_uri_map[resource_meta['uri']] = action
                         if resource_meta.get('template'):
@@ -155,10 +162,10 @@ class McpServer:
 
         # Also get actions from plugins that might not be in _entries yet
         # (though most plugins register them in _entries during initialization)
-        plugin_actions = self.ai.registry.list_actions()
-        for key in plugin_actions:
-            kind, name = parse_action_key(key)
-            action = self.ai.registry.lookup_action(kind, name)
+        plugin_action_metadata = await self.ai.registry.list_actions()
+        for action_meta in plugin_action_metadata:
+            kind, name = action_meta.kind, action_meta.name
+            action = await self.ai.registry.resolve_action(kind, name)
             if action:
                 if kind == ActionKind.TOOL and action not in self.tool_actions:
                     self.tool_actions.append(action)
@@ -169,7 +176,7 @@ class McpServer:
                 elif kind == ActionKind.RESOURCE and action not in self.resource_actions:
                     self.resource_actions.append(action)
                     metadata = action.metadata or {}
-                    resource_meta = metadata.get('resource', {})
+                    resource_meta = _get_resource_meta(metadata)
                     if resource_meta.get('uri'):
                         self.resource_uri_map[resource_meta['uri']] = action
                     if resource_meta.get('template'):
@@ -178,7 +185,7 @@ class McpServer:
         self.actions_resolved = True
 
         logger.info(
-            f'MCP Server initialized',
+            'MCP Server initialized',
             tools=len(self.tool_actions),
             prompts=len(self.prompt_actions),
             resources=len(self.resource_actions),
@@ -205,7 +212,6 @@ class McpServer:
                     name=action.name,
                     description=action.description or '',
                     inputSchema=input_schema,
-                    _meta=action.metadata.get('mcp', {}).get('_meta') if action.metadata else None,
                 )
             )
 
@@ -261,8 +267,7 @@ class McpServer:
                 Prompt(
                     name=action.name,
                     description=action.description or '',
-                    arguments=arguments,
-                    _meta=action.metadata.get('mcp', {}).get('_meta') if action.metadata else None,
+                    arguments=[PromptArgument(**arg) for arg in arguments] if arguments else None,
                 )
             )
 
@@ -314,7 +319,7 @@ class McpServer:
         resources: list[Resource] = []
         for action in self.resource_actions:
             metadata = action.metadata or {}
-            resource_meta = metadata.get('resource', {})
+            resource_meta = _get_resource_meta(metadata)
 
             # Only include resources with fixed URIs (not templates)
             if resource_meta.get('uri'):
@@ -322,8 +327,7 @@ class McpServer:
                     Resource(
                         name=action.name,
                         description=action.description or '',
-                        uri=resource_meta['uri'],
-                        _meta=metadata.get('mcp', {}).get('_meta'),
+                        uri=AnyUrl(resource_meta['uri']),
                     )
                 )
 
@@ -343,7 +347,7 @@ class McpServer:
         templates: list[ResourceTemplate] = []
         for action in self.resource_actions:
             metadata = action.metadata or {}
-            resource_meta = metadata.get('resource', {})
+            resource_meta = _get_resource_meta(metadata)
 
             # Only include resources with templates
             if resource_meta.get('template'):
@@ -352,7 +356,6 @@ class McpServer:
                         name=action.name,
                         description=action.description or '',
                         uriTemplate=resource_meta['template'],
-                        _meta=metadata.get('mcp', {}).get('_meta'),
                     )
                 )
 
@@ -375,29 +378,30 @@ class McpServer:
         uri = request.params.uri
 
         # Check for exact URI match
-        resource = self.resource_uri_map.get(uri)
+        uri_str = str(uri)
+        resource = self.resource_uri_map.get(uri_str)
 
         # Check for template match if not found by exact URI
         if not resource:
             for template, action in self.resource_templates:
-                if matches_uri_template(template, uri):
+                if matches_uri_template(template, uri_str):
                     resource = action
                     break
 
         if not resource:
             raise GenkitError(status='NOT_FOUND', message=f"Tried to call resource '{uri}' but it could not be found.")
 
-        # Execute the resource action
-        result = await resource.arun({'uri': uri})
+        # Execute the resource action (uri_str is already a string)
+        result = await resource.arun({'uri': uri_str})
         result = result.response
 
         # Convert content to MCP format
         content = result.get('content', []) if isinstance(result, dict) else result.content
-        contents = to_mcp_resource_contents(uri, content)
+        contents = to_mcp_resource_contents(uri_str, content)
 
         return ReadResourceResult(contents=contents)
 
-    async def start(self, transport: Any = None) -> None:
+    async def start(self, transport: object = None) -> None:
         """Start the MCP server with the specified transport.
 
         Args:
@@ -408,10 +412,12 @@ class McpServer:
 
         if not transport:
             async with stdio_server() as (read, write):
+                assert self.server is not None
                 await self.server.run(read, write, self.server.create_initialization_options())
         else:
             # Connect the transport
-            async with transport as (read, write):
+            async with transport as (read, write):  # type: ignore[union-attr]
+                assert self.server is not None
                 await self.server.run(read, write, self.server.create_initialization_options())
 
         logger.debug(f"[MCP Server] MCP server '{self.options.name}' started successfully.")
@@ -453,7 +459,11 @@ def create_mcp_server(ai: Genkit, options: McpServerOptions) -> McpServer:
             return a + b
 
 
-        ai.define_resource(name='my_resource', uri='my://resource', fn=lambda req: {'content': [{'text': 'resource content'}]})
+        ai.define_resource(
+            name='my_resource',
+            uri='my://resource',
+            fn=lambda req: {'content': [{'text': 'resource content'}]},
+        )
 
         # Create and start MCP server
         server = create_mcp_server(ai, McpServerOptions(name='my-server'))

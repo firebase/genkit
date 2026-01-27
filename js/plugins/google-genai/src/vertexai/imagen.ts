@@ -170,8 +170,50 @@ export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
 export type ImagenConfigSchemaType = typeof ImagenConfigSchema;
 export type ImagenConfig = z.infer<ImagenConfigSchemaType>;
 
-// for commonRef
-type ConfigSchemaType = ImagenConfigSchemaType;
+export const ImagenTryOnConfigSchema = z
+  .object({
+    sampleCount: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('Number of images to generate.'),
+    seed: z
+      .number()
+      .int()
+      .optional()
+      .describe('Random seed for the image generation.'),
+    baseSteps: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe('Number of denoising steps.'),
+    personGeneration: z
+      .enum(['dont_allow', 'allow_adult', 'allow_all'])
+      .optional(),
+    safetySetting: z
+      .enum(['block_most', 'block_some', 'block_few', 'block_fewest'])
+      .optional(),
+    storageUri: z
+      .string()
+      .optional()
+      .describe('Cloud Storage URI to store the generated images.'),
+    outputOptions: z
+      .object({
+        mimeType: z.string().optional(),
+        compressionQuality: z.number().int().optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+export type ImagenTryOnConfigSchemaType = typeof ImagenTryOnConfigSchema;
+export type ImagenTryOnConfig = z.infer<ImagenTryOnConfigSchemaType>;
+
+export type ConfigSchemaType =
+  | ImagenConfigSchemaType
+  | ImagenTryOnConfigSchemaType;
 
 function commonRef(
   name: string,
@@ -216,11 +258,32 @@ export const KNOWN_MODELS = {
   'imagen-4.0-ultra-generate-preview-06-06': commonRef(
     'imagen-4.0-ultra-generate-preview-06-06'
   ),
+  'virtual-try-on-preview-08-04': commonRef(
+    'virtual-try-on-preview-08-04',
+    {
+      supports: {
+        media: true,
+        multiturn: false,
+        tools: false,
+        systemRole: true,
+        output: ['media'],
+      },
+    },
+    ImagenTryOnConfigSchema
+  ),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS;
-export type ImagenModelName = `imagen=${string}`;
+export type ImagenModelName =
+  | KnownModels
+  | `imagen-${string}`
+  | `virtual-try-on-${string}`;
 export function isImagenModelName(value?: string): value is ImagenModelName {
-  return !!value?.startsWith('imagen-');
+  return (
+    !!value &&
+    (value.startsWith('imagen-') ||
+      value.startsWith('virtual-try-on-') ||
+      value in KNOWN_MODELS)
+  );
 }
 
 export function model(

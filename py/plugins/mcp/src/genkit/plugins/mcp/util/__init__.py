@@ -14,8 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Utility functions for MCP plugin.
+"""Utility functions for MCP plugin.
 
 This module contains helper functions for:
 - Tool conversion and registration
