@@ -30,11 +30,11 @@ Example:
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from functools import cached_property
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from genkit.core.action import ActionMetadata, ActionRunContext
 from genkit.core.action.types import ActionKind
@@ -47,9 +47,12 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
+    Media,
+    MediaModel,
     Message,
     ModelInfo,
     Part,
+    Text,
     ToolRequestPart,
 )
 
@@ -77,11 +80,13 @@ ModelMiddleware = Callable[
 
 
 class ModelReference(BaseModel):
+    """Reference to a model with configuration."""
+
     name: str
-    config_schema: Any | None = None
+    config_schema: object | None = None
     info: ModelInfo | None = None
     version: str | None = None
-    config: dict[str, Any] | None = None
+    config: dict[str, object] | None = None
 
 
 class MessageWrapper(Message):
@@ -95,7 +100,7 @@ class MessageWrapper(Message):
     def __init__(
         self,
         message: Message,
-    ):
+    ) -> None:
         """Initializes the MessageWrapper.
 
         Args:
@@ -144,15 +149,17 @@ class GenerateResponseWrapper(GenerateResponse):
     `assert_valid_schema`). It also handles optional message/chunk parsing.
     """
 
-    message_parser: MessageParser | None = Field(exclude=True)
-    message: MessageWrapper = None
+    # _message_parser is a private attribute that Pydantic will ignore
+    _message_parser: MessageParser | None = PrivateAttr(None)
+    # Override the parent's message field with our wrapper type
+    message: MessageWrapper | None = None
 
     def __init__(
         self,
         response: GenerateResponse,
         request: GenerateRequest,
         message_parser: MessageParser | None = None,
-    ):
+    ) -> None:
         """Initializes a GenerateResponseWrapper instance.
 
         Args:
@@ -160,10 +167,17 @@ class GenerateResponseWrapper(GenerateResponse):
             request: The GenerateRequest object associated with the response.
             message_parser: An optional function to parse the output from the message.
         """
+        # Wrap the message if it's not already a MessageWrapper
+        wrapped_message: MessageWrapper | None = None
+        if response.message is not None:
+            wrapped_message = (
+                MessageWrapper(response.message)
+                if not isinstance(response.message, MessageWrapper)
+                else response.message
+            )
+
         super().__init__(
-            message=MessageWrapper(response.message)
-            if not isinstance(response.message, MessageWrapper)
-            else response.message,
+            message=wrapped_message,
             finish_reason=response.finish_reason,
             finish_message=response.finish_message,
             latency_ms=response.latency_ms,
@@ -171,10 +185,11 @@ class GenerateResponseWrapper(GenerateResponse):
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
-            message_parser=message_parser,
         )
+        # Set subclass-specific field after parent initialization
+        self._message_parser = message_parser
 
-    def assert_valid(self):
+    def assert_valid(self) -> None:
         """Validates the basic structure of the response.
 
         Note: This method is currently a placeholder (TODO).
@@ -185,7 +200,7 @@ class GenerateResponseWrapper(GenerateResponse):
         # TODO: implement
         pass
 
-    def assert_valid_schema(self):
+    def assert_valid_schema(self) -> None:
         """Validates that the response message conforms to any specified output schema.
 
         Note: This method is currently a placeholder (TODO).
@@ -203,17 +218,19 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             str: The combined text content from the response.
         """
+        if self.message is None:
+            return ''
         return self.message.text
 
     @cached_property
-    def output(self) -> Any:
+    def output(self) -> object:
         """Parses out JSON data from the text parts of the response.
 
         Returns:
             Any: The parsed JSON data from the response.
         """
-        if self.message_parser:
-            return self.message_parser(self.message)
+        if self._message_parser:
+            return self._message_parser(self.message)
         return extract_json(self.text)
 
     @cached_property
@@ -223,6 +240,8 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             list[Message]: list of messages.
         """
+        if self.message is None:
+            return list(self.request.messages) if self.request else []
         return [
             *(self.request.messages if self.request else []),
             self.message._original_message,
@@ -235,6 +254,8 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             list[ToolRequestPart]: list of tool requests present in this response.
         """
+        if self.message is None:
+            return []
         return self.message.tool_requests
 
     @cached_property
@@ -244,6 +265,8 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             list[ToolRequestPart]: list of interrupted tool requests.
         """
+        if self.message is None:
+            return []
         return self.message.interrupts
 
 
@@ -256,8 +279,9 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
     output from the accumulated text (`output`). It also stores previous chunks.
     """
 
-    previous_chunks: list[GenerateResponseChunk] = Field(exclude=True)
-    chunk_parser: ChunkParser | None = Field(exclude=True)
+    # Field(exclude=True) means these fields are not included in serialization
+    previous_chunks: list[GenerateResponseChunk] = Field(default_factory=list, exclude=True)
+    chunk_parser: ChunkParser | None = Field(None, exclude=True)
 
     def __init__(
         self,
@@ -265,7 +289,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         previous_chunks: list[GenerateResponseChunk],
         index: int,
         chunk_parser: ChunkParser | None = None,
-    ):
+    ) -> None:
         """Initializes the GenerateResponseChunkWrapper.
 
         Args:
@@ -280,9 +304,10 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
             content=chunk.content,
             custom=chunk.custom,
             aggregated=chunk.aggregated,
-            previous_chunks=previous_chunks,
-            chunk_parser=chunk_parser,
         )
+        # Set subclass-specific fields after parent initialization
+        self.previous_chunks = previous_chunks
+        self.chunk_parser = chunk_parser
 
     @cached_property
     def text(self) -> str:
@@ -291,7 +316,16 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         Returns:
             str: The combined text content from the current chunk.
         """
-        return ''.join(p.root.text if p.root.text is not None else '' for p in self.content)
+        parts: list[str] = []
+        for p in self.content:
+            text_val = p.root.text
+            if text_val is not None:
+                # Handle Text RootModel (access .root) or plain str
+                if isinstance(text_val, Text):
+                    parts.append(str(text_val.root) if text_val.root is not None else '')
+                else:
+                    parts.append(str(text_val))
+        return ''.join(parts)
 
     @cached_property
     def accumulated_text(self) -> str:
@@ -300,17 +334,21 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         Returns:
             str: The combined text content from all chunks seen so far.
         """
-        if not self.previous_chunks:
-            return ''
-        atext = ''
-        for chunk in self.previous_chunks:
-            for p in chunk.content:
-                if p.root.text:
-                    atext += p.root.text
-        return atext + self.text
+        parts: list[str] = []
+        if self.previous_chunks:
+            for chunk in self.previous_chunks:
+                for p in chunk.content:
+                    text_val = p.root.text
+                    if text_val:
+                        # Handle Text RootModel (access .root) or plain str
+                        if isinstance(text_val, Text):
+                            parts.append(str(text_val.root) if text_val.root is not None else '')
+                        else:
+                            parts.append(str(text_val))
+        return ''.join(parts) + self.text
 
     @cached_property
-    def output(self) -> Any:
+    def output(self) -> object:
         """Parses out JSON data from the accumulated text parts of the response.
 
         Returns:
@@ -349,19 +387,16 @@ def text_from_message(msg: Message) -> str:
     return text_from_content(msg.content)
 
 
-def text_from_content(content: list[Part]) -> str:
-    """Extracts and concatenates text content from a list of Parts.
+def text_from_content(content: Sequence[Part | DocumentPart]) -> str:
+    """Extracts and concatenates text content from a list of Parts or DocumentParts.
 
     Args:
-        content: A list of Part objects.
+        content: A sequence of Part or DocumentPart objects.
 
     Returns:
         A single string containing all text found in the parts.
     """
-    return ''.join(
-        p.root.text if (isinstance(p, Part) or isinstance(p, DocumentPart)) and p.root.text is not None else ''
-        for p in content
-    )
+    return ''.join(str(p.root.text) for p in content if hasattr(p.root, 'text') and p.root.text is not None)
 
 
 def get_basic_usage_stats(input_: list[Message], response: Message | list[Candidate]) -> GenerationUsage:
@@ -418,13 +453,27 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
     part_counts = PartCounts()
 
     for part in parts:
-        part_counts.characters += len(part.root.text) if part.root.text else 0
+        text_val = part.root.text
+        if text_val:
+            # Handle Text RootModel (access .root) or plain str
+            if isinstance(text_val, Text):
+                part_counts.characters += len(str(text_val.root)) if text_val.root else 0
+            else:
+                part_counts.characters += len(str(text_val))
 
         media = part.root.media
 
         if media:
-            content_type = media.content_type or ''
-            url = media.url or ''
+            # Handle Media BaseModel vs MediaModel RootModel
+            if isinstance(media, Media):
+                content_type = media.content_type or ''
+                url = media.url or ''
+            elif isinstance(media, MediaModel) and hasattr(media.root, 'content_type'):
+                content_type = getattr(media.root, 'content_type', '') or ''
+                url = getattr(media.root, 'url', '') or ''
+            else:
+                content_type = ''
+                url = ''
             is_image = content_type.startswith('image') or url.startswith('data:image')
             is_video = content_type.startswith('video') or url.startswith('data:video')
             is_audio = content_type.startswith('audio') or url.startswith('data:audio')
@@ -438,13 +487,13 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
 
 def model_action_metadata(
     name: str,
-    info: dict[str, Any] | None = None,
-    config_schema: Any | None = None,
+    info: dict[str, object] | None = None,
+    config_schema: type | dict[str, Any] | None = None,
 ) -> ActionMetadata:
     """Generates an ActionMetadata for models."""
     info = info if info is not None else {}
     return ActionMetadata(
-        kind=ActionKind.MODEL,
+        kind=cast(ActionKind, ActionKind.MODEL),
         name=name,
         input_json_schema=to_json_schema(GenerateRequest),
         output_json_schema=to_json_schema(GenerateResponse),
@@ -452,17 +501,29 @@ def model_action_metadata(
     )
 
 
-def model_ref(name: str, namespace: str | None = None, **options: Any) -> ModelReference:
-    """
-    The factory function equivalent to export function modelRef(...)
-    """
+def model_ref(
+    name: str,
+    namespace: str | None = None,
+    info: ModelInfo | None = None,
+    version: str | None = None,
+    config: dict[str, object] | None = None,
+) -> ModelReference:
+    """The factory function equivalent to export function modelRef(...).
 
+    Args:
+        name: The model name.
+        namespace: Optional namespace to prefix the name.
+        info: Optional model info.
+        version: Optional model version.
+        config: Optional model configuration.
+
+    Returns:
+        A ModelReference instance.
+    """
     # Logic: if (options.namespace && !name.startsWith(options.namespace + '/'))
     if namespace and not name.startswith(f'{namespace}/'):
         final_name = f'{namespace}/{name}'
     else:
         final_name = name
 
-    # Create and return the Pydantic model instance
-    # We pass **options to capture any other properties passed in
-    return ModelReference(name=final_name, **options)
+    return ModelReference(name=final_name, info=info, version=version, config=config)

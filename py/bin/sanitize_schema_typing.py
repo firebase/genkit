@@ -42,10 +42,9 @@ Transformations applied:
 
 import ast
 import sys
-from _ast import AST
 from datetime import datetime
 from pathlib import Path
-from typing import Type, cast
+from typing import cast
 
 
 class ClassTransformer(ast.NodeTransformer):
@@ -66,16 +65,17 @@ class ClassTransformer(ast.NodeTransformer):
                     return True
         return False
 
-    def create_model_config(self, existing_config: ast.Call | None = None) -> ast.Assign:
+    def create_model_config(self, existing_config: ast.Call | None = None, frozen: bool = False) -> ast.Assign:
         """Create or update a model_config assignment.
 
-        Ensures populate_by_name=True and extra='forbid', keeping other existing
-        settings.
+        Ensures alias_generator=to_camel, populate_by_name=True, and extra='forbid',
+        keeping other existing settings.
         """
         keywords = []
         found_populate = False
+        found_frozen = False
 
-        # Preserve existing keywords if present, but override 'extra'
+        # Preserve existing keywords if present, but override 'extra' and 'alias_generator'
         if existing_config:
             for kw in existing_config.keywords:
                 if kw.arg == 'populate_by_name':
@@ -90,6 +90,18 @@ class ClassTransformer(ast.NodeTransformer):
                 elif kw.arg == 'extra':
                     # Skip the existing 'extra', we will enforce 'forbid'
                     continue
+                elif kw.arg == 'alias_generator':
+                    # Skip existing alias_generator, we will add our own
+                    continue
+                elif kw.arg == 'frozen':
+                    # Use the provided 'frozen' value
+                    keywords.append(
+                        ast.keyword(
+                            arg='frozen',
+                            value=ast.Constant(value=frozen),
+                        )
+                    )
+                    found_frozen = True
                 else:
                     keywords.append(kw)  # Keep other existing settings
 
@@ -99,6 +111,18 @@ class ClassTransformer(ast.NodeTransformer):
         # Add populate_by_name=True if it wasn't found
         if not found_populate:
             keywords.append(ast.keyword(arg='populate_by_name', value=ast.Constant(value=True)))
+
+        # Add frozen=True if it was requested and not found
+        if frozen and not found_frozen:
+            keywords.append(ast.keyword(arg='frozen', value=ast.Constant(value=True)))
+
+        # Always add alias_generator=to_camel for snake_case -> camelCase serialization
+        keywords.append(
+            ast.keyword(
+                arg='alias_generator',
+                value=ast.Name(id='to_camel', ctx=ast.Load()),
+            )
+        )
 
         # Sort keywords for consistent output (optional but good practice)
         keywords.sort(key=lambda kw: kw.arg or '')
@@ -118,7 +142,57 @@ class ClassTransformer(ast.NodeTransformer):
                         return item
         return None
 
-    def visit_ClassDef(self, _node: ast.ClassDef) -> ast.ClassDef:  # noqa: N802
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:  # noqa: N802
+        """Visit and transform annotated assignment.
+
+        - Transform Role type to Role | str for flexibility
+        - Remove 'alias' keyword from Field() calls since alias_generator handles it
+        - Add serialization_alias='schema' for schema_ fields (Pydantic reserves 'schema')
+        """
+        # Transform Role type
+        if isinstance(node.annotation, ast.Name) and node.annotation.id == 'Role':
+            node.annotation = ast.BinOp(
+                left=ast.Name(id='Role', ctx=ast.Load()),
+                op=ast.BitOr(),
+                right=ast.Name(id='str', ctx=ast.Load()),
+            )
+            self.modified = True
+
+        # Get the field name if this is a simple name target
+        field_name = None
+        if isinstance(node.target, ast.Name):
+            field_name = node.target.id
+
+        # Handle Field() calls
+        if isinstance(node.value, ast.Call):
+            func = node.value.func
+            if isinstance(func, ast.Name) and func.id == 'Field':
+                original_keywords = node.value.keywords
+                # Remove 'alias' keyword since alias_generator=to_camel handles it
+                new_keywords = [kw for kw in original_keywords if kw.arg != 'alias']
+                if len(new_keywords) != len(original_keywords):
+                    node.value.keywords = new_keywords
+                    self.modified = True
+
+                # Special handling for schema_ field:
+                # 1. 'schema' is reserved by Pydantic as a method name, so the field is named 'schema_'
+                # 2. pydantic.alias_generators.to_camel('schema_') returns 'schema_' (NOT 'schema')
+                #    because to_camel does NOT strip trailing underscores
+                # 3. Without explicit alias='schema', JSON serialization would produce 'schema_'
+                #    instead of the expected 'schema'
+                # 4. With populate_by_name=True, both schema= and schema_= work for Python input
+                if field_name == 'schema_':
+                    node.value.keywords.append(
+                        ast.keyword(
+                            arg='alias',
+                            value=ast.Constant(value='schema'),
+                        )
+                    )
+                    self.modified = True
+
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> object:  # noqa: N802
         """Visit and transform a class definition node.
 
         Args:
@@ -128,11 +202,16 @@ class ClassTransformer(ast.NodeTransformer):
             The transformed ClassDef node.
         """
         # First apply base class transformations recursively
-        node = super().generic_visit(_node)
+        node = cast(ast.ClassDef, super().generic_visit(node))
         new_body: list[ast.stmt | ast.Constant | ast.Assign] = []
 
         # Handle Docstrings
-        if not node.body or not isinstance(node.body[0], ast.Expr) or not isinstance(node.body[0].value, ast.Constant):
+        if (
+            not node.body
+            or not isinstance(node.body[0], ast.Expr)
+            or not isinstance(node.body[0].value, ast.Constant)
+            or not isinstance(node.body[0].value.value, str)
+        ):
             # Generate a more descriptive docstring based on class type
             if self.is_rootmodel_class(node):
                 docstring = f'Root model for {node.name.lower().replace("_", " ")}.'
@@ -151,13 +230,21 @@ class ClassTransformer(ast.NodeTransformer):
 
         # Handle model_config for BaseModel and RootModel
         existing_model_config_assign = self.has_model_config(node)
+
         existing_model_config_call = None
         if existing_model_config_assign and isinstance(existing_model_config_assign.value, ast.Call):
             existing_model_config_call = existing_model_config_assign.value
 
         # Determine start index for iterating original body (skip docstring)
         body_start_index = (
-            1 if (node.body and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Str)) else 0
+            1
+            if (
+                node.body
+                and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+                and isinstance(node.body[0].value.value, str)
+            )
+            else 0
         )
 
         if self.is_rootmodel_class(node):
@@ -173,12 +260,13 @@ class ClassTransformer(ast.NodeTransformer):
         elif any(isinstance(base, ast.Name) and base.id == 'BaseModel' for base in node.bases):
             # Add or update model_config for BaseModel classes
             added_config = False
+            frozen = node.name == 'PathMetadata'
             for stmt in node.body[body_start_index:]:
                 if isinstance(stmt, ast.Assign) and any(
                     isinstance(target, ast.Name) and target.id == 'model_config' for target in stmt.targets
                 ):
                     # Update existing model_config
-                    updated_config = self.create_model_config(existing_model_config_call)
+                    updated_config = self.create_model_config(existing_model_config_call, frozen=frozen)
                     # Check if the config actually changed
                     if ast.dump(updated_config) != ast.dump(stmt):
                         new_body.append(updated_config)
@@ -186,6 +274,14 @@ class ClassTransformer(ast.NodeTransformer):
                     else:
                         new_body.append(stmt)  # No change needed
                     added_config = True
+                elif (
+                    isinstance(stmt, ast.Assign)
+                    and any(isinstance(target, ast.Name) and target.id == '__hash__' for target in stmt.targets)
+                    and frozen
+                ):
+                    # Skip manual __hash__ for PathMetadata
+                    self.modified = True
+                    continue
                 else:
                     new_body.append(stmt)
 
@@ -193,7 +289,7 @@ class ClassTransformer(ast.NodeTransformer):
                 # Add model_config if it wasn't present
                 # Insert after potential docstring
                 insert_pos = 1 if len(new_body) > 0 and isinstance(new_body[0], ast.Expr) else 0
-                new_body.insert(insert_pos, self.create_model_config())
+                new_body.insert(insert_pos, self.create_model_config(frozen=frozen))
                 self.modified = True
         elif any(isinstance(base, ast.Name) and base.id == 'Enum' for base in node.bases):
             # Uppercase Enum members
@@ -209,8 +305,53 @@ class ClassTransformer(ast.NodeTransformer):
             # For other classes, just copy the rest of the body
             new_body.extend(node.body[body_start_index:])
 
+        # PYTHON EXTENSION: Add resources field to GenerateActionOptions
+        if node.name == 'GenerateActionOptions':
+            self._inject_resources_field(new_body)
+
         node.body = cast(list[ast.stmt], new_body)
         return node
+
+    def _inject_resources_field(self, body: list[ast.stmt | ast.Constant | ast.Assign]) -> None:
+        """Inject resources field after tools field in GenerateActionOptions.
+
+        This adds the resources field to match the JS SDK implementation without
+        modifying the shared schema file. The JS SDK manually adds this field in
+        model-types.ts line 398.
+        """
+        tools_index = -1
+        for i, stmt in enumerate(body):
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'tools':
+                    tools_index = i
+                    break
+
+        if tools_index == -1:
+            return  # tools field not found, skip injection
+
+        # Check if resources field already exists
+        for stmt in body:
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'resources':
+                    return  # Already exists, don't add again
+
+        # Create the resources field: resources: list[str] | None = None
+        resources_field = ast.AnnAssign(
+            target=ast.Name(id='resources', ctx=ast.Store()),
+            annotation=ast.BinOp(
+                left=ast.Subscript(
+                    value=ast.Name(id='list', ctx=ast.Load()), slice=ast.Name(id='str', ctx=ast.Load()), ctx=ast.Load()
+                ),
+                op=ast.BitOr(),
+                right=ast.Constant(value=None),
+            ),
+            value=ast.Constant(value=None),
+            simple=1,
+        )
+
+        # Insert after tools field
+        body.insert(tools_index + 1, resources_field)
+        self.modified = True
 
 
 def add_header(content: str) -> str:
@@ -245,12 +386,14 @@ actions, tools, and configuration options.
     # and future import is right after the header block's closing quotes.
     future_import = 'from __future__ import annotations'
     str_enum_block = """
-import sys # noqa
+import sys
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else: # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
+
+from pydantic.alias_generators import to_camel
 """
 
     header_text = header.format(year=datetime.now().year)

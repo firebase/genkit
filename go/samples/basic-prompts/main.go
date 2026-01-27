@@ -12,6 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This sample demonstrates prompts using both inline code definitions and
+// .prompt files (Dotprompt). It shows simple prompts, structured output with
+// typed schemas, and complex prompts with Handlebars conditionals.
+//
+// To run:
+//
+//	go run .
+//
+// In another terminal, test a simple joke flow:
+//
+//	curl -N -X POST http://localhost:8080/simpleJokePromptFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": "bananas"}'
+//
+// Test a structured joke flow (returns JSON):
+//
+//	curl -N -X POST http://localhost:8080/structuredJokePromptFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"topic": "bananas"}}'
+//
+// Test a recipe flow:
+//
+//	curl -N -X POST http://localhost:8080/recipePromptFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"dish": "tacos", "cuisine": "Mexican", "servingSize": 4}}'
 package main
 
 import (
@@ -103,7 +128,7 @@ func main() {
 func DefineSimpleJokeWithInlinePrompt(g *genkit.Genkit) {
 	jokePrompt := genkit.DefinePrompt(
 		g, "joke.code",
-		ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
+		ai.WithModel(googlegenai.ModelRef("googleai/gemini-2.5-flash", &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
 				ThinkingBudget: genai.Ptr[int32](0),
 			},
@@ -162,7 +187,7 @@ func DefineSimpleJokeWithDotprompt(g *genkit.Genkit) {
 func DefineStructuredJokeWithInlinePrompt(g *genkit.Genkit) {
 	jokePrompt := genkit.DefineDataPrompt[JokeRequest, *Joke](
 		g, "structured-joke.code",
-		ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
+		ai.WithModel(googlegenai.ModelRef("googleai/gemini-2.5-flash", &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
 				ThinkingBudget: genai.Ptr[int32](0),
 			},
@@ -215,7 +240,7 @@ func DefineStructuredJokeWithDotprompt(g *genkit.Genkit) {
 func DefineRecipeWithInlinePrompt(g *genkit.Genkit) {
 	recipePrompt := genkit.DefineDataPrompt[RecipeRequest, *Recipe](
 		g, "recipe.code",
-		ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
+		ai.WithModel(googlegenai.ModelRef("googleai/gemini-2.5-flash", &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
 				ThinkingBudget: genai.Ptr[int32](0),
 			},

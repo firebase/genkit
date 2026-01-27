@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -49,10 +48,12 @@ dependencies = [
   "strenum>=0.4.15; python_version < '3.11'",
   "dotpromptz>=0.1.4",
   "uvicorn>=0.34.0",
+  "uvloop>=0.21.0; sys_platform != 'win32'",
   "anyio>=4.9.0",
+  "opentelemetry-instrumentation-logging>=0.60b1",
 ]
 description = "Genkit AI Framework"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "genkit"
 readme = "README.md"
 requires-python = ">=3.10"

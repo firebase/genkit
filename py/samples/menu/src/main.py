@@ -14,17 +14,50 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A stub for the sample to come."""
+"""Entry point for the menu AI sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Multi-file Flow Organization            | `case_01`, `case_02`, etc. imports  |
+| Prompt Management                       | `prompts` module imports            |
+| Tool Integration                        | `tools` module imports              |
+"""
+
+# Import all of the example prompts and flows to ensure they are registered
+import asyncio
+
+# Import case modules to register flows and prompts with the ai instance
+from .case_01 import prompts as case_01_prompts  # noqa: F401
+from .case_02 import (
+    flows as case_02_flows,  # noqa: F401
+    prompts as case_02_prompts,  # noqa: F401
+    tools as case_02_tools,  # noqa: F401
+)
+from .case_03 import (
+    flows as case_03_flows,  # noqa: F401
+    prompts as case_03_prompts,  # noqa: F401
+)
+from .case_04 import (
+    flows as case_04_flows,  # noqa: F401
+    prompts as case_04_prompts,  # noqa: F401
+)
+from .case_05 import (
+    flows as case_05_flows,  # noqa: F401
+    prompts as case_05_prompts,  # noqa: F401
+)
+from .menu_ai import ai
+
+print('All prompts and flows loaded, use the Developer UI to test them out')
 
 
-def main() -> None:
-    """Main entry point for the menu sample.
-
-    This function demonstrates how to use Genkit to build an interactive
-    menu system.
-    """
-    print('Hey')
+async def main() -> None:
+    """Keep alive for Dev UI."""
+    print('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':
-    main()
+    ai.run_main(main())

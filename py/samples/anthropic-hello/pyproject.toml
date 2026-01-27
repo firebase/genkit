@@ -15,16 +15,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
+authors = [{ name = "Google" }]
 dependencies = [
   "genkit",
   "genkit-plugin-anthropic",
   "pydantic>=2.0.0",
   "structlog>=24.0.0",
+  "uvloop>=0.21.0",
 ]
 description = "Anthropic Hello Sample"
 name = "anthropic-hello"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
 
 [tool.uv.sources]
 genkit-plugin-anthropic = { workspace = true }

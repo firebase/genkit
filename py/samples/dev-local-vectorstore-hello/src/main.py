@@ -14,20 +14,39 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Dev local vector store sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Local Vector Store Definition           | `define_dev_local_vector_store`     |
+| Document Indexing                       | `ai.index()`                        |
+| Document Retrieval                      | `ai.retrieve()`                     |
+| Document Structure                      | `Document.from_text()`              |
+"""
+
+import os
+
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import VertexAI
-from genkit.types import Document
+from genkit.types import Document, RetrieverResponse
+
+if 'GCLOUD_PROJECT' not in os.environ:
+    os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
 
 ai = Genkit(
-    plugins=[
-        VertexAI(),
-        DevLocalVectorStore(
-            name='films',
-            embedder='vertexai/text-embedding-004',
-        ),
-    ],
-    model='vertexai/gemini-2.5-flash',
+    plugins=[VertexAI()],
+    model='vertexai/gemini-3-flash-preview',
+)
+
+# Define dev local vector store
+define_dev_local_vector_store(
+    ai,
+    name='films',
+    embedder='vertexai/text-embedding-004',
 )
 
 films = [
@@ -46,19 +65,34 @@ films = [
 
 @ai.flow()
 async def index_documents() -> None:
-    """Indexes the film documents in Firestore."""
+    """Indexes the film documents in the local vector store."""
     genkit_documents = [Document.from_text(text=film) for film in films]
-    await DevLocalVectorStore.index('films', genkit_documents)
+    await ai.index(
+        indexer='films',
+        documents=genkit_documents,
+    )
 
     print('10 film documents indexed successfully')
 
 
 @ai.flow()
-async def retreive_documents():
+async def retreive_documents() -> RetrieverResponse:
+    """Retrieve documents from the vector store."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),
         retriever='films',
+        options={'limit': 3},
     )
 
 
-ai.run_main()
+async def main() -> None:
+    """Main entry point for the sample - keep alive for Dev UI."""
+    import asyncio
+
+    print('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
+
+
+if __name__ == '__main__':
+    ai.run_main(main())

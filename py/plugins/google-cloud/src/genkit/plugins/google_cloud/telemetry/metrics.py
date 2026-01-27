@@ -14,7 +14,34 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""AI monitoring metrics for Genkit."""
+"""AI monitoring metrics for Genkit.
+
+This module provides lazy-initialized OpenTelemetry metrics for AI operations.
+Metrics are exported to Google Cloud Monitoring with the workload.googleapis.com
+prefix by default.
+
+Metrics Defined:
+    Input metrics:
+        - genkit/ai/generate/input/tokens
+        - genkit/ai/generate/input/characters
+        - genkit/ai/generate/input/images
+        - genkit/ai/generate/input/videos
+        - genkit/ai/generate/input/audio
+
+    Output metrics:
+        - genkit/ai/generate/output/tokens
+        - genkit/ai/generate/output/characters
+        - genkit/ai/generate/output/images
+        - genkit/ai/generate/output/videos
+        - genkit/ai/generate/output/audio
+
+    Thinking metrics:
+        - genkit/ai/generate/thinking/tokens
+
+See Also:
+    - Cloud Monitoring Custom Metrics: https://cloud.google.com/monitoring/custom-metrics
+    - Workload Metrics: https://cloud.google.com/monitoring/api/metrics_other
+"""
 
 import re
 
@@ -41,8 +68,9 @@ def _metric(name: str, desc: str, unit: str = '1') -> tuple[str, str, str]:
     return f'genkit/ai/{name}', desc, unit
 
 
-# Metric cache for lazy initialization
-_metrics_cache: dict[str, metrics.Counter | metrics.Histogram] = {}
+# Metric caches for lazy initialization
+_counter_cache: dict[str, metrics.Counter] = {}
+_histogram_cache: dict[str, metrics.Histogram] = {}
 
 
 def _get_counter(name: str, desc: str, unit: str = '1') -> metrics.Counter:
@@ -56,9 +84,9 @@ def _get_counter(name: str, desc: str, unit: str = '1') -> metrics.Counter:
     Returns:
         OpenTelemetry Counter metric
     """
-    if name not in _metrics_cache:
-        _metrics_cache[name] = meter.create_counter(name, description=desc, unit=unit)
-    return _metrics_cache[name]
+    if name not in _counter_cache:
+        _counter_cache[name] = meter.create_counter(name, description=desc, unit=unit)
+    return _counter_cache[name]
 
 
 def _get_histogram(name: str, desc: str, unit: str = '1') -> metrics.Histogram:
@@ -72,9 +100,9 @@ def _get_histogram(name: str, desc: str, unit: str = '1') -> metrics.Histogram:
     Returns:
         OpenTelemetry Histogram metric
     """
-    if name not in _metrics_cache:
-        _metrics_cache[name] = meter.create_histogram(name, description=desc, unit=unit)
-    return _metrics_cache[name]
+    if name not in _histogram_cache:
+        _histogram_cache[name] = meter.create_histogram(name, description=desc, unit=unit)
+    return _histogram_cache[name]
 
 
 # Metric definitions

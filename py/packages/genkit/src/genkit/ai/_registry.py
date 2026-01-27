@@ -41,12 +41,15 @@ import asyncio
 import inspect
 import traceback
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Type
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, cast
+
+from genkit.aio import ensure_async
 
 if TYPE_CHECKING:
-    from genkit.blocks.resource import ResourceFn, ResourceOptions
+    from genkit.blocks.prompt import ExecutablePrompt
+    from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 
 import structlog
 from pydantic import BaseModel
@@ -57,8 +60,9 @@ from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import (
     define_helper,
+    define_partial,
     define_prompt,
-    lookup_prompt,
+    define_schema,
 )
 from genkit.blocks.reranker import (
     RankedDocument,
@@ -71,13 +75,14 @@ from genkit.blocks.reranker import (
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionResponse
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.tracing import run_in_new_span
 from genkit.core.typing import (
     DocumentData,
+    DocumentPart,
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
@@ -86,6 +91,7 @@ from genkit.core.typing import (
     Message,
     ModelInfo,
     Part,
+    RetrieverResponse,
     Score,
     SpanMetadata,
     ToolChoice,
@@ -96,6 +102,9 @@ EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
 
 logger = structlog.get_logger(__name__)
+P = ParamSpec('P')
+R = TypeVar('R')
+T = TypeVar('T')
 
 
 def get_func_description(func: Callable, description: str | None = None) -> str:
@@ -113,14 +122,87 @@ def get_func_description(func: Callable, description: str | None = None) -> str:
     return ''
 
 
+R = TypeVar('R')
+
+
+class SimpleRetrieverOptions(BaseModel, Generic[R]):
+    """Configuration options for `define_simple_retriever`.
+
+    This class defines how items returned by a simple retriever handler are
+    mapped into Genkit `DocumentData` objects.
+
+    Attributes:
+        name: The unique name of the retriever.
+        content: Specifies how to extract content from the returned items.
+            Can be a string key (for dict items) or a callable that transforms the item.
+        metadata: Specifies how to extract metadata from the returned items.
+            Can be a list of keys (for dict items) or a callable that transforms the item.
+        config_schema: Optional Pydantic schema or JSON schema for retriever configuration.
+    """
+
+    name: str
+    content: str | Callable[[R], str | list[DocumentPart]] | None = None
+    metadata: list[str] | Callable[[R], dict[str, Any]] | None = None
+    config_schema: type[BaseModel] | dict[str, Any] | None = None
+
+
+def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentData:
+    """Internal helper to convert a raw item to a Genkit DocumentData."""
+    from genkit.blocks.document import Document
+
+    if isinstance(item, (Document, DocumentData)):
+        return item
+
+    if isinstance(item, str):
+        return Document.from_text(item)
+
+    if callable(options.content):
+        transformed = options.content(item)
+        if isinstance(transformed, str):
+            return Document.from_text(transformed)
+        else:
+            # transformed is list[DocumentPart]
+            return DocumentData(content=cast(list[DocumentPart], transformed))
+
+    if isinstance(options.content, str) and isinstance(item, dict):
+        return Document.from_text(str(item[options.content]))
+
+    if options.content is None and isinstance(item, str):
+        return Document.from_text(item)
+
+    raise ValueError(f'Cannot convert item to document without content option. Item: {item}')
+
+
+def _item_to_metadata(item: R, options: SimpleRetrieverOptions[R]) -> dict[str, Any] | None:
+    """Internal helper to extract metadata from a raw item for a Document."""
+    if isinstance(item, str):
+        return None
+
+    if isinstance(options.metadata, list) and isinstance(item, dict):
+        return {str(k): item[k] for k in options.metadata if k in item}
+
+    if callable(options.metadata):
+        return options.metadata(item)
+
+    if options.metadata is None and isinstance(item, dict):
+        out = cast(dict[str, Any], item.copy())
+        if isinstance(options.content, str) and options.content in out:
+            del out[options.content]
+        return out
+
+    return None
+
+
 class GenkitRegistry:
     """User-facing API for interacting with Genkit registry."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the Genkit registry."""
         self.registry: Registry = Registry()
 
-    def flow(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
+    def flow(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T]']:
         """Decorator to register a function as a flow.
 
         Args:
@@ -133,7 +215,7 @@ class GenkitRegistry:
             A decorator function that registers the flow.
         """
 
-        def wrapper(func: Callable) -> Callable:
+        def wrapper(func: Callable[P, T]) -> 'FlowWrapper[P, T]':
             """Register the decorated function as a flow.
 
             Args:
@@ -142,18 +224,18 @@ class GenkitRegistry:
             Returns:
                 The wrapped function that executes the flow.
             """
-            flow_name = name if name is not None else func.__name__
+            flow_name = name if name is not None else getattr(func, '__name__', 'unnamed_flow')
             flow_description = get_func_description(func, description)
             action = self.registry.register_action(
                 name=flow_name,
-                kind=ActionKind.FLOW,
+                kind=cast(ActionKind, ActionKind.FLOW),
                 fn=func,
                 description=flow_description,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
 
             @wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
                 """Asynchronous wrapper for the flow function.
 
                 Args:
@@ -163,10 +245,12 @@ class GenkitRegistry:
                 Returns:
                     The response from the flow function.
                 """
-                return (await action.arun(*args, **kwargs)).response
+                # Flows accept at most one input argument
+                input_arg = args[0] if args else None
+                return cast(T, (await action.arun(input_arg)).response)
 
             @wraps(func)
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 """Synchronous wrapper for the flow function.
 
                 Args:
@@ -176,10 +260,12 @@ class GenkitRegistry:
                 Returns:
                     The response from the flow function.
                 """
-                return action.run(*args, **kwargs).response
+                # Flows accept at most one input argument
+                input_arg = args[0] if args else None
+                return cast(T, action.run(input_arg).response)
 
             return FlowWrapper(
-                fn=async_wrapper if action.is_async else sync_wrapper,
+                fn=cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper),
                 action=action,
             )
 
@@ -194,7 +280,48 @@ class GenkitRegistry:
         """
         define_helper(self.registry, name, fn)
 
-    def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
+    def define_partial(self, name: str, source: str) -> None:
+        """Define a Handlebars partial template in the registry.
+
+        Partials are reusable template fragments that can be included
+        in other prompts using {{>partialName}} syntax.
+
+        Args:
+            name: The name of the partial.
+            source: The template source code for the partial.
+        """
+        define_partial(self.registry, name, source)
+
+    def define_schema(self, name: str, schema: type) -> type:
+        """Register a Pydantic schema for use in prompts.
+
+        Schemas registered with this method can be referenced by name in
+        .prompt files using the `output.schema` field.
+
+        Args:
+            name: The name to register the schema under.
+            schema: The Pydantic model class to register.
+
+        Returns:
+            The schema that was registered (for convenience).
+
+        Example:
+            ```python
+            RecipeSchema = ai.define_schema('Recipe', Recipe)
+            ```
+
+            Then in a .prompt file:
+            ```yaml
+            output:
+              schema: Recipe
+            ```
+        """
+        define_schema(self.registry, name, schema)
+        return schema
+
+    def tool(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """Decorator to register a function as a tool.
 
         Args:
@@ -207,7 +334,7 @@ class GenkitRegistry:
             A decorator function that registers the tool.
         """
 
-        def wrapper(func: Callable) -> Callable:
+        def wrapper(func: Callable[P, T]) -> Callable[P, T]:
             """Register the decorated function as a tool.
 
             Args:
@@ -216,32 +343,32 @@ class GenkitRegistry:
             Returns:
                 The wrapped function that executes the tool.
             """
-            tool_name = name if name is not None else func.__name__
+            tool_name = name if name is not None else getattr(func, '__name__', 'unnamed_tool')
             tool_description = get_func_description(func, description)
 
             input_spec = inspect.getfullargspec(func)
 
-            def tool_fn_wrapper(*args):
+            def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
                 match len(input_spec.args):
                     case 0:
                         return func()
                     case 1:
                         return func(args[0])
                     case 2:
-                        return func(args[0], ToolRunContext(args[1]))
+                        return func(args[0], ToolRunContext(args[1]))  # type: ignore[arg-type]
                     case _:
                         raise ValueError('tool must have 0-2 args...')
 
             action = self.registry.register_action(
                 name=tool_name,
-                kind=ActionKind.TOOL,
+                kind=cast(ActionKind, ActionKind.TOOL),
                 description=tool_description,
                 fn=tool_fn_wrapper,
                 metadata_fn=func,
             )
 
             @wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
                 """Asynchronous wrapper for the tool function.
 
                 Args:
@@ -251,10 +378,10 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return (await action.arun(*args, **kwargs)).response
+                return (await action.arun(*args, **kwargs)).response  # type: ignore[arg-type]
 
             @wraps(func)
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
                 """Synchronous wrapper for the tool function.
 
                 Args:
@@ -264,9 +391,9 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return action.run(*args, **kwargs).response
+                return action.run(*args, **kwargs).response  # type: ignore[arg-type]
 
-            return async_wrapper if action.is_async else sync_wrapper
+            return cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
 
         return wrapper
 
@@ -274,10 +401,10 @@ class GenkitRegistry:
         self,
         name: str,
         fn: RetrieverFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define a retriever action.
 
         Args:
@@ -298,20 +425,63 @@ class GenkitRegistry:
         retriever_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.RETRIEVER,
+            kind=cast(ActionKind, ActionKind.RETRIEVER),
             fn=fn,
             metadata=retriever_meta,
             description=retriever_description,
+        )
+
+    def define_simple_retriever(
+        self,
+        options: SimpleRetrieverOptions[R] | str,
+        handler: Callable[[DocumentData, Any], list[R] | Awaitable[list[R]]],
+        description: str | None = None,
+    ) -> Action:
+        """Define a simple retriever action.
+
+        A simple retriever makes it easy to map existing data into documents
+        that can be used for prompt augmentation.
+
+        Args:
+            options: Configuration options for the retriever, or just the name.
+            handler: A function that queries a datastore and returns items
+                from which to extract documents.
+            description: Optional description for the retriever.
+
+        Returns:
+            The registered Action for the retriever.
+        """
+        if isinstance(options, str):
+            options = SimpleRetrieverOptions(name=options)
+
+        from genkit.blocks.document import Document
+
+        async def retriever_fn(query: Document, options_obj: Any) -> RetrieverResponse:  # noqa: ANN401
+
+            items = await ensure_async(handler)(query, options_obj)
+            docs = []
+            for item in items:
+                doc = _item_to_document(item, options)
+                if not isinstance(item, str):
+                    doc.metadata = _item_to_metadata(item, options)
+                docs.append(doc)
+            return RetrieverResponse(documents=docs)
+
+        return self.define_retriever(
+            name=options.name,
+            fn=retriever_fn,
+            config_schema=options.config_schema,
+            description=description,
         )
 
     def define_indexer(
         self,
         name: str,
         fn: IndexerFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define an indexer action.
 
         Args:
@@ -333,7 +503,7 @@ class GenkitRegistry:
         indexer_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.INDEXER,
+            kind=cast(ActionKind, ActionKind.INDEXER),
             fn=fn,
             metadata=indexer_meta,
             description=indexer_description,
@@ -343,8 +513,8 @@ class GenkitRegistry:
         self,
         name: str,
         fn: RerankerFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a reranker action.
@@ -371,13 +541,26 @@ class GenkitRegistry:
             ...     return RerankerResponse(documents=[...])
             >>> ai.define_reranker('my-reranker', my_reranker)
         """
-        reranker_meta = metadata.copy() if metadata else {}
-        if 'reranker' not in reranker_meta:
-            reranker_meta['reranker'] = {}
-        if 'label' not in reranker_meta['reranker'] or not reranker_meta['reranker']['label']:
-            reranker_meta['reranker']['label'] = name
+        # Extract label and config from metadata
+        reranker_label: str = name
+        reranker_config_schema: dict[str, object] | None = None
+
+        # Check if metadata has reranker info
+        if metadata and 'reranker' in metadata:
+            existing = metadata['reranker']
+            if isinstance(existing, dict):
+                if 'label' in existing and existing['label']:
+                    label_val = existing['label']
+                    if isinstance(label_val, str):
+                        reranker_label = label_val
+                if 'customOptions' in existing:
+                    opts_val = existing['customOptions']
+                    if isinstance(opts_val, dict):
+                        reranker_config_schema = opts_val
+
+        # Override with config_schema if provided
         if config_schema:
-            reranker_meta['reranker']['customOptions'] = to_json_schema(config_schema)
+            reranker_config_schema = to_json_schema(config_schema)
 
         reranker_description = get_func_description(fn, description)
         return define_reranker_block(
@@ -385,9 +568,10 @@ class GenkitRegistry:
             name=name,
             fn=fn,
             options=RerankerOptions(
-                config_schema=reranker_meta['reranker'].get('customOptions'),
-                label=reranker_meta['reranker'].get('label'),
+                config_schema=reranker_config_schema,
+                label=reranker_label,
             ),
+            description=reranker_description,
         )
 
     async def rerank(
@@ -395,7 +579,7 @@ class GenkitRegistry:
         reranker: str | Action | RerankerRef,
         query: str | DocumentData,
         documents: list[DocumentData],
-        options: Any | None = None,
+        options: object | None = None,
     ) -> list[RankedDocument]:
         """Rerank documents based on their relevance to a query.
 
@@ -440,8 +624,8 @@ class GenkitRegistry:
         definition: str,
         fn: EvaluatorFn,
         is_billed: bool = False,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define an evaluator action.
@@ -502,9 +686,11 @@ class GenkitRegistry:
                                 logger.debug(traceback.format_exc())
                                 evaluation = Score(
                                     error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
-                                    status=EvalStatusEnum.FAIL,
+                                    status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                                 )
                                 eval_responses.append(
+                                    # The ty type checker only recognizes aliases, so we use them
+                                    # to pass both ty check and runtime validation.
                                     EvalFnResponse(
                                         span_id=span_id,
                                         trace_id=trace_id,
@@ -524,7 +710,7 @@ class GenkitRegistry:
                             logger.debug(traceback.format_exc())
                             evaluation = Score(
                                 error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
-                                status=EvalStatusEnum.FAIL,
+                                status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                             )
                             eval_responses.append(
                                 EvalFnResponse(
@@ -539,7 +725,7 @@ class GenkitRegistry:
 
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.EVALUATOR,
+            kind=cast(ActionKind, ActionKind.EVALUATOR),
             fn=eval_stepper_fn,
             metadata=evaluator_meta,
             description=evaluator_description,
@@ -552,10 +738,10 @@ class GenkitRegistry:
         definition: str,
         fn: BatchEvaluatorFn,
         is_billed: bool = False,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Action:
         """Define a batch evaluator action.
 
         This action runs the callback function on the entire dataset.
@@ -585,7 +771,7 @@ class GenkitRegistry:
         evaluator_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.EVALUATOR,
+            kind=cast(ActionKind, ActionKind.EVALUATOR),
             fn=fn,
             metadata=evaluator_meta,
             description=evaluator_description,
@@ -595,8 +781,8 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
-        config_schema: Type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
     ) -> Action:
@@ -610,21 +796,41 @@ class GenkitRegistry:
             info: Optional ModelInfo for the model.
             description: Optional description for the model.
         """
-        model_meta: dict[str, Any] = metadata if metadata else {}
-        if info:
-            model_meta['model'] = dump_dict(info)
-        if 'model' not in model_meta:
-            model_meta['model'] = {}
-        if 'label' not in model_meta['model'] or not model_meta['model']['label']:
-            model_meta['model']['label'] = name
+        # Build model options dict
+        model_options: dict[str, object] = {}
 
+        # Start with info if provided
+        if info:
+            model_info_dict = dump_dict(info)
+            if isinstance(model_info_dict, dict):
+                for key, value in model_info_dict.items():
+                    if isinstance(key, str):
+                        model_options[key] = value
+
+        # Check if metadata has model info
+        if metadata and 'model' in metadata:
+            existing = metadata['model']
+            if isinstance(existing, dict):
+                for key, value in existing.items():
+                    if key not in model_options:  # Don't override info
+                        model_options[key] = value
+
+        # Default label to name if not set
+        if 'label' not in model_options or not model_options['label']:
+            model_options['label'] = name
+
+        # Add config schema if provided
         if config_schema:
-            model_meta['model']['customOptions'] = to_json_schema(config_schema)
+            model_options['customOptions'] = to_json_schema(config_schema)
+
+        # Build the final metadata dict
+        model_meta: dict[str, object] = metadata.copy() if metadata else {}
+        model_meta['model'] = model_options
 
         model_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.MODEL,
+            kind=cast(ActionKind, ActionKind.MODEL),
             fn=fn,
             metadata=model_meta,
             description=model_description,
@@ -635,7 +841,7 @@ class GenkitRegistry:
         name: str,
         fn: EmbedderFn,
         options: EmbedderOptions | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
@@ -643,11 +849,11 @@ class GenkitRegistry:
         Args:
             name: Name of the model.
             fn: Function implementing the embedder behavior.
-            config_schema: Optional schema for embedder configuration.
+            options: Optional options for the embedder.
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata or {}
+        embedder_meta: dict[str, object] = metadata or {}
         if 'embedder' not in embedder_meta:
             embedder_meta['embedder'] = {}
 
@@ -664,7 +870,7 @@ class GenkitRegistry:
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
-            kind=ActionKind.EMBEDDER,
+            kind=cast(ActionKind, ActionKind.EMBEDDER),
             fn=fn,
             metadata=embedder_meta,
             description=embedder_description,
@@ -683,25 +889,25 @@ class GenkitRegistry:
         name: str | None = None,
         variant: str | None = None,
         model: str | None = None,
-        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
         description: str | None = None,
-        input_schema: type | dict[str, Any] | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
         system: str | Part | list[Part] | Callable | None = None,
         prompt: str | Part | list[Part] | Callable | None = None,
         messages: str | list[Message] | Callable | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, Any] | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
         output_constrained: bool | None = None,
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable | None = None,
-    ):
+    ) -> 'ExecutablePrompt':
         """Define a prompt.
 
         Args:
@@ -754,11 +960,11 @@ class GenkitRegistry:
             docs=docs,
         )
 
-    async def prompt(
+    def prompt(
         self,
         name: str,
         variant: str | None = None,
-    ):
+    ) -> 'ExecutablePrompt':
         """Look up a prompt by name and optional variant.
 
         This matches the JavaScript prompt() function behavior.
@@ -768,34 +974,30 @@ class GenkitRegistry:
         2. Loaded from .prompt files using load_prompt_folder()
 
         Args:
-            registry: The registry to look up the prompt from.
             name: The name of the prompt.
             variant: Optional variant name.
-            dir: Optional directory parameter (accepted for compatibility but not used).
 
         Returns:
             An ExecutablePrompt instance.
-
-        Raises:
-            GenkitError: If the prompt is not found.
         """
+        from genkit.blocks.prompt import ExecutablePrompt
 
-        return await lookup_prompt(
+        return ExecutablePrompt(
             registry=self.registry,
-            name=name,
+            _name=name,
             variant=variant,
         )
 
     def define_resource(
         self,
         opts: 'ResourceOptions | None' = None,
-        fn: 'ResourceFn | None' = None,
+        fn: 'FlexibleResourceFn | None' = None,
         *,
         name: str | None = None,
         uri: str | None = None,
         template: str | None = None,
         description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> Action:
         """Define a resource action.
 
@@ -833,10 +1035,14 @@ class GenkitRegistry:
         return define_resource_block(self.registry, opts, fn)
 
 
-class FlowWrapper:
-    """A wapper for flow functions to add `stream` method."""
+class FlowWrapper(Generic[P, T]):
+    """A wapper for flow functions to add `stream` method.
 
-    def __init__(self, fn: Callable, action: Action):
+    This class wraps a flow function and provides a `stream` method for
+    asynchronous execution.
+    """
+
+    def __init__(self, fn: Callable[P, T], action: Action) -> None:
         """Initialize the FlowWrapper.
 
         Args:
@@ -846,7 +1052,7 @@ class FlowWrapper:
         self._fn = fn
         self._action = action
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    def __call__(self, *args: P.args, **kwds: P.kwargs) -> T:
         """Call the wrapped function.
 
         Args:
@@ -860,13 +1066,13 @@ class FlowWrapper:
 
     def stream(
         self,
-        input: Any = None,
-        context: dict[str, Any] | None = None,
-        telemetry_labels: dict[str, Any] | None = None,
+        input: object = None,
+        context: dict[str, object] | None = None,
+        telemetry_labels: dict[str, object] | None = None,
         timeout: float | None = None,
     ) -> tuple[
-        AsyncIterator,
-        asyncio.Future,
+        AsyncIterator[object],  # noqa: ANN401
+        asyncio.Future[ActionResponse],
     ]:
         """Run the flow and return an async iterator of the results.
 

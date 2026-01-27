@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -37,22 +36,35 @@ dependencies = [
   "genkit",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-firebase",
-  "genkit-plugin-google-genai",
   "genkit-plugin-google-cloud",
+  "genkit-plugin-google-genai",
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
+  "uvloop>=0.21.0",
 ]
 description = "menu Genkit sample"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "menu"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
 
 [build-system]
 build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/menu"]
+packages = ["src"]
+
+[tool.uv.sources]
+genkit                              = { workspace = true }
+genkit-plugin-dev-local-vectorstore = { workspace = true }
+genkit-plugin-firebase              = { workspace = true }
+genkit-plugin-google-cloud          = { workspace = true }
+genkit-plugin-google-genai          = { workspace = true }
+genkit-plugin-ollama                = { workspace = true }
+genkit-plugin-vertex-ai             = { workspace = true }

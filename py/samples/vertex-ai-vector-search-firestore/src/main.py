@@ -14,60 +14,66 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Vertex AI Vector Search with Firestore sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Firestore Vector Search Definition      | `define_vertex_vector_search_firestore`|
+| Firestore Async Client Integration      | `firestore.AsyncClient()`           |
+| Document Retrieval                      | `ai.retrieve()`                     |
+| Result Ranking                          | Custom sorting by distance          |
+"""
+
 import os
 import time
 
 import structlog
 from google.cloud import aiplatform, firestore
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
+from genkit.core.typing import RetrieverResponse
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai.vector_search import (
-    FirestoreRetriever,
-    VertexAIVectorSearch,
-    vertexai_name,
-)
+from genkit.plugins.vertex_ai import define_vertex_vector_search_firestore
 
-LOCATION = os.getenv('LOCATION')
-PROJECT_ID = os.getenv('PROJECT_ID')
+LOCATION = os.environ['LOCATION']
+PROJECT_ID = os.environ['PROJECT_ID']
 
-FIRESTORE_COLLECTION = os.getenv('FIRESTORE_COLLECTION')
+FIRESTORE_COLLECTION = os.environ['FIRESTORE_COLLECTION']
 
-VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.getenv('VECTOR_SEARCH_DEPLOYED_INDEX_ID')
-VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.getenv('VECTOR_SEARCH_INDEX_ENDPOINT_PATH')
-VECTOR_SEARCH_API_ENDPOINT = os.getenv('VECTOR_SEARCH_API_ENDPOINT')
+VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.environ['VECTOR_SEARCH_DEPLOYED_INDEX_ID']
+VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.environ['VECTOR_SEARCH_INDEX_ENDPOINT_PATH']
+VECTOR_SEARCH_API_ENDPOINT = os.environ['VECTOR_SEARCH_API_ENDPOINT']
 
-firestore_client = firestore.Client(project=PROJECT_ID)
+firestore_client = firestore.AsyncClient(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
 logger = structlog.get_logger(__name__)
 
-ai = Genkit(
-    plugins=[
-        VertexAI(),
-        VertexAIVectorSearch(
-            retriever=FirestoreRetriever,
-            retriever_extra_args={
-                'firestore_client': firestore_client,
-                'collection_name': FIRESTORE_COLLECTION,
-            },
-            embedder=vertexai_name('text-embedding-004'),
-            embedder_options={
-                'task': 'RETRIEVAL_DOCUMENT',
-                'output_dimensionality': 128,
-            },
-        ),
-    ]
+ai = Genkit(plugins=[VertexAI()])
+
+# Define Vertex AI Vector Search with Firestore
+define_vertex_vector_search_firestore(
+    ai,
+    name='my-vector-search',
+    embedder='vertexai/text-embedding-004',
+    embedder_options={
+        'task': 'RETRIEVAL_DOCUMENT',
+        'output_dimensionality': 128,
+    },
+    firestore_client=firestore_client,
+    collection_name=FIRESTORE_COLLECTION,
 )
 
 
 class QueryFlowInputSchema(BaseModel):
     """Input schema."""
 
-    query: str
-    k: int
+    query: str = Field(default='document 1', description='Search query text')
+    k: int = Field(default=5, description='Number of results to return')
 
 
 class QueryFlowOutputSchema(BaseModel):
@@ -90,14 +96,10 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     }
 
-    options = {
-        'limit': 10,
-    }
-
-    result: list[Document] = await ai.retrieve(
-        retriever=vertexai_name('vertexAIVectorSearch'),
+    result: RetrieverResponse = await ai.retrieve(
+        retriever='my-vector-search',
         query=query_document,
-        options=options,
+        options={'limit': 10},
     )
 
     end_time = time.time()
@@ -106,10 +108,11 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
 
     result_data = []
     for doc in result.documents:
+        metadata = doc.metadata or {}
         result_data.append({
-            'id': doc.metadata.get('id'),
-            'text': doc.content[0].root.text,
-            'distance': doc.metadata.get('distance'),
+            'id': metadata.get('id'),
+            'text': doc.content[0].root.text if doc.content and doc.content[0].root.text else '',
+            'distance': metadata.get('distance', 0.0),
         })
 
     result_data = sorted(result_data, key=lambda x: x['distance'])

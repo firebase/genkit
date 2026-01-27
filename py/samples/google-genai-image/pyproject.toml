@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -35,16 +34,21 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "pillow",
   "genkit-plugin-google-genai",
+  "google-genai",
+  "pillow",
   "pydantic>=2.10.5",
+  "uvloop>=0.21.0",
 ]
 description = "Vision API and Image Generation example"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "google-genai-image"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
 
 [build-system]
 build-backend = "hatchling.build"

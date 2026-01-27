@@ -42,9 +42,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import urllib.parse
-from collections.abc import AsyncGenerator
-from http.server import BaseHTTPRequestHandler
+from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
 import structlog
@@ -55,9 +53,9 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
-from genkit.aio.loop import run_async
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import Action
+from genkit.core.action.types import ActionKind
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_reflection_json
 from genkit.core.registry import Registry
@@ -67,197 +65,89 @@ from genkit.web.requests import (
 )
 from genkit.web.typing import (
     Application,
-    LifespanHandler,
+    StartupHandler,
 )
 
 logger = structlog.get_logger(__name__)
 
 
-def make_reflection_server(
-    registry: Registry,
-    loop: asyncio.AbstractEventLoop,
-    id: str,
-    encoding='utf-8',
-    quiet=True,
-):
-    """Create and return a ReflectionServer class with the given registry.
+def _list_registered_actions(registry: Registry) -> dict[str, Action]:
+    """Return all locally registered actions keyed as `/<kind>/<name>`."""
+    registered: dict[str, Action] = {}
+    for kind in ActionKind.__members__.values():
+        for name, action in registry.get_actions_by_kind(kind).items():
+            registered[f'/{kind.value}/{name}'] = action
+    return registered
 
-    Args:
-        registry: The registry to use for the reflection server.
-        encoding: The text encoding to use; default 'utf-8'.
 
-    Returns:
-        A ReflectionServer class configured with the given registry.
-    """
+def _build_actions_payload(
+    *,
+    registered_actions: dict[str, Action],
+    plugin_metas: list[Any],
+) -> dict[str, dict[str, Any]]:
+    """Build payload for GET /api/actions."""
+    actions: dict[str, dict[str, Any]] = {}
 
-    class ReflectionServer(BaseHTTPRequestHandler):
-        """HTTP request handler for the Genkit reflection API.
+    # 1) Registered actions (flows/tools/etc).
+    for key, action in registered_actions.items():
+        actions[key] = {
+            'key': key,
+            'name': action.name,
+            'type': action.kind.value,
+            'description': action.description,
+            'inputSchema': action.input_schema,
+            'outputSchema': action.output_schema,
+            'metadata': action.metadata,
+        }
 
-        This handler provides endpoints for inspecting and interacting with
-        registered Genkit actions during development.
-        """
+    # 2) Plugin-advertised actions (may not be registered yet).
+    for meta in plugin_metas or []:
+        try:
+            key = f'/{meta.kind.value}/{meta.name}'
+        except Exception as exc:
+            # Defensive: skip unexpected plugin metadata objects.
+            logger.warning('Skipping invalid plugin action metadata', error=str(exc))
+            continue
 
-        def log_message(self, format, *args):
-            if not quiet:
-                message = format % args
-                logger.debug(
-                    f'{self.address_string()} - - [{self.log_date_time_string()}] {message.translate(self._control_char_table)}'
-                )
+        advertised = {
+            'key': key,
+            'name': meta.name,
+            'type': meta.kind.value,
+            'description': getattr(meta, 'description', None),
+            'inputSchema': getattr(meta, 'input_json_schema', None),
+            'outputSchema': getattr(meta, 'output_json_schema', None),
+            'metadata': getattr(meta, 'metadata', None),
+        }
 
-        def do_GET(self) -> None:  # noqa: N802
-            """Handle GET requests to the reflection API.
+        if key not in actions:
+            actions[key] = advertised
+            continue
 
-            Endpoints:
-                - /api/__health: Returns 200 OK if the server is healthy
-                - /api/actions: Returns JSON describing all registered actions
+        # Merge into the existing (registered) action entry; prefer registered data.
+        existing = actions[key]
 
-            For the /api/actions endpoint, returns a JSON object mapping action
-            keys to their metadata, including input/output schemas.
-            """
-            parsed_url = urllib.parse.urlparse(self.path)
-            if parsed_url.path == '/api/__health':
-                query_params = urllib.parse.parse_qs(parsed_url.query)
-                expected_id = query_params.get('id', [None])[0]
-                if expected_id is not None and expected_id != id:
-                    self.send_response(500)
-                    self.end_headers()
-                    return
+        if not existing.get('description') and advertised.get('description'):
+            existing['description'] = advertised['description']
 
-                self.send_response(200, 'OK')
-                self.end_headers()
+        if not existing.get('inputSchema') and advertised.get('inputSchema'):
+            existing['inputSchema'] = advertised['inputSchema']
 
-            elif parsed_url.path == '/api/actions':
-                self.send_response(200)
-                self.send_header('content-type', 'application/json')
-                self.end_headers()
-                actions = registry.list_serializable_actions()
-                actions = registry.list_actions(actions)
-                self.wfile.write(bytes(json.dumps(actions), encoding))
-            else:
-                self.send_response(404)
-                self.end_headers()
+        if not existing.get('outputSchema') and advertised.get('outputSchema'):
+            existing['outputSchema'] = advertised['outputSchema']
 
-        def do_POST(self) -> None:  # noqa: N802
-            """Handle POST requests to the reflection API.
+        existing_meta = existing.get('metadata') or {}
+        advertised_meta = advertised.get('metadata') or {}
+        if isinstance(existing_meta, dict) and isinstance(advertised_meta, dict):
+            # Prefer registered action metadata on key conflicts.
+            existing['metadata'] = {**advertised_meta, **existing_meta}
 
-            Flow:
-                1. Reads and validates the request payload
-                2. Looks up the requested action
-                3. Executes the action with the provided input
-                4. Returns the action result as JSON with trace ID
-
-            The response format varies based on whether the action returns a
-            Pydantic model or a plain value.
-            """
-            if self.path == '/api/notify':
-                self.send_response(200)
-                self.end_headers()
-
-            elif self.path.startswith('/api/runAction'):
-                content_len = int(self.headers.get('content-length') or 0)
-                post_body = self.rfile.read(content_len)
-                payload = json.loads(post_body.decode(encoding=encoding))
-                action = registry.lookup_action_by_key(payload['key'])
-                action_input = payload.get('input')
-                context = payload['context'] if 'context' in payload else {}
-
-                query = urllib.parse.urlparse(self.path).query
-                query_params = urllib.parse.parse_qs(query)
-                stream = query_params.get('stream', ['false'])[0] == 'true'
-                if stream:
-
-                    def send_chunk(chunk):
-                        self.wfile.write(
-                            bytes(
-                                dump_json(chunk),
-                                encoding,
-                            )
-                        )
-                        self.wfile.write(bytes('\n', encoding))
-
-                    self.send_response(200)
-                    self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
-                    # TODO: Since each event being sent down the wire is a JSON
-                    # chunk, shouldn't this be set to text/event-stream?
-                    self.send_header('content-type', 'application/json')
-                    self.end_headers()
-
-                    try:
-
-                        async def run_fn():
-                            return await action.arun_raw(
-                                raw_input=payload.get('input'),
-                                on_chunk=send_chunk,
-                                context=context,
-                            )
-
-                        output = run_async(loop, run_fn)
-
-                        self.wfile.write(
-                            bytes(
-                                json.dumps({
-                                    'result': dump_dict(output.response),
-                                    'telemetry': {'traceId': output.trace_id},
-                                }),
-                                encoding,
-                            )
-                        )
-                    except Exception as e:
-                        # Since we're streaming, the headers have already been
-                        # sent as a 200 OK, but we must indicate an error
-                        # regardless.
-                        error_response = get_reflection_json(e).model_dump(by_alias=True)
-                        logger.error('Error streaming action', error=error_response)
-                        if 'message' in error_response:
-                            logger.error(error_response['message'])
-                        if 'details' in error_response and 'stack' in error_response['details']:
-                            logger.error(error_response['details']['stack'])
-                        self.wfile.write(bytes(json.dumps({'error': error_response}), encoding))
-                else:
-                    try:
-
-                        async def run_fn():
-                            return await action.arun_raw(raw_input=payload.get('input'), context=context)
-
-                        output = run_async(loop, run_fn)
-
-                        self.send_response(200)
-                        self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
-                        self.send_header('content-type', 'application/json')
-                        self.end_headers()
-
-                        self.wfile.write(
-                            bytes(
-                                json.dumps({
-                                    'result': dump_dict(output.response),
-                                    'telemetry': {'traceId': output.trace_id},
-                                }),
-                                encoding,
-                            )
-                        )
-                    except Exception as e:
-                        # We aren't streaming here so send a JSON-encoded 500
-                        # internal server error response.
-                        error_response = get_reflection_json(e).model_dump(by_alias=True)
-                        logger.error(f'Error running action {action.name}')
-                        if 'message' in error_response:
-                            logger.error(error_response['message'])
-                        if 'details' in error_response and 'stack' in error_response['details']:
-                            logger.error(error_response['details']['stack'])
-
-                        self.send_response(500)
-                        self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
-                        self.send_header('content-type', 'application/json')
-                        self.end_headers()
-                        self.wfile.write(bytes(json.dumps(error_response), encoding))
-
-    return ReflectionServer
+    return actions
 
 
 def create_reflection_asgi_app(
     registry: Registry,
-    on_app_startup: LifespanHandler | None = None,
-    on_app_shutdown: LifespanHandler | None = None,
+    on_app_startup: StartupHandler | None = None,
+    on_app_shutdown: StartupHandler | None = None,
     version: str = DEFAULT_GENKIT_VERSION,
     encoding: str = 'utf-8',
 ) -> Application:
@@ -327,11 +217,47 @@ def create_reflection_asgi_app(
         Returns:
             A JSON response containing all serializable actions.
         """
+        registered = _list_registered_actions(registry)
+        metas = await registry.list_actions()
+        actions = _build_actions_payload(registered_actions=registered, plugin_metas=metas)
+
         return JSONResponse(
-            content=registry.list_serializable_actions(),
+            content=actions,
             status_code=200,
             headers={'x-genkit-version': version},
         )
+
+    async def handle_list_values(request: Request) -> JSONResponse:
+        """Handle the request for listing registered values.
+
+        Args:
+             request: The Starlette request object.
+
+        Returns:
+            A JSON response containing value names.
+        """
+        kind = request.query_params.get('type')
+        if not kind:
+            return JSONResponse(content='Query parameter "type" is required.', status_code=400)
+
+        if kind != 'defaultModel':
+            return JSONResponse(
+                content=f"'type' {kind} is not supported. Only 'defaultModel' is supported", status_code=400
+            )
+
+        values = registry.list_values(kind)
+        return JSONResponse(content=values, status_code=200)
+
+    async def handle_list_envs(request: Request) -> JSONResponse:
+        """Handle the request for listing environments.
+
+        Args:
+            request: The Starlette request object.
+
+        Returns:
+             A JSON response containing environments.
+        """
+        return JSONResponse(content=['dev'], status_code=200)
 
     async def handle_notify(request: Request) -> JSONResponse:
         """Handle the notification endpoint.
@@ -347,6 +273,37 @@ def create_reflection_asgi_app(
             status_code=200,
             headers={'x-genkit-version': version},
         )
+
+    # Map of active actions indexed by trace ID for cancellation support.
+    active_actions: dict[str, asyncio.Task] = {}
+
+    async def handle_cancel_action(request: Request) -> JSONResponse:
+        """Handle the cancelAction endpoint.
+
+        Args:
+            request: The Starlette request object.
+
+        Returns:
+            A JSON response.
+        """
+        try:
+            payload = await request.json()
+            trace_id = payload.get('traceId')
+            if not trace_id:
+                return JSONResponse(content={'error': 'traceId is required'}, status_code=400)
+
+            task = active_actions.get(trace_id)
+            if task:
+                task.cancel()
+                return JSONResponse(content={'message': 'Action cancelled'}, status_code=200)
+            else:
+                return JSONResponse(content={'message': 'Action not found or already completed'}, status_code=404)
+        except Exception as e:
+            logger.error(f'Error cancelling action: {e}', exc_info=True)
+            return JSONResponse(
+                content={'error': 'An unexpected error occurred while cancelling the action.'},
+                status_code=500,
+            )
 
     async def handle_run_action(
         request: Request,
@@ -366,9 +323,9 @@ def create_reflection_asgi_app(
             A JSON or StreamingResponse with the action result, or an error
             response.
         """
-        # Get the action.
+        # Get the action using async resolve.
         payload = await request.json()
-        action = registry.lookup_action_by_key(payload['key'])
+        action = await registry.resolve_action_by_key(payload['key'])
         if action is None:
             return JSONResponse(
                 content={'error': f'Action not found: {payload["key"]}'},
@@ -379,53 +336,77 @@ def create_reflection_asgi_app(
         context = payload.get('context', {})
         action_input = payload.get('input')
         stream = is_streaming_requested(request)
+
+        # Wrap execution to track the task for cancellation support
+        task = asyncio.current_task()
+
+        def on_trace_start(trace_id: str) -> None:
+            if task:
+                active_actions[trace_id] = task
+
         handler = run_streaming_action if stream else run_standard_action
-        return await handler(action, payload, action_input, context, version)
+
+        try:
+            return await handler(action, payload, action_input, context, version, on_trace_start)
+        except asyncio.CancelledError:
+            logger.info('Action execution cancelled.')
+            # Can't really send response if cancelled? Starlette/uvicorn closes connection?
+            # Just raise.
+            raise
 
     async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: Any,
+        action_input: object,
         context: dict[str, Any],
         version: str,
+        on_trace_start: Callable[[str], None],
     ) -> StreamingResponse | JSONResponse:
         """Handle streaming action execution for Starlette.
 
         Args:
             action: The action to execute.
             payload: Request payload with input data.
+            action_input: The input for the action.
             context: Execution context.
             version: The Genkit version header value.
+            on_trace_start: Callback for trace start.
 
         Returns:
             A StreamingResponse with JSON chunks containing result or error
             events.
         """
+        # Use a queue to pass chunks from the callback to the generator
+        chunk_queue: asyncio.Queue[str | None] = asyncio.Queue()
 
-        async def stream_generator() -> AsyncGenerator[str, None]:
-            """Server-Sent Events Generator for streaming JSON chunks.
+        # Capture trace_id from the runner task for cleanup
+        run_trace_id: str | None = None
 
-            Since we generate a stream of event objects, and the headers will
-            have been sent already if an error occurs at a later stage, we
-            indicate an error status by streaming an error object.
-            """
+        def wrapped_on_trace_start(tid: str) -> None:
+            nonlocal run_trace_id
+            run_trace_id = tid
+            on_trace_start(tid)
+
+        async def run_action_task() -> None:
+            """Run the action and put chunks on the queue."""
             try:
 
-                async def send_chunk(chunk):
-                    out = json.dumps(chunk)
-                    yield f'{out}\n'
+                def send_chunk(chunk: Any) -> None:  # noqa: ANN401
+                    """Callback that puts chunks on the queue."""
+                    out = dump_json(chunk)
+                    chunk_queue.put_nowait(f'{out}\n')
 
                 output = await action.arun_raw(
                     raw_input=payload.get('input'),
                     on_chunk=send_chunk,
                     context=context,
+                    on_trace_start=wrapped_on_trace_start,
                 )
-
                 final_response = {
                     'result': dump_dict(output.response),
                     'telemetry': {'traceId': output.trace_id},
                 }
-                yield f'{json.dumps(final_response)}\n'
+                chunk_queue.put_nowait(json.dumps(final_response))
 
             except Exception as e:
                 error_response = get_reflection_json(e).model_dump(by_alias=True)
@@ -433,40 +414,78 @@ def create_reflection_asgi_app(
                     'Error streaming action',
                     error=error_response,
                 )
-                yield f'{json.dumps(error_response)}\n'
+                # Error response also should not have trailing newline (final message)
+                chunk_queue.put_nowait(json.dumps(error_response))
+
+            finally:
+                # Signal end of stream
+                chunk_queue.put_nowait(None)
+                if run_trace_id:
+                    active_actions.pop(run_trace_id, None)
+
+        async def stream_generator() -> AsyncGenerator[str, None]:
+            """Yield chunks from the queue as they arrive."""
+            # Start the action task
+            task = asyncio.create_task(run_action_task())
+
+            try:
+                while True:
+                    chunk = await chunk_queue.get()
+                    if chunk is None:
+                        break
+                    yield chunk
+            finally:
+                # Ensure task is cleaned up
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
 
         return StreamingResponse(
             stream_generator(),
-            # TODO: Should this be set to event-stream in the future?
-            # media_type='text/event-stream',
-            #
-            # Apparently, the Genkit dev server uses
-            # an older protocol that uses JSON chunks rather
-            # than event streams.
-            media_type='application/json',
-            headers={'x-genkit-version': version},
+            # Reflection server uses text/plain for streaming (not SSE format)
+            # to match Go implementation
+            media_type='text/plain',
+            headers={
+                'x-genkit-version': version,
+                'Transfer-Encoding': 'chunked',
+            },
         )
 
     async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: Any,
+        action_input: object,
         context: dict[str, Any],
         version: str,
+        on_trace_start: Callable[[str], None],
     ) -> JSONResponse:
         """Handle standard (non-streaming) action execution for Starlette.
 
         Args:
             action: The action to execute.
             payload: Request payload with input data.
+            action_input: The input for the action.
             context: Execution context.
             version: The Genkit version header value.
+            on_trace_start: Callback for trace start.
 
         Returns:
             A JSONResponse with the action result or error.
         """
+        run_trace_id: str | None = None
+
+        def wrapped_on_trace_start(tid: str) -> None:
+            nonlocal run_trace_id
+            run_trace_id = tid
+            on_trace_start(tid)
+
         try:
-            output = await action.arun_raw(raw_input=payload.get('input'), context=context)
+            output = await action.arun_raw(
+                raw_input=payload.get('input'), context=context, on_trace_start=wrapped_on_trace_start
+            )
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
@@ -483,18 +502,24 @@ def create_reflection_asgi_app(
                 content=error_response,
                 status_code=500,
             )
+        finally:
+            if run_trace_id:
+                active_actions.pop(run_trace_id, None)
 
-    return Starlette(
+    app = Starlette(
         routes=[
             Route('/api/__health', handle_health_check, methods=['GET']),
-            Route('/api/__quitquitquit', handle_terminate, methods=['POST']),
+            Route('/api/__quitquitquit', handle_terminate, methods=['GET', 'POST']),  # Support both for parity
             Route('/api/actions', handle_list_actions, methods=['GET']),
+            Route('/api/values', handle_list_values, methods=['GET']),
+            Route('/api/envs', handle_list_envs, methods=['GET']),
             Route('/api/notify', handle_notify, methods=['POST']),
             Route('/api/runAction', handle_run_action, methods=['POST']),
+            Route('/api/cancelAction', handle_cancel_action, methods=['POST']),
         ],
         middleware=[
             Middleware(
-                CORSMiddleware,
+                CORSMiddleware,  # type: ignore[arg-type]
                 allow_origins=['*'],
                 allow_methods=['*'],
                 allow_headers=['*'],
@@ -503,3 +528,5 @@ def create_reflection_asgi_app(
         on_startup=[on_app_startup] if on_app_startup else [],
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
     )
+    app.active_actions = active_actions  # type: ignore[attr-defined]
+    return app

@@ -15,38 +15,73 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Retriever for dev-local-vectorstore."""
+
+from typing import Any
+
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionRunContext, Document
+from genkit.ai import ActionRunContext, Document, Genkit
 from genkit.types import Embedding, RetrieverRequest, RetrieverResponse
 
 from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class ScoredDocument(BaseModel):
+    """Document with an associated similarity score."""
+
     score: float
     document: Document
 
 
 class RetrieverOptionsSchema(BaseModel):
+    """Schema for retriever options."""
+
     limit: int | None = Field(title='Number of documents to retrieve', default=None)
 
 
 class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
+    """Retriever for development-level local vector store."""
+
+    def __init__(
+        self,
+        ai: Genkit,
+        index_name: str,
+        embedder: str,
+        embedder_options: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize the DevLocalVectorStoreRetriever.
+
+        Args:
+            ai: Genkit instance used to embed queries.
+            index_name: Name of the index.
+            embedder: The embedder to use for query embeddings.
+            embedder_options: Optional configuration to pass to the embedder.
+        """
+        super().__init__(index_name=index_name)
+        self.ai = ai
+        self.embedder = embedder
+        self.embedder_options = embedder_options
+
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
+        """Retrieve documents from the vector store."""
         document = Document.from_document_data(document_data=request.query)
-        embeddings = await self.ai.embed(
+
+        embed_resp = await self.ai.embed(
             embedder=self.embedder,
-            documents=[document],
+            content=document,
             options=self.embedder_options,
         )
-        if self.embedder_options:
-            k = self.embedder_options.get('limit') or 3
-        else:
-            k = 3
+        if not embed_resp:
+            raise ValueError('Embedder returned no embeddings for query')
+
+        k = 3
+        if isinstance(request.options, dict) and (limit_val := request.options.get('limit')) is not None:
+            k = int(limit_val)
+
         docs = self._get_closest_documents(
             k=k,
-            query_embeddings=embeddings.embeddings[0],
+            query_embeddings=Embedding(embedding=embed_resp[0].embedding),
         )
 
         return RetrieverResponse(documents=[d.document for d in docs])
@@ -70,8 +105,10 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
 
     @classmethod
     def cosine_similarity(cls, a: list[float], b: list[float]) -> float:
+        """Calculate cosine similarity between two vectors."""
         return cls.dot(a, b) / ((cls.dot(a, a) ** 0.5) * (cls.dot(b, b) ** 0.5))
 
     @staticmethod
     def dot(a: list[float], b: list[float]) -> float:
+        """Calculate dot product of two vectors."""
         return sum(av * bv for av, bv in zip(a, b, strict=False))

@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -39,13 +38,17 @@ dependencies = [
   "pydantic>=2.10.5",
   "requests>=2.32.3",
   "structlog>=25.2.0",
+  "uvloop>=0.21.0",
 ]
 description = "context-caching Genkit sample"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "google-genai-context-caching"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
 
 [build-system]
 build-backend = "hatchling.build"

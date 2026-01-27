@@ -15,7 +15,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Schemas for the menu AI sample."""
+
 from pydantic import BaseModel, Field
+
+from .constants import DEFAULT_MENU_QUESTION, DEFAULT_MENU_TEXT
 
 
 class MenuItemSchema(BaseModel):
@@ -29,7 +33,7 @@ class MenuItemSchema(BaseModel):
 class MenuQuestionInputSchema(BaseModel):
     """Input schema for the menu question prompt."""
 
-    question: str = Field(..., description='A question about the menu')
+    question: str = Field(default=DEFAULT_MENU_QUESTION, description='A question about the menu')
 
 
 class AnswerOutputSchema(BaseModel):
@@ -41,15 +45,19 @@ class AnswerOutputSchema(BaseModel):
 class DataMenuQuestionInputSchema(BaseModel):
     """Input schema for the data menu question prompt."""
 
-    menuData: list[MenuItemSchema] = Field(...)
+    menu_data: list[MenuItemSchema] = Field(..., alias='menuData')
     question: str = Field(..., description='A question about the menu')
 
 
 class TextMenuQuestionInputSchema(BaseModel):
     """Input schema for the text menu question prompt."""
 
-    menu_text: str = Field(...)
-    question: str = Field(..., description='A question about the menu')
+    menu_text: str = Field(
+        default=DEFAULT_MENU_TEXT,
+        description='The menu text content',
+        alias='menuText',
+    )
+    question: str = Field(default=DEFAULT_MENU_QUESTION, description='A question about the menu')
 
 
 class MenuToolOutputSchema(BaseModel):

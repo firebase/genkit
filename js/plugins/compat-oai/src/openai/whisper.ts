@@ -15,14 +15,27 @@
  * limitations under the License.
  */
 
-import { compatOaiTranscriptionModelRef as openAITranscriptionModelRef } from '../audio';
+import { z } from 'genkit';
+import { ModelInfo } from 'genkit/model';
+import { compatOaiTranscriptionModelRef } from '../audio';
 
 /** OpenAI transcription ModelRef helper, same as the OpenAI-compatible spec. */
-export { openAITranscriptionModelRef };
+export function openAITranscriptionModelRef<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: CustomOptions;
+  config?: any;
+}) {
+  return compatOaiTranscriptionModelRef({ ...params, namespace: 'openai' });
+}
 
 export const SUPPORTED_STT_MODELS = {
   'gpt-4o-transcribe': openAITranscriptionModelRef({
-    name: 'openai/gpt-4o-transcribe',
+    name: 'gpt-4o-transcribe',
   }),
-  'whisper-1': openAITranscriptionModelRef({ name: 'openai/whisper-1' }),
+  'whisper-1': openAITranscriptionModelRef({
+    name: 'whisper-1',
+  }),
 };

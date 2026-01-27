@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Resource module for defining and managing resources.
+
 Resources in Genkit represent addressable content or data processing units containing
 unstructured data (Post, PDF, etc.) that can be retrieved or generated. They are
 identified by URIs (e.g. `file://`, `http://`, `gs://`) and can be static (fixed URI)
@@ -24,7 +25,7 @@ and return content (`ResourceOutput`) containing `Part`s.
 import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Protocol, TypedDict
+from typing import Any, Protocol, TypedDict, cast
 
 from pydantic import BaseModel
 
@@ -77,11 +78,28 @@ class ResourceOutput(BaseModel):
 
 class ResourceFn(Protocol):
     """A function that returns parts for a given resource.
+
     The function receives the resolved input (including the URI) and context,
     and should return a `ResourceOutput` containing the content parts.
     """
 
-    def __call__(self, input: ResourceInput, ctx: ActionRunContext) -> Awaitable[ResourceOutput]: ...
+    def __call__(self, input: ResourceInput, ctx: ActionRunContext) -> Awaitable[ResourceOutput]:
+        """Call the resource function."""
+        ...
+
+
+ResourcePayload = ResourceOutput | dict[str, Any]
+
+# We need a flexible type because the runtime supports various signatures (0-2 args, sync/async, dict return)
+# but we also want to support the strict Protocol for those who want it.
+# Note: Callable[..., T] is used for flexible args because accurate variable arg Union logic is complex/verbose.
+FlexibleResourceFn = ResourceFn | Callable[..., Awaitable[ResourcePayload] | ResourcePayload]
+
+
+class MatchableAction(Protocol):
+    """Protocol for actions that have a matches method."""
+
+    matches: Callable[[object], bool]
 
 
 ResourceArgument = Action | str
@@ -117,6 +135,7 @@ async def resolve_resources(registry: Registry, resources: list[ResourceArgument
 
 async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
     """Looks up a resource action by name in the registry.
+
     Tries to resolve the name directly, or with common prefixes like `/resource/`
     or `/dynamic-action-provider/`.
 
@@ -131,17 +150,18 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
         ValueError: If the resource cannot be found.
     """
     resource = (
-        registry.lookup_action(ActionKind.RESOURCE, name)
-        or registry.lookup_action(ActionKind.RESOURCE, f'/resource/{name}')
-        or registry.lookup_action(ActionKind.RESOURCE, f'/dynamic-action-provider/{name}')
+        await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), name)
+        or await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), f'/resource/{name}')
+        or await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), f'/dynamic-action-provider/{name}')
     )
     if not resource:
         raise ValueError(f'Resource {name} not found')
     return resource
 
 
-def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -> Action:
+def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     """Defines a resource and registers it with the given registry.
+
     This creates a resource action that can handle requests for a specific URI
     or URI template.
 
@@ -155,7 +175,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
     """
     action = dynamic_resource(opts, fn)
 
-    action.matches = create_matcher(opts.get('uri'), opts.get('template'))
+    cast(MatchableAction, action).matches = create_matcher(opts.get('uri'), opts.get('template'))
 
     # Mark as not dynamic since it's being registered
     action.metadata['dynamic'] = False
@@ -165,8 +185,9 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
     return action
 
 
-def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
+def resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     """Defines a dynamic resource action without immediate registration.
+
     This is an alias for `dynamic_resource`. Useful for defining resources that
     might be registered later or used as standalone actions.
 
@@ -180,8 +201,9 @@ def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     return dynamic_resource(opts, fn)
 
 
-def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
+def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     """Defines a dynamic resource action.
+
     Creates an `Action` of kind `RESOURCE` that wraps the provided function.
     The wrapper handles:
     1. Input validation and matching against the URI/Template.
@@ -232,8 +254,8 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                     p = p.root
 
                 if hasattr(p, 'metadata'):
-                    if p.metadata is None:
-                        p.metadata = {}
+                    if p.metadata is None or isinstance(p.metadata, dict):
+                        p.metadata = Metadata(root=p.metadata or {})
 
                     if isinstance(p.metadata, Metadata):
                         p_metadata = p.metadata.root
@@ -271,7 +293,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
 
     act = Action(
         name=name,
-        kind=ActionKind.RESOURCE,
+        kind=cast(ActionKind, ActionKind.RESOURCE),
         fn=wrapped_fn,
         metadata={
             'resource': {
@@ -287,7 +309,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     return act
 
 
-def create_matcher(uri: str | None, template: str | None) -> Callable[[ResourceInput], bool]:
+def create_matcher(uri: str | None, template: str | None) -> Callable[[object], bool]:
     """Creates a matching function for resource validation.
 
     Args:
@@ -295,10 +317,12 @@ def create_matcher(uri: str | None, template: str | None) -> Callable[[ResourceI
         template: Optional URI template string.
 
     Returns:
-        A callable that takes ResourceInput and returns True if it matches.
+        A callable that takes an object (expected to be ResourceInput) and returns True if it matches.
     """
 
-    def matcher(input_data: ResourceInput) -> bool:
+    def matcher(input_data: object) -> bool:
+        if not isinstance(input_data, ResourceInput):
+            return False
         if uri:
             return input_data.uri == uri
         if template:
@@ -317,7 +341,7 @@ def is_dynamic_resource_action(action: Action) -> bool:
     Returns:
         True if the action is a dynamic resource, False otherwise.
     """
-    return action.kind == ActionKind.RESOURCE and action.metadata.get('dynamic', True)
+    return action.kind == ActionKind.RESOURCE and bool(action.metadata.get('dynamic', True))
 
 
 def matches_uri_template(template: str, uri: str) -> dict[str, str] | None:
@@ -364,6 +388,7 @@ async def find_matching_resource(
     registry: Registry, dynamic_resources: list[Action] | None, input_data: ResourceInput
 ) -> Action | None:
     """Finds a matching resource action.
+
     Checks dynamic resources first, then the registry.
 
     Args:
@@ -376,23 +401,35 @@ async def find_matching_resource(
     """
     if dynamic_resources:
         for action in dynamic_resources:
-            if hasattr(action, 'matches') and action.matches(input_data):
+            if (
+                hasattr(action, 'matches')
+                and callable(action.matches)
+                and cast(MatchableAction, action).matches(input_data)
+            ):
                 return action
 
     # Try exact match in registry
-    resource = registry.lookup_action(ActionKind.RESOURCE, input_data.uri)
+    resource = await registry.resolve_action(cast(ActionKind, ActionKind.RESOURCE), input_data.uri)
     if resource:
         return resource
 
     # Iterate all resources to check for matches (e.g. templates)
     # This is less efficient but necessary for template matching if not optimized
-    resources = registry.get_actions_by_kind(ActionKind.RESOURCE) if hasattr(registry, 'get_actions_by_kind') else {}
+    resources = (
+        registry.get_actions_by_kind(cast(ActionKind, ActionKind.RESOURCE))
+        if hasattr(registry, 'get_actions_by_kind')
+        else {}
+    )
     if not resources and hasattr(registry, '_entries'):
         # Fallback for compatibility if registry instance is old (unlikely in this context)
-        resources = registry._entries.get(ActionKind.RESOURCE, {})
+        resources = registry._entries.get(cast(ActionKind, ActionKind.RESOURCE), {})
 
     for action in resources.values():
-        if hasattr(action, 'matches') and action.matches(input_data):
+        if (
+            hasattr(action, 'matches')
+            and callable(action.matches)
+            and cast(MatchableAction, action).matches(input_data)
+        ):
             return action
 
     return None

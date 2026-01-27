@@ -22,7 +22,6 @@ classifiers = [
   "Environment :: Web Environment",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -33,13 +32,22 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["genkit", "google-cloud-firestore"]
+dependencies = [
+  "genkit",
+  "genkit-plugin-firebase",
+  "genkit-plugin-google-genai",
+  "google-cloud-firestore",
+  "uvloop>=0.21.0",
+]
 description = "firestore-retreiver Genkit sample"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 name = "firestore-retreiver"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
 
 [build-system]
 build-backend = "hatchling.build"

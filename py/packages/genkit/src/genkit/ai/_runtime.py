@@ -28,6 +28,8 @@ from types import TracebackType
 
 import structlog
 
+from genkit.core.constants import DEFAULT_GENKIT_VERSION
+
 from ._server import ServerSpec
 
 logger = structlog.get_logger(__name__)
@@ -68,7 +70,7 @@ def _register_atexit_cleanup_handler(path_to_remove: Path | None) -> None:
         logger.warning('Cannot register atexit cleanup: runtime file path not set.')
         return
 
-    def sync_cleanup():
+    def sync_cleanup() -> None:
         # TODO: Neither print nor logger appears to work during atexit.
         _remove_file(path_to_remove)
 
@@ -87,15 +89,24 @@ def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
         The Path object of the created file.
     """
     current_datetime = datetime.now()
-    runtime_file_name = f'{current_datetime.isoformat()}.json'
+    timestamp_ms = int(current_datetime.timestamp() * 1000)
+    pid = os.getpid()
+
+    # Build a unique runtime ID from the process ID and port
+    port = spec.port if spec.port else ''
+    runtime_id = f'{pid}-{port}' if port else f'{pid}'
+
+    # Include timestamp in filename to avoid collisions across restarts
+    runtime_file_name = f'{runtime_id}-{timestamp_ms}.json'
     runtime_file_path = runtime_dir / runtime_file_name
 
     metadata = json.dumps({
         'reflectionApiSpecVersion': 1,
-        'id': f'{os.getpid()}',
-        'pid': os.getpid(),
+        'id': runtime_id,
+        'pid': pid,
+        'genkitVersion': 'py/' + DEFAULT_GENKIT_VERSION,
         'reflectionServerUrl': spec.url,
-        'timestamp': f'{current_datetime.isoformat()}',
+        'timestamp': current_datetime.isoformat(),
     })
 
     logger.debug(f'Writing runtime file: {runtime_file_path}')
@@ -135,13 +146,21 @@ class RuntimeManager:
     that the context manager exits cleanly and allows exceptions to propagate.
     """
 
-    def __init__(self, spec: ServerSpec, runtime_dir: str | Path | None = None):
+    def __init__(
+        self,
+        spec: ServerSpec,
+        runtime_dir: str | Path | None = None,
+        lazy_write: bool = False,
+    ) -> None:
         """Initialize the RuntimeManager.
 
         Args:
             spec: The server specification for the reflection server.
             runtime_dir: The directory to store the runtime file in.
                          Defaults to .genkit/runtimes in the current directory.
+            lazy_write: If True, the runtime file will not be written immediately
+                        on context entry. It must be written manually by calling
+                        write_runtime_file().
         """
         self.spec = spec
         if runtime_dir is None:
@@ -149,6 +168,7 @@ class RuntimeManager:
         else:
             self._runtime_dir = Path(runtime_dir)
 
+        self.lazy_write = lazy_write
         self._runtime_file_path: Path | None = None
 
     async def __aenter__(self) -> RuntimeManager:
@@ -156,8 +176,8 @@ class RuntimeManager:
         try:
             await logger.adebug(f'Ensuring runtime directory exists: {self._runtime_dir}')
             self._runtime_dir.mkdir(parents=True, exist_ok=True)
-            runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
-            _register_atexit_cleanup_handler(runtime_file_path)
+            if not self.lazy_write:
+                self.write_runtime_file()
 
         except Exception as e:
             logger.error(f'Failed to initialize runtime file: {e}', exc_info=True)
@@ -178,18 +198,19 @@ class RuntimeManager:
             exc_tb: The traceback of the exception that occurred.
 
         Returns:
-            True if cleanup was successful, False if cleanup failed.
+            False to indicate exceptions should propagate.
         """
+        self.cleanup()
         await logger.adebug('RuntimeManager async context exited.')
-        return True
+        return False
 
     def __enter__(self) -> RuntimeManager:
         """Synchronous entry point: Create the runtime directory and file."""
         try:
             logger.debug(f'[sync] Ensuring runtime directory exists: {self._runtime_dir}')
             self._runtime_dir.mkdir(parents=True, exist_ok=True)
-            self._runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
-            _register_atexit_cleanup_handler(self._runtime_file_path)
+            if not self.lazy_write:
+                self.write_runtime_file()
 
         except Exception as e:
             logger.error(f'[sync] Failed to initialize runtime file: {e}', exc_info=True)
@@ -208,5 +229,25 @@ class RuntimeManager:
         Returns:
             False to indicate exceptions should propagate.
         """
+        self.cleanup()
         logger.debug('RuntimeManager sync context exited.')
         return False
+
+    def write_runtime_file(self) -> Path:
+        """Calculates metadata, creates filename, and writes the runtime file.
+
+        Returns:
+            The Path object of the created file.
+        """
+        if self._runtime_file_path:
+            return self._runtime_file_path
+
+        self._runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
+        _register_atexit_cleanup_handler(self._runtime_file_path)
+        return self._runtime_file_path
+
+    def cleanup(self) -> None:
+        """Explicitly cleanup the runtime file."""
+        if self._runtime_file_path:
+            logger.debug(f'Cleaning up runtime file: {self._runtime_file_path}')
+            _remove_file(self._runtime_file_path)

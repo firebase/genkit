@@ -16,17 +16,26 @@
 
 """Pokemon glossary.
 
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Local Embedding with Ollama             | `ai.embed_many()`                   |
+| Vector Similarity Search                | `find_nearest_pokemons`             |
+| RAG (Retrieval Augmented Generation)    | `generate_response`                 |
+| Custom Data Structures                  | `PokemonInfo` Pydantic model        |
+
 This sample demonstrates how to use Genkit to create a simple glossary of
 Pokemon using the Ollama plugin.
 """
 
-import asyncio
 from math import sqrt
+from typing import Annotated, cast
 
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit
+from genkit.ai import Genkit
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
@@ -37,7 +46,7 @@ logger = structlog.get_logger(__name__)
 
 EMBEDDER_MODEL = 'nomic-embed-text'
 EMBEDDER_DIMENSIONS = 768
-GENERATE_MODEL = 'phi3.5:latest'
+GENERATE_MODEL = 'phi4:latest'
 
 ai = Genkit(
     plugins=[
@@ -45,7 +54,7 @@ ai = Genkit(
             models=[
                 ModelDefinition(
                     name=GENERATE_MODEL,
-                    api_type=OllamaAPITypes.GENERATE,
+                    api_type=cast(OllamaAPITypes, OllamaAPITypes.GENERATE),
                 )
             ],
             embedders=[
@@ -98,13 +107,12 @@ pokemon_list = [
 
 async def embed_pokemons() -> None:
     """Embed the Pokemons."""
-    for pokemon in pokemon_list:
-        embedding_response = await ai.embed(
-            embedder=ollama_name(EMBEDDER_MODEL),
-            documents=[Document.from_text(pokemon.description)],
-        )
-        if embedding_response.embeddings:
-            pokemon.embedding = embedding_response.embeddings[0].embedding
+    embeddings = await ai.embed_many(
+        embedder=ollama_name(EMBEDDER_MODEL),
+        content=[pokemon.description for pokemon in pokemon_list],
+    )
+    for pokemon, embedding in zip(pokemon_list, embeddings, strict=True):
+        pokemon.embedding = embedding.embedding
 
 
 def find_nearest_pokemons(input_embedding: list[float], top_n: int = 3) -> list[PokemonInfo]:
@@ -167,9 +175,9 @@ async def generate_response(question: str) -> GenerateResponse:
     """
     input_embedding = await ai.embed(
         embedder=ollama_name(EMBEDDER_MODEL),
-        documents=[Document.from_text(text=question)],
+        content=question,
     )
-    nearest_pokemon = find_nearest_pokemons(input_embedding.embeddings[0].embedding)
+    nearest_pokemon = find_nearest_pokemons(input_embedding[0].embedding)
     pokemons_context = '\n'.join(f'{pokemon.name}: {pokemon.description}' for pokemon in nearest_pokemon)
 
     return await ai.generate(
@@ -181,7 +189,9 @@ async def generate_response(question: str) -> GenerateResponse:
 @ai.flow(
     name='Pokedex',
 )
-async def pokemon_flow(question: str):
+async def pokemon_flow(
+    question: Annotated[str, Field(default='Who is the best water pokemon?')] = 'Who is the best water pokemon?',
+) -> str:
     """Generate a request to greet a user.
 
     Args:
@@ -192,6 +202,8 @@ async def pokemon_flow(question: str):
     """
     await embed_pokemons()
     response = await generate_response(question=question)
+    if not response.message or not response.message.content:
+        raise ValueError('No message content returned from model')
     return response.message.content[0].root.text
 
 
@@ -202,4 +214,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    ai.run_main(main())

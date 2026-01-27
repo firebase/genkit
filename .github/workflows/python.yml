@@ -25,21 +25,10 @@ on:
 
 jobs:
   python-checks:
+    name: Lint and Format
     runs-on: ubuntu-latest
     env:
       PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/share/pnpm:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
-    strategy:
-      matrix:
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          #- "pypy-3.10" # TODO: Fix build failures.
-          #- "pypy-3.11" # TODO: Fix build failures.
-          - "3.14"
-      fail-fast: false
-
     steps:
       - uses: actions/checkout@v5
 
@@ -70,7 +59,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Install Python dependencies
         run: |
@@ -96,13 +85,90 @@ jobs:
         run: uv run --directory py ruff format --check .
 
       - name: Lint with ruff
-        run: uv run --directory py ruff check --select I .
+        run: uv run --directory py ruff check .
+
+      - name: Ensure Python test files follow the *_test.py naming convention
+        run: |
+          if find py -name "test_*.py" -not -path "*/.*" | grep -q .; then
+              echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
+              find py -name "test_*.py" -not -path "*/.*"
+              exit 1
+          fi
+
+      - name: Type check with Ty
+        run: uv run --directory py ty check .
+
+      - name: Run security scan
+        run: ./py/bin/run_python_security_checks
 
       - name: Check licenses
         run: ./bin/check_license
 
-      - name: Run Python tests
+  python-tests:
+    name: Tests (${{ matrix.test-type }} - ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+        test-type:
+          - "serial"
+          - "tox"
+          - "nox"
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libffi-dev cmake curl ripgrep libjpeg-dev zlib1g-dev
+
+      - name: Install uv and setup Python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python dependencies
+        run: |
+          cd py
+          uv pip install -e .[dev,test,docs]
+
+      - name: Generate schema typing
+        run: ./py/bin/generate_schema_typing --ci
+
+      - name: Run serial tests
+        if: matrix.test-type == 'serial'
         run: uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
+
+      - name: Run tox tests
+        if: matrix.test-type == 'tox'
+        run: |
+           clean_version=$(echo "${{ matrix.python-version }}" | tr -d '.')
+           uv run --directory py tox -e "py$clean_version"
+
+      - name: Run nox tests
+        if: matrix.test-type == 'nox'
+        run: |
+           uv run --directory py nox -s "tests-${{ matrix.python-version }}"
+
+  python-build:
+    name: Build Distributions
+    runs-on: ubuntu-latest
+    needs: [python-checks, python-tests]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
 
       - name: Build distributions
         run: ./py/bin/build_dists

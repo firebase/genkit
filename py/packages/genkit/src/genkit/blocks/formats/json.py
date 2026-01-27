@@ -16,11 +16,9 @@
 
 """Implementation of JSON output format."""
 
-from typing import Any
-
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
-    GenerateResponseWrapper,
+    GenerateResponseChunkWrapper,
     MessageWrapper,
 )
 from genkit.codec import dump_json
@@ -30,12 +28,23 @@ from genkit.core.extract import extract_json
 class JsonFormat(FormatDef):
     """Defines a JSON format for use with AI models.
 
-    This class provides functionality for parsing and formatting JSON data
-    to interact with AI models, ensuring that the output conforms to a
-    specified schema, if provided.
+    This format instructs the model to output a valid JSON object. It is the default format
+    when a JSON schema is provided in the configuration.
+
+    The formatter handles:
+    1.  Injecting instructions with the JSON schema.
+    2.  Parsing the response using `extract_json` to handle potentially noisy output (e.g. markdown code blocks).
+
+    Usage:
+        ai.generate(
+            output=OutputConfig(
+                format='json',
+                schema={'type': 'object', 'properties': {'foo': {'type': 'string'}}}
+            )
+        )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes a JsonFormat instance.
 
         Sets up the format definition with configurations suitable for JSON,
@@ -51,7 +60,7 @@ class JsonFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling JSON data based on an optional schema.
 
         Args:
@@ -65,7 +74,7 @@ class JsonFormat(FormatDef):
             the provided schema.
         """
 
-        def message_parser(msg: MessageWrapper):
+        def message_parser(msg: MessageWrapper) -> object:
             """Extracts JSON from a Message object.
 
             Concatenates the text content of all parts in the message and
@@ -79,18 +88,21 @@ class JsonFormat(FormatDef):
             """
             return extract_json(msg.text)
 
-        def chunk_parser(chunk: GenerateResponseWrapper):
-            """Extracts JSON from a GenerateResponseWrapper object.
+        def chunk_parser(chunk: GenerateResponseChunkWrapper) -> object:
+            """Extracts JSON from a GenerateResponseChunkWrapper object.
 
             Extracts a JSON object from the accumulated text in the given chunk.
+            Returns None if no valid JSON is found yet (common during streaming
+            when receiving preamble text).
 
             Args:
-                chunk: The GenerateResponseWrapper object to parse.
+                chunk: The GenerateResponseChunkWrapper object to parse.
 
             Returns:
-                A JSON object extracted from the chunk's accumulated text.
+                A JSON object extracted from the chunk's accumulated text,
+                or None if no valid JSON is found.
             """
-            return extract_json(chunk.accumulated_text)
+            return extract_json(chunk.accumulated_text, throw_on_bad_json=False)
 
         instructions: str | None = None
 

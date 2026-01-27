@@ -32,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/x/session"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
@@ -588,14 +589,19 @@ func renderPrompt(ctx context.Context, opts promptOptions, templateText string, 
 // renderDotpromptToMessages executes a dotprompt prompt function and converts the result to a slice of messages
 func renderDotpromptToMessages(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Message, error) {
 	// Prepare the context for rendering
-	context := map[string]any{}
+	templateContext := map[string]any{}
 	actionCtx := core.FromContext(ctx)
-	maps.Copy(context, actionCtx)
+	maps.Copy(templateContext, actionCtx)
+
+	// Inject session state if available (accessible via {{@state.field}} in templates)
+	if state := session.StateFromContext(ctx); state != nil {
+		templateContext["state"] = state
+	}
 
 	// Call the prompt function with the input and context
 	rendered, err := promptFn(&dotprompt.DataArgument{
 		Input:   input,
-		Context: context,
+		Context: templateContext,
 	}, additionalMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to render prompt: %w", err)
@@ -776,7 +782,11 @@ func LoadPromptFromSource(r api.Registry, source, name, namespace string) (Promp
 	}
 
 	if inputSchema, ok := metadata.Input.Schema.(map[string]any); ok {
-		opts.InputSchema = inputSchema
+		if ref, ok := inputSchema["$ref"].(string); ok {
+			opts.InputSchema = core.SchemaRef(ref)
+		} else {
+			opts.InputSchema = inputSchema
+		}
 	}
 
 	if metadata.Output.Format != "" {
@@ -788,6 +798,17 @@ func LoadPromptFromSource(r api.Registry, source, name, namespace string) (Promp
 			opts.OutputSchema = core.SchemaRef(outputSchema.Ref)
 		} else {
 			opts.OutputSchema = base.SchemaAsMap(outputSchema)
+		}
+		if opts.OutputFormat == "" {
+			opts.OutputFormat = OutputFormatJSON
+		}
+	}
+
+	if outputSchema, ok := metadata.Output.Schema.(map[string]any); ok {
+		if ref, ok := outputSchema["$ref"].(string); ok {
+			opts.OutputSchema = core.SchemaRef(ref)
+		} else {
+			opts.OutputSchema = outputSchema
 		}
 		if opts.OutputFormat == "" {
 			opts.OutputFormat = OutputFormatJSON
@@ -949,6 +970,10 @@ func (dp *DataPrompt[In, Out]) ExecuteStream(ctx context.Context, input In, opts
 			if err != nil {
 				yield(nil, err)
 				return err
+			}
+			// Skip yielding if there's no parseable output yet (e.g., incomplete JSON during streaming).
+			if base.IsNil(streamValue) {
+				return nil
 			}
 			if !yield(&StreamValue[Out, Out]{Chunk: streamValue}, nil) {
 				return errGenerateStop

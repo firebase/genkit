@@ -4,14 +4,40 @@ This sample demonstrates the different evaluation features using Genkit Python S
 
 Note: This sample focuses on evaluation features in Genkit, by utilizing the official Genkit Evaluators plugin. If you are interested in writing your own custom evaluator, please check the `custom/test_evaluator` defined in `src/main.py`.
 
+### How to Get Your Gemini API Key
+
+To use the Google GenAI plugin, you need a Gemini API key.
+
+1.  **Visit AI Studio**: Go to [Google AI Studio](https://aistudio.google.com/).
+2.  **Create API Key**: Click on "Get API key" and create a key in a new or existing Google Cloud project.
+
+For more details, check out the [official documentation](https://ai.google.dev/gemini-api/docs/api-key).
+
+### Monitoring and Running
+
+For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+
+```bash
+./run.sh
+```
+
+This script uses `watchmedo` to monitor changes in:
+- `src/` (Python logic)
+- `docs/` (PDF documents)
+- `../../packages` (Genkit core)
+- `../../plugins` (Genkit plugins)
+- File patterns: `*.py`, `*.prompt`, `*.json`, `*.pdf`
+
+Changes to Python, prompt, or JSON files will trigger an automatic restart. **Changes to PDF files in `docs/` will also trigger an automatic re-indexing** of the documents by deleting the internal marker file `__db_pdf_qa.json` before restarting.
+
+You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
+
 ## Setup and start the sample
 
 ```bash
-
-# Start the Genkit Dev UI
-genkit start -- uv run src/main.py
-# This command should output the link to the Genkit Dev UI.
+export GEMINI_API_KEY=<Your api key>
 ```
+
 Choose any flow of interest and run in the Dev UI.
 ## Available Flows
 

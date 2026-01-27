@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Genkit demo configuration."""
+
+import os
+
 from genkit.ai import Genkit
 from genkit.blocks.model import ModelReference
-from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
-from genkit.plugins.evaluators import GenkitEvaluators, GenkitMetricType, MetricConfig
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
+from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_genai import GoogleAI
 
 # Turn off safety checks for evaluation so that the LLM as an evaluator can
@@ -41,29 +45,35 @@ PERMISSIVE_SAFETY_SETTINGS = {
     ],
 }
 
-ai = Genkit(
-    plugins=[
-        GoogleAI(),
-        GenkitEvaluators([
-            MetricConfig(
-                metric_type=GenkitMetricType.MALICIOUSNESS,
-                judge=ModelReference(name='googleai/gemini-2.5-pro'),
-                judge_config=PERMISSIVE_SAFETY_SETTINGS,
-            ),
-            MetricConfig(
-                metric_type=GenkitMetricType.ANSWER_RELEVANCY,
-                judge=ModelReference(name='googleai/gemini-2.5-pro'),
-                judge_config=PERMISSIVE_SAFETY_SETTINGS,
-            ),
-            MetricConfig(
-                metric_type=GenkitMetricType.FAITHFULNESS,
-                judge=ModelReference(name='googleai/gemini-2.5-pro'),
-                judge_config=PERMISSIVE_SAFETY_SETTINGS,
-            ),
-        ]),
-        DevLocalVectorStore(
-            name='pdf_qa',
-            embedder='googleai/text-embedding-004',
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+
+ai = Genkit(plugins=[GoogleAI()])
+
+# Define dev local vector store
+define_dev_local_vector_store(
+    ai,
+    name='pdf_qa',
+    embedder='googleai/text-embedding-004',
+)
+
+define_genkit_evaluators(
+    ai,
+    [
+        MetricConfig(
+            metric_type=GenkitMetricType.MALICIOUSNESS,
+            judge=ModelReference(name='googleai/gemini-3-pro-preview'),
+            judge_config=PERMISSIVE_SAFETY_SETTINGS,
         ),
-    ]
+        MetricConfig(
+            metric_type=GenkitMetricType.ANSWER_RELEVANCY,
+            judge=ModelReference(name='googleai/gemini-3-pro-preview'),
+            judge_config=PERMISSIVE_SAFETY_SETTINGS,
+        ),
+        MetricConfig(
+            metric_type=GenkitMetricType.FAITHFULNESS,
+            judge=ModelReference(name='googleai/gemini-3-pro-preview'),
+            judge_config=PERMISSIVE_SAFETY_SETTINGS,
+        ),
+    ],
 )

@@ -29,7 +29,12 @@ Key features demonstrated in this sample:
 | Streaming Generation                    | `say_hi_stream`                     |
 | Generation with Tools                   | `weather_flow`, `currency_exchange` |
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
+| Thinking (CoT)                          | `thinking_demo`                     |
+| Multimodal (Image Input)                | `describe_image`                    |
 """
+
+import os
+from typing import Annotated, cast
 
 import structlog
 from pydantic import BaseModel, Field
@@ -37,6 +42,9 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from genkit.types import ActionRunContext, GenerationCommonConfig
+
+if 'ANTHROPIC_API_KEY' not in os.environ:
+    os.environ['ANTHROPIC_API_KEY'] = input('Please enter your ANTHROPIC_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 
@@ -46,39 +54,43 @@ ai = Genkit(
 )
 
 
-class WeatherInput(BaseModel):
-    """Weather input schema."""
+class CurrencyExchangeInput(BaseModel):
+    """Currency exchange flow input schema."""
 
-    location: str = Field(description='Location to get weather for')
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
 
 
 class CurrencyInput(BaseModel):
     """Currency conversion input schema."""
 
-    amount: float = Field(description='Amount to convert')
-    from_currency: str = Field(description='Source currency code (e.g., USD)')
-    to_currency: str = Field(description='Target currency code (e.g., EUR)')
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
 
 
-class CurrencyExchangeInput(BaseModel):
-    """Currency exchange flow input schema."""
+class Skills(BaseModel):
+    """A set of core character skills for an RPG character."""
 
-    amount: float = Field(description='Amount to convert')
-    from_curr: str = Field(description='Source currency code')
-    to_curr: str = Field(description='Target currency code')
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
 
 
-@ai.tool()
-def get_weather(input: WeatherInput) -> str:
-    """Get weather for a location.
+class RpgCharacter(BaseModel):
+    """An RPG character."""
 
-    Args:
-        input: Weather input with location.
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
 
-    Returns:
-        Weather information.
-    """
-    return f'Weather in {input.location}: Sunny, 23°C'
+
+class WeatherInput(BaseModel):
+    """Weather input schema."""
+
+    location: str = Field(description='Location to get weather for')
 
 
 @ai.tool()
@@ -106,57 +118,6 @@ def convert_currency(input: CurrencyInput) -> str:
 
 
 @ai.flow()
-async def say_hi(name: str) -> str:
-    """Generate a simple greeting.
-
-    Args:
-        name: Name to greet.
-
-    Returns:
-        Greeting message.
-    """
-    response = await ai.generate(
-        prompt=f'Say hello to {name} in a friendly way',
-    )
-    return response.text
-
-
-@ai.flow()
-async def say_hi_stream(topic: str, ctx: ActionRunContext) -> str:
-    """Generate streaming response.
-
-    Args:
-        topic: Topic to write about.
-        ctx: Action run context for streaming.
-
-    Returns:
-        Complete generated text.
-    """
-    response = await ai.generate(
-        prompt=f'Write a short story about {topic}',
-        on_chunk=ctx.send_chunk,
-    )
-    return response.text
-
-
-@ai.flow()
-async def weather_flow(location: str) -> str:
-    """Get weather using tools.
-
-    Args:
-        location: Location to get weather for.
-
-    Returns:
-        Weather information.
-    """
-    response = await ai.generate(
-        prompt=f'What is the weather in {location}?',
-        tools=['get_weather'],
-    )
-    return response.text
-
-
-@ai.flow()
 async def currency_exchange(input: CurrencyExchangeInput) -> str:
     """Convert currency using tools.
 
@@ -174,7 +135,95 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 
 @ai.flow()
-async def say_hi_with_config(name: str) -> str:
+async def describe_image(
+    image_url: Annotated[
+        str,
+        Field(default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png'),
+    ] = 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+) -> str:
+    """Describe an image using Anthropic."""
+    from genkit.types import Media, MediaPart, Part, TextPart
+
+    response = await ai.generate(
+        prompt=[
+            Part(root=TextPart(text='Describe this image')),
+            Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
+        ],
+    )
+    return response.text
+
+
+@ai.flow()
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+) -> RpgCharacter:
+    """Generate an RPG character.
+
+    Args:
+        name: the name of the character
+
+    Returns:
+        The generated RPG character.
+    """
+    result = await ai.generate(
+        prompt=f'generate an RPG character named {name}',
+        output_schema=RpgCharacter,
+    )
+    return cast(RpgCharacter, result.output)
+
+
+@ai.tool()
+def get_weather(input: WeatherInput) -> str:
+    """Get weather for a location.
+
+    Args:
+        input: Weather input with location.
+
+    Returns:
+        Weather information.
+    """
+    return f'Weather in {input.location}: Sunny, 23°C'
+
+
+@ai.flow()
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+    """Generate a simple greeting.
+
+    Args:
+        name: Name to greet.
+
+    Returns:
+        Greeting message.
+    """
+    response = await ai.generate(
+        prompt=f'Say hello to {name} in a friendly way',
+    )
+    return response.text
+
+
+@ai.flow()
+async def say_hi_stream(
+    topic: Annotated[str, Field(default='space exploration')] = 'space exploration',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
+    """Generate streaming response.
+
+    Args:
+        topic: Topic to write about.
+        ctx: Action run context for streaming.
+
+    Returns:
+        Complete generated text.
+    """
+    response = await ai.generate(
+        prompt=f'Write a short story about {topic}',
+        on_chunk=ctx.send_chunk,
+    )
+    return response.text
+
+
+@ai.flow()
+async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     """Generate greeting with custom configuration.
 
     Args:
@@ -193,20 +242,49 @@ async def say_hi_with_config(name: str) -> str:
     return response.text
 
 
+@ai.flow()
+async def thinking_demo(
+    question: Annotated[str, Field(default='Explain quantum entanglement')] = 'Explain quantum entanglement',
+) -> str:
+    """Demonstrate Anthropic thinking capability.
+
+    Note: 'thinking' requires a compatible model (e.g., Claude 3.7 Sonnet).
+    """
+    response = await ai.generate(
+        model=anthropic_name('claude-3-7-sonnet-20250219'),
+        prompt=question,
+        config={
+            'thinking': {'type': 'enabled', 'budget_tokens': 1024},
+            'max_output_tokens': 4096,  # Required when thinking is enabled
+        },
+    )
+    return response.text
+
+
+@ai.flow()
+async def weather_flow(location: Annotated[str, Field(default='San Francisco')] = 'San Francisco') -> str:
+    """Get weather using tools.
+
+    Args:
+        location: Location to get weather for.
+
+    Returns:
+        Weather information.
+    """
+    response = await ai.generate(
+        prompt=f'What is the weather in {location}?',
+        tools=['get_weather'],
+    )
+    return response.text
+
+
 async def main() -> None:
-    """Main entry point for the Anthropic sample."""
+    """Main entry point for the Anthropic sample - keep alive for Dev UI."""
+    import asyncio
 
-    result = await say_hi('John Doe')
-    await logger.ainfo('Simple greeting', result=result)
-
-    result = await say_hi_with_config('John Doe')
-    await logger.ainfo('Custom config', result=result)
-
-    result = await weather_flow('Paris')
-    await logger.ainfo('Weather', result=result)
-
-    result = await currency_exchange(CurrencyExchangeInput(amount=100.0, from_curr='USD', to_curr='EUR'))
-    await logger.ainfo('Currency', result=result)
+    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    # Keep the process alive for Dev UI
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

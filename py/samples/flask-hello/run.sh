@@ -15,4 +15,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-exec genkit start -- uv run flask --app src/main.py run "$@"
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run flask --app src/main.py run "$@"

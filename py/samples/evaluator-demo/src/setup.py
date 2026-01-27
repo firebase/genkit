@@ -12,24 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Setup for evaluator demo."""
+
 import os
 
 from genkit_demo import ai
 from pdf_rag import index_pdf
+from pydantic import BaseModel
 
 # Default document to index
 CAT_FACTS = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs', 'cat-handbook.pdf'))]
 
 
-from pydantic import BaseModel
-
-
 class SetupInput(BaseModel):
+    """Input for setup flow."""
+
     documents: list[str] | None = None
 
 
 @ai.flow(name='setup')
-async def setup(options: SetupInput | None = None):
+async def setup(options: SetupInput | None = None) -> None:
+    """Run initial setup (indexing).
+
+    Args:
+        options: Setup options.
+
+    Example:
+        >>> await setup(SetupInput(documents=['doc.pdf']))
+    """
     if not options or not options.documents:
         docs_to_index = CAT_FACTS
     else:

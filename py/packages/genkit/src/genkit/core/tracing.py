@@ -28,10 +28,12 @@ The module includes:
 """
 
 import traceback
+from collections.abc import Generator
 from contextlib import contextmanager
 
 import structlog
 from opentelemetry import trace as trace_api
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
@@ -60,6 +62,7 @@ def init_provider() -> TracerProvider:
     if tracer_provider is None or not isinstance(tracer_provider, TracerProvider):
         tracer_provider = TracerProvider()
         trace_api.set_tracer_provider(tracer_provider)
+        LoggingInstrumentor().instrument(set_logging_format=True)
         logger.debug('Creating a new global tracer provider for telemetry.')
 
     if not isinstance(tracer_provider, TracerProvider):
@@ -70,7 +73,7 @@ def init_provider() -> TracerProvider:
     return tracer_provider
 
 
-def add_custom_exporter(exporter: SpanExporter, name: str = 'last') -> None:
+def add_custom_exporter(exporter: SpanExporter | None, name: str = 'last') -> None:
     """Adds custom span exporter to current tracer provider.
 
     Args:
@@ -106,7 +109,7 @@ def run_in_new_span(
     metadata: SpanMetadata,
     labels: dict[str, str] | None = None,
     links: list[trace_api.Link] | None = None,
-):
+) -> Generator[GenkitSpan, None, None]:
     """Starts a new span context under the current trace.
 
     This method provides a contexmanager for working with Genkit spans. The

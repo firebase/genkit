@@ -37,38 +37,139 @@ Key features demonstrated in this sample:
 | Structured Output (Schema)                               | `generate_character`                   |
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
-| Multi-modal Output Configuration                         | `generate_images`                      |
-
 """
+
+import os
+from typing import Annotated, cast
 
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.blocks.model import GenerateResponseWrapper
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,
 )
-from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
+    Embedding,
     GenerationCommonConfig,
     Message,
+    Part,
     Role,
     TextPart,
 )
 
 logger = structlog.get_logger(__name__)
 
+if 'GCLOUD_PROJECT' not in os.environ:
+    os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
+
 ai = Genkit(
     plugins=[VertexAI()],
-    model='vertexai/gemini-2.5-flash',
+    model='vertexai/gemini-2.0-flash',
 )
+
+
+class CurrencyExchangeInput(BaseModel):
+    """Currency exchange flow input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_curr: str = Field(description='Source currency code', default='USD')
+    to_curr: str = Field(description='Target currency code', default='EUR')
+
+
+class CurrencyInput(BaseModel):
+    """Currency conversion input schema."""
+
+    amount: float = Field(description='Amount to convert', default=100)
+    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
+    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
 
 
 class GablorkenInput(BaseModel):
     """The Pydantic model for tools."""
 
     value: int = Field(description='value to calculate gablorken for')
+
+
+class Skills(BaseModel):
+    """Skills for an RPG character."""
+
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+
+
+class RpgCharacter(BaseModel):
+    """An RPG character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
+
+
+@ai.tool()
+def convert_currency(input: CurrencyInput) -> str:
+    """Convert currency amount.
+
+    Args:
+        input: Currency conversion parameters.
+
+    Returns:
+        Converted amount.
+    """
+    # Mock conversion rates
+    rates = {
+        ('USD', 'EUR'): 0.85,
+        ('EUR', 'USD'): 1.18,
+        ('USD', 'GBP'): 0.73,
+        ('GBP', 'USD'): 1.37,
+    }
+
+    rate = rates.get((input.from_currency, input.to_currency), 1.0)
+    converted = input.amount * rate
+
+    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
+
+
+@ai.flow()
+async def currency_exchange(input: CurrencyExchangeInput) -> str:
+    """Convert currency using tools.
+
+    Args:
+        input: Currency exchange parameters.
+
+    Returns:
+        Conversion result.
+    """
+    response = await ai.generate(
+        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
+        tools=['convert_currency'],
+    )
+    return response.text
+
+
+@ai.flow()
+async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
+    """Generate an embedding for the words in a list.
+
+    Args:
+        docs: list of texts (string)
+
+    Returns:
+        The generated embedding.
+    """
+    if docs is None:
+        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
+    options = {'task_type': EmbeddingTaskType.CLUSTERING}
+    return await ai.embed_many(
+        embedder='vertexai/text-embedding-004',
+        content=docs,
+        options=options,
+    )
 
 
 @ai.tool(name='gablorkenTool')
@@ -84,25 +185,8 @@ def gablorken_tool(input_: GablorkenInput) -> int:
     return input_.value * 3 - 5
 
 
-@ai.flow()
-async def simple_generate_with_tools_flow(value: int) -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        value: the integer to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    response = await ai.generate(
-        prompt=f'what is a gablorken of {value}',
-        tools=['gablorkenTool'],
-    )
-    return response.text
-
-
 @ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
+def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -116,7 +200,118 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: int) -> str:
+async def generate_character(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
+    """Generate an RPG character.
+
+    Args:
+        name: the name of the character
+        ctx: the context of the tool
+
+    Returns:
+        The generated RPG character.
+    """
+    if ctx.is_streaming:
+        stream, result = ai.generate_stream(
+            prompt=f'generate an RPG character named {name}',
+            output_schema=RpgCharacter,
+        )
+        async for data in stream:
+            ctx.send_chunk(data.output)
+
+        return cast(RpgCharacter, (await result).output)
+    else:
+        result = await ai.generate(
+            prompt=f'generate an RPG character named {name}',
+            output_schema=RpgCharacter,
+        )
+        return cast(RpgCharacter, result.output)
+
+
+@ai.flow()
+async def generate_character_unconstrained(
+    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> RpgCharacter:
+    """Generate an unconstrained RPG character.
+
+    Args:
+        name: the name of the character
+        ctx: the context of the tool
+
+    Returns:
+        The generated RPG character.
+    """
+    result = await ai.generate(
+        prompt=f'generate an RPG character named {name}',
+        output_schema=RpgCharacter,
+        output_constrained=False,
+        output_instructions=True,
+    )
+    return cast(RpgCharacter, result.output)
+
+
+@ai.flow()
+async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
+    resp = await ai.generate(
+        prompt=f'hi {name}',
+    )
+    return resp.text
+
+
+@ai.flow()
+async def say_hi_stream(
+    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    ctx: ActionRunContext = None,  # type: ignore[assignment]
+) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+        ctx: the context of the tool
+
+    Returns:
+        The generated response with a function.
+    """
+    stream, _ = ai.generate_stream(prompt=f'hi {name}')
+    result: str = ''
+    async for data in stream:
+        ctx.send_chunk(data.text)
+        result += data.text
+
+    return result
+
+
+@ai.flow()
+async def say_hi_with_configured_temperature(
+    data: Annotated[str, Field(default='Alice')] = 'Alice',
+) -> GenerateResponseWrapper:
+    """Generate a greeting for the given name.
+
+    Args:
+        data: the name to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
+    return await ai.generate(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
+        config=GenerationCommonConfig(temperature=0.1),
+    )
+
+
+@ai.flow()
+async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -139,141 +334,24 @@ async def simple_generate_with_interrupts(value: int) -> str:
         tool_responses=[tr],
         tools=['gablorkenTool'],
     )
-    return response
+    return response.text
 
 
 @ai.flow()
-async def say_hi(name: str):
+async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        value: the integer to send to test function
 
     Returns:
         The generated response with a function.
     """
-    resp = await ai.generate(
-        prompt=f'hi {name}',
+    response = await ai.generate(
+        prompt=f'what is a gablorken of {value}',
+        tools=['gablorkenTool'],
     )
-    return resp.text
-
-
-@ai.flow()
-async def embed_docs(docs: list[str]):
-    """Generate an embedding for the words in a list.
-
-    Args:
-        docs: list of texts (string)
-
-    Returns:
-        The generated embedding.
-    """
-    options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed(
-        embedder='vertexai/text-embedding-004',
-        documents=[Document.from_text(doc) for doc in docs],
-        options=options,
-    )
-
-
-@ai.flow()
-async def say_hi_with_configured_temperature(data: str):
-    """Generate a greeting for the given name.
-
-    Args:
-        data: the name to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    return await ai.generate(
-        messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
-        config=GenerationCommonConfig(temperature=0.1),
-    )
-
-
-@ai.flow()
-async def say_hi_stream(name: str, ctx):
-    """Generate a greeting for the given name.
-
-    Args:
-        name: the name to send to test function
-        ctx: the context of the tool
-
-    Returns:
-        The generated response with a function.
-    """
-    stream, _ = ai.generate_stream(prompt=f'hi {name}')
-    result = ''
-    async for data in stream:
-        ctx.send_chunk(data.text)
-        for part in data.content:
-            result += part.root.text
-
-    return result
-
-
-class Skills(BaseModel):
-    strength: int = Field(description='strength (0-100)')
-    charisma: int = Field(description='charisma (0-100)')
-    endurance: int = Field(description='endurance (0-100)')
-
-
-class RpgCharacter(BaseModel):
-    """An RPG character."""
-
-    name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
-    abilities: list[str] = Field(description='list of abilities (3-4)')
-    skills: Skills
-
-
-@ai.flow()
-async def generate_character(name: str, ctx):
-    """Generate an RPG character.
-
-    Args:
-        name: the name of the character
-        ctx: the context of the tool
-
-    Returns:
-        The generated RPG character.
-    """
-    if ctx.is_streaming:
-        stream, result = ai.generate_stream(
-            prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
-        )
-        async for data in stream:
-            ctx.send_chunk(data.output)
-
-        return (await result).output
-    else:
-        result = await ai.generate(
-            prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
-        )
-        return result.output
-
-
-@ai.flow()
-async def generate_character_unconstrained(name: str, ctx):
-    """Generate an unconstrained RPG character.
-
-    Args:
-        name: the name of the character
-        ctx: the context of the tool
-
-    Returns:
-        The generated RPG character.
-    """
-    result = await ai.generate(
-        prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
-        output_constrained=False,
-        output_instructions=True,
-    )
-    return result.output
+    return response.text
 
 
 async def main() -> None:

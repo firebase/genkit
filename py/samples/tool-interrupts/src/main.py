@@ -14,6 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tool interrupts sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Tool Interruption                       | `ctx.interrupt(payload)`            |
+| Handling Interrupts in Loop             | `response.interrupts` check         |
+| Resuming with Tool Response             | `tool_response(request, input)`     |
+| Interactive CLI Loop                    | `while True: ... input()`           |
+"""
+
 import asyncio
 
 from pydantic import BaseModel, Field
@@ -23,12 +35,12 @@ from genkit.ai import (
     ToolRunContext,
     tool_response,
 )
-from genkit.plugins.google_genai import GoogleAI, googleai_name
+from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models import gemini
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_2_0_FLASH),
+    model=f'googleai/{gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
 )
 
 
@@ -40,9 +52,9 @@ class TriviaQuestions(BaseModel):
 
 
 @ai.tool()
-def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
+def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
     """Can present questions to the user, responds with the user' selected answer."""
-    ctx.interrupt(questions)
+    ctx.interrupt(questions.model_dump())
 
 
 async def main() -> None:
@@ -68,11 +80,13 @@ async def main() -> None:
         messages = response.messages
         if len(response.interrupts) > 0:
             request = response.interrupts[0]
-            print(request.tool_request.input.get('question'))
-            i = 1
-            for question in request.tool_request.input.get('answers'):
-                print(f'   ({i}) {question}')
-                i += 1
+            input_data = request.tool_request.input
+            if input_data:
+                print(input_data.get('question'))
+                i = 1
+                for question in input_data.get('answers', []):
+                    print(f'   ({i}) {question}')
+                    i += 1
 
             tr = tool_response(request, input('Your answer (number): '))
             response = await ai.generate(

@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Ollama embedders."""
+
 from collections.abc import Callable
 
 from pydantic import BaseModel

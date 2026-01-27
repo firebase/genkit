@@ -15,4 +15,25 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-exec genkit start -- uv run src/main.py "$@"
+# Start the sample with automatic reloading
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d docs \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json;*.pdf' \
+    -R \
+    -- sh -c '
+      if [ -f __db_pdf_qa.json ]; then
+        for f in docs/*.pdf; do
+          if [ "$f" -nt __db_pdf_qa.json ]; then
+            rm -f __db_pdf_qa.json
+            break
+          fi
+        done
+      fi
+      if [ ! -f __db_pdf_qa.json ]; then
+        uv run src/main.py --setup
+      fi
+      uv run src/main.py "$@"' "$0" "$@"

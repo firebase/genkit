@@ -17,20 +17,20 @@
 
 """OpenAI configuration for Genkit."""
 
-import sys  # noqa
+import sys
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OpenAIConfig(BaseModel):
     """OpenAI configuration for Genkit."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
 
     model: str | None = None
     top_p: float | None = None
@@ -38,10 +38,14 @@ class OpenAIConfig(BaseModel):
     stop: str | list[str] | None = None
     max_tokens: int | None = None
     stream: bool | None = None
+    frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
+    presence_penalty: float | None = Field(default=None, ge=-2, le=2)
+    logprobs: bool | None = None
+    top_logprobs: int | None = Field(default=None, ge=0, le=20)
 
 
 class SupportedOutputFormat(StrEnum):
-    """Model Output Formats"""
+    """Model Output Formats."""
 
     JSON_MODE = 'json_mode'
     STRUCTURED_OUTPUTS = 'structured_outputs'

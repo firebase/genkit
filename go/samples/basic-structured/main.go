@@ -12,6 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This sample demonstrates structured input/output with strongly-typed Go
+// structs. It shows GenerateStream for simple output and GenerateDataStream
+// for typed JSON output with streaming partial results.
+//
+// To run:
+//
+//	go run .
+//
+// In another terminal, test a simple joke flow:
+//
+//	curl -N -X POST http://localhost:8080/simpleJokesFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": "bananas"}'
+//
+// Test a structured joke flow (returns JSON):
+//
+//	curl -N -X POST http://localhost:8080/structuredJokesFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"topic": "bananas"}}'
+//
+// Test a recipe flow:
+//
+//	curl -N -X POST http://localhost:8080/recipeFlow \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"data": {"dish": "tacos", "cuisine": "Mexican", "servingSize": 4}}'
 package main
 
 import (
@@ -89,7 +114,7 @@ func DefineSimpleJoke(g *genkit.Genkit) {
 	genkit.DefineStreamingFlow(g, "simpleJokesFlow",
 		func(ctx context.Context, input string, sendChunk core.StreamCallback[string]) (string, error) {
 			stream := genkit.GenerateStream(ctx, g,
-				ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
+				ai.WithModel(googlegenai.ModelRef("googleai/gemini-2.5-flash", &genai.GenerateContentConfig{
 					ThinkingConfig: &genai.ThinkingConfig{
 						ThinkingBudget: genai.Ptr[int32](0),
 					},
@@ -118,7 +143,7 @@ func DefineStructuredJoke(g *genkit.Genkit) {
 	genkit.DefineStreamingFlow(g, "structuredJokesFlow",
 		func(ctx context.Context, input JokeRequest, sendChunk core.StreamCallback[*Joke]) (*Joke, error) {
 			stream := genkit.GenerateDataStream[*Joke](ctx, g,
-				ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
+				ai.WithModel(googlegenai.ModelRef("googleai/gemini-2.5-flash", &genai.GenerateContentConfig{
 					ThinkingConfig: &genai.ThinkingConfig{
 						ThinkingBudget: genai.Ptr[int32](0),
 					},
@@ -146,7 +171,7 @@ func DefineRecipe(g *genkit.Genkit) {
 	genkit.DefineStreamingFlow(g, "recipeFlow",
 		func(ctx context.Context, input RecipeRequest, sendChunk core.StreamCallback[[]*Ingredient]) (*Recipe, error) {
 			stream := genkit.GenerateDataStream[*Recipe](ctx, g,
-				ai.WithModel(googlegenai.ModelRef("gemini-2.5-flash", &genai.GenerateContentConfig{
+				ai.WithModel(googlegenai.ModelRef("googleai/gemini-2.5-flash", &genai.GenerateContentConfig{
 					ThinkingConfig: &genai.ThinkingConfig{
 						ThinkingBudget: genai.Ptr[int32](0),
 					},

@@ -33,6 +33,7 @@ import type { CandidateData, ToolDefinition } from 'genkit/model';
 import { describe, it, mock } from 'node:test';
 
 import { claudeModel, claudeRunner } from '../src/models.js';
+import { toDocumentBlock } from '../src/runner/converters/stable.js';
 import { Runner } from '../src/runner/stable.js';
 import { AnthropicConfigSchema } from '../src/types.js';
 import {
@@ -57,13 +58,11 @@ type RunnerProtectedMethods = {
   toAnthropicTool: (tool: ToolDefinition) => any;
   toAnthropicRequestBody: (
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ) => any;
   toAnthropicStreamingRequestBody: (
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ) => any;
   fromAnthropicContentBlockChunk: (
     event: MessageStreamEvent
@@ -183,6 +182,7 @@ describe('toAnthropicMessageContent', () => {
         type: 'url',
         url: 'https://example.com/image.png',
       },
+      cache_control: undefined,
     });
   });
 
@@ -201,6 +201,7 @@ describe('toAnthropicMessageContent', () => {
         media_type: 'application/pdf',
         data: 'JVBERi0xLjQKJ',
       },
+      cache_control: undefined,
     });
   });
 
@@ -218,6 +219,7 @@ describe('toAnthropicMessageContent', () => {
         type: 'url',
         url: 'https://example.com/document.pdf',
       },
+      cache_control: undefined,
     });
   });
 });
@@ -228,7 +230,7 @@ describe('toAnthropicMessages', () => {
     inputMessages: MessageData[];
     expectedOutput: {
       messages: MessageParam[];
-      system?: string;
+      system?: MessageParam['content'];
     };
   }[] = [
     {
@@ -257,6 +259,7 @@ describe('toAnthropicMessages', () => {
                 id: 'toolu_01A09q90qw90lq917835lq9',
                 name: 'tellAFunnyJoke',
                 input: { topic: 'bob' },
+                cache_control: undefined,
               },
             ],
           },
@@ -288,6 +291,7 @@ describe('toAnthropicMessages', () => {
               {
                 type: 'tool_result',
                 tool_use_id: 'call_SVDpFV2l2fW88QRFtv85FWwM',
+                cache_control: undefined,
                 content: [
                   {
                     type: 'text',
@@ -328,6 +332,7 @@ describe('toAnthropicMessages', () => {
               {
                 type: 'tool_result',
                 tool_use_id: 'call_SVDpFV2l2fW88QRFtv85FWwM',
+                cache_control: undefined,
                 content: [
                   {
                     type: 'image',
@@ -370,6 +375,7 @@ describe('toAnthropicMessages', () => {
               {
                 type: 'tool_result',
                 tool_use_id: 'call_SVDpFV2l2fW88QRFtv85FWwM',
+                cache_control: undefined,
                 content: [
                   {
                     type: 'image',
@@ -402,6 +408,7 @@ describe('toAnthropicMessages', () => {
                 text: 'hi',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -412,6 +419,7 @@ describe('toAnthropicMessages', () => {
                 text: 'how can I help you?',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
             ],
             role: 'assistant',
@@ -422,6 +430,7 @@ describe('toAnthropicMessages', () => {
                 text: 'I am testing',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -444,12 +453,20 @@ describe('toAnthropicMessages', () => {
                 text: 'hi',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
             ],
             role: 'user',
           },
         ],
-        system: 'You are an helpful assistant',
+        system: [
+          {
+            type: 'text',
+            text: 'You are an helpful assistant',
+            citations: null,
+            cache_control: undefined,
+          },
+        ],
       },
     },
     {
@@ -476,6 +493,7 @@ describe('toAnthropicMessages', () => {
                 text: 'describe the following image:',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
               {
                 source: {
@@ -484,6 +502,7 @@ describe('toAnthropicMessages', () => {
                   media_type: 'image/gif',
                 },
                 type: 'image',
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -518,6 +537,7 @@ describe('toAnthropicMessages', () => {
                   media_type: 'application/pdf',
                   data: 'JVBERi0xLjQKJ',
                 },
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -551,6 +571,7 @@ describe('toAnthropicMessages', () => {
                   type: 'url',
                   url: 'https://example.com/document.pdf',
                 },
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -589,6 +610,7 @@ describe('toAnthropicMessages', () => {
                 text: 'Analyze this PDF and image:',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
               {
                 type: 'document',
@@ -597,6 +619,7 @@ describe('toAnthropicMessages', () => {
                   media_type: 'application/pdf',
                   data: 'JVBERi0xLjQKJ',
                 },
+                cache_control: undefined,
               },
               {
                 source: {
@@ -605,6 +628,7 @@ describe('toAnthropicMessages', () => {
                   media_type: 'image/png',
                 },
                 type: 'image',
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -684,7 +708,7 @@ describe('fromAnthropicContentBlockChunk', () => {
       },
       expectedOutput: {
         reasoning: 'Let me reason through this.',
-        custom: { anthropicThinking: { signature: 'sig_123' } },
+        metadata: { thoughtSignature: 'sig_123' },
       },
     },
     {
@@ -723,6 +747,40 @@ describe('fromAnthropicContentBlockChunk', () => {
         },
       },
       expectedOutput: { reasoning: 'Step by step...' },
+    },
+    {
+      should: 'should return citation part from citations_delta event',
+      event: {
+        index: 0,
+        type: 'content_block_delta',
+        delta: {
+          type: 'citations_delta',
+          citation: {
+            type: 'char_location',
+            cited_text: 'The grass is green.',
+            document_index: 0,
+            document_title: 'Basic Facts',
+            start_char_index: 0,
+            end_char_index: 19,
+          },
+        },
+      } as MessageStreamEvent,
+      expectedOutput: {
+        text: '',
+        metadata: {
+          citations: [
+            {
+              type: 'char_location',
+              citedText: 'The grass is green.',
+              documentIndex: 0,
+              documentTitle: 'Basic Facts',
+              fileId: undefined,
+              startCharIndex: 0,
+              endCharIndex: 19,
+            },
+          ],
+        },
+      },
     },
     {
       should: 'should return tool use requests',
@@ -862,6 +920,12 @@ describe('fromAnthropicResponse', () => {
         usage: {
           inputTokens: 10,
           outputTokens: 20,
+          custom: {
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+          },
         },
       },
     },
@@ -911,6 +975,84 @@ describe('fromAnthropicResponse', () => {
         usage: {
           inputTokens: 10,
           outputTokens: 20,
+          custom: {
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+          },
+        },
+      },
+    },
+    {
+      should: 'should work with text content containing citations',
+      message: {
+        id: 'abc123',
+        model: 'whatever',
+        type: 'message',
+        role: 'assistant',
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        content: [
+          {
+            type: 'text',
+            text: 'The grass is green.',
+            citations: [
+              {
+                type: 'char_location',
+                cited_text: 'The grass is green.',
+                document_index: 0,
+                document_title: 'Basic Facts',
+                start_char_index: 0,
+                end_char_index: 19,
+              },
+            ],
+          },
+        ],
+        usage: createUsage({
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_creation_input_tokens: null,
+          cache_read_input_tokens: null,
+        }),
+      } as Message,
+      expectedOutput: {
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text: 'The grass is green.',
+                  metadata: {
+                    citations: [
+                      {
+                        type: 'char_location',
+                        citedText: 'The grass is green.',
+                        documentIndex: 0,
+                        documentTitle: 'Basic Facts',
+                        fileId: undefined,
+                        startCharIndex: 0,
+                        endCharIndex: 19,
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+          custom: {
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+          },
         },
       },
     },
@@ -964,6 +1106,7 @@ describe('toAnthropicRequestBody', () => {
                 text: 'Tell a joke about dogs.',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -998,6 +1141,7 @@ describe('toAnthropicRequestBody', () => {
                 text: 'Tell a joke about dogs.',
                 type: 'text',
                 citations: null,
+                cache_control: undefined,
               },
             ],
             role: 'user',
@@ -1045,7 +1189,15 @@ describe('toAnthropicRequestBody', () => {
   it('should apply system prompt caching when enabled', () => {
     const request: GenerateRequest<typeof AnthropicConfigSchema> = {
       messages: [
-        { role: 'system', content: [{ text: 'You are a helpful assistant' }] },
+        {
+          role: 'system',
+          content: [
+            {
+              text: 'You are a helpful assistant',
+              metadata: { cache_control: { type: 'ephemeral' } },
+            },
+          ],
+        },
         { role: 'user', content: [{ text: 'Hi' }] },
       ],
       output: { format: 'text' },
@@ -1054,83 +1206,14 @@ describe('toAnthropicRequestBody', () => {
     // Test with caching enabled
     const outputWithCaching = testRunner.toAnthropicRequestBody(
       'claude-3-5-haiku',
-      request,
-      true
+      request
     );
     assert.deepStrictEqual(outputWithCaching.system, [
       {
         type: 'text',
         text: 'You are a helpful assistant',
         cache_control: { type: 'ephemeral' },
-      },
-    ]);
-
-    // Test with caching disabled
-    const outputWithoutCaching = testRunner.toAnthropicRequestBody(
-      'claude-3-5-haiku',
-      request,
-      false
-    );
-    assert.strictEqual(
-      outputWithoutCaching.system,
-      'You are a helpful assistant'
-    );
-  });
-
-  it('should concatenate multiple text parts in system message', () => {
-    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
-      messages: [
-        {
-          role: 'system',
-          content: [
-            { text: 'You are a helpful assistant.' },
-            { text: 'Always be concise.' },
-            { text: 'Use proper grammar.' },
-          ],
-        },
-        { role: 'user', content: [{ text: 'Hi' }] },
-      ],
-      output: { format: 'text' },
-    };
-
-    const output = testRunner.toAnthropicRequestBody(
-      'claude-3-5-haiku',
-      request,
-      false
-    );
-
-    assert.strictEqual(
-      output.system,
-      'You are a helpful assistant.\n\nAlways be concise.\n\nUse proper grammar.'
-    );
-  });
-
-  it('should concatenate multiple text parts in system message with caching', () => {
-    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
-      messages: [
-        {
-          role: 'system',
-          content: [
-            { text: 'You are a helpful assistant.' },
-            { text: 'Always be concise.' },
-          ],
-        },
-        { role: 'user', content: [{ text: 'Hi' }] },
-      ],
-      output: { format: 'text' },
-    };
-
-    const output = testRunner.toAnthropicRequestBody(
-      'claude-3-5-haiku',
-      request,
-      true
-    );
-
-    assert.deepStrictEqual(output.system, [
-      {
-        type: 'text',
-        text: 'You are a helpful assistant.\n\nAlways be concise.',
-        cache_control: { type: 'ephemeral' },
+        citations: null,
       },
     ]);
   });
@@ -1156,8 +1239,7 @@ describe('toAnthropicRequestBody', () => {
     };
 
     assert.throws(
-      () =>
-        testRunner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      () => testRunner.toAnthropicRequestBody('claude-3-5-haiku', request),
       /System messages can only contain text content/
     );
   });
@@ -1178,8 +1260,7 @@ describe('toAnthropicRequestBody', () => {
     };
 
     assert.throws(
-      () =>
-        testRunner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      () => testRunner.toAnthropicRequestBody('claude-3-5-haiku', request),
       /System messages can only contain text content/
     );
   });
@@ -1200,8 +1281,7 @@ describe('toAnthropicRequestBody', () => {
     };
 
     assert.throws(
-      () =>
-        testRunner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      () => testRunner.toAnthropicRequestBody('claude-3-5-haiku', request),
       /System messages can only contain text content/
     );
   });
@@ -1227,36 +1307,33 @@ describe('toAnthropicStreamingRequestBody', () => {
   it('should support system prompt caching in streaming mode', () => {
     const request: GenerateRequest<typeof AnthropicConfigSchema> = {
       messages: [
-        { role: 'system', content: [{ text: 'You are a helpful assistant' }] },
+        {
+          role: 'system',
+          content: [
+            {
+              text: 'You are a helpful assistant',
+              metadata: { cache_control: { type: 'ephemeral' } },
+            },
+          ],
+        },
         { role: 'user', content: [{ text: 'Hello' }] },
       ],
       output: { format: 'text' },
     };
 
-    const outputWithCaching = testRunner.toAnthropicStreamingRequestBody(
+    const output = testRunner.toAnthropicStreamingRequestBody(
       'claude-3-5-haiku',
-      request,
-      true
+      request
     );
-    assert.deepStrictEqual(outputWithCaching.system, [
+    assert.deepStrictEqual(output.system, [
       {
         type: 'text',
         text: 'You are a helpful assistant',
         cache_control: { type: 'ephemeral' },
+        citations: null,
       },
     ]);
-    assert.strictEqual(outputWithCaching.stream, true);
-
-    const outputWithoutCaching = testRunner.toAnthropicStreamingRequestBody(
-      'claude-3-5-haiku',
-      request,
-      false
-    );
-    assert.strictEqual(
-      outputWithoutCaching.system,
-      'You are a helpful assistant'
-    );
-    assert.strictEqual(outputWithoutCaching.stream, true);
+    assert.strictEqual(output.stream, true);
   });
 });
 
@@ -1509,7 +1586,6 @@ describe('claudeRunner param object', () => {
       {
         name: 'claude-3-5-haiku',
         client: mockClient,
-        cacheSystemPrompt: true,
       },
       AnthropicConfigSchema
     );
@@ -1593,7 +1669,6 @@ describe('claudeModel', () => {
       name: 'claude-3-5-haiku',
       client: mockClient,
       defaultApiVersion: 'beta',
-      cacheSystemPrompt: true,
     });
 
     const abortSignal = new AbortController().signal;
@@ -2159,52 +2234,233 @@ describe('BaseRunner helper utilities', () => {
   });
 });
 
+describe('toDocumentBlock (stable converter)', () => {
+  it('should convert text source to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'text',
+        data: 'The grass is green. The sky is blue.',
+      },
+      title: 'Basic Facts',
+      citations: { enabled: true },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'text',
+        media_type: 'text/plain',
+        data: 'The grass is green. The sky is blue.',
+      },
+      title: 'Basic Facts',
+      citations: { enabled: true },
+    });
+  });
+
+  it('should convert base64 PDF source to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'base64',
+        mediaType: 'application/pdf',
+        data: 'JVBERi0xLjQK',
+      },
+      title: 'Test PDF',
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: 'application/pdf',
+        data: 'JVBERi0xLjQK',
+      },
+      title: 'Test PDF',
+    });
+  });
+
+  it('should convert URL source to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'url',
+        url: 'https://example.com/document.pdf',
+      },
+      context: 'This is a PDF about science.',
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'url',
+        url: 'https://example.com/document.pdf',
+      },
+      context: 'This is a PDF about science.',
+    });
+  });
+
+  it('should convert content source with text blocks to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'Fact 1: Dogs are mammals.' },
+          { type: 'text', text: 'Fact 2: Cats are also mammals.' },
+        ],
+      },
+      title: 'Animal Facts',
+      citations: { enabled: true },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'Fact 1: Dogs are mammals.' },
+          { type: 'text', text: 'Fact 2: Cats are also mammals.' },
+        ],
+      },
+      title: 'Animal Facts',
+      citations: { enabled: true },
+    });
+  });
+
+  it('should convert content source with images to stable document block', () => {
+    const result = toDocumentBlock({
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'A picture of a cat:' },
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              mediaType: 'image/png',
+              data: 'iVBORw0KGgo=',
+            },
+          },
+        ],
+      },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'content',
+        content: [
+          { type: 'text', text: 'A picture of a cat:' },
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/png',
+              data: 'iVBORw0KGgo=',
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should throw error for file source on stable API', () => {
+    assert.throws(
+      () =>
+        toDocumentBlock({
+          source: {
+            type: 'file',
+            fileId: 'file-abc123',
+          },
+          title: 'Uploaded Document',
+        }),
+      /File-based document sources require the beta API/
+    );
+  });
+
+  it('should handle anthropicDocument custom part via toAnthropicMessageContent', () => {
+    // Test that the stable runner correctly converts anthropicDocument custom parts
+    const result = testRunner.toAnthropicMessageContent({
+      custom: {
+        anthropicDocument: {
+          source: {
+            type: 'text',
+            data: 'Hello world.',
+          },
+          title: 'Test',
+          citations: { enabled: true },
+        },
+      },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'text',
+        media_type: 'text/plain',
+        data: 'Hello world.',
+      },
+      title: 'Test',
+      citations: { enabled: true },
+    });
+  });
+
+  it('should throw for file source via toAnthropicMessageContent on stable API', () => {
+    assert.throws(
+      () =>
+        testRunner.toAnthropicMessageContent({
+          custom: {
+            anthropicDocument: {
+              source: {
+                type: 'file',
+                fileId: 'file-abc123',
+              },
+            },
+          },
+        }),
+      /File-based document sources require the beta API/
+    );
+  });
+});
+
 describe('Runner request bodies and error branches', () => {
   it('should include optional config fields in non-streaming request body', () => {
     const mockClient = createMockAnthropicClient();
     const runner = new Runner({
       name: 'claude-3-5-haiku',
       client: mockClient,
-      cacheSystemPrompt: true,
     }) as Runner & RunnerProtectedMethods;
 
-    const body = runner['toAnthropicRequestBody'](
-      'claude-3-5-haiku',
-      {
-        messages: [
-          {
-            role: 'system',
-            content: [{ text: 'You are helpful.' }],
-          },
-          {
-            role: 'user',
-            content: [{ text: 'Tell me a joke' }],
-          },
-        ],
-        config: {
-          maxOutputTokens: 256,
-          topK: 3,
-          topP: 0.75,
-          temperature: 0.6,
-          stopSequences: ['END'],
-          metadata: { user_id: 'user-xyz' },
-          tool_choice: { type: 'auto' },
-          thinking: { enabled: true, budgetTokens: 2048 },
+    const body = runner['toAnthropicRequestBody']('claude-3-5-haiku', {
+      messages: [
+        {
+          role: 'system',
+          content: [{ text: 'You are helpful.' }],
         },
-        tools: [
-          {
-            name: 'get_weather',
-            description: 'Returns the weather',
-            inputSchema: { type: 'object' },
-          },
-        ],
-      } as unknown as GenerateRequest<typeof AnthropicConfigSchema>,
-      true
-    );
+        {
+          role: 'user',
+          content: [{ text: 'Tell me a joke' }],
+        },
+      ],
+      config: {
+        maxOutputTokens: 256,
+        topK: 3,
+        topP: 0.75,
+        temperature: 0.6,
+        stopSequences: ['END'],
+        metadata: { user_id: 'user-xyz' },
+        tool_choice: { type: 'auto' },
+        thinking: { enabled: true, budgetTokens: 2048 },
+      },
+      tools: [
+        {
+          name: 'get_weather',
+          description: 'Returns the weather',
+          inputSchema: { type: 'object' },
+        },
+      ],
+    } as unknown as GenerateRequest<typeof AnthropicConfigSchema>);
 
     assert.strictEqual(body.model, 'claude-3-5-haiku-20241022');
     assert.ok(Array.isArray(body.system));
-    assert.strictEqual(body.system?.[0].cache_control?.type, 'ephemeral');
+    assert.strictEqual(body.system?.[0].cache_control?.type, undefined);
     assert.strictEqual(body.max_tokens, 256);
     assert.strictEqual(body.top_k, 3);
     assert.strictEqual(body.top_p, 0.75);
@@ -2224,42 +2480,37 @@ describe('Runner request bodies and error branches', () => {
     const runner = new Runner({
       name: 'claude-3-5-haiku',
       client: mockClient,
-      cacheSystemPrompt: true,
     }) as Runner & RunnerProtectedMethods;
 
-    const body = runner['toAnthropicStreamingRequestBody'](
-      'claude-3-5-haiku',
-      {
-        messages: [
-          {
-            role: 'system',
-            content: [{ text: 'Stay brief.' }],
-          },
-          {
-            role: 'user',
-            content: [{ text: 'Summarize the weather.' }],
-          },
-        ],
-        config: {
-          maxOutputTokens: 64,
-          topK: 2,
-          topP: 0.6,
-          temperature: 0.4,
-          stopSequences: ['STOP'],
-          metadata: { user_id: 'user-abc' },
-          tool_choice: { type: 'any' },
-          thinking: { enabled: true, budgetTokens: 1536 },
+    const body = runner['toAnthropicStreamingRequestBody']('claude-3-5-haiku', {
+      messages: [
+        {
+          role: 'system',
+          content: [{ text: 'Stay brief.' }],
         },
-        tools: [
-          {
-            name: 'summarize_weather',
-            description: 'Summarizes a forecast',
-            inputSchema: { type: 'object' },
-          },
-        ],
-      } as unknown as GenerateRequest<typeof AnthropicConfigSchema>,
-      true
-    );
+        {
+          role: 'user',
+          content: [{ text: 'Summarize the weather.' }],
+        },
+      ],
+      config: {
+        maxOutputTokens: 64,
+        topK: 2,
+        topP: 0.6,
+        temperature: 0.4,
+        stopSequences: ['STOP'],
+        metadata: { user_id: 'user-abc' },
+        tool_choice: { type: 'any' },
+        thinking: { enabled: true, budgetTokens: 1536 },
+      },
+      tools: [
+        {
+          name: 'summarize_weather',
+          description: 'Summarizes a forecast',
+          inputSchema: { type: 'object' },
+        },
+      ],
+    } as unknown as GenerateRequest<typeof AnthropicConfigSchema>);
 
     assert.strictEqual(body.stream, true);
     assert.ok(Array.isArray(body.system));
@@ -2284,16 +2535,12 @@ describe('Runner request bodies and error branches', () => {
       client: mockClient,
     }) as Runner & RunnerProtectedMethods;
 
-    const body = runner['toAnthropicRequestBody'](
-      'claude-3-5-haiku',
-      {
-        messages: [],
-        config: {
-          thinking: { enabled: false },
-        },
-      } as unknown as GenerateRequest<typeof AnthropicConfigSchema>,
-      false
-    );
+    const body = runner['toAnthropicRequestBody']('claude-3-5-haiku', {
+      messages: [],
+      config: {
+        thinking: { enabled: false },
+      },
+    } as unknown as GenerateRequest<typeof AnthropicConfigSchema>);
 
     assert.deepStrictEqual(body.thinking, { type: 'disabled' });
   });
@@ -2303,7 +2550,6 @@ describe('Runner request bodies and error branches', () => {
     const runner = new Runner({
       name: 'claude-3-5-haiku',
       client: mockClient,
-      cacheSystemPrompt: false,
     }) as Runner & RunnerProtectedMethods;
 
     assert.throws(

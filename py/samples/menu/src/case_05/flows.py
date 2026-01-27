@@ -15,57 +15,92 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Flows for case 05."""
+
 import base64
 import os
 
-from case_05.prompts import s05_readMenuPrompt, s05_textMenuPrompt
-from menu_ai import ai
-from menu_schemas import (
+from ..constants import DEFAULT_MENU_QUESTION
+from ..menu_ai import ai
+from ..menu_schemas import (
     AnswerOutputSchema,
     MenuQuestionInputSchema,
-    ReadMenuPromptOutputSchema,
     TextMenuQuestionInputSchema,
 )
+from .prompts import s05_read_menu_prompt, s05_text_menu_prompt
 
 
-@ai.flow(name='s05_readMenuFlow')
-async def s05_readMenuFlow(_) -> ReadMenuPromptOutputSchema:
+@ai.flow(name='s05_read_menu')
+async def s05_read_menu_flow(_: None = None) -> str:
+    """Read menu from image file.
+
+    Args:
+        _: Ignored.
+
+    Returns:
+        The text content of the menu image.
+
+    Example:
+        >>> await s05_read_menu_flow()
+        "Menu content..."
+    """
     image_data_url = inline_data_url('menu.jpeg', 'image/jpeg')
-    response = await s05_readMenuPrompt(
-        image_url=image_data_url,
-    )
-    return ReadMenuPromptOutputSchema(
-        menu_text=response.text,
-    )
+    response = await s05_read_menu_prompt({'image_url': image_data_url})
+    return response.text
 
 
-@ai.flow(name='s05_textMenuQuestion')
-async def s05_textMenuQuestionFlow(
+@ai.flow(name='s05_text_menu_question')
+async def s05_text_menu_question_flow(
     my_input: TextMenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
-    response = await s05_textMenuPrompt(
-        menu_text=my_input.menu_text,
-        question=my_input.question,
-    )
-    return ReadMenuPromptOutputSchema(
-        menu_text=response.text,
+    """Answer a question based on provided menu text.
+
+    Args:
+        my_input: Input containing menu text and question.
+
+    Returns:
+        The answer.
+
+    Example:
+        >>> await s05_text_menu_question_flow(TextMenuQuestionInputSchema(menu_text='Burger: $10', question='Price?'))
+        AnswerOutputSchema(answer="It costs $10")
+    """
+    response = await s05_text_menu_prompt({'menuText': my_input.menu_text, 'question': my_input.question})
+    return AnswerOutputSchema(
+        answer=response.text,
     )
 
 
-@ai.flow(name='s05_visionMenuQuestion')
-async def s05_visionMenuQuestionFlow(
+@ai.flow(name='s05_vision_menu_question')
+async def s05_vision_menu_question_flow(
     my_input: MenuQuestionInputSchema,
 ) -> AnswerOutputSchema:
-    menu_result = await s05_readMenuFlow()
-    return s05_textMenuQuestionFlow(
-        my_input=TextMenuQuestionInputSchema(
-            question=my_input.question,
-            menu_text=menu_result.menu_text,
+    """Answer a question by first reading the menu image.
+
+    Args:
+        my_input: Input containing the question.
+
+    Returns:
+        The answer.
+
+    Example:
+        >>> await s05_vision_menu_question_flow(MenuQuestionInputSchema(question='What is on the menu?'))
+        AnswerOutputSchema(answer="We have...")
+    """
+    # If empty question provided (e.g., from Dev UI default), use the default question
+    question = my_input.question if my_input.question else DEFAULT_MENU_QUESTION
+
+    menu_text = await s05_read_menu_flow()
+    return await s05_text_menu_question_flow(
+        TextMenuQuestionInputSchema(
+            question=question,
+            menu_text=menu_text,
         )
     )
 
 
 def inline_data_url(image_filename: str, content_type: str) -> str:
+    """Create a data URL for an inline image."""
     file_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', image_filename)
     with open(file_path, 'rb') as image_file:
         image_data = image_file.read()

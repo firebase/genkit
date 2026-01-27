@@ -33,7 +33,10 @@ import {
   toVeoPredictRequest,
 } from '../../src/vertexai/converters.js';
 import { SafetySettingsSchema } from '../../src/vertexai/gemini.js';
-import { ImagenConfigSchema } from '../../src/vertexai/imagen.js';
+import {
+  ImagenConfigSchema,
+  ImagenTryOnConfigSchema,
+} from '../../src/vertexai/imagen.js';
 import { LyriaConfigSchema } from '../../src/vertexai/lyria.js';
 import {
   ClientOptions,
@@ -228,6 +231,71 @@ describe('Vertex AI Converters', () => {
           },
         ],
         parameters: { sampleCount: 1 },
+      });
+    });
+
+    it('should handle TryOn config', () => {
+      const request: GenerateRequest<typeof ImagenTryOnConfigSchema> = {
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                media: {
+                  url: 'data:image/jpeg;base64,PERSON_IMAGE',
+                  contentType: 'image/jpeg',
+                },
+                metadata: { type: 'personImage' },
+              },
+              {
+                media: {
+                  url: 'gs://bucket/product.png',
+                  contentType: 'image/png',
+                },
+                metadata: { type: 'productImage' },
+              },
+            ],
+          },
+        ],
+        config: {
+          sampleCount: 2,
+          storageUri: 'gs://bucket',
+          seed: 123,
+          baseSteps: 50,
+          personGeneration: 'allow_adult',
+          safetySetting: 'block_few',
+          outputOptions: {
+            mimeType: 'image/jpeg',
+            compressionQuality: 80,
+          },
+        },
+      };
+      const result = toImagenPredictRequest(request);
+      assert.deepStrictEqual(result, {
+        instances: [
+          {
+            personImage: {
+              image: { bytesBase64Encoded: 'PERSON_IMAGE' },
+            },
+            productImages: [
+              {
+                image: { gcsUri: 'gs://bucket/product.png' },
+              },
+            ],
+          },
+        ],
+        parameters: {
+          sampleCount: 2,
+          storageUri: 'gs://bucket',
+          seed: 123,
+          baseSteps: 50,
+          personGeneration: 'allow_adult',
+          safetySetting: 'block_few',
+          outputOptions: {
+            mimeType: 'image/jpeg',
+            compressionQuality: 80,
+          },
+        },
       });
     });
   });

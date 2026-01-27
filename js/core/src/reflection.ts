@@ -21,6 +21,7 @@ import type { Server } from 'http';
 import path from 'path';
 import * as z from 'zod';
 import { StatusCodes, type Status } from './action.js';
+import { getGenkitRuntimeConfig } from './config.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import type { Registry } from './registry.js';
@@ -128,6 +129,13 @@ export class ReflectionServer {
    * The server will be registered to be shut down on process exit.
    */
   async start() {
+    if (getGenkitRuntimeConfig().sandboxedRuntime) {
+      logger.debug(
+        'Skipping ReflectionServer start: not supported in sandboxed runtime.'
+      );
+      return;
+    }
+
     const server = express();
 
     server.use(express.json({ limit: this.options.bodyLimit }));
@@ -149,6 +157,30 @@ export class ReflectionServer {
       logger.debug('Received quitquitquit');
       response.status(200).send('OK');
       await this.stop();
+    });
+
+    server.get('/api/values', async (req, response, next) => {
+      logger.debug('Fetching values.');
+      try {
+        const type = req.query.type;
+        if (!type) {
+          response.status(400).send('Query parameter "type" is required.');
+          return;
+        }
+        if (type !== 'defaultModel') {
+          response
+            .status(400)
+            .send(
+              `'type' ${type} is not supported. Only 'defaultModel' is supported`
+            );
+          return;
+        }
+        const values = await this.registry.listValues(type as string);
+        response.send(values);
+      } catch (err) {
+        const { message, stack } = err as Error;
+        next({ message, stack });
+      }
     });
 
     server.get('/api/actions', async (_, response, next) => {
@@ -388,7 +420,18 @@ export class ReflectionServer {
         `Reflection server (${process.pid}) running on http://localhost:${this.port}`
       );
       ReflectionServer.RUNNING_SERVERS.push(this);
-      await this.writeRuntimeFile();
+
+      try {
+        await this.registry.listActions();
+        await this.writeRuntimeFile();
+      } catch (e) {
+        logger.error(`Error initializing plugins: ${e}`);
+        try {
+          await this.stop();
+        } catch (err) {
+          logger.error(`Failed to stop server gracefully: ${err}`);
+        }
+      }
     });
   }
 

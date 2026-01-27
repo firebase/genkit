@@ -14,29 +14,52 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample demonstrating code execution using the Google Gemini API with GenAI."""
+"""Sample demonstrating code execution using the Google Gemini API with GenAI.
+
+Key features demonstrated in this sample:
+
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Code Execution Config                   | `code_execution=True`               |
+| Executable Code Part Handling           | `PartConverter.EXECUTABLE_CODE`     |
+| Code Execution Result Handling          | `PartConverter.CODE_EXECUTION_RESULT`|
+| Custom Part Parsing                     | `CustomPart` processing             |
+"""
+
+import os
+from typing import Annotated
 
 import structlog
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
-from genkit.plugins.google_genai import GoogleAI, googleai_name
-from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema
+from genkit.core.typing import CustomPart, Message, TextPart
+from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
+from genkit.plugins.google_genai.models.utils import PartConverter
+
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-2.5-flash'),
+    model='googleai/gemini-3-flash-preview',
 )
 
 
+DEFAULT_CODE_TASK = 'What is the sum of the first 50 prime numbers?'
+
+
 @ai.flow()
-async def execute_code(task: str) -> MessageWrapper:
+async def execute_code(
+    task: Annotated[str, Field(default=DEFAULT_CODE_TASK)] = DEFAULT_CODE_TASK,
+) -> MessageWrapper:
     """Execute code for the given task.
 
     Args:
-        name: the task to send to test function
+        task: the task to send to test function
 
     Returns:
         The generated response enclosed in a MessageWrapper. The content field should contain the following:
@@ -46,18 +69,50 @@ async def execute_code(task: str) -> MessageWrapper:
     """
     response = await ai.generate(
         prompt=f'Generate and run code for the task: {task}',
-        config=GeminiConfigSchema(temperature=1, code_execution=True),
+        config=GeminiConfigSchema(temperature=1, code_execution=True).model_dump(),
     )
+    if not response.message:
+        raise ValueError('No message returned from model')
     return response.message
 
 
+def display_code_execution(message: Message) -> None:
+    """Display the code execution results from a message."""
+    print('\n=== INTERNAL CODE EXECUTION ===')
+    for part in message.content:
+        if isinstance(part.root, CustomPart):
+            if PartConverter.EXECUTABLE_CODE in part.root.custom:
+                code_data = part.root.custom[PartConverter.EXECUTABLE_CODE]
+                lang = code_data.get(PartConverter.LANGUAGE, 'unknown')
+                code = code_data.get(PartConverter.CODE, '')
+                print(f'Language: {lang}')
+                print(f'```{lang}\n{code}\n```')
+            elif PartConverter.CODE_EXECUTION_RESULT in part.root.custom:
+                result_data = part.root.custom[PartConverter.CODE_EXECUTION_RESULT]
+                outcome = result_data.get(PartConverter.OUTCOME, 'unknown')
+                output = result_data.get(PartConverter.OUTPUT, '')
+                print('\nExecution result:')
+                print(f'Status: {outcome}')
+                print('Output:')
+                if not output.strip():
+                    print('  <no output>')
+                else:
+                    for line in output.splitlines():
+                        print(f'  {line}')
+        elif isinstance(part.root, TextPart) and part.root.text.strip():
+            print(f'\nExplanation:\n{part.root.text}')
+    print('\n=== COMPLETE INTERNAL CODE EXECUTION ===')
+
+
 async def main() -> None:
-    """Main entry point for the  Google genai code execution sample.
+    """Main entry point for the Google genai code execution sample - keep alive for Dev UI.
 
     This function demonstrates how to perform code execution using the
     Genkit framework.
     """
-    await logger.ainfo(await execute_code('What is the sum of the first 50 prime numbers?'))
+    response_msg = await execute_code('What is the sum of the first 50 prime numbers?')
+    display_code_execution(response_msg)
+    await logger.ainfo(response_msg.text)
 
 
 if __name__ == '__main__':
