@@ -22,7 +22,7 @@ from typing import Any, cast
 
 import structlog
 
-from genkit.blocks.formats import FormatDef, Formatter
+from genkit.blocks.formats.types import FormatDef, Formatter
 from genkit.blocks.messages import inject_instructions
 from genkit.blocks.middleware import augment_with_context
 from genkit.blocks.model import (

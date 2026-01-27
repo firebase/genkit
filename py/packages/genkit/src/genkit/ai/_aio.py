@@ -41,7 +41,8 @@ if TYPE_CHECKING:
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit.aio import Channel, ensure_async
+from genkit.aio._util import ensure_async
+from genkit.aio.channel import Channel
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
 from genkit.blocks.evaluator import EvaluatorRef

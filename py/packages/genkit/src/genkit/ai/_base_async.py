@@ -32,7 +32,7 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.plugin import Plugin
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
-from genkit.web.manager import find_free_port_sync
+from genkit.web.manager._ports import find_free_port_sync
 
 from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
