@@ -51,3 +51,21 @@ Lookup the process ID from [/\_\_serverz](http://localhost:3400/__serverz)
 # SIGTERM
 kill -15 ${PROCESS_ID}
 ```
+
+## Testing This Demo
+
+1. **Run the demo**:
+   ```bash
+   cd py/samples/multi-server
+   ./run.sh
+   ```
+
+2. **Test the servers**:
+   - [ ] Main API server at http://localhost:8000
+   - [ ] Health check endpoint at /health
+   - [ ] Server info endpoint at /info
+
+3. **Expected behavior**:
+   - Multiple servers start and run concurrently
+   - Graceful shutdown handles all servers
+   - Middleware and logging work across servers

@@ -14,10 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hello Google GenAI sample.
+"""Hello Vertex AI sample - Google Cloud's Vertex AI with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use Vertex AI (Google Cloud's ML platform)
+with Genkit for enterprise-grade AI applications.
 
+Key Features
+============
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
 | Plugin Initialization                                    | `ai = Genkit(plugins=[VertexAI(...)])` |
@@ -37,6 +40,44 @@ Key features demonstrated in this sample:
 | Structured Output (Schema)                               | `generate_character`                   |
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
+
+Testing This Demo
+=================
+1. **Prerequisites**:
+   ```bash
+   # Set GCP project and location
+   export GOOGLE_CLOUD_PROJECT=your_project_id
+   export GOOGLE_CLOUD_LOCATION=us-central1
+
+   # Authenticate with GCP
+   gcloud auth application-default login
+   ```
+
+2. **Run the demo**:
+   ```bash
+   cd py/samples/google-genai-vertexai-hello
+   ./run.sh
+   ```
+
+3. **Open DevUI** at http://localhost:4000
+
+4. **Test basic flows**:
+   - [ ] `say_hi` - Simple generation
+   - [ ] `say_hi_stream` - Streaming response
+   - [ ] `say_hi_with_configured_temperature` - Custom config
+
+5. **Test tools**:
+   - [ ] `simple_generate_with_tools_flow` - Tool calling
+   - [ ] `simple_generate_with_interrupts` - Tool interrupts
+
+6. **Test structured output**:
+   - [ ] `generate_character` - Constrained output
+   - [ ] `generate_character_unconstrained` - Unconstrained
+
+7. **Test embeddings**:
+   - [ ] `embed_docs` - Document embedding
+
+8. **Note**: Vertex AI requires a GCP project with billing enabled.
 """
 
 import os

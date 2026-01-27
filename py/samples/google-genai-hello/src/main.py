@@ -14,13 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hello Google GenAI sample.
+"""Hello Google GenAI sample - Comprehensive Google AI features demo.
 
-Key features demonstrated in this sample:
+This sample demonstrates the full range of Google GenAI plugin capabilities,
+from basic generation to advanced features like tool calling, streaming,
+structured output, and multimodal inputs.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
-| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])` |
+| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])`    |
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |

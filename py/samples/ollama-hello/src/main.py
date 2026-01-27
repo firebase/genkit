@@ -14,13 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Ollama hello sample.
+"""Ollama hello sample - Local LLM inference with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use Ollama for local LLM inference with Genkit,
+enabling offline AI capabilities without external API dependencies.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
-| Plugin Initialization                                    | `ai = Genkit(plugins=[Ollama()])` |
+| Plugin Initialization                                    | `ai = Genkit(plugins=[Ollama()])`      |
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
@@ -30,8 +35,6 @@ Key features demonstrated in this sample:
 | Generation with Messages (`Message`, `Role`, `TextPart`) | `say_hi_constrained`                   |
 | Generation with Tools                                    | `calculate_gablorken`                  |
 | Tool Response Handling                                   | `say_hi_constrained`                   |
-
-
 """
 
 from typing import Annotated, Any, cast

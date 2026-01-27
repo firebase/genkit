@@ -38,3 +38,38 @@ TODO
 ```bash
 genkit start -- uv run src/main.py
 ```
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   # Set GCP project
+   export GCLOUD_PROJECT=your_project_id
+
+   # Authenticate with GCP
+   gcloud auth application-default login
+   ```
+   Or the demo will prompt for the project interactively.
+
+2. **Firestore Setup**:
+   - Enable Firestore in your GCP project
+   - Create a Firestore database (if not exists)
+   - Enable Vector Search extension (if required)
+
+3. **Run the demo**:
+   ```bash
+   cd py/samples/firestore-retreiver
+   ./run.sh
+   ```
+
+4. **Open DevUI** at http://localhost:4000
+
+5. **Test the flows**:
+   - [ ] `index_documents` - Index sample documents
+   - [ ] `retrieve_documents` - Query for similar documents
+   - [ ] Verify retrieved documents match query semantics
+
+6. **Expected behavior**:
+   - Documents are embedded and stored in Firestore
+   - Vector similarity search returns relevant documents
+   - Firebase telemetry captures traces/metrics

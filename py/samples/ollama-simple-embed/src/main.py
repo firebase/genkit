@@ -14,10 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Pokemon glossary.
+"""Pokemon glossary - Local RAG with Ollama embeddings.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to create a simple RAG application using
+Ollama for local embeddings and generation, creating a Pokemon glossary
+without any external API dependencies.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Local Embedding with Ollama             | `ai.embed_many()`                   |
@@ -25,8 +29,7 @@ Key features demonstrated in this sample:
 | RAG (Retrieval Augmented Generation)    | `generate_response`                 |
 | Custom Data Structures                  | `PokemonInfo` Pydantic model        |
 
-This sample demonstrates how to use Genkit to create a simple glossary of
-Pokemon using the Ollama plugin.
+See README.md for testing instructions.
 """
 
 from math import sqrt

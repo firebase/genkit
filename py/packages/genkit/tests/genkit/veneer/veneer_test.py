@@ -359,6 +359,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     ]
 
     assert response.text == want_txt
+    assert echo.last_request is not None
     assert echo.last_request.tools == want_request
 
     _, response = ai.generate_stream(
@@ -369,6 +370,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     )
 
     assert (await response).text == want_txt
+    assert echo.last_request is not None
     assert echo.last_request.tools == want_request
 
 
@@ -481,6 +483,7 @@ async def test_generate_with_iterrupting_tools(
             ],
         )
     )
+    assert pm.last_request is not None
     assert pm.last_request.tools == want_request
 
 
@@ -685,6 +688,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         role=Role.TOOL,
         content=[Part(root=ToolResponsePart(tool_response=ToolResponse(ref='123', name='testTool', output='abc')))],
     )
+    assert pm.last_request is not None
     assert pm.last_request.tools == [
         ToolDefinition(
             name='testTool',

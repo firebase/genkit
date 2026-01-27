@@ -14,10 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""This sample demonstrates how to use Gemini to describe, draw, and edit images.
+"""Gemini image generation sample - Create and edit images with AI.
 
-Key features demonstrated in this sample:
+This sample demonstrates Gemini's native image generation and editing
+capabilities, including text-to-image, image description, and Veo video.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Text-to-Image Generation                | `draw_image_with_gemini`            |
@@ -26,6 +29,8 @@ Key features demonstrated in this sample:
 | Image Editing (Inpainting/Outpainting)  | `gemini_image_editing`              |
 | Video Generation (Veo)                  | `photo_move_veo`                    |
 | Media Resolution Control                | `gemini_media_resolution`           |
+
+See README.md for testing instructions.
 """
 
 import asyncio
