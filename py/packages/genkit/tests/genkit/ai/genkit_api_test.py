@@ -6,6 +6,7 @@
 """Tests for the Genkit extra API methods."""
 
 from typing import Any
+from unittest import mock
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -192,15 +193,6 @@ async def test_flush_tracing() -> None:
     mock_provider = MagicMock(spec=TracerProvider)
     mock_provider.force_flush = MagicMock()
 
-    # We can't easily mock the global provider if it's already set,
-    # but we can check if it calls force_flush if it is a TracerProvider.
-
-    trace_api.get_tracer_provider()
-    trace_api.set_tracer_provider(mock_provider)
-    try:
+    with mock.patch.object(trace_api, 'get_tracer_provider', return_value=mock_provider):
         await ai.flush_tracing()
         mock_provider.force_flush.assert_called_once()
-    finally:
-        # Note: set_tracer_provider can only be called once in real OTel,
-        # but in tests we might be using a mock.
-        pass

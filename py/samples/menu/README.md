@@ -36,3 +36,19 @@ export GEMINI_API_KEY=<Your api key>
 ```bash
 genkit start -- uv run python -m src.main
 ```
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test the different cases**:
+   - [ ] Case 01: Basic menu prompts
+   - [ ] Case 02: Menu analysis with tools
+   - [ ] Case 03: Menu recommendations flow
+   - [ ] Case 04: Dietary restrictions handling
+   - [ ] Case 05: Multi-language menu support
+
+3. **Expected behavior**:
+   - All prompts/flows appear in DevUI
+   - Menu items are analyzed correctly
+   - Tools provide realistic restaurant data

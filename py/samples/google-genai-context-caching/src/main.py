@@ -14,10 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sample that demonstrates caching of generation context in Genkit.
+"""Context caching sample - Efficient handling of large contexts.
 
-Key features demonstrated in this sample:
+This sample demonstrates Genkit's context caching feature, which allows
+expensive large context (like entire books) to be cached and reused across
+multiple queries, significantly improving response time and cost.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Context Caching Config                  | `metadata={'cache': {'ttl_seconds': 300}}` |
@@ -25,9 +29,13 @@ Key features demonstrated in this sample:
 | Message History Reuse                   | `messages=messages_history`         |
 | Large Context Handling                  | Processing full book text           |
 
-In this sample user actor supplies "Tom Sawyer" book content from Gutenberg library archive
-and model caches this context.
-As a result, model is capable to quickly relate to the book's content and answer the follow-up questions.
+How Context Caching Works
+=========================
+1. First request: Full book is sent to model, context is cached (TTL: 5 min)
+2. Follow-up requests: Use cached context, much faster response
+3. Cache expires after TTL, next request re-caches
+
+See README.md for testing instructions.
 """
 
 import os

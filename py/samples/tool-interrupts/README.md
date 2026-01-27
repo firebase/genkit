@@ -40,8 +40,30 @@ source .venv/bin/activate
 
 ## Run the sample
 
-TODO
-
 ```bash
 genkit start -- uv run src/main.py
 ```
+
+## Testing This Demo
+
+1. **Run the demo** (CLI-based):
+   ```bash
+   uv run python src/main.py
+   ```
+
+2. **Test the trivia game**:
+   - [ ] The AI greets you and asks for a trivia theme
+   - [ ] Type a theme (e.g., "science", "movies")
+   - [ ] When questions appear, they're tool interrupts
+   - [ ] Answer the questions and see AI reactions
+
+3. **Test interrupt flow**:
+   - [ ] Verify `present_questions` tool triggers interrupt
+   - [ ] Check that game waits for your input
+   - [ ] Confirm AI responds to your answers appropriately
+
+4. **Expected behavior**:
+   - AI acts as enthusiastic game host
+   - Questions pause for user input (interrupt)
+   - Answers are evaluated with dramatic responses
+   - Game loop continues until you exit (Ctrl+C)

@@ -14,10 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Entry point for the menu AI sample.
+"""Entry point for the menu AI sample - Restaurant menu analysis with AI.
 
-Key features demonstrated in this sample:
+This sample demonstrates a multi-file Genkit application with prompts, flows,
+and tools organized into separate modules, simulating a restaurant menu
+analysis system.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Multi-file Flow Organization            | `case_01`, `case_02`, etc. imports  |

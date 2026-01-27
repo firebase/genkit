@@ -69,3 +69,41 @@ The options are based on `genai.types.GenerateImagesConfig` model.
 | `add_watermark`              | bool    | Whether to add a watermark to the generated images.                                                                                          |                                                                                  |
 | `aspect_ratio`               | string  | Aspect ratio of the generated images.                                                                                                        |                                                                                  |
 | `enhance_prompt`             | bool    | Whether to use the prompt rewriting logic.                                                                                                   |                                                                                  |
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   # Set GCP project
+   export GCLOUD_PROJECT=your_project_id
+
+   # Authenticate with GCP
+   gcloud auth application-default login
+   ```
+   Or the demo will prompt for the project interactively.
+
+2. **Enable Imagen API**:
+   - Go to Vertex AI in GCP Console
+   - Enable Imagen API for your project
+
+3. **Run the demo**:
+   ```bash
+   cd py/samples/google-genai-vertexai-image
+   ./run.sh
+   ```
+
+4. **Open DevUI** at http://localhost:4000
+
+5. **Test image generation**:
+   - [ ] `draw_image_with_imagen` - Generate image from text
+   - [ ] Try different prompts (landscapes, objects, etc.)
+   - [ ] Verify output displays correctly
+
+6. **Output handling**:
+   - Images returned as base64 data
+   - PIL Image used for display/processing
+
+7. **Expected behavior**:
+   - High-quality photorealistic images
+   - Proper aspect ratio and resolution
+   - Imagen-specific style characteristics

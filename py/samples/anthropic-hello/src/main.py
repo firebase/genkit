@@ -14,10 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Anthropic hello sample.
+"""Anthropic hello sample - Claude models with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use Anthropic's Claude models with Genkit,
+including tools, streaming, thinking mode, and multimodal capabilities.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Plugin Initialization                   | `ai = Genkit(plugins=[Anthropic()])` |
