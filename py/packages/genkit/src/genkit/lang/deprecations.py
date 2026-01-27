@@ -38,6 +38,7 @@ When a deprecated member is accessed, a deprecation warning is issued.
 import enum
 import warnings
 from dataclasses import dataclass
+from typing import override
 
 
 class DeprecationStatus(enum.Enum):
@@ -69,6 +70,7 @@ def deprecated_enum_metafactory(
     """
 
     class DeprecatedEnumMeta(enum.EnumMeta):
+        @override
         def __getattribute__(cls, name: str) -> object:
             """Get an attribute of the enum class.
 

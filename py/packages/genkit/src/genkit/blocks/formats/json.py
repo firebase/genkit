@@ -16,6 +16,8 @@
 
 """Implementation of JSON output format."""
 
+from typing import override
+
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -60,6 +62,7 @@ class JsonFormat(FormatDef):
             ),
         )
 
+    @override
     def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling JSON data based on an optional schema.
 

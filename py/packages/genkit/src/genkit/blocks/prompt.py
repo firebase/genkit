@@ -1689,7 +1689,7 @@ def define_partial(registry: Registry, name: str, source: str) -> None:
         name: The name of the partial.
         source: The template source code.
     """
-    registry.dotprompt.define_partial(name, source)
+    _ = registry.dotprompt.define_partial(name, source)
     logger.debug(f'Registered Dotprompt partial "{name}"')
 
 
@@ -1701,7 +1701,7 @@ def define_helper(registry: Registry, name: str, fn: Callable) -> None:
         name: The name of the helper function.
         fn: The helper function to register.
     """
-    registry.dotprompt.define_helper(name, fn)
+    _ = registry.dotprompt.define_helper(name, fn)
     logger.debug(f'Registered Dotprompt helper "{name}"')
 
 

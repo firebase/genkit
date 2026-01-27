@@ -16,7 +16,7 @@
 
 """Implementation of JSONL output format."""
 
-from typing import cast
+from typing import cast, override
 
 import json5
 
@@ -68,6 +68,7 @@ class JsonlFormat(FormatDef):
             ),
         )
 
+    @override
     def handle(self, schema: dict[str, object] | None) -> Formatter:
         """Creates a Formatter for handling JSONL data.
 

@@ -30,7 +30,7 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 from urllib.parse import urljoin
 
 import httpx
@@ -121,6 +121,7 @@ class TelemetryServerSpanExporter(SpanExporter):
         else:
             self.telemetry_server_endpoint = telemetry_server_endpoint
 
+    @override
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Exports a sequence of ReadableSpans to the configured telemetry server.
 
@@ -137,7 +138,7 @@ class TelemetryServerSpanExporter(SpanExporter):
         """
         with httpx.Client() as client:
             for span in spans:
-                client.post(
+                _ = client.post(
                     urljoin(self.telemetry_server_url, self.telemetry_server_endpoint),
                     json=extract_span_data(span),
                     headers={
@@ -146,10 +147,11 @@ class TelemetryServerSpanExporter(SpanExporter):
                     },
                 )
 
-        sys.stdout.flush()
+        _ = sys.stdout.flush()
 
         return SpanExportResult.SUCCESS
 
+    @override
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Forces the exporter to flush any buffered spans.
 

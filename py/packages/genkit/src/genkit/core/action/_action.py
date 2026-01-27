@@ -110,7 +110,7 @@ ChunkT = TypeVar('ChunkT', default=Never)
 StreamingCallback = Callable[[object], None]
 
 _action_context: ContextVar[dict[str, object] | None] = ContextVar('context')
-_action_context.set(None)
+_ = _action_context.set(None)
 
 
 class _LatencyTrackable(Protocol):
@@ -319,7 +319,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         # TODO: handle telemetry_labels
 
         if context:
-            _action_context.set(context)
+            _ = _action_context.set(context)
 
         return self._fn(
             input,
@@ -359,7 +359,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         # TODO: handle telemetry_labels
 
         if context:
-            _action_context.set(context)
+            _ = _action_context.set(context)
 
         return await self._afn(
             input,

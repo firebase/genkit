@@ -212,7 +212,7 @@ class Document(DocumentData):
                     metadata = {}
                 metadata['embedMetadata'] = embedding.metadata
             documents.append(Document(content=content, metadata=metadata))
-        check_unique_documents(documents)
+        _ = check_unique_documents(documents)
         return documents
 
 

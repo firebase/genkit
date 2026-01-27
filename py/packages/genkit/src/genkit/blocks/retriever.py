@@ -228,7 +228,7 @@ def define_retriever(
         res = fn(query, request.options)
         return await res if inspect.isawaitable(res) else res
 
-    registry.register_action(
+    _ = registry.register_action(
         kind=cast(ActionKind, ActionKind.RETRIEVER),
         name=name,
         fn=wrapper,
@@ -258,7 +258,7 @@ def define_indexer(
         if inspect.isawaitable(res):
             await res
 
-    registry.register_action(
+    _ = registry.register_action(
         kind=cast(ActionKind, ActionKind.INDEXER),
         name=name,
         fn=wrapper,

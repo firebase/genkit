@@ -206,7 +206,7 @@ class GenkitBase(GenkitRegistry):
                             logger.warning(f'Reflection server at {spec.url} did not become healthy in time.')
 
                         # Now write the file (or verify it persisted)
-                        runtime_manager.write_runtime_file()
+                        _ = runtime_manager.write_runtime_file()
 
                         # Start the (potentially short-lived) user coroutine wrapper
                         tg.start_soon(run_user_coro_wrapper, name='genkit-user-coroutine')

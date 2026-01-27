@@ -657,7 +657,7 @@ class Genkit(GenkitBase):
         if documents is None:
             raise ValueError('Documents must be specified for indexing.')
 
-        await index_action.arun(
+        _ = await index_action.arun(
             IndexerRequest(
                 # Document subclasses DocumentData, so this is type-safe at runtime.
                 # The type checker doesn't recognize the subclass relationship here.

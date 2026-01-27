@@ -80,13 +80,13 @@ logger = structlog.get_logger(__name__)
 def kill_all_servers() -> None:
     """Kills all servers registered with the signal handler."""
     loop = asyncio.get_running_loop()
-    loop.call_soon(os.kill, os.getpid(), signal.SIGKILL)
+    _ = loop.call_soon(os.kill, os.getpid(), signal.SIGKILL)
 
 
 def terminate_all_servers() -> None:
     """Terminate all servers registered with the signal handler."""
     loop = asyncio.get_running_loop()
-    loop.call_soon(os.kill, os.getpid(), signal.SIGTERM)
+    _ = loop.call_soon(os.kill, os.getpid(), signal.SIGTERM)
 
 
 class SignalHandler:
@@ -184,18 +184,18 @@ class SignalHandler:
             """
             # Use the event loop to schedule our signal handler
             if asyncio.get_event_loop().is_running():
-                asyncio.create_task(self.handle_signal_async(sig))
+                _ = asyncio.create_task(self.handle_signal_async(sig))
             else:
                 # Direct call if event loop is not running (unlikely)
                 self.handle_signal(sig)
 
         # Register for common shutdown signals
         try:
-            signal.signal(signal.SIGINT, _handle_signal)
-            signal.signal(signal.SIGTERM, _handle_signal)
+            _ = signal.signal(signal.SIGINT, _handle_signal)
+            _ = signal.signal(signal.SIGTERM, _handle_signal)
             # On Unix systems, we can also handle SIGHUP
             if hasattr(signal, 'SIGHUP'):
-                signal.signal(signal.SIGHUP, _handle_signal)
+                _ = signal.signal(signal.SIGHUP, _handle_signal)
         except ValueError as e:
             # This can happen if we're not in the main thread
             logger.warning('Could not set up signal handlers', error=e)
