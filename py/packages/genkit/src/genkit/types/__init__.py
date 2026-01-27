@@ -14,108 +14,109 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Types for Genkit users.
+"""User-facing types for Genkit.
 
-Users should import Genkit types from this module.
+This module exports all types that users may need when building Genkit applications.
+For the main Genkit class, import from `genkit` directly.
 """
 
 from genkit.blocks.document import Document
-from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, MessageWrapper
-from genkit.core.action import ActionRunContext
-from genkit.core.error import GenkitError, StatusName
+from genkit.blocks.tools import ToolInterruptError
+from genkit.core.error import GenkitError
 from genkit.core.typing import (
-    BaseEvalDataPoint,
-    Constrained,
+    # Message and Part types
+    Message,
+    Part,
+    TextPart,
+    MediaPart,
+    Media,
     CustomPart,
     DataPart,
-    Details,
-    Docs,
+    ReasoningPart,
+    ToolRequestPart,
+    ToolResponsePart,
+    Role,
+    # Document types
     DocumentData,
-    Embedding,
-    EmbedRequest,
-    EmbedResponse,
-    EvalFnResponse,
-    EvalRequest,
-    EvalResponse,
-    EvalStatusEnum,
-    FinishReason,
-    GenerateActionOptions,
+    # Generation types
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
     GenerationUsage,
-    Media,
-    MediaPart,
-    Message,
-    Metadata,
-    ModelInfo,
     OutputConfig,
-    Part,
-    ReasoningPart,
+    GenerateActionOptions,
+    FinishReason,
+    ToolChoice,
+    # Tool types
+    ToolRequest,
+    ToolResponse,
+    ToolDefinition,
+    # Embedding types
+    Embedding,
+    EmbedRequest,
+    EmbedResponse,
+    # Retriever types
     RetrieverRequest,
     RetrieverResponse,
-    Role,
-    Score,
-    Stage,
+    # Eval types
+    BaseEvalDataPoint,
+    EvalRequest,
+    EvalResponse,
+    EvalFnResponse,
+    EvalStatusEnum,
+    # Model info (for plugin authors)
+    ModelInfo,
     Supports,
-    TextPart,
-    ToolChoice,
-    ToolDefinition,
-    ToolRequest,
-    ToolRequestPart,
-    ToolResponse,
-    ToolResponsePart,
 )
 
 __all__ = [
-    ActionRunContext.__name__,
-    BaseEvalDataPoint.__name__,
-    Constrained.__name__,
-    CustomPart.__name__,
-    DataPart.__name__,
-    Details.__name__,
-    Docs.__name__,
-    Document.__name__,
-    DocumentData.__name__,
-    EmbedRequest.__name__,
-    EmbedResponse.__name__,
-    Embedding.__name__,
-    EvalFnResponse.__name__,
-    EvalRequest.__name__,
-    EvalResponse.__name__,
-    EvalStatusEnum.__name__,
-    FinishReason.__name__,
-    GenerateActionOptions.__name__,
-    GenerateRequest.__name__,
-    GenerateResponse.__name__,
-    GenerateResponseChunk.__name__,
-    GenerateResponseChunkWrapper.__name__,
-    GenerateResponseWrapper.__name__,
-    GenerationCommonConfig.__name__,
-    GenerationUsage.__name__,
-    GenkitError.__name__,
-    Media.__name__,
-    MediaPart.__name__,
-    Message.__name__,
-    MessageWrapper.__name__,
-    Metadata.__name__,
-    ModelInfo.__name__,
-    OutputConfig.__name__,
-    Part.__name__,
-    ReasoningPart.__name__,
-    RetrieverRequest.__name__,
-    RetrieverResponse.__name__,
-    Role.__name__,
-    Score.__name__,
-    Stage.__name__,
-    StatusName.__name__,
-    Supports.__name__,
-    TextPart.__name__,
-    ToolChoice.__name__,
-    ToolDefinition.__name__,
-    ToolRequest.__name__,
-    ToolRequestPart.__name__,
-    ToolResponse.__name__,
-    ToolResponsePart.__name__,
+    # Errors
+    'GenkitError',
+    'ToolInterruptError',
+    # Message and Part types
+    'Message',
+    'Part',
+    'TextPart',
+    'MediaPart',
+    'Media',
+    'CustomPart',
+    'DataPart',
+    'ReasoningPart',
+    'ToolRequestPart',
+    'ToolResponsePart',
+    'Role',
+    # Document types
+    'Document',
+    'DocumentData',
+    # Generation types
+    'GenerateRequest',
+    'GenerateResponse',
+    'GenerateResponseChunk',
+    'GenerationCommonConfig',
+    'GenerationUsage',
+    'OutputConfig',
+    'GenerateActionOptions',
+    'FinishReason',
+    'ToolChoice',
+    # Tool types
+    'ToolRequest',
+    'ToolResponse',
+    'ToolDefinition',
+    # Embedding types
+    'Embedding',
+    'EmbedRequest',
+    'EmbedResponse',
+    # Retriever types
+    'RetrieverRequest',
+    'RetrieverResponse',
+    # Eval types
+    'BaseEvalDataPoint',
+    'EvalRequest',
+    'EvalResponse',
+    'EvalFnResponse',
+    'EvalStatusEnum',
+    # Model info (for plugin authors)
+    'ModelInfo',
+    'Supports',
 ]
