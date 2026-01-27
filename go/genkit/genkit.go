@@ -249,22 +249,39 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 		errCh := make(chan error, 1)
 		serverStartCh := make(chan struct{})
 
-		go func() {
-			if s := startReflectionServer(ctx, g, errCh, serverStartCh); s == nil {
-				return
-			}
-			if err := <-errCh; err != nil {
-				slog.Error("reflection server error", "err", err)
-			}
-		}()
+		// Check for V2 Reflection
+		if v2URL := os.Getenv("GENKIT_REFLECTION_V2_SERVER"); v2URL != "" {
+			// Start V2 Client in background
+			// We don't block Init on it because it runs a reconnection loop.
+			startReflectionClientV2(ctx, g, v2URL, errCh)
 
-		select {
-		case err := <-errCh:
-			panic(fmt.Errorf("genkit.Init: reflection server startup failed: %w", err))
-		case <-serverStartCh:
-			slog.Debug("reflection server started successfully")
-		case <-ctx.Done():
-			panic(ctx.Err())
+			// If we wanted to bubble up immediate errors we could, but startReflectionServerV2
+			// retries by default. We should drain errCh if it's used, but currently it's not writing.
+			// Just ensure we don't block.
+			go func() {
+				for err := range errCh {
+					slog.Error("reflection V2 client error", "err", err)
+				}
+			}()
+		} else {
+			// Start V1 Reflection Server
+			go func() {
+				if s := startReflectionServer(ctx, g, errCh, serverStartCh); s == nil {
+					return
+				}
+				if err := <-errCh; err != nil {
+					slog.Error("reflection server error", "err", err)
+				}
+			}()
+
+			select {
+			case err := <-errCh:
+				panic(fmt.Errorf("genkit.Init: reflection server startup failed: %w", err))
+			case <-serverStartCh:
+				slog.Debug("reflection server started successfully")
+			case <-ctx.Done():
+				panic(ctx.Err())
+			}
 		}
 	}
 
