@@ -104,7 +104,7 @@ func NewGenkitMCPClient(options MCPClientOptions) (*GenkitMCPClient, error) {
 	}
 
 	if client.server.Error != nil {
-		return nil, fmt.Errorf("failed to initialize MCP client: %w", client.server.Error)
+		return nil, client.server.Error
 	}
 
 	return client, nil
@@ -132,7 +132,7 @@ func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 	ctx := context.Background()
 	if err := transport.Start(ctx); err != nil {
 		wrappedErr := fmt.Errorf("failed to start transport: %w", err)
-		c.server = &ServerRef{Error: err}
+		c.server = &ServerRef{Error: wrappedErr}
 		return wrappedErr
 	}
 
