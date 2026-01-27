@@ -12,9 +12,11 @@ This architecture allows the CLI to easily manage multiple runtimes (e.g., for m
 
 ## Transport
 
--   **Protocol**: WebSocket
--   **Data Format**: JSON
--   **Message Structure**: JSON-RPC 2.0 (modified for streaming)
+| Feature | Specification |
+| :--- | :--- |
+| **Protocol** | WebSocket |
+| **Data Format** | JSON |
+| **Message Structure** | JSON-RPC 2.0 (modified for streaming) |
 
 ## Message Format
 
@@ -47,11 +49,23 @@ All messages follow the JSON-RPC 2.0 specification.
   "error": {
     "code": -32000,
     "message": "Error message",
-    "data": { ... } // Optional details (stack trace, etc.)
+    "data": {
+      "code": 13,
+      "message": "Error message",
+      "details": {
+        "traceId": "...",
+        "stack": "..."
+      }
+    }
   },
   "id": 1
 }
 ```
+
+The `data` field contains a `Status` object (matching V1 API) with:
+-   **`code`**: Genkit canonical status code (e.g., 13 for INTERNAL, 3 for INVALID_ARGUMENT).
+-   **`message`**: The error message.
+-   **`details`**: Additional context, including `traceId` and `stack` trace.
 
 ### Notification
 A request without an `id`.
@@ -67,275 +81,154 @@ A request without an `id`.
 
 JSON-RPC 2.0 does not natively support streaming. We extend it by using Notifications from the Runtime to the Manager associated with a specific Request ID.
 
-### Stream Chunk Notification
-Sent by the Runtime during a streaming `runAction` request.
+| Message Type | Method | Direction | Description |
+| :--- | :--- | :--- | :--- |
+| **Stream Chunk** | `streamChunk` | Runtime -> Manager | Sent by the Runtime during a streaming `runAction` request. |
+| **State Update** | `runActionState` | Runtime -> Manager | Sent by the Runtime to provide status updates (e.g., trace ID) before the result. |
 
+### Stream Chunk Notification
 ```json
 {
   "jsonrpc": "2.0",
   "method": "streamChunk",
   "params": {
-    "requestId": 1, // Matches the ID of the runAction request
-    "chunk": { ... } // The chunk data
+    "requestId": 1,
+    "chunk": { ... }
   }
 }
 ```
 
 ### Run Action State Notification
-Sent by the Runtime to provide status updates or metadata (like trace ID) while the action is running, before the result is ready.
-
 ```json
 {
   "jsonrpc": "2.0",
   "method": "runActionState",
   "params": {
-    "requestId": 1, // Matches the ID of the runAction request
-    "state": {
-      "traceId": "..." 
-    }
+    "requestId": 1,
+    "state": { "traceId": "..." }
   }
 }
 ```
 
-## Protocol Flow
+## Protocol Methods Summary
 
-### 1. Registration (Runtime -> Manager)
+| Method | Direction | Type | Description |
+| :--- | :--- | :--- | :--- |
+| **`register`** | Runtime -> Manager | Request | Registers the runtime with the Manager. |
+| **`configure`** | Manager -> Runtime | Notification | Pushes configuration updates to the Runtime. |
+| **`listActions`** | Manager -> Runtime | Request | Retrieves the list of available actions. |
+| **`listValues`** | Manager -> Runtime | Request | Retrieves the list of values (prompts, schemas, etc.). |
+| **`runAction`** | Manager -> Runtime | Request | Executes an action. |
+| **`cancelAction`** | Manager -> Runtime | Request | Cancels a running action. |
 
-Upon connection, the Runtime must register itself.
+## Detailed API
 
-**Request (Runtime -> Manager):**
--   **Method**: `register`
--   **Params**:
-    ```typescript
-    interface RegisterParams {
-      id: string;              // Unique Runtime ID
-      pid: number;             // Process ID
-      name?: string;           // App name
-      genkitVersion: string;   // e.g., "0.9.0"
-      reflectionApiSpecVersion: number;
-      envs?: string[];         // Configured environments
-    }
-    ```
+### 1. Registration
+**Direction:** Runtime -> Manager  
+**Type:** Request
 
-**Response (Manager -> Runtime):**
--   **Result**: `void` (null)
+**Parameters:**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `string` | Unique Runtime ID. |
+| `pid` | `number` | Process ID. |
+| `name` | `string` | App name (optional). |
+| `genkitVersion` | `string` | e.g., "0.9.0". |
+| `reflectionApiSpecVersion` | `number` | Protocol version. |
+| `envs` | `string[]` | Configured environments (optional). |
 
-### 2. Configuration (Manager -> Runtime)
+**Result:** `void`
 
-The Manager may push configuration updates to the Runtime, such as the Telemetry Server URL.
+### 2. Configuration
+**Direction:** Manager -> Runtime  
+**Type:** Notification
 
-**Notification (Manager -> Runtime):**
--   **Method**: `configure`
--   **Params**:
-    ```typescript
-    interface ConfigureParams {
-      telemetryServerUrl?: string;
-    }
-    ```
+**Parameters:**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `telemetryServerUrl` | `string` | URL of the telemetry server (optional). |
 
-### 3. List Actions (Manager -> Runtime)
+### 3. List Actions
+**Direction:** Manager -> Runtime  
+**Type:** Request
 
-The Manager requests the list of available actions/flows.
+**Parameters:** `void`
 
-**Request (Manager -> Runtime):**
--   **Method**: `listActions`
--   **Params**: `void` (empty object or null)
+**Result:**
+| Type | Description |
+| :--- | :--- |
+| `Record<string, Action>` | Map of action keys to Action definitions. (Same schema as V1 `/api/actions`) |
 
-**Response (Runtime -> Manager):**
--   **Result**: `Record<string, Action>` (Same schema as V1 `/api/actions`)
+### 4. List Values
+**Direction:** Manager -> Runtime  
+**Type:** Request
 
-### 4. List Values (Manager -> Runtime)
+**Parameters:**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `type` | `string` | The type of value to list (e.g., "model", "prompt", "schema"). |
 
-The Manager requests the list of values (e.g., prompts, schemas) for a given type.
+**Result:**
+| Type | Description |
+| :--- | :--- |
+| `Record<string, any>` | Map of value keys to value definitions. |
 
-**Request (Manager -> Runtime):**
--   **Method**: `listValues`
--   **Params**:
-    ```typescript
-    interface ListValuesParams {
-        type: string; // e.g. "model", "prompt", "schema"
-    }
-    ```
+### 5. Run Action
+**Direction:** Manager -> Runtime  
+**Type:** Request
 
-**Response (Runtime -> Manager):**
--   **Result**: `Record<string, any>`
+**Parameters:**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `key` | `string` | Action key (e.g., "/flow/myFlow"). |
+| `input` | `any` | Input payload. |
+| `context` | `any` | Context data (optional). |
+| `telemetryLabels` | `Record<string, string>` | Telemetry labels (optional). |
+| `stream` | `boolean` | Whether to stream results. |
+| `streamInput` | `boolean` | Whether to stream input (for bidi actions). |
 
+**Result (Non-Streaming):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `result` | `any` | The return value. |
+| `telemetry` | `object` | Telemetry metadata (e.g., `{ traceId: string }`). |
 
-### 4. Run Action (Manager -> Runtime)
+**Streaming Flow:**
+1. Runtime sends optional `runActionState` notifications.
+2. Runtime sends `streamChunk` notifications.
+3. Runtime sends final response with `result` (same structure as non-streaming).
 
-The Manager requests the execution of an action.
+**Bidirectional Streaming Flow (if `streamInput: true`):**
+1. Manager sends `streamInputChunk` notifications.
+2. Manager sends `endStreamInput` notification.
+3. Runtime behaves as per Streaming Flow.
 
-**Request (Manager -> Runtime):**
--   **Method**: `runAction`
--   **Params**:
-    ```typescript
-    interface RunActionParams {
-      key: string;           // Action key (e.g., "flowName")
-      input: any;            // Input payload
-      context?: any;         // Context data
-      telemetryLabels?: Record<string, string>;
-      stream?: boolean;      // Whether to stream results
-      streamInput?: boolean; // Whether to stream input (for bidi actions)
-    }
-    ```
+### 6. Cancel Action
+**Direction:** Manager -> Runtime  
+**Type:** Request
 
-**Scenario A: Non-Streaming Response**
+**Parameters:**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `traceId` | `string` | The trace ID of the action to cancel. |
 
-1.  **Notification (Runtime -> Manager)**: `runActionState` (optional, repeated)
-    -   Used to send early trace info or status updates.
-    -   `params.requestId`: Matches request ID.
-    -   `params.state`: The state update (e.g., traceId).
+**Result:**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `message` | `string` | Confirmation message. |
 
-2.  **Response (Runtime -> Manager)**:
-    -   **Result**:
-    ```typescript
-    interface RunActionResult {
-      result: any;           // The return value
-      telemetry?: {
-        traceId?: string;
-      };
-    }
-    ```
+## Health Checks
 
-**Scenario B: Streaming Response**
-
-1.  **Notification (Runtime -> Manager)**: `runActionState` (optional, repeated)
-    -   Used to send early trace info or status updates.
-
-2.  **Notification (Runtime -> Manager)**: `streamChunk` (repeated)
-    -   `params.requestId`: Matches request ID.
-    -   `params.chunk`: The partial result.
-
-3.  **Response (Runtime -> Manager)**: Final result.
-    -   **Result**: Same as Non-Streaming (`RunActionResult`). Signals the end of the stream.
-
-**Scenario C: Streaming Input (Bidi)**
-
-If `streamInput` is true in `runAction` request:
-
-1.  **Notification (Manager -> Runtime)**: `streamInputChunk` (repeated)
-    -   `params.requestId`: Matches request ID.
-    -   `params.chunk`: The input chunk.
-
-2.  **Notification (Manager -> Runtime)**: `endStreamInput`
-    -   `params.requestId`: Matches request ID.
-    -   Signals end of input stream.
-
-### 5. Cancel Action (Manager -> Runtime)
-
-The Manager requests the cancellation of a long-running action.
-
-**Request (Manager -> Runtime):**
--   **Method**: `cancelAction`
--   **Params**:
-    ```typescript
-    interface CancelActionParams {
-      traceId: string;
-    }
-    ```
-
-**Response (Runtime -> Manager):**
--   **Result**: 
-    ```typescript
-    {
-      message: string;
-    }
-    ```
-
-### 6. Health Checks
-
-The WebSocket connection state itself serves as a basic health check.
--   **Heartbeats**: Standard WebSocket Ping/Pong frames should be used to maintain the connection and detect timeouts.
+| Check Type | Description |
+| :--- | :--- |
+| **Connection State** | The WebSocket connection state itself serves as a basic health check. |
+| **Heartbeats** | Standard WebSocket Ping/Pong frames should be used to maintain the connection and detect timeouts. |
 
 ## Compatibility
 
--   **V1**: HTTP Server on Runtime, Polling/Request from CLI.
--   **V2**: WebSocket Server on CLI, Persistent Connection from Runtime.
+| Version | Architecture |
+| :--- | :--- |
+| **V1** | HTTP Server on Runtime, Polling/Request from CLI. |
+| **V2** | WebSocket Server on CLI, Persistent Connection from Runtime. |
 
-The CLI will determine which mode to use based on the `--experimental-reflection-v2` flag.
-
-## Example: Streaming Flow Execution
-
-Below is an example sequence of messages for running a flow named `myFlow` with streaming enabled.
-
-**1. Manager Requests Execution**
-```json
-// Request (Manager -> Runtime)
-{
-  "jsonrpc": "2.0",
-  "method": "runAction",
-  "params": {
-    "key": "/flow/myFlow",
-    "input": "Describe a cat",
-    "stream": true
-  },
-  "id": 100
-}
-```
-
-**2. Runtime Sends Early Trace ID**
-```json
-// Notification (Runtime -> Manager)
-{
-  "jsonrpc": "2.0",
-  "method": "runActionState",
-  "params": {
-    "requestId": 100,
-    "state": {
-      "traceId": "abc-123-trace-id"
-    }
-  }
-}
-```
-
-**3. Runtime Sends Stream Chunks**
-```json
-// Notification (Runtime -> Manager)
-{
-  "jsonrpc": "2.0",
-  "method": "streamChunk",
-  "params": {
-    "requestId": 100,
-    "chunk": { "content": [{ "text": "A cat is "}] }
-  }
-}
-```
-
-```json
-// Notification (Runtime -> Manager)
-{
-  "jsonrpc": "2.0",
-  "method": "streamChunk",
-  "params": {
-    "requestId": 100,
-    "chunk": { "content": [{ "text": "a small "}] }
-  }
-}
-```
-
-```json
-// Notification (Runtime -> Manager)
-{
-  "jsonrpc": "2.0",
-  "method": "streamChunk",
-  "params": {
-    "requestId": 100,
-    "chunk": { "content": [{ "text": "feline."}] }
-  }
-}
-```
-
-**4. Runtime Sends Final Result**
-```json
-// Response (Runtime -> Manager)
-{
-  "jsonrpc": "2.0",
-  "result": {
-    "result": "A cat is a small feline.",
-    "telemetry": {
-      "traceId": "abc-123-trace-id"
-    }
-  },
-  "id": 100
-}
-```
+The CLI will determine which mode to use based on configuration (e.g., `--experimental-reflection-v2`).
