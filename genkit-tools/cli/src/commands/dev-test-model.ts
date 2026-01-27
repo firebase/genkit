@@ -21,8 +21,8 @@ import {
   Part,
 } from '@genkit-ai/tools-common';
 import {
+  BaseRuntimeManager,
   GenkitToolsError,
-  RuntimeManager,
 } from '@genkit-ai/tools-common/manager';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -345,7 +345,7 @@ const TEST_CASES: Record<string, TestCase> = {
   },
 };
 
-async function waitForRuntime(manager: RuntimeManager) {
+async function waitForRuntime(manager: BaseRuntimeManager) {
   // Poll for runtimes
   for (let i = 0; i < 20; i++) {
     if (manager.listRuntimes().length > 0) return;
@@ -355,7 +355,7 @@ async function waitForRuntime(manager: RuntimeManager) {
 }
 
 async function runTest(
-  manager: RuntimeManager,
+  manager: BaseRuntimeManager,
   model: string,
   testCase: TestCase
 ): Promise<boolean> {
@@ -397,7 +397,7 @@ async function runTest(
 }
 
 async function runTestSuite(
-  manager: RuntimeManager,
+  manager: BaseRuntimeManager,
   suite: TestSuite,
   defaultSupports: string[]
 ): Promise<{ passed: number; failed: number }> {
@@ -470,7 +470,7 @@ export const devTestModel = new Command('dev:test-model')
         if (args) cmd = args;
       }
 
-      let manager: RuntimeManager;
+      let manager: BaseRuntimeManager;
 
       if (cmd.length > 0) {
         const result = await startDevProcessManager(
