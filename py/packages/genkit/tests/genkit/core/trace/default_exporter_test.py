@@ -283,13 +283,16 @@ def test_extract_span_data_basic_fields() -> None:
 
     data = extract_span_data(mock_span)
 
-    assert data['traceId'] == '12345'
-    assert 'spans' in data
-    assert 67890 in data['spans']
+    trace_id_hex = format(12345, '032x')
+    span_id_hex = format(67890, '016x')
 
-    span_info = data['spans'][67890]
-    assert span_info['spanId'] == '67890'
-    assert span_info['traceId'] == '12345'
+    assert data['traceId'] == trace_id_hex
+    assert 'spans' in data
+    assert span_id_hex in data['spans']
+
+    span_info = data['spans'][span_id_hex]
+    assert span_info['spanId'] == span_id_hex
+    assert span_info['traceId'] == trace_id_hex
     assert span_info['displayName'] == 'test-span'
     assert span_info['startTime'] == 1000.0  # Converted to milliseconds
     assert span_info['endTime'] == 2000.0  # Converted to milliseconds
@@ -301,7 +304,8 @@ def test_extract_span_data_with_attributes() -> None:
 
     data = extract_span_data(mock_span)
 
-    span_info = data['spans'][67890]
+    span_id_hex = format(67890, '016x')
+    span_info = data['spans'][span_id_hex]
     assert span_info['attributes'] == {'key1': 'value1', 'key2': 123}
 
 
@@ -315,8 +319,10 @@ def test_extract_span_data_with_parent_span() -> None:
 
     data = extract_span_data(mock_span)
 
-    span_info = data['spans'][67890]
-    assert span_info['parentSpanId'] == '11111'
+    span_id_hex = format(67890, '016x')
+    parent_span_id_hex = format(11111, '016x')
+    span_info = data['spans'][span_id_hex]
+    assert span_info['parentSpanId'] == parent_span_id_hex
 
 
 def test_extract_span_data_without_parent_span() -> None:
@@ -326,7 +332,8 @@ def test_extract_span_data_without_parent_span() -> None:
 
     data = extract_span_data(mock_span)
 
-    span_info = data['spans'][67890]
+    span_id_hex = format(67890, '016x')
+    span_info = data['spans'][span_id_hex]
     assert 'parentSpanId' not in span_info
 
     # Root span should have displayName, startTime, endTime at top level
@@ -339,7 +346,8 @@ def test_extract_span_data_includes_status() -> None:
 
     data = extract_span_data(mock_span)
 
-    span_info = data['spans'][67890]
+    span_id_hex = format(67890, '016x')
+    span_info = data['spans'][span_id_hex]
     assert 'status' in span_info
     assert span_info['status']['code'] == trace_api.StatusCode.OK.value  # OK status is 1
 
@@ -350,7 +358,8 @@ def test_extract_span_data_includes_instrumentation_library() -> None:
 
     data = extract_span_data(mock_span)
 
-    span_info = data['spans'][67890]
+    span_id_hex = format(67890, '016x')
+    span_info = data['spans'][span_id_hex]
     assert span_info['instrumentationLibrary'] == {
         'name': 'genkit-tracer',
         'version': 'v1',
@@ -363,7 +372,8 @@ def test_extract_span_data_handles_none_times() -> None:
 
     data = extract_span_data(mock_span)
 
-    span_info = data['spans'][67890]
+    span_id_hex = format(67890, '016x')
+    span_info = data['spans'][span_id_hex]
     assert span_info['startTime'] == 0
     assert span_info['endTime'] == 0
 

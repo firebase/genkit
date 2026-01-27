@@ -22,7 +22,7 @@ dependencies = [
   "genkit-plugin-evaluators",
   "genkit-plugin-google-genai",
   "pydantic>=2.0.0",
-  "pypdf",
+  "pypdf>=6.6.2",
   "structlog>=24.0.0",
   "uvloop>=0.22.1",
 ]

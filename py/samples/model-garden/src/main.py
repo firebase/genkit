@@ -14,15 +14,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Model Garden sample.
+"""Model Garden sample - Access third-party models via Vertex AI.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use Vertex AI Model Garden, which provides
+access to various third-party models (like Anthropic Claude) through
+Google Cloud's infrastructure.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Model Garden Plugin                     | `ModelGardenPlugin()`               |
 | Specific Model Usage                    | `model_garden_name('anthropic/...')`|
 | Generation Config                       | `max_output_tokens`, `temperature`  |
+
+See README.md for testing instructions.
 """
 
 from typing import Annotated, cast
