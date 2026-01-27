@@ -29,7 +29,10 @@ Example:
 
 import asyncio
 import threading
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from typing import cast
+
+from typing_extensions import Never, TypeVar
 
 import structlog
 from dotpromptz.dotprompt import Dotprompt
@@ -37,6 +40,7 @@ from dotpromptz.dotprompt import Dotprompt
 from genkit.core.action import (
     Action,
     ActionMetadata,
+    ActionRunContext,
     SpanAttributeValue,
     parse_action_key,
 )
@@ -59,6 +63,16 @@ logger = structlog.get_logger(__name__)
 # }
 # ```
 ActionStore = dict[ActionKind, dict[ActionName, Action]]
+
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
+ChunkT = TypeVar('ChunkT', default=Never)
+
+ActionFn = (
+    Callable[[], OutputT | Awaitable[OutputT]]
+    | Callable[[InputT], OutputT | Awaitable[OutputT]]
+    | Callable[[InputT, ActionRunContext], OutputT | Awaitable[OutputT]]
+)
 
 
 class Registry:
@@ -107,12 +121,12 @@ class Registry:
         self,
         kind: ActionKind,
         name: str,
-        fn: Callable[..., object],
+        fn: ActionFn[InputT, OutputT],
         metadata_fn: Callable[..., object] | None = None,
         description: str | None = None,
         metadata: dict[str, object] | None = None,
         span_metadata: dict[str, SpanAttributeValue] | None = None,
-    ) -> Action:
+    ) -> Action[InputT, OutputT, ChunkT]:
         """Register a new action with the registry.
 
         This method creates a new Action instance with the provided parameters
@@ -140,11 +154,12 @@ class Registry:
             metadata=metadata,
             span_metadata=span_metadata,
         )
+        action_typed = cast(Action[InputT, OutputT, ChunkT], action)
         with self._lock:
             if kind not in self._entries:
                 self._entries[kind] = {}
-            self._entries[kind][name] = action
-        return action
+            self._entries[kind][name] = action_typed
+        return action_typed
 
     def register_action_from_instance(self, action: Action) -> None:
         """Register an existing Action instance.

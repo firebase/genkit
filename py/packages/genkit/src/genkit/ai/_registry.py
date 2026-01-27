@@ -43,7 +43,8 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, cast, overload
+from typing_extensions import Never, TypeVar
 
 from genkit.aio import ensure_async
 
@@ -105,6 +106,8 @@ logger = structlog.get_logger(__name__)
 P = ParamSpec('P')
 R = TypeVar('R')
 T = TypeVar('T')
+CallT = TypeVar('CallT')
+ChunkT = TypeVar('ChunkT', default=Never)
 
 
 def get_func_description(func: Callable, description: str | None = None) -> str:
@@ -200,9 +203,21 @@ class GenkitRegistry:
         """Initialize the Genkit registry."""
         self.registry: Registry = Registry()
 
+    @overload
     def flow(
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T]']:
+    ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T]']:
+        ...
+
+    @overload
+    def flow(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']:
+        ...
+
+    def flow(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']:
         """Decorator to register a function as a flow.
 
         Args:
@@ -215,7 +230,7 @@ class GenkitRegistry:
             A decorator function that registers the flow.
         """
 
-        def wrapper(func: Callable[P, T]) -> 'FlowWrapper[P, T]':
+        def wrapper(func: Callable[P, Awaitable[T]] | Callable[P, T]) -> 'FlowWrapper[P, Awaitable[T] | T, T]':
             """Register the decorated function as a flow.
 
             Args:
@@ -235,7 +250,7 @@ class GenkitRegistry:
             )
 
             @wraps(func)
-            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 """Asynchronous wrapper for the flow function.
 
                 Args:
@@ -247,7 +262,7 @@ class GenkitRegistry:
                 """
                 # Flows accept at most one input argument
                 input_arg = args[0] if args else None
-                return cast(T, (await action.arun(input_arg)).response)
+                return (await action.arun(input_arg)).response
 
             @wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -262,11 +277,12 @@ class GenkitRegistry:
                 """
                 # Flows accept at most one input argument
                 input_arg = args[0] if args else None
-                return cast(T, action.run(input_arg).response)
+                return action.run(input_arg).response
 
+            wrapped_fn = cast(Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
             return FlowWrapper(
-                fn=cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper),
-                action=action,
+                fn=cast(Callable[P, CallT], wrapped_fn),
+                action=cast(Action[Any, T, Never], action),
             )
 
         return wrapper
@@ -1035,14 +1051,14 @@ class GenkitRegistry:
         return define_resource_block(self.registry, opts, fn)
 
 
-class FlowWrapper(Generic[P, T]):
+class FlowWrapper(Generic[P, CallT, T, ChunkT]):
     """A wapper for flow functions to add `stream` method.
 
     This class wraps a flow function and provides a `stream` method for
     asynchronous execution.
     """
 
-    def __init__(self, fn: Callable[P, T], action: Action) -> None:
+    def __init__(self, fn: Callable[P, CallT], action: Action[Any, T, ChunkT]) -> None:
         """Initialize the FlowWrapper.
 
         Args:
@@ -1052,7 +1068,7 @@ class FlowWrapper(Generic[P, T]):
         self._fn = fn
         self._action = action
 
-    def __call__(self, *args: P.args, **kwds: P.kwargs) -> T:
+    def __call__(self, *args: P.args, **kwds: P.kwargs) -> CallT:
         """Call the wrapped function.
 
         Args:
@@ -1070,10 +1086,7 @@ class FlowWrapper(Generic[P, T]):
         context: dict[str, object] | None = None,
         telemetry_labels: dict[str, object] | None = None,
         timeout: float | None = None,
-    ) -> tuple[
-        AsyncIterator[object],  # noqa: ANN401
-        asyncio.Future[ActionResponse],
-    ]:
+    ) -> tuple[AsyncIterator[ChunkT], asyncio.Future[ActionResponse[T]]]:
         """Run the flow and return an async iterator of the results.
 
         Args:

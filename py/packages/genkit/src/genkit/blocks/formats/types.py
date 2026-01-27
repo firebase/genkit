@@ -28,13 +28,6 @@ from genkit.core.typing import (
     OutputConfig,
 )
 
-T = TypeVar('T')
-# type MessageParser[T] = Callable[[MessageWrapper], T]
-MessageParser = Callable[[MessageWrapper], T]
-# type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
-ChunkParser = Callable[[GenerateResponseChunkWrapper], T]
-
-
 class FormatterConfig(OutputConfig):
     """Defines configuration options specific to formatters.
 
@@ -59,8 +52,8 @@ class Formatter(Generic[OutputT, ChunkT]):
 
     def __init__(
         self,
-        message_parser: MessageParser[OutputT],
-        chunk_parser: ChunkParser[ChunkT],
+        message_parser: Callable[[MessageWrapper], OutputT],
+        chunk_parser: Callable[[GenerateResponseChunkWrapper], ChunkT],
         instructions: str | None,
     ) -> None:
         """Initializes a Formatter.
