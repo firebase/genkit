@@ -385,9 +385,11 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     inputStream?: AsyncIterable<any>
   ): Promise<RunActionResponse> {
     const runtimeId = input.runtimeId || this.getMostRecentRuntime()?.id;
+    if (!runtimeId) {
       throw new Error(
         'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
+    }
 
     const runtime = this.runtimes.get(runtimeId);
     if (!runtime) {
@@ -400,7 +402,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       this.streamCallbacks.set(id, streamingCallback);
     }
     if (onTraceId) {
-      this.traceIdCallbacks.set(id, onTraceId);
+      this.traceIdCallbacks.set(id, onTraceId!);
     }
 
     const message: JsonRpcRequest = {
@@ -416,7 +418,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
 
     const promise = new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
-      runtime.ws.send(JSON.stringify(message));
+      runtime!.ws.send(JSON.stringify(message));
     })
       .then((result) => {
         return RunActionResponseSchema.parse(result);
@@ -433,13 +435,13 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     if (inputStream) {
       (async () => {
         try {
-          for await (const chunk of inputStream) {
-            this.sendNotification(runtimeId, 'streamInputChunk', {
+          for await (const chunk of inputStream!) {
+            this.sendNotification(runtimeId!, 'streamInputChunk', {
               requestId: id,
               chunk,
             });
           }
-          this.sendNotification(runtimeId, 'endStreamInput', { requestId: id });
+          this.sendNotification(runtimeId!, 'endStreamInput', { requestId: id });
         } catch (e) {
           logger.error(`Error streaming input: ${e}`);
         }
