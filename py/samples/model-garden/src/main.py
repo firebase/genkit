@@ -16,17 +16,21 @@
 
 """Model Garden sample.
 
-from typing import Annotated
-import asyncio
+import os
 
 import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+<<<<<<< HEAD
 from genkit.core.action import ActionRunContext
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
+||||||| parent of a4020e5c6 (fix(py): revised the flow and fixed ty errors)
+from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
+=======
+>>>>>>> a4020e5c6 (fix(py): revised the flow and fixed ty errors)
 from genkit.plugins.google_genai import VertexAI
-from pydantic import BaseModel, Field
+from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
 logger = structlog.get_logger(__name__)
 
@@ -35,10 +39,18 @@ def get_project_id() -> str:
     """Get Google Cloud project ID from environment or prompt user."""
     project_id = os.getenv('GCLOUD_PROJECT') or os.getenv('GOOGLE_CLOUD_PROJECT')
     if not project_id:
-        project_id = input('Enter your Google Cloud Project ID: ').strip()
-        if not project_id:
-            raise ValueError('Project ID is required.')
-        os.environ['GCLOUD_PROJECT'] = project_id
+        # Fallback to a hardcoded default for testing if env var is missing,
+        # or raise error. Since user provided a project ID that had quotes,
+        # they likely set it in env var.
+        raise ValueError('Environment variable GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT must be set.')
+
+    # Sanitize project_id to remove potential smart quotes or regular quotes
+    project_id = project_id.strip().strip("'").strip('"').strip('‘').strip('’')
+
+    # Update env vars so other plugins (like VertexAI) pick up the sanitized ID
+    os.environ['GCLOUD_PROJECT'] = project_id
+    os.environ['GOOGLE_CLOUD_PROJECT'] = project_id
+
     return project_id
 
 
@@ -58,14 +70,23 @@ location = get_location()
 
 ai = Genkit(
     plugins=[
-        ModelGardenPlugin(),
+        ModelGardenPlugin(
+            project_id=project_id,
+            location=location,
+            model_locations={
+                'anthropic/claude-sonnet-4@20250514': 'us-east5',
+                'meta/llama-3.2-90b-vision-instruct-maas': 'us-central1',
+            },
+        ),
+        VertexAI(location=location),
     ],
 )
 
 
-
 class WeatherInput(BaseModel):
-    location: str = Field(..., description="Location for which to get the weather, ex: San-Francisco, CA")
+    """Input for getting weather."""
+
+    location: str = Field(..., description='Location for which to get the weather, ex: San-Francisco, CA')
 
 
 @ai.tool()
@@ -79,7 +100,9 @@ def get_weather(input: WeatherInput) -> dict:
 
 
 class TemperatureInput(BaseModel):
-    celsius: float = Field(..., description="Temperature in Celsius")
+    """Input for converting temperature."""
+
+    celsius: float = Field(..., description='Temperature in Celsius')
 
 
 @ai.tool()
@@ -89,15 +112,17 @@ def celsius_to_fahrenheit(input: TemperatureInput) -> float:
 
 
 class ToolFlowInput(BaseModel):
-    location: str = Field('Paris, France', description="Location to check weather for")
+    """Input for tool flow."""
+
+    location: str = Field('Paris, France', description='Location to check weather for')
 
 
 @ai.flow(name='gemini-2.5-flash - tool_flow')
 async def gemini_model(input: ToolFlowInput) -> str:
     """Gemini tool flow.
-    
+
     Args:
-        location: The location to check weather for.
+        input: The location input.
     """
     response = await ai.generate(
         model='vertexai/gemini-2.5-flash',
@@ -109,28 +134,32 @@ async def gemini_model(input: ToolFlowInput) -> str:
 
 
 @ai.flow(name='llama-3.2 - basic_flow')
-async def llama_model(location: str = None) -> str:
-    """Generate a greeting.
-
-    Args:
-        location: Ignored input to match JS sample.
-    """
-    response = await ai.generate(
-        model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
-        config={'temperature': 1},
-        prompt='You are a helpful assistant named Walt. Say hello',
-    )
-    return response.text
-
-
+async def llama_model() -> str:
+    """Generate a greeting."""
+    try:
+        logger.info('Starting llama 3.2 basic_flow')
+        logger.info(f'Using model: {model_garden_name("meta/llama-3.2-90b-vision-instruct-maas")}')
+        response = await ai.generate(
+            model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+            config={
+                'temperature': 1,
+                'location': 'us-central1',
+            },
+            prompt='You are a helpful assistant named Walt. Say hello',
+        )
+        logger.info(f'Response received: {response.text[:100] if response.text else "None"}')
+        return response.text
+    except Exception as e:
+        logger.error(f'Error in llama 3.2 basic_flow: {e}', exc_info=True)
+        raise
 
 
 @ai.flow(name='claude-sonnet-4 - tool_calling_flow')
 async def anthropic_model(input: ToolFlowInput) -> str:
     """Anthropic tool flow.
-    
+
     Args:
-        location: The location to check weather for.
+        input: The location input.
     """
     response = await ai.generate(
         # Note: The model name includes the publisher prefix for Model Garden
@@ -145,32 +174,15 @@ async def anthropic_model(input: ToolFlowInput) -> str:
     from_curr: str = Field(description='Source currency code', default='USD')
     to_curr: str = Field(description='Target currency code', default='EUR')
 
-# @ai.flow()
-# async def jokes_flow(subject: str) -> str:
-#     """Generate a joke about the given subject.
-# 
-#     Args:
-#         subject: The subject of the joke.
-# 
-#     Returns:
-#         The generated joke.
-#     """
-#     response = await ai.generate(
-#         # Note: The model name usually includes the publisher prefix for Model Garden
-#         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
-#         config={'temperature': 1, 'max_output_tokens': 1024},
-#         prompt=f'Tell a short joke about {subject}',
-#     )
-#     result = ''
-#     async for data in stream:
-#         for part in data.content:
-#             result += part.root.text
-#     return result
+class MistralMediumInput(BaseModel):
+    """Input for Mistral Medium flow."""
+
+    concept: str = Field('concurrency', description='Programming concept to explain')
 
 
-@ai.flow()
-async def jokes_flow(subject: Annotated[str, Field(default='banana')] = 'banana') -> str:
-    """Generate a joke about the given subject.
+@ai.flow(name='mistral-medium - explain_concept')
+async def explain_concept(input: MistralMediumInput) -> str:
+    """Explain a concept using Mistral Medium.
 
     Args:
         input: The input object.
@@ -184,34 +196,38 @@ async def jokes_flow(subject: Annotated[str, Field(default='banana')] = 'banana'
 
 
 class MistralAnalyzeInput(BaseModel):
-    code: str = Field("console.log('hello world');", description="Code to analyze")
+    """Input for Mistral code analysis."""
+
+    code: str = Field("console.log('hello world');", description='Code to analyze')
 
 
-# @ai.flow(name='mistral-small - analyze_code')
+@ai.flow(name='mistral-small - analyze_code')
 async def analyze_code(input: MistralAnalyzeInput) -> str:
     """Analyze code using Mistral Small.
-    
+
     Args:
         input: The input object.
     """
     response = await ai.generate(
         model=model_garden_name('mistral-small-2503'),
-        prompt=f'Analyze this code for potential issues and suggest improvements:\\n{input.code}',
+        prompt=f'Analyze this code for potential issues and suggest improvements:\n{input.code}',
     )
     return response.text
 
 
 class GenerateFunctionInput(BaseModel):
+    """Input for function generation."""
+
     description: str = Field(
         'greets me and asks my favourite colour',
         description='Description of what the function should do.',
     )
 
 
-# @ai.flow(name='codestral - generate_function')
+@ai.flow(name='codestral - generate_function')
 async def generate_function(input: GenerateFunctionInput) -> str:
     """Generate a function using Codestral.
-    
+
     Args:
         input: The input object containing the description.
     """
@@ -282,6 +298,7 @@ async def weather_flow(location: Annotated[str, Field(default='Paris, France')] 
 
 
 async def main() -> None:
+<<<<<<< HEAD
     """Main entry point for the Model Garden sample - keep alive for Dev UI."""
     import asyncio
 
@@ -292,6 +309,16 @@ async def main() -> None:
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
+||||||| parent of a4020e5c6 (fix(py): revised the flow and fixed ty errors)
+    """Run the sample flows."""
+    # await logger.ainfo(await say_hi('John Doe'))
+    # await logger.ainfo(await say_hi_stream('John Doe'))
+    await logger.ainfo(await jokes_flow('banana'))
+=======
+    """Run the sample flows."""
+    # await logger.ainfo(await say_hi('John Doe'))
+    # await logger.ainfo(await say_hi_stream('John Doe'))
+>>>>>>> a4020e5c6 (fix(py): revised the flow and fixed ty errors)
 
 
 if __name__ == '__main__':

@@ -19,7 +19,6 @@
 
 import typing
 from collections.abc import Callable
-from typing import cast
 
 if typing.TYPE_CHECKING:
     from openai import OpenAI
@@ -30,12 +29,8 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
-from genkit.types import ModelInfo, Supports
 
 MODELGARDEN_PLUGIN_NAME = 'modelgarden'
-
-
-
 
 
 def model_garden_name(name: str) -> str:
@@ -96,7 +91,6 @@ class ModelGarden:
         supports = model_info.supports
         return {
             'name': model_info.label,
-            'supports': model_info.supports.model_dump() if model_info.supports else None,
             'supports': supports.model_dump() if supports and hasattr(supports, 'model_dump') else {},
         }
 
@@ -111,5 +105,5 @@ class ModelGarden:
             A callable function (specifically, the `generate` method of an
             `OpenAIModel` instance) that can be used by Genkit.
         """
-        openai_model = OpenAIModel(self.name, cast('OpenAI', self.client))
+        openai_model = OpenAIModel(self.name, self.client)
         return openai_model.generate

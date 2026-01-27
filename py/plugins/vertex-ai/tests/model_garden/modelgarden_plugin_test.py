@@ -16,8 +16,10 @@
 
 """Unittests for VertexAI Model Garden Plugin."""
 
+from typing import Any, cast
+
 import pytest
-from genkit.core.action.types import ActionKind
+
 from genkit.plugins.vertex_ai.model_garden.modelgarden_plugin import ModelGardenPlugin
 
 
@@ -56,22 +58,21 @@ from genkit.plugins.vertex_ai.model_garden.modelgarden_plugin import ModelGarden
         ),
     ],
 )
-def test_create_model_action_anthropic(model_name, expected_supports):
+def test_create_model_action_anthropic(model_name: str, expected_supports: dict[str, Any]) -> None:
     """Test _create_model_action for Anthropic models."""
     plugin = ModelGardenPlugin(project_id='test-project', location='us-central1')
-    
+
     # define_model is not called directly, but we can test _create_model_action
     # or resolve which calls it
     action = plugin._create_model_action(model_name)
-    
+
     assert action is not None
     assert action.metadata is not None
     assert 'model' in action.metadata
-    
-    model_info = action.metadata['model']
+
+    model_info = cast(dict[str, Any], action.metadata['model'])
     supports = model_info['supports']
-    
+
     # Check that all expected keys are present and match
     for key, value in expected_supports.items():
         assert supports[key] == value
-
