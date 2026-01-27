@@ -368,9 +368,8 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 	}
 
 	// Run action
-	// Note: We are launching this in a goroutine so it doesn't block the listener,
-	// but handleRequest is already in a goroutine.
-	// However, we want to ensure responses are sent correctly.
+	// We run this synchronously in the handleMessage goroutine.
+	// Panic recovery is handled by handleRequest's defer.
 
 	resp, err := runAction(actionCtx, c.g, params.Key, params.Input, params.TelemetryLabels, cb, contextMap)
 	
