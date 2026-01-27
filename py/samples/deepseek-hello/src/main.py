@@ -14,10 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""DeepSeek hello sample.
+"""DeepSeek hello sample - DeepSeek models with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use DeepSeek's models with Genkit,
+including the powerful reasoning model (deepseek-reasoner).
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet         |
 |-----------------------------------------|-----------------------------------------|
 | Plugin Initialization                   | `ai = Genkit(plugins=[DeepSeek(...)])`  |

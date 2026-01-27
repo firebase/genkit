@@ -46,3 +46,34 @@ genkit start -- uv run src/main.py
 - `prompts/`: Contains `.prompt` files (using [Dotprompt](https://genkit.dev/docs/dotprompt)).
 - `prompts/_shared_partial.prompt`: A partial that can be included in other prompts.
 - `prompts/nested/nested_hello.prompt`: A prompt demonstrating nested structure and partial inclusion.
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   export GEMINI_API_KEY=your_api_key
+   ```
+   Or the demo will prompt for the key interactively.
+
+2. **Run the demo**:
+   ```bash
+   cd py/samples/prompt_demo
+   ./run.sh
+   ```
+
+3. **Open DevUI** at http://localhost:4000
+
+4. **Test the following flows**:
+   - [ ] `chef_flow` - Generate a recipe (uses recipe.prompt)
+   - [ ] `tell_story` - Generate a story with streaming
+   - [ ] `robot_chef_flow` - Test prompt variants
+   - [ ] Check that .prompt files in `prompts/` are loaded
+
+5. **Test with file changes**:
+   - Edit a .prompt file and verify hot reload works
+   - Try different input parameters in DevUI
+
+6. **Expected behavior**:
+   - Prompts load from the `prompts/` directory
+   - Output matches the schema defined in .prompt files
+   - Streaming shows incremental text generation

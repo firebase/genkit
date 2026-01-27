@@ -55,21 +55,25 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
     This function extracts the span data from a ReadableSpan object and returns
     a dictionary containing the span data.
     """
-    span_data: dict[str, Any] = {'traceId': f'{span.context.trace_id}', 'spans': {}}
-    span_id = span.context.span_id
+    # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
+    trace_id_hex = format(span.context.trace_id, '032x')
+    span_id_hex = format(span.context.span_id, '016x')
+    parent_span_id_hex = format(span.parent.span_id, '016x') if span.parent else None
+
+    span_data: dict[str, Any] = {'traceId': trace_id_hex, 'spans': {}}
     start_time = (span.start_time / 1000000) if span.start_time is not None else 0
     end_time = (span.end_time / 1000000) if span.end_time is not None else 0
 
-    span_data['spans'][span_id] = {
-        'spanId': f'{span_id}',
-        'traceId': f'{span.context.trace_id}',
+    span_data['spans'][span_id_hex] = {
+        'spanId': span_id_hex,
+        'traceId': trace_id_hex,
         'startTime': start_time,
         'endTime': end_time,
         'attributes': {**span.attributes},
         'displayName': span.name,
         # "links": span.links,
         'spanKind': trace_api.SpanKind(span.kind).name,
-        'parentSpanId': f'{span.parent.span_id}' if span.parent else None,
+        'parentSpanId': parent_span_id_hex,
         'status': (
             {
                 'code': trace_api.StatusCode(span.status.status_code).value,
@@ -83,13 +87,13 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
             'version': 'v1',
         },
     }
-    if not span_data['spans'][span.context.span_id]['parentSpanId']:
-        del span_data['spans'][span.context.span_id]['parentSpanId']
+    if not span_data['spans'][span_id_hex]['parentSpanId']:
+        del span_data['spans'][span_id_hex]['parentSpanId']
 
     if not span.parent:
         span_data['displayName'] = span.name
-        span_data['startTime'] = span.start_time
-        span_data['endTime'] = span.end_time
+        span_data['startTime'] = start_time
+        span_data['endTime'] = end_time
 
     return span_data
 

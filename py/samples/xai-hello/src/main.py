@@ -14,14 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""xAI Genkit sample.
+"""xAI Genkit sample - Grok models with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use xAI's Grok models with Genkit,
+including basic generation, streaming, and tool calling.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Plugin Initialization                   | `ai = Genkit(plugins=[XAI()])`      |
-| Model Configuration                     | `xai_name('grok-2')`                |
+| Model Configuration                     | `xai_name('grok-3')`                |
 | Simple Text Generation                  | `say_hi`                            |
 | Streaming Generation                    | `say_hi_stream`                     |
 | Tool Usage (Decorated)                  | `get_weather`, `calculate`          |

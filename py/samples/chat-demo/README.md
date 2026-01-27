@@ -53,6 +53,29 @@ export VERTEX_AI_LOCATION=us-central1
 
 For Ollama, ensure your Ollama server is running locally.
 
+## Testing This Demo
+
+1. **Run the demo**:
+   ```bash
+   ./run.sh
+   ```
+
+2. **Open the Streamlit UI** at http://localhost:8501
+
+3. **Test the following**:
+   - [ ] Select different models from the sidebar dropdown
+   - [ ] Send a message and verify response appears
+   - [ ] Test streaming (responses should appear incrementally)
+   - [ ] Create multiple conversations using "New Conversation"
+   - [ ] Switch between conversations and verify history persists
+   - [ ] Test with different providers (Google, Anthropic, OpenAI, etc.)
+
+4. **Expected behavior**:
+   - Messages appear in chat bubbles
+   - Streaming shows text appearing word-by-word
+   - Each conversation maintains separate history
+   - Model switching works mid-conversation
+
 ## Related Samples
 
 * `session-demo/` - Lower-level session management examples

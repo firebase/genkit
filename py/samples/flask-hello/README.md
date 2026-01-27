@@ -44,3 +44,28 @@ genkit start -- uv run flask --app src/main.py run
 ```bash
 curl -X POST http://127.0.0.1:5000/chat -d '{"data": "banana"}' -H 'content-Type: application/json' -H 'accept: text/event-stream' -H 'Authorization: Pavel'
 ```
+
+## Testing This Demo
+
+1. **Test the API endpoint**:
+   ```bash
+   # Basic request
+   curl -X POST http://localhost:5000/chat \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Hello, who are you?"}'
+
+   # With authorization header (username context)
+   curl -X POST http://localhost:5000/chat \
+     -H "Content-Type: application/json" \
+     -H "Authorization: JohnDoe" \
+     -d '{"prompt": "What is my name?"}'
+   ```
+
+2. **Test via DevUI** at http://localhost:4000:
+   - [ ] Run the `chat` flow
+   - [ ] Verify response is generated
+
+3. **Expected behavior**:
+   - POST /chat returns AI-generated response
+   - Authorization header is passed as username in context
+   - Flow can access username via `ctx.context.get("username")`

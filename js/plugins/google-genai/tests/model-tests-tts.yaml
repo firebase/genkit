@@ -48,6 +48,28 @@
     - input-image-url
     - input-video-youtube
   tests:
+    - name: Reasoning conformance
+      input:
+        messages:
+          - role: user
+            content:
+              - text: A banana farmer harvest 10 bananas but he eats 3 and sells 4. How many bananas are remaining?
+        config:
+          thinkingConfig:
+            thinkingBudget: 1024
+            includeThoughts: true
+      validators:
+        - reasoning
+
+    - name: Streaming conformance
+      stream: true
+      input:
+        messages:
+          - role: user
+            content: [{ text: 'Count to 10' }]
+      validators:
+        - text-not-empty
+
     - name: Tool Response Conformance
       input:
         messages:
@@ -79,6 +101,7 @@
                 - city
       validators:
         - text-includes:21
+
 - model: googleai/gemini-2.5-flash
   supports:
     - tool-request

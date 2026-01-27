@@ -41,8 +41,40 @@ Changes will automatically trigger a restart of the sample. You can also pass co
 
 ## Run the sample
 
-TODO
-
 ```bash
 genkit start -- uv run src/main.py
 ```
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   export OPENAI_API_KEY=your_api_key
+   ```
+   Get your API key from https://platform.openai.com/api-keys
+   Or the demo will prompt for the key interactively.
+
+2. **Run the demo**:
+   ```bash
+   cd py/samples/compat-oai-hello
+   ./run.sh
+   ```
+
+3. **Open DevUI** at http://localhost:4000
+
+4. **Test basic flows**:
+   - [ ] `say_hi` - Simple text generation
+   - [ ] `say_hi_stream` - Streaming response
+   - [ ] `say_hi_constrained` - Constrained output
+
+5. **Test tools**:
+   - [ ] `calculate_gablorken` - Tool calling demo
+
+6. **Test structured output**:
+   - [ ] `generate_character` - RPG character generation
+
+7. **Expected behavior**:
+   - GPT models respond appropriately
+   - Streaming shows incremental text
+   - Tools are invoked and responses processed
+   - Structured output matches Pydantic schema

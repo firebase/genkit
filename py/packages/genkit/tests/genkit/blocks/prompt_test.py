@@ -211,6 +211,7 @@ async def test_prompt_with_docs_resolver() -> None:
     await my_prompt(input={'name': 'world'})
 
     # Check that PM received the docs
+    assert pm.last_request is not None
     assert pm.last_request.docs is not None
     assert pm.last_request.docs[0].content[0].root.text == 'doc world'
 

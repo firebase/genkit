@@ -14,10 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Prompt demo sample.
+"""Prompt demo sample - Loading and executing .prompt files.
 
-Key features demonstrated in this sample:
+This sample demonstrates Genkit's prompt management system, which allows you
+to define prompts in separate .prompt files with templates, schemas, and config.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Prompt Management (Loading)             | `ai = Genkit(..., prompt_dir=...)`  |
@@ -26,6 +29,8 @@ Key features demonstrated in this sample:
 | Custom Helpers                          | `ai.define_helper('list', ...)`     |
 | Prompt Output Schema Validation         | `Recipe.model_validate(...)`        |
 | Streaming Prompts                       | `story_prompt.stream()`             |
+
+See README.md for testing instructions.
 """
 
 import os
