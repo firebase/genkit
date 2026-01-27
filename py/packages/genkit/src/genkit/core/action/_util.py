@@ -17,6 +17,7 @@
 """Action utility module for defining and managing action utilities."""
 
 import inspect
+from collections.abc import Mapping
 from typing import Any
 
 
@@ -54,6 +55,7 @@ def parse_plugin_name_from_action_name(name: str) -> str | None:
 
 def extract_action_args_and_types(
     input_spec: inspect.FullArgSpec,
+    annotations: Mapping[str, Any] | None = None,
 ) -> tuple[list[str], list[Any]]:
     """Extracts relevant argument names and types from a function's FullArgSpec.
 
@@ -72,6 +74,7 @@ def extract_action_args_and_types(
     """
     arg_types = []
     action_args = input_spec.args.copy()
+    resolved_annotations = annotations or input_spec.annotations
 
     # Special case when using a method as an action, we ignore first "self"
     # arg. (Note: The original condition `len(action_args) <= 3` is preserved
@@ -80,6 +83,6 @@ def extract_action_args_and_types(
         del action_args[0]
 
     for arg in action_args:
-        arg_types.append(input_spec.annotations[arg] if arg in input_spec.annotations else Any)
+        arg_types.append(resolved_annotations[arg] if arg in resolved_annotations else Any)
 
     return action_args, arg_types

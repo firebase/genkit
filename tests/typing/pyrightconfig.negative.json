@@ -1,0 +1,7 @@
+{
+  "include": ["negative_tests.py"],
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.10",
+  "reportMissingTypeStubs": false,
+  "extraPaths": ["../../py/packages/genkit/src"]
+}

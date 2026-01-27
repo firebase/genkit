@@ -59,14 +59,6 @@ from genkit.core.typing import (
 # type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 ModelFn = Callable[[GenerateRequest, ActionRunContext], GenerateResponse]
 
-# These types are duplicated in genkit.blocks.formats.types due to circular deps
-T = TypeVar('T')
-# type MessageParser[T] = Callable[[MessageWrapper], T]
-MessageParser = Callable[['MessageWrapper'], T]
-# type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
-ChunkParser = Callable[['GenerateResponseChunkWrapper'], T]
-
-
 # type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
 ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
 # type ModelMiddleware = Callable[
@@ -150,7 +142,7 @@ class GenerateResponseWrapper(GenerateResponse):
     """
 
     # _message_parser is a private attribute that Pydantic will ignore
-    _message_parser: MessageParser | None = PrivateAttr(None)
+    _message_parser: Callable[['MessageWrapper'], object] | None = PrivateAttr(None)
     # Override the parent's message field with our wrapper type
     message: MessageWrapper | None = None
 
@@ -158,7 +150,7 @@ class GenerateResponseWrapper(GenerateResponse):
         self,
         response: GenerateResponse,
         request: GenerateRequest,
-        message_parser: MessageParser | None = None,
+        message_parser: Callable[['MessageWrapper'], object] | None = None,
     ) -> None:
         """Initializes a GenerateResponseWrapper instance.
 
@@ -281,14 +273,14 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
 
     # Field(exclude=True) means these fields are not included in serialization
     previous_chunks: list[GenerateResponseChunk] = Field(default_factory=list, exclude=True)
-    chunk_parser: ChunkParser | None = Field(None, exclude=True)
+    chunk_parser: Callable[['GenerateResponseChunkWrapper'], object] | None = Field(None, exclude=True)
 
     def __init__(
         self,
         chunk: GenerateResponseChunk,
         previous_chunks: list[GenerateResponseChunk],
         index: int,
-        chunk_parser: ChunkParser | None = None,
+        chunk_parser: Callable[['GenerateResponseChunkWrapper'], object] | None = None,
     ) -> None:
         """Initializes the GenerateResponseChunkWrapper.
 

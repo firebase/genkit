@@ -90,7 +90,8 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextvars import ContextVar
 from functools import cached_property
-from typing import Any, Protocol, cast
+from typing import Any, Generic, Protocol, cast, get_type_hints
+from typing_extensions import Never, TypeVar
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
@@ -102,7 +103,10 @@ from ._tracing import SpanAttributeValue, record_input_metadata, record_output_m
 from ._util import extract_action_args_and_types, noop_streaming_callback
 from .types import ActionKind, ActionMetadataKey, ActionResponse
 
-# TODO: add generics
+InputT = TypeVar('InputT', default=Any)
+OutputT = TypeVar('OutputT', default=Any)
+ChunkT = TypeVar('ChunkT', default=Never)
+
 StreamingCallback = Callable[[object], None]
 
 _action_context: ContextVar[dict[str, object] | None] = ContextVar('context')
@@ -194,7 +198,7 @@ class ActionRunContext:
         return _action_context.get(None)
 
 
-class Action:
+class Action(Generic[InputT, OutputT, ChunkT]):
     """Represents a strongly-typed, remotely callable function within Genkit.
 
     Actions are the fundamental building blocks for defining operations in Genkit.
@@ -216,7 +220,7 @@ class Action:
         self,
         kind: ActionKind,
         name: str,
-        fn: Callable[..., object],
+        fn: Callable[..., OutputT | Awaitable[OutputT]],
         metadata_fn: Callable[..., object] | None = None,
         description: str | None = None,
         metadata: dict[str, object] | None = None,
@@ -243,10 +247,14 @@ class Action:
         self.matches: Callable[[object], bool] | None = None
 
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
-        action_args, arg_types = extract_action_args_and_types(input_spec)
+        try:
+            resolved_annotations = get_type_hints(metadata_fn if metadata_fn else fn)
+        except (NameError, TypeError, AttributeError):
+            resolved_annotations = input_spec.annotations
+        action_args, arg_types = extract_action_args_and_types(input_spec, resolved_annotations)
         n_action_args = len(action_args)
         self._fn, self._afn = _make_tracing_wrappers(name, kind, span_metadata or {}, n_action_args, fn)
-        self._initialize_io_schemas(action_args, arg_types, input_spec)
+        self._initialize_io_schemas(action_args, arg_types, resolved_annotations, input_spec)
 
     @property
     def kind(self) -> ActionKind:
@@ -265,7 +273,7 @@ class Action:
         return self._metadata
 
     @cached_property
-    def input_type(self) -> TypeAdapter[object] | None:
+    def input_type(self) -> TypeAdapter[InputT] | None:
         return self._input_type
 
     @cached_property
@@ -282,11 +290,11 @@ class Action:
 
     def run(
         self,
-        input: object = None,
+        input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
         telemetry_labels: dict[str, object] | None = None,
-    ) -> ActionResponse:
+    ) -> ActionResponse[OutputT]:
         """Executes the action synchronously with the given input.
 
         This method runs the action's underlying function synchronously.
@@ -320,12 +328,12 @@ class Action:
 
     async def arun(
         self,
-        input: object = None,
+        input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
         on_trace_start: Callable[[str], None] | None = None,
         telemetry_labels: dict[str, object] | None = None,
-    ) -> ActionResponse:
+    ) -> ActionResponse[OutputT]:
         """Executes the action asynchronously with the given input.
 
         This method runs the action's underlying function asynchronously.
@@ -360,12 +368,12 @@ class Action:
 
     async def arun_raw(
         self,
-        raw_input: object,
+        raw_input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
         on_trace_start: Callable[[str], None] | None = None,
         telemetry_labels: dict[str, object] | None = None,
-    ) -> ActionResponse:
+    ) -> ActionResponse[OutputT]:
         """Executes the action asynchronously with raw, unvalidated input.
 
         This method bypasses the Pydantic input validation and calls the underlying
@@ -400,14 +408,11 @@ class Action:
 
     def stream(
         self,
-        input: object = None,
+        input: InputT | None = None,
         context: dict[str, object] | None = None,
         telemetry_labels: dict[str, object] | None = None,
         timeout: float | None = None,
-    ) -> tuple[
-        AsyncIterator[object],  # noqa: ANN401
-        asyncio.Future[ActionResponse],
-    ]:
+    ) -> tuple[AsyncIterator[ChunkT], asyncio.Future[ActionResponse[OutputT]]]:
         """Executes the action asynchronously and provides a streaming response.
 
         This method initiates an asynchronous action execution and returns immediately
@@ -437,8 +442,8 @@ class Action:
         )
         stream.set_close_future(asyncio.create_task(resp))
 
-        result_future: asyncio.Future[ActionResponse] = asyncio.Future()
-        stream.closed.add_done_callback(lambda _: result_future.set_result(stream.closed.result().response))
+        result_future: asyncio.Future[ActionResponse[OutputT]] = asyncio.Future()
+        stream.closed.add_done_callback(lambda _: result_future.set_result(stream.closed.result()))
 
         return (stream, result_future)
 
@@ -446,6 +451,7 @@ class Action:
         self,
         action_args: list[str],
         arg_types: list[type],
+        annotations: dict[str, Any],
         input_spec: inspect.FullArgSpec,
     ) -> None:
         """Initializes input/output schemas based on function signature and hints.
@@ -476,8 +482,8 @@ class Action:
             self._input_type = None
             self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
 
-        if ActionMetadataKey.RETURN in input_spec.annotations:
-            type_adapter = TypeAdapter(input_spec.annotations[ActionMetadataKey.RETURN])
+        if ActionMetadataKey.RETURN in annotations:
+            type_adapter = TypeAdapter(annotations[ActionMetadataKey.RETURN])
             self._output_schema = type_adapter.json_schema()
             self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
         else:
