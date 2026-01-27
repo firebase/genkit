@@ -307,9 +307,6 @@ func (c *reflectionClientV2) handleRunAction(ctx context.Context, req *jsonRpcRe
 	// Create cancellable context
 	actionCtx, cancel := context.WithCancel(ctx)
 
-	// We wrap sending in a mutex to ensure thread safety
-	// But `c.send` is already mutex protected.
-
 	// Streaming callback
 	var cb streamingCallback[json.RawMessage]
 	if params.Stream {
