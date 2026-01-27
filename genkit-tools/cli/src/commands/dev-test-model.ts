@@ -605,7 +605,7 @@ export const devTestModel = new Command('dev:test-model')
   .option(
     '--supports <list>',
     'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image, streaming-multiturn, reasoning)',
-    'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url,streaming-multiturn'
+    'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url,streaming-multiturn,streaming-tool-request,streaming-structured-output'
   )
   .option('--from-file <file>', 'Path to a file containing test payloads')
   .action(
