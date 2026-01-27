@@ -402,8 +402,8 @@ export class ReflectionServer {
         } else {
           logger.warn(
             'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
-            'Consider upgrading your runtime library version (debug info: expected ' +
-            `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
+              'Consider upgrading your runtime library version (debug info: expected ' +
+              `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
           );
         }
       }
