@@ -15,7 +15,7 @@ Usage:
     await logger.ainfo("Async operation complete")
 """
 
-from typing import Any, Protocol
+from typing import Protocol
 
 import structlog
 
@@ -28,73 +28,73 @@ class Logger(Protocol):
     """
 
     # Synchronous logging methods
-    def debug(self, event: str | None = None, **kw: Any) -> Any:
+    def debug(self, event: str | None = None, **kw: object) -> None:
         """Log a debug message."""
         ...
 
-    def info(self, event: str | None = None, **kw: Any) -> Any:
+    def info(self, event: str | None = None, **kw: object) -> None:
         """Log an info message."""
         ...
 
-    def warning(self, event: str | None = None, **kw: Any) -> Any:
+    def warning(self, event: str | None = None, **kw: object) -> None:
         """Log a warning message."""
         ...
 
-    def warn(self, event: str | None = None, **kw: Any) -> Any:
+    def warn(self, event: str | None = None, **kw: object) -> None:
         """Log a warning message (alias for warning)."""
         ...
 
-    def error(self, event: str | None = None, **kw: Any) -> Any:
+    def error(self, event: str | None = None, **kw: object) -> None:
         """Log an error message."""
         ...
 
-    def exception(self, event: str | None = None, **kw: Any) -> Any:
+    def exception(self, event: str | None = None, **kw: object) -> None:
         """Log an exception with traceback."""
         ...
 
-    def critical(self, event: str | None = None, **kw: Any) -> Any:
+    def critical(self, event: str | None = None, **kw: object) -> None:
         """Log a critical message."""
         ...
 
-    def fatal(self, event: str | None = None, **kw: Any) -> Any:
+    def fatal(self, event: str | None = None, **kw: object) -> None:
         """Log a fatal message (alias for critical)."""
         ...
 
     # Async logging methods
-    async def adebug(self, event: str | None = None, **kw: Any) -> Any:
+    async def adebug(self, event: str | None = None, **kw: object) -> None:
         """Log a debug message asynchronously."""
         ...
 
-    async def ainfo(self, event: str | None = None, **kw: Any) -> Any:
+    async def ainfo(self, event: str | None = None, **kw: object) -> None:
         """Log an info message asynchronously."""
         ...
 
-    async def awarning(self, event: str | None = None, **kw: Any) -> Any:
+    async def awarning(self, event: str | None = None, **kw: object) -> None:
         """Log a warning message asynchronously."""
         ...
 
-    async def awarn(self, event: str | None = None, **kw: Any) -> Any:
+    async def awarn(self, event: str | None = None, **kw: object) -> None:
         """Log a warning message asynchronously (alias for awarning)."""
         ...
 
-    async def aerror(self, event: str | None = None, **kw: Any) -> Any:
+    async def aerror(self, event: str | None = None, **kw: object) -> None:
         """Log an error message asynchronously."""
         ...
 
-    async def aexception(self, event: str | None = None, **kw: Any) -> Any:
+    async def aexception(self, event: str | None = None, **kw: object) -> None:
         """Log an exception with traceback asynchronously."""
         ...
 
-    async def acritical(self, event: str | None = None, **kw: Any) -> Any:
+    async def acritical(self, event: str | None = None, **kw: object) -> None:
         """Log a critical message asynchronously."""
         ...
 
-    async def afatal(self, event: str | None = None, **kw: Any) -> Any:
+    async def afatal(self, event: str | None = None, **kw: object) -> None:
         """Log a fatal message asynchronously (alias for acritical)."""
         ...
 
     # Context binding
-    def bind(self, **new_values: Any) -> 'Logger':
+    def bind(self, **new_values: object) -> 'Logger':
         """Return a new logger with bound context values."""
         ...
 
@@ -106,7 +106,7 @@ class Logger(Protocol):
         """Return a new logger with specified keys removed (ignoring missing)."""
         ...
 
-    def new(self, **new_values: Any) -> 'Logger':
+    def new(self, **new_values: object) -> 'Logger':
         """Return a new logger with only the specified context values."""
         ...
 
