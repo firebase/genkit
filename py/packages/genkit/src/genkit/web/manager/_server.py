@@ -23,7 +23,6 @@ from dataclasses import dataclass
 from typing import Protocol, cast
 
 from genkit.core._compat import override
-
 from genkit.web.typing import Application
 
 from ._adapters import ASGIServerAdapter, ServerType

@@ -60,6 +60,9 @@ from genkit.blocks.document import Document
 # Response types
 from genkit.blocks.model import GenerateResponseWrapper
 
+# Setup plugin discovery (must be done before any plugin imports)
+from genkit.core._plugins import extend_plugin_namespace
+
 # Errors (user-facing)
 from genkit.core.error import GenkitError, UserFacingError
 
@@ -73,9 +76,6 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
-
-# Setup plugin discovery (must be done before any plugin imports)
-from genkit.core._plugins import extend_plugin_namespace
 
 extend_plugin_namespace()
 

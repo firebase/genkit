@@ -70,11 +70,11 @@ See Also:
     - JavaScript RealtimeSpanProcessor: js/core/src/tracing/realtime-span-processor.ts
 """
 
-from genkit.core._compat import override
-
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
+
+from genkit.core._compat import override
 
 
 class RealtimeSpanProcessor(SpanProcessor):

@@ -16,13 +16,13 @@
 
 """Action types module for defining and managing action types."""
 
-import sys
 from collections.abc import Callable
 from typing import ClassVar, Generic, TypeVar
 
-from genkit.core._compat import StrEnum
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+
+from genkit.core._compat import StrEnum
 
 # Type alias for action name.
 # type ActionName = str

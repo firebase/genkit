@@ -49,9 +49,8 @@ from __future__ import annotations
 
 import abc
 import socket
-import sys
 
-from genkit.core._compat import override, StrEnum
+from genkit.core._compat import StrEnum, override
 from genkit.core.logging import get_logger
 from genkit.web.typing import Application
 

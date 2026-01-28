@@ -17,7 +17,6 @@
 """Convenience functionality to determine the running environment."""
 
 import os
-import sys
 from typing import cast
 
 from genkit.core._compat import StrEnum

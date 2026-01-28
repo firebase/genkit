@@ -70,14 +70,14 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
 
-from genkit.core._compat import override
-
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Event, ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.util.instrumentation import InstrumentationInfo, InstrumentationScope
 from opentelemetry.trace import Link, SpanContext, SpanKind, Status, StatusCode
 from opentelemetry.util.types import Attributes
+
+from genkit.core._compat import override
 
 
 class RedactedSpan(ReadableSpan):

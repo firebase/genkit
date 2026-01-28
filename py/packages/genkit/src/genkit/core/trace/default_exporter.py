@@ -31,8 +31,6 @@ import os
 import sys
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
-
-from genkit.core._compat import override
 from urllib.parse import urljoin
 
 import httpx
@@ -43,6 +41,7 @@ from opentelemetry.sdk.trace.export import (
     SpanExportResult,
 )
 
+from genkit.core._compat import override
 from genkit.core.logging import get_logger
 
 if TYPE_CHECKING:
