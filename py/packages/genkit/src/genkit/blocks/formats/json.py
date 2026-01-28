@@ -16,7 +16,7 @@
 
 """Implementation of JSON output format."""
 
-from typing import Any, override
+from typing import Any
 
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
@@ -24,6 +24,7 @@ from genkit.blocks.model import (
     MessageWrapper,
 )
 from genkit.codec import dump_json
+from genkit.core._compat import override
 from genkit.core.extract import extract_json
 
 

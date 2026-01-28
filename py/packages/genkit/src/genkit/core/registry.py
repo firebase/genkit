@@ -520,9 +520,7 @@ class Registry:
     # They wrap resolve_action() with appropriate casts to preserve generic
     # type parameters that would otherwise be erased.
 
-    async def resolve_retriever(
-        self, name: str
-    ) -> Action[RetrieverRequest, RetrieverResponse, Never] | None:
+    async def resolve_retriever(self, name: str) -> Action[RetrieverRequest, RetrieverResponse, Never] | None:
         """Resolve a retriever action by name with full type information.
 
         Args:
@@ -536,9 +534,7 @@ class Registry:
             return None
         return cast(Action[RetrieverRequest, RetrieverResponse, Never], action)
 
-    async def resolve_embedder(
-        self, name: str
-    ) -> Action[EmbedRequest, EmbedResponse, Never] | None:
+    async def resolve_embedder(self, name: str) -> Action[EmbedRequest, EmbedResponse, Never] | None:
         """Resolve an embedder action by name with full type information.
 
         Args:
@@ -552,9 +548,7 @@ class Registry:
             return None
         return cast(Action[EmbedRequest, EmbedResponse, Never], action)
 
-    async def resolve_reranker(
-        self, name: str
-    ) -> Action[RerankerRequest, RerankerResponse, Never] | None:
+    async def resolve_reranker(self, name: str) -> Action[RerankerRequest, RerankerResponse, Never] | None:
         """Resolve a reranker action by name with full type information.
 
         Args:
@@ -568,9 +562,7 @@ class Registry:
             return None
         return cast(Action[RerankerRequest, RerankerResponse, Never], action)
 
-    async def resolve_model(
-        self, name: str
-    ) -> Action[GenerateRequest, GenerateResponse, GenerateResponseChunk] | None:
+    async def resolve_model(self, name: str) -> Action[GenerateRequest, GenerateResponse, GenerateResponseChunk] | None:
         """Resolve a model action by name with full type information.
 
         Args:
@@ -587,9 +579,7 @@ class Registry:
             action,
         )
 
-    async def resolve_evaluator(
-        self, name: str
-    ) -> Action[EvalRequest, EvalResponse, Never] | None:
+    async def resolve_evaluator(self, name: str) -> Action[EvalRequest, EvalResponse, Never] | None:
         """Resolve an evaluator action by name with full type information.
 
         Args:

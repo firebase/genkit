@@ -22,10 +22,12 @@ For the main Genkit class, import from `genkit` directly.
 
 from genkit.blocks.document import Document
 from genkit.blocks.tools import ToolInterruptError
+from genkit.core.action._action import ActionRunContext
 from genkit.core.error import GenkitError
 from genkit.core.typing import (
     # Eval types
     BaseEvalDataPoint,
+    Constrained,
     CustomPart,
     DataPart,
     # Document types
@@ -59,6 +61,8 @@ from genkit.core.typing import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Score,
+    Stage,
     Supports,
     TextPart,
     ToolChoice,
@@ -74,6 +78,8 @@ __all__ = [
     # Errors
     'GenkitError',
     'ToolInterruptError',
+    # Action context
+    'ActionRunContext',
     # Message and Part types
     'Message',
     'Part',
@@ -116,7 +122,10 @@ __all__ = [
     'EvalResponse',
     'EvalFnResponse',
     'EvalStatusEnum',
+    'Score',
     # Model info (for plugin authors)
     'ModelInfo',
     'Supports',
+    'Constrained',
+    'Stage',
 ]

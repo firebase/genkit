@@ -50,15 +50,10 @@ from __future__ import annotations
 import abc
 import socket
 import sys
-from typing import override
 
+from genkit.core._compat import override, StrEnum
 from genkit.core.logging import get_logger
 from genkit.web.typing import Application
-
-if sys.version_info < (3, 11):
-    from strenum import StrEnum  # pyright: ignore[reportUnreachable]
-else:
-    from enum import StrEnum
 
 logger = get_logger(__name__)
 

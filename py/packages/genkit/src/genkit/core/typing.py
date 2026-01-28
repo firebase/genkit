@@ -25,18 +25,12 @@ actions, tools, and configuration options.
 
 from __future__ import annotations
 
-import sys
-from typing import ClassVar
-
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
-
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 from pydantic.alias_generators import to_camel
+
+from genkit.core._compat import StrEnum
 
 
 class Model(RootModel[Any]):

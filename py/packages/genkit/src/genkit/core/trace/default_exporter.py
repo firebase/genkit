@@ -30,7 +30,9 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, Any
+
+from genkit.core._compat import override
 from urllib.parse import urljoin
 
 import httpx

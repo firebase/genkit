@@ -20,11 +20,7 @@ import sys
 from collections.abc import Callable
 from typing import ClassVar, Generic, TypeVar
 
-if sys.version_info < (3, 11):
-    from strenum import StrEnum  # pyright: ignore[reportUnreachable]
-else:
-    from enum import StrEnum
-
+from genkit.core._compat import StrEnum
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 

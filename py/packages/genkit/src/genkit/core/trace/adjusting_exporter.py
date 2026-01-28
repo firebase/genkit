@@ -68,7 +68,9 @@ See Also:
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any, ClassVar, override
+from typing import Any, ClassVar
+
+from genkit.core._compat import override
 
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Event, ReadableSpan

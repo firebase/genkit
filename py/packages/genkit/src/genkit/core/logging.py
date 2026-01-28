@@ -125,8 +125,8 @@ def get_logger(name: str | None = None) -> Logger:
 
     Example:
         >>> logger = get_logger(__name__)
-        >>> logger.info("Server started", port=8080)
-        >>> await logger.ainfo("Async operation complete")
+        >>> logger.info('Server started', port=8080)
+        >>> await logger.ainfo('Async operation complete')
     """
     # The cast is safe because structlog's BoundLogger implements these methods
     return structlog.get_logger(name)  # type: ignore[return-value]

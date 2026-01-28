@@ -16,13 +16,14 @@
 
 """Implementation of text output format."""
 
-from typing import Any, override
+from typing import Any
 
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     MessageWrapper,
 )
+from genkit.core._compat import override
 
 
 class TextFormat(FormatDef):

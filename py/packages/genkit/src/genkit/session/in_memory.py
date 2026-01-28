@@ -16,7 +16,7 @@
 
 """In-memory session store implementation."""
 
-from typing import override
+from genkit.core._compat import override
 
 from .store import SessionData, SessionStore
 

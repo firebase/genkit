@@ -1081,19 +1081,22 @@ class GenkitRegistry:
                 the prompt's input parameter is type-checked.
             output: Typed output configuration using Output[T]. When provided,
                 the response output is typed.
-        
+
         Example:
             ```python
             from genkit import Input, Output
             from pydantic import BaseModel
-            
+
+
             class RecipeInput(BaseModel):
                 dish: str
-            
+
+
             class Recipe(BaseModel):
                 name: str
                 ingredients: list[str]
-            
+
+
             # With typed input AND output
             recipe_prompt = ai.define_prompt(
                 name='recipe',
@@ -1101,7 +1104,7 @@ class GenkitRegistry:
                 input=Input(schema=RecipeInput),
                 output=Output(schema=Recipe),
             )
-            
+
             # Input is type-checked!
             response = await recipe_prompt(RecipeInput(dish='pizza'))
             response.output.name  # ✓ Typed as str

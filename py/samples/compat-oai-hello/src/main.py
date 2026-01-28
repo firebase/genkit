@@ -298,8 +298,10 @@ async def get_weather_flow_stream(location: Annotated[str, Field(default='New Yo
     """
     stream, _ = ai.generate_stream(
         model=openai_model('gpt-4o'),
-        system=('You are an assistant that provides current weather information in JSON format and calculates '
-        'gablorken based on weather value'),
+        system=(
+            'You are an assistant that provides current weather information in JSON format and calculates '
+            'gablorken based on weather value'
+        ),
         config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
         tools=['get_weather_tool', 'gablorkenTool'],

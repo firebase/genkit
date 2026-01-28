@@ -434,15 +434,11 @@ actions, tools, and configuration options.
     # Ensure there's exactly one newline between header and content
     # and future import is right after the header block's closing quotes.
     future_import = 'from __future__ import annotations'
-    str_enum_block = """
+    compat_import_block = """
 import sys
 from typing import ClassVar
 
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
-
+from genkit.core._compat import StrEnum
 from pydantic.alias_generators import to_camel
 """
 
@@ -455,7 +451,7 @@ from pydantic.alias_generators import to_camel
     ]
     cleaned_content = '\n'.join(filtered_lines)
 
-    final_output = header_text + future_import + '\n' + str_enum_block + '\n\n' + cleaned_content
+    final_output = header_text + future_import + '\n' + compat_import_block + '\n\n' + cleaned_content
     if not final_output.endswith('\n'):
         final_output += '\n'
     return final_output

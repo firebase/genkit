@@ -20,10 +20,7 @@ import os
 import sys
 from typing import cast
 
-if sys.version_info < (3, 11):
-    from strenum import StrEnum  # pyright: ignore[reportUnreachable]
-else:
-    from enum import StrEnum
+from genkit.core._compat import StrEnum
 
 
 class EnvVar(StrEnum):

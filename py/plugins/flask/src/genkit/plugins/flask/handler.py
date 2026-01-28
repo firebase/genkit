@@ -91,7 +91,8 @@ def genkit_flask_handler(
                         async for chunk in stream:
                             yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
 
-                        yield f'data: {dump_json({"result": dump_dict(await response)})}\n\n'
+                        result = await response
+                        yield f'data: {dump_json({"result": dump_dict(result.response)})}\n\n'
                     except Exception as e:
                         ex = e
                         if isinstance(ex, GenkitError):

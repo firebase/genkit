@@ -74,6 +74,11 @@ from genkit.core.typing import (
     TextPart,
 )
 
+# Setup plugin discovery (must be done before any plugin imports)
+from genkit.core._plugins import extend_plugin_namespace
+
+extend_plugin_namespace()
+
 __all__ = [
     # Main class
     'Genkit',

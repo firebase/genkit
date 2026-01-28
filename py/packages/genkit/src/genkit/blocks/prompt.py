@@ -416,7 +416,7 @@ class GenerateStreamResponse(Generic[OutputT]):
     This class provides a consistent interface matching the JavaScript
     GenerateStreamResponse, with both stream and response properties
     accessible simultaneously.
-    
+
     When the prompt has a typed output schema, `response` returns
     `GenerateResponseWrapper[OutputT]` with typed `.output` property.
 
@@ -580,8 +580,8 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
     This class matches the JavaScript ExecutablePrompt interface, providing
     a callable object that generates AI responses from a prompt template.
-    
-    When defined with input/output schemas via `Input[I]` and `Output[O]`, 
+
+    When defined with input/output schemas via `Input[I]` and `Output[O]`,
     the prompt is typed as `ExecutablePrompt[I, O]`:
     - Input is type-checked when calling the prompt
     - Output is typed on `response.output`
@@ -820,14 +820,15 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             # With typed input/output
             class RecipeInput(BaseModel):
                 dish: str
-            
+
+
             prompt = ai.define_prompt(
                 name='recipe',
                 input=Input(schema=RecipeInput),
                 output=Output(schema=Recipe),
                 prompt='Create a recipe for {dish}',
             )
-            
+
             response = await prompt(RecipeInput(dish='pizza'))
             response.output.name  # Typed!
             ```
@@ -966,7 +967,10 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             if hasattr(opts_config, 'model_dump'):
                 opts_config = opts_config.model_dump(exclude_none=True)  # pyright: ignore[reportAttributeAccessIssue]
             merged_config = (
-                {**(prompt_config if isinstance(prompt_config, dict) else {}), **(opts_config if isinstance(opts_config, dict) else {})}
+                {
+                    **(prompt_config if isinstance(prompt_config, dict) else {}),
+                    **(opts_config if isinstance(opts_config, dict) else {}),
+                }
                 if prompt_config or opts_config
                 else None
             )
@@ -1357,19 +1361,22 @@ def define_prompt(
         An ExecutablePrompt instance. When both `input=Input(schema=I)` and
         `output=Output(schema=O)` are provided, returns `ExecutablePrompt[I, O]`
         with typed input and output.
-    
+
     Example:
         ```python
         from genkit import Input, Output
         from pydantic import BaseModel
-        
+
+
         class RecipeInput(BaseModel):
             dish: str
-        
+
+
         class Recipe(BaseModel):
             name: str
             ingredients: list[str]
-        
+
+
         # With typed input AND output
         recipe_prompt = define_prompt(
             registry,
@@ -1378,7 +1385,7 @@ def define_prompt(
             input=Input(schema=RecipeInput),
             output=Output(schema=Recipe),
         )
-        
+
         # Input is type-checked!
         response = await recipe_prompt(RecipeInput(dish='pizza'))
         response.output.name  # ✓ Typed as str

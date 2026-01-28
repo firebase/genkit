@@ -17,13 +17,14 @@
 """Implementation of Enum output format."""
 
 import re
-from typing import Any, override
+from typing import Any
 
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     MessageWrapper,
 )
+from genkit.core._compat import override
 from genkit.core.error import GenkitError
 
 

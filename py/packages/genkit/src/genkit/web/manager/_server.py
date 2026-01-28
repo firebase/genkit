@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol, cast, override
+from typing import Protocol, cast
+
+from genkit.core._compat import override
 
 from genkit.web.typing import Application
 

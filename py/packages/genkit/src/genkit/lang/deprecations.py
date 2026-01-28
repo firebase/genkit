@@ -38,7 +38,8 @@ When a deprecated member is accessed, a deprecation warning is issued.
 import enum
 import warnings
 from dataclasses import dataclass
-from typing import override
+
+from genkit.core._compat import override
 
 
 class DeprecationStatus(enum.Enum):
