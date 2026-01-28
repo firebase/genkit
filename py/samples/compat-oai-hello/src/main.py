@@ -14,10 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""OpenAI hello sample.
+"""OpenAI hello sample - GPT models with Genkit.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use OpenAI's GPT models with Genkit
+using the OpenAI-compatible plugin.
 
+Key Features
+============
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
 | Plugin Initialization                                    | `ai = Genkit(plugins=[OpenAI()])`      |
@@ -30,6 +33,8 @@ Key features demonstrated in this sample:
 | Streaming Generation                                     | `say_hi_stream`                        |
 | Generation with Tools                                    | `calculate_gablorken`                  |
 | Tool Response Handling with context                      | `generate_character`                   |
+
+See README.md for testing instructions.
 """
 
 import os

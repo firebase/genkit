@@ -63,7 +63,6 @@ from genkit.blocks.prompt import (
     define_partial,
     define_prompt,
     define_schema,
-    lookup_prompt,
 )
 from genkit.blocks.reranker import (
     RankedDocument,
@@ -961,7 +960,7 @@ class GenkitRegistry:
             docs=docs,
         )
 
-    async def prompt(
+    def prompt(
         self,
         name: str,
         variant: str | None = None,
@@ -975,20 +974,17 @@ class GenkitRegistry:
         2. Loaded from .prompt files using load_prompt_folder()
 
         Args:
-            registry: The registry to look up the prompt from.
             name: The name of the prompt.
             variant: Optional variant name.
-            dir: Optional directory parameter (accepted for compatibility but not used).
 
         Returns:
             An ExecutablePrompt instance.
-
-        Raises:
-            GenkitError: If the prompt is not found.
         """
-        return await lookup_prompt(
+        from genkit.blocks.prompt import ExecutablePrompt
+
+        return ExecutablePrompt(
             registry=self.registry,
-            name=name,
+            _name=name,
             variant=variant,
         )
 

@@ -15,15 +15,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Evaluator demo main entry point.
+"""Evaluator demo - Custom evaluation metrics for AI outputs.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to define custom evaluators in Genkit for
+assessing AI-generated outputs against quality metrics.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Custom Evaluator Definition             | `ai.define_evaluator()`             |
 | Evaluation Logic                        | `random_eval`                       |
 | Evaluation Response Structure           | `EvalFnResponse`, `Score`           |
+| PDF RAG evaluation                      | `pdf_rag` module                    |
 """
 
 import argparse

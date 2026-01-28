@@ -15,11 +15,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors         = [{ name = "Google" }]
-dependencies    = ["genkit", "genkit-plugin-google-genai", "pydantic", "structlog"]
-description     = "Sample demonstrating various output formats in Genkit"
-license         = "Apache-2.0"
-name            = "format-demo"
-readme          = "README.md"
+authors = [{ name = "Google" }]
+dependencies = [
+  "genkit",
+  "genkit-plugin-google-genai",
+  "pydantic",
+  "structlog",
+  "uvloop>=0.21.0",
+]
+description = "Sample demonstrating various output formats in Genkit"
+license = "Apache-2.0"
+name = "format-demo"
+readme = "README.md"
 requires-python = ">=3.10"
-version         = "0.1.0"
+version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]

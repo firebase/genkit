@@ -40,3 +40,36 @@ Changes will automatically trigger a restart of the sample. You can also pass co
 ```bash
 genkit start -- uv run src/main.py
 ```
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   export GEMINI_API_KEY=your_api_key
+   ```
+   Or the demo will prompt for the key interactively.
+
+2. **Run the demo**:
+   ```bash
+   cd py/samples/google-genai-code-execution
+   ./run.sh
+   ```
+
+3. **Open DevUI** at http://localhost:4000
+
+4. **Test code execution flows**:
+   - [ ] Run a flow that requests computation
+   - [ ] Verify the model writes Python code
+   - [ ] Check that code execution results appear
+   - [ ] Test math problems, data analysis queries
+
+5. **Example prompts to try**:
+   - "Calculate the factorial of 10"
+   - "Generate the first 20 Fibonacci numbers"
+   - "What is the sum of prime numbers under 100?"
+
+6. **Expected behavior**:
+   - Model generates Python code
+   - Code executes on Gemini's servers
+   - Results include both code and output
+   - CustomPart contains execution details

@@ -22,14 +22,28 @@ from typing import Any, TypedDict
 from genkit.types import Message
 
 
-class SessionData(TypedDict):
-    """Data stored in a session."""
+class SessionData(TypedDict, total=False):
+    """Data stored in a session.
 
-    id: str
+    Attributes:
+        id: Unique session identifier (required).
+        state: Custom state data stored with the session.
+        threads: Message history per thread (thread_name -> messages).
+        messages: Legacy message field (maps to 'main' thread for backward compat).
+        created_at: Timestamp when session was created.
+        updated_at: Timestamp when session was last updated.
+    """
+
+    id: str  # Required
     state: dict[str, Any] | None
-    messages: list[Message]
+    threads: dict[str, list[Message]] | None
+    messages: list[Message] | None  # Legacy, maps to 'main' thread
     created_at: float | None
     updated_at: float | None
+
+
+# Default thread name for conversations
+MAIN_THREAD = 'main'
 
 
 class SessionStore(ABC):

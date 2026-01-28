@@ -14,7 +14,34 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""AI monitoring metrics for Genkit."""
+"""AI monitoring metrics for Genkit.
+
+This module provides lazy-initialized OpenTelemetry metrics for AI operations.
+Metrics are exported to Google Cloud Monitoring with the workload.googleapis.com
+prefix by default.
+
+Metrics Defined:
+    Input metrics:
+        - genkit/ai/generate/input/tokens
+        - genkit/ai/generate/input/characters
+        - genkit/ai/generate/input/images
+        - genkit/ai/generate/input/videos
+        - genkit/ai/generate/input/audio
+
+    Output metrics:
+        - genkit/ai/generate/output/tokens
+        - genkit/ai/generate/output/characters
+        - genkit/ai/generate/output/images
+        - genkit/ai/generate/output/videos
+        - genkit/ai/generate/output/audio
+
+    Thinking metrics:
+        - genkit/ai/generate/thinking/tokens
+
+See Also:
+    - Cloud Monitoring Custom Metrics: https://cloud.google.com/monitoring/custom-metrics
+    - Workload Metrics: https://cloud.google.com/monitoring/api/metrics_other
+"""
 
 import re
 

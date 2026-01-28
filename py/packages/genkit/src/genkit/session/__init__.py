@@ -16,8 +16,18 @@
 
 """Session management for Genkit."""
 
+from .chat import Chat, ChatOptions, ChatStreamResponse
 from .in_memory import InMemorySessionStore
 from .session import Session
-from .store import SessionData, SessionStore
+from .store import MAIN_THREAD, SessionData, SessionStore
 
-__all__ = ['InMemorySessionStore', 'Session', 'SessionData', 'SessionStore']
+__all__ = [
+    'Chat',
+    'ChatOptions',
+    'ChatStreamResponse',
+    'InMemorySessionStore',
+    'MAIN_THREAD',
+    'Session',
+    'SessionData',
+    'SessionStore',
+]

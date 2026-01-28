@@ -33,8 +33,38 @@ export GEMINI_API_KEY=<Your api key>
 
 ## Run the sample
 
-TODO
-
 ```bash
 genkit start -- uv run src/main.py
 ```
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   export GEMINI_API_KEY=your_api_key
+   ```
+   Or the demo will prompt for the key interactively.
+
+2. **Run the demo**:
+   ```bash
+   cd py/samples/google-genai-context-caching
+   ./run.sh
+   ```
+
+3. **Open DevUI** at http://localhost:4000
+
+4. **Test context caching flow**:
+   - [ ] Run `text_context_flow` with default inputs (Tom Sawyer)
+   - [ ] Note the first response time (slower - caching context)
+   - [ ] Run again with a different query - should be faster
+   - [ ] Try custom book URL and query
+
+5. **Default test values**:
+   - Book: Tom Sawyer from Project Gutenberg
+   - Query: "What are Huck Finn's views on society?"
+
+6. **Expected behavior**:
+   - First call: Slower (downloads book, caches context)
+   - Subsequent calls: Much faster (uses cached context)
+   - Accurate answers about the book's content
+   - Cache expires after 5 minutes (configurable)
