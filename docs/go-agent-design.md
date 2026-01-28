@@ -104,6 +104,9 @@ type AgentResponse[State any] struct {
     SessionID string `json:"sessionId"`
     // State contains the final conversation state.
     State *AgentState[State] `json:"state"`
+    // SnapshotIDs contains the IDs of snapshots created during this invocation.
+    // Empty if no snapshots were created (callback returned false or not configured).
+    SnapshotIDs []string `json:"snapshotIds,omitempty"`
 }
 ```
 
@@ -111,7 +114,7 @@ type AgentResponse[State any] struct {
 
 ```go
 // AgentStreamChunk represents a single item in the agent's output stream.
-// Only one field is populated per chunk.
+// Multiple fields can be populated in a single chunk.
 type AgentStreamChunk[Stream any] struct {
     // Chunk contains token-level generation data.
     Chunk *ai.ModelResponseChunk `json:"chunk,omitempty"`
@@ -122,6 +125,9 @@ type AgentStreamChunk[Stream any] struct {
     Artifact *AgentArtifact `json:"artifact,omitempty"`
     // SnapshotCreated contains the ID of a snapshot that was just persisted.
     SnapshotCreated string `json:"snapshotCreated,omitempty"`
+    // EndTurn signals that the agent has finished processing the current input.
+    // When true, the client should stop iterating and may send the next input.
+    EndTurn bool `json:"endTurn,omitempty"`
 }
 ```
 
@@ -206,8 +212,9 @@ func (r *Responder[Stream]) SendStatus(status Stream)
 func (r *Responder[Stream]) SendArtifact(artifact *AgentArtifact)
 
 // EndTurn signals that the agent has finished responding to the current input.
-// This triggers a snapshot check (based on the configured callback).
-// The consumer's Receive() iterator will exit, allowing them to send the next input.
+// This triggers a snapshot check (based on the configured callback) and sends
+// a chunk with EndTurn: true. The client should check for this field and break
+// out of their Receive() loop to send the next input.
 func (r *Responder[Stream]) EndTurn()
 ```
 
@@ -554,8 +561,8 @@ func (r *Responder[Stream]) EndTurn() {
     // Trigger snapshot check
     r.triggerSnapshot(SnapshotEventTurnEnd)
 
-    // Signal end of turn (internal channel mechanism)
-    r.ch <- &AgentStreamChunk[Stream]{endTurn: true} // internal field
+    // Signal end of turn to client
+    r.ch <- &AgentStreamChunk[Stream]{EndTurn: true}
 }
 ```
 
@@ -655,6 +662,9 @@ func main() {
         if chunk.SnapshotCreated != "" {
             fmt.Printf("\n[Snapshot created: %s]\n", chunk.SnapshotCreated)
         }
+        if chunk.EndTurn {
+            break // Agent finished processing, ready for next input
+        }
     }
 
     conn.SendText("What are channels used for?")
@@ -664,6 +674,9 @@ func main() {
         }
         if chunk.Chunk != nil {
             fmt.Print(chunk.Chunk.Text())
+        }
+        if chunk.EndTurn {
+            break
         }
     }
 
@@ -755,7 +768,64 @@ codeAgent := genkit.DefineAgent(g, "codeAgent",
 
 ---
 
-## 8. Files to Create/Modify
+## 8. Tracing Integration
+
+When a snapshot is created, metadata is recorded on the current trace span:
+
+- `genkit:metadata:snapshotId` - The snapshot ID
+- `genkit:metadata:agent` - The agent name (e.g., `chatAgent`)
+
+This enables the Dev UI to correlate traces with snapshots and fetch snapshot data via the reflection API.
+
+**Recording snapshot in span:**
+
+```go
+func (r *Responder[Stream]) triggerSnapshot(event SnapshotEvent) {
+    // ... create snapshot ...
+
+    if snapshot != nil {
+        // Record in current span for Dev UI correlation
+        span := trace.SpanFromContext(r.ctx)
+        span.SetAttributes(
+            attribute.String("genkit:metadata:snapshotId", snapshot.SnapshotID),
+            attribute.String("genkit:metadata:agent", r.agentName),
+        )
+    }
+}
+```
+
+---
+
+## 9. Reflection API Integration
+
+Snapshot stores are exposed via the reflection API for Dev UI access.
+
+### 9.1 Action Registration
+
+When `DefineAgent` is called with `WithSnapshotStore`, actions are registered:
+
+| Action | Key | Input | Returns |
+|--------|-----|-------|---------|
+| getSnapshot | `/snapshot-store/{agent}/getSnapshot` | `{snapshotId: string}` | `AgentSnapshot[State]` |
+| listSnapshots | `/snapshot-store/{agent}/listSnapshots` | `{sessionId: string}` | `[]*AgentSnapshot[State]` |
+
+### 9.2 Action Type
+
+```go
+const ActionTypeSnapshotStore api.ActionType = "snapshot-store"
+```
+
+### 9.3 Dev UI Flow
+
+1. Dev UI receives a trace with `snapshotId` and `agent` in span metadata
+2. Calls `POST /api/runAction` with key `/snapshot-store/{agent}/getSnapshot`
+3. Displays the returned state alongside the trace
+
+This allows developers to inspect the exact agent state at any traced point in the conversation.
+
+---
+
+## 10. Files to Create/Modify
 
 ### New Files
 
@@ -772,11 +842,11 @@ codeAgent := genkit.DefineAgent(g, "codeAgent",
 | File | Change |
 |------|--------|
 | `go/genkit/agent.go` | Add DefineAgent wrapper |
-| `go/core/api/action.go` | Add ActionTypeAgent constant if needed |
+| `go/core/api/action.go` | Add ActionTypeAgent, ActionTypeSnapshotStore constants |
 
 ---
 
-## 9. Design Decisions
+## 11. Design Decisions
 
 ### Why Separate AgentState from AgentSnapshot?
 
@@ -822,7 +892,7 @@ Rather than always snapshotting or never snapshotting:
 
 ---
 
-## 10. Open Questions
+## 12. Open Questions
 
 ### Artifact and Session State Relationship
 
@@ -840,7 +910,7 @@ Considerations:
 
 ---
 
-## 11. Future Considerations
+## 13. Future Considerations
 
 Out of scope for this design:
 
