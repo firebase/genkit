@@ -57,15 +57,15 @@ import os
 import sys
 
 if sys.version_info < (3, 11):
-    from strenum import StrEnum
+    from strenum import StrEnum  # pyright: ignore[reportUnreachable]
 else:
     from enum import StrEnum
 from typing import Annotated, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.core.logging import get_logger
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
 from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
@@ -85,7 +85,7 @@ from genkit.types import (
     TextPart,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 if 'GEMINI_API_KEY' not in os.environ:
@@ -218,7 +218,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 @ai.flow()
 async def demo_dynamic_tools(
     input_val: Annotated[str, Field(default='Dynamic tools demo')] = 'Dynamic tools demo',
-) -> dict:
+) -> dict[str, object]:
     """Demonstrates advanced Genkit features: ai.run() and ai.dynamic_tool().
 
     This flow shows how to:
@@ -323,7 +323,7 @@ def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
 
 
 @ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
+def gablorken_tool2(_input: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -339,7 +339,7 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
 @ai.flow()
 async def generate_character(
     name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -350,7 +350,7 @@ async def generate_character(
     Returns:
         The generated RPG character.
     """
-    if ctx.is_streaming:
+    if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
@@ -370,13 +370,13 @@ async def generate_character(
 @ai.flow()
 async def generate_character_unconstrained(
     name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    _ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
         name: the name of the character
-        ctx: the context of the tool
+        _ctx: the context of the tool (unused)
 
     Returns:
         The generated RPG character.
@@ -391,7 +391,7 @@ async def generate_character_unconstrained(
 
 
 @ai.tool(name='getWeather')
-def get_weather(input_: WeatherInput) -> dict:
+def get_weather(input_: WeatherInput) -> dict[str, str | float]:
     """Used to get current weather for a location."""
     return {
         'location': input_.location,
@@ -427,7 +427,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
@@ -441,7 +441,8 @@ async def say_hi_stream(
     stream, _ = ai.generate_stream(prompt=f'hi {name}')
     result: str = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
 
     return result
@@ -511,7 +512,7 @@ async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42
 @ai.flow()
 async def simple_generate_with_tools_flow(
     value: Annotated[int, Field(default=42)] = 42,
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
@@ -525,13 +526,13 @@ async def simple_generate_with_tools_flow(
     response = await ai.generate(
         prompt=f'what is a gablorken of {value}',
         tools=['gablorkenTool'],
-        on_chunk=ctx.send_chunk,
+        on_chunk=ctx.send_chunk if ctx is not None else None,
     )
     return response.text
 
 
 @ai.flow()
-async def thinking_level_flash(level: ThinkingLevelFlash) -> str:
+async def thinking_level_flash(_level: ThinkingLevelFlash) -> str:
     """Gemini 3.0 thinkingLevel config (Flash)."""
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
@@ -554,7 +555,7 @@ async def thinking_level_flash(level: ThinkingLevelFlash) -> str:
 
 
 @ai.flow()
-async def thinking_level_pro(level: ThinkingLevel) -> str:
+async def thinking_level_pro(_level: ThinkingLevel) -> str:
     """Gemini 3.0 thinkingLevel config (Pro)."""
     response = await ai.generate(
         model='googleai/gemini-3-pro-preview',
@@ -593,9 +594,11 @@ async def url_context() -> str:
     """Url context."""
     response = await ai.generate(
         model='googleai/gemini-3-flash-preview',
-        prompt='Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/'
-        'perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/'
-        'simple-whole-roasted-chicken/',
+        prompt=(
+            'Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/'
+            'perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/'
+            'simple-whole-roasted-chicken/'
+        ),
         config={'url_context': {}, 'api_version': 'v1alpha'},
     )
     return response.text
@@ -619,14 +622,14 @@ async def youtube_videos() -> str:
 
 async def main() -> None:
     """Main function - keep alive for Dev UI."""
-    await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
+    logger.info('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
-    await asyncio.Event().wait()
+    _ = await asyncio.Event().wait()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Google GenAI Hello Sample')
-    parser.add_argument(
+    _ = parser.add_argument(
         '--enable-gcp-telemetry',
         action='store_true',
         help='Enable Google Cloud Platform telemetry',
