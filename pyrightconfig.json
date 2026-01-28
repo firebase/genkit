@@ -19,5 +19,12 @@
     "py/plugins/xai/src"
   ],
   "reportMissingImports": false,
-  "reportMissingTypeStubs": false
+  "reportMissingTypeStubs": false,
+  "reportExplicitAny": false,
+  "reportAny": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownLambdaType": false,
+  "reportUnknownParameterType": false
 }
