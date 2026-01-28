@@ -162,7 +162,7 @@ async def test_typed_output_with_mock() -> None:
 # =============================================================================
 #
 # Before (without Output[T]):
-#   response = await ai.generate(prompt='...', output_schema=Recipe)
+#   response = await ai.generate(prompt='...', output=Output(schema=Recipe))
 #   response.output  # Type: Any - no autocomplete :(
 #
 # After (with Output[T]):

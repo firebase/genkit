@@ -400,7 +400,6 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
         *,
         output: Output[OutputT],
@@ -426,7 +425,6 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
         output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
@@ -450,7 +448,6 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
         output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
@@ -499,12 +496,10 @@ class Genkit(GenkitBase):
             output_content_type: Optional. The content type of the output.
             output_instructions: Optional. Instructions for formatting the
                 output.
-            output_schema: Optional. Schema defining the structure of the
-                output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            output: Optional. An `OutputConfig` object or dictionary containing
-                output configuration. This groups output-related parameters.
+            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
+                Can also be an `OutputConfig` object or dictionary.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -522,6 +517,9 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
+        # Initialize output_schema - extracted from output parameter
+        output_schema: type | dict[str, object] | None = None
+
         # Unpack output config if provided
         if output:
             if isinstance(output, Output):
@@ -608,7 +606,6 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
         output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
@@ -653,12 +650,10 @@ class Genkit(GenkitBase):
             output_content_type: Optional. The content type of the output.
             output_instructions: Optional. Instructions for formatting the
                 output.
-            output_schema: Optional. Schema defining the structure of the
-                output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            output: Optional. An `OutputConfig` object or dictionary containing
-                output configuration. This groups output-related parameters.
+            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
+                Can also be an `OutputConfig` object or dictionary.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -692,7 +687,6 @@ class Genkit(GenkitBase):
             output_format=output_format,
             output_content_type=output_content_type,
             output_instructions=output_instructions,
-            output_schema=output_schema,
             output_constrained=output_constrained,
             output=output,
             docs=docs,

@@ -36,7 +36,7 @@ from typing import Annotated, cast
 from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
@@ -145,7 +145,7 @@ async def generate_character(
     result = await ai.generate(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
 

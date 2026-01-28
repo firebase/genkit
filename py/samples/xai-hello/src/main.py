@@ -40,7 +40,7 @@ from typing import Annotated, cast
 from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.plugins.xai import XAI, xai_name
 
@@ -213,7 +213,7 @@ async def generate_character(
     """
     result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
 

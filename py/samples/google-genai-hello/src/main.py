@@ -64,7 +64,7 @@ from typing import Annotated, cast
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.core.logging import get_logger
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
@@ -353,7 +353,7 @@ async def generate_character(
     if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
             prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
         )
         async for data in stream:
             ctx.send_chunk(data.output)
@@ -362,7 +362,7 @@ async def generate_character(
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
         )
         return cast(RpgCharacter, result.output)
 
@@ -383,7 +383,7 @@ async def generate_character_unconstrained(
     """
     result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
         output_constrained=False,
         output_instructions=True,
     )
