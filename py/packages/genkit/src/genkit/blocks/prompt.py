@@ -177,7 +177,8 @@ from genkit.core.typing import (
 
 logger = get_logger(__name__)
 
-# TypeVar for generic output typing
+# TypeVars for generic input/output typing
+InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
 
@@ -574,14 +575,16 @@ class PromptConfig(BaseModel):
     resources: list[str] | None = None
 
 
-class ExecutablePrompt(Generic[OutputT]):
+class ExecutablePrompt(Generic[InputT, OutputT]):
     r"""A prompt that can be executed with a given input and configuration.
 
     This class matches the JavaScript ExecutablePrompt interface, providing
     a callable object that generates AI responses from a prompt template.
     
-    When defined with an output schema via `Output[T]`, the prompt is typed
-    as `ExecutablePrompt[T]` and calling it returns `GenerateResponseWrapper[T]`.
+    When defined with input/output schemas via `Input[I]` and `Output[O]`, 
+    the prompt is typed as `ExecutablePrompt[I, O]`:
+    - Input is type-checked when calling the prompt
+    - Output is typed on `response.output`
 
     Overview:
         ExecutablePrompt is the main way to work with prompts in Genkit. It
@@ -792,7 +795,7 @@ class ExecutablePrompt(Generic[OutputT]):
 
     async def __call__(
         self,
-        input: Any | None = None,  # noqa: ANN401
+        input: InputT | None = None,
         opts: PromptGenerateOptions | None = None,
     ) -> GenerateResponseWrapper[OutputT]:
         """Executes the prompt with the given input and configuration.
@@ -802,29 +805,31 @@ class ExecutablePrompt(Generic[OutputT]):
         default configuration.
 
         Args:
-            input: The input to the prompt template.
+            input: The input to the prompt template. When the prompt is defined
+                with `input=Input(schema=T)`, this should be an instance of T.
             opts: Optional generation options to override prompt defaults.
                 Can include: model, config, messages, docs, tools, output,
                 tool_choice, return_tool_requests, max_turns, on_chunk,
                 use (middleware), context, resume, and metadata.
 
         Returns:
-            The generated response.
+            The generated response with typed output.
 
         Example:
             ```python
-            prompt = ai.prompt('recipe')
-            # Basic usage
-            response = await prompt({'food': 'pizza'})
-
-            # With options override
-            response = await prompt(
-                {'food': 'pizza'},
-                opts={
-                    'config': {'temperature': 0.9},
-                    'on_chunk': lambda c: print(c.text, end=''),
-                },
+            # With typed input/output
+            class RecipeInput(BaseModel):
+                dish: str
+            
+            prompt = ai.define_prompt(
+                name='recipe',
+                input=Input(schema=RecipeInput),
+                output=Output(schema=Recipe),
+                prompt='Create a recipe for {dish}',
             )
+            
+            response = await prompt(RecipeInput(dish='pizza'))
+            response.output.name  # Typed!
             ```
         """
         await self._ensure_resolved()
@@ -847,7 +852,7 @@ class ExecutablePrompt(Generic[OutputT]):
 
     def stream(
         self,
-        input: Any | None = None,  # noqa: ANN401
+        input: InputT | None = None,
         opts: PromptGenerateOptions | None = None,
         *,
         timeout: float | None = None,
@@ -858,7 +863,8 @@ class ExecutablePrompt(Generic[OutputT]):
         returning a GenerateStreamResponse with both stream and response properties.
 
         Args:
-            input: The input to the prompt template.
+            input: The input to the prompt template. When the prompt is defined
+                with `input=Input(schema=T)`, this should be an instance of T.
             opts: Optional generation options to override prompt defaults.
                 Can include: model, config, messages, docs, tools, output,
                 tool_choice, return_tool_requests, max_turns, use (middleware),
@@ -868,20 +874,25 @@ class ExecutablePrompt(Generic[OutputT]):
         Returns:
             A GenerateStreamResponse with:
             - stream: AsyncIterable of response chunks
-            - response: Awaitable that resolves to the complete response
+            - response: Awaitable that resolves to the typed complete response
 
         Example:
             ```python
-            prompt = ai.prompt('story')
+            prompt = ai.define_prompt(
+                name='story',
+                input=Input(schema=StoryInput),
+                output=Output(schema=Story),
+                prompt='Write a story about {topic}',
+            )
 
             # Stream the response
-            result = prompt.stream({'topic': 'adventure'})
+            result = prompt.stream(StoryInput(topic='adventure'))
             async for chunk in result.stream:
                 print(chunk.text, end='')
 
-            # Get the final response
+            # Get the final typed response
             final = await result.response
-            print(f'\\nFinish reason: {final.finish_reason}')
+            print(f'Title: {final.output.title}')
             ```
         """
         effective_opts: PromptGenerateOptions = opts if opts else {}
@@ -898,7 +909,7 @@ class ExecutablePrompt(Generic[OutputT]):
 
     async def render(
         self,
-        input: dict[str, Any] | None = None,
+        input: InputT | dict[str, Any] | None = None,
         opts: PromptGenerateOptions | None = None,
     ) -> GenerateActionOptions:
         """Renders the prompt template with the given input and options.
@@ -908,7 +919,8 @@ class ExecutablePrompt(Generic[OutputT]):
         default configuration.
 
         Args:
-            input: The input to the prompt template.
+            input: The input to the prompt template. Can be a typed input model
+                or a dict with template variables.
             opts: Optional generation options to override prompt defaults.
                 Can include: model, config, messages, docs, tools, output,
                 tool_choice, return_tool_requests, max_turns, context,
@@ -920,10 +932,14 @@ class ExecutablePrompt(Generic[OutputT]):
 
         Example:
             ```python
-            prompt = ai.prompt('recipe')
+            prompt = ai.define_prompt(
+                name='recipe',
+                input=Input(schema=RecipeInput),
+                prompt='Create a recipe for {dish}',
+            )
 
             # Render without executing
-            options = await prompt.render({'food': 'pizza'}, opts={'config': {'temperature': 0.5}})
+            options = await prompt.render(RecipeInput(dish='pizza'))
 
             # Then generate manually
             response = await ai.generate(options)
@@ -1019,8 +1035,22 @@ class ExecutablePrompt(Generic[OutputT]):
             raise GenkitError(status='INVALID_ARGUMENT', message='No model configured.')
 
         resolved_msgs: list[Message] = []
-        # Use input or {} to convert None to empty dict for render functions
-        render_input = input or {}
+        # Convert input to dict for render functions
+        # If input is a Pydantic model, convert to dict; otherwise use as-is
+        render_input: dict[str, Any]
+        if input is None:
+            render_input = {}
+        elif isinstance(input, dict):
+            render_input = input
+        elif hasattr(input, 'model_dump'):
+            # Pydantic v2 model
+            render_input = input.model_dump()  # pyright: ignore[reportAttributeAccessIssue]
+        elif hasattr(input, 'dict'):
+            # Pydantic v1 model
+            render_input = input.dict()  # pyright: ignore[reportAttributeAccessIssue,reportDeprecated]
+        else:
+            # Fallback: cast to dict (should not happen with proper typing)
+            render_input = cast(dict[str, Any], input)
         # Get opts.messages for history (matching JS behavior)
         opts_messages = effective_opts.get('messages')
 
@@ -1139,14 +1169,14 @@ class ExecutablePrompt(Generic[OutputT]):
         return action
 
 
-# Import Output for type checking (avoid circular import at runtime)
+# Import Input/Output for type checking (avoid circular import at runtime)
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from genkit.ai._aio import Output
+    from genkit.ai._aio import Input, Output
 
 
-# Overload 1: With typed Output[T] -> returns ExecutablePrompt[T]
+# Overload 1: Both input and output typed -> ExecutablePrompt[InputT, OutputT]
 @overload
 def define_prompt(
     registry: Registry,
@@ -1172,11 +1202,12 @@ def define_prompt(
     use: list[ModelMiddleware] | None = None,
     docs: list[DocumentData] | Callable[..., Any] | None = None,
     *,
+    input: 'Input[InputT]',
     output: 'Output[OutputT]',
-) -> 'ExecutablePrompt[OutputT]': ...
+) -> 'ExecutablePrompt[InputT, OutputT]': ...
 
 
-# Overload 2: Without typed Output -> returns ExecutablePrompt[Any]
+# Overload 2: Only input typed -> ExecutablePrompt[InputT, Any]
 @overload
 def define_prompt(
     registry: Registry,
@@ -1201,8 +1232,71 @@ def define_prompt(
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
     docs: list[DocumentData] | Callable[..., Any] | None = None,
+    *,
+    input: 'Input[InputT]',
     output: None = None,
-) -> 'ExecutablePrompt[Any]': ...
+) -> 'ExecutablePrompt[InputT, Any]': ...
+
+
+# Overload 3: Only output typed -> ExecutablePrompt[Any, OutputT]
+@overload
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    input: None = None,
+    *,
+    output: 'Output[OutputT]',
+) -> 'ExecutablePrompt[Any, OutputT]': ...
+
+
+# Overload 4: Neither typed -> ExecutablePrompt[Any, Any]
+@overload
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    input: None = None,
+    output: None = None,
+) -> 'ExecutablePrompt[Any, Any]': ...
 
 
 # Implementation
@@ -1229,8 +1323,9 @@ def define_prompt(
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
     docs: list[DocumentData] | Callable[..., Any] | None = None,
+    input: 'Input[Any] | None' = None,
     output: 'Output[Any] | None' = None,
-) -> 'ExecutablePrompt[Any]':
+) -> 'ExecutablePrompt[Any, Any]':
     """Defines an executable prompt.
 
     Args:
@@ -1256,34 +1351,47 @@ def define_prompt(
         tool_choice: The tool choice strategy.
         use: A list of model middlewares to apply.
         docs: A list of documents to be used for grounding.
+        input: Typed input configuration using Input[T]. When provided, the
+            prompt's input parameter is type-checked.
         output: Typed output configuration using Output[T]. When provided, the
-            returned ExecutablePrompt[T] will have typed responses.
+            response output is typed.
 
     Returns:
-        An ExecutablePrompt instance. When `output=Output(schema=T)` is provided,
-        returns `ExecutablePrompt[T]` with typed `.output` property on responses.
+        An ExecutablePrompt instance. When both `input=Input(schema=I)` and
+        `output=Output(schema=O)` are provided, returns `ExecutablePrompt[I, O]`
+        with typed input and output.
     
     Example:
         ```python
-        from genkit import Output
+        from genkit import Input, Output
         from pydantic import BaseModel
+        
+        class RecipeInput(BaseModel):
+            dish: str
         
         class Recipe(BaseModel):
             name: str
             ingredients: list[str]
         
-        # With typed output
+        # With typed input AND output
         recipe_prompt = define_prompt(
             registry,
             name='recipe',
-            prompt='Create a recipe for {food}',
+            prompt='Create a recipe for {dish}',
+            input=Input(schema=RecipeInput),
             output=Output(schema=Recipe),
         )
         
-        response = await recipe_prompt({'food': 'pizza'})
+        # Input is type-checked!
+        response = await recipe_prompt(RecipeInput(dish='pizza'))
         response.output.name  # ✓ Typed as str
         ```
     """
+    # If Input[T] is provided, extract its schema
+    effective_input_schema = input_schema
+    if input is not None:
+        effective_input_schema = input.schema
+
     # If Output[T] is provided, extract its configuration
     effective_output_schema = output_schema
     effective_output_format = output_format
@@ -1301,13 +1409,13 @@ def define_prompt(
         if output.constrained is not None:
             effective_output_constrained = output.constrained
 
-    executable_prompt: ExecutablePrompt[Any] = ExecutablePrompt(
+    executable_prompt: ExecutablePrompt[Any, Any] = ExecutablePrompt(
         registry,
         variant=variant,
         model=model,
         config=config,
         description=description,
-        input_schema=input_schema,
+        input_schema=effective_input_schema,
         system=system,
         prompt=prompt,
         messages=messages,
@@ -2011,7 +2119,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Create a factory function that will create the ExecutablePrompt when accessed
     # Store metadata in a closure to avoid global state
-    async def create_prompt_from_file() -> ExecutablePrompt[Any]:
+    async def create_prompt_from_file() -> ExecutablePrompt[Any, Any]:
         """Factory function to create ExecutablePrompt from file metadata."""
         metadata = await load_prompt_metadata()
 
@@ -2186,7 +2294,7 @@ def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', n
     logger.info(f'Loaded prompts from directory: {path}')
 
 
-async def lookup_prompt(registry: Registry, name: str, variant: str | None = None) -> ExecutablePrompt[Any]:
+async def lookup_prompt(registry: Registry, name: str, variant: str | None = None) -> ExecutablePrompt[Any, Any]:
     """Look up a prompt from the registry.
 
     Args:
@@ -2256,7 +2364,7 @@ async def prompt(
     name: str,
     variant: str | None = None,
     _dir: str | Path | None = None,  # Accepted but not used
-) -> ExecutablePrompt[Any]:
+) -> ExecutablePrompt[Any, Any]:
     """Look up a prompt by name and optional variant.
 
     Can look up prompts that were:

@@ -98,7 +98,56 @@ class OutputConfigDict(TypedDict, total=False):
     constrained: bool | None
 
 
+InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
+
+
+class Input(Generic[InputT]):
+    """Typed input configuration that preserves schema type information.
+
+    This class provides a type-safe way to configure input schemas for prompts.
+    When you pass a Pydantic model as the schema, the prompt's input parameter
+    will be properly typed.
+
+    Example:
+        ```python
+        from pydantic import BaseModel
+
+
+        class RecipeInput(BaseModel):
+            dish: str
+            servings: int
+
+
+        class Recipe(BaseModel):
+            name: str
+            ingredients: list[str]
+
+
+        # With Input[T] and Output[T], both input and output are typed
+        recipe_prompt = ai.define_prompt(
+            name='recipe',
+            prompt='Create a recipe for {dish} serving {servings} people',
+            input=Input(schema=RecipeInput),
+            output=Output(schema=Recipe),
+        )
+
+        # Input is type-checked!
+        response = await recipe_prompt(RecipeInput(dish='pizza', servings=4))
+        response.output.name  # ✓ Type checker knows this is str
+        ```
+
+    Attributes:
+        schema: The type/class for the input (Pydantic model, dataclass, etc.)
+    """
+
+    def __init__(self, schema: type[InputT]) -> None:
+        """Initialize typed input configuration.
+
+        Args:
+            schema: The type/class for structured input.
+        """
+        self.schema: type[InputT] = schema
 
 
 class Output(Generic[OutputT]):
