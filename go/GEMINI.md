@@ -36,10 +36,18 @@
 * **Do Not Edit gen.go**: `go/ai/gen.go` is an auto-generated file. **DO NOT MODIFY IT DIRECTLY.**
 * **Generator/Sanitizer**: Any necessary transformations to the core types must be applied to the generator script or the schema sanitizer.
 * **Canonical Parity**: The data model MUST be identical to the JSON schema defined in the JavaScript (canonical) implementation.
-
-## API & Behavior Parity
-
-* **JS Canonical Conformance**: The Go implementation MUST be identical in API structure and runtime behavior to the JavaScript (canonical) implementation.
+* **Regenerating gen.go**: If updates to types in `go/ai/gen.go` are needed:
+  1. Modify the Zod schemas in `genkit-tools/common/src/types/` (e.g., `model.ts` for `ToolDefinition`).
+  2. Regenerate the JSON schema:
+     ```bash
+     cd genkit-tools && pnpm run export:schemas
+     ```
+  3. Regenerate the Go code:
+     ```bash
+     cd go/core && go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json ai
+     ```
+  * **Overwrite Risk**: Do not edit `genkit-tools/genkit-schema.json` directly. It is a generated file and will be overwritten by the `export:schemas` script.
+  * **Note**: When adding new Part types, ensure `schemas.config` is updated to add the new Part type on all existing Parts and add "omit" to it accordingly.
 
 ## Detailed Coding Guidelines
 
