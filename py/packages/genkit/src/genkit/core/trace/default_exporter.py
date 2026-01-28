@@ -69,7 +69,7 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
         'traceId': trace_id_hex,
         'startTime': start_time,
         'endTime': end_time,
-        'attributes': {**span.attributes},
+        'attributes': {**(span.attributes or {})},
         'displayName': span.name,
         # "links": span.links,
         'spanKind': trace_api.SpanKind(span.kind).name,

@@ -151,7 +151,7 @@ class UnstableApiError(GenkitError):
         super().__init__(
             status='FAILED_PRECONDITION',
             message=f"{msg_prefix}This API requires '{level}' stability level.\n\n"
-            f'To use this feature, initialize Genkit using `from genkit.{level} import genkit`.',
+            + f'To use this feature, initialize Genkit using `from genkit.{level} import genkit`.',
         )
 
 

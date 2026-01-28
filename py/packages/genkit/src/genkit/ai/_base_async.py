@@ -87,7 +87,7 @@ class GenkitBase(GenkitRegistry):
             logger.warning('No plugins provided to Genkit')
         else:
             for plugin in plugins:
-                if isinstance(plugin, Plugin):
+                if isinstance(plugin, Plugin):  # pyright: ignore[reportUnnecessaryIsInstance]
                     self.registry.register_plugin(plugin)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')

@@ -327,7 +327,7 @@ class Chat:
         }
 
         # Generate using session's ai instance
-        response = await self._session._ai.generate(**gen_options)
+        response = await self._session._ai.generate(**gen_options)  # pyright: ignore[reportPrivateUsage]
 
         # Update message history
         self._messages = response.messages
@@ -379,7 +379,7 @@ class Chat:
             }
 
             # Generate using session's ai instance
-            response = await self._session._ai.generate(**gen_options)
+            response = await self._session._ai.generate(**gen_options)  # pyright: ignore[reportPrivateUsage]
 
             # Update message history
             self._messages = response.messages

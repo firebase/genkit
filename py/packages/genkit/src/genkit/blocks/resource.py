@@ -126,7 +126,7 @@ async def resolve_resources(registry: Registry, resources: list[ResourceArgument
     for ref in resources:
         if isinstance(ref, str):
             resolved_actions.append(await lookup_resource_by_name(registry, ref))
-        elif isinstance(ref, Action):
+        elif isinstance(ref, Action):  # pyright: ignore[reportUnnecessaryIsInstance]
             resolved_actions.append(ref)
         else:
             raise ValueError('Resources must be strings or actions')
@@ -175,7 +175,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResou
     """
     action = dynamic_resource(opts, fn)
 
-    cast(MatchableAction, action).matches = create_matcher(opts.get('uri'), opts.get('template'))
+    cast(MatchableAction, cast(object, action)).matches = create_matcher(opts.get('uri'), opts.get('template'))
 
     # Mark as not dynamic since it's being registered
     action.metadata['dynamic'] = False
@@ -404,7 +404,7 @@ async def find_matching_resource(
             if (
                 hasattr(action, 'matches')
                 and callable(action.matches)
-                and cast(MatchableAction, action).matches(input_data)
+                and cast(MatchableAction, cast(object, action)).matches(input_data)
             ):
                 return action
 
@@ -422,13 +422,13 @@ async def find_matching_resource(
     )
     if not resources and hasattr(registry, '_entries'):
         # Fallback for compatibility if registry instance is old (unlikely in this context)
-        resources = registry._entries.get(cast(ActionKind, ActionKind.RESOURCE), {})
+        resources = registry._entries.get(cast(ActionKind, ActionKind.RESOURCE), {})  # pyright: ignore[reportPrivateUsage]
 
     for action in resources.values():
         if (
             hasattr(action, 'matches')
             and callable(action.matches)
-            and cast(MatchableAction, action).matches(input_data)
+            and cast(MatchableAction, cast(object, action)).matches(input_data)
         ):
             return action
 

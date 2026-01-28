@@ -590,7 +590,7 @@ class Genkit(GenkitBase):
             ),
             on_chunk=on_chunk,
             middleware=use,
-            context=context if context else ActionRunContext._current_context(),
+            context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
 
     def generate_stream(
@@ -1016,7 +1016,7 @@ class Genkit(GenkitBase):
         Returns:
             The current context dictionary, or None if not running in an action.
         """
-        return ActionRunContext._current_context()
+        return ActionRunContext._current_context()  # pyright: ignore[reportPrivateUsage]
 
     def dynamic_tool(
         self,

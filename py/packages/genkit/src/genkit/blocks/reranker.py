@@ -415,7 +415,7 @@ async def rerank(
         reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker)
     elif isinstance(params.reranker, RerankerRef):
         reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker.name)
-    elif isinstance(params.reranker, Action):
+    elif isinstance(params.reranker, Action):  # pyright: ignore[reportUnnecessaryIsInstance]
         reranker_action = params.reranker
 
     if reranker_action is None:

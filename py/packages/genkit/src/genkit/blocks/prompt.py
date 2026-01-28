@@ -830,7 +830,7 @@ class ExecutablePrompt:
             await self.render(input=input, opts=effective_opts),
             on_chunk=on_chunk,
             middleware=middleware,
-            context=context if context else ActionRunContext._current_context(),
+            context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
 
     def stream(
@@ -937,7 +937,11 @@ class ExecutablePrompt:
                 prompt_config = prompt_config.model_dump(exclude_none=True)  # type: ignore[union-attr]
             if hasattr(opts_config, 'model_dump'):
                 opts_config = opts_config.model_dump(exclude_none=True)  # type: ignore[union-attr]
-            merged_config = {**prompt_config, **opts_config} if prompt_config or opts_config else None
+            merged_config = (
+                {**(prompt_config if isinstance(prompt_config, dict) else {}), **(opts_config if isinstance(opts_config, dict) else {})}
+                if prompt_config or opts_config
+                else None
+            )
         else:
             merged_config = self._config
 
@@ -1237,7 +1241,7 @@ def define_prompt(
         )
 
         # Link them
-        executable_prompt._prompt_action = prompt_action
+        executable_prompt._prompt_action = prompt_action  # pyright: ignore[reportPrivateUsage]
         # Dynamic attributes set at runtime - type: ignore for Action objects
         prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
         executable_prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
@@ -1398,7 +1402,7 @@ def _normalize_prompt_arg(
         return [Part(root=TextPart(text=prompt))]
     elif isinstance(prompt, list):
         return prompt
-    elif isinstance(prompt, Part):
+    elif isinstance(prompt, Part):  # pyright: ignore[reportUnnecessaryIsInstance]
         return [prompt]
     else:
         return []  # pyright: ignore[reportUnreachable] - defensive fallback
@@ -1842,12 +1846,14 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
                 schema.pop('description', None)
 
         # Build metadata structure
+        metadata_inner = prompt_metadata_dict.get('metadata') if isinstance(prompt_metadata_dict, dict) else {}
+        base_dict = prompt_metadata_dict if isinstance(prompt_metadata_dict, dict) else {}
         metadata = {
-            **prompt_metadata_dict,
-            **prompt_metadata_dict.get('metadata', {}),
+            **base_dict,
+            **(metadata_inner if isinstance(metadata_inner, dict) else {}),
             'type': 'prompt',
             'prompt': {
-                **prompt_metadata_dict,
+                **base_dict,
                 'template': parsed_prompt.template,
             },
         }
@@ -1913,7 +1919,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         lookup_key = registry_lookup_key(name, variant, ns)
         prompt_action = await registry.resolve_action_by_key(lookup_key)
         if prompt_action and prompt_action.kind == ActionKind.PROMPT:
-            executable_prompt._prompt_action = prompt_action
+            executable_prompt._prompt_action = prompt_action  # pyright: ignore[reportPrivateUsage]
             # Also store ExecutablePrompt reference on the action
             # prompt_action._executable_prompt = executable_prompt
             prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]

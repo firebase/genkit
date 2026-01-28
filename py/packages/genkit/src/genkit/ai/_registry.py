@@ -281,7 +281,7 @@ class GenkitRegistry:
                 Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper
             )
             return FlowWrapper(
-                fn=cast(Callable[P, CallT], wrapped_fn),
+                fn=cast(Callable[P, CallT], wrapped_fn),  # pyright: ignore[reportGeneralTypeIssues]
                 action=cast(Action[Any, T, Never], action),
             )
 

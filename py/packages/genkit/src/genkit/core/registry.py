@@ -307,7 +307,7 @@ class Registry:
                 # Name is local, prefix with namespace
                 name = f'{namespace}/{name}'
             # Update the action's name
-            action._name = name
+            action._name = name  # pyright: ignore[reportPrivateUsage]
 
         with self._lock:
             if action.kind not in self._entries:
@@ -385,7 +385,7 @@ class Registry:
                 plugin_names = [p for p, _ in successes]
                 raise ValueError(
                     f"Ambiguous {kind.value} action name '{name}'. "
-                    f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
+                    + f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
                 )
 
             if len(successes) == 1:

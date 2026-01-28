@@ -179,7 +179,7 @@ class Channel(Generic[T]):
         Raises:
             ValueError: If the provided future is None.
         """
-        if future is None:
+        if future is None:  # pyright: ignore[reportUnnecessaryComparison]
             raise ValueError('Cannot set a None future')  # pyright: ignore[reportUnreachable]
 
         def _handle_done(v: asyncio.Future[T]) -> None:
@@ -198,7 +198,7 @@ class Channel(Generic[T]):
                 self.closed.set_result(v.result())
 
         self._close_future = asyncio.ensure_future(future)
-        if self._close_future is not None:
+        if self._close_future is not None:  # pyright: ignore[reportUnnecessaryComparison]
             self._close_future.add_done_callback(_handle_done)
 
     async def _pop(self) -> T:
