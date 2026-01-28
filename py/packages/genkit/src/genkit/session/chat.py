@@ -174,8 +174,8 @@ class ChatStreamResponse:
 
     def __init__(
         self,
-        channel: Channel[GenerateResponseChunkWrapper],
-        response_future: asyncio.Future[GenerateResponseWrapper],
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]],
+        response_future: asyncio.Future[GenerateResponseWrapper[Any]],
     ) -> None:
         """Initialize the stream response.
 
@@ -183,8 +183,8 @@ class ChatStreamResponse:
             channel: The channel providing response chunks.
             response_future: Future resolving to the complete response.
         """
-        self._channel: Channel[GenerateResponseChunkWrapper] = channel
-        self._response_future: asyncio.Future[GenerateResponseWrapper] = response_future
+        self._channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = channel
+        self._response_future: asyncio.Future[GenerateResponseWrapper[Any]] = response_future
 
     @property
     def stream(self) -> AsyncIterable[GenerateResponseChunkWrapper]:
@@ -366,9 +366,9 @@ class Chat:
             print(f'\\nDone! Used {final.usage} tokens')
             ```
         """
-        channel: Channel[GenerateResponseChunkWrapper] = Channel()
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel()
 
-        async def _do_send() -> GenerateResponseWrapper:
+        async def _do_send() -> GenerateResponseWrapper[Any]:
             # Build generation options from request_base with streaming callback
             gen_options: dict[str, Any] = {
                 **self._request_base,

@@ -24,10 +24,11 @@ from typing import Generic, TypeVar
 
 from ._compat import wait_for
 
-T = TypeVar('T')
+T = TypeVar('T')  # Type of items in the channel
+R = TypeVar('R')  # Type of the close future result
 
 
-class Channel(Generic[T]):
+class Channel(Generic[T, R]):
     """An asynchronous channel for sending and receiving values.
 
     This class provides an asynchronous queue-like interface, allowing values to
@@ -40,7 +41,7 @@ class Channel(Generic[T]):
 
     Typical usage:
         ```python
-        channel = Channel[int](timeout=0.1)
+        channel: Channel[int, int] = Channel(timeout=0.1)
 
         # Send values to the channel
         channel.send(1)
@@ -71,8 +72,8 @@ class Channel(Generic[T]):
             raise ValueError('Timeout must be non-negative')
 
         self.queue: asyncio.Queue[T] = asyncio.Queue()
-        self.closed: asyncio.Future[T] = asyncio.Future()
-        self._close_future: asyncio.Future[T] | None = None
+        self.closed: asyncio.Future[R] = asyncio.Future()
+        self._close_future: asyncio.Future[R] | None = None
         self._timeout: float | int | None = timeout
 
     def __aiter__(self) -> AsyncIterator[T]:
@@ -166,7 +167,7 @@ class Channel(Generic[T]):
         """
         self.queue.put_nowait(value)
 
-    def set_close_future(self, future: asyncio.Future[T]) -> None:
+    def set_close_future(self, future: asyncio.Future[R]) -> None:
         """Sets a future that, when completed, will close the channel.
 
         When the provided future completes, the channel will be marked as
@@ -182,7 +183,7 @@ class Channel(Generic[T]):
         if future is None:  # pyright: ignore[reportUnnecessaryComparison]
             raise ValueError('Cannot set a None future')  # pyright: ignore[reportUnreachable]
 
-        def _handle_done(v: asyncio.Future[T]) -> None:
+        def _handle_done(v: asyncio.Future[R]) -> None:
             """Handle future completion, propagating results or errors to self.closed.
 
             This callback ensures proper propagation of the future's final state
