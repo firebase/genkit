@@ -97,10 +97,10 @@ class Registry:
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, object]] = {}
         self._schemas_by_name: dict[str, dict[str, object]] = {}
-        self._lock = threading.RLock()
+        self._lock: threading.RLock = threading.RLock()
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
-        self.dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
+        self.dotprompt: Dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 

@@ -153,8 +153,8 @@ class ExtractItemsResult:
             items: A list of the extracted JSON objects.
             cursor: The updated cursor position.
         """
-        self.items = items
-        self.cursor = cursor
+        self.items: list[Any] = items
+        self.cursor: int = cursor
 
 
 def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:

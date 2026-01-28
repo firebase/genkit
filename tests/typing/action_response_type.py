@@ -11,7 +11,7 @@ def int_to_str(x: int) -> str:
 def main() -> None:
     action: Action[int, str] = Action(
         kind=ActionKind.FLOW,
-        name="int_to_str",
+        name='int_to_str',
         fn=int_to_str,
     )
     result = action.run(7)

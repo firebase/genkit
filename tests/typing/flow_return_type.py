@@ -18,7 +18,7 @@ class UserInput(BaseModel):
 
 @ai.flow()
 async def greet(user: UserInput) -> str:
-    return f"Hello, {user.name}"
+    return f'Hello, {user.name}'
 
 
 async def main() -> None:

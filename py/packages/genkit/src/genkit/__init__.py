@@ -32,7 +32,10 @@ Basic usage:
 """
 
 # Main class
-from genkit.ai._aio import Genkit
+from genkit.ai._aio import Genkit, Output
+
+# Response types
+from genkit.blocks.model import GenerateResponseWrapper
 
 # Errors (user-facing)
 from genkit.core.error import GenkitError, UserFacingError
@@ -75,6 +78,9 @@ from genkit.ai import (
 __all__ = [
     # Main class
     'Genkit',
+    'Output',
+    # Response types
+    'GenerateResponseWrapper',
     # Errors
     'GenkitError',
     'UserFacingError',

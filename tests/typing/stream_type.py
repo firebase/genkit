@@ -12,7 +12,7 @@ ai = Genkit()
 @ai.flow()
 async def streaming_flow(x: int, ctx: ActionRunContext) -> str:
     for i in range(x):
-        ctx.send_chunk(f"chunk-{i}")
+        ctx.send_chunk(f'chunk-{i}')
     return str(x)
 
 

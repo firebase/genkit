@@ -33,7 +33,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, cast  # noqa: F401
+from typing import TYPE_CHECKING, Any, Generic, TypedDict, TypeVar, cast, overload  # noqa: F401
 
 if TYPE_CHECKING:
     from genkit.blocks.prompt import ExecutablePrompt
@@ -97,6 +97,75 @@ class OutputConfigDict(TypedDict, total=False):
     instructions: bool | str | None
     schema: type | dict[str, object] | None
     constrained: bool | None
+
+
+OutputT = TypeVar('OutputT')
+
+
+class Output(Generic[OutputT]):
+    """Typed output configuration that preserves schema type information.
+
+    This class provides a type-safe way to configure output options for generate().
+    When you pass a Pydantic model or other type as the schema, the return type
+    of generate() will be properly typed.
+
+    Example:
+        ```python
+        from pydantic import BaseModel
+
+        class Recipe(BaseModel):
+            name: str
+            ingredients: list[str]
+
+        # With Output[T], response.output is typed as Recipe
+        response = await ai.generate(
+            prompt="Give me a pasta recipe",
+            output=Output(schema=Recipe, format="json")
+        )
+        response.output.name  # ✓ Type checker knows this is str
+        ```
+
+    Attributes:
+        schema: The type/class for the output (Pydantic model, dataclass, etc.)
+        format: Output format name (e.g., 'json', 'text'). Defaults to 'json'.
+        content_type: MIME content type for the output.
+        instructions: Formatting instructions (True for default, False to disable, or custom str).
+        constrained: Whether to constrain model output to the schema.
+    """
+
+    def __init__(
+        self,
+        schema: type[OutputT],
+        format: str = 'json',
+        content_type: str | None = None,
+        instructions: bool | str | None = None,
+        constrained: bool | None = None,
+    ) -> None:
+        """Initialize typed output configuration.
+
+        Args:
+            schema: The type/class for structured output.
+            format: Output format name. Defaults to 'json'.
+            content_type: Optional MIME content type.
+            instructions: Optional formatting instructions.
+            constrained: Whether to constrain output to schema.
+        """
+        self.schema: type[OutputT] = schema
+        self.format: str = format
+        self.content_type: str | None = content_type
+        self.instructions: bool | str | None = instructions
+        self.constrained: bool | None = constrained
+
+    def to_dict(self) -> OutputConfigDict:
+        """Convert to OutputConfigDict for internal use."""
+        result: OutputConfigDict = {'schema': self.schema, 'format': self.format}
+        if self.content_type is not None:
+            result['content_type'] = self.content_type
+        if self.instructions is not None:
+            result['instructions'] = self.instructions
+        if self.constrained is not None:
+            result['constrained'] = self.constrained
+        return result
 
 
 class Genkit(GenkitBase):
@@ -314,6 +383,7 @@ class Genkit(GenkitBase):
         else:
             return session.chat()
 
+    @overload
     async def generate(
         self,
         model: str | None = None,
@@ -333,10 +403,60 @@ class Genkit(GenkitBase):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | None = None,
+        *,
+        output: Output[OutputT],
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
-    ) -> GenerateResponseWrapper:
+    ) -> GenerateResponseWrapper[OutputT]: ...
+
+    @overload
+    async def generate(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+    ) -> GenerateResponseWrapper[Any]: ...
+
+    async def generate(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+    ) -> GenerateResponseWrapper[Any]:
         """Generates text or structured data using a language model.
 
         This function provides a flexible interface for interacting with various
@@ -405,7 +525,19 @@ class Genkit(GenkitBase):
         """
         # Unpack output config if provided
         if output:
-            if isinstance(output, dict):
+            if isinstance(output, Output):
+                # Handle typed Output[T] - extract values from the typed wrapper
+                if output_format is None:
+                    output_format = output.format
+                if output_content_type is None:
+                    output_content_type = output.content_type
+                if output_instructions is None:
+                    output_instructions = output.instructions
+                if output_schema is None:
+                    output_schema = output.schema
+                if output_constrained is None:
+                    output_constrained = output.constrained
+            elif isinstance(output, dict):
                 # Handle dict input - extract values directly
                 if output_format is None:
                     output_format = output.get('format')
@@ -479,7 +611,7 @@ class Genkit(GenkitBase):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
         timeout: float | None = None,

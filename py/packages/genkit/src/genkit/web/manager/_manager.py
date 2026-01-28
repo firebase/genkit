@@ -165,11 +165,11 @@ class ServerManager:
         """
         self._servers: list[Server] = []
         self._server_tasks: list[asyncio.Task[None]] = []
-        self._signal_handler = SignalHandler()
-        self._handle_signals = handle_signals
+        self._signal_handler: SignalHandler = SignalHandler()
+        self._handle_signals: bool = handle_signals
         self._shutdown_callbacks: list[Callable[[], Any]] = []
         self._server_queue: asyncio.Queue[Server] = asyncio.Queue()
-        self._is_running = False
+        self._is_running: bool = False
 
     async def _attempt_ports(self, server: Server) -> int:
         """Attempt to use a port from among a list of ports.

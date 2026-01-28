@@ -26,7 +26,7 @@ async def test_flow_return_type() -> None:
         return str(x)
 
     result = await stringify(123)
-    assert result == "123"
+    assert result == '123'
     assert isinstance(result, str)
 
 
@@ -39,8 +39,8 @@ async def test_tool_return_type() -> None:
     def get_user(name: str) -> UserOutput:
         return UserOutput(name=name)
 
-    output = get_user("alice")
-    assert output.name == "alice"
+    output = get_user('alice')
+    assert output.name == 'alice'
     assert isinstance(output, UserOutput)
 
 
@@ -52,11 +52,11 @@ def test_action_response_type() -> None:
 
     action: Action[int, str] = Action(
         kind=ActionKind.FLOW,
-        name="int_to_str",
+        name='int_to_str',
         fn=int_to_str,
     )
     result = action.run(7)
-    assert result.response == "7"
+    assert result.response == '7'
     assert isinstance(result.response, str)
 
 
@@ -69,7 +69,7 @@ async def test_streaming() -> None:
     @ai.flow()
     async def streaming_flow(x: int, ctx: ActionRunContext) -> str:
         for i in range(x):
-            ctx.send_chunk(f"chunk-{i}")
+            ctx.send_chunk(f'chunk-{i}')
         return str(x)
 
     stream_iter, final_future = streaming_flow.stream(3)
@@ -78,8 +78,8 @@ async def test_streaming() -> None:
         chunks_received.append(str(chunk))
 
     final = await final_future
-    assert final.response == "3"
-    assert chunks_received == ["chunk-0", "chunk-1", "chunk-2"]
+    assert final.response == '3'
+    assert chunks_received == ['chunk-0', 'chunk-1', 'chunk-2']
 
 
 @pytest.mark.asyncio
@@ -89,10 +89,10 @@ async def test_no_input_flow() -> None:
 
     @ai.flow()
     async def hello_world() -> str:
-        return "Hello, World!"
+        return 'Hello, World!'
 
     result = await hello_world()
-    assert result == "Hello, World!"
+    assert result == 'Hello, World!'
 
 
 def test_unparameterized_action() -> None:
@@ -103,8 +103,8 @@ def test_unparameterized_action() -> None:
 
     action = Action(
         kind=ActionKind.FLOW,
-        name="identity",
+        name='identity',
         fn=identity,
     )
-    result = action.run("test")
-    assert result.response == "test"
+    result = action.run('test')
+    assert result.response == 'test'

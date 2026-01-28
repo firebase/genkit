@@ -18,7 +18,7 @@ async def stringify(x: int) -> str:
 
 @ai.flow()
 async def greet(user: UserInput) -> str:
-    return f"Hello, {user.name}"
+    return f'Hello, {user.name}'
 
 
 async def negative_tests() -> None:
@@ -28,4 +28,4 @@ async def negative_tests() -> None:
 
     result.nonexistent
 
-    await greet("alice")
+    await greet('alice')

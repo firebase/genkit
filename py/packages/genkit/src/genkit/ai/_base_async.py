@@ -61,7 +61,7 @@ class GenkitBase(GenkitRegistry):
                 server. If not provided in dev mode, a default will be used.
         """
         super().__init__()
-        self._reflection_server_spec = reflection_server_spec
+        self._reflection_server_spec: ServerSpec | None = reflection_server_spec
         self._initialize_registry(model, plugins)
         # Ensure the default generate action is registered for async usage.
         define_generate_action(self.registry)

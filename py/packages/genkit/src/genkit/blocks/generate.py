@@ -363,7 +363,7 @@ async def generate_action(
 
 def apply_format(
     raw_request: GenerateActionOptions, format_def: FormatDef | None
-) -> tuple[GenerateActionOptions, Formatter | None]:
+) -> tuple[GenerateActionOptions, Formatter[Any, Any] | None]:
     """Applies formatting instructions and configuration to the request.
 
     If a format definition is provided, this function deep copies the request,
@@ -419,7 +419,7 @@ def apply_format(
     return (out_request, formatter)
 
 
-def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | None) -> str | None:
+def resolve_instructions(formatter: Formatter[Any, Any], instructions_opt: bool | str | None) -> str | None:
     """Resolve instructions based on formatter and instruction options.
 
     Args:
@@ -1051,7 +1051,7 @@ class GenerationResponseError(Exception):
             status: The status of the generation response.
             details: The details of the generation response.
         """
-        self.response = response
-        self.message = message
-        self.status = status
-        self.details = details
+        self.response: GenerateResponse = response
+        self.message: str = message
+        self.status: str = status
+        self.details: dict[str, Any] = details

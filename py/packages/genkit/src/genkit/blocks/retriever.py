@@ -24,7 +24,7 @@ to accomplish a task.
 
 import inspect
 from collections.abc import Awaitable, Callable
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Callable, ClassVar, Generic, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -53,13 +53,13 @@ class Retriever(Generic[T]):
         Args:
             retriever_fn: The function that performs the retrieval.
         """
-        self.retriever_fn = retriever_fn
+        self.retriever_fn: RetrieverFn[T] = retriever_fn
 
 
 class RetrieverRequest(BaseModel):
     """Request model for a retriever execution."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     query: DocumentData
     options: Any | None = None
@@ -68,7 +68,7 @@ class RetrieverRequest(BaseModel):
 class RetrieverSupports(BaseModel):
     """Retriever capability support."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     media: bool | None = None
 
@@ -76,7 +76,7 @@ class RetrieverSupports(BaseModel):
 class RetrieverInfo(BaseModel):
     """Information about a retriever."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     label: str | None = None
     supports: RetrieverSupports | None = None
@@ -85,7 +85,7 @@ class RetrieverInfo(BaseModel):
 class RetrieverOptions(BaseModel):
     """Configuration options for a retriever."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     config_schema: dict[str, Any] | None = None
     label: str | None = None
@@ -95,7 +95,7 @@ class RetrieverOptions(BaseModel):
 class RetrieverRef(BaseModel):
     """Reference to a retriever with configuration."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     name: str
     config: Any | None = None
@@ -140,7 +140,7 @@ def create_retriever_ref(
 class IndexerRequest(BaseModel):
     """Request model for an indexer execution."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     documents: list[DocumentData]
     options: Any | None = None
@@ -149,7 +149,7 @@ class IndexerRequest(BaseModel):
 class IndexerInfo(BaseModel):
     """Information about an indexer."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     label: str | None = None
     supports: RetrieverSupports | None = None
@@ -158,7 +158,7 @@ class IndexerInfo(BaseModel):
 class IndexerOptions(BaseModel):
     """Configuration options for an indexer."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     config_schema: dict[str, Any] | None = None
     label: str | None = None
@@ -168,7 +168,7 @@ class IndexerOptions(BaseModel):
 class IndexerRef(BaseModel):
     """Reference to an indexer with configuration."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     name: str
     config: Any | None = None
@@ -214,7 +214,7 @@ def create_indexer_ref(
 def define_retriever(
     registry: Registry,
     name: str,
-    fn: RetrieverFn,
+    fn: RetrieverFn[Any],
     options: RetrieverOptions | None = None,
 ) -> None:
     """Defines and registers a retriever action."""
@@ -243,7 +243,7 @@ IndexerFn = Callable[[list[Document], T], None | Awaitable[None]]
 def define_indexer(
     registry: Registry,
     name: str,
-    fn: IndexerFn,
+    fn: IndexerFn[Any],
     options: IndexerOptions | None = None,
 ) -> None:
     """Defines and registers an indexer action."""

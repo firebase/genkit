@@ -17,7 +17,7 @@ def get_user(name: str) -> UserOutput:
 
 
 async def main() -> None:
-    output = get_user("alice")
+    output = get_user('alice')
     upper: str = output.name.upper()
     assert upper
     reveal_type(output)
