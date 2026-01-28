@@ -30,8 +30,8 @@ The following tools allow MCP-aware environments to interact with the Genkit ser
 | **`run_flow`** | Executes a specified Genkit flow, requiring `flowName` and a JSON `input` conforming to the flow's schema. |
 | **`get_trace`** | Retrieves the detailed execution trace for a flow using a `traceId`. |
 | **`start_runtime`** | Starts a Genkit runtime process (e.g., `npm run dev` or `go run main.go`). |
-| **`kill_runtime`** | Kills the currently running Genkit runtime process. |
-| **`restart_runtime`** | Restarts the currently running Genkit runtime process. |
+| **`kill_runtime`** | Kills the runtime process started by `start_runtime`. |
+| **`restart_runtime`** | Restarts the runtime process started by `start_runtime`. |
 
 ### Available Prompts
 
