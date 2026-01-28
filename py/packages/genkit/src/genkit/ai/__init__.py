@@ -35,12 +35,13 @@ from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
 from genkit.session import Chat, ChatOptions, ChatStreamResponse
 
-from ._aio import Genkit, Output
+from ._aio import Genkit, Input, Output
 from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
 
 __all__ = [
     # Main class
     'Genkit',
+    'Input',
     'Output',
     # Response types
     'GenerateResponseWrapper',
