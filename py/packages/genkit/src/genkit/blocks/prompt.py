@@ -2103,7 +2103,7 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
         else:
             # Fallback: try to get from metadata
             factory = action.metadata.get('_async_factory')
-            if factory:
+            if factory and callable(factory):
                 executable_prompt = await factory()
                 # Store it on the action for future lookups
                 if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:

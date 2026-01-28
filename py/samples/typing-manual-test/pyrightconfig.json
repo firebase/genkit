@@ -1,0 +1,6 @@
+{
+  "include": ["."],
+  "extraPaths": ["../../packages/genkit/src"],
+  "pythonVersion": "3.10",
+  "typeCheckingMode": "basic"
+}

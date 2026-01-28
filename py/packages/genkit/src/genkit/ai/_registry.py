@@ -365,13 +365,14 @@ class GenkitRegistry:
             input_spec = inspect.getfullargspec(func)
 
             def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
+                # Dynamic dispatch based on function signature - pyright can't verify ParamSpec here
                 match len(input_spec.args):
                     case 0:
-                        return func()
+                        return func()  # pyright: ignore[reportCallIssue]
                     case 1:
-                        return func(args[0])
+                        return func(args[0])  # pyright: ignore[reportCallIssue]
                     case 2:
-                        return func(args[0], ToolRunContext(args[1]))  # type: ignore[arg-type]
+                        return func(args[0], ToolRunContext(args[1]))  # pyright: ignore[reportCallIssue]
                     case _:
                         raise ValueError('tool must have 0-2 args...')
 
@@ -394,7 +395,7 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return (await action.arun(*args, **kwargs)).response  # type: ignore[arg-type]
+                return (await action.arun(*args, **kwargs)).response  # pyright: ignore[reportCallIssue]
 
             @wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
@@ -407,7 +408,7 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return action.run(*args, **kwargs).response  # type: ignore[arg-type]
+                return action.run(*args, **kwargs).response  # pyright: ignore[reportCallIssue]
 
             return cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
 
