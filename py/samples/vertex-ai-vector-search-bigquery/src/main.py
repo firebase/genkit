@@ -74,7 +74,7 @@ Testing This Demo
 import os
 import time
 
-import structlog
+from genkit.core.logging import get_logger
 from google.cloud import aiplatform, bigquery
 from pydantic import BaseModel, Field
 
@@ -96,7 +96,7 @@ VECTOR_SEARCH_API_ENDPOINT = os.getenv('VECTOR_SEARCH_API_ENDPOINT')
 bq_client = bigquery.Client(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(plugins=[VertexAI()])
 

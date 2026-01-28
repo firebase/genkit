@@ -28,7 +28,7 @@ import asyncio
 import time
 from typing import Any, cast
 
-import structlog
+from genkit.core.logging import get_logger
 from litestar import Controller, Litestar, get, post  # type: ignore
 from litestar.datastructures import State  # type: ignore
 from litestar.logging.config import LoggingConfig  # type: ignore
@@ -72,7 +72,7 @@ logging_config = LoggingConfig(
 )
 
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class LitestarLoggingMiddleware(AbstractMiddleware):

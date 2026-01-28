@@ -120,6 +120,7 @@ async def test_typed_output_schema() -> None:
         prompt='Create a recipe for chocolate chip cookies',
         output=Output(schema=Recipe),  # <-- The magic! Typed as Recipe
     )
+    response.output
 
     # Now response.output is typed as Recipe, not Any!
     # Hover over response.output to see: Recipe

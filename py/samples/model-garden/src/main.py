@@ -33,14 +33,14 @@ See README.md for testing instructions.
 
 from typing import Annotated, cast
 
-import structlog
+from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[

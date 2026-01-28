@@ -37,7 +37,7 @@ Key Features
 import os
 from typing import Annotated, cast
 
-import structlog
+from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
@@ -47,7 +47,7 @@ from genkit.plugins.xai import XAI, xai_name
 if 'XAI_API_KEY' not in os.environ:
     os.environ['XAI_API_KEY'] = input('Please enter your XAI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[XAI()],
