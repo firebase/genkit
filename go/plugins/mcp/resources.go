@@ -27,6 +27,9 @@ func (c *GenkitMCPClient) GetActiveResources(ctx context.Context) ([]ai.Resource
 	if !c.IsEnabled() || c.server == nil {
 		return nil, fmt.Errorf("MCP client is disabled or not connected")
 	}
+	if c.server.Error != nil {
+		return nil, fmt.Errorf("client is in error state: %w", c.server.Error)
+	}
 
 	var resources []ai.Resource
 
@@ -147,12 +150,15 @@ func (c *GenkitMCPClient) readMCPResource(ctx context.Context, uri string) (ai.R
 	if !c.IsEnabled() || c.server == nil {
 		return ai.ResourceOutput{}, fmt.Errorf("MCP client is disabled or not connected")
 	}
+	if c.server.Error != nil {
+		return ai.ResourceOutput{}, fmt.Errorf("client is in error state: %w", c.server.Error)
+	}
 
 	// Create ReadResource request
 	readReq := mcp.ReadResourceRequest{
 		Params: struct {
-			URI       string                 `json:"uri"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
+			URI       string         `json:"uri"`
+			Arguments map[string]any `json:"arguments,omitempty"`
 		}{
 			URI:       uri,
 			Arguments: nil,

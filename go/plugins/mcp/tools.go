@@ -31,6 +31,9 @@ func (c *GenkitMCPClient) GetActiveTools(ctx context.Context, g *genkit.Genkit) 
 	if !c.IsEnabled() || c.server == nil {
 		return nil, nil
 	}
+	if c.server.Error != nil {
+		return nil, fmt.Errorf("client is in error state: %w", c.server.Error)
+	}
 
 	// Get all MCP tools
 	mcpTools, err := c.getTools(ctx)
@@ -224,7 +227,6 @@ func executeToolCall(ctx context.Context, client *client.Client, toolName string
 	}
 
 	result, err := client.CallTool(ctx, callReq)
-
 	if err != nil {
 		return nil, err
 	}
