@@ -388,6 +388,21 @@ class ClassTransformer(ast.NodeTransformer):
         self.modified = True
 
 
+def fix_field_defaults(content: str) -> str:
+    """Fix Field(None) and Field(None, ...) to use default=None for pyright compatibility.
+
+    Pyright doesn't recognize Field(None) as providing a default value,
+    but it does recognize Field(default=None).
+    """
+    import re
+
+    # Replace Field(None) with Field(default=None)
+    content = content.replace('Field(None)', 'Field(default=None)')
+    # Replace Field(None, other_args) with Field(default=None, other_args)
+    content = re.sub(r'Field\(None,', 'Field(default=None,', content)
+    return content
+
+
 def add_header(content: str) -> str:
     """Add the generated header to the content."""
     header = '''# Copyright {year} Google LLC
@@ -475,6 +490,9 @@ def process_file(filename: str) -> None:
         # Generate source from potentially modified AST
         ast.fix_missing_locations(modified_tree)
         modified_source_no_header = ast.unparse(modified_tree)
+
+        # Fix Field(None) to Field(default=None) for pyright compatibility
+        modified_source_no_header = fix_field_defaults(modified_source_no_header)
 
         # Add header and specific imports correctly
         final_source = add_header(modified_source_no_header)

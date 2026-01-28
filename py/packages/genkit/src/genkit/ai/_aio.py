@@ -113,15 +113,14 @@ class Output(Generic[OutputT]):
         ```python
         from pydantic import BaseModel
 
+
         class Recipe(BaseModel):
             name: str
             ingredients: list[str]
 
+
         # With Output[T], response.output is typed as Recipe
-        response = await ai.generate(
-            prompt="Give me a pasta recipe",
-            output=Output(schema=Recipe, format="json")
-        )
+        response = await ai.generate(prompt='Give me a pasta recipe', output=Output(schema=Recipe, format='json'))
         response.output.name  # ✓ Type checker knows this is str
         ```
 

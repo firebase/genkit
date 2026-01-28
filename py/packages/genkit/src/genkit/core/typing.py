@@ -61,8 +61,8 @@ class BaseDataPoint(BaseModel):
     output: Any | None = None
     context: list[Any] | None = None
     reference: Any | None = None
-    test_case_id: str | None = Field(None)
-    trace_ids: list[str] | None = Field(None)
+    test_case_id: str | None = Field(default=None)
+    trace_ids: list[str] | None = Field(default=None)
 
 
 class EvalRequest(BaseModel):
@@ -93,7 +93,7 @@ class Score(BaseModel):
     """Model for score data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    id: str | None = Field(None, description='Optional ID to differentiate different scores')
+    id: str | None = Field(default=None, description='Optional ID to differentiate different scores')
     score: float | str | bool | None = None
     status: EvalStatusEnum | None = None
     error: str | None = None
@@ -112,8 +112,8 @@ class Data(BaseModel):
     """Model for data data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    genkit_error_message: str | None = Field(None)
-    genkit_error_details: GenkitErrorDetails | None = Field(None)
+    genkit_error_message: str | None = Field(default=None)
+    genkit_error_details: GenkitErrorDetails | None = Field(default=None)
 
 
 class GenkitError(BaseModel):
@@ -149,8 +149,8 @@ class CustomPart(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Any | None = None
     media: Any | None = None
-    tool_request: Any | None = Field(None)
-    tool_response: Any | None = Field(None)
+    tool_request: Any | None = Field(default=None)
+    tool_response: Any | None = Field(default=None)
     data: Any | None = None
     metadata: dict[str, Any] | None = None
     custom: dict[str, Any]
@@ -182,9 +182,9 @@ class GenerateActionOutputConfig(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     format: str | None = None
-    content_type: str | None = Field(None)
+    content_type: str | None = Field(default=None)
     instructions: bool | str | None = None
-    json_schema: Any | None = Field(None)
+    json_schema: Any | None = Field(default=None)
     constrained: bool | None = None
 
 
@@ -194,30 +194,30 @@ class GenerationCommonConfig(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     version: str | None = None
     temperature: float | None = None
-    max_output_tokens: float | None = Field(None)
-    top_k: float | None = Field(None)
-    top_p: float | None = Field(None)
-    stop_sequences: list[str] | None = Field(None)
+    max_output_tokens: float | None = Field(default=None)
+    top_k: float | None = Field(default=None)
+    top_p: float | None = Field(default=None)
+    stop_sequences: list[str] | None = Field(default=None)
 
 
 class GenerationUsage(BaseModel):
     """Model for generationusage data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    input_tokens: float | None = Field(None)
-    output_tokens: float | None = Field(None)
-    total_tokens: float | None = Field(None)
-    input_characters: float | None = Field(None)
-    output_characters: float | None = Field(None)
-    input_images: float | None = Field(None)
-    output_images: float | None = Field(None)
-    input_videos: float | None = Field(None)
-    output_videos: float | None = Field(None)
-    input_audio_files: float | None = Field(None)
-    output_audio_files: float | None = Field(None)
+    input_tokens: float | None = Field(default=None)
+    output_tokens: float | None = Field(default=None)
+    total_tokens: float | None = Field(default=None)
+    input_characters: float | None = Field(default=None)
+    output_characters: float | None = Field(default=None)
+    input_images: float | None = Field(default=None)
+    output_images: float | None = Field(default=None)
+    input_videos: float | None = Field(default=None)
+    output_videos: float | None = Field(default=None)
+    input_audio_files: float | None = Field(default=None)
+    output_audio_files: float | None = Field(default=None)
     custom: dict[str, float] | None = None
-    thoughts_tokens: float | None = Field(None)
-    cached_content_tokens: float | None = Field(None)
+    thoughts_tokens: float | None = Field(default=None)
+    cached_content_tokens: float | None = Field(default=None)
 
 
 class Constrained(StrEnum):
@@ -235,13 +235,13 @@ class Supports(BaseModel):
     multiturn: bool | None = None
     media: bool | None = None
     tools: bool | None = None
-    system_role: bool | None = Field(None)
+    system_role: bool | None = Field(default=None)
     output: list[str] | None = None
-    content_type: list[str] | None = Field(None)
+    content_type: list[str] | None = Field(default=None)
     context: bool | None = None
     constrained: Constrained | None = None
-    tool_choice: bool | None = Field(None)
-    long_running: bool | None = Field(None)
+    tool_choice: bool | None = Field(default=None)
+    long_running: bool | None = Field(default=None)
 
 
 class Stage(StrEnum):
@@ -260,7 +260,7 @@ class ModelInfo(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     versions: list[str] | None = None
     label: str | None = None
-    config_schema: dict[str, Any] | None = Field(None)
+    config_schema: dict[str, Any] | None = Field(default=None)
     supports: Supports | None = None
     stage: Stage | None = None
 
@@ -289,9 +289,9 @@ class OutputConfig(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     format: str | None = None
-    schema_: dict[str, Any] | None = Field(None, alias='schema')
+    schema_: dict[str, Any] | None = Field(default=None, alias='schema')
     constrained: bool | None = None
-    content_type: str | None = Field(None)
+    content_type: str | None = Field(default=None)
 
 
 class Resource1(BaseModel):
@@ -317,19 +317,19 @@ class ToolDefinition(BaseModel):
     name: str
     description: str
     input_schema: dict[str, Any] | None = Field(
-        None, description='Valid JSON Schema representing the input of the tool.'
+        default=None, description='Valid JSON Schema representing the input of the tool.'
     )
     output_schema: dict[str, Any] | None = Field(
-        None, description='Valid JSON Schema describing the output of the tool.'
+        default=None, description='Valid JSON Schema describing the output of the tool.'
     )
-    metadata: dict[str, Any] | None = Field(None, description='additional metadata for this tool definition')
+    metadata: dict[str, Any] | None = Field(default=None, description='additional metadata for this tool definition')
 
 
 class Media(BaseModel):
     """Model for media data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    content_type: str | None = Field(None)
+    content_type: str | None = Field(default=None)
     url: str
 
 
@@ -357,7 +357,7 @@ class CommonRerankerOptions(BaseModel):
     """Model for commonrerankeroptions data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    k: float | None = Field(None, description='Number of documents to rerank')
+    k: float | None = Field(default=None, description='Number of documents to rerank')
 
 
 class RankedDocumentMetadata(BaseModel):
@@ -371,7 +371,7 @@ class CommonRetrieverOptions(BaseModel):
     """Model for commonretrieveroptions data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    k: float | None = Field(None, description='Number of documents to retrieve')
+    k: float | None = Field(default=None, description='Number of documents to retrieve')
 
 
 class InstrumentationLibrary(BaseModel):
@@ -380,7 +380,7 @@ class InstrumentationLibrary(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str
     version: str | None = None
-    schema_url: str | None = Field(None)
+    schema_url: str | None = Field(default=None)
 
 
 class PathMetadata(BaseModel):
@@ -401,7 +401,7 @@ class SpanContext(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     trace_id: str = Field(...)
     span_id: str = Field(...)
-    is_remote: bool | None = Field(None)
+    is_remote: bool | None = Field(default=None)
     trace_flags: float = Field(...)
 
 
@@ -427,7 +427,7 @@ class SpanMetadata(BaseModel):
     state: State | None = None
     input: Any | None = None
     output: Any | None = None
-    is_root: bool | None = Field(None)
+    is_root: bool | None = Field(default=None)
     metadata: dict[str, str] | None = None
     path: str | None = None
 
@@ -460,7 +460,7 @@ class TraceMetadata(BaseModel):
     """Model for tracemetadata data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    feature_name: str | None = Field(None)
+    feature_name: str | None = Field(default=None)
     paths: set[PathMetadata] | None = None
     timestamp: float
 
@@ -631,17 +631,17 @@ class BaseEvalDataPoint(BaseModel):
     context: Context | None = None
     reference: Reference | None = None
     test_case_id: str = Field(...)
-    trace_ids: TraceIds | None = Field(None)
+    trace_ids: TraceIds | None = Field(default=None)
 
 
 class EvalFnResponse(BaseModel):
     """Model for evalfnresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    sample_index: float | None = Field(None)
+    sample_index: float | None = Field(default=None)
     test_case_id: str = Field(...)
-    trace_id: str | None = Field(None)
-    span_id: str | None = Field(None)
+    trace_id: str | None = Field(default=None)
+    span_id: str | None = Field(default=None)
     evaluation: Score | list[Score]
 
 
@@ -657,8 +657,8 @@ class DataPart(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None)
-    tool_response: ToolResponseModel | None = Field(None)
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: Any | None = None
     metadata: Metadata | None = None
     custom: dict[str, Any] | None = None
@@ -672,8 +672,8 @@ class MediaPart(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: Media
-    tool_request: ToolRequestModel | None = Field(None)
-    tool_response: ToolResponseModel | None = Field(None)
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -687,8 +687,8 @@ class ReasoningPart(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None)
-    tool_response: ToolResponseModel | None = Field(None)
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -702,8 +702,8 @@ class ResourcePart(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None)
-    tool_response: ToolResponseModel | None = Field(None)
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -717,8 +717,8 @@ class TextPart(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: str
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None)
-    tool_response: ToolResponseModel | None = Field(None)
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -733,7 +733,7 @@ class ToolRequestPart(BaseModel):
     text: Text | None = None
     media: MediaModel | None = None
     tool_request: ToolRequest = Field(...)
-    tool_response: ToolResponseModel | None = Field(None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -747,7 +747,7 @@ class ToolResponsePart(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None)
+    tool_request: ToolRequestModel | None = Field(default=None)
     tool_response: ToolResponse = Field(...)
     data: DataModel | None = None
     metadata: Metadata | None = None
@@ -762,14 +762,14 @@ class Link(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     context: SpanContext | None = None
     attributes: dict[str, Any] | None = None
-    dropped_attributes_count: float | None = Field(None)
+    dropped_attributes_count: float | None = Field(default=None)
 
 
 class TimeEvents(BaseModel):
     """Model for timeevents data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    time_event: list[TimeEvent] | None = Field(None)
+    time_event: list[TimeEvent] | None = Field(default=None)
 
 
 class SpanData(BaseModel):
@@ -778,7 +778,7 @@ class SpanData(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     span_id: str = Field(...)
     trace_id: str = Field(...)
-    parent_span_id: str | None = Field(None)
+    parent_span_id: str | None = Field(default=None)
     start_time: float = Field(...)
     end_time: float = Field(...)
     attributes: dict[str, Any]
@@ -786,9 +786,9 @@ class SpanData(BaseModel):
     links: list[Link] | None = None
     instrumentation_library: InstrumentationLibrary = Field(...)
     span_kind: str = Field(...)
-    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(None)
+    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(default=None)
     status: SpanStatus | None = None
-    time_events: TimeEvents | None = Field(None)
+    time_events: TimeEvents | None = Field(default=None)
     truncated: bool | None = None
 
 
@@ -823,9 +823,9 @@ class TraceData(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     trace_id: str = Field(...)
-    display_name: str | None = Field(None)
-    start_time: float | None = Field(None, description='trace start time in milliseconds since the epoch')
-    end_time: float | None = Field(None, description='end time in milliseconds since the epoch')
+    display_name: str | None = Field(default=None)
+    start_time: float | None = Field(default=None, description='trace start time in milliseconds since the epoch')
+    end_time: float | None = Field(default=None, description='end time in milliseconds since the epoch')
     spans: dict[str, SpanData]
 
 
@@ -982,7 +982,7 @@ class Candidate(BaseModel):
     message: Message
     usage: GenerationUsage | None = None
     finish_reason: FinishReason = Field(...)
-    finish_message: str | None = Field(None)
+    finish_message: str | None = Field(default=None)
     custom: Any | None = None
 
 
@@ -995,13 +995,13 @@ class GenerateActionOptions(BaseModel):
     messages: list[Message]
     tools: list[str] | None = None
     resources: list[str] | None = None
-    tool_choice: ToolChoice | None = Field(None)
+    tool_choice: ToolChoice | None = Field(default=None)
     config: Any | None = None
     output: GenerateActionOutputConfig | None = None
     resume: Resume | None = None
-    return_tool_requests: bool | None = Field(None)
-    max_turns: float | None = Field(None)
-    step_name: str | None = Field(None)
+    return_tool_requests: bool | None = Field(default=None)
+    max_turns: float | None = Field(default=None)
+    step_name: str | None = Field(default=None)
 
 
 class GenerateRequest(BaseModel):
@@ -1011,7 +1011,7 @@ class GenerateRequest(BaseModel):
     messages: list[Message]
     config: Any | None = None
     tools: list[ToolDefinition] | None = None
-    tool_choice: ToolChoice | None = Field(None)
+    tool_choice: ToolChoice | None = Field(default=None)
     output: OutputConfig | None = None
     docs: list[DocumentData] | None = None
     candidates: float | None = None
@@ -1022,9 +1022,9 @@ class GenerateResponse(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     message: Message | None = None
-    finish_reason: FinishReason | None = Field(None)
-    finish_message: str | None = Field(None)
-    latency_ms: float | None = Field(None)
+    finish_reason: FinishReason | None = Field(default=None)
+    finish_message: str | None = Field(default=None)
+    latency_ms: float | None = Field(default=None)
     usage: GenerationUsage | None = None
     custom: Any | None = None
     raw: Any | None = None
@@ -1040,7 +1040,7 @@ class ModelRequest(BaseModel):
     messages: Messages
     config: Config | None = None
     tools: Tools | None = None
-    tool_choice: ToolChoice | None = Field(None)
+    tool_choice: ToolChoice | None = Field(default=None)
     output: OutputModel | None = None
     docs: Docs | None = None
 
@@ -1057,8 +1057,8 @@ class ModelResponse(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     message: Message | None = None
     finish_reason: FinishReason = Field(...)
-    finish_message: FinishMessage | None = Field(None)
-    latency_ms: LatencyMs | None = Field(None)
+    finish_message: FinishMessage | None = Field(default=None)
+    latency_ms: LatencyMs | None = Field(default=None)
     usage: Usage | None = None
     custom: CustomModel | None = None
     raw: Raw | None = None
