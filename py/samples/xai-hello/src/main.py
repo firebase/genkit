@@ -104,7 +104,7 @@ class WeatherInput(BaseModel):
 
 
 @ai.tool()
-def calculate(input: CalculatorInput) -> dict:
+def calculate(input: CalculatorInput) -> dict[str, str | float | None]:
     """Perform basic arithmetic operations.
 
     Args:
@@ -219,7 +219,7 @@ async def generate_character(
 
 
 @ai.tool()
-def get_weather(input: WeatherInput) -> dict:
+def get_weather(input: WeatherInput) -> dict[str, int | str | float]:
     """Get weather information for a location.
 
     Args:
@@ -271,7 +271,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Bob')] = 'Bob',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a streaming story response.
 
@@ -288,7 +288,7 @@ async def say_hi_stream(
     """
     response = await ai.generate(
         prompt=f'Tell me a short story about {name}',
-        on_chunk=ctx.send_chunk,
+        on_chunk=ctx.send_chunk if ctx is not None else None,
     )
     return response.text
 

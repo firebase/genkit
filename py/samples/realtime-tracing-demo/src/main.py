@@ -113,7 +113,7 @@ ai = Genkit(
 
 
 @ai.flow(name='slow_multi_step')
-async def slow_multi_step_flow(topic: str = 'Python programming') -> dict:
+async def slow_multi_step_flow(topic: str = 'Python programming') -> dict[str, object]:
     """A multi-step flow with delays to demonstrate realtime tracing.
 
     Watch the DevUI as each step appears immediately when it starts!
@@ -209,7 +209,7 @@ async def parallel_tasks_flow(num_tasks: int = 3) -> list[str]:
 
 
 @ai.flow(name='llm_chain')
-async def llm_chain_flow(initial_prompt: str = 'Tell me a fun fact') -> dict:
+async def llm_chain_flow(initial_prompt: str = 'Tell me a fun fact') -> dict[str, object]:
     """Chain multiple LLM calls to see sequential model invocations.
 
     Each model call will appear as a separate span in the DevUI.
@@ -247,7 +247,7 @@ async def llm_chain_flow(initial_prompt: str = 'Tell me a fun fact') -> dict:
 
 
 @ai.flow(name='check_realtime_status')
-async def check_realtime_status() -> dict:
+async def check_realtime_status() -> dict[str, object]:
     """Check if realtime tracing is enabled.
 
     Returns:

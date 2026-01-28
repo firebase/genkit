@@ -292,7 +292,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')]
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
@@ -309,7 +309,8 @@ async def say_hi_stream(
     )
     result: str = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
 
     return result

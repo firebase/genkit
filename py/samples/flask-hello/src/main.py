@@ -56,7 +56,7 @@ ai = Genkit(
 app = Flask(__name__)
 
 
-async def my_context_provider(request: RequestData) -> dict:
+async def my_context_provider(request: RequestData[dict[str, object]]) -> dict[str, object]:
     """Provide a context for the flow."""
     return {'username': request.request.headers.get('authorization')}
 
@@ -66,10 +66,10 @@ async def my_context_provider(request: RequestData) -> dict:
 @ai.flow()
 async def say_hi(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Say hi to the user."""
     return await ai.generate(
-        on_chunk=ctx.send_chunk,
-        prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username")}',
+        on_chunk=ctx.send_chunk if ctx is not None else None,
+        prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username") if ctx is not None else "unknown"}',
     )
