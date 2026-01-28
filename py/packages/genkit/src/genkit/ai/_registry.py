@@ -52,7 +52,6 @@ if TYPE_CHECKING:
     from genkit.blocks.prompt import ExecutablePrompt
     from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 
-import structlog
 from pydantic import BaseModel
 
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
@@ -77,6 +76,7 @@ from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionResponse
+from genkit.core.logging import get_logger
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
@@ -102,7 +102,7 @@ EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
 EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 P = ParamSpec('P')
 R = TypeVar('R')
 T = TypeVar('T')

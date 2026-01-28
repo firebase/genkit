@@ -737,7 +737,7 @@ class Genkit(GenkitBase):
 
         request_options = {**(retriever_config or {}), **(options or {})}
 
-        retrieve_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.RETRIEVER), retriever_name)
+        retrieve_action = await self.registry.resolve_retriever(retriever_name)
         if retrieve_action is None:
             raise ValueError(f'Retriever "{retriever_name}" not found')
 
@@ -863,7 +863,7 @@ class Genkit(GenkitBase):
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}
 
-        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
+        embed_action = await self.registry.resolve_embedder(embedder_name)
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
@@ -877,7 +877,7 @@ class Genkit(GenkitBase):
 
         # Document subclasses DocumentData, so this is type-safe at runtime.
         # The type checker doesn't recognize the subclass relationship here.
-        response: EmbedResponse = (
+        response = (
             await embed_action.arun(EmbedRequest(input=documents, options=final_options))
         ).response
         return response.embeddings
@@ -947,11 +947,11 @@ class Genkit(GenkitBase):
         # Resolve embedder name (JS embedMany does not extract config/version from ref)
         embedder_name = self._resolve_embedder_name(embedder)
 
-        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
+        embed_action = await self.registry.resolve_embedder(embedder_name)
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
-        response: EmbedResponse = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
+        response = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
         return response.embeddings
 
     async def evaluate(
@@ -985,7 +985,7 @@ class Genkit(GenkitBase):
 
         final_options = {**(evaluator_config or {}), **(options or {})}
 
-        eval_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EVALUATOR), evaluator_name)
+        eval_action = await self.registry.resolve_evaluator(evaluator_name)
         if eval_action is None:
             raise ValueError(f'Evaluator "{evaluator_name}" not found')
 

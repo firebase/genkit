@@ -22,10 +22,10 @@ from collections.abc import Coroutine
 from typing import Any, TypeVar
 
 import anyio
-import structlog
 import uvicorn
 
 from genkit.aio.loop import run_loop
+from genkit.core.logging import get_logger
 from genkit.blocks.formats import built_in_formats
 from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
@@ -38,7 +38,7 @@ from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
 from ._server import ServerSpec
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar('T')
 

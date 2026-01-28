@@ -52,8 +52,7 @@ import socket
 import sys
 from typing import override
 
-import structlog
-
+from genkit.core.logging import get_logger
 from genkit.web.typing import Application
 
 if sys.version_info < (3, 11):
@@ -61,7 +60,7 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ServerType(StrEnum):

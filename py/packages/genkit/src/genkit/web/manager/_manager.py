@@ -79,13 +79,13 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
-import structlog
+from genkit.core.logging import get_logger
 
 from ._ports import is_port_available
 from ._server import Server
 from .signals import SignalHandler
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ServerManagerProtocol(Protocol):

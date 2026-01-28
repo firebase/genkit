@@ -34,7 +34,6 @@ from typing import cast
 
 from typing_extensions import Never, TypeVar
 
-import structlog
 from dotpromptz.dotprompt import Dotprompt
 
 from genkit.core.action import (
@@ -45,9 +44,23 @@ from genkit.core.action import (
     parse_action_key,
 )
 from genkit.core.action.types import ActionKind, ActionName
+from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
+from genkit.core.typing import (
+    EmbedRequest,
+    EmbedResponse,
+    EvalRequest,
+    EvalResponse,
+    GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    RerankerRequest,
+    RerankerResponse,
+    RetrieverRequest,
+    RetrieverResponse,
+)
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 # An action store is a nested dictionary mapping ActionKind to a dictionary of
 # action names and their corresponding Action instances.
@@ -501,3 +514,92 @@ class Registry:
         """
         with self._lock:
             return self._schemas_by_name.get(name)
+
+    # ===== Typed Action Lookups =====
+    #
+    # These methods provide type-safe access to actions of specific kinds.
+    # They wrap resolve_action() with appropriate casts to preserve generic
+    # type parameters that would otherwise be erased.
+
+    async def resolve_retriever(
+        self, name: str
+    ) -> Action[RetrieverRequest, RetrieverResponse, Never] | None:
+        """Resolve a retriever action by name with full type information.
+
+        Args:
+            name: The retriever name (e.g., "my-retriever" or "plugin/retriever").
+
+        Returns:
+            A fully typed retriever action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.RETRIEVER, name)
+        if action is None:
+            return None
+        return cast(Action[RetrieverRequest, RetrieverResponse, Never], action)
+
+    async def resolve_embedder(
+        self, name: str
+    ) -> Action[EmbedRequest, EmbedResponse, Never] | None:
+        """Resolve an embedder action by name with full type information.
+
+        Args:
+            name: The embedder name (e.g., "my-embedder" or "plugin/embedder").
+
+        Returns:
+            A fully typed embedder action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.EMBEDDER, name)
+        if action is None:
+            return None
+        return cast(Action[EmbedRequest, EmbedResponse, Never], action)
+
+    async def resolve_reranker(
+        self, name: str
+    ) -> Action[RerankerRequest, RerankerResponse, Never] | None:
+        """Resolve a reranker action by name with full type information.
+
+        Args:
+            name: The reranker name (e.g., "my-reranker" or "plugin/reranker").
+
+        Returns:
+            A fully typed reranker action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.RERANKER, name)
+        if action is None:
+            return None
+        return cast(Action[RerankerRequest, RerankerResponse, Never], action)
+
+    async def resolve_model(
+        self, name: str
+    ) -> Action[GenerateRequest, GenerateResponse, GenerateResponseChunk] | None:
+        """Resolve a model action by name with full type information.
+
+        Args:
+            name: The model name (e.g., "gemini-pro" or "plugin/model").
+
+        Returns:
+            A fully typed model action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.MODEL, name)
+        if action is None:
+            return None
+        return cast(
+            Action[GenerateRequest, GenerateResponse, GenerateResponseChunk],
+            action,
+        )
+
+    async def resolve_evaluator(
+        self, name: str
+    ) -> Action[EvalRequest, EvalResponse, Never] | None:
+        """Resolve an evaluator action by name with full type information.
+
+        Args:
+            name: The evaluator name (e.g., "my-evaluator" or "plugin/evaluator").
+
+        Returns:
+            A fully typed evaluator action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.EVALUATOR, name)
+        if action is None:
+            return None
+        return cast(Action[EvalRequest, EvalResponse, Never], action)

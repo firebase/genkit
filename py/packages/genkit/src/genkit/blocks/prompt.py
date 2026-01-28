@@ -133,7 +133,6 @@ from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
 from typing import Any, ClassVar, TypedDict, cast
 
-import structlog
 from dotpromptz.typing import (
     DataArgument,
     PromptFunction,
@@ -143,6 +142,7 @@ from dotpromptz.typing import (
 from pydantic import BaseModel, ConfigDict
 
 from genkit.aio import Channel, ensure_async
+from genkit.core.logging import get_logger
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -175,7 +175,7 @@ from genkit.core.typing import (
     ToolResponsePart,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class OutputOptions(TypedDict, total=False):
