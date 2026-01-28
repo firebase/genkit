@@ -46,7 +46,8 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.plugins.anthropic import Anthropic, anthropic_name
-from genkit.types import ActionRunContext, GenerationCommonConfig
+from genkit.core.action import ActionRunContext
+from genkit.types import GenerationCommonConfig
 
 if 'ANTHROPIC_API_KEY' not in os.environ:
     os.environ['ANTHROPIC_API_KEY'] = input('Please enter your ANTHROPIC_API_KEY: ')

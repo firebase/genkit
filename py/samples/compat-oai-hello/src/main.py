@@ -233,7 +233,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 @ai.flow()
 async def generate_character(
     name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 

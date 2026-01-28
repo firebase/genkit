@@ -319,7 +319,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def streaming_flow(
     topic: Annotated[str, Field(default='pandas')] = 'pandas',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate with streaming response.
 

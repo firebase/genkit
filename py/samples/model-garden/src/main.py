@@ -200,7 +200,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Say hi to a name and stream the response.
 
@@ -218,7 +218,8 @@ async def say_hi_stream(
     )
     result = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
     return result
 

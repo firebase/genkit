@@ -125,7 +125,7 @@ class QueryFlowInputSchema(BaseModel):
 class QueryFlowOutputSchema(BaseModel):
     """Output schema."""
 
-    result: list[dict]
+    result: list[dict[str, object]]
     length: int
     time: int
 

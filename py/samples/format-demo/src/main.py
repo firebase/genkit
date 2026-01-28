@@ -136,7 +136,7 @@ async def classify_sentiment_enum(input: ClassifySentimentInput) -> str:
 
 
 @ai.flow()
-async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> list:
+async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> list[dict[str, object]]:
     """Create characters for a story with a given theme.
 
     Uses the 'jsonl' format which outputs newline-delimited JSON objects.
@@ -187,7 +187,7 @@ async def generate_haiku_text(input: HaikuInput) -> str:
 
 
 @ai.flow()
-async def get_country_info_json(input: CountryInfoInput) -> dict:
+async def get_country_info_json(input: CountryInfoInput) -> dict[str, Any]:
     """Get structured information about a country.
 
     Uses the 'json' format which parses the model's response as a JSON object.
@@ -205,7 +205,7 @@ async def get_country_info_json(input: CountryInfoInput) -> dict:
 
 
 @ai.flow()
-async def recommend_books_array(input: RecommendBooksInput) -> list:
+async def recommend_books_array(input: RecommendBooksInput) -> list[dict[str, object]]:
     """Recommend famous books in a given genre.
 
     Uses the 'array' format which parses the model's response as a JSON array of objects.
