@@ -2,22 +2,33 @@
 
 ## Code Quality & Linting
 
-* **Run Linting**: Always run `./bin/lint` from the repo root (or `py/` directory semantics depending on the script) for all Python code changes.
+* **Run Linting**: Always run `./bin/lint` from the repo root (or `py/` directory
+    semantics depending on the script) for all Python code changes.
+    0 diagnostics should be reported.
 * **Pass All Tests**: Ensure all unit tests pass (`uv run pytest .`).
 * **Production Ready**: The objective is to produce production-grade code.
 * **Shift Left**: Employ a "shift left" strategy—catch errors early.
-* **Strict Typing**: Strict type checking is required. Do not use `Any` unless absolutely necessary and documented.
-* **No Warning Suppression**: Avoid ignoring warnings from the type checker (`# type: ignore`) or other tools unless there is a compelling, documented reason.
+* **Strict Typing**: Strict type checking is required. Do not use `Any` unless
+    absolutely necessary and documented.
+* **No Warning Suppression**: Avoid ignoring warnings from the type checker
+    (`# type: ignore`) or other tools unless there is a compelling, documented reason.
+* Move imports to the top of the file and avoid using imports inside function
+  definitions.
 
 ## Generated Files & Data Model
 
-* **Do Not Edit typing.py**: `py/packages/genkit/src/genkit/core/typing.py` is an auto-generated file. **DO NOT MODIFY IT DIRECTLY.**
-* **Generator/Sanitizer**: Any necessary changes to the core types must be applied to the generator script or the schema sanitizer.
-* **Canonical Parity**: The data model MUST be identical to the JSON schema defined in the JavaScript (canonical) implementation.
+* **Do Not Edit typing.py**: `py/packages/genkit/src/genkit/core/typing.py`
+    is an auto-generated file. **DO NOT MODIFY IT DIRECTLY.**
+* **Generator/Sanitizer**: Any necessary transformations to the core types must be
+    applied to the generator script or the schema sanitizer.
+* **Canonical Parity**: The data model MUST be identical to the JSON schema
+    defined in the JavaScript (canonical) implementation.
 
 ## API & Behavior Parity
 
-* **JS Canonical**: The Python implementation MUST be identical in API structure and runtime behavior to the JavaScript (canonical) implementation.
+* **JS Canonical Conformance**: The Python implementation MUST be identical
+    in API structure and runtime behavior to the JavaScript (canonical)
+    implementation.
 
 ## Detailed Coding Guidelines
 
@@ -34,7 +45,8 @@
   * Use lowercase `list`, `dict` for type hints (avoid `List`, `Dict`).
   * Use modern generics (PEP 585, 695).
   * Use the `type` keyword for type aliases.
-* **Imports**: Import types like `Callable`, `Awaitable` from `collections.abc`, not `typing`.
+* **Imports**: Import types like `Callable`, `Awaitable` from `collections.abc`,
+    not standard library `typing`.
 * **Enums**: Use `StrEnum` instead of `(str, Enum)`.
 * **Strictness**: Apply type hints strictly, including `-> None` for void functions.
 * **Design**:
@@ -48,10 +60,14 @@
 
 ### Docstrings
 
-* **Format**: Write comprehensive Google-style docstrings for modules, classes, and functions.
+* **Format**: Write comprehensive Google-style docstrings for modules, classes,
+    and functions.
 * **Content**:
-  * **Explain Concepts**: Explain the terminology and concepts used in the code to someone unfamiliar with the code so that first timers can easily understand these ideas.
-  * **Visuals**: Prefer using tabular format and ascii diagrams in the docstrings to break down complex concepts or list terminology.
+  * **Explain Concepts**: Explain the terminology and concepts used in the
+      code to someone unfamiliar with the code so that first timers can easily
+      understand these ideas.
+  * **Visuals**: Prefer using tabular format and ascii diagrams in the
+      docstrings to break down complex concepts or list terminology.
 * **Required Sections**:
   * **Overview**: One-liner description followed by rationale.
   * **Key Operations**: Purpose of the component.
@@ -68,16 +84,20 @@
 * Keep examples in documentation and docstrings simple.
 * Add links to relevant documentation on the Web or elsewhere
   in the relevent places in docstrings.
+* Add ASCII diagrams to illustrate relationships, flows, and concepts.
+* Always update module docstrings and function docstrings when updating code
+  to reflect updated reality of any file you add or modify.
+* Scan documentation for every module you edit and keep it up-to-date.
+* In sample code, always add instructions about testing the demo.
 
 ### Implementation
 
-* Always update module docstrings and function docstrings when updating code
-  to reflect updated reality.
 * Always add unit tests to improve coverage.
-* Scan documentation for every module you edit and keep it up-to-date.
 * When there is a conflict between the JavaScript implementation and the
   Python implementation, please refer to the JavaScript implementation for
   the same.
+* When aiming to achieve parity the API and behavior should be identical to the
+  JS canonical implementation.
 * Always add/update samples to demonstrate the usage of the API or
   functionality.
 * Use default input values for flows and actions to make them easier to use
@@ -90,8 +110,37 @@
 * Add a `run.sh` script to samples that can be used to run the sample.
   The script should also perform any setup required for the sample, such as
   installing dependencies or setting up environment variables.
+* **IMPORTANT**: The `run.sh` script MUST use this exact command structure:
+
+  ```bash
+  genkit start -- \
+    uv tool run --from watchdog watchmedo auto-restart \
+      -d src \
+      -d ../../packages \
+      -d ../../plugins \
+      -p '*.py;*.prompt;*.json' \
+      -R \
+      -- uv run src/main.py "$@"
+  ```
+
+  Key points:
+
+  * `genkit start` must be OUTSIDE watchmedo (starts once and stays running)
+  * watchmedo only restarts the Python script, NOT the genkit server
+  * Use `uv tool run --from watchdog watchmedo` (not `uv run watchmedo`)
+  * Watch `../../packages` and `../../plugins` to reload on core library changes
+  * Use `-p '*.py;*.prompt;*.json'` pattern to watch relevant file types
+
+  **Wrong** (causes continuous restart loop):
+
+  ```bash
+  uv run watchmedo auto-restart ... -- uv run genkit start -- python src/main.py
+  ```
 * Please keep the `README.md` file for each sample up to date with the `run.sh`
   script.
+* In the samples, explain the whys, hows, and whats of the sample in the module
+  docstring so the user learns more about the feature being demonstrated.
+  Also explain how to test the sample.
 * Prompt for API keys and other configuration required for the sample
   in Python.
 * When creating shell scripts using bash, please use `#!/usr/bin/env bash` as
@@ -99,6 +148,13 @@
 * Avoid mentioning sample specific stuff in core framework or plugin code.
 * Always check for missing dependencies in pyproject.toml for each sample
   and add them if we're using them.
+* When working on model provider plugins such as Google Genai or Anthropic,
+  ensure that model-spec.md is followed.
+* Update the roadmap.md file as and when features are implemented.
+* When a plugin such as a model provider is updated or changes, please also
+  update relevant documentation and samples.
+* Try to make running the sample flows a one-click operation by always defining
+  default input values.
 
 ### Formatting
 
@@ -113,7 +169,8 @@
 * **Scope**: Write comprehensive unit tests.
 * **Documentation**: Add docstrings to test modules/functions explaining their scope.
 * **Execution**: Run via `uv run pytest .`.
-* **Porting**: Maintain 1:1 logic parity accurately if porting tests. Do not invent behavior.
+* **Porting**: Maintain 1:1 logic parity accurately if porting tests.
+    Do not invent behavior.
 * **Fixes**: Fix underlying code issues rather than special-casing tests.
 
 ### Logging
@@ -152,6 +209,6 @@ Include the Apache 2.0 license header at the top of each file (update year as ne
   format for headings.
 * Add a rationale paragraph explaining the why and the what before listing
   all the changes.
-* Please use conventional commits as the format.
+* Please use conventional commits for the format.
 * For scope, please refer to release-please configuration if available.
 * Keep it short and simple.
