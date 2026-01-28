@@ -27,10 +27,8 @@ from typing import Any
 
 try:
     import psutil
-
-    HAS_PSUTIL = True
 except ImportError:
-    HAS_PSUTIL = False
+    psutil = None  # type: ignore[assignment]
 
 from ._server import ServerConfig
 
@@ -85,7 +83,7 @@ def _get_process_info() -> dict[str, Any]:
         'start_time': time.time(),
     }
 
-    if HAS_PSUTIL:
+    if psutil is not None:
         try:
             process = psutil.Process()
             info.update({
@@ -112,7 +110,7 @@ def _get_memory_info() -> dict[str, Any]:
     Returns:
         A dictionary containing memory information.
     """
-    if not HAS_PSUTIL:
+    if psutil is None:
         return {'available': False}
 
     try:
@@ -146,7 +144,7 @@ def _get_disk_info() -> dict[str, Any]:
     Returns:
         A dictionary containing disk information.
     """
-    if not HAS_PSUTIL:
+    if psutil is None:
         return {'available': False}
 
     try:
@@ -197,7 +195,7 @@ def _get_network_info() -> dict[str, Any]:
     except (OSError, IndexError):
         pass
 
-    if HAS_PSUTIL:
+    if psutil is not None:
         try:
             net_io = psutil.net_io_counters()
             info['stats'] = {

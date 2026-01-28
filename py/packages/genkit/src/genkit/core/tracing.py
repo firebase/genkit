@@ -106,8 +106,8 @@ def run_in_new_span(
     span object, with handling for genkit attributes.
     """
     with tracer.start_as_current_span(name=metadata.name, links=links) as ot_span:
+        span = GenkitSpan(ot_span, labels)
         try:
-            span = GenkitSpan(ot_span, labels)
             yield span
             span.set_genkit_attribute('status', 'success')
         except Exception as e:

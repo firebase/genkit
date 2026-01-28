@@ -1,5 +1,22 @@
 {
   "pythonVersion": "3.12",
   "venvPath": "/Users/jeffhuang/Desktop/genkit/py",
-  "venv": ".venv"
+  "venv": ".venv",
+  "extraPaths": [
+    "py/packages/genkit/src",
+    "py/plugins/google-genai/src",
+    "py/plugins/google-cloud/src",
+    "py/plugins/vertex-ai/src",
+    "py/plugins/ollama/src",
+    "py/plugins/anthropic/src",
+    "py/plugins/firebase/src",
+    "py/plugins/flask/src",
+    "py/plugins/compat-oai/src",
+    "py/plugins/dev-local-vectorstore/src",
+    "py/plugins/evaluators/src",
+    "py/plugins/mcp/src",
+    "py/plugins/deepseek/src",
+    "py/plugins/xai/src"
+  ],
+  "reportMissingImports": false
 }
