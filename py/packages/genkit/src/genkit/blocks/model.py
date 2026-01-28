@@ -32,7 +32,9 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 from functools import cached_property
-from typing import Any, TypeVar, cast
+from typing import Any, Generic, cast
+
+from typing_extensions import TypeVar
 
 from pydantic import BaseModel, Field, PrivateAttr
 
@@ -70,6 +72,9 @@ ModelMiddleware = Callable[
     Awaitable[GenerateResponse],
 ]
 
+# TypeVar for generic output type in GenerateResponseWrapper
+OutputT = TypeVar('OutputT', default=object)
+
 
 class ModelReference(BaseModel):
     """Reference to a model with configuration."""
@@ -103,7 +108,7 @@ class MessageWrapper(Message):
             content=message.content,
             metadata=message.metadata,
         )
-        self._original_message = message
+        self._original_message: Message = message
 
     @cached_property
     def text(self) -> str:
@@ -133,12 +138,14 @@ class MessageWrapper(Message):
         return [p for p in self.tool_requests if p.metadata and p.metadata.root.get('interrupt')]
 
 
-class GenerateResponseWrapper(GenerateResponse):
+class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
     """A wrapper around GenerateResponse providing utility methods.
 
     Extends the base `GenerateResponse` with cached properties (`text`, `output`,
     `messages`, `tool_requests`) and methods for validation (`assert_valid`,
     `assert_valid_schema`). It also handles optional message/chunk parsing.
+
+    When used with `Output[T]`, the `output` property is typed as `T`.
     """
 
     # _message_parser is a private attribute that Pydantic will ignore
@@ -215,15 +222,17 @@ class GenerateResponseWrapper(GenerateResponse):
         return self.message.text
 
     @cached_property
-    def output(self) -> object:
+    def output(self) -> OutputT:
         """Parses out JSON data from the text parts of the response.
 
+        When used with `Output[T]`, returns the parsed output typed as `T`.
+
         Returns:
-            Any: The parsed JSON data from the response.
+            The parsed JSON data from the response, typed according to the schema.
         """
         if self._message_parser:
-            return self._message_parser(self.message)
-        return extract_json(self.text)
+            return cast(OutputT, self._message_parser(self.message))
+        return cast(OutputT, extract_json(self.text))
 
     @cached_property
     def messages(self) -> list[Message]:

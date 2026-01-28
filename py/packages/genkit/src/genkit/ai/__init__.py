@@ -20,6 +20,7 @@ This module provides the main Genkit class for building AI applications.
 """
 
 from genkit.blocks.document import Document
+from genkit.blocks.model import GenerateResponseWrapper
 from genkit.blocks.prompt import (
     ExecutablePrompt,
     GenerateStreamResponse,
@@ -34,12 +35,15 @@ from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
 from genkit.session import Chat, ChatOptions, ChatStreamResponse
 
-from ._aio import Genkit
+from ._aio import Genkit, Output
 from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
 
 __all__ = [
     # Main class
     'Genkit',
+    'Output',
+    # Response types
+    'GenerateResponseWrapper',
     # Registry and flow
     'GenkitRegistry',
     'FlowWrapper',

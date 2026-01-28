@@ -133,7 +133,7 @@ class SignalHandler:
 
     def __init__(self) -> None:
         """Initialize the signal handler."""
-        self.shutdown_event = asyncio.Event()
+        self.shutdown_event: asyncio.Event = asyncio.Event()
         self.signal_handlers: dict[int, set[Callable[[], Any]]] = {}
 
     def add_handler(self, sig: int, callback: Callable[[], Any]) -> None:

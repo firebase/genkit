@@ -17,7 +17,7 @@
 """Base error classes and utilities for Genkit."""
 
 import traceback
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -28,7 +28,7 @@ from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 class GenkitReflectionApiDetailsWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
 
     stack: str | None = None
     trace_id: str | None = None
@@ -41,18 +41,18 @@ class GenkitReflectionApiErrorWireFormat(BaseModel):
     message: str
     code: int = StatusCodes.INTERNAL.value
 
-    model_config = {
-        'frozen': True,
-        'validate_assignment': True,
-        'extra': 'forbid',
-        'populate_by_name': True,
-    }
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        frozen=True,
+        validate_assignment=True,
+        extra='forbid',
+        populate_by_name=True,
+    )
 
 
 class HttpErrorWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='allow', populate_by_name=True)
 
     details: Any  # noqa: ANN401
     message: str
@@ -61,8 +61,6 @@ class HttpErrorWireFormat(BaseModel):
 
 class GenkitError(Exception):
     """Base error class for Genkit errors."""
-
-    status: StatusName
 
     def __init__(
         self,
@@ -90,13 +88,13 @@ class GenkitError(Exception):
             temp_status = cause.status
         else:
             temp_status = 'INTERNAL'
-        self.status = temp_status
+        self.status: StatusName = temp_status
 
         source_prefix = f'{source}: ' if source else ''
         super().__init__(f'{source_prefix}{self.status}: {message}')
-        self.original_message = message
+        self.original_message: str = message
 
-        self.http_code = http_status_code(self.status)
+        self.http_code: int = http_status_code(self.status)
 
         if not details:
             details = {}
@@ -105,10 +103,10 @@ class GenkitError(Exception):
         if 'trace_id' not in details and trace_id:
             details['trace_id'] = trace_id
 
-        self.details = details
-        self.source = source
-        self.trace_id = trace_id
-        self.cause = cause
+        self.details: Any = details
+        self.source: str | None = source
+        self.trace_id: str | None = trace_id
+        self.cause: Exception | None = cause
 
     def to_callable_serializable(self) -> HttpErrorWireFormat:
         """Returns a JSON-serializable representation of this object.

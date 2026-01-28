@@ -172,6 +172,6 @@ class Server:
                 factory method.  Use this to specify a different server
                 implementation.
         """
-        self.config = config
-        self.lifecycle = lifecycle
-        self.adapter = adapter or ASGIServerAdapter.create(cast(ServerType, ServerType.UVICORN))
+        self.config: ServerConfig = config
+        self.lifecycle: ServerLifecycle = lifecycle
+        self.adapter: ASGIServerAdapter = adapter or ASGIServerAdapter.create(cast(ServerType, ServerType.UVICORN))

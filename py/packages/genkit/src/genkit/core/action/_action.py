@@ -159,9 +159,9 @@ class ActionRunContext:
             on_trace_start: A callable to be invoked with the trace ID when
                             the trace is started.
         """
-        self._on_chunk = on_chunk if on_chunk is not None else noop_streaming_callback
-        self._context = context if context is not None else {}
-        self._on_trace_start = on_trace_start if on_trace_start else lambda _: None
+        self._on_chunk: StreamingCallback = on_chunk if on_chunk is not None else noop_streaming_callback
+        self._context: dict[str, object] = context if context is not None else {}
+        self._on_trace_start: Callable[[str], None] = on_trace_start if on_trace_start else lambda _: None
 
     @property
     def context(self) -> dict[str, object]:
@@ -238,11 +238,11 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
         """
-        self._kind = kind
-        self._name = name
-        self._metadata = metadata if metadata else {}
-        self._description = description
-        self._is_async = inspect.iscoroutinefunction(fn)
+        self._kind: ActionKind = kind
+        self._name: str = name
+        self._metadata: dict[str, object] = metadata if metadata else {}
+        self._description: str | None = description
+        self._is_async: bool = inspect.iscoroutinefunction(fn)
         # Optional matcher function for resource actions
         self.matches: Callable[[object], bool] | None = None
 
@@ -253,7 +253,9 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             resolved_annotations = input_spec.annotations
         action_args, arg_types = extract_action_args_and_types(input_spec, resolved_annotations)
         n_action_args = len(action_args)
-        self._fn, self._afn = _make_tracing_wrappers(name, kind, span_metadata or {}, n_action_args, fn)
+        fn_pair = _make_tracing_wrappers(name, kind, span_metadata or {}, n_action_args, fn)
+        self._fn: Callable[..., ActionResponse[OutputT]] = fn_pair[0]
+        self._afn: Callable[..., Awaitable[ActionResponse[OutputT]]] = fn_pair[1]
         self._initialize_io_schemas(action_args, arg_types, resolved_annotations, input_spec)
 
     @property
@@ -474,8 +476,8 @@ class Action(Generic[InputT, OutputT, ChunkT]):
 
         if len(action_args) > 0:
             type_adapter = TypeAdapter(arg_types[0])
-            self._input_schema = type_adapter.json_schema()
-            self._input_type = type_adapter
+            self._input_schema: dict[str, object] = type_adapter.json_schema()
+            self._input_type: TypeAdapter[Any] | None = type_adapter
             self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
         else:
             self._input_schema = TypeAdapter(object).json_schema()
@@ -484,7 +486,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
 
         if ActionMetadataKey.RETURN in annotations:
             type_adapter = TypeAdapter(annotations[ActionMetadataKey.RETURN])
-            self._output_schema = type_adapter.json_schema()
+            self._output_schema: dict[str, object] = type_adapter.json_schema()
             self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
         else:
             self._output_schema = TypeAdapter(object).json_schema()
@@ -505,8 +507,8 @@ class ActionMetadata(BaseModel):
     metadata: dict[str, object] | None = None
 
 
-_SyncTracingWrapper = Callable[[object | None, ActionRunContext], ActionResponse]
-_AsyncTracingWrapper = Callable[[object | None, ActionRunContext], Awaitable[ActionResponse]]
+_SyncTracingWrapper = Callable[[object | None, ActionRunContext], ActionResponse[Any]]
+_AsyncTracingWrapper = Callable[[object | None, ActionRunContext], Awaitable[ActionResponse[Any]]]
 
 
 def _make_tracing_wrappers(
@@ -546,7 +548,7 @@ def _make_tracing_wrappers(
                     output = cast(_ModelCopyable, output).model_copy(update={'latency_ms': latency_ms})
         return output
 
-    async def async_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse:
+    async def async_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse[Any]:
         """Wrap the function in an async tracing wrapper.
 
         Args:
@@ -591,7 +593,7 @@ def _make_tracing_wrappers(
             record_output_metadata(span, output=output)
             return ActionResponse(response=output, trace_id=trace_id)
 
-    def sync_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse:
+    def sync_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse[Any]:
         """Wrap the function in a sync tracing wrapper.
 
         Args:

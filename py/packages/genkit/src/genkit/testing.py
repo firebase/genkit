@@ -94,8 +94,8 @@ class ProgrammableModel:
 
     def __init__(self) -> None:
         """Initialize a new ProgrammableModel instance."""
-        self._request_idx = 0
-        self.request_count = 0
+        self._request_idx: int = 0
+        self.request_count: int = 0
         self.responses: list[GenerateResponse] = []
         self.chunks: list[list[GenerateResponseChunk]] | None = None
         self.last_request: GenerateRequest | None = None
@@ -219,7 +219,7 @@ class EchoModel:
             stream_countdown: If True, stream "3", "2", "1" chunks before response.
         """
         self.last_request: GenerateRequest | None = None
-        self.stream_countdown = stream_countdown
+        self.stream_countdown: bool = stream_countdown
 
     def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Process a generation request and echo it back in the response.
@@ -317,9 +317,9 @@ class StaticResponseModel:
         Args:
             message: The message data to always return.
         """
-        self.response_message = message
+        self.response_message: Message = message
         self.last_request: GenerateRequest | None = None
-        self.request_count = 0
+        self.request_count: int = 0
 
     def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Return the static response.

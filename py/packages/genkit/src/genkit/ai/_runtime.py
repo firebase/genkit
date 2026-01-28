@@ -162,13 +162,13 @@ class RuntimeManager:
                         on context entry. It must be written manually by calling
                         write_runtime_file().
         """
-        self.spec = spec
+        self.spec: ServerSpec = spec
         if runtime_dir is None:
-            self._runtime_dir = Path(os.getcwd()) / DEFAULT_RUNTIME_DIR_NAME
+            self._runtime_dir: Path = Path(os.getcwd()) / DEFAULT_RUNTIME_DIR_NAME
         else:
             self._runtime_dir = Path(runtime_dir)
 
-        self.lazy_write = lazy_write
+        self.lazy_write: bool = lazy_write
         self._runtime_file_path: Path | None = None
 
     async def __aenter__(self) -> RuntimeManager:

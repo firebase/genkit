@@ -222,8 +222,8 @@ def create_flows_asgi_app(
 
     async def handle_streaming_flow(
         action: Action,
-        input_data: dict,
-        context: dict,
+        input_data: dict[str, Any],
+        context: dict[str, Any],
         version: str,
     ) -> EventSourceResponse:
         """Handle streaming flow execution.

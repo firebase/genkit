@@ -275,7 +275,7 @@ def create_reflection_asgi_app(
         )
 
     # Map of active actions indexed by trace ID for cancellation support.
-    active_actions: dict[str, asyncio.Task] = {}
+    active_actions: dict[str, asyncio.Task[Any]] = {}
 
     async def handle_cancel_action(request: Request) -> JSONResponse:
         """Handle the cancelAction endpoint.

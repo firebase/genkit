@@ -13,9 +13,9 @@ class UserInput(BaseModel):
 
 @ai.flow()
 async def greet(user: UserInput) -> str:
-    return f"Hello, {user.name}"
+    return f'Hello, {user.name}'
 
 
 async def main() -> None:
-    result = await greet(UserInput(name="alice"))
+    result = await greet(UserInput(name='alice'))
     reveal_type(result)

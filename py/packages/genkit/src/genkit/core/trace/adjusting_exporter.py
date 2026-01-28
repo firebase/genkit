@@ -68,7 +68,7 @@ See Also:
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any, override
+from typing import Any, ClassVar, override
 
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Event, ReadableSpan
@@ -93,8 +93,8 @@ class RedactedSpan(ReadableSpan):
             span: The original span to wrap.
             redacted_attributes: The attributes with redacted values.
         """
-        self._span = span
-        self._redacted_attributes = redacted_attributes
+        self._span: ReadableSpan = span
+        self._redacted_attributes: dict[str, Any] = redacted_attributes
 
     @property
     @override
@@ -205,7 +205,7 @@ class AdjustingTraceExporter(SpanExporter):
         ```
     """
 
-    REDACTED_VALUE = '<redacted>'
+    REDACTED_VALUE: ClassVar[str] = '<redacted>'
 
     def __init__(
         self,
@@ -223,10 +223,10 @@ class AdjustingTraceExporter(SpanExporter):
             project_id: Optional project ID for cloud-specific features.
             error_handler: Optional callback invoked when export errors occur.
         """
-        self._exporter = exporter
-        self._log_input_and_output = log_input_and_output
-        self._project_id = project_id
-        self._error_handler = error_handler
+        self._exporter: SpanExporter = exporter
+        self._log_input_and_output: bool = log_input_and_output
+        self._project_id: str | None = project_id
+        self._error_handler: Callable[[Exception], None] | None = error_handler
 
     @override
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:

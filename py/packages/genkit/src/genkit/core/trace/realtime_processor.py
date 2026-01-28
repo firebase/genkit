@@ -106,7 +106,7 @@ class RealtimeSpanProcessor(SpanProcessor):
         Args:
             exporter: The SpanExporter to use for exporting spans.
         """
-        self._exporter = exporter
+        self._exporter: SpanExporter = exporter
 
     @override
     def on_start(self, span: Span, parent_context: Context | None = None) -> None:

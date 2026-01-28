@@ -131,7 +131,7 @@ import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, ClassVar, TypedDict, cast
 
 import structlog
 from dotpromptz.typing import (
@@ -488,7 +488,7 @@ class GenerateStreamResponse:
 
     def __init__(
         self,
-        channel: Channel,
+        channel: Channel[GenerateResponseChunkWrapper],
         response_future: asyncio.Future[GenerateResponseWrapper],
     ) -> None:
         """Initialize the stream response.
@@ -499,8 +499,8 @@ class GenerateStreamResponse:
             response_future: Future that resolves to the complete response
                 when streaming is finished.
         """
-        self._channel = channel
-        self._response_future = response_future
+        self._channel: Channel[GenerateResponseChunkWrapper] = channel
+        self._response_future: asyncio.Future[GenerateResponseWrapper] = response_future
 
     @property
     def stream(self) -> AsyncIterable[GenerateResponseChunkWrapper]:
@@ -533,24 +533,24 @@ class GenerateStreamResponse:
 class PromptCache:
     """Model for a prompt cache."""
 
-    user_prompt: PromptFunction | None = None
-    system: PromptFunction | None = None
-    messages: PromptFunction | None = None
+    user_prompt: PromptFunction[Any] | None = None
+    system: PromptFunction[Any] | None = None
+    messages: PromptFunction[Any] | None = None
 
 
 class PromptConfig(BaseModel):
     """Model for a prompt action."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     variant: str | None = None
     model: str | None = None
     config: GenerationCommonConfig | dict[str, Any] | None = None
     description: str | None = None
     input_schema: type | dict[str, Any] | str | None = None
-    system: str | Part | list[Part] | Callable | None = None
-    prompt: str | Part | list[Part] | Callable | None = None
-    messages: str | list[Message] | Callable | None = None
+    system: str | Part | list[Part] | Callable[..., Any] | None = None
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None
+    messages: str | list[Message] | Callable[..., Any] | None = None
     output_format: str | None = None
     output_content_type: str | None = None
     output_instructions: bool | str | None = None
@@ -562,7 +562,7 @@ class PromptConfig(BaseModel):
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
-    docs: list[DocumentData] | Callable | None = None
+    docs: list[DocumentData] | Callable[..., Any] | None = None
     tool_responses: list[Part] | None = None
     resources: list[str] | None = None
 
@@ -666,9 +666,9 @@ class ExecutablePrompt:
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         description: str | None = None,
         input_schema: type | dict[str, Any] | str | None = None,
-        system: str | Part | list[Part] | Callable | None = None,
-        prompt: str | Part | list[Part] | Callable | None = None,
-        messages: str | list[Message] | Callable | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
@@ -680,7 +680,7 @@ class ExecutablePrompt:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
         resources: list[str] | None = None,
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
@@ -714,32 +714,32 @@ class ExecutablePrompt:
             docs: A list of documents to be used for grounding.
             resources: A list of resource URIs to be used for grounding.
         """
-        self._registry = registry
-        self._variant = variant
-        self._model = model
-        self._config = config
-        self._description = description
-        self._input_schema = input_schema
-        self._system = system
-        self._prompt = prompt
-        self._messages = messages
-        self._output_format = output_format
-        self._output_content_type = output_content_type
-        self._output_instructions = output_instructions
-        self._output_schema = output_schema
-        self._output_constrained = output_constrained
-        self._max_turns = max_turns
-        self._return_tool_requests = return_tool_requests
-        self._metadata = metadata
-        self._tools = tools
-        self._tool_choice = tool_choice
-        self._use = use
-        self._docs = docs
-        self._resources = resources
-        self._cache_prompt = PromptCache()
-        self._name = _name  # Store name/ns for action lookup (used by as_tool())
-        self._ns = _ns
-        self._prompt_action = _prompt_action
+        self._registry: Registry = registry
+        self._variant: str | None = variant
+        self._model: str | None = model
+        self._config: GenerationCommonConfig | dict[str, Any] | None = config
+        self._description: str | None = description
+        self._input_schema: type | dict[str, Any] | str | None = input_schema
+        self._system: str | Part | list[Part] | Callable[..., Any] | None = system
+        self._prompt: str | Part | list[Part] | Callable[..., Any] | None = prompt
+        self._messages: str | list[Message] | Callable[..., Any] | None = messages
+        self._output_format: str | None = output_format
+        self._output_content_type: str | None = output_content_type
+        self._output_instructions: bool | str | None = output_instructions
+        self._output_schema: type | dict[str, Any] | str | None = output_schema
+        self._output_constrained: bool | None = output_constrained
+        self._max_turns: int | None = max_turns
+        self._return_tool_requests: bool | None = return_tool_requests
+        self._metadata: dict[str, Any] | None = metadata
+        self._tools: list[str] | None = tools
+        self._tool_choice: ToolChoice | None = tool_choice
+        self._use: list[ModelMiddleware] | None = use
+        self._docs: list[DocumentData] | Callable[..., Any] | None = docs
+        self._resources: list[str] | None = resources
+        self._cache_prompt: PromptCache = PromptCache()
+        self._name: str | None = _name  # Store name/ns for action lookup (used by as_tool())
+        self._ns: str | None = _ns
+        self._prompt_action: Action | None = _prompt_action
 
     @property
     def ref(self) -> dict[str, Any]:
@@ -873,7 +873,7 @@ class ExecutablePrompt:
             ```
         """
         effective_opts: PromptGenerateOptions = opts if opts else {}
-        channel: Channel = Channel(timeout=timeout)
+        channel: Channel[GenerateResponseChunkWrapper] = Channel(timeout=timeout)
 
         # Create a copy of opts with the streaming callback
         stream_opts: PromptGenerateOptions = {**effective_opts, 'on_chunk': lambda c: channel.send(c)}
@@ -1131,9 +1131,9 @@ def define_prompt(
     config: GenerationCommonConfig | dict[str, Any] | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | str | None = None,
-    system: str | Part | list[Part] | Callable | None = None,
-    prompt: str | Part | list[Part] | Callable | None = None,
-    messages: str | list[Message] | Callable | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
     output_format: str | None = None,
     output_content_type: str | None = None,
     output_instructions: bool | str | None = None,
@@ -1145,7 +1145,7 @@ def define_prompt(
     tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    docs: list[DocumentData] | Callable | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
 ) -> ExecutablePrompt:
     """Defines an executable prompt.
 
@@ -1458,9 +1458,9 @@ async def render_system_prompt(
 
 async def render_dotprompt_to_parts(
     context: dict[str, Any],
-    prompt_function: PromptFunction,
+    prompt_function: PromptFunction[Any],
     input_: dict[str, Any],
-    options: PromptMetadata | None = None,
+    options: PromptMetadata[Any] | None = None,
 ) -> list[Part]:
     """Renders a prompt template into a list of content parts using dotprompt.
 
@@ -1693,7 +1693,7 @@ def define_partial(registry: Registry, name: str, source: str) -> None:
     logger.debug(f'Registered Dotprompt partial "{name}"')
 
 
-def define_helper(registry: Registry, name: str, fn: Callable) -> None:
+def define_helper(registry: Registry, name: str, fn: Callable[..., Any]) -> None:
     """Define a Handlebars helper function in the registry.
 
     Args:

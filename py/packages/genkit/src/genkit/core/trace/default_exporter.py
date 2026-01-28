@@ -115,9 +115,9 @@ class TelemetryServerSpanExporter(SpanExporter):
             telemetry_server_url: The URL of the telemetry server.
             telemetry_server_endpoint (optional): The telemetry server's trace endpoint.
         """
-        self.telemetry_server_url = telemetry_server_url
+        self.telemetry_server_url: str = telemetry_server_url
         if telemetry_server_endpoint is None:
-            self.telemetry_server_endpoint = '/api/traces'
+            self.telemetry_server_endpoint: str = '/api/traces'
         else:
             self.telemetry_server_endpoint = telemetry_server_endpoint
 

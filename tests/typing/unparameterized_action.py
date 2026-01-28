@@ -11,10 +11,10 @@ def identity(x: object) -> object:
 def main() -> None:
     action = Action(
         kind=ActionKind.FLOW,
-        name="identity",
+        name='identity',
         fn=identity,
     )
-    result = action.run("anything")
+    result = action.run('anything')
     reveal_type(result)
 
     value = result.response

@@ -110,7 +110,7 @@ CallT = TypeVar('CallT')
 ChunkT = TypeVar('ChunkT', default=Never)
 
 
-def get_func_description(func: Callable, description: str | None = None) -> str:
+def get_func_description(func: Callable[..., Any], description: str | None = None) -> str:
     """Get the description of a function.
 
     Args:
@@ -206,14 +206,12 @@ class GenkitRegistry:
     @overload
     def flow(
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T]']:
-        ...
+    ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T]']: ...
 
     @overload
     def flow(
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']:
-        ...
+    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']: ...
 
     def flow(
         self, name: str | None = None, description: str | None = None
@@ -279,7 +277,9 @@ class GenkitRegistry:
                 input_arg = args[0] if args else None
                 return action.run(input_arg).response
 
-            wrapped_fn = cast(Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
+            wrapped_fn = cast(
+                Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper
+            )
             return FlowWrapper(
                 fn=cast(Callable[P, CallT], wrapped_fn),
                 action=cast(Action[Any, T, Never], action),
@@ -287,7 +287,7 @@ class GenkitRegistry:
 
         return wrapper
 
-    def define_helper(self, name: str, fn: Callable) -> None:
+    def define_helper(self, name: str, fn: Callable[..., Any]) -> None:
         """Define a Handlebars helper function in the registry.
 
         Args:
@@ -416,7 +416,7 @@ class GenkitRegistry:
     def define_retriever(
         self,
         name: str,
-        fn: RetrieverFn,
+        fn: RetrieverFn[Any],
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
@@ -493,7 +493,7 @@ class GenkitRegistry:
     def define_indexer(
         self,
         name: str,
-        fn: IndexerFn,
+        fn: IndexerFn[Any],
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
@@ -528,7 +528,7 @@ class GenkitRegistry:
     def define_reranker(
         self,
         name: str,
-        fn: RerankerFn,
+        fn: RerankerFn[Any],
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
@@ -638,7 +638,7 @@ class GenkitRegistry:
         name: str,
         display_name: str,
         definition: str,
-        fn: EvaluatorFn,
+        fn: EvaluatorFn[Any],
         is_billed: bool = False,
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
@@ -752,7 +752,7 @@ class GenkitRegistry:
         name: str,
         display_name: str,
         definition: str,
-        fn: BatchEvaluatorFn,
+        fn: BatchEvaluatorFn[Any],
         is_billed: bool = False,
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
@@ -908,9 +908,9 @@ class GenkitRegistry:
         config: GenerationCommonConfig | dict[str, object] | None = None,
         description: str | None = None,
         input_schema: type | dict[str, object] | str | None = None,
-        system: str | Part | list[Part] | Callable | None = None,
-        prompt: str | Part | list[Part] | Callable | None = None,
-        messages: str | list[Message] | Callable | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
@@ -922,7 +922,7 @@ class GenkitRegistry:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
     ) -> 'ExecutablePrompt':
         """Define a prompt.
 
@@ -1065,8 +1065,8 @@ class FlowWrapper(Generic[P, CallT, T, ChunkT]):
             fn: The function to wrap.
             action: The action to wrap.
         """
-        self._fn = fn
-        self._action = action
+        self._fn: Callable[P, CallT] = fn
+        self._action: Action[Any, T, ChunkT] = action
 
     def __call__(self, *args: P.args, **kwds: P.kwargs) -> CallT:
         """Call the wrapped function.

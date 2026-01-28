@@ -114,6 +114,7 @@ class CurrencyExchangeInput(BaseModel):
     from_curr: str = Field(description='Source currency code', default='USD')
     to_curr: str = Field(description='Target currency code', default='EUR')
 
+
 class CurrencyInput(BaseModel):
     """Currency conversion input schema."""
 
