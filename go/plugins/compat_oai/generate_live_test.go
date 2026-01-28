@@ -26,7 +26,6 @@ import (
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
-	"github.com/stretchr/testify/assert"
 )
 
 const defaultModel = "gpt-4o-mini"
@@ -244,14 +243,21 @@ func TestWithConfig(t *testing.T) {
 			result, err := generator.WithMessages(messages).WithConfig(tt.config).Generate(context.Background(), req, nil)
 
 			if tt.err != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tt.err.Error(), err.Error())
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if got, want := err.Error(), tt.err.Error(); got != want {
+					t.Errorf("error message = %q, want %q", got, want)
+				}
 				return
 			}
 
-			// validate that the response was successful
-			assert.NoError(t, err)
-			assert.NotNil(t, result)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if result == nil {
+				t.Fatal("expected result, got nil")
+			}
 
 			// validate the input request was transformed correctly
 			if tt.validate != nil {
