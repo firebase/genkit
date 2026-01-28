@@ -20,9 +20,8 @@ import copy
 from collections.abc import Callable
 from typing import Any, cast
 
-import structlog
-
 from genkit.blocks.formats.types import FormatDef, Formatter
+from genkit.core.logging import get_logger
 from genkit.blocks.messages import inject_instructions
 from genkit.blocks.middleware import augment_with_context
 from genkit.blocks.model import (
@@ -59,7 +58,7 @@ StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 
 DEFAULT_MAX_TURNS = 5
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def define_generate_action(registry: Registry) -> None:
@@ -614,7 +613,7 @@ async def resolve_parameters(
     if not model:
         raise Exception('No model configured.')
 
-    model_action = await registry.resolve_action(cast(ActionKind, ActionKind.MODEL), model)
+    model_action = await registry.resolve_model(model)
     if model_action is None:
         raise Exception(f'Failed to to resolve model {model}')
 

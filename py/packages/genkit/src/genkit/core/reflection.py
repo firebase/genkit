@@ -45,7 +45,6 @@ import json
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
-import structlog
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -54,6 +53,7 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
 from genkit.codec import dump_dict, dump_json
+from genkit.core.logging import get_logger
 from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
@@ -68,7 +68,7 @@ from genkit.web.typing import (
     StartupHandler,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def _list_registered_actions(registry: Registry) -> dict[str, Action]:

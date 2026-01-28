@@ -22,9 +22,9 @@ from asyncio import AbstractEventLoop
 from collections.abc import AsyncIterable, Callable, Coroutine, Iterable
 from typing import Any
 
-import structlog
+from genkit.core.logging import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def create_loop() -> AbstractEventLoop:

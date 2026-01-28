@@ -26,13 +26,12 @@ from datetime import datetime
 from pathlib import Path
 from types import TracebackType
 
-import structlog
-
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
+from genkit.core.logging import get_logger
 
 from ._server import ServerSpec
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 DEFAULT_RUNTIME_DIR_NAME = '.genkit/runtimes'
 

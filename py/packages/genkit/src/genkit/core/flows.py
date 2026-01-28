@@ -66,7 +66,6 @@ import json
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
-import structlog
 from sse_starlette.sse import EventSourceResponse
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -76,6 +75,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from genkit.codec import dump_dict
+from genkit.core.logging import get_logger
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
@@ -88,7 +88,7 @@ from genkit.web.typing import (
     StartupHandler,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 # TODO: This is a work in progress and may change. Do not use.
@@ -116,7 +116,7 @@ def create_flows_asgi_app(
         An ASGI application.
     """
     routes = []
-    logger = structlog.get_logger(__name__)
+    logger = get_logger(__name__)
 
     async def health_check(_request: Request) -> JSONResponse:
         """Handle health check requests.

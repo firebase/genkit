@@ -72,9 +72,9 @@ import signal
 from collections.abc import Callable
 from typing import Any
 
-import structlog
+from genkit.core.logging import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def kill_all_servers() -> None:

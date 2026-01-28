@@ -34,8 +34,9 @@ from typing import TYPE_CHECKING, Any, override
 from urllib.parse import urljoin
 
 import httpx
-import structlog
 from opentelemetry import trace as trace_api
+
+from genkit.core.logging import get_logger
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import (
     SpanExporter,
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
     from opentelemetry.sdk.trace import SpanProcessor
 
 ATTR_PREFIX = 'genkit'
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def extract_span_data(span: ReadableSpan) -> dict[str, Any]:

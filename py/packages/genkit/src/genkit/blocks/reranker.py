@@ -409,12 +409,12 @@ async def rerank(
         params = RerankerParams(**params)
 
     # Resolve the reranker action
-    reranker_action: Action | None = None
+    reranker_action = None
 
     if isinstance(params.reranker, str):
-        reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker)
+        reranker_action = await registry.resolve_reranker(params.reranker)
     elif isinstance(params.reranker, RerankerRef):
-        reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker.name)
+        reranker_action = await registry.resolve_reranker(params.reranker.name)
     elif isinstance(params.reranker, Action):  # pyright: ignore[reportUnnecessaryIsInstance]
         reranker_action = params.reranker
 

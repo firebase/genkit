@@ -28,6 +28,7 @@ throughout the Genkit framework. It includes:
 """
 
 from .constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+from .logging import Logger, get_logger
 
 
 def package_name() -> str:
@@ -39,4 +40,4 @@ def package_name() -> str:
     return 'genkit.core'
 
 
-__all__ = ['package_name', 'GENKIT_CLIENT_HEADER', 'GENKIT_VERSION']
+__all__ = ['package_name', 'GENKIT_CLIENT_HEADER', 'GENKIT_VERSION', 'Logger', 'get_logger']
