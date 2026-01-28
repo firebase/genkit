@@ -934,9 +934,9 @@ class ExecutablePrompt:
             opts_config = opts_config_value or {}
             # Convert Pydantic models to dicts for merging
             if hasattr(prompt_config, 'model_dump'):
-                prompt_config = prompt_config.model_dump(exclude_none=True)  # type: ignore[union-attr]
+                prompt_config = prompt_config.model_dump(exclude_none=True)  # pyright: ignore[reportAttributeAccessIssue]
             if hasattr(opts_config, 'model_dump'):
-                opts_config = opts_config.model_dump(exclude_none=True)  # type: ignore[union-attr]
+                opts_config = opts_config.model_dump(exclude_none=True)  # pyright: ignore[reportAttributeAccessIssue]
             merged_config = (
                 {**(prompt_config if isinstance(prompt_config, dict) else {}), **(opts_config if isinstance(opts_config, dict) else {})}
                 if prompt_config or opts_config
@@ -1207,7 +1207,7 @@ def define_prompt(
 
     if name:
         # Register actions for this prompt
-        action_metadata = {
+        action_metadata: dict[str, object] = {
             'type': 'prompt',
             'source': 'programmatic',
             'prompt': {
@@ -1242,9 +1242,9 @@ def define_prompt(
 
         # Link them
         executable_prompt._prompt_action = prompt_action  # pyright: ignore[reportPrivateUsage]
-        # Dynamic attributes set at runtime - type: ignore for Action objects
-        prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
-        executable_prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
+        # Dynamic attributes set at runtime - these are custom attrs added to Action objects
+        prompt_action._executable_prompt = weakref.ref(executable_prompt)  # pyright: ignore[reportAttributeAccessIssue]
+        executable_prompt_action._executable_prompt = weakref.ref(executable_prompt)  # pyright: ignore[reportAttributeAccessIssue]
 
     return executable_prompt
 
@@ -1549,7 +1549,7 @@ async def render_message_prompt(
             data=DataArgument[dict[str, Any]](
                 input=flattened_data,
                 context=context,
-                messages=messages_,
+                messages=messages_,  # pyright: ignore[reportArgumentType]
             ),
             options=PromptMetadata(
                 input=PromptInputConfig(
@@ -1798,13 +1798,14 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         prompt_metadata = await registry.dotprompt.render_metadata(parsed_prompt)
 
         # Convert Pydantic model to dict if needed
+        prompt_metadata_dict: dict[str, Any]
         if hasattr(prompt_metadata, 'model_dump'):
             prompt_metadata_dict = prompt_metadata.model_dump(by_alias=True)
         elif hasattr(prompt_metadata, 'dict'):
             prompt_metadata_dict = prompt_metadata.dict(by_alias=True)
         else:
-            # Already a dict
-            prompt_metadata_dict = prompt_metadata
+            # Already a dict - cast through object to satisfy type checker
+            prompt_metadata_dict = cast(dict[str, Any], cast(object, prompt_metadata))
 
         # Ensure raw metadata is available (critical for lazy schema resolution)
         if hasattr(prompt_metadata, 'raw'):
@@ -1922,13 +1923,13 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             executable_prompt._prompt_action = prompt_action  # pyright: ignore[reportPrivateUsage]
             # Also store ExecutablePrompt reference on the action
             # prompt_action._executable_prompt = executable_prompt
-            prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
+            prompt_action._executable_prompt = weakref.ref(executable_prompt)  # pyright: ignore[reportAttributeAccessIssue]
 
         return executable_prompt
 
     # Store the async factory in a way that can be accessed later
     # We'll store it in the action metadata
-    action_metadata = {
+    action_metadata: dict[str, object] = {
         'type': 'prompt',
         'lazy': True,
         'source': 'file',
@@ -1982,8 +1983,8 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     )
 
     # Store the factory function on both actions for easy access
-    prompt_action._async_factory = create_prompt_from_file  # type: ignore[attr-defined]
-    executable_prompt_action._async_factory = create_prompt_from_file  # type: ignore[attr-defined]
+    prompt_action._async_factory = create_prompt_from_file  # pyright: ignore[reportAttributeAccessIssue]
+    executable_prompt_action._async_factory = create_prompt_from_file  # pyright: ignore[reportAttributeAccessIssue]
 
     # Store ExecutablePrompt reference on actions
     # This will be set when the prompt is first accessed (lazy loading)
@@ -2092,28 +2093,28 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
 
     if action:
         # First check if we've stored the ExecutablePrompt directly
-        if hasattr(action, '_executable_prompt') and action._executable_prompt is not None:
-            ref = action._executable_prompt
+        if hasattr(action, '_executable_prompt') and action._executable_prompt is not None:  # pyright: ignore[reportAttributeAccessIssue]
+            ref = action._executable_prompt  # pyright: ignore[reportAttributeAccessIssue]
             # If it's a weakref, dereference it
             if callable(ref):
-                return ref()  # type: ignore[no-any-return]
-            return ref  # type: ignore[no-any-return]
+                return ref()  # pyright: ignore[reportReturnType]
+            return ref  # pyright: ignore[reportReturnType]
         elif hasattr(action, '_async_factory'):
             # Otherwise, create it from the factory (lazy loading)
             # This will also set _executable_prompt on the action for future lookups
-            executable_prompt = await action._async_factory()  # type: ignore[attr-defined]
+            executable_prompt = await action._async_factory()  # pyright: ignore[reportAttributeAccessIssue]
             # Store it on the action for future lookups (if not already stored)
-            if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:
-                action._executable_prompt = executable_prompt  # type: ignore[attr-defined]
+            if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:  # pyright: ignore[reportAttributeAccessIssue]
+                action._executable_prompt = executable_prompt  # pyright: ignore[reportAttributeAccessIssue]
             return executable_prompt
         else:
             # Fallback: try to get from metadata
             factory = action.metadata.get('_async_factory')
             if factory and callable(factory):
-                executable_prompt = await factory()
+                executable_prompt = await factory()  # pyright: ignore[reportGeneralTypeIssues]
                 # Store it on the action for future lookups
-                if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:
-                    action._executable_prompt = executable_prompt  # type: ignore[attr-defined]
+                if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:  # pyright: ignore[reportAttributeAccessIssue]
+                    action._executable_prompt = executable_prompt  # pyright: ignore[reportAttributeAccessIssue]
                 return executable_prompt
             # Last resort: this shouldn't happen if prompts are loaded correctly
             raise GenkitError(

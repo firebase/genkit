@@ -405,7 +405,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             on_chunk=on_chunk,
             context=context,
             on_trace_start=on_trace_start,
-            telemetry_labels=telemetry_labels,
+            _telemetry_labels=telemetry_labels,
         )
 
     def stream(
@@ -434,13 +434,16 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             - final_response_future: An asyncio.Future that will resolve to the
                                      complete ActionResponse when the action finishes.
         """
-        stream = Channel(timeout=timeout)
+        stream: Channel[ChunkT, ActionResponse[OutputT]] = Channel(timeout=timeout)
+
+        def send_chunk(c: object) -> None:
+            stream.send(cast(ChunkT, c))
 
         resp = self.arun(
             input=input,
             context=context,
-            telemetry_labels=telemetry_labels,
-            on_chunk=lambda c: stream.send(c),
+            _telemetry_labels=telemetry_labels,
+            on_chunk=send_chunk,
         )
         stream.set_close_future(asyncio.create_task(resp))
 

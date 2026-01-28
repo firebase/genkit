@@ -150,8 +150,8 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
 
     # _message_parser is a private attribute that Pydantic will ignore
     _message_parser: Callable[['MessageWrapper'], object] | None = PrivateAttr(None)
-    # Override the parent's message field with our wrapper type
-    message: MessageWrapper | None = None
+    # Override the parent's message field with our wrapper type (intentional Liskov violation)
+    message: MessageWrapper | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
@@ -230,7 +230,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
         Returns:
             The parsed JSON data from the response, typed according to the schema.
         """
-        if self._message_parser:
+        if self._message_parser and self.message is not None:
             return cast(OutputT, self._message_parser(self.message))
         return cast(OutputT, extract_json(self.text))
 
