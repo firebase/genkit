@@ -245,7 +245,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
             return list(self.request.messages) if self.request else []
         return [
             *(self.request.messages if self.request else []),
-            self.message._original_message,
+            self.message._original_message,  # pyright: ignore[reportPrivateUsage]
         ]
 
     @cached_property

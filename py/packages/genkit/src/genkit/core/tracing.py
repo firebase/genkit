@@ -53,13 +53,13 @@ def init_provider() -> TracerProvider:
     """Inits and returns the tracer global provider."""
     tracer_provider = trace_api.get_tracer_provider()
 
-    if tracer_provider is None or not isinstance(tracer_provider, TracerProvider):
+    if tracer_provider is None or not isinstance(tracer_provider, TracerProvider):  # pyright: ignore[reportUnnecessaryComparison]
         tracer_provider = TracerProvider()
         trace_api.set_tracer_provider(tracer_provider)
         LoggingInstrumentor().instrument(set_logging_format=True)
         logger.debug('Creating a new global tracer provider for telemetry.')
 
-    if not isinstance(tracer_provider, TracerProvider):
+    if not isinstance(tracer_provider, TracerProvider):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError(
             f'The current trace provider is not an instance of TracerProvider.  It is of type: {type(tracer_provider)}'
         )

@@ -298,7 +298,7 @@ class ServerManager:
         await server.lifecycle.on_start(server.config)
 
         # Start the server.
-        if server.adapter is None:
+        if server.adapter is None:  # pyright: ignore[reportUnnecessaryComparison]
             raise ValueError('server_adapter cannot be None')  # pyright: ignore[reportUnreachable]
         await server.adapter.serve(
             app=app,
@@ -343,7 +343,7 @@ class ServerManager:
         while True:
             try:
                 server = await self._server_queue.get()
-                if server is None:
+                if server is None:  # pyright: ignore[reportUnnecessaryComparison]
                     break
 
                 await logger.ainfo(

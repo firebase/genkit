@@ -149,7 +149,7 @@ class ASGIServerAdapter(abc.ABC):
                 return UvicornAdapter()
             case ServerType.GRANIAN:
                 return GranianAdapter()
-            case _:
+            case _:  # pyright: ignore[reportUnnecessaryComparison]
                 raise ValueError(f'Unsupported server type: {server_type}')  # pyright: ignore[reportUnreachable]
 
 

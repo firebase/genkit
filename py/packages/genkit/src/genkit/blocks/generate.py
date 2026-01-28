@@ -314,7 +314,7 @@ async def generate_action(
         revised_model_msg,
         tool_msg,
         transfer_preamble,
-    ) = await resolve_tool_requests(registry, raw_request, generated_msg._original_message)
+    ) = await resolve_tool_requests(registry, raw_request, generated_msg._original_message)  # pyright: ignore[reportPrivateUsage]
 
     # if an interrupt message is returned, stop the tool loop and return a
     # response.
@@ -541,7 +541,7 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
             if not ref_uri:
                 logger.warning(
                     f'Unable to extract URI from resource part: {type(resource_obj).__name__}. '
-                    f'Resource part will be skipped.'
+                    + f'Resource part will be skipped.'
                 )
                 continue
 
@@ -717,7 +717,7 @@ async def resolve_tool_requests(
     response_parts: list[Part] = []
     i = 0
     for tool_request_part in message.content:
-        if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):
+        if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):  # pyright: ignore[reportUnnecessaryIsInstance]
             i += 1
             continue
 

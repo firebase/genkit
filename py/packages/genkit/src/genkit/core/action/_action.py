@@ -563,7 +563,7 @@ def _make_tracing_wrappers(
         with tracer.start_as_current_span(name) as span:
             # Format trace_id as 32-char hex string (OpenTelemetry standard format)
             trace_id = format(span.get_span_context().trace_id, '032x')
-            ctx._on_trace_start(trace_id)
+            ctx._on_trace_start(trace_id)  # pyright: ignore[reportPrivateUsage]
             record_input_metadata(
                 span=span,
                 kind=kind,
@@ -607,7 +607,7 @@ def _make_tracing_wrappers(
         with tracer.start_as_current_span(name) as span:
             # Format trace_id as 32-char hex string (OpenTelemetry standard format)
             trace_id = format(span.get_span_context().trace_id, '032x')
-            ctx._on_trace_start(trace_id)
+            ctx._on_trace_start(trace_id)  # pyright: ignore[reportPrivateUsage]
             record_input_metadata(
                 span=span,
                 kind=kind,
