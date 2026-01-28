@@ -39,11 +39,11 @@ Key Features
 
 from typing import Annotated, Any, cast
 
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,

@@ -65,9 +65,9 @@ from typing import Annotated, cast
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, Output, ToolRunContext, tool_response
-from genkit.core.logging import get_logger
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (

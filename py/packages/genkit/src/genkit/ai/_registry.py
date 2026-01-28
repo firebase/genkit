@@ -44,6 +44,8 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Generic, ParamSpec, cast, overload
+
+from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit.aio import ensure_async
@@ -52,12 +54,6 @@ if TYPE_CHECKING:
     from genkit.ai._aio import Input, Output
     from genkit.blocks.prompt import ExecutablePrompt
     from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
-
-# TypeVars for generic input/output typing
-InputT = TypeVar('InputT')
-OutputT = TypeVar('OutputT')
-
-from pydantic import BaseModel
 
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
@@ -81,8 +77,8 @@ from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionResponse
-from genkit.core.logging import get_logger
 from genkit.core.action.types import ActionKind
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.tracing import run_in_new_span
@@ -108,6 +104,10 @@ EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
 
 logger = get_logger(__name__)
+
+# TypeVars for generic input/output typing
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
 P = ParamSpec('P')
 R = TypeVar('R')
 T = TypeVar('T')

@@ -32,9 +32,8 @@ import threading
 from collections.abc import Awaitable, Callable
 from typing import cast
 
-from typing_extensions import Never, TypeVar
-
 from dotpromptz.dotprompt import Dotprompt
+from typing_extensions import Never, TypeVar
 
 from genkit.core.action import (
     Action,

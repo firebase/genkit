@@ -53,7 +53,6 @@ import asyncio
 import os
 from typing import Annotated, cast
 
-from genkit.core.logging import get_logger
 import uvicorn
 from pydantic import BaseModel, Field
 
@@ -61,6 +60,7 @@ from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
 from genkit.core.flows import create_flows_asgi_app
+from genkit.core.logging import get_logger
 from genkit.core.typing import Part
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,

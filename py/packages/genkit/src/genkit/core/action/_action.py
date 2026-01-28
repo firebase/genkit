@@ -91,9 +91,9 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextvars import ContextVar
 from functools import cached_property
 from typing import Any, Generic, Protocol, cast, get_type_hints
-from typing_extensions import Never, TypeVar
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
+from typing_extensions import Never, TypeVar
 
 from genkit.aio import Channel, ensure_async
 from genkit.core.error import GenkitError
@@ -469,7 +469,8 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         Args:
             action_args: List of detected argument names.
             arg_types: List of detected argument types.
-            input_spec: The FullArgSpec object from inspecting the function.
+            annotations: Type annotations dict from function signature.
+            _input_spec: The FullArgSpec object from inspecting the function.
 
         Raises:
             TypeError: If the function has more than two arguments.

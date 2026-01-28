@@ -53,11 +53,11 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
 from genkit.codec import dump_dict, dump_json
-from genkit.core.logging import get_logger
 from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_reflection_json
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.requests import (

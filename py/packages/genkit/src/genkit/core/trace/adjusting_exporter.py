@@ -93,9 +93,8 @@ class RedactedSpan(ReadableSpan):
             span: The original span to wrap.
             redacted_attributes: The attributes with redacted values.
         """
-        super().__init__()
-        self._span: ReadableSpan = span
-        self._redacted_attributes: dict[str, Any] = redacted_attributes
+        self._span = span
+        self._redacted_attributes = redacted_attributes
 
     @property
     @override

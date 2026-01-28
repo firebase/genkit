@@ -37,12 +37,12 @@ import os
 import weakref
 from pathlib import Path
 
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionKind, Genkit
 from genkit.blocks.prompt import ExecutablePrompt
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
 
 if 'GEMINI_API_KEY' not in os.environ:

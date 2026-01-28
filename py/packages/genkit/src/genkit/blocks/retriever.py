@@ -24,7 +24,7 @@ to accomplish a task.
 
 import inspect
 from collections.abc import Awaitable, Callable
-from typing import Any, Callable, ClassVar, Generic, TypeVar, cast
+from typing import Any, ClassVar, Generic, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel

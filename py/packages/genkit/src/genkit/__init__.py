@@ -32,30 +32,10 @@ Basic usage:
 """
 
 # Main class
-from genkit.ai._aio import Genkit, Output
-
-# Response types
-from genkit.blocks.model import GenerateResponseWrapper
-
-# Errors (user-facing)
-from genkit.core.error import GenkitError, UserFacingError
-
-# Core types for convenience (also available from genkit.types)
-from genkit.blocks.document import Document
-from genkit.core.typing import (
-    Message,
-    Part,
-    Role,
-    TextPart,
-    MediaPart,
-    Media,
-)
-
-# Plugin interface
-from genkit.core.plugin import Plugin
-
 # Re-export everything from genkit.ai for backwards compatibility
 from genkit.ai import (
+    GENKIT_CLIENT_HEADER,
+    GENKIT_VERSION,
     ActionKind,
     ActionRunContext,
     Chat,
@@ -71,8 +51,27 @@ from genkit.ai import (
     SimpleRetrieverOptions,
     ToolRunContext,
     tool_response,
-    GENKIT_CLIENT_HEADER,
-    GENKIT_VERSION,
+)
+from genkit.ai._aio import Genkit, Output
+
+# Core types for convenience (also available from genkit.types)
+from genkit.blocks.document import Document
+
+# Response types
+from genkit.blocks.model import GenerateResponseWrapper
+
+# Errors (user-facing)
+from genkit.core.error import GenkitError, UserFacingError
+
+# Plugin interface
+from genkit.core.plugin import Plugin
+from genkit.core.typing import (
+    Media,
+    MediaPart,
+    Message,
+    Part,
+    Role,
+    TextPart,
 )
 
 __all__ = [

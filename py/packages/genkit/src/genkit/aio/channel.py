@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from typing import Generic, TypeVar
+from typing import Any, Generic
+
+from typing_extensions import TypeVar
 
 from ._compat import wait_for
 
 T = TypeVar('T')  # Type of items in the channel
-R = TypeVar('R')  # Type of the close future result
+R = TypeVar('R', default=Any)  # Type of the close future result (defaults to Any)
 
 
 class Channel(Generic[T, R]):
@@ -126,10 +128,10 @@ class Channel(Generic[T, R]):
             timeout=self._timeout,
         )
 
-        # If timeout occurred (nothing finished), cancel pending tasks and raise
+        # If timeout occurred (nothing finished), cancel pop task and raise
+        # Note: Don't cancel _close_future as it's owned by external code
         if not finished:
-            for task in pending:
-                _ = task.cancel()
+            _ = pop_task.cancel()
             raise TimeoutError('Channel timeout exceeded')
 
         # If the pop task completed, return its result.

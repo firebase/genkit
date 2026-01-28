@@ -65,6 +65,8 @@ def extract_action_args_and_types(
     Args:
         input_spec: The FullArgSpec object obtained from
             inspect.getfullargspec().
+        annotations: Optional override for type annotations. If not provided,
+            uses input_spec.annotations.
 
     Returns:
         A tuple containing:

@@ -42,10 +42,10 @@ from decimal import Decimal
 from typing import Annotated, cast
 
 import httpx
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Genkit, Output
+from genkit.core.logging import get_logger
 from genkit.plugins.compat_oai import OpenAI, openai_model
 
 if 'OPENAI_API_KEY' not in os.environ:

@@ -37,8 +37,9 @@ import logging
 import os
 
 import streamlit as st
+
 from genkit.ai import Genkit
-from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper
+from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, Message
 from genkit.core.logging import get_logger
 from genkit.core.typing import Part, TextPart
 from genkit.plugins.anthropic import Anthropic

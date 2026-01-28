@@ -21,7 +21,6 @@ from collections.abc import Callable
 from typing import Any, cast
 
 from genkit.blocks.formats.types import FormatDef, Formatter
-from genkit.core.logging import get_logger
 from genkit.blocks.messages import inject_instructions
 from genkit.blocks.middleware import augment_with_context
 from genkit.blocks.model import (
@@ -36,6 +35,7 @@ from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.core.typing import (
     FinishReason,
@@ -541,7 +541,7 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
             if not ref_uri:
                 logger.warning(
                     f'Unable to extract URI from resource part: {type(resource_obj).__name__}. '
-                    + f'Resource part will be skipped.'
+                    + 'Resource part will be skipped.'
                 )
                 continue
 

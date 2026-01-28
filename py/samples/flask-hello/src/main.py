@@ -69,7 +69,8 @@ async def say_hi(
     ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Say hi to the user."""
+    username = ctx.context.get('username') if ctx is not None else 'unknown'
     return await ai.generate(
         on_chunk=ctx.send_chunk if ctx is not None else None,
-        prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username") if ctx is not None else "unknown"}',
+        prompt=f'tell a medium sized joke about {name} for user {username}',
     )

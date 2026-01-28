@@ -35,10 +35,10 @@ See README.md for testing instructions.
 from math import sqrt
 from typing import Annotated, cast
 
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.embedders import EmbeddingDefinition

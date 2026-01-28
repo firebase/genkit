@@ -25,10 +25,10 @@ import anyio
 import uvicorn
 
 from genkit.aio.loop import run_loop
-from genkit.core.logging import get_logger
 from genkit.blocks.formats import built_in_formats
 from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
+from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry

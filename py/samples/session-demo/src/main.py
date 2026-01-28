@@ -39,10 +39,10 @@ import os
 from typing import Any
 
 import streamlit as st
-from genkit.core.logging import get_logger
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper, Message
+from genkit.core.logging import get_logger
 from genkit.core.typing import Part, TextPart
 from genkit.plugins.anthropic import Anthropic
 from genkit.plugins.compat_oai import OpenAI

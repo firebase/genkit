@@ -131,7 +131,7 @@ import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
-from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
 
 from dotpromptz.typing import (
     DataArgument,
@@ -142,7 +142,6 @@ from dotpromptz.typing import (
 from pydantic import BaseModel, ConfigDict
 
 from genkit.aio import Channel, ensure_async
-from genkit.core.logging import get_logger
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -156,6 +155,7 @@ from genkit.blocks.model import (
 from genkit.core.action import Action, ActionRunContext, create_action_key
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
@@ -1168,9 +1168,6 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
         return action
 
-
-# Import Input/Output for type checking (avoid circular import at runtime)
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from genkit.ai._aio import Input, Output

@@ -41,10 +41,10 @@ See README.md for testing instructions.
 import os
 
 import httpx
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
 from genkit.types import GenerationCommonConfig, Message, Part, Role, TextPart
 

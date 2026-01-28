@@ -35,13 +35,13 @@ from urllib.parse import urljoin
 
 import httpx
 from opentelemetry import trace as trace_api
-
-from genkit.core.logging import get_logger
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import (
     SpanExporter,
     SpanExportResult,
 )
+
+from genkit.core.logging import get_logger
 
 if TYPE_CHECKING:
     from opentelemetry.sdk.trace import SpanProcessor

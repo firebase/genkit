@@ -41,11 +41,11 @@ Key Features
 import os
 from typing import Annotated, cast
 
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
 

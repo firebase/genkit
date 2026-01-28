@@ -1630,7 +1630,7 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
         chunks.append(chunk)
 
     assert chunks == [1, 2, 3]
-    assert (await response) == 'banana2'
+    assert (await response).response == 'banana2'
 
 
 @pytest.mark.asyncio
@@ -1654,7 +1654,7 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
         chunks.append(chunk)
 
     assert chunks == [1, 2, 3]
-    assert (await response) == 'banana2'
+    assert (await response).response == 'banana2'
 
 
 @pytest.mark.asyncio

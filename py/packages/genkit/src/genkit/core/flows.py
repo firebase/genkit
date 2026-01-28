@@ -75,10 +75,10 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from genkit.codec import dump_dict
-from genkit.core.logging import get_logger
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.web.requests import (
     is_streaming_requested,

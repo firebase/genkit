@@ -177,7 +177,7 @@ async def test_define_streaming_action_and_stream_it() -> None:
     async for chunk in stream:
         chunks.append(chunk)
 
-    assert (await response) == 3
+    assert (await response).response == 3
     assert chunks == ['1', '2']
 
 

@@ -36,14 +36,15 @@ import argparse
 import asyncio
 import random
 
-from . import eval_in_code  # noqa: F401  # pyright: ignore[reportUnusedImport]
+from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
 
 # Import flows so they get registered
-from . import pdf_rag  # noqa: F401  # pyright: ignore[reportUnusedImport]
-from . import setup  # noqa: F401  # pyright: ignore[reportUnusedImport]
+from . import (
+    eval_in_code,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    pdf_rag,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    setup,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+)
 from .genkit_demo import ai
-
-from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
 
 
 # Test evaluator that generates random scores and randomly fails

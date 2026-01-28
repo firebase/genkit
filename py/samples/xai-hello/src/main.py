@@ -37,11 +37,11 @@ Key Features
 import os
 from typing import Annotated, cast
 
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.xai import XAI, xai_name
 
 if 'XAI_API_KEY' not in os.environ:

@@ -35,10 +35,10 @@ from collections.abc import Mapping
 from typing import Any
 
 from opentelemetry import trace as trace_api
-
-from genkit.core.logging import get_logger
 from opentelemetry.util import types
 from pydantic import BaseModel
+
+from genkit.core.logging import get_logger
 
 ATTR_PREFIX = 'genkit'
 

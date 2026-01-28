@@ -34,10 +34,10 @@ import asyncio
 import os
 from typing import Any, cast
 
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.core.typing import OutputConfig
 from genkit.plugins.google_genai import GoogleAI
 

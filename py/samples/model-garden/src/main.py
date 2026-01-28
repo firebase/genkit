@@ -33,11 +33,11 @@ See README.md for testing instructions.
 
 from typing import Annotated, cast
 
-from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
 logger = get_logger(__name__)
