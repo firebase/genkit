@@ -242,7 +242,7 @@ async def custom_config_flow(task: str | None = None) -> str:
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -303,7 +303,7 @@ async def reasoning_flow(prompt: str | None = None) -> str:
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(name: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Generate a simple greeting.
 
     Args:
@@ -318,7 +318,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 @ai.flow()
 async def streaming_flow(
-    topic: Annotated[str, Field(default='pandas')] = 'pandas',
+    topic: Annotated[str, Field(default='cats')] = 'cats',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Generate with streaming response.

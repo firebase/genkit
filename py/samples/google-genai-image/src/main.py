@@ -129,7 +129,7 @@ async def describe_image_with_gemini(data: str = '') -> str:
 
 @ai.flow()
 async def generate_images(
-    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
+    name: Annotated[str, Field(default='a fluffy cat')] = 'a fluffy cat',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> GenerateResponseWrapper:
     """Generate images for the given name.

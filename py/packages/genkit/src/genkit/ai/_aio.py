@@ -42,6 +42,10 @@ from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
 from genkit.aio import Channel, ensure_async
+from genkit.blocks.background_model import (
+    check_operation as check_operation_impl,
+    lookup_background_action,
+)
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
 from genkit.blocks.evaluator import EvaluatorRef
@@ -989,26 +993,69 @@ class Genkit(GenkitBase):
                 raise
 
     async def check_operation(self, operation: Operation) -> Operation:
-        """Checks the status of a long-running operation.
+        """Checks the status of a long-running background operation.
 
-        This method resolves the action associated with the operation and executes
-        it to get an updated status.
+        This method matches JS checkOperation from js/ai/src/check-operation.ts.
+
+        It looks up the background action by the operation's action key and
+        calls its check method to get updated status.
 
         Args:
-            operation: The Operation object to check.
+            operation: The Operation object to check. Must have an action
+                field specifying which background model created it.
 
         Returns:
-            An updated Operation object.
+            An updated Operation object with the current status.
 
         Raises:
-            ValueError: If the operation doesn't specify an action or if the
-                action cannot be resolved.
+            ValueError: If the operation is missing original request information
+                or if the background action cannot be resolved.
+
+        Example:
+            >>> # Start a background operation
+            >>> response = await ai.generate(model=veo_model, prompt='A cat')
+            >>> operation = response.operation
+            >>> # Poll until done
+            >>> while not operation.done:
+            ...     await asyncio.sleep(5)
+            ...     operation = await ai.check_operation(operation)
+            >>> # Use the result
+            >>> print(operation.output)
+        """
+        return await check_operation_impl(self.registry, operation)
+
+    async def cancel_operation(self, operation: Operation) -> Operation:
+        """Cancels a long-running background operation.
+
+        This method attempts to cancel an in-progress operation. Not all
+        background models support cancellation.
+
+        If cancellation is not supported, returns the operation unchanged
+        (matching JS behavior).
+
+        Args:
+            operation: The Operation object to cancel. Must have an action
+                field specifying which background model created it.
+
+        Returns:
+            An updated Operation object reflecting the cancellation attempt.
+
+        Raises:
+            ValueError: If the operation is missing original request information
+                or if the background action cannot be resolved.
+
+        Example:
+            >>> # Start a background operation
+            >>> response = await ai.generate(model=veo_model, prompt='A cat')
+            >>> operation = response.operation
+            >>> # Cancel it
+            >>> operation = await ai.cancel_operation(operation)
         """
         if not operation.action:
-            raise ValueError('Operation must have an action specified to be checked.')
+            raise ValueError('Provided operation is missing original request information')
 
-        action = await self.registry.resolve_action_by_key(operation.action)
-        if not action:
-            raise ValueError(f'Action "{operation.action}" not found.')
+        background_action = await lookup_background_action(self.registry, operation.action)
+        if background_action is None:
+            raise ValueError(f'Failed to resolve background action from original request: {operation.action}')
 
-        return (await action.arun(operation)).response
+        return await background_action.cancel(operation)

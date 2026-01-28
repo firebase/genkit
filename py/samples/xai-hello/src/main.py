@@ -201,7 +201,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -251,7 +251,7 @@ def get_weather(input: WeatherInput) -> dict:
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(name: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Generate a simple greeting.
 
     Args:
@@ -270,7 +270,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Bob')] = 'Bob',
+    name: Annotated[str, Field(default='Shadow')] = 'Shadow',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Generate a streaming story response.
@@ -294,7 +294,7 @@ async def say_hi_stream(
 
 
 @ai.flow()
-async def say_hi_with_config(name: Annotated[str, Field(default='Charlie')] = 'Charlie') -> str:
+async def say_hi_with_config(name: Annotated[str, Field(default='Ginger')] = 'Ginger') -> str:
     """Generate a greeting with custom model configuration.
 
     Args:

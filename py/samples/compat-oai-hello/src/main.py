@@ -232,7 +232,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> RpgCharacter:
     """Generate an RPG character.
@@ -312,7 +312,7 @@ async def get_weather_flow_stream(location: Annotated[str, Field(default='New Yo
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(name: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Say hi to a name.
 
     Args:
@@ -330,7 +330,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 'World') -> HelloSchema:
+async def say_hi_constrained(hi_input: Annotated[str, Field(default='Mittens')] = 'Mittens') -> HelloSchema:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:
@@ -347,7 +347,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 
 
 
 @ai.flow()
-async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi_stream(name: Annotated[str, Field(default='Shadow')] = 'Shadow') -> str:
     """Say hi to a name and stream the response.
 
     Args:

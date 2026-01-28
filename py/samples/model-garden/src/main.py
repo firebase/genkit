@@ -132,7 +132,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -177,7 +177,7 @@ async def jokes_flow(subject: Annotated[str, Field(default='banana')] = 'banana'
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(name: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -199,7 +199,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    name: Annotated[str, Field(default='Shadow')] = 'Shadow',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Say hi to a name and stream the response.

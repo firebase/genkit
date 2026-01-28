@@ -4,10 +4,10 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
-## Current Status (Updated 2026-01-26)
+## Current Status (Updated 2026-01-27)
 
 > [!IMPORTANT]
-> **Overall Parity: ~95% Complete** - Most milestones are done!
+> **Overall Parity: ~99% Complete** - Nearly all milestones done!
 
 ### Completed Milestones ✅
 
@@ -18,7 +18,8 @@ This document organizes the identified gaps into executable milestones with depe
 | **M2: Sessions** | ✅ Complete | SessionStore, create/load_session, chat API |
 | **M3: Plugin Parity** | ✅ Complete | Anthropic ThinkingConfig, Google apiVersion/baseUrl |
 | **M4: Telemetry** | ✅ Complete | RealtimeSpanProcessor, flushTracing, AdjustingTraceExporter, GCP parity |
-| **M5: Advanced** | ⚠️ 80% | embed_many ✅, define_simple_retriever ✅, define_background_model ❌ |
+| **M5: Advanced** | ✅ Complete | embed_many ✅, define_simple_retriever ✅, define_background_model ✅ |
+| **M6: Media Models** | ✅ Complete | Veo, Lyria, TTS, Gemini Image models |
 
 ### Remaining Work
 
@@ -26,7 +27,11 @@ This document organizes the identified gaps into executable milestones with depe
 |----------|------|--------|--------|
 | **P0** | Testing Infrastructure (`genkit.testing`) | S | ✅ Complete |
 | **P0** | Context Caching (google-genai) | M | ✅ Complete |
-| **P1** | `define_background_model()` | M | ❌ Not Started |
+| **P1** | `define_background_model()` | M | ✅ Complete |
+| **P1** | Veo support in google-genai plugin | M | ✅ Complete |
+| **P1** | TTS (Text-to-Speech) models | S | ✅ Complete |
+| **P1** | Gemini Image models | S | ✅ Complete |
+| **P1** | Lyria audio generation (Vertex AI) | S | ✅ Complete |
 | **P1** | Live/Realtime API | L | ❌ Not Started |
 | **P2** | Multi-agent sample | M | ❌ Not Started |
 | **P2** | MCP sample | M | ❌ Not Started |
@@ -40,9 +45,13 @@ This document organizes the identified gaps into executable milestones with depe
 
 | Gap | Description | Priority | Status |
 |-----|-------------|----------|--------|
-| **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. | **P0** | 🔄 In Progress |
-| **Context Caching** | `ai.cacheContent()`, `cachedContent` option in generate | **P0** | 🔄 In Progress |
-| **define_background_model** | Needed for Veo, Imagen async operations | **P1** | ❌ Not Started |
+| **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. | **P0** | ✅ Complete |
+| **Context Caching** | `ai.cacheContent()`, `cachedContent` option in generate | **P0** | ✅ Complete |
+| **define_background_model** | Core API for background models (Veo, etc.) | **P1** | ✅ Complete |
+| **Veo plugin support** | Add `veo.py` to google-genai plugin (JS has `veo.ts`) | **P1** | ✅ Complete |
+| **TTS models** | Text-to-speech Gemini models (gemini-*-tts) | **P1** | ✅ Complete |
+| **Gemini Image models** | Native image generation (gemini-*-image) | **P1** | ✅ Complete |
+| **Lyria audio generation** | Audio generation via Vertex AI (lyria-002) | **P1** | ✅ Complete |
 | **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
 | **CLI/Tooling Parity** | `genkit` CLI commands and Python project behavior | Medium | ⚠️ Mostly Working |
 | **Error Types** | Python error hierarchy parity check | Low | ⚠️ Needs Review |
@@ -68,6 +77,70 @@ This document organizes the identified gaps into executable milestones with depe
   - `_build_messages()` - Extracts cache config from message metadata
   - Model integration with `cached_content` option
   - Supported models: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash, etc.
+
+**3. Background Models (`define_background_model`)** ✅ (2026-01-27)
+- Location: `py/packages/genkit/src/genkit/blocks/background_model.py`
+- Implemented:
+  - `Operation` - Typed operation tracking with start/check/cancel
+  - `BackgroundAction` - Wrapper for background model actions
+  - `define_background_model()` - Registers background model with registry
+  - `lookup_background_action()` - Find registered background models
+  - `ai.check_operation()` - Check operation status
+  - `ai.cancel_operation()` - Cancel in-progress operations
+- Sample: `py/samples/media-models-demo/` (comprehensive demo of all media models)
+- Use cases: Video generation (Veo), Image generation (Imagen)
+
+**4. Media Generation Models (google-genai plugin)** ✅ (2026-01-27)
+
+Implemented full parity with JS for all media generation models:
+
+| Model Type | Models | Location | Config Schema |
+|------------|--------|----------|---------------|
+| **Veo (Video)** | veo-2.0, veo-3.0, veo-3.0-fast, veo-3.1 | `models/veo.py` | `VeoConfig` |
+| **Lyria (Audio)** | lyria-002 | `models/lyria.py` | `LyriaConfig` |
+| **TTS (Speech)** | gemini-*-tts | `models/gemini.py` | `GeminiTtsConfigSchema` |
+| **Gemini Image** | gemini-*-image | `models/gemini.py` | `GeminiImageConfigSchema` |
+
+**Sample:** `py/samples/media-models-demo/` - Comprehensive demo with testing instructions.
+
+Helper functions added:
+- `is_veo_model()` - Detect Veo video models
+- `is_lyria_model()` - Detect Lyria audio models  
+- `is_tts_model()` - Detect TTS speech models
+- `is_image_model()` - Detect Gemini image models
+
+Example usage:
+```python
+from genkit import Genkit
+from genkit.plugins.google_genai import GoogleAI, VeoVersion
+
+ai = Genkit(plugins=[GoogleAI()])
+
+# TTS (text-to-speech)
+response = await ai.generate(
+    model='googleai/gemini-2.5-flash-preview-tts',
+    prompt='Hello, welcome to Genkit!',
+    config={'speech_config': {'voice_config': {'prebuilt_voice_config': {'voice_name': 'Kore'}}}}
+)
+
+# Gemini Image generation
+response = await ai.generate(
+    model='googleai/gemini-2.5-flash-image',
+    prompt='A serene mountain landscape at sunset',
+)
+
+# Veo (video) - uses background model pattern
+veo = ai.lookup_background_model(f'googleai/{VeoVersion.VEO_2_0}')
+operation = await veo.start(request)
+while not operation.done:
+    operation = await veo.check(operation)
+
+# Lyria (audio) - Vertex AI only
+response = await ai.generate(
+    model='vertexai/lyria-002',
+    prompt='A peaceful piano melody',
+)
+```
 
 ---
 
@@ -481,9 +554,11 @@ flowchart LR
 | **F4: defineSimpleRetriever()** | S | Quick RAG setup | `_registry.py` |
 
 (Marking done for verified items)
+- [x] F1: defineBackgroundModel() API
 - [x] F3: embedMany() API
 - [x] F4: defineSimpleRetriever()
 - [x] S2: Chatbot sample (chat-demo)
+- [x] Background model sample (background-model-demo)
 
 ---
 

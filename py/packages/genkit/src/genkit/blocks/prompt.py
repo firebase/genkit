@@ -2029,7 +2029,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
-        logger.error(f'Error loading prompts from {full_path}: {e}')
+        logger.exception(f'Error loading prompts from {full_path}', exc_info=e)
 
 
 def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '') -> None:

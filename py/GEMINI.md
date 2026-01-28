@@ -155,6 +155,39 @@
   update relevant documentation and samples.
 * Try to make running the sample flows a one-click operation by always defining
   default input values.
+* **IMPORTANT**: For default values to appear in the Dev UI input fields, use
+  `Annotated` with `pydantic.Field`:
+
+  ```python
+  from typing import Annotated
+  from pydantic import Field
+
+  @ai.flow()
+  async def my_flow(
+      prompt: Annotated[str, Field(default='Hello world')] = 'Hello world',
+  ) -> str:
+      ...
+  ```
+
+  **Wrong** (defaults won't show in Dev UI):
+
+  ```python
+  @ai.flow()
+  async def my_flow(prompt: str = 'Hello world') -> str:
+      ...
+  ```
+
+* **Rich Tracebacks**: Use `rich` for beautiful, Rust-like colored exception
+  messages in samples. Add to imports and call after all imports:
+
+  ```python
+  from rich.traceback import install as install_rich_traceback
+
+  # After all imports, before any code:
+  install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+  ```
+
+  Add `"rich>=13.0.0"` to the sample's `pyproject.toml` dependencies.
 
 ### Formatting
 

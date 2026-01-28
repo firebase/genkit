@@ -220,7 +220,7 @@ class SignalHandler:
                 try:
                     callback()
                 except Exception as e:
-                    logger.error('Error in signal handler callback', error=e)
+                    logger.exception('Error in signal handler callback', exc_info=e)
 
     async def handle_signal_async(self, sig: int) -> None:
         """Async wrapper for the signal handler.

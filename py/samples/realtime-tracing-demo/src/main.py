@@ -72,8 +72,10 @@ Environment Variables
 import asyncio
 import os
 import sys
+from typing import Annotated
 
 import structlog
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.core.trace import is_realtime_telemetry_enabled
@@ -113,7 +115,9 @@ ai = Genkit(
 
 
 @ai.flow(name='slow_multi_step')
-async def slow_multi_step_flow(topic: str = 'Python programming') -> dict:
+async def slow_multi_step_flow(
+    topic: Annotated[str, Field(default='Python programming')] = 'Python programming',
+) -> dict:
     """A multi-step flow with delays to demonstrate realtime tracing.
 
     Watch the DevUI as each step appears immediately when it starts!
@@ -154,7 +158,9 @@ async def slow_multi_step_flow(topic: str = 'Python programming') -> dict:
 
 
 @ai.flow(name='nested_operations')
-async def nested_operations_flow(depth: int = 3) -> str:
+async def nested_operations_flow(
+    depth: Annotated[int, Field(default=3)] = 3,
+) -> str:
     """A flow with nested operations to show parent/child relationships.
 
     In the DevUI, you'll see the hierarchy of spans as they execute.
@@ -181,7 +187,9 @@ async def nested_operations_flow(depth: int = 3) -> str:
 
 
 @ai.flow(name='parallel_tasks')
-async def parallel_tasks_flow(num_tasks: int = 3) -> list[str]:
+async def parallel_tasks_flow(
+    num_tasks: Annotated[int, Field(default=3)] = 3,
+) -> list[str]:
     """Run multiple tasks in parallel to see concurrent spans.
 
     In the DevUI with realtime tracing, you'll see all tasks
@@ -209,7 +217,9 @@ async def parallel_tasks_flow(num_tasks: int = 3) -> list[str]:
 
 
 @ai.flow(name='llm_chain')
-async def llm_chain_flow(initial_prompt: str = 'Tell me a fun fact') -> dict:
+async def llm_chain_flow(
+    initial_prompt: Annotated[str, Field(default='Tell me a fun fact')] = 'Tell me a fun fact',
+) -> dict:
     """Chain multiple LLM calls to see sequential model invocations.
 
     Each model call will appear as a separate span in the DevUI.

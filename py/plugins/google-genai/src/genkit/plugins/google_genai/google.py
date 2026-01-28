@@ -18,6 +18,10 @@
 """Google AI and Vertex AI plugin implementations."""
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from genkit.blocks.background_model import BackgroundAction
 
 from google import genai
 from google.auth.credentials import Credentials
@@ -39,13 +43,27 @@ from genkit.plugins.google_genai.models.embedder import (
 from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
     GeminiConfigSchema,
+    GeminiImageConfigSchema,
     GeminiModel,
+    GeminiTtsConfigSchema,
     google_model_info,
+    is_image_model,
+    is_tts_model,
 )
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
     ImagenModel,
     vertexai_image_model_info,
+)
+from genkit.plugins.google_genai.models.lyria import (
+    LyriaConfig,
+    is_lyria_model,
+    lyria_model_info,
+)
+from genkit.plugins.google_genai.models.veo import (
+    KNOWN_VEO_MODELS,
+    is_veo_model,
+    veo_model_info,
 )
 
 GOOGLEAI_PLUGIN_NAME = 'googleai'
@@ -139,26 +157,52 @@ class GoogleAI(Plugin):
         return [
             *self._list_known_models(),
             *self._list_known_embedders(),
+            *self._list_known_veo_models(),
         ]
 
     def _list_known_models(self) -> list[Action]:
         """List known models as Action objects.
 
         Returns:
-            List of Action objects for known Gemini models.
+            List of Action objects for known Gemini, TTS, and Image models.
         """
         known_model_names = [
-            'gemini-3-flash-preview',
+            # Gemini 3 models (latest)
             'gemini-3-pro-preview',
+            'gemini-3-flash-preview',
+            # Gemini 2.5 models
             'gemini-2.5-pro',
             'gemini-2.5-flash',
             'gemini-2.5-flash-lite',
+            # Gemini 2.0 models
             'gemini-2.0-flash',
             'gemini-2.0-flash-lite',
+            # TTS models (text-to-speech)
+            'gemini-2.5-flash-preview-tts',
+            'gemini-2.5-pro-preview-tts',
+            # Image generation models (Nano Banana)
+            'gemini-2.5-flash-image',  # Fast image generation
+            'gemini-3-pro-image-preview',  # Professional quality
+            # Note: Imagen models (imagen-4, imagen-3) are Vertex AI only
         ]
         actions = []
         for model_name in known_model_names:
             actions.append(self._resolve_model(googleai_name(model_name)))
+        return actions
+
+    def _list_known_veo_models(self) -> list[Action]:
+        """List known Veo models as background model Action objects.
+
+        Returns:
+            List of Action objects for known Veo video generation models.
+        """
+        # BackgroundAction has start_action and check_action - both need to be registered
+        # for lookup_background_action to work correctly
+        actions = []
+        for veo_version in KNOWN_VEO_MODELS:
+            bg_action = self._resolve_veo_model(googleai_name(veo_version.value))
+            actions.append(bg_action.start_action)
+            actions.append(bg_action.check_action)
         return actions
 
     def _list_known_embedders(self) -> list[Action]:
@@ -188,9 +232,68 @@ class GoogleAI(Plugin):
         """
         if action_type == ActionKind.MODEL:
             return self._resolve_model(name)
+        elif action_type == ActionKind.BACKGROUND_MODEL:
+            # For Veo models, return the start action
+            prefix = GOOGLEAI_PLUGIN_NAME + '/'
+            _clean_name = name.replace(prefix, '') if name.startswith(prefix) else name
+            if is_veo_model(_clean_name):
+                bg_action = self._resolve_veo_model(name)
+                return bg_action.start_action
+            return None
+        elif action_type == ActionKind.CHECK_OPERATION:
+            # Check action names are in format {model_name}/check
+            # Extract the model name and resolve if it's a Veo model
+            if name.endswith('/check'):
+                model_name = name[:-6]  # Remove '/check' suffix
+                prefix = GOOGLEAI_PLUGIN_NAME + '/'
+                _clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
+                if is_veo_model(_clean_name):
+                    bg_action = self._resolve_veo_model(model_name)
+                    return bg_action.check_action
+            return None
         elif action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
         return None
+
+    def _resolve_veo_model(self, name: str) -> 'BackgroundAction':
+        """Create a BackgroundAction for a Veo video generation model.
+
+        Args:
+            name: The namespaced name of the model.
+
+        Returns:
+            BackgroundAction for the Veo model.
+        """
+        from genkit.blocks.background_model import BackgroundAction
+        from genkit.plugins.google_genai.models.veo import VeoModel
+
+        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+
+        veo = VeoModel(_clean_name, self._client)
+
+        # Create actions manually since we don't have registry access here
+        start_action = Action(
+            kind=ActionKind.BACKGROUND_MODEL,
+            name=name,
+            fn=veo.start,
+            metadata={
+                'model': veo_model_info(_clean_name).model_dump(),
+                'type': 'background-model',
+            },
+        )
+
+        check_action = Action(
+            kind=ActionKind.CHECK_OPERATION,
+            name=f'{name}/check',
+            fn=lambda op, ctx: veo.check(op),
+            metadata={'type': 'check-operation'},
+        )
+
+        return BackgroundAction(
+            start_action=start_action,
+            check_action=check_action,
+            cancel_action=None,
+        )
 
     def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Google AI model.
@@ -209,6 +312,14 @@ class GoogleAI(Plugin):
 
         gemini_model = GeminiModel(_clean_name, self._client)
 
+        # Determine appropriate config schema based on model type
+        if is_tts_model(_clean_name):
+            config_schema = GeminiTtsConfigSchema
+        elif is_image_model(_clean_name):
+            config_schema = GeminiImageConfigSchema
+        else:
+            config_schema = GeminiConfigSchema
+
         return Action(
             kind=ActionKind.MODEL,
             name=name,
@@ -216,7 +327,7 @@ class GoogleAI(Plugin):
             metadata=model_action_metadata(
                 name=name,
                 info=gemini_model.metadata['model']['supports'],
-                config_schema=GeminiConfigSchema,
+                config_schema=config_schema,
             ).metadata,
         )
 
@@ -358,9 +469,10 @@ class VertexAI(Plugin):
         """List known models as Action objects.
 
         Returns:
-            List of Action objects for known Gemini and Imagen models.
+            List of Action objects for known Gemini, Imagen, TTS, Image, and Lyria models.
         """
         known_model_names = [
+            # Standard Gemini models
             'gemini-2.5-flash-lite',
             'gemini-2.5-pro',
             'gemini-2.5-flash',
@@ -368,7 +480,16 @@ class VertexAI(Plugin):
             'gemini-2.0-flash',
             'gemini-2.0-flash-lite',
             'gemini-2.0-flash-lite-001',
+            # Imagen (image generation)
             'imagen-4.0-generate-001',
+            # TTS models (text-to-speech)
+            'gemini-2.5-flash-preview-tts',
+            'gemini-2.5-pro-preview-tts',
+            # Image models (native Gemini image generation)
+            'gemini-3-pro-image-preview',
+            'gemini-2.5-flash-image',
+            # Lyria models (audio generation)
+            'lyria-002',
         ]
         actions = []
         for model_name in known_model_names:
@@ -420,14 +541,32 @@ class VertexAI(Plugin):
         # Extract local name (remove plugin prefix)
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
+        # Determine model type and create appropriate model instance
         if _clean_name.lower().startswith('image'):
             model_ref = vertexai_image_model_info(_clean_name)
             model = ImagenModel(_clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = None  # TODO: Add ImagenConfigSchema if available
+        elif is_lyria_model(_clean_name):
+            model_ref = lyria_model_info(_clean_name)
+            model = GeminiModel(_clean_name, self._client)  # Lyria uses same API as Gemini
+            SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = LyriaConfig
+        elif is_tts_model(_clean_name):
+            model_ref = google_model_info(_clean_name)
+            model = GeminiModel(_clean_name, self._client)
+            SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = GeminiTtsConfigSchema
+        elif is_image_model(_clean_name):
+            model_ref = google_model_info(_clean_name)
+            model = GeminiModel(_clean_name, self._client)
+            SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = GeminiImageConfigSchema
         else:
             model_ref = google_model_info(_clean_name)
             model = GeminiModel(_clean_name, self._client)
             SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = GeminiConfigSchema
 
         return Action(
             kind=ActionKind.MODEL,
@@ -436,9 +575,7 @@ class VertexAI(Plugin):
             metadata=model_action_metadata(
                 name=name,
                 info=model.metadata['model']['supports'],
-                config_schema=GeminiConfigSchema
-                if not _clean_name.lower().startswith('image')
-                else None,  # TODO: Add ImagenConfigSchema if available
+                config_schema=config_schema,
             ).metadata,
         )
 

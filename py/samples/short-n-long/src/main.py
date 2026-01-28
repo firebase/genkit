@@ -179,7 +179,7 @@ async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(name: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -216,7 +216,7 @@ async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
 
 @ai.flow()
 async def say_hi_with_configured_temperature(
-    data: Annotated[str, Field(default='Alice')] = 'Alice',
+    data: Annotated[str, Field(default='Mittens')] = 'Mittens',
 ) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
@@ -234,7 +234,7 @@ async def say_hi_with_configured_temperature(
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    name: Annotated[str, Field(default='Shadow')] = 'Shadow',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Generate a greeting for the given name.
@@ -257,7 +257,7 @@ async def say_hi_stream(
 
 @ai.flow()
 async def stream_greeting(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Stream a greeting for the given name.
@@ -300,7 +300,7 @@ class RpgCharacter(BaseModel):
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> RpgCharacter:
     """Generate an RPG character.
@@ -331,7 +331,7 @@ async def generate_character(
 
 @ai.flow()
 async def generate_character_unconstrained(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> RpgCharacter:
     """Generate an unconstrained RPG character.
@@ -354,7 +354,7 @@ async def generate_character_unconstrained(
 
 @ai.flow()
 async def generate_images(
-    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
+    name: Annotated[str, Field(default='a fluffy cat')] = 'a fluffy cat',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> GenerateResponseWrapper:
     """Generate images for the given name.

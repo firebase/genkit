@@ -65,7 +65,7 @@ async def my_context_provider(request: RequestData) -> dict:
 @genkit_flask_handler(ai, context_provider=my_context_provider)
 @ai.flow()
 async def say_hi(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    name: Annotated[str, Field(default='Mittens')] = 'Mittens',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> GenerateResponseWrapper:
     """Say hi to the user."""

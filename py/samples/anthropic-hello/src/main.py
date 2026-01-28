@@ -160,7 +160,7 @@ async def describe_image(
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -191,7 +191,7 @@ def get_weather(input: WeatherInput) -> str:
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(name: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Generate a simple greeting.
 
     Args:
@@ -208,7 +208,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 @ai.flow()
 async def say_hi_stream(
-    topic: Annotated[str, Field(default='space exploration')] = 'space exploration',
+    topic: Annotated[str, Field(default='cats and their behaviors')] = 'cats and their behaviors',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Generate streaming response.
@@ -228,7 +228,7 @@ async def say_hi_stream(
 
 
 @ai.flow()
-async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi_with_config(name: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Generate greeting with custom configuration.
 
     Args:
@@ -249,7 +249,7 @@ async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Ali
 
 @ai.flow()
 async def thinking_demo(
-    question: Annotated[str, Field(default='Explain quantum entanglement')] = 'Explain quantum entanglement',
+    question: Annotated[str, Field(default='Why do cats purr?')] = 'Why do cats purr?',
 ) -> str:
     """Demonstrate Anthropic thinking capability.
 

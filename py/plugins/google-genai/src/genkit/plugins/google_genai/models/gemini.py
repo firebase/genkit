@@ -636,20 +636,90 @@ DEFAULT_SUPPORTS_MODEL = Supports(
 )
 
 
+def is_tts_model(name: str) -> bool:
+    """Check if a model name is a TTS (text-to-speech) model.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a TTS model (ends with '-tts').
+    """
+    return name.startswith('gemini-') and name.endswith('-tts')
+
+
+def is_image_model(name: str) -> bool:
+    """Check if a model name is a Gemini Image model.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a Gemini Image model (contains '-image').
+    """
+    return name.startswith('gemini-') and '-image' in name
+
+
+def is_gemma_model(name: str) -> bool:
+    """Check if a model name is a Gemma model.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a Gemma model.
+    """
+    return name.startswith('gemma-')
+
+
+def is_gemini_model(name: str) -> bool:
+    """Check if a model name is a standard Gemini model.
+
+    Excludes TTS and Image variants.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a standard Gemini model.
+    """
+    return name.startswith('gemini-') and not is_tts_model(name) and not is_image_model(name)
+
+
 def google_model_info(
     version: str,
 ) -> ModelInfo:
     """Generates a ModelInfo object.
 
-    This function tries to get the best ModelInfo Supports
-    for the given version.
+    This function returns the best ModelInfo Supports based on model type.
+    Detects TTS, Image, Gemma, and standard Gemini models.
 
     Args:
         version: Version of the model.
 
     Returns:
-        ModelInfo object.
+        ModelInfo object with appropriate capabilities.
     """
+    # Check for specific model types
+    if is_tts_model(version):
+        return ModelInfo(
+            label=f'Google AI - {version}',
+            supports=GENERIC_TTS_MODEL.supports,
+        )
+
+    if is_image_model(version):
+        return ModelInfo(
+            label=f'Google AI - {version}',
+            supports=GENERIC_IMAGE_MODEL.supports,
+        )
+
+    if is_gemma_model(version):
+        return ModelInfo(
+            label=f'Google AI - {version}',
+            supports=GENERIC_GEMMA_MODEL.supports,
+        )
+
+    # Default to standard Gemini capabilities
     return ModelInfo(
         label=f'Google AI - {version}',
         supports=DEFAULT_SUPPORTS_MODEL,
@@ -849,6 +919,18 @@ class GeminiModel:
 
         # TODO: do not move - this method mutates `request` by extracting system prompts into configuration object
         request_cfg = self._genkit_to_googleai_cfg(request=request)
+
+        # TTS models require response_modalities: ["AUDIO"]
+        if is_tts_model(model_name):
+            if not request_cfg:
+                request_cfg = genai_types.GenerateContentConfig()
+            request_cfg.response_modalities = ['AUDIO']
+
+        # Image models require response_modalities: ["TEXT", "IMAGE"]
+        if is_image_model(model_name):
+            if not request_cfg:
+                request_cfg = genai_types.GenerateContentConfig()
+            request_cfg.response_modalities = ['TEXT', 'IMAGE']
 
         request_contents, cached_content = await self._build_messages(request=request, model_name=model_name)
 

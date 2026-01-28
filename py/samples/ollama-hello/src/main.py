@@ -218,7 +218,7 @@ def gablorken_tool(input: GablorkenInput) -> int:
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    name: Annotated[str, Field(default='Whiskers')] = 'Whiskers',
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -243,7 +243,7 @@ def get_weather(input: WeatherToolInput) -> str:
 
 
 @ai.flow()
-async def say_hi(hi_input: Annotated[str, Field(default='World')] = 'World') -> str:
+async def say_hi(hi_input: Annotated[str, Field(default='Mittens')] = 'Mittens') -> str:
     """Generate a request to greet a user.
 
     Args:
@@ -260,7 +260,7 @@ async def say_hi(hi_input: Annotated[str, Field(default='World')] = 'World') -> 
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')] = 'John Doe') -> str:
+async def say_hi_constrained(hi_input: Annotated[str, Field(default='Fluffy')] = 'Fluffy') -> str:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:
@@ -291,7 +291,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')]
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    name: Annotated[str, Field(default='Shadow')] = 'Shadow',
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Generate a greeting for the given name.
