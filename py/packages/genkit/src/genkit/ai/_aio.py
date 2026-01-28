@@ -639,6 +639,34 @@ class Genkit(GenkitBase):
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
 
+    @overload
+    def generate_stream(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        *,
+        output: Output[OutputT],
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[
+        AsyncIterator[GenerateResponseChunkWrapper],
+        asyncio.Future[GenerateResponseWrapper[OutputT]],
+    ]: ...
+
+    @overload
     def generate_stream(
         self,
         model: str | None = None,
@@ -661,7 +689,32 @@ class Genkit(GenkitBase):
         timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
-        asyncio.Future[GenerateResponseWrapper],
+        asyncio.Future[GenerateResponseWrapper[Any]],
+    ]: ...
+
+    def generate_stream(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[
+        AsyncIterator[GenerateResponseChunkWrapper],
+        asyncio.Future[GenerateResponseWrapper[Any]],
     ]:
         """Streams generated text or structured data using a language model.
 

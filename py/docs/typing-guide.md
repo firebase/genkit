@@ -175,17 +175,18 @@ async def process(data: UserInput) -> ProcessedOutput:
 ### 2. Define Output Schemas for Structured Output
 
 ```python
+from genkit import Output
+
 # ❌ Avoid: Parsing JSON manually
 response = await ai.generate(prompt="Return JSON...")
 data = json.loads(response.text)  # No type info!
 
-# ✅ Prefer: Use output_schema
+# ✅ Prefer: Use Output[T] for typed results
 response = await ai.generate(
     prompt="...",
-    output_schema=MyOutputType,
-    output_format="json",
+    output=Output(schema=MyOutputType),
 )
-data: MyOutputType = response.output  # Fully typed!
+data = response.output  # Fully typed as MyOutputType!
 ```
 
 ### 3. Use Literal Types for Constrained Values
