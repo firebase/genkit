@@ -1,3 +1,5 @@
+# Genkit JS Setup
+
 Follow these instructions to set up Genkit in the current codebase. These instructions are general-purpose and have not been written with specific codebase knowledge, so use your best judgement when following them.
 
 0. Tell the user "I'm going to check out your workspace and set you up to use Genkit for GenAI workflows."
@@ -13,7 +15,7 @@ import { googleAI } from '@genkit-ai/google-genai';
 
 export const ai = genkit({
   plugins: [googleAI()],
-  model: googleAI.model('gemini-2.5-flash'),
+  model: googleAI.model('gemini-3-flash-preview'),
 });
 
 export { z };
