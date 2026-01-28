@@ -45,7 +45,7 @@ import httpx
 from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionRunContext, Genkit
+from genkit.ai import ActionRunContext, Genkit, Output
 from genkit.plugins.compat_oai import OpenAI, openai_model
 
 if 'OPENAI_API_KEY' not in os.environ:
@@ -247,7 +247,7 @@ async def generate_character(
     if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
             prompt=f'generate an RPG character named {name} with gablorken based on 42',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
             config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
             tools=['gablorkenTool'],
         )
@@ -258,7 +258,7 @@ async def generate_character(
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name} with gablorken based on 13',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
             config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
             tools=['gablorkenTool'],
         )
@@ -281,7 +281,7 @@ async def get_weather_flow(location: Annotated[str, Field(default='New York')] =
         config={'model': 'gpt-4o-mini-2024-07-18', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
         tools=['get_weather_tool'],
-        output_schema=WeatherResponse,
+        output=Output(schema=WeatherResponse),
     )
     return response.text
 
@@ -303,7 +303,7 @@ async def get_weather_flow_stream(location: Annotated[str, Field(default='New Yo
         config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
         tools=['get_weather_tool', 'gablorkenTool'],
-        output_schema=WeatherResponse,
+        output=Output(schema=WeatherResponse),
     )
     result: str = ''
     async for data in stream:
@@ -341,7 +341,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 
     """
     response = await ai.generate(
         prompt='hi ' + hi_input,
-        output_schema=HelloSchema,
+        output=Output(schema=HelloSchema),
     )
     return cast(HelloSchema, response.output)
 
