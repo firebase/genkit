@@ -295,7 +295,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
-        telemetry_labels: dict[str, object] | None = None,
+        _telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse[OutputT]:
         """Executes the action synchronously with the given input.
 
@@ -334,7 +334,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
         on_trace_start: Callable[[str], None] | None = None,
-        telemetry_labels: dict[str, object] | None = None,
+        _telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse[OutputT]:
         """Executes the action asynchronously with the given input.
 
@@ -454,7 +454,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         action_args: list[str],
         arg_types: list[type],
         annotations: dict[str, Any],
-        input_spec: inspect.FullArgSpec,
+        _input_spec: inspect.FullArgSpec,
     ) -> None:
         """Initializes input/output schemas based on function signature and hints.
 

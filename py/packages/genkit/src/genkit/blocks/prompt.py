@@ -2126,7 +2126,7 @@ async def prompt(
     registry: Registry,
     name: str,
     variant: str | None = None,
-    dir: str | Path | None = None,  # Accepted but not used
+    _dir: str | Path | None = None,  # Accepted but not used
 ) -> ExecutablePrompt:
     """Look up a prompt by name and optional variant.
 

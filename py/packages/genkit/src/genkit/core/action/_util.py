@@ -21,13 +21,13 @@ from collections.abc import Mapping
 from typing import Any
 
 
-def noop_streaming_callback(chunk: Any) -> None:  # noqa: ANN401
+def noop_streaming_callback(_chunk: Any) -> None:  # noqa: ANN401
     """A no-op streaming callback.
 
     This callback does nothing and is used when no streaming is desired.
 
     Args:
-        chunk: The chunk to send to the client.
+        _chunk: The chunk (unused, callback is a no-op).
 
     Returns:
         None.

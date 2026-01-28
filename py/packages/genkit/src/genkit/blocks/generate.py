@@ -442,7 +442,7 @@ def resolve_instructions(formatter: Formatter[Any, Any], instructions_opt: bool 
 
 
 def apply_transfer_preamble(
-    next_request: GenerateActionOptions, preamble: GenerateActionOptions
+    next_request: GenerateActionOptions, _preamble: GenerateActionOptions
 ) -> GenerateActionOptions:
     """Applies relevant properties from a preamble request to the next request.
 
@@ -584,7 +584,7 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
     return new_request
 
 
-def assert_valid_tool_names(raw_request: GenerateActionOptions) -> None:
+def assert_valid_tool_names(_raw_request: GenerateActionOptions) -> None:
     """Assert that tool names in the request are valid.
 
     Args:
@@ -637,7 +637,7 @@ async def resolve_parameters(
 
 
 async def action_to_generate_request(
-    options: GenerateActionOptions, resolved_tools: list[Action], model: Action
+    options: GenerateActionOptions, resolved_tools: list[Action], _model: Action
 ) -> GenerateRequest:
     """Convert generate action options to a generate request.
 
@@ -854,7 +854,7 @@ async def resolve_tool(registry: Registry, tool_name: str) -> Action:
 
 
 async def _resolve_resume_options(
-    registry: Registry, raw_request: GenerateActionOptions
+    _registry: Registry, raw_request: GenerateActionOptions
 ) -> tuple[GenerateActionOptions, GenerateResponse | None, Message | None]:
     """Resolves tool calls from a previous turn when resuming generation.
 

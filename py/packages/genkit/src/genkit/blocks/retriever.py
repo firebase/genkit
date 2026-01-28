@@ -222,7 +222,7 @@ def define_retriever(
 
     async def wrapper(
         request: RetrieverRequest,
-        ctx: Any,  # noqa: ANN401
+        _ctx: Any,  # noqa: ANN401
     ) -> RetrieverResponse:
         query = Document.from_document_data(request.query)
         res = fn(query, request.options)
@@ -251,7 +251,7 @@ def define_indexer(
 
     async def wrapper(
         request: IndexerRequest,
-        ctx: Any,  # noqa: ANN401
+        _ctx: Any,  # noqa: ANN401
     ) -> None:
         docs = [Document.from_document_data(d) for d in request.documents]
         res = fn(docs, request.options)

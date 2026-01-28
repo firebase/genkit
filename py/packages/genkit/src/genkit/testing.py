@@ -321,12 +321,12 @@ class StaticResponseModel:
         self.last_request: GenerateRequest | None = None
         self.request_count: int = 0
 
-    def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    def model_fn(self, request: GenerateRequest, _ctx: ActionRunContext) -> GenerateResponse:
         """Return the static response.
 
         Args:
             request: The generation request (stored but not used).
-            ctx: The action run context (unused).
+            _ctx: The action run context (unused).
 
         Returns:
             GenerateResponse with the static message.

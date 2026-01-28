@@ -118,11 +118,11 @@ def create_flows_asgi_app(
     routes = []
     logger = structlog.get_logger(__name__)
 
-    async def health_check(request: Request) -> JSONResponse:
+    async def health_check(_request: Request) -> JSONResponse:
         """Handle health check requests.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             A JSON response with status code 200.

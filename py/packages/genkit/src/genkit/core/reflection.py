@@ -149,7 +149,7 @@ def create_reflection_asgi_app(
     on_app_startup: StartupHandler | None = None,
     on_app_shutdown: StartupHandler | None = None,
     version: str = DEFAULT_GENKIT_VERSION,
-    encoding: str = 'utf-8',
+    _encoding: str = 'utf-8',
 ) -> Application:
     """Create and return a ASGI application for the Genkit reflection API.
 
@@ -184,22 +184,22 @@ def create_reflection_asgi_app(
         An ASGI application configured with the given registry.
     """
 
-    async def handle_health_check(request: Request) -> JSONResponse:
+    async def handle_health_check(_request: Request) -> JSONResponse:
         """Handle health check requests.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             A JSON response with status code 200.
         """
         return JSONResponse(content={'status': 'OK'})
 
-    async def handle_terminate(request: Request) -> JSONResponse:
+    async def handle_terminate(_request: Request) -> JSONResponse:
         """Handle the quit endpoint.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             An empty JSON response with status code 200.
@@ -208,11 +208,11 @@ def create_reflection_asgi_app(
         terminate_all_servers()
         return JSONResponse(content={'status': 'OK'})
 
-    async def handle_list_actions(request: Request) -> JSONResponse:
+    async def handle_list_actions(_request: Request) -> JSONResponse:
         """Handle the request for listing available actions.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             A JSON response containing all serializable actions.
@@ -248,22 +248,22 @@ def create_reflection_asgi_app(
         values = registry.list_values(kind)
         return JSONResponse(content=values, status_code=200)
 
-    async def handle_list_envs(request: Request) -> JSONResponse:
+    async def handle_list_envs(_request: Request) -> JSONResponse:
         """Handle the request for listing environments.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
              A JSON response containing environments.
         """
         return JSONResponse(content=['dev'], status_code=200)
 
-    async def handle_notify(request: Request) -> JSONResponse:
+    async def handle_notify(_request: Request) -> JSONResponse:
         """Handle the notification endpoint.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             An empty JSON response with status code 200.
@@ -357,7 +357,7 @@ def create_reflection_asgi_app(
     async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: object,
+        _action_input: object,
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
@@ -470,7 +470,7 @@ def create_reflection_asgi_app(
     async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: object,
+        _action_input: object,
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
