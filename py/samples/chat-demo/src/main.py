@@ -16,8 +16,13 @@
 
 """Chat Demo with Streamlit UI.
 
-Key features demonstrated in this sample:
+This sample implements a web-based chatbot using Streamlit. It uses the
+ai.chat() convenience API with threads for managing multiple conversations.
 
+See README.md for testing instructions.
+
+Key Features
+============
 | Feature Description                     | Example Usage                           |
 |-----------------------------------------|-----------------------------------------|
 | ai.chat() convenience API               | `chat = ai.chat(system='...')`          |
@@ -25,9 +30,6 @@ Key features demonstrated in this sample:
 | Chat.send_stream() for streaming        | `result = chat.send_stream('Hi')`       |
 | Thread-based conversations              | `ai.chat(thread='conv1')`               |
 | Multiple parallel conversations         | Each conversation is a separate thread  |
-
-This sample implements a web-based chatbot using Streamlit. It uses the
-ai.chat() convenience API with threads for managing multiple conversations.
 """
 
 import asyncio

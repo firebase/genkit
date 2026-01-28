@@ -100,3 +100,36 @@ provider.add_span_processor(processor)
 - `session-demo/` - Multi-turn conversations
 - `chat-demo/` - Chat application with streaming
 - `tool-interrupts/` - Human-in-the-loop workflows
+
+## Testing This Demo
+
+1. **Prerequisites**:
+   ```bash
+   export GEMINI_API_KEY=your_api_key
+   ```
+   Or the demo will prompt for the key interactively.
+
+2. **Run the demo**:
+   ```bash
+   cd py/samples/realtime-tracing-demo
+   ./run.sh  # This sets GENKIT_ENABLE_REALTIME_TELEMETRY=true
+   ```
+
+3. **Open DevUI** at http://localhost:4000
+
+4. **Test realtime tracing**:
+   - [ ] Open the Traces tab in DevUI
+   - [ ] Trigger a multi-step flow
+   - [ ] Watch spans appear IMMEDIATELY as they start
+   - [ ] Compare to non-realtime (spans appear at end)
+
+5. **Test flows**:
+   - [ ] `multi_step_flow` - See each step appear in order
+   - [ ] `nested_flow` - See parent/child span hierarchy
+   - [ ] `long_running_flow` - Watch progress of slow tasks
+
+6. **Expected behavior**:
+   - Spans appear in DevUI as soon as they START
+   - You see "in progress" spans while they're running
+   - Nested spans show proper parent/child relationships
+   - Long-running spans show duration updating in real-time

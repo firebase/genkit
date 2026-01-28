@@ -46,3 +46,25 @@ If you prefer to set up manually:
    ```bash
    genkit start -- uv run src/main.py
    ```
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test basic flows**:
+   - [ ] `say_hi` - Simple generation with gemma3
+   - [ ] `say_hi_stream` - Streaming response
+   - [ ] `say_hi_constrained` - Constrained output
+
+3. **Test tools** (requires mistral-nemo):
+   - [ ] `calculate_gablorken` - Tool calling demo
+
+4. **Notes**:
+   - gemma2:latest does NOT support tool calling
+   - Use mistral-nemo for tool-based flows
+   - First run may be slow (model loading)
+
+5. **Expected behavior**:
+   - Responses generated locally (no API calls)
+   - Streaming shows incremental output
+   - Tools work with compatible models only

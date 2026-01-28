@@ -246,13 +246,6 @@ export type OpenAIPlugin = {
   (params?: OpenAIPluginOptions): GenkitPluginV2;
   model(
     name:
-      | keyof typeof SUPPORTED_GPT_MODELS
-      | (`gpt-${string}` & {})
-      | (`o${number}` & {}),
-    config?: z.infer<typeof OpenAIChatCompletionConfigSchema>
-  ): ModelReference<typeof OpenAIChatCompletionConfigSchema>;
-  model(
-    name:
       | keyof typeof SUPPORTED_IMAGE_MODELS
       | (`dall-e${string}` & {})
       | (`gpt-image-${string}` & {}),
@@ -272,6 +265,13 @@ export type OpenAIPlugin = {
       | (`${string}-transcribe` & {}),
     config?: z.infer<typeof TranscriptionConfigSchema>
   ): ModelReference<typeof TranscriptionConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_GPT_MODELS
+      | (`gpt-${string}` & {})
+      | (`o${number}` & {}),
+    config?: z.infer<typeof OpenAIChatCompletionConfigSchema>
+  ): ModelReference<typeof OpenAIChatCompletionConfigSchema>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
   embedder(
     name:

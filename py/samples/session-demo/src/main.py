@@ -14,7 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Session Demo."""
+"""Session Demo - Managing Conversation State with Genkit Sessions.
+
+This sample demonstrates how to use Genkit's session management capabilities
+to maintain conversation state across multiple interactions.
+
+See README.md for testing instructions.
+
+Key Features
+============
+| Feature                          | Description                              |
+|----------------------------------|------------------------------------------|
+| `InMemorySessionStore`           | Store sessions in memory                 |
+| `Session` object                 | Encapsulates conversation state          |
+| `session.create()`               | Create new session with initial state    |
+| `session.load()`                 | Load existing session by ID              |
+| `session.state`                  | Access/modify session state dict         |
+| Multi-provider support           | Works with Google, Anthropic, OpenAI     |
+"""
 
 import asyncio
 import logging

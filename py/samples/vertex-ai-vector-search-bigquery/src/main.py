@@ -16,14 +16,59 @@
 
 """Vertex AI Vector Search with BigQuery sample.
 
-Key features demonstrated in this sample:
+This sample demonstrates how to use Vertex AI Vector Search with BigQuery
+as the document store for large-scale analytics-friendly vector search.
 
+Key Features
+============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | BigQuery Vector Search Definition       | `define_vertex_vector_search_big_query`|
 | BigQuery Client Integration             | `bigquery.Client()`                 |
 | Document Retrieval with Filters         | `ai.retrieve(..., options={'limit': ...})`|
 | Performance Metrics                     | Duration tracking                   |
+
+Testing This Demo
+=================
+1. **Prerequisites** - Set up GCP resources:
+   ```bash
+   # Required environment variables
+   export LOCATION=us-central1
+   export PROJECT_ID=your_project_id
+   export BIGQUERY_DATASET_NAME=your_dataset
+   export BIGQUERY_TABLE_NAME=your_table
+   export VECTOR_SEARCH_DEPLOYED_INDEX_ID=your_deployed_index_id
+   export VECTOR_SEARCH_INDEX_ENDPOINT_PATH=your_endpoint_path
+   export VECTOR_SEARCH_API_ENDPOINT=your_api_endpoint
+
+   # Authenticate with GCP
+   gcloud auth application-default login
+   ```
+
+2. **GCP Setup Required**:
+   - Create Vertex AI Vector Search index
+   - Deploy index to an endpoint
+   - Create BigQuery dataset and table with embeddings
+   - Ensure table schema matches expected format
+
+3. **Run the demo**:
+   ```bash
+   cd py/samples/vertex-ai-vector-search-bigquery
+   ./run.sh
+   ```
+
+4. **Open DevUI** at http://localhost:4000
+
+5. **Test the flows**:
+   - [ ] `retrieve_documents` - Vector similarity search
+   - [ ] Test with limit options
+   - [ ] Check performance metrics in output
+
+6. **Expected behavior**:
+   - Query is embedded and sent to Vector Search
+   - Similar vectors are found and IDs returned
+   - BigQuery is queried for full document content
+   - Duration metrics show performance
 """
 
 import os

@@ -45,3 +45,26 @@ export ANTHROPIC_API_KEY=your-api-key
 ```bash
 genkit start -- uv run src/main.py
 ```
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test basic flows**:
+   - [ ] `say_hi` - Simple greeting generation
+   - [ ] `say_hi_stream` - Streaming response
+   - [ ] `say_hi_with_config` - Custom temperature
+
+3. **Test tools**:
+   - [ ] `weather_flow` - Weather tool calling
+   - [ ] `currency_exchange` - Currency conversion tool
+
+4. **Test advanced features**:
+   - [ ] `thinking_demo` - Chain-of-thought reasoning
+   - [ ] `describe_image` - Image description (multimodal)
+
+5. **Expected behavior**:
+   - Claude responds appropriately to prompts
+   - Tools are invoked and responses integrated
+   - Thinking mode shows reasoning process
+   - Image descriptions are accurate

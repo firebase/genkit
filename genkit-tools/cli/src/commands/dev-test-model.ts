@@ -16,6 +16,7 @@
 
 import {
   GenerateRequestData,
+  GenerateResponseChunkData,
   GenerateResponseData,
   GenerateResponseSchema,
   Part,
@@ -40,6 +41,7 @@ type TestCase = {
   name: string;
   input: GenerateRequestData;
   validators: string[];
+  stream?: boolean;
 };
 
 type TestSuite = {
@@ -68,7 +70,11 @@ const imageBase64 =
 
 const VALIDATORS: Record<
   string,
-  (response: GenerateResponseData, arg?: string) => void
+  (
+    response: GenerateResponseData,
+    arg?: string,
+    chunks?: GenerateResponseChunkData[]
+  ) => void
 > = {
   'has-tool-request': (response, toolName) => {
     const content = getMessageContent(response);
@@ -137,6 +143,53 @@ const VALIDATORS: Record<
       );
     }
   },
+  'stream-text-includes': (response, expected, chunks) => {
+    if (!chunks || chunks.length === 0) {
+      throw new Error('Streaming expected but no chunks were received');
+    }
+
+    const streamedText = chunks
+      .map((c) => c.content?.find((p: any) => p.text)?.text || '')
+      .join('');
+
+    if (expected && !streamedText.includes(expected)) {
+      throw new Error(`Streaming response did not include ${expected}'`);
+    }
+  },
+  'stream-has-tool-request': (response, toolName, chunks) => {
+    if (!chunks || chunks.length === 0) {
+      throw new Error('Streaming expected but no chunks were received');
+    }
+
+    const hasTool = chunks.some((c) =>
+      c.content?.some((p: any) => !!p.toolRequest)
+    );
+    if (!hasTool) {
+      throw new Error('No tool request found in the streamed chunks');
+    }
+
+    if (toolName) {
+      VALIDATORS['has-tool-request'](response, toolName);
+    }
+  },
+  'stream-valid-json': (response, arg, chunks) => {
+    if (!chunks || chunks.length === 0) {
+      throw new Error('Streaming expected but no chunks were received');
+    }
+
+    const streamedText = chunks
+      .map((c) => c.content?.find((p: any) => p.text)?.text || '')
+      .join('');
+
+    if (!streamedText.trim()) {
+      throw new Error('Streamed response contained no text');
+    }
+    try {
+      JSON.parse(streamedText);
+    } catch (e) {
+      throw new Error(`Streamed text is not valid JSON: ${streamedText}`);
+    }
+  },
   'text-starts-with': (response, expected) => {
     const text = getMessageText(response);
     if (!text || (expected && !text.trim().startsWith(expected))) {
@@ -182,6 +235,18 @@ const VALIDATORS: Record<
       } else {
         throw new Error(`Unknown URL format: ${url}`);
       }
+    }
+  },
+  reasoning: (response) => {
+    const content = getMessageContent(response);
+
+    if (!content || !Array.isArray(content)) {
+      throw new Error(`Response is missing message content`);
+    }
+
+    const hasReasoning = content.some((p: any) => !!p.reasoning);
+    if (!hasReasoning) {
+      throw new Error(`reasoning content not found`);
     }
   },
 };
@@ -246,6 +311,71 @@ const TEST_CASES: Record<string, TestCase> = {
       ],
     },
     validators: ['text-includes:Genkit'],
+  },
+  'streaming-multiturn': {
+    name: 'Multiturn Conformance with streaming',
+    stream: true,
+    input: {
+      messages: [
+        { role: 'user', content: [{ text: 'My name is Genkit.' }] },
+        { role: 'model', content: [{ text: 'Hello Genkit.' }] },
+        { role: 'user', content: [{ text: 'What is my name?' }] },
+      ],
+    },
+    validators: ['stream-text-includes:Genkit'],
+  },
+  'streaming-tool-request': {
+    name: 'Tool Request Conformance with streaming',
+    stream: true,
+    input: {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'What is the weather in New York? Use the weather tool' },
+          ],
+        },
+      ],
+      tools: [
+        {
+          name: 'weather',
+          description: 'Get the weather for a city',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              city: { type: 'string' },
+            },
+            required: ['city'],
+          },
+        },
+      ],
+    },
+    validators: ['stream-has-tool-request:weather'],
+  },
+  'streaming-structured-output': {
+    name: 'Structured Output Conformance with streaming',
+    stream: true,
+    input: {
+      messages: [
+        {
+          role: 'user',
+          content: [{ text: 'Generate a movie review for John Wick' }],
+        },
+      ],
+      output: {
+        format: 'json',
+        schema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            rating: { type: 'number' },
+          },
+          required: ['name', 'rating'],
+        },
+        constrained: true,
+      },
+    },
+    validators: ['stream-valid-json'],
   },
   'system-role': {
     name: 'System Role Conformance',
@@ -363,11 +493,25 @@ async function runTest(
   try {
     // Adjust model name if needed (e.g. /model/ prefix)
     const modelKey = model.startsWith('/') ? model : `/model/${model}`;
-    const actionResponse = await manager.runAction({
-      key: modelKey,
-      input: testCase.input,
-    });
+    const shouldStream = !!testCase.stream;
 
+    const collectedChunks: any[] = [];
+
+    const actionResponse = await manager.runAction(
+      {
+        key: modelKey,
+        input: testCase.input,
+      },
+      shouldStream
+        ? (chunk) => {
+            collectedChunks.push(chunk);
+          }
+        : undefined
+    );
+
+    if (shouldStream && collectedChunks.length === 0) {
+      throw new Error('Streaming requested but no chunks received.');
+    }
     const response = GenerateResponseSchema.parse(actionResponse.result);
 
     for (const v of testCase.validators) {
@@ -375,7 +519,7 @@ async function runTest(
       const arg = args.join(':');
       const validator = VALIDATORS[valName];
       if (!validator) throw new Error(`Unknown validator: ${valName}`);
-      validator(response, arg);
+      validator(response, arg, collectedChunks);
     }
 
     logger.info(`✅ Passed: ${testCase.name}`);
@@ -424,6 +568,7 @@ async function runTestSuite(
         name: test.name || 'Custom Test',
         input: test.input,
         validators: test.validators || [],
+        stream: test.stream,
       };
       promises.push(runTest(manager, suite.model, customTestCase));
     }
@@ -442,8 +587,8 @@ export const devTestModel = new Command('dev:test-model')
   .argument('[args...]', 'Command arguments')
   .option(
     '--supports <list>',
-    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image)',
-    'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url'
+    'Comma-separated list of supported capabilities (tool-request, structured-output, multiturn, system-role, input-image-base64, input-image-url, input-video-youtube, output-audio, output-image, streaming-multiturn, reasoning)',
+    'tool-request,structured-output,multiturn,system-role,input-image-base64,input-image-url,streaming-multiturn,streaming-tool-request,streaming-structured-output'
   )
   .option('--from-file <file>', 'Path to a file containing test payloads')
   .action(

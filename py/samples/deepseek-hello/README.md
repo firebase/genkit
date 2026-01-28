@@ -46,3 +46,27 @@ export DEEPSEEK_API_KEY=your-api-key
 ```bash
 genkit start -- uv run src/main.py
 ```
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test basic flows**:
+   - [ ] `say_hi` - Simple generation with deepseek-chat
+   - [ ] `streaming_flow` - Streaming response
+   - [ ] `custom_config_flow` - Custom temperature/config
+
+3. **Test tools**:
+   - [ ] `weather_flow` - Tool calling
+
+4. **Test reasoning** (deepseek-reasoner):
+   - [ ] `reasoning_flow` - Chain-of-thought reasoning
+   - [ ] Note: Reasoning shows detailed thought process
+
+5. **Test chat**:
+   - [ ] `chat_flow` - Multi-turn conversation
+
+6. **Expected behavior**:
+   - deepseek-chat: Fast, capable responses
+   - deepseek-reasoner: Detailed reasoning chains
+   - Tools work with compatible models

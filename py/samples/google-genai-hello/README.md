@@ -64,3 +64,34 @@ To test Google Cloud Platform telemetry (tracing and metrics), you need a GCP pr
     ```bash
     genkit start -- uv run src/main.py --enable-gcp-telemetry
     ```
+
+## Testing This Demo
+
+1. **Open DevUI** at http://localhost:4000
+
+2. **Test basic flows**:
+   - [ ] `say_hi` - Simple text generation
+   - [ ] `say_hi_stream` - Streaming generation (watch text appear)
+   - [ ] `say_hi_with_configured_temperature` - Generation with config
+
+3. **Test tools**:
+   - [ ] `simple_generate_with_tools_flow` - Tool calling
+   - [ ] `simple_generate_with_interrupts` - Tool interrupts
+
+4. **Test structured output**:
+   - [ ] `generate_character` - RPG character generation
+   - [ ] `generate_character_unconstrained` - Without constraints
+
+5. **Test advanced features**:
+   - [ ] `embed_docs` - Document embedding
+   - [ ] `generate_images` - Image generation (if model supports)
+   - [ ] `thinking_level_pro` / `thinking_level_flash` - Chain of thought
+   - [ ] `search_grounding` - Web search grounding
+   - [ ] `url_context` - URL context injection
+   - [ ] `youtube_videos` - Video input processing
+
+6. **Expected behavior**:
+   - All flows should complete without errors
+   - Streaming shows incremental output
+   - Structured output matches Pydantic schemas
+   - Tools are called and responses processed
