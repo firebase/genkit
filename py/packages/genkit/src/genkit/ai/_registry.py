@@ -248,12 +248,12 @@ class GenkitRegistry:
             )
 
             @wraps(func)
-            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            async def async_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Asynchronous wrapper for the flow function.
 
                 Args:
                     *args: Positional arguments to pass to the flow function.
-                    **kwargs: Keyword arguments to pass to the flow function.
+                    **_kwargs: Keyword arguments (unused, for signature compatibility).
 
                 Returns:
                     The response from the flow function.
@@ -263,12 +263,12 @@ class GenkitRegistry:
                 return (await action.arun(input_arg)).response
 
             @wraps(func)
-            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            def sync_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Synchronous wrapper for the flow function.
 
                 Args:
                     *args: Positional arguments to pass to the flow function.
-                    **kwargs: Keyword arguments to pass to the flow function.
+                    **_kwargs: Keyword arguments (unused, for signature compatibility).
 
                 Returns:
                     The response from the flow function.
