@@ -207,11 +207,24 @@ async def test_typed_executable_prompt() -> None:
     4. Type "response.output." and press Ctrl+Space - should show:
        title, content, moral
     """
-    # Define a prompt with typed output
+    # Define a prompt with typed output (basic usage)
     story_prompt = ai.define_prompt(
         name='story',
         prompt='Write a story about {topic}',
         output=Output(schema=StoryOutput),  # <-- The magic! Type captured
+    )
+
+    # Define a prompt with ALL Output fields
+    story_prompt_full = ai.define_prompt(
+        name='story_full',
+        prompt='Write a story about {topic}',
+        output=Output(
+            schema=StoryOutput,      # Required: the type for output
+            format='json',           # Output format (default: 'json')
+            content_type='application/json',  # MIME type
+            instructions=True,       # Include formatting instructions in prompt
+            constrained=True,        # Constrain model output to schema
+        ),
     )
 
     # story_prompt is ExecutablePrompt[StoryOutput]
