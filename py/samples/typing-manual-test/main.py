@@ -172,3 +172,101 @@ async def test_typed_output_with_mock() -> None:
 # The Output class preserves the generic type parameter through to the response,
 # so the type checker knows exactly what type response.output will be.
 # =============================================================================
+
+
+# =============================================================================
+# TYPED EXECUTABLE PROMPTS - Using Output[T] with ai.define_prompt()
+# =============================================================================
+
+
+class StoryOutput(BaseModel):
+    """Output schema for a generated story."""
+
+    title: str
+    content: str
+    moral: str
+
+
+async def test_typed_executable_prompt() -> None:
+    """TEST 6: Typed output from ExecutablePrompt using Output[T].
+
+    The key pattern is:
+        story_prompt = ai.define_prompt(
+            name='story',
+            prompt='Write a story about {topic}',
+            output=Output(schema=StoryOutput),  # <-- Type captured here!
+        )
+
+        response = await story_prompt({'topic': 'friendship'})
+        response.output  # Typed as StoryOutput (not Any!)
+
+    YOUR MANUAL CHECKS:
+    1. Hover over "story_prompt" - should show ExecutablePrompt[StoryOutput]
+    2. Hover over "response" - should show GenerateResponseWrapper[StoryOutput]
+    3. Hover over "response.output" - should show StoryOutput
+    4. Type "response.output." and press Ctrl+Space - should show:
+       title, content, moral
+    """
+    # Define a prompt with typed output
+    story_prompt = ai.define_prompt(
+        name='story',
+        prompt='Write a story about {topic}',
+        output=Output(schema=StoryOutput),  # <-- The magic! Type captured
+    )
+
+    # story_prompt is ExecutablePrompt[StoryOutput]
+    # Hover over story_prompt to verify!
+
+    # NOTE: Requires a model to actually run. Configure one first!
+    response = await story_prompt({'topic': 'friendship'})
+
+    # Now response.output is typed as StoryOutput, not Any!
+    # Hover over response.output to see: StoryOutput
+    print(f'Title: {response.output.title}')
+    print(f'Content: {response.output.content}')
+    print(f'Moral: {response.output.moral}')
+
+    # Try accessing a field that doesn't exist - should show red squiggly:
+    # response.output.nonexistent  # UNCOMMENT: should show error
+
+
+async def test_typed_prompt_stream() -> None:
+    """TEST 7: Streaming with typed ExecutablePrompt.
+
+    Even when streaming, the final response is typed!
+    """
+    story_prompt = ai.define_prompt(
+        name='story_stream',
+        prompt='Write a story about {topic}',
+        output=Output(schema=StoryOutput),
+    )
+
+    # Stream returns GenerateStreamResponse[StoryOutput]
+    result = story_prompt.stream({'topic': 'adventure'})
+
+    # The stream yields chunks (not typed - chunks are just text pieces)
+    async for chunk in result.stream:
+        print(chunk.text, end='')
+
+    # But the final response IS typed!
+    final = await result.response
+    # final is GenerateResponseWrapper[StoryOutput]
+    # final.output is StoryOutput
+    print(f'\nMoral: {final.output.moral}')
+
+
+# =============================================================================
+# SUMMARY: Two ways to get typed output
+# =============================================================================
+#
+# 1. ai.generate() with output=Output(schema=T):
+#    response = await ai.generate(prompt='...', output=Output(schema=Recipe))
+#    response.output  # Type: Recipe
+#
+# 2. ai.define_prompt() with output=Output(schema=T):
+#    my_prompt = ai.define_prompt(prompt='...', output=Output(schema=Recipe))
+#    response = await my_prompt(input)
+#    response.output  # Type: Recipe
+#
+# Both patterns give you full autocomplete and type checking on response.output!
+# =============================================================================

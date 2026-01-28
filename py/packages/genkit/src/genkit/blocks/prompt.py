@@ -131,7 +131,7 @@ import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
-from typing import Any, ClassVar, TypedDict, cast
+from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
 
 from dotpromptz.typing import (
     DataArgument,
@@ -176,6 +176,9 @@ from genkit.core.typing import (
 )
 
 logger = get_logger(__name__)
+
+# TypeVar for generic output typing
+OutputT = TypeVar('OutputT')
 
 
 class OutputOptions(TypedDict, total=False):
@@ -406,12 +409,15 @@ class PromptGenerateOptions(TypedDict, total=False):
     metadata: dict[str, Any] | None
 
 
-class GenerateStreamResponse:
+class GenerateStreamResponse(Generic[OutputT]):
     r"""Response from a streaming prompt execution.
 
     This class provides a consistent interface matching the JavaScript
     GenerateStreamResponse, with both stream and response properties
     accessible simultaneously.
+    
+    When the prompt has a typed output schema, `response` returns
+    `GenerateResponseWrapper[OutputT]` with typed `.output` property.
 
     Overview:
         When you call `prompt.stream()`, you get a GenerateStreamResponse
@@ -488,8 +494,8 @@ class GenerateStreamResponse:
 
     def __init__(
         self,
-        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]],
-        response_future: asyncio.Future[GenerateResponseWrapper[Any]],
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[OutputT]],
+        response_future: asyncio.Future[GenerateResponseWrapper[OutputT]],
     ) -> None:
         """Initialize the stream response.
 
@@ -499,8 +505,8 @@ class GenerateStreamResponse:
             response_future: Future that resolves to the complete response
                 when streaming is finished.
         """
-        self._channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = channel
-        self._response_future: asyncio.Future[GenerateResponseWrapper] = response_future
+        self._channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[OutputT]] = channel
+        self._response_future: asyncio.Future[GenerateResponseWrapper[OutputT]] = response_future
 
     @property
     def stream(self) -> AsyncIterable[GenerateResponseChunkWrapper]:
@@ -516,12 +522,13 @@ class GenerateStreamResponse:
         return self._channel
 
     @property
-    def response(self) -> Awaitable[GenerateResponseWrapper]:
+    def response(self) -> Awaitable[GenerateResponseWrapper[OutputT]]:
         """Get the awaitable for the complete response.
 
         Returns:
             An awaitable that resolves to a GenerateResponseWrapper containing:
             - text: The complete generated text
+            - output: The typed output (when using Output[T])
             - messages: The full message history
             - usage: Token usage statistics
             - finish_reason: Why generation stopped (e.g., 'stop', 'length')
@@ -567,11 +574,14 @@ class PromptConfig(BaseModel):
     resources: list[str] | None = None
 
 
-class ExecutablePrompt:
+class ExecutablePrompt(Generic[OutputT]):
     r"""A prompt that can be executed with a given input and configuration.
 
     This class matches the JavaScript ExecutablePrompt interface, providing
     a callable object that generates AI responses from a prompt template.
+    
+    When defined with an output schema via `Output[T]`, the prompt is typed
+    as `ExecutablePrompt[T]` and calling it returns `GenerateResponseWrapper[T]`.
 
     Overview:
         ExecutablePrompt is the main way to work with prompts in Genkit. It
@@ -784,7 +794,7 @@ class ExecutablePrompt:
         self,
         input: Any | None = None,  # noqa: ANN401
         opts: PromptGenerateOptions | None = None,
-    ) -> GenerateResponseWrapper:
+    ) -> GenerateResponseWrapper[OutputT]:
         """Executes the prompt with the given input and configuration.
 
         This method matches the JavaScript ExecutablePrompt callable interface,
@@ -825,13 +835,15 @@ class ExecutablePrompt:
         middleware = effective_opts.get('use') or self._use
         context = effective_opts.get('context')
 
-        return await generate_action(
+        result = await generate_action(
             self._registry,
             await self.render(input=input, opts=effective_opts),
             on_chunk=on_chunk,
             middleware=middleware,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
+        # Cast to preserve the generic type parameter
+        return cast(GenerateResponseWrapper[OutputT], result)
 
     def stream(
         self,
@@ -839,7 +851,7 @@ class ExecutablePrompt:
         opts: PromptGenerateOptions | None = None,
         *,
         timeout: float | None = None,
-    ) -> GenerateStreamResponse:
+    ) -> GenerateStreamResponse[OutputT]:
         r"""Streams the prompt execution with the given input and configuration.
 
         This method matches the JavaScript ExecutablePrompt.stream() interface,
@@ -873,16 +885,16 @@ class ExecutablePrompt:
             ```
         """
         effective_opts: PromptGenerateOptions = opts if opts else {}
-        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel(timeout=timeout)
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[OutputT]] = Channel(timeout=timeout)
 
         # Create a copy of opts with the streaming callback
         stream_opts: PromptGenerateOptions = {**effective_opts, 'on_chunk': lambda c: channel.send(c)}
 
         resp = self.__call__(input=input, opts=stream_opts)
-        response_future = asyncio.create_task(resp)
+        response_future: asyncio.Future[GenerateResponseWrapper[OutputT]] = asyncio.create_task(resp)
         channel.set_close_future(response_future)
 
-        return GenerateStreamResponse(channel=channel, response_future=response_future)
+        return GenerateStreamResponse[OutputT](channel=channel, response_future=response_future)
 
     async def render(
         self,
@@ -1127,6 +1139,15 @@ class ExecutablePrompt:
         return action
 
 
+# Import Output for type checking (avoid circular import at runtime)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from genkit.ai._aio import Output
+
+
+# Overload 1: With typed Output[T] -> returns ExecutablePrompt[T]
+@overload
 def define_prompt(
     registry: Registry,
     name: str | None = None,
@@ -1150,7 +1171,66 @@ def define_prompt(
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
     docs: list[DocumentData] | Callable[..., Any] | None = None,
-) -> ExecutablePrompt:
+    *,
+    output: 'Output[OutputT]',
+) -> 'ExecutablePrompt[OutputT]': ...
+
+
+# Overload 2: Without typed Output -> returns ExecutablePrompt[Any]
+@overload
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    output: None = None,
+) -> 'ExecutablePrompt[Any]': ...
+
+
+# Implementation
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    output: 'Output[Any] | None' = None,
+) -> 'ExecutablePrompt[Any]':
     """Defines an executable prompt.
 
     Args:
@@ -1167,7 +1247,7 @@ def define_prompt(
         output_format: The output format.
         output_content_type: The output content type.
         output_instructions: Instructions for formatting the output.
-        output_schema: The output schema.
+        output_schema: The output schema (use `output` parameter for typed outputs).
         output_constrained: Whether the output should be constrained to the output schema.
         max_turns: The maximum number of turns in a conversation.
         return_tool_requests: Whether to return tool requests.
@@ -1176,11 +1256,52 @@ def define_prompt(
         tool_choice: The tool choice strategy.
         use: A list of model middlewares to apply.
         docs: A list of documents to be used for grounding.
+        output: Typed output configuration using Output[T]. When provided, the
+            returned ExecutablePrompt[T] will have typed responses.
 
     Returns:
-        An ExecutablePrompt instance.
+        An ExecutablePrompt instance. When `output=Output(schema=T)` is provided,
+        returns `ExecutablePrompt[T]` with typed `.output` property on responses.
+    
+    Example:
+        ```python
+        from genkit import Output
+        from pydantic import BaseModel
+        
+        class Recipe(BaseModel):
+            name: str
+            ingredients: list[str]
+        
+        # With typed output
+        recipe_prompt = define_prompt(
+            registry,
+            name='recipe',
+            prompt='Create a recipe for {food}',
+            output=Output(schema=Recipe),
+        )
+        
+        response = await recipe_prompt({'food': 'pizza'})
+        response.output.name  # ✓ Typed as str
+        ```
     """
-    executable_prompt = ExecutablePrompt(
+    # If Output[T] is provided, extract its configuration
+    effective_output_schema = output_schema
+    effective_output_format = output_format
+    effective_output_content_type = output_content_type
+    effective_output_instructions = output_instructions
+    effective_output_constrained = output_constrained
+
+    if output is not None:
+        effective_output_schema = output.schema
+        effective_output_format = output.format if output.format else output_format
+        if output.content_type is not None:
+            effective_output_content_type = output.content_type
+        if output.instructions is not None:
+            effective_output_instructions = output.instructions
+        if output.constrained is not None:
+            effective_output_constrained = output.constrained
+
+    executable_prompt: ExecutablePrompt[Any] = ExecutablePrompt(
         registry,
         variant=variant,
         model=model,
@@ -1190,11 +1311,11 @@ def define_prompt(
         system=system,
         prompt=prompt,
         messages=messages,
-        output_format=output_format,
-        output_content_type=output_content_type,
-        output_instructions=output_instructions,
-        output_schema=output_schema,
-        output_constrained=output_constrained,
+        output_format=effective_output_format,
+        output_content_type=effective_output_content_type,
+        output_instructions=effective_output_instructions,
+        output_schema=effective_output_schema,
+        output_constrained=effective_output_constrained,
         max_turns=max_turns,
         return_tool_requests=return_tool_requests,
         metadata=metadata,
@@ -1890,7 +2011,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Create a factory function that will create the ExecutablePrompt when accessed
     # Store metadata in a closure to avoid global state
-    async def create_prompt_from_file() -> ExecutablePrompt:
+    async def create_prompt_from_file() -> ExecutablePrompt[Any]:
         """Factory function to create ExecutablePrompt from file metadata."""
         metadata = await load_prompt_metadata()
 
@@ -2065,7 +2186,7 @@ def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', n
     logger.info(f'Loaded prompts from directory: {path}')
 
 
-async def lookup_prompt(registry: Registry, name: str, variant: str | None = None) -> ExecutablePrompt:
+async def lookup_prompt(registry: Registry, name: str, variant: str | None = None) -> ExecutablePrompt[Any]:
     """Look up a prompt from the registry.
 
     Args:
@@ -2135,7 +2256,7 @@ async def prompt(
     name: str,
     variant: str | None = None,
     _dir: str | Path | None = None,  # Accepted but not used
-) -> ExecutablePrompt:
+) -> ExecutablePrompt[Any]:
     """Look up a prompt by name and optional variant.
 
     Can look up prompts that were:

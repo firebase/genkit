@@ -49,8 +49,12 @@ from typing_extensions import Never, TypeVar
 from genkit.aio import ensure_async
 
 if TYPE_CHECKING:
+    from genkit.ai._aio import Output
     from genkit.blocks.prompt import ExecutablePrompt
     from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
+
+# TypeVar for generic output typing
+OutputT = TypeVar('OutputT')
 
 from pydantic import BaseModel
 
@@ -901,6 +905,8 @@ class GenkitRegistry:
         """
         self.registry.register_value('format', format.name, format)
 
+    # Overload 1: With typed Output[T] -> returns ExecutablePrompt[T]
+    @overload
     def define_prompt(
         self,
         name: str | None = None,
@@ -924,7 +930,63 @@ class GenkitRegistry:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable[..., Any] | None = None,
-    ) -> 'ExecutablePrompt':
+        *,
+        output: 'Output[OutputT]',
+    ) -> 'ExecutablePrompt[OutputT]': ...
+
+    # Overload 2: Without typed Output -> returns ExecutablePrompt[Any]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        output: None = None,
+    ) -> 'ExecutablePrompt[Any]': ...
+
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        output: 'Output[Any] | None' = None,
+    ) -> 'ExecutablePrompt[Any]':
         """Define a prompt.
 
         Args:
@@ -951,6 +1013,27 @@ class GenkitRegistry:
             tool_choice: Optional tool choice for the prompt.
             use: Optional list of model middlewares to use for the prompt.
             docs: Optional list of documents or a callable to be used for grounding.
+            output: Typed output configuration using Output[T]. When provided,
+                returns ExecutablePrompt[T] with typed responses.
+        
+        Example:
+            ```python
+            from genkit import Output
+            from pydantic import BaseModel
+            
+            class Recipe(BaseModel):
+                name: str
+                ingredients: list[str]
+            
+            recipe_prompt = ai.define_prompt(
+                name='recipe',
+                prompt='Create a recipe for {food}',
+                output=Output(schema=Recipe),
+            )
+            
+            response = await recipe_prompt({'food': 'pizza'})
+            response.output.name  # ✓ Typed as str
+            ```
         """
         return define_prompt(
             self.registry,
@@ -975,6 +1058,7 @@ class GenkitRegistry:
             tool_choice=tool_choice,
             use=use,
             docs=docs,
+            output=output,
         )
 
     def prompt(
