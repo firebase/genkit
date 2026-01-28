@@ -73,13 +73,13 @@ import asyncio
 import os
 import sys
 
-import structlog
+from genkit.core.logging import get_logger
 
 from genkit.ai import Genkit
 from genkit.core.trace import is_realtime_telemetry_enabled
 from genkit.plugins.google_genai import GoogleAI
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def _ensure_api_key() -> None:

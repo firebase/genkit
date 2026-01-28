@@ -39,7 +39,7 @@ import os
 from typing import Any
 
 import streamlit as st
-import structlog
+from genkit.core.logging import get_logger
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper, Message
@@ -53,7 +53,7 @@ from genkit.plugins.xai import XAI
 from genkit.session import InMemorySessionStore, Session
 
 logging.basicConfig(level=logging.INFO)
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 st.set_page_config(page_title='Genkit Session Demo', page_icon='📝', layout='wide')
 st.title('📝 Genkit Session Demo')

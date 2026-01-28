@@ -73,7 +73,7 @@ Testing This Demo
 import os
 import time
 
-import structlog
+from genkit.core.logging import get_logger
 from google.cloud import aiplatform, firestore
 from pydantic import BaseModel, Field
 
@@ -95,7 +95,7 @@ VECTOR_SEARCH_API_ENDPOINT = os.environ['VECTOR_SEARCH_API_ENDPOINT']
 firestore_client = firestore.AsyncClient(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(plugins=[VertexAI()])
 

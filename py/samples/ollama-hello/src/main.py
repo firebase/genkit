@@ -39,7 +39,7 @@ Key Features
 
 from typing import Annotated, Any, cast
 
-import structlog
+from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
@@ -49,7 +49,7 @@ from genkit.plugins.ollama.models import (
     ModelDefinition,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 # Model can be pulled with `ollama pull *LLM_VERSION*`
 GEMMA_MODEL = 'gemma3:latest'

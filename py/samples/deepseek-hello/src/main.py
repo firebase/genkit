@@ -41,7 +41,7 @@ Key Features
 import os
 from typing import Annotated, cast
 
-import structlog
+from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
@@ -52,7 +52,7 @@ from genkit.plugins.deepseek import DeepSeek, deepseek_name
 if 'DEEPSEEK_API_KEY' not in os.environ:
     os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[DeepSeek()],

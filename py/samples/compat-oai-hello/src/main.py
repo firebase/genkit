@@ -42,7 +42,7 @@ from decimal import Decimal
 from typing import Annotated, cast
 
 import httpx
-import structlog
+from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Genkit
@@ -51,7 +51,7 @@ from genkit.plugins.compat_oai import OpenAI, openai_model
 if 'OPENAI_API_KEY' not in os.environ:
     os.environ['OPENAI_API_KEY'] = input('Please enter your OPENAI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4o'))
 
@@ -244,7 +244,7 @@ async def generate_character(
     Returns:
         The generated RPG character.
     """
-    if ctx.is_streaming:
+    if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
             prompt=f'generate an RPG character named {name} with gablorken based on 42',
             output_schema=RpgCharacter,
@@ -298,8 +298,8 @@ async def get_weather_flow_stream(location: Annotated[str, Field(default='New Yo
     """
     stream, _ = ai.generate_stream(
         model=openai_model('gpt-4o'),
-        system='You are an assistant that provides current weather information in JSON format and calculates '
-        'gablorken based on weather value',
+        system=('You are an assistant that provides current weather information in JSON format and calculates '
+        'gablorken based on weather value'),
         config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
         tools=['get_weather_tool', 'gablorkenTool'],
@@ -368,7 +368,7 @@ async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') 
 
 
 @ai.flow()
-def sum_two_numbers2(my_input: MyInput) -> int:
+async def sum_two_numbers2(my_input: MyInput) -> int:
     """Sum two numbers.
 
     Args:
@@ -386,7 +386,7 @@ async def main() -> None:
 
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
-    await asyncio.Event().wait()
+    _ = await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

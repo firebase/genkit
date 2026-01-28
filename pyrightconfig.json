@@ -1,6 +1,6 @@
 {
   "pythonVersion": "3.12",
-  "venvPath": "/Users/jeffhuang/Desktop/genkit/py",
+  "venvPath": "py",
   "venv": ".venv",
   "extraPaths": [
     "py/packages/genkit/src",
@@ -18,5 +18,6 @@
     "py/plugins/deepseek/src",
     "py/plugins/xai/src"
   ],
-  "reportMissingImports": false
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false
 }

@@ -83,7 +83,7 @@ Testing This Demo
 import os
 from typing import Annotated, cast
 
-import structlog
+from genkit.core.logging import get_logger
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, ToolRunContext, tool_response
@@ -102,7 +102,7 @@ from genkit.types import (
     TextPart,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
