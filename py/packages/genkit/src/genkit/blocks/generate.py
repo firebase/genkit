@@ -437,7 +437,7 @@ def resolve_instructions(formatter: Formatter[Any, Any], instructions_opt: bool 
         # user says no instructions
         return None
     if not formatter:
-        return None
+        return None  # pyright: ignore[reportUnreachable] - defensive check
     return formatter.instructions
 
 
@@ -1051,6 +1051,7 @@ class GenerationResponseError(Exception):
             status: The status of the generation response.
             details: The details of the generation response.
         """
+        super().__init__(message)
         self.response: GenerateResponse = response
         self.message: str = message
         self.status: str = status

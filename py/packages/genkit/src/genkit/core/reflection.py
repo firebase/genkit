@@ -445,7 +445,7 @@ def create_reflection_asgi_app(
             'Transfer-Encoding': 'chunked',
         }
         if run_trace_id:
-            headers['X-Genkit-Trace-Id'] = run_trace_id
+            headers['X-Genkit-Trace-Id'] = run_trace_id  # pyright: ignore[reportUnreachable]
 
         async def stream_generator() -> AsyncGenerator[str, None]:
             """Yield chunks from the queue as they arrive."""
@@ -547,7 +547,7 @@ def create_reflection_asgi_app(
             'x-genkit-version': version,
         }
         if run_trace_id:
-            headers['X-Genkit-Trace-Id'] = run_trace_id
+            headers['X-Genkit-Trace-Id'] = run_trace_id  # pyright: ignore[reportUnreachable]
 
         return StreamingResponse(
             body_generator(),

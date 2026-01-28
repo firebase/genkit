@@ -57,7 +57,7 @@ import structlog
 from genkit.web.typing import Application
 
 if sys.version_info < (3, 11):
-    from strenum import StrEnum
+    from strenum import StrEnum  # pyright: ignore[reportUnreachable]
 else:
     from enum import StrEnum
 
@@ -150,7 +150,7 @@ class ASGIServerAdapter(abc.ABC):
             case ServerType.GRANIAN:
                 return GranianAdapter()
             case _:
-                raise ValueError(f'Unsupported server type: {server_type}')
+                raise ValueError(f'Unsupported server type: {server_type}')  # pyright: ignore[reportUnreachable]
 
 
 class UvicornAdapter(ASGIServerAdapter):

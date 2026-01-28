@@ -299,7 +299,7 @@ class ServerManager:
 
         # Start the server.
         if server.adapter is None:
-            raise ValueError('server_adapter cannot be None')
+            raise ValueError('server_adapter cannot be None')  # pyright: ignore[reportUnreachable]
         await server.adapter.serve(
             app=app,
             host=server.config.host,

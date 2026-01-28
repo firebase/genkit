@@ -29,7 +29,7 @@ import sys
 from typing import ClassVar
 
 if sys.version_info < (3, 11):
-    from strenum import StrEnum
+    from strenum import StrEnum  # pyright: ignore[reportUnreachable]
 else:
     from enum import StrEnum
 

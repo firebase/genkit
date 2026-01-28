@@ -90,7 +90,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
         thread.join()
 
         if error:
-            raise error
+            raise error  # pyright: ignore[reportUnreachable]
 
         return output
     else:

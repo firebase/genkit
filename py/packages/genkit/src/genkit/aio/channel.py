@@ -180,7 +180,7 @@ class Channel(Generic[T]):
             ValueError: If the provided future is None.
         """
         if future is None:
-            raise ValueError('Cannot set a None future')
+            raise ValueError('Cannot set a None future')  # pyright: ignore[reportUnreachable]
 
         def _handle_done(v: asyncio.Future[T]) -> None:
             """Handle future completion, propagating results or errors to self.closed.

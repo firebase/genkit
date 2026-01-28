@@ -1401,7 +1401,7 @@ def _normalize_prompt_arg(
     elif isinstance(prompt, Part):
         return [prompt]
     else:
-        return []
+        return []  # pyright: ignore[reportUnreachable] - defensive fallback
 
 
 async def render_system_prompt(

@@ -21,7 +21,7 @@ from collections.abc import Callable
 from typing import ClassVar, Generic, TypeVar
 
 if sys.version_info < (3, 11):
-    from strenum import StrEnum
+    from strenum import StrEnum  # pyright: ignore[reportUnreachable]
 else:
     from enum import StrEnum
 
