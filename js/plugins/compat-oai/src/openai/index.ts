@@ -54,11 +54,8 @@ import {
   openAIModelRef,
   SUPPORTED_GPT_MODELS,
 } from './gpt.js';
+import { openAITranscriptionModelRef, SUPPORTED_STT_MODELS } from './stt.js';
 import { openAISpeechModelRef, SUPPORTED_TTS_MODELS } from './tts.js';
-import {
-  openAITranscriptionModelRef,
-  SUPPORTED_STT_MODELS,
-} from './stt.js';
 
 export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
