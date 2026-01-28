@@ -488,8 +488,8 @@ class GenerateStreamResponse:
 
     def __init__(
         self,
-        channel: Channel[GenerateResponseChunkWrapper],
-        response_future: asyncio.Future[GenerateResponseWrapper],
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]],
+        response_future: asyncio.Future[GenerateResponseWrapper[Any]],
     ) -> None:
         """Initialize the stream response.
 
@@ -499,7 +499,7 @@ class GenerateStreamResponse:
             response_future: Future that resolves to the complete response
                 when streaming is finished.
         """
-        self._channel: Channel[GenerateResponseChunkWrapper] = channel
+        self._channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = channel
         self._response_future: asyncio.Future[GenerateResponseWrapper] = response_future
 
     @property
@@ -873,7 +873,7 @@ class ExecutablePrompt:
             ```
         """
         effective_opts: PromptGenerateOptions = opts if opts else {}
-        channel: Channel[GenerateResponseChunkWrapper] = Channel(timeout=timeout)
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel(timeout=timeout)
 
         # Create a copy of opts with the streaming callback
         stream_opts: PromptGenerateOptions = {**effective_opts, 'on_chunk': lambda c: channel.send(c)}

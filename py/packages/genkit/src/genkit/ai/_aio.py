@@ -671,7 +671,7 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        stream: Channel[GenerateResponseChunkWrapper] = Channel(timeout=timeout)
+        stream: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel(timeout=timeout)
 
         resp = self.generate(
             model=model,
