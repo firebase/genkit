@@ -129,7 +129,7 @@ class Channel(Generic[T, R]):
         # If timeout occurred (nothing finished), cancel pending tasks and raise
         if not finished:
             for task in pending:
-                task.cancel()
+                _ = task.cancel()
             raise TimeoutError('Channel timeout exceeded')
 
         # If the pop task completed, return its result.

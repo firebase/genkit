@@ -65,7 +65,6 @@ from genkit.core.typing import (
     BaseDataPoint,
     Embedding,
     EmbedRequest,
-    EmbedResponse,
     EvalRequest,
     EvalResponse,
     Operation,

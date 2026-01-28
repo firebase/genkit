@@ -1560,7 +1560,7 @@ async def render_message_prompt(
         return [Message.model_validate(e.model_dump()) for e in rendered.messages]
 
     elif isinstance(options.messages, list):
-        return cast(list[Message], options.messages)
+        return options.messages
 
     elif callable(options.messages):
         # Pass history to resolver function (matching JS MessagesResolver signature)
@@ -1802,7 +1802,8 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         if hasattr(prompt_metadata, 'model_dump'):
             prompt_metadata_dict = prompt_metadata.model_dump(by_alias=True)
         elif hasattr(prompt_metadata, 'dict'):
-            prompt_metadata_dict = prompt_metadata.dict(by_alias=True)
+            # Fallback for older Pydantic versions
+            prompt_metadata_dict = prompt_metadata.dict(by_alias=True)  # pyright: ignore[reportDeprecated]
         else:
             # Already a dict - cast through object to satisfy type checker
             prompt_metadata_dict = cast(dict[str, Any], cast(object, prompt_metadata))
@@ -1846,9 +1847,9 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             if schema and isinstance(schema, dict) and schema.get('description') is None:
                 schema.pop('description', None)
 
-        # Build metadata structure
-        metadata_inner = prompt_metadata_dict.get('metadata') if isinstance(prompt_metadata_dict, dict) else {}
-        base_dict = prompt_metadata_dict if isinstance(prompt_metadata_dict, dict) else {}
+        # Build metadata structure (prompt_metadata_dict is always dict[str, Any] at this point)
+        metadata_inner = prompt_metadata_dict.get('metadata', {})
+        base_dict = prompt_metadata_dict
         metadata = {
             **base_dict,
             **(metadata_inner if isinstance(metadata_inner, dict) else {}),
@@ -2098,7 +2099,7 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
             # If it's a weakref, dereference it
             if callable(ref):
                 return ref()  # pyright: ignore[reportReturnType]
-            return ref  # pyright: ignore[reportReturnType]
+            return ref
         elif hasattr(action, '_async_factory'):
             # Otherwise, create it from the factory (lazy loading)
             # This will also set _executable_prompt on the action for future lookups

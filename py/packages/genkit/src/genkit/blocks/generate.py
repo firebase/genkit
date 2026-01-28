@@ -33,9 +33,10 @@ from genkit.blocks.model import (
 from genkit.blocks.resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
 from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
-from genkit.core.action import ActionRunContext
+from genkit.core.action import Action, ActionRunContext
+from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
-from genkit.core.registry import Action, ActionKind, Registry
+from genkit.core.registry import Registry
 from genkit.core.typing import (
     FinishReason,
     GenerateActionOptions,
