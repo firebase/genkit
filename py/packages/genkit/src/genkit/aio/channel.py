@@ -116,24 +116,21 @@ class Channel(Generic[T, R]):
             # pending task.
             return await wait_for(pop_task, timeout=self._timeout)
 
-        try:
-            # Wait for either the pop task or the close future to complete.  A
-            # timeout is added to prevent indefinite blocking, unless
-            # specifically set to None.
-            # NOTE: asyncio.wait does not cancel tasks on timeout by default.
-            finished, pending = await asyncio.wait(
-                [pop_task, self._close_future],
-                return_when=asyncio.FIRST_COMPLETED,
-                timeout=self._timeout,
-            )
+        # Wait for either the pop task or the close future to complete.  A
+        # timeout is added to prevent indefinite blocking, unless
+        # specifically set to None.
+        # NOTE: asyncio.wait does not cancel tasks on timeout by default.
+        finished, pending = await asyncio.wait(
+            [pop_task, self._close_future],
+            return_when=asyncio.FIRST_COMPLETED,
+            timeout=self._timeout,
+        )
 
-        except TimeoutError as e:
-            # If the wait operation timed out, both tasks will be in pending.
-            # asyncio.wait() doesn't automatically cancel pending tasks, so we
-            # ensure we cancel our pending tasks.
-            for t in pending:
-                t.cancel()
-            raise e
+        # If timeout occurred (nothing finished), cancel pending tasks and raise
+        if not finished:
+            for task in pending:
+                task.cancel()
+            raise TimeoutError('Channel timeout exceeded')
 
         # If the pop task completed, return its result.
         if pop_task in finished:
@@ -193,8 +190,8 @@ class Channel(Generic[T, R]):
             # Propagate cancellation to notify consumers that the operation was cancelled
             if v.cancelled():
                 _ = self.closed.cancel()
-            elif v.exception() is not None:
-                self.closed.set_exception(v.exception())  # type: ignore[arg-type]
+            elif (exc := v.exception()) is not None:
+                self.closed.set_exception(exc)
             else:
                 self.closed.set_result(v.result())
 

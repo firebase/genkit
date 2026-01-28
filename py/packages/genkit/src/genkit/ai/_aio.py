@@ -785,8 +785,8 @@ class Genkit(GenkitBase):
         _ = await index_action.arun(
             IndexerRequest(
                 # Document subclasses DocumentData, so this is type-safe at runtime.
-                # The type checker doesn't recognize the subclass relationship here.
-                documents=documents,  # type: ignore[arg-type]
+                # list is invariant so list[Document] isn't assignable to list[DocumentData]
+                documents=documents,  # pyright: ignore[reportArgumentType]
                 options=req_options if req_options else None,
             )
         )
@@ -870,9 +870,14 @@ class Genkit(GenkitBase):
             documents = [content]
 
         # Document subclasses DocumentData, so this is type-safe at runtime.
-        # The type checker doesn't recognize the subclass relationship here.
+        # list is invariant so list[Document] isn't assignable to list[DocumentData]
         response = (
-            await embed_action.arun(EmbedRequest(input=documents, options=final_options))
+            await embed_action.arun(
+                EmbedRequest(
+                    input=documents,  # pyright: ignore[reportArgumentType]
+                    options=final_options,
+                )
+            )
         ).response
         return response.embeddings
 

@@ -101,6 +101,7 @@ See Also:
     - JavaScript Chat: js/ai/src/chat.ts
     - Session: genkit/session/session.py
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 

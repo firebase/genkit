@@ -175,7 +175,7 @@ def create_flows_asgi_app(
                     payload = await request.json()
                     input_data = payload.get('data', {})
             except json.JSONDecodeError as e:
-                await logger.eerror(
+                await logger.aerror(
                     'Invalid JSON',
                     error=f'Invalid JSON: {str(e)}',
                 )
@@ -367,4 +367,4 @@ def create_flows_asgi_app(
 
     app.state.context = {}
 
-    return app
+    return app  # pyright: ignore[reportReturnType]

@@ -598,7 +598,7 @@ def assert_valid_tool_names(_raw_request: GenerateActionOptions) -> None:
 
 async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
-) -> tuple[Action, list[Action], FormatDef | None]:
+) -> tuple[Action[Any, Any, Any], list[Action[Any, Any, Any]], FormatDef | None]:
     """Resolve parameters for the generate action.
 
     Args:
@@ -617,7 +617,7 @@ async def resolve_parameters(
     if model_action is None:
         raise Exception(f'Failed to to resolve model {model}')
 
-    tools: list[Action] = []
+    tools: list[Action[Any, Any, Any]] = []
     if request.tools:
         for tool_name in request.tools:
             tool_action = await registry.resolve_action(cast(ActionKind, ActionKind.TOOL), tool_name)
@@ -636,7 +636,7 @@ async def resolve_parameters(
 
 
 async def action_to_generate_request(
-    options: GenerateActionOptions, resolved_tools: list[Action], _model: Action
+    options: GenerateActionOptions, resolved_tools: list[Action[Any, Any, Any]], _model: Action[Any, Any, Any]
 ) -> GenerateRequest:
     """Convert generate action options to a generate request.
 
