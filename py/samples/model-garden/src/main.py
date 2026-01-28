@@ -73,6 +73,7 @@ ai = Genkit(
                 'mistralai/ministral-3-14b-instruct-2512': 'us-central1',
                 'mistralai/mistral-large-3-instruct-2512': 'us-central1',
                 'Mistral-Nemo-Instruct-2407': 'us-central1',
+                'mistral-ai/mixtral': 'us-central1',
             },
         ),
         VertexAI(location=location),
@@ -134,8 +135,6 @@ async def gemini_model(input: ToolFlowInput) -> str:
 async def llama_model() -> str:
     """Generate a greeting."""
     try:
-        logger.info('Starting llama 3.2 basic_flow')
-        logger.info(f'Using model: {model_garden_name("meta/llama-3.2-90b-vision-instruct-maas")}')
         response = await ai.generate(
             model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
             config={
@@ -172,21 +171,21 @@ async def anthropic_model(input: ToolFlowInput) -> str:
     Field(description='Target currency code', default='EUR')
 
 
-class MistralMediumInput(BaseModel):
+class MistralInput(BaseModel):
     """Input for Mistral Medium flow."""
 
     concept: str = Field('concurrency', description='Programming concept to explain')
 
 
 @ai.flow(name='ministral-3 - explain_concept')
-async def explain_concept(input: MistralMediumInput) -> str:
+async def explain_concept(input: MistralInput) -> str:
     """Explain a concept using Ministral 3 .
 
     Args:
         input: The input object.
     """
     response = await ai.generate(
-        model=model_garden_name('mistralai/ministral-3-14b-instruct-2512'),
+        model=model_garden_name('mistralai/ministral-3'),
         prompt=f'Explain {input.concept} in programming. Include practical examples.',
         config={'temperature': 0.7},
     )
@@ -207,7 +206,7 @@ async def analyze_code(input: MistralAnalyzeInput) -> str:
         input: The input object.
     """
     response = await ai.generate(
-        model=model_garden_name('mistralai/mistral-large-3-instruct-2512'),
+        model=model_garden_name('mistralai/mistral-large-3'),
         prompt=f'Analyze this code for potential issues and suggest improvements:\n{input.code}',
     )
     return response.text
@@ -230,17 +229,17 @@ async def generate_function(input: GenerateFunctionInput) -> str:
         input: The input object containing the description.
     """
     response = await ai.generate(
-        model=model_garden_name('Mistral-Nemo-Instruct-2407'),
+        model=model_garden_name('mixtral'),
         prompt=f'Create a Python function that {input.description}. Include error handling and types.',
     )
     return response.text
 
 
-@ai.flow(name='mistral-nemo - jokes_flow')
+@ai.flow(name='mixtral - jokes_flow')
 async def jokes_flow(subject: str) -> str:
-    """Tell a joke about the subject using Mistral Nemo."""
+    """Tell a joke about the subject using Mixtral."""
     response = await ai.generate(
-        model=model_garden_name('Mistral-Nemo-Instruct-2407'),
+        model=model_garden_name('mistral-ai/mixtral'),
         prompt=f'Tell a clean joke about {subject}.',
     )
     return response.text
@@ -248,13 +247,9 @@ async def jokes_flow(subject: str) -> str:
 
 async def main() -> None:
     """Main entry point for the Model Garden sample - keep alive for Dev UI."""
-    """Main entry point for the Model Garden sample - keep alive for Dev UI."""
 
-    # For testing/demo purposes, you can uncomment these to run them on startup:
-    # await logger.ainfo(await jokes_flow('banana'))
 
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
-    # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 
 

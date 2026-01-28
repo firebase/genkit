@@ -19,11 +19,13 @@
 import os
 from typing import cast
 
+from anthropic import AsyncAnthropic, AsyncAnthropicVertex
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
+from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit.plugins.vertex_ai import constants as const
@@ -34,6 +36,8 @@ from genkit.types import (
     ModelInfo,
     Supports,
 )
+
+from mistralai_gcp import MistralGoogleCloud
 
 from .llama import SUPPORTED_LLAMA_MODELS
 from .mistral import SUPPORTED_MISTRAL_MODELS, MistralModel
@@ -129,10 +133,6 @@ class ModelGardenPlugin(Plugin):
             raise ValueError('Location is required.')
 
         if clean_name.startswith('anthropic/'):
-            from anthropic import AsyncAnthropic, AsyncAnthropicVertex
-
-            from genkit.plugins.anthropic.models import AnthropicModel
-            # Uses global imports now
 
             location = self.model_locations.get(clean_name, self.location)
             client = AsyncAnthropicVertex(region=location, project_id=self.project_id)
@@ -159,17 +159,17 @@ class ModelGardenPlugin(Plugin):
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             )
-            # clean up duplicate code block
 
-        if any(keyword in clean_name for keyword in ['mistral', 'codestral']) or clean_name in SUPPORTED_MISTRAL_MODELS:
-            from mistralai_gcp import MistralGoogleCloud
+        if any(keyword in clean_name for keyword in ['mistral', 'codestral','mixtral']) or clean_name in SUPPORTED_MISTRAL_MODELS:
 
             location = self.model_locations.get(clean_name, self.location)
             client = MistralGoogleCloud(project_id=self.project_id, region=location)
 
             mistral_model_name = clean_name
-            if mistral_model_name.startswith('mistralai/'):
-                mistral_model_name = mistral_model_name.replace('mistralai/', '')
+            # Do not strip publisher prefix. The underlying library or API may need the full `publisher/model` format
+            # especially if the publisher is 'mistral-ai' vs 'mistralai'.
+            # If the user provides a short name 'mistral-large', it will go as is.
+            # If they provide 'mistral-ai/mixtral', it goes as is.
 
             mistral_model = MistralModel(client=client, model_name=mistral_model_name)
 

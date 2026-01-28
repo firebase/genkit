@@ -52,7 +52,7 @@ from genkit.types import (
 )
 
 SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
-    'mistralai/mistral-large-3-instruct-2512': ModelInfo(
+    'mistral-ai/mistral-large-3': ModelInfo(
         label='ModelGarden - Mistral - Large 3',
         supports=Supports(
             multiturn=True,
@@ -62,8 +62,8 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
             output=[SupportedOutputFormat.TEXT],
         ),
     ),
-    'mistralai/ministral-3-14b-instruct-2512': ModelInfo(
-        label='ModelGarden - Ministral 3',
+    'mistral-ai/ministral-3': ModelInfo(
+        label='ModelGarden - Ministral',
         supports=Supports(
             multiturn=True,
             media=False,
@@ -72,8 +72,8 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
             output=[SupportedOutputFormat.TEXT],
         ),
     ),
-    'Mistral-Nemo-Instruct-2407': ModelInfo(
-        label='ModelGarden - Mistral Nemo',
+    'mistral-ai/mixtral': ModelInfo(
+        label='ModelGarden - Mixtral',
         supports=Supports(
             multiturn=True,
             media=False,
