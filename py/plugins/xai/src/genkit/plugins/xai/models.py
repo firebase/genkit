@@ -278,7 +278,6 @@ class XAIModel:
                     result.append(
                         chat_pb2.Message(
                             role=chat_pb2.MessageRole.ROLE_TOOL,
-                            name=actual_part.tool_response.ref,
                             content=[chat_pb2.Content(text=str(actual_part.tool_response.output))],
                         )
                     )
