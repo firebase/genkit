@@ -156,8 +156,6 @@ from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
 from genkit.core.tracing import tracer
 from genkit.lang.deprecations import (
-    DeprecationInfo,
-    DeprecationStatus,
     deprecated_enum_metafactory,
 )
 from genkit.plugins.google_genai.models.utils import PartConverter

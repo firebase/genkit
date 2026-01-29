@@ -52,9 +52,11 @@ Key Features
 """
 
 import argparse
-import asyncio
-import os
 import sys
+import base64
+import httpx
+from google import genai as google_genai_sdksys
+import os
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum  # pyright: ignore[reportUnreachable]
@@ -94,7 +96,7 @@ if 'GEMINI_API_KEY' not in os.environ:
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model='googleai/gemini-3-flash-preview',
+    model='googleai/gemini-3-pro-preview',
 )
 
 define_genkit_evaluators(
@@ -129,23 +131,6 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-class Skills(BaseModel):
-    """Skills for an RPG character."""
-
-    strength: int = Field(description='strength (0-100)')
-    charisma: int = Field(description='charisma (0-100)')
-    endurance: int = Field(description='endurance (0-100)')
-
-
-class RpgCharacter(BaseModel):
-    """An RPG character."""
-
-    name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
-    abilities: list[str] = Field(description='list of abilities (3-4)')
-    skills: Skills
-
-
 class ThinkingLevel(StrEnum):
     """Thinking level enum."""
 
@@ -166,8 +151,6 @@ class WeatherInput(BaseModel):
     """Input for getting weather."""
 
     location: str = Field(description='The city and state, e.g. San Francisco, CA')
-
-
 
 
 @ai.tool()
@@ -296,55 +279,18 @@ async def describe_image(
 ) -> str:
     """Describe an image."""
     response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
         prompt=[
             Part(root=TextPart(text='Describe this image')),
             Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
         ],
-        config={'api_version': 'v1alpha'},
     )
     return response.text
 
 
-@ai.flow()
-async def embed_docs(
-    docs: list[str] | None = None,
-) -> list[Embedding]:
-    """Generate an embedding for the words in a list.
-
-    Args:
-        docs: list of texts (string)
-
-    Returns:
-        The generated embedding.
-    """
-    if docs is None:
-        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
-    options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed_many(
-        embedder='googleai/text-embedding-004',
-        content=docs,
-        options=options,
-    )
 
 
-@ai.flow()
-async def file_search() -> str:
-    """File Search."""
-    # TODO: add file search store
-    store_name = 'fileSearchStores/sample-store'
-    response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
-        prompt="What is the character's name in the story?",
-        config={
-            'file_search': {
-                'file_search_store_names': [store_name],
-                'metadata_filter': 'author=foo',
-            },
-            'api_version': 'v1alpha',
-        },
-    )
-    return response.text
+
+
 
 
 @ai.tool(name='gablorkenTool')
@@ -359,8 +305,9 @@ def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
 
 @ai.tool(name='gablorkenTool2')
 def gablorken_tool2(_input: GablorkenInput, ctx: ToolRunContext) -> None:
-    """The user-defined tool function.
-    """
+    """The user-defined tool function."""
+    pass
+
 
 class Skills(BaseModel):
     """Skills for an RPG character."""
@@ -433,14 +380,7 @@ async def generate_character_unconstrained(
     return cast(RpgCharacter, result.output)
 
 
-@ai.tool(name='getWeather')
-def get_weather(input_: WeatherInput) -> dict[str, str | float]:
-    """Used to get current weather for a location."""
-    return {
-        'location': input_.location,
-        'temperature_celcius': 21.5,
-        'conditions': 'cloudy',
-    }
+
 
 
 @ai.flow()
@@ -513,7 +453,6 @@ async def say_hi_with_configured_temperature(
 async def search_grounding() -> str:
     """Search grounding."""
     response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
         prompt='Who is Albert Einstein?',
         config={'tools': [{'googleSearch': {}}], 'api_version': 'v1alpha'},
     )
@@ -578,7 +517,6 @@ async def simple_generate_with_tools_flow(
 async def thinking_level_flash(_level: ThinkingLevelFlash) -> str:
     """Gemini 3.0 thinkingLevel config (Flash)."""
     response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
         prompt=(
             'Alice, Bob, and Carol each live in a different house on the '
             'same street: red, green, and blue. The person who lives in the red house '
@@ -610,7 +548,6 @@ class ThinkingLevelFlash(StrEnum):
 async def thinking_level_pro(_level: ThinkingLevel) -> str:
     """Gemini 3.0 thinkingLevel config (Pro)."""
     response = await ai.generate(
-        model='googleai/gemini-3-pro-preview',
         prompt=(
             'Alice, Bob, and Carol each live in a different house on the '
             'same street: red, green, and blue. The person who lives in the red house '
@@ -633,7 +570,6 @@ async def thinking_level_pro(_level: ThinkingLevel) -> str:
 async def tool_calling(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
     """Tool calling with Gemini."""
     response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         tools=['getWeather', 'celsiusToFahrenheit'],
         prompt=f"What's the weather in {location}? Convert the temperature to Fahrenheit.",
         config=GenerationCommonConfig(temperature=1),
@@ -645,7 +581,6 @@ async def tool_calling(location: Annotated[str, Field(default='Paris, France')] 
 async def url_context() -> str:
     """Url context."""
     response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
         prompt=(
             'Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/'
             'perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/'
@@ -656,11 +591,6 @@ async def url_context() -> str:
     return response.text
 
 
-from google import genai as google_genai_sdk
-
-# ... existing imports ...
-
-
 async def create_file_search_store(client: google_genai_sdk.Client) -> str:
     """Creates a file search store."""
     file_search_store = await client.aio.file_search_stores.create()
@@ -669,7 +599,7 @@ async def create_file_search_store(client: google_genai_sdk.Client) -> str:
     return file_search_store.name
 
 
-async def upload_blob_to_file_search_store(client: google_genai_sdk.Client, file_search_store_name: str):
+async def upload_blob_to_file_search_store(client: google_genai_sdk.Client, file_search_store_name: str) -> None:
     """Uploads a blob to the file search store."""
     text_content = (
         'The Whispering Woods In the heart of Eldergrove, there stood a forest whispered about by the villagers. '
@@ -716,7 +646,7 @@ async def upload_blob_to_file_search_store(client: google_genai_sdk.Client, file
     return
 
 
-async def delete_file_search_store(client: google_genai_sdk.Client, name: str):
+async def delete_file_search_store(client: google_genai_sdk.Client, name: str) -> None:
     """Deletes the file search store."""
     await client.aio.file_search_stores.delete(name=name, config={'force': True})
 
@@ -738,7 +668,7 @@ async def file_search() -> str:
 
         # 3. Generate
         response = await ai.generate(
-            model='googleai/gemini-3-flash-preview',
+            model='googleai/gemini-3-pro-preview',
             prompt="What is the character's name in the story?",
             config={
                 'file_search': {
@@ -756,22 +686,45 @@ async def file_search() -> str:
 
 
 @ai.flow()
+async def embed_docs(
+    docs: list[str] | None = None,
+) -> list[Embedding]:
+    """Generate an embedding for the words in a list.
+
+    Args:
+        docs: list of texts (string)
+
+    Returns:
+        The generated embedding.
+    """
+    if docs is None:
+        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
+    options = {'task_type': EmbeddingTaskType.CLUSTERING}
+    return await ai.embed_many(
+        embedder='googleai/text-embedding-004',
+        content=docs,
+        options=options,
+    )
+
+
+@ai.flow()
 async def youtube_videos() -> str:
     """YouTube videos."""
     response = await ai.generate(
-        model='googleai/gemini-3-flash-preview',
         prompt=[
             Part(root=TextPart(text='transcribe this video')),
             Part(
                 root=MediaPart(media=Media(url='https://www.youtube.com/watch?v=3p1P5grjXIQ', content_type='video/mp4'))
             ),
         ],
-        config={'api_version': 'v1alpha'},
+        config={},
     )
     return response.text
 
 
 class ScreenshotInput(BaseModel):
+    """Input for screenshot tool."""
+
     url: str = Field(description='The URL to take a screenshot of')
 
 
@@ -809,27 +762,9 @@ def celsius_to_fahrenheit(celsius: float) -> float:
 async def tool_calling(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
     """Tool calling with Gemini."""
     response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
         tools=['getWeather', 'celsiusToFahrenheit'],
         prompt=f"What's the weather in {location}? Convert the temperature to Fahrenheit.",
         config=GenerationCommonConfig(temperature=1),
-    )
-    return response.text
-
-
-@ai.flow()
-async def describe_image(
-    image_url: Annotated[
-        str, Field(default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png')
-    ] = 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
-) -> str:
-    """Describe an image."""
-    response = await ai.generate(
-        model='googleai/gemini-2.5-flash',
-        prompt=[
-            Part(root=TextPart(text='Describe this image')),
-            Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
-        ],
     )
     return response.text
 

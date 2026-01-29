@@ -32,8 +32,6 @@ from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
-    GeminiEmbeddingModels,
-    VertexEmbeddingModels,
     default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
@@ -63,7 +61,7 @@ class GenaiModels:
     embedders: list[str] = []
     veo: list[str] = []
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.gemini = []
         self.imagen = []
         self.embedders = []
@@ -587,26 +585,27 @@ class VertexAI(Plugin):
                         dimensions=embed_info.get('dimensions'),
                     ),
                 )
-
-            # List all the vertexai models for generate actions
-            actions_list.append(
-                model_action_metadata(
-                    name=vertexai_name(name),
-                    info=google_model_info(name).model_dump(),
-                    config_schema=GeminiConfigSchema,
-                ),
             )
 
         return actions_list
 
 
-def _inject_attribution_headers(http_options: HttpOptions | dict | None = None) -> HttpOptions:
+def _inject_attribution_headers(
+    http_options: HttpOptions | dict | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+) -> HttpOptions:
     """Adds genkit client info to the appropriate http headers."""
     if not http_options:
         http_options = HttpOptions()
     else:
         if isinstance(http_options, dict):
             http_options = HttpOptions(**http_options)
+
+    if base_url:
+        http_options.base_url = base_url
+    if api_version:
+        http_options.api_version = api_version
 
     if not http_options.headers:
         http_options.headers = {}
