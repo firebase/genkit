@@ -179,15 +179,23 @@ async def generate_character(
 
 @ai.tool()
 def get_weather(input: WeatherInput) -> str:
-    """Get weather for a location.
+    """Return a random realistic weather string for a city name.
 
     Args:
-        input: Weather input with location.
+        input: Weather input  location.
 
     Returns:
-        Weather information.
+        Weather information with temperature in degree Celsius.
     """
-    return f'Weather in {input.location}: Sunny, 23°C'
+    import random
+
+    weather_options = [
+        '32° C sunny',
+        '17° C cloudy',
+        '22° C cloudy',
+        '19° C humid',
+    ]
+    return random.choice(weather_options)
 
 
 @ai.flow()

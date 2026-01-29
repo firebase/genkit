@@ -28,8 +28,7 @@ from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import SUPPORTED_XAI_MODELS, get_model_info
-from genkit.plugins.xai.models import XAIModel
-from genkit.types import GenerationCommonConfig
+from genkit.plugins.xai.models import XAIConfig, XAIModel
 
 __all__ = ['XAI', 'xai_name']
 
@@ -121,7 +120,7 @@ class XAI(Plugin):
             metadata={
                 'model': {
                     'supports': model_info.supports.model_dump() if model_info.supports else {},
-                    'customOptions': to_json_schema(GenerationCommonConfig),
+                    'customOptions': to_json_schema(XAIConfig),
                 },
             },
         )
@@ -138,7 +137,7 @@ class XAI(Plugin):
                 model_action_metadata(
                     name=xai_name(model_name),
                     info={'supports': model_info.supports.model_dump() if model_info.supports else {}},
-                    config_schema=GenerationCommonConfig,
+                    config_schema=XAIConfig,
                 )
             )
         return actions
