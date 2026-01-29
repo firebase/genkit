@@ -189,6 +189,7 @@ class PartConverter:
         Returns:
             A `genai.types.Part` object representing the converted custom content.
         """
+        # pyrefly: ignore[unsupported-operation] - Custom is RootModel[dict] which supports 'in'
         if part.root.custom and cls.EXECUTABLE_CODE in part.root.custom:
             custom_data = cast(dict, part.root.custom)
             return genai.types.Part(
@@ -197,6 +198,7 @@ class PartConverter:
                     language=custom_data[cls.EXECUTABLE_CODE][cls.LANGUAGE],
                 )
             )
+        # pyrefly: ignore[unsupported-operation] - Custom is RootModel[dict] which supports 'in'
         if part.root.custom and cls.CODE_EXECUTION_RESULT in part.root.custom:
             custom_data = cast(dict, part.root.custom)
             return genai.types.Part(

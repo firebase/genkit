@@ -150,6 +150,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
     # _message_parser is a private attribute that Pydantic will ignore
     _message_parser: Callable[[MessageWrapper], object] | None = PrivateAttr(None)
     # Override the parent's message field with our wrapper type (intentional Liskov violation)
+    # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
     message: MessageWrapper | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __init__(

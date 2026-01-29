@@ -81,7 +81,7 @@ Testing This Demo
 """
 
 import os
-from typing import Annotated, cast
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -262,13 +262,13 @@ async def generate_character(
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return cast(RpgCharacter, (await result).output)
+        return (await result).output
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
             output=Output(schema=RpgCharacter),
         )
-        return cast(RpgCharacter, result.output)
+        return result.output
 
 
 @ai.flow()
@@ -291,7 +291,7 @@ async def generate_character_unconstrained(
         output_constrained=False,
         output_instructions=True,
     )
-    return cast(RpgCharacter, result.output)
+    return result.output
 
 
 @ai.flow()

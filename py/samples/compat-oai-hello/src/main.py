@@ -39,7 +39,7 @@ See README.md for testing instructions.
 
 import os
 from decimal import Decimal
-from typing import Annotated, cast
+from typing import Annotated
 
 import httpx
 from pydantic import BaseModel, Field
@@ -254,7 +254,7 @@ async def generate_character(
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return cast(RpgCharacter, (await result).output)
+        return (await result).output
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name} with gablorken based on 13',
@@ -262,7 +262,7 @@ async def generate_character(
             config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
             tools=['gablorkenTool'],
         )
-        return cast(RpgCharacter, result.output)
+        return result.output
 
 
 @ai.flow()
@@ -345,7 +345,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 
         prompt='hi ' + hi_input,
         output=Output(schema=HelloSchema),
     )
-    return cast(HelloSchema, response.output)
+    return response.output
 
 
 @ai.flow()

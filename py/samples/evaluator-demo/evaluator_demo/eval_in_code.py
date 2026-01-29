@@ -17,8 +17,7 @@
 import json
 import os
 
-from genkit_demo import ai
-
+from evaluator_demo.genkit_demo import ai
 from genkit.core.typing import EvalResponse
 
 # Load dataset

@@ -18,7 +18,7 @@
 # Start the sample with automatic reloading
 genkit start -- \
   uv tool run --from watchdog watchmedo auto-restart \
-    -d src \
+    -d evaluator_demo \
     -d docs \
     -d ../../packages \
     -d ../../plugins \
@@ -34,6 +34,6 @@ genkit start -- \
         done
       fi
       if [ ! -f __db_pdf_qa.json ]; then
-        uv run src/main.py --setup
+        uv run -m evaluator_demo.main --setup
       fi
-      uv run src/main.py "$@"' "$0" "$@"
+      uv run -m evaluator_demo.main "$@"' "$0" "$@"

@@ -231,6 +231,7 @@ class ImagenModel:
         Returns:
             model metadata.
         """
+        # pyrefly: ignore[bad-index] - _version can be str for custom models
         supports = SUPPORTED_MODELS[self._version].supports
         if supports:
             return {

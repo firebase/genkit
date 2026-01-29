@@ -63,6 +63,7 @@ def get_current_environment() -> GenkitEnvironment:
     if env is None:
         return cast(GenkitEnvironment, GenkitEnvironment.PROD)
     try:
+        # pyrefly: ignore[bad-return] - GenkitEnvironment is StrEnum subclass, pyrefly doesn't narrow properly
         return GenkitEnvironment(env)
     except ValueError:
         return cast(GenkitEnvironment, GenkitEnvironment.PROD)

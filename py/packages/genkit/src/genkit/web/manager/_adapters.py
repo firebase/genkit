@@ -178,6 +178,7 @@ class UvicornAdapter(ASGIServerAdapter):
 
         # Configure Uvicorn
         config = uvicorn.Config(
+            # pyrefly: ignore[bad-argument-type] - Starlette app is valid ASGI app for uvicorn
             app,
             host=host,
             port=port,

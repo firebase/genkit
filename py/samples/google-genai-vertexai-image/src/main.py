@@ -60,6 +60,7 @@ async def draw_image_with_imagen() -> GenerateResponseWrapper:
         'add_watermark': False,
     }
 
+    # pyrefly: ignore[no-matching-overload] - config dict is compatible with dict[str, object]
     return await ai.generate(
         prompt='Draw a cat in a hat',
         model='vertexai/imagegeneration@006',
@@ -76,7 +77,9 @@ async def main() -> None:
     if not result.message or not result.message.content:
         print('No image generated.')
         return
-    media_url = result.message.content[0].root.media.url if result.message.content[0].root.media else ''
+    # pyrefly: ignore[missing-attribute] - MediaModel has url attribute
+    media = result.message.content[0].root.media
+    media_url = media.url if media and hasattr(media, 'url') else ''
     if not media_url:
         print('No media URL found in response.')
         return
