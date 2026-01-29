@@ -51,9 +51,8 @@ from typing_extensions import Never, TypeVar
 from genkit.aio import ensure_async
 
 from genkit.blocks.interfaces import Input, Output
-    from genkit.blocks.prompt import ExecutablePrompt
-    from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
-
+from genkit.blocks.prompt import ExecutablePrompt
+from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
