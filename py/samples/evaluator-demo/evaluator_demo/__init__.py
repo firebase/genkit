@@ -13,30 +13,4 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-
-[project]
-authors = [{ name = "Google" }]
-dependencies = [
-  "genkit",
-  "genkit-plugin-dev-local-vectorstore",
-  "genkit-plugin-evaluators",
-  "genkit-plugin-google-genai",
-  "pydantic>=2.0.0",
-  "pypdf>=6.6.2",
-  "structlog>=24.0.0",
-  "uvloop>=0.22.1",
-]
-description = "Genkit Python Evaluation Demo"
-name = "eval-demo"
-requires-python = ">=3.10"
-version = "0.0.1"
-
-[project.optional-dependencies]
-dev = ["watchdog>=6.0.0"]
-
-[build-system]
-build-backend = "hatchling.build"
-requires      = ["hatchling"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["evaluator_demo"]
+"""Evaluator demo sample package."""

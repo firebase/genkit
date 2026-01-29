@@ -219,7 +219,7 @@ async def llm_chain_flow(initial_prompt: str = 'Tell me a fun fact') -> dict[str
     Returns:
         Dict with responses from each step.
     """
-    results = {}
+    results: dict[str, object] = {}
 
     # Step 1: Initial generation
     response1 = await ai.generate(

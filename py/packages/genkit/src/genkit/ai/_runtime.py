@@ -187,7 +187,7 @@ class RuntimeManager:
         return self
 
     async def __aexit__(
-        self, exc_type: Exception | None, exc_val: Exception | None, exc_tb: TracebackType | None
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
     ) -> bool:
         """Async context manager exit handler.
 
@@ -219,7 +219,12 @@ class RuntimeManager:
 
         return self
 
-    def __exit__(self, exc_type: Exception | None, exc_val: Exception | None, exc_tb: TracebackType | None) -> bool:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
         """Synchronous exit handler.
 
         Cleanup is handled by atexit. This method primarily ensures the context

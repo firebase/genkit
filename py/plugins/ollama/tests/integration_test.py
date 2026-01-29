@@ -78,6 +78,7 @@ async def test_async_get_chat_model_response_from_llama_api_flow(
     response = await genkit_veneer_chat_model.flow()(_test_fun)()
 
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content[0].root.text == mock_response_message
 
 
@@ -109,6 +110,7 @@ async def test_async_get_generate_model_response_from_llama_api_flow(
     response = await genkit_veneer_generate_model.flow()(_test_fun)()
 
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.content[0].root.text == mock_response_message
 
 

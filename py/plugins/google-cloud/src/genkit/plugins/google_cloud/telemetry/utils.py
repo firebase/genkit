@@ -179,6 +179,8 @@ def create_common_log_attributes(span: ReadableSpan, project_id: str | None = No
         Dictionary with logging.googleapis.com attributes.
     """
     span_context = span.context
+    if span_context is None:
+        return {}
     is_sampled = bool(span_context.trace_flags & TraceFlags.SAMPLED)
 
     return {

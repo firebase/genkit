@@ -16,8 +16,6 @@
 
 """Common flows for samples."""
 
-from typing import cast
-
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 
@@ -74,7 +72,7 @@ async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
         prompt=f'Generate a structured RPG character named {name}. Output ONLY the JSON object.',
         output=Output(schema=RpgCharacter),
     )
-    return cast(RpgCharacter, result.output)
+    return result.output  # type: RpgCharacter from Output(schema=RpgCharacter)
 
 
 async def say_hi_logic(ai: Genkit, name: str) -> str:

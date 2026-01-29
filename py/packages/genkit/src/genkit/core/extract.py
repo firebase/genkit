@@ -81,12 +81,13 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:  # noqa: ANN
     if text.strip() == '':
         return None
 
-    opening_char = None
-    closing_char = None
-    start_pos = None
-    nesting_count = 0
-    in_string = False
-    escape_next = False
+    # Explicit type annotations for loop variables to help type checkers
+    opening_char: str | None = None
+    closing_char: str | None = None
+    start_pos: int | None = None
+    nesting_count: int = 0
+    in_string: bool = False
+    escape_next: bool = False
 
     for i in range(len(text)):
         char = text[i].replace(CHAR_NON_BREAKING_SPACE, ' ')

@@ -233,7 +233,7 @@ async def generate_character(
         prompt=f'generate an RPG character named {name}',
         output=Output(schema=RpgCharacter),
     )
-    return cast(RpgCharacter, result.output)
+    return result.output
 
 
 @ai.tool()

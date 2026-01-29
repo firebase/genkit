@@ -154,7 +154,7 @@ class OpenAI(Plugin):
 
         # Create the model handler
         openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._openai_client))
-        model_info = self.get_model_info(clean_name)
+        model_info = self.get_model_info(clean_name) or {}
 
         return Action(
             kind=ActionKind.MODEL,

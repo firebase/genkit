@@ -833,7 +833,8 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
+            schema_={  # pyright: ignore[reportCallIssue]
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -894,7 +895,8 @@ async def test_generate_defaults_to_json_format(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
+            schema_={  # pyright: ignore[reportCallIssue]
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -954,7 +956,8 @@ async def test_generate_json_format_unconstrained(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
+            schema_={  # pyright: ignore[reportCallIssue]
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -1144,7 +1147,8 @@ async def test_generate_json_format_unconstrained_with_instructions(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
+            schema_={  # pyright: ignore[reportCallIssue]
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -1343,7 +1347,8 @@ async def test_define_format(setup_test: SetupFixture) -> None:
         tools=[],
         output=OutputConfig(
             format='json',
-            schema_={
+            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
+            schema_={  # pyright: ignore[reportCallIssue]
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],

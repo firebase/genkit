@@ -81,6 +81,7 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process the ASGI request/response cycle with logging."""
         if str(scope['type']) != 'http':
+            # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
             await self.app(scope, receive, send)
             return
 
@@ -92,7 +93,8 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
         request_id = str(id(scope))
         try:
             # Extract request headers
-            headers = dict(scope.get('headers', []))
+            raw_headers = scope.get('headers', [])
+            headers = dict(cast(list[tuple[bytes, bytes]], raw_headers))
             formatted_headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in headers.items()}
             await logger.ainfo(
                 f'HTTP Request {method} {path}',
@@ -135,6 +137,7 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
             await send(message)
 
         # Call the next middleware or handler
+        # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
         await self.app(scope, receive, wrapped_send)
 
 

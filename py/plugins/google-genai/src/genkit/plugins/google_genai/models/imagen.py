@@ -231,13 +231,12 @@ class ImagenModel:
         Returns:
             model metadata.
         """
-        if self._version in SUPPORTED_MODELS:
-            supports = SUPPORTED_MODELS[self._version].supports.model_dump()
-        else:
-            supports = vertexai_image_model_info(self._version).supports.model_dump()
-
-        return {
-            'model': {
-                'supports': supports,
+        # pyrefly: ignore[bad-index] - _version can be str for custom models
+        supports = SUPPORTED_MODELS[self._version].supports
+        if supports:
+            return {
+                'model': {
+                    'supports': supports.model_dump(),
+                }
             }
         }

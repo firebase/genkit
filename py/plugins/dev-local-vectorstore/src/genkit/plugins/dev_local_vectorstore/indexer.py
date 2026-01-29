@@ -58,6 +58,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
     async def index(self, request: IndexerRequest) -> None:
         """Index documents into the local vector store."""
         docs = request.documents
+        # pyrefly: ignore[missing-attribute] - inherited from LocalVectorStoreAPI
         data = self._load_filestore()
 
         embed_resp = await self.ai.embed_many(
@@ -80,7 +81,9 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
 
         await asyncio.gather(*tasks)
 
+        # pyrefly: ignore[missing-attribute] - index_file_name inherited from LocalVectorStoreAPI
         with open(self.index_file_name, 'w', encoding='utf-8') as f:
+            # pyrefly: ignore[missing-attribute] - _serialize_data inherited from LocalVectorStoreAPI
             f.write(dump_json(self._serialize_data(data=data), indent=2))
 
     async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
@@ -94,6 +97,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         embedding: Embedding,
         doc: Document,
     ) -> None:
+        # pyrefly: ignore[missing-attribute] - _serialize_data inherited from LocalVectorStoreAPI
         data_str = json.dumps(self._serialize_data(data=data), ensure_ascii=False)
         _idx = md5(data_str.encode('utf-8')).hexdigest()
         if _idx not in data:

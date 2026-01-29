@@ -141,8 +141,11 @@ async def test_generate_stream_with_tool_calls(sample_request: GenerateRequest) 
     assert all(isinstance(part, ToolRequestPart) for part in collected_chunks)
 
     tool_part = collected_chunks[0]
-    assert tool_part.tool_request.name == 'tool_fn'
-    assert tool_part.tool_request.ref == 'tool123'
+    assert isinstance(tool_part, ToolRequestPart)
+    assert tool_part.tool_request is not None
+    tool_request = tool_part.tool_request
+    assert tool_request.name == 'tool_fn'
+    assert tool_request.ref == 'tool123'
 
     accumulated_output = reduce(lambda res, tool_call: res + tool_call.tool_request.input, collected_chunks, '')
     assert json.loads(accumulated_output) == {'a': 1}

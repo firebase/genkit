@@ -82,19 +82,19 @@ class GenkitError(Exception):
             trace_id: A unique identifier for tracing the action execution.
             source: Optional source of the error.
         """
+        temp_status: StatusName
         if status:
-            temp_status: StatusName = status
+            temp_status = status
         elif isinstance(cause, GenkitError):
             temp_status = cause.status
         else:
             temp_status = 'INTERNAL'
         self.status: StatusName = temp_status
+        self.http_code: int = http_status_code(temp_status)
 
         source_prefix = f'{source}: ' if source else ''
         super().__init__(f'{source_prefix}{self.status}: {message}')
         self.original_message: str = message
-
-        self.http_code: int = http_status_code(self.status)
 
         if not details:
             details = {}

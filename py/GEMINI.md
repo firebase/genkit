@@ -3,32 +3,78 @@
 ## Code Quality & Linting
 
 * **Run Linting**: Always run `./bin/lint` from the repo root (or `py/` directory
-    semantics depending on the script) for all Python code changes.
-    0 diagnostics should be reported.
+  semantics depending on the script) for all Python code changes.
+  0 diagnostics should be reported.
+* **Type Checkers**: Three type checkers are configured:
+
+  * **ty** (Astral/Ruff) - Blocking, must pass with zero errors (full workspace)
+  * **pyrefly** (Meta) - Blocking, must pass with zero errors (full workspace)
+  * **pyright** (Microsoft) - Blocking, must pass with zero errors (runs on `packages/` only)
+
+  Treat warnings as errors—do not ignore them. All three checkers run in `bin/lint`.
+
+  **Full Coverage Required**: All type checkers must pass on the entire codebase including:
+
+  * Core framework (`packages/genkit/`)
+  * Plugins (`plugins/*/`)
+  * Samples (`samples/*/`)
+  * Tests (`**/tests/`, `**/*_test.py`)
+
+  Do not exclude or ignore any part of the codebase from type checking.
+
+  **ty configuration**: Module discovery is configured in `py/pyproject.toml` under
+  `[tool.ty.environment]`. When adding new packages/plugins/samples, add their source
+  paths to `environment.root`.
+
+  **pyrefly and PEP 420 Namespace Packages**: The genkit plugins use PEP 420 namespace
+  packages (`genkit.plugins.*`) where intermediate directories (`genkit/` and `genkit/plugins/`)
+  don't have `__init__.py` files. This is intentional for allowing multiple packages to
+  contribute to the same namespace. However, pyrefly can't resolve these imports statically.
+  We configure `ignore-missing-imports = ["genkit.plugins.*"]` in `pyproject.toml` to suppress
+  false positive import errors. At runtime, these imports work correctly because Python's
+  import system handles PEP 420 namespace packages natively. This is the only acceptable
+  import-related suppression.
 * **Pass All Tests**: Ensure all unit tests pass (`uv run pytest .`).
 * **Production Ready**: The objective is to produce production-grade code.
 * **Shift Left**: Employ a "shift left" strategy—catch errors early.
 * **Strict Typing**: Strict type checking is required. Do not use `Any` unless
-    absolutely necessary and documented.
-* **No Warning Suppression**: Avoid ignoring warnings from the type checker
-    (`# type: ignore`) or other tools unless there is a compelling, documented reason.
+  absolutely necessary and documented.
+* **Error Suppression Policy**: Avoid ignoring warnings from the type checker
+  (`# type: ignore`, `# pyrefly: ignore`, etc.) or other tools unless there is
+  a compelling, documented reason.
+  * **Try to fix first**: Before suppressing, try to rework the code to avoid the
+    warning entirely. Use explicit type annotations, asserts for type narrowing,
+    local variables to capture narrowed types in closures, or refactor the logic.
+  * **Acceptable suppressions**: Only suppress when the warning is due to:
+    * Type checker limitations (e.g., StrEnum narrowing, Self type compatibility)
+    * External library type stub issues (e.g., uvicorn, OpenTelemetry)
+    * Intentional design choices (e.g., Pydantic v1 compatibility, covariant overrides)
+  * **Minimize surface area**: Suppress on the specific line, not globally in config.
+  * **Always add a comment**: Explain why the suppression is needed.
+  * **Be specific**: Use the exact error code (e.g., `# pyrefly: ignore[unexpected-keyword]`
+    not just `# pyrefly: ignore`).
+  * **Example**:
+    ```python
+    # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
+    schema_=options.output.json_schema if options.output else None,
+    ```
 * Move imports to the top of the file and avoid using imports inside function
   definitions.
 
 ## Generated Files & Data Model
 
 * **Do Not Edit typing.py**: `py/packages/genkit/src/genkit/core/typing.py`
-    is an auto-generated file. **DO NOT MODIFY IT DIRECTLY.**
+  is an auto-generated file. **DO NOT MODIFY IT DIRECTLY.**
 * **Generator/Sanitizer**: Any necessary transformations to the core types must be
-    applied to the generator script or the schema sanitizer.
+  applied to the generator script or the schema sanitizer.
 * **Canonical Parity**: The data model MUST be identical to the JSON schema
-    defined in the JavaScript (canonical) implementation.
+  defined in the JavaScript (canonical) implementation.
 
 ## API & Behavior Parity
 
 * **JS Canonical Conformance**: The Python implementation MUST be identical
-    in API structure and runtime behavior to the JavaScript (canonical)
-    implementation.
+  in API structure and runtime behavior to the JavaScript (canonical)
+  implementation.
 
 ## Detailed Coding Guidelines
 
@@ -46,7 +92,7 @@
   * Use modern generics (PEP 585, 695).
   * Use the `type` keyword for type aliases.
 * **Imports**: Import types like `Callable`, `Awaitable` from `collections.abc`,
-    not standard library `typing`.
+  not standard library `typing`.
 * **Enums**: Use `StrEnum` instead of `(str, Enum)`.
 * **Strictness**: Apply type hints strictly, including `-> None` for void functions.
 * **Design**:
@@ -61,13 +107,13 @@
 ### Docstrings
 
 * **Format**: Write comprehensive Google-style docstrings for modules, classes,
-    and functions.
+  and functions.
 * **Content**:
   * **Explain Concepts**: Explain the terminology and concepts used in the
-      code to someone unfamiliar with the code so that first timers can easily
-      understand these ideas.
+    code to someone unfamiliar with the code so that first timers can easily
+    understand these ideas.
   * **Visuals**: Prefer using tabular format and ascii diagrams in the
-      docstrings to break down complex concepts or list terminology.
+    docstrings to break down complex concepts or list terminology.
 * **Required Sections**:
   * **Overview**: One-liner description followed by rationale.
   * **Key Operations**: Purpose of the component.
@@ -170,7 +216,7 @@
 * **Documentation**: Add docstrings to test modules/functions explaining their scope.
 * **Execution**: Run via `uv run pytest .`.
 * **Porting**: Maintain 1:1 logic parity accurately if porting tests.
-    Do not invent behavior.
+  Do not invent behavior.
 * **Fixes**: Fix underlying code issues rather than special-casing tests.
 
 ### Logging

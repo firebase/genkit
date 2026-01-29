@@ -217,11 +217,13 @@ class XAIModel:
                                         pass
 
                                 accumulated_content.append(
-                                    ToolRequestPart(
-                                        tool_request=ToolRequest(
-                                            ref=tool_call.id,
-                                            name=tool_call.function.name,
-                                            input=tool_input,
+                                    Part(
+                                        root=ToolRequestPart(
+                                            tool_request=ToolRequest(
+                                                ref=tool_call.id,
+                                                name=tool_call.function.name,
+                                                input=tool_input,
+                                            )
                                         )
                                     )
                                 )
@@ -247,7 +249,11 @@ class XAIModel:
         result = []
 
         for msg in messages:
-            role = ROLE_MAP.get(msg.role, chat_pb2.MessageRole.ROLE_USER)
+            # msg.role can be Role or str; ROLE_MAP keys are Role enum values
+            if isinstance(msg.role, Role):
+                role = ROLE_MAP.get(msg.role, chat_pb2.MessageRole.ROLE_USER)
+            else:
+                role = chat_pb2.MessageRole.ROLE_USER
             content = []
             tool_calls = []
 

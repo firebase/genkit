@@ -19,6 +19,7 @@
 
 import json
 from collections.abc import Callable
+from typing import Any
 
 from genkit.types import (
     Message,
@@ -115,8 +116,15 @@ ChatCompletionMessageAdapter = DictMessageAdapter | MessageAdapter
 class MessageConverter:
     """Converts between internal `Message` objects and OpenAI-compatible chat message dicts."""
 
-    _openai_role_map = {Role.MODEL: 'assistant'}
-    _genkit_role_map = {'assistant': Role.MODEL}
+    _openai_role_map: dict[Role, str] = {Role.MODEL: 'assistant'}
+    _genkit_role_map: dict[str, Role] = {'assistant': Role.MODEL}
+
+    @classmethod
+    def _get_openai_role(cls, role: Role | str) -> str:
+        """Convert a Role to its OpenAI string representation."""
+        if isinstance(role, Role):
+            return cls._openai_role_map.get(role, role.value)
+        return str(role)
 
     @classmethod
     def to_openai(cls, message: Message) -> list[dict]:
@@ -151,7 +159,7 @@ class MessageConverter:
             elif isinstance(root, ToolResponsePart):
                 tool_call = root.tool_response
                 tool_messages.append({
-                    'role': cls._openai_role_map.get(message.role, message.role),
+                    'role': cls._get_openai_role(message.role),
                     'tool_call_id': tool_call.ref,
                     'content': str(tool_call.output),
                 })
@@ -160,13 +168,13 @@ class MessageConverter:
 
         if text_parts:
             result.append({
-                'role': cls._openai_role_map.get(message.role, message.role),
+                'role': cls._get_openai_role(message.role),
                 'content': ''.join(text_parts),
             })
 
         if tool_calls:
             result.append({
-                'role': cls._openai_role_map.get(message.role, message.role),
+                'role': cls._get_openai_role(message.role),
                 'tool_calls': tool_calls,
             })
 
@@ -235,15 +243,18 @@ class MessageConverter:
             func_name = func.get('name', '')
             func_args = func.get('arguments', '')
 
-        args_segment = args_segment if args_segment is not None else func_args  # type: ignore[assignment]
-        args_segment = args_parser(args_segment) if args_parser else args_segment
+        # args can be str from streaming or parsed dict from args_parser
+        default_args = str(func_args) if func_args else ''
+        args_input: str | dict[str, Any] | None = args_segment if args_segment is not None else default_args
+        if args_parser and isinstance(args_input, str):
+            args_input = args_parser(args_input)
 
         return Part(
             root=ToolRequestPart(
                 tool_request=ToolRequest(
                     ref=str(tool_id) if tool_id else None,
                     name=str(func_name) if func_name else '',
-                    input=args_segment,
+                    input=args_input,
                 )
             )
         )

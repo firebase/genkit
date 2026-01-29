@@ -127,6 +127,7 @@ def iter_over_async(ait: AsyncIterable[T], loop: asyncio.AbstractEventLoop) -> I
         done, obj = loop.run_until_complete(get_next())
         if done:
             break
+        assert obj is not None  # Type narrowing: obj is T when done=False
         yield obj
 
 

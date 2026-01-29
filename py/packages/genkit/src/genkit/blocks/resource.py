@@ -255,24 +255,28 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
 
                 if hasattr(p, 'metadata'):
                     if p.metadata is None:
-                        p.metadata = {}
+                        # Different Part types have different metadata types (Metadata or dict)
+                        # dict works for both types at runtime
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
                     if isinstance(p.metadata, Metadata):
-                        p.metadata = p.metadata.root
-                    if isinstance(p.metadata, dict):
+                        p_metadata = p.metadata.root
+                    elif isinstance(p.metadata, dict):
                         p_metadata = p.metadata
                     else:
-                        p.metadata = {}
+                        # dict works for both Part types at runtime
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
                         p_metadata = p.metadata
 
+                    template = opts.get('template')
                     if 'resource' in p_metadata:
                         if 'parent' not in p_metadata['resource']:
                             p_metadata['resource']['parent'] = {'uri': input_data.uri}
-                            if opts.get('template'):
-                                p_metadata['resource']['parent']['template'] = opts.get('template')
+                            if template:
+                                p_metadata['resource']['parent']['template'] = template
                     else:
                         p_metadata['resource'] = {'uri': input_data.uri}
-                        if opts.get('template'):
-                            p_metadata['resource']['template'] = opts.get('template')
+                        if template:
+                            p_metadata['resource']['template'] = template
                 elif isinstance(p, dict):
                     if 'metadata' not in p or p['metadata'] is None:
                         p['metadata'] = {}

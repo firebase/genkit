@@ -229,7 +229,7 @@ class McpClient(Plugin):
                     return await self.call_tool(_tool_name, arguments)
 
                 # Use metadata to store MCP specific info
-                metadata = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
+                metadata: dict[str, object] = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
 
                 # Define the tool in Genkit registry
                 registry.register_action(

@@ -294,6 +294,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
 
     code_execution: bool | None = None
     response_modalities: list[str] | None = None
+    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
     thinking_config: dict[str, object] | None = None
     file_search: dict[str, object] | None = None
     url_context: dict[str, object] | None = None
@@ -1026,7 +1027,8 @@ class GeminiModel:
         """
         validate_context_cache_request(request=request, model_name=model_name)
 
-        ttl = cache_config.get('ttl_seconds', DEFAULT_TTL)
+        ttl_value = cache_config.get('ttl_seconds', DEFAULT_TTL)
+        ttl: float = float(ttl_value) if ttl_value is not None else DEFAULT_TTL
         cache_key = generate_cache_key(request=request)
 
         iterator_config = genai_types.ListCachedContentsConfig()

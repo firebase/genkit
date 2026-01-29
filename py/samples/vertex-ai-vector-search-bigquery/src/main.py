@@ -177,7 +177,8 @@ async def main() -> None:
         k=3,
     )
 
-    await logger.ainfo(await query_flow(query_input))
+    result = await query_flow(query_input)
+    await logger.ainfo(str(result))
 
 
 if __name__ == '__main__':
