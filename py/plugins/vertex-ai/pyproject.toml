@@ -42,6 +42,7 @@ dependencies = [
   "strenum>=0.4.15; python_version < '3.11'",
   "anthropic>=0.40.0",
   "genkit-plugin-compat-oai",
+  "mistralai[gcp]>=1.0.0",
 ]
 description = "Genkit Google Cloud Vertex AI Plugin"
 license = "Apache-2.0"

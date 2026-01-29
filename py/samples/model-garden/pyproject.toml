@@ -35,6 +35,7 @@ dependencies = [
   "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
   "uvloop>=0.21.0",
+  "structlog",
 ]
 description = "Model Garden sample"
 license = "Apache-2.0"

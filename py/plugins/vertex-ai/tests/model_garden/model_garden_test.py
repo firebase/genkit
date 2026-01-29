@@ -16,12 +16,15 @@
 
 """Unittests for VertexAI Model Garden Models."""
 
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from genkit.plugins.vertex_ai.model_garden.llama import SUPPORTED_LLAMA_MODELS
+from genkit.plugins.vertex_ai.model_garden.mistral import SUPPORTED_MISTRAL_MODELS
 from genkit.plugins.vertex_ai.model_garden.model_garden import ModelGarden
+from genkit.plugins.vertex_ai.model_garden.modelgarden_plugin import ModelGardenPlugin
 
 
 @pytest.fixture
@@ -85,3 +88,55 @@ def test_get_model_info(model_name: str, expected: dict[str, Any], model_garden_
     result = model_garden_instance.get_model_info()
 
     assert result == expected
+
+
+class TestLlamaIntegration:
+    """Test Llama integration."""
+
+    def test_llama_model_lookup(self) -> None:
+        """Test that Llama models are correctly identified and configured."""
+        plugin = ModelGardenPlugin(project_id='test-project', location='us-central1')
+        model_name = 'modelgarden/meta/llama-3.2-90b-vision-instruct-maas'
+
+        action = plugin._create_model_action(model_name)
+
+        assert action is not None
+        assert action.name == model_name
+
+        metadata = cast(dict[str, Any], action.metadata['model'])
+        supports = SUPPORTED_LLAMA_MODELS['meta/llama-3.2-90b-vision-instruct-maas'].supports
+        assert supports is not None
+        expected_supports = supports.model_dump()
+
+        # Verify capabilities match definition
+        assert metadata['supports'] == expected_supports
+        assert metadata['supports']['multiturn'] is True
+        assert metadata['supports']['tools'] is True
+
+
+class TestMistralIntegration:
+    """Test Mistral integration."""
+
+    @patch('mistralai_gcp.MistralGoogleCloud')
+    @patch('mistralai_gcp.MistralGoogleCloud')
+    @patch('mistralai_gcp.MistralGoogleCloud')
+    def test_mistral_model_lookup_native(self, mock_client_cls: MagicMock) -> None:
+        """Test that Mistral models trigger native client path."""
+        plugin = ModelGardenPlugin(project_id='test-project', location='us-central1')
+        model_name = 'modelgarden/mistral-large-3'
+
+        action = plugin._create_model_action(model_name)
+
+        # Should instantiate MistralGoogleCloud
+        mock_client_cls.assert_called_once()
+
+        assert action is not None
+        assert action.name == model_name
+
+        metadata = cast(dict[str, Any], action.metadata['model'])
+        # Check supports from mistral.py
+        supports = SUPPORTED_MISTRAL_MODELS['mistral-large-3'].supports
+        assert supports is not None
+        expected = supports.model_dump()
+        assert metadata['supports'] == expected
+        assert metadata['supports']['output'] == ['text']

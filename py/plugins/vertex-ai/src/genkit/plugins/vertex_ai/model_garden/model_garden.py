@@ -19,7 +19,6 @@
 
 import typing
 from collections.abc import Callable
-from typing import cast
 
 if typing.TYPE_CHECKING:
     from openai import OpenAI
@@ -74,7 +73,7 @@ class ModelGarden:
         """
         self.name = model
         openai_params = {'location': location, 'project_id': project_id}
-        self.client = OpenAIClient(**openai_params)
+        self.client: OpenAI = OpenAIClient(**openai_params)
 
     def get_model_info(self) -> dict[str, object] | None:
         """Retrieves metadata and supported features for the specified model.
@@ -106,5 +105,5 @@ class ModelGarden:
             A callable function (specifically, the `generate` method of an
             `OpenAIModel` instance) that can be used by Genkit.
         """
-        openai_model = OpenAIModel(self.name, cast('OpenAI', self.client))
+        openai_model = OpenAIModel(self.name, self.client)
         return openai_model.generate

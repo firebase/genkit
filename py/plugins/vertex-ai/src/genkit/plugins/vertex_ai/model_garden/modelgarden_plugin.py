@@ -19,15 +19,28 @@
 import os
 from typing import cast
 
+from anthropic import AsyncAnthropic, AsyncAnthropicVertex
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
+from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS
-from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit.plugins.vertex_ai import constants as const
+from genkit.types import (
+    GenerateRequest,
+    GenerateResponse,
+    GenerationCommonConfig,
+    ModelInfo,
+    Supports,
+)
 
+from mistralai_gcp import MistralGoogleCloud
+
+from .llama import SUPPORTED_LLAMA_MODELS
+from .mistral import SUPPORTED_MISTRAL_MODELS, MistralModel
 from .model_garden import MODELGARDEN_PLUGIN_NAME, ModelGarden, model_garden_name
 
 
@@ -114,50 +127,129 @@ class ModelGardenPlugin(Plugin):
             name.replace(MODELGARDEN_PLUGIN_NAME + '/', '') if name.startswith(MODELGARDEN_PLUGIN_NAME) else name
         )
 
+        if not self.project_id:
+            raise ValueError('Project ID is required.')
+        if not self.location:
+            raise ValueError('Location is required.')
+
         if clean_name.startswith('anthropic/'):
-            from .anthropic import AnthropicModelGarden as AnthropicWorker
 
             location = self.model_locations.get(clean_name, self.location)
-            if not self.project_id:
-                raise ValueError('project_id must be provided')
-            model_proxy = AnthropicWorker(
-                model=clean_name,
-                location=location,
-                project_id=self.project_id,
-            )
+            client = AsyncAnthropicVertex(region=location, project_id=self.project_id)
 
-            handler = model_proxy.get_handler()
-            model_info = model_proxy.get_model_info()
+            # Strip 'anthropic/' prefix for the model passed to Anthropic SDK
+            anthropic_model_name = clean_name.removeprefix('anthropic/')
+            anthropic_model = AnthropicModel(model_name=anthropic_model_name, client=cast(AsyncAnthropic, client))
 
             return Action(
-                kind=ActionKind.MODEL,
+                kind=cast(ActionKind, ActionKind.MODEL),
                 name=name,
-                fn=handler,
+                fn=anthropic_model.generate,
                 metadata={
-                    'model': {
-                        **model_info.model_dump(),
-                        'customOptions': to_json_schema(model_proxy.get_config_schema()),
-                    },
+                    'model': ModelInfo(
+                        label=f'ModelGarden - {clean_name}',
+                        supports=Supports(
+                            multiturn=True,
+                            media=True,
+                            tools=True,
+                            system_role=True,
+                            output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+                        ),
+                    ).model_dump(),
+                    'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             )
 
-        location = self.model_locations.get(clean_name, self.location)
-        if not self.project_id:
-            raise ValueError('project_id must be provided')
-        model_proxy = ModelGarden(
-            model=clean_name,
-            location=location,
-            project_id=self.project_id,
-        )
+        if any(keyword in clean_name for keyword in ['mistral', 'codestral','mixtral']) or clean_name in SUPPORTED_MISTRAL_MODELS:
 
-        # Get model info and handler
-        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(clean_name, {})
-        handler = model_proxy.to_openai_compatible_model()
+            location = self.model_locations.get(clean_name, self.location)
+            client = MistralGoogleCloud(project_id=self.project_id, region=location)
+
+            mistral_model_name = clean_name
+            # Do not strip publisher prefix. The underlying library or API may need the full `publisher/model` format
+            # especially if the publisher is 'mistral-ai' vs 'mistralai'.
+            # If the user provides a short name 'mistral-large', it will go as is.
+            # If they provide 'mistral-ai/mixtral', it goes as is.
+
+            mistral_model = MistralModel(client=client, model_name=mistral_model_name)
+
+            model_info = SUPPORTED_MISTRAL_MODELS.get(
+                clean_name,
+                ModelInfo(
+                    label=f'ModelGarden - {clean_name}',
+                    supports=Supports(
+                        multiturn=True,
+                        media=False,
+                        tools=True,
+                        system_role=True,
+                        output=[SupportedOutputFormat.TEXT],
+                    ),
+                ),
+            )
+
+            return Action(
+                kind=cast(ActionKind, ActionKind.MODEL),
+                name=name,
+                fn=mistral_model.generate,
+                metadata={
+                    'model': model_info.model_dump(),
+                    'customOptions': to_json_schema(GenerationCommonConfig),
+                },
+            )
+            # clean up duplicate code block
+
+        supports_llama = clean_name.startswith('meta/llama-')
+        if supports_llama or clean_name in SUPPORTED_LLAMA_MODELS:
+            # For known models use the info, otherwise generic
+            if clean_name in SUPPORTED_LLAMA_MODELS:
+                model_info = SUPPORTED_LLAMA_MODELS[clean_name]
+            else:
+                model_info = ModelInfo(
+                    label=f'ModelGarden - {clean_name}',
+                    supports=Supports(
+                        multiturn=True,
+                        media=True,
+                        tools=True,
+                        system_role=True,
+                        output=[SupportedOutputFormat.TEXT, SupportedOutputFormat.JSON_MODE],
+                    ),
+                )
+        else:
+            model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(clean_name, {})
+
+        # Wrap handler to create client on demand (like JS clientFactory)
+        async def dynamic_handler(request: GenerateRequest, context: object = None) -> GenerateResponse:
+            try:
+                # Resolve location from request config, or fallback to plugin default
+                req_location = None
+                if request.config and 'location' in request.config:
+                    req_location = request.config.pop('location')  # Remove to avoid validation error in OpenAIConfig
+
+                effective_location = req_location or self.model_locations.get(clean_name, self.location)
+
+                # Instantiate ModelGarden dynamically with effective location
+                # project_id is guaranteed to be set due to earlier check
+                assert self.project_id is not None
+
+                # TODO: Consider caching/pooling if overhead is high
+                model_proxy = ModelGarden(
+                    model=clean_name,
+                    location=effective_location,
+                    project_id=self.project_id,
+                )
+                handler = model_proxy.to_openai_compatible_model()
+                return await handler(request, context)
+            except Exception as e:
+                import structlog
+
+                logger = structlog.get_logger(__name__)
+                logger.exception('Error calling Model Garden API', error=str(e))
+                raise e
 
         return Action(
-            kind=ActionKind.MODEL,
+            kind=cast(ActionKind, ActionKind.MODEL),
             name=name,
-            fn=handler,
+            fn=dynamic_handler,
             metadata={
                 'model': {
                     **(
