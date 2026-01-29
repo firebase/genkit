@@ -177,6 +177,13 @@ class MockGenkitRegistry:
         """
         return self.actions.get((kind, name))
 
+    async def resolve_embedder(self, name: str) -> Any:  # noqa: ANN401
+        """Typed embedder resolution.
+
+        Note: Returns Any because actions are MagicMock objects.
+        """
+        return self.actions.get(('embedder', name))
+
 
 @pytest.fixture
 def mock_genkit_instance() -> tuple[Genkit, MockGenkitRegistry]:

@@ -45,6 +45,7 @@ $HOME/go/bin/addlicense \
   -ignore '**/.dist/**/*' \
   -ignore '**/.eggs/**/*' \
   -ignore '**/.idea/**/*' \
+  -ignore '**/.nox/**/*' \
   -ignore '**/.mypy_cache/**/*' \
   -ignore '**/.next/**/*' \
   -ignore '**/.output/**/*' \

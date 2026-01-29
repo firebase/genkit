@@ -35,19 +35,22 @@ Key Features
 import argparse
 import asyncio
 import random
-
-import eval_in_code  # noqa: F401
-
-# Import flows so they get registered
-import pdf_rag  # noqa: F401
-import setup  # noqa: F401
-from genkit_demo import ai
+from collections.abc import Coroutine
+from typing import Any, cast
 
 from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
 
+# Import flows so they get registered
+from . import (
+    eval_in_code,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    pdf_rag,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    setup,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+)
+from .genkit_demo import ai
+
 
 # Test evaluator that generates random scores and randomly fails
-async def random_eval(datapoint: BaseDataPoint, options: dict | None = None) -> EvalFnResponse:
+async def random_eval(datapoint: BaseDataPoint, _options: dict[str, object] | None = None) -> EvalFnResponse:
     """Evaluate a datapoint with random results.
 
     Args:
@@ -95,8 +98,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.setup:
-        from setup import setup as run_setup
+        from .setup import setup as run_setup  # pyright: ignore[reportImplicitRelativeImport]
 
-        ai.run_main(run_setup())
+        ai.run_main(cast(Coroutine[Any, Any, object], run_setup()))
     else:
         ai.run_main(main())

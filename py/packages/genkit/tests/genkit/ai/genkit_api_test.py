@@ -170,7 +170,7 @@ async def test_current_context() -> None:
     # current_context is a static method
     assert Genkit.current_context() is None
 
-    context = {'auth': {'uid': '123'}}
+    context: dict[str, object] = {'auth': {'uid': '123'}}
 
     # Simulate being inside an action run using ActionRunContext internal mechanism
     token = _action_context.set(context)

@@ -32,7 +32,7 @@ Key Features
 """
 
 import os
-from typing import Annotated
+from typing import Annotated, cast
 
 from flask import Flask
 from pydantic import Field
@@ -56,9 +56,12 @@ ai = Genkit(
 app = Flask(__name__)
 
 
-async def my_context_provider(request: RequestData) -> dict:
+async def my_context_provider(request: RequestData[dict[str, object]]) -> dict[str, object]:
     """Provide a context for the flow."""
-    return {'username': request.request.headers.get('authorization')}
+    headers_raw = request.request.get('headers') if isinstance(request.request, dict) else None
+    headers = cast(dict[str, str], headers_raw) if isinstance(headers_raw, dict) else {}
+    auth_header = headers.get('authorization')
+    return {'username': auth_header}
 
 
 @app.post('/chat')
@@ -66,10 +69,11 @@ async def my_context_provider(request: RequestData) -> dict:
 @ai.flow()
 async def say_hi(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Say hi to the user."""
+    username = ctx.context.get('username') if ctx is not None else 'unknown'
     return await ai.generate(
-        on_chunk=ctx.send_chunk,
-        prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username")}',
+        on_chunk=ctx.send_chunk if ctx is not None else None,
+        prompt=f'tell a medium sized joke about {name} for user {username}',
     )

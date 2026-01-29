@@ -149,8 +149,9 @@ class Document(DocumentData):
         Returns:
             A list of Media objects contained within the document.
         """
-        media_parts = [part.root.media for part in self.content]
-        return list(filter(lambda m: m is not None, media_parts))
+        return [
+            part.root.media for part in self.content if isinstance(part.root, MediaPart) and part.root.media is not None
+        ]
 
     def data(self) -> str:
         """Gets the primary data content of the document.
@@ -212,7 +213,7 @@ class Document(DocumentData):
                     metadata = {}
                 metadata['embedMetadata'] = embedding.metadata
             documents.append(Document(content=content, metadata=metadata))
-        check_unique_documents(documents)
+        _ = check_unique_documents(documents)
         return documents
 
 

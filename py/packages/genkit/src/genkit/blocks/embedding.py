@@ -89,7 +89,7 @@ See Also:
 """
 
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -104,7 +104,7 @@ from genkit.core.typing import DocumentData, EmbedRequest, EmbedResponse
 class EmbedderSupports(BaseModel):
     """Embedder capability support."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     input: list[str] | None = None
     multilingual: bool | None = None
@@ -113,7 +113,7 @@ class EmbedderSupports(BaseModel):
 class EmbedderOptions(BaseModel):
     """Configuration options for an embedder."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     config_schema: dict[str, Any] | None = None
     label: str | None = None
@@ -124,7 +124,7 @@ class EmbedderOptions(BaseModel):
 class EmbedderRef(BaseModel):
     """Reference to an embedder with configuration."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     name: str
     config: Any | None = None
@@ -141,8 +141,8 @@ class Embedder:
             name: The name of the embedder.
             action: The underlying action to execute.
         """
-        self.name = name
-        self._action = action
+        self.name: str = name
+        self._action: Action = action
 
     async def embed(
         self,
@@ -182,17 +182,18 @@ def embedder_action_metadata(
         The action metadata for the embedder.
     """
     options = options if options is not None else EmbedderOptions()
-    embedder_metadata_dict = {'embedder': {}}
+    embedder_metadata_dict: dict[str, object] = {'embedder': {}}
+    embedder_info = cast(dict[str, object], embedder_metadata_dict['embedder'])
 
     if options.label:
-        embedder_metadata_dict['embedder']['label'] = options.label
+        embedder_info['label'] = options.label
 
-    embedder_metadata_dict['embedder']['dimensions'] = options.dimensions
+    embedder_info['dimensions'] = options.dimensions
 
     if options.supports:
-        embedder_metadata_dict['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+        embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
 
-    embedder_metadata_dict['embedder']['customOptions'] = options.config_schema if options.config_schema else None
+    embedder_info['customOptions'] = options.config_schema if options.config_schema else None
 
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.EMBEDDER),

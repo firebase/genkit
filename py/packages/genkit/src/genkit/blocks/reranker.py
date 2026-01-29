@@ -122,7 +122,7 @@ You can define custom rerankers for specific use cases:
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -202,7 +202,7 @@ class RankedDocument(Document):
 class RerankerSupports(BaseModel):
     """Reranker capability support."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     media: bool | None = None
 
@@ -210,7 +210,7 @@ class RerankerSupports(BaseModel):
 class RerankerInfo(BaseModel):
     """Information about a reranker's capabilities."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     label: str | None = None
     supports: RerankerSupports | None = None
@@ -219,7 +219,7 @@ class RerankerInfo(BaseModel):
 class RerankerOptions(BaseModel):
     """Configuration options for a reranker."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     config_schema: dict[str, Any] | None = None
     label: str | None = None
@@ -233,7 +233,7 @@ class RerankerRef(BaseModel):
     and version information.
     """
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     name: str
     config: Any | None = None
@@ -297,7 +297,7 @@ def create_reranker_ref(
 def define_reranker(
     registry: Registry,
     name: str,
-    fn: RerankerFn,
+    fn: RerankerFn[Any],
     options: RerankerOptions | None = None,
     description: str | None = None,
 ) -> Action:
@@ -363,7 +363,7 @@ class RerankerParams(BaseModel):
         options: Optional configuration options for this rerank call.
     """
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True, arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, arbitrary_types_allowed=True)
 
     reranker: RerankerArgument
     query: str | DocumentData
@@ -409,13 +409,13 @@ async def rerank(
         params = RerankerParams(**params)
 
     # Resolve the reranker action
-    reranker_action: Action | None = None
+    reranker_action = None
 
     if isinstance(params.reranker, str):
-        reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker)
+        reranker_action = await registry.resolve_reranker(params.reranker)
     elif isinstance(params.reranker, RerankerRef):
-        reranker_action = await registry.resolve_action(cast(ActionKind, ActionKind.RERANKER), params.reranker.name)
-    elif isinstance(params.reranker, Action):
+        reranker_action = await registry.resolve_reranker(params.reranker.name)
+    elif isinstance(params.reranker, Action):  # pyright: ignore[reportUnnecessaryIsInstance]
         reranker_action = params.reranker
 
     if reranker_action is None:

@@ -33,7 +33,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, cast  # noqa: F401
+from typing import TYPE_CHECKING, Any, Generic, TypedDict, TypeVar, cast, overload  # noqa: F401
 
 if TYPE_CHECKING:
     from genkit.blocks.prompt import ExecutablePrompt
@@ -41,7 +41,8 @@ if TYPE_CHECKING:
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit.aio import Channel, ensure_async
+from genkit.aio._util import ensure_async
+from genkit.aio.channel import Channel
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
 from genkit.blocks.evaluator import EvaluatorRef
@@ -64,7 +65,6 @@ from genkit.core.typing import (
     BaseDataPoint,
     Embedding,
     EmbedRequest,
-    EmbedResponse,
     EvalRequest,
     EvalResponse,
     Operation,
@@ -96,6 +96,123 @@ class OutputConfigDict(TypedDict, total=False):
     instructions: bool | str | None
     schema: type | dict[str, object] | None
     constrained: bool | None
+
+
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
+
+
+class Input(Generic[InputT]):
+    """Typed input configuration that preserves schema type information.
+
+    This class provides a type-safe way to configure input schemas for prompts.
+    When you pass a Pydantic model as the schema, the prompt's input parameter
+    will be properly typed.
+
+    Example:
+        ```python
+        from pydantic import BaseModel
+
+
+        class RecipeInput(BaseModel):
+            dish: str
+            servings: int
+
+
+        class Recipe(BaseModel):
+            name: str
+            ingredients: list[str]
+
+
+        # With Input[T] and Output[T], both input and output are typed
+        recipe_prompt = ai.define_prompt(
+            name='recipe',
+            prompt='Create a recipe for {dish} serving {servings} people',
+            input=Input(schema=RecipeInput),
+            output=Output(schema=Recipe),
+        )
+
+        # Input is type-checked!
+        response = await recipe_prompt(RecipeInput(dish='pizza', servings=4))
+        response.output.name  # ✓ Type checker knows this is str
+        ```
+
+    Attributes:
+        schema: The type/class for the input (Pydantic model, dataclass, etc.)
+    """
+
+    def __init__(self, schema: type[InputT]) -> None:
+        """Initialize typed input configuration.
+
+        Args:
+            schema: The type/class for structured input.
+        """
+        self.schema: type[InputT] = schema
+
+
+class Output(Generic[OutputT]):
+    """Typed output configuration that preserves schema type information.
+
+    This class provides a type-safe way to configure output options for generate().
+    When you pass a Pydantic model or other type as the schema, the return type
+    of generate() will be properly typed.
+
+    Example:
+        ```python
+        from pydantic import BaseModel
+
+
+        class Recipe(BaseModel):
+            name: str
+            ingredients: list[str]
+
+
+        # With Output[T], response.output is typed as Recipe
+        response = await ai.generate(prompt='Give me a pasta recipe', output=Output(schema=Recipe, format='json'))
+        response.output.name  # ✓ Type checker knows this is str
+        ```
+
+    Attributes:
+        schema: The type/class for the output (Pydantic model, dataclass, etc.)
+        format: Output format name (e.g., 'json', 'text'). Defaults to 'json'.
+        content_type: MIME content type for the output.
+        instructions: Formatting instructions (True for default, False to disable, or custom str).
+        constrained: Whether to constrain model output to the schema.
+    """
+
+    def __init__(
+        self,
+        schema: type[OutputT],
+        format: str = 'json',
+        content_type: str | None = None,
+        instructions: bool | str | None = None,
+        constrained: bool | None = None,
+    ) -> None:
+        """Initialize typed output configuration.
+
+        Args:
+            schema: The type/class for structured output.
+            format: Output format name. Defaults to 'json'.
+            content_type: Optional MIME content type.
+            instructions: Optional formatting instructions.
+            constrained: Whether to constrain output to schema.
+        """
+        self.schema: type[OutputT] = schema
+        self.format: str = format
+        self.content_type: str | None = content_type
+        self.instructions: bool | str | None = instructions
+        self.constrained: bool | None = constrained
+
+    def to_dict(self) -> OutputConfigDict:
+        """Convert to OutputConfigDict for internal use."""
+        result: OutputConfigDict = {'schema': self.schema, 'format': self.format}
+        if self.content_type is not None:
+            result['content_type'] = self.content_type
+        if self.instructions is not None:
+            result['instructions'] = self.instructions
+        if self.constrained is not None:
+            result['constrained'] = self.constrained
+        return result
 
 
 class Genkit(GenkitBase):
@@ -313,6 +430,7 @@ class Genkit(GenkitBase):
         else:
             return session.chat()
 
+    @overload
     async def generate(
         self,
         model: str | None = None,
@@ -330,12 +448,59 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | None = None,
+        *,
+        output: Output[OutputT],
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
-    ) -> GenerateResponseWrapper:
+    ) -> GenerateResponseWrapper[OutputT]: ...
+
+    @overload
+    async def generate(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+    ) -> GenerateResponseWrapper[Any]: ...
+
+    async def generate(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+    ) -> GenerateResponseWrapper[Any]:
         """Generates text or structured data using a language model.
 
         This function provides a flexible interface for interacting with various
@@ -379,12 +544,10 @@ class Genkit(GenkitBase):
             output_content_type: Optional. The content type of the output.
             output_instructions: Optional. Instructions for formatting the
                 output.
-            output_schema: Optional. Schema defining the structure of the
-                output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            output: Optional. An `OutputConfig` object or dictionary containing
-                output configuration. This groups output-related parameters.
+            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
+                Can also be an `OutputConfig` object or dictionary.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -402,9 +565,24 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
+        # Initialize output_schema - extracted from output parameter
+        output_schema: type | dict[str, object] | None = None
+
         # Unpack output config if provided
         if output:
-            if isinstance(output, dict):
+            if isinstance(output, Output):
+                # Handle typed Output[T] - extract values from the typed wrapper
+                if output_format is None:
+                    output_format = output.format
+                if output_content_type is None:
+                    output_content_type = output.content_type
+                if output_instructions is None:
+                    output_instructions = output.instructions
+                if output_schema is None:
+                    output_schema = output.schema
+                if output_constrained is None:
+                    output_constrained = output.constrained
+            elif isinstance(output, dict):
                 # Handle dict input - extract values directly
                 if output_format is None:
                     output_format = output.get('format')
@@ -458,8 +636,61 @@ class Genkit(GenkitBase):
             ),
             on_chunk=on_chunk,
             middleware=use,
-            context=context if context else ActionRunContext._current_context(),
+            context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
+
+    @overload
+    def generate_stream(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        *,
+        output: Output[OutputT],
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[
+        AsyncIterator[GenerateResponseChunkWrapper],
+        asyncio.Future[GenerateResponseWrapper[OutputT]],
+    ]: ...
+
+    @overload
+    def generate_stream(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[
+        AsyncIterator[GenerateResponseChunkWrapper],
+        asyncio.Future[GenerateResponseWrapper[Any]],
+    ]: ...
 
     def generate_stream(
         self,
@@ -476,15 +707,14 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
         timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
-        asyncio.Future[GenerateResponseWrapper],
+        asyncio.Future[GenerateResponseWrapper[Any]],
     ]:
         """Streams generated text or structured data using a language model.
 
@@ -521,12 +751,10 @@ class Genkit(GenkitBase):
             output_content_type: Optional. The content type of the output.
             output_instructions: Optional. Instructions for formatting the
                 output.
-            output_schema: Optional. Schema defining the structure of the
-                output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            output: Optional. An `OutputConfig` object or dictionary containing
-                output configuration. This groups output-related parameters.
+            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
+                Can also be an `OutputConfig` object or dictionary.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -544,7 +772,7 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        stream = Channel(timeout=timeout)
+        stream: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel(timeout=timeout)
 
         resp = self.generate(
             model=model,
@@ -560,7 +788,6 @@ class Genkit(GenkitBase):
             output_format=output_format,
             output_content_type=output_content_type,
             output_instructions=output_instructions,
-            output_schema=output_schema,
             output_constrained=output_constrained,
             output=output,
             docs=docs,
@@ -605,7 +832,7 @@ class Genkit(GenkitBase):
 
         request_options = {**(retriever_config or {}), **(options or {})}
 
-        retrieve_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.RETRIEVER), retriever_name)
+        retrieve_action = await self.registry.resolve_retriever(retriever_name)
         if retrieve_action is None:
             raise ValueError(f'Retriever "{retriever_name}" not found')
 
@@ -656,11 +883,11 @@ class Genkit(GenkitBase):
         if documents is None:
             raise ValueError('Documents must be specified for indexing.')
 
-        await index_action.arun(
+        _ = await index_action.arun(
             IndexerRequest(
                 # Document subclasses DocumentData, so this is type-safe at runtime.
-                # The type checker doesn't recognize the subclass relationship here.
-                documents=documents,  # type: ignore[arg-type]
+                # list is invariant so list[Document] isn't assignable to list[DocumentData]
+                documents=cast(list[DocumentData], documents),
                 options=req_options if req_options else None,
             )
         )
@@ -731,7 +958,7 @@ class Genkit(GenkitBase):
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}
 
-        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
+        embed_action = await self.registry.resolve_embedder(embedder_name)
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
@@ -744,9 +971,14 @@ class Genkit(GenkitBase):
             documents = [content]
 
         # Document subclasses DocumentData, so this is type-safe at runtime.
-        # The type checker doesn't recognize the subclass relationship here.
-        response: EmbedResponse = (
-            await embed_action.arun(EmbedRequest(input=documents, options=final_options))
+        # list is invariant so list[Document] isn't assignable to list[DocumentData]
+        response = (
+            await embed_action.arun(
+                EmbedRequest(
+                    input=documents,  # pyright: ignore[reportArgumentType]
+                    options=final_options,
+                )
+            )
         ).response
         return response.embeddings
 
@@ -815,11 +1047,11 @@ class Genkit(GenkitBase):
         # Resolve embedder name (JS embedMany does not extract config/version from ref)
         embedder_name = self._resolve_embedder_name(embedder)
 
-        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
+        embed_action = await self.registry.resolve_embedder(embedder_name)
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
-        response: EmbedResponse = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
+        response = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
         return response.embeddings
 
     async def evaluate(
@@ -853,7 +1085,7 @@ class Genkit(GenkitBase):
 
         final_options = {**(evaluator_config or {}), **(options or {})}
 
-        eval_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EVALUATOR), evaluator_name)
+        eval_action = await self.registry.resolve_evaluator(evaluator_name)
         if eval_action is None:
             raise ValueError(f'Evaluator "{evaluator_name}" not found')
 
@@ -884,7 +1116,7 @@ class Genkit(GenkitBase):
         Returns:
             The current context dictionary, or None if not running in an action.
         """
-        return ActionRunContext._current_context()
+        return ActionRunContext._current_context()  # pyright: ignore[reportPrivateUsage]
 
     def dynamic_tool(
         self,

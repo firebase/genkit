@@ -53,7 +53,7 @@ async def is_port_available(port: int, host: str = '127.0.0.1') -> bool:
             sock.close()
 
 
-def is_port_available_sync(port: int, host: str = '127.0.0.1') -> bool:
+def is_port_available_sync(port: int, _host: str = '127.0.0.1') -> bool:
     """Check if a specific port is available for binding.
 
     Args:

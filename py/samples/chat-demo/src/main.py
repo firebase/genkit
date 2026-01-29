@@ -37,10 +37,10 @@ import logging
 import os
 
 import streamlit as st
-import structlog
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, Message
+from genkit.core.logging import get_logger
 from genkit.core.typing import Part, TextPart
 from genkit.plugins.anthropic import Anthropic
 from genkit.plugins.compat_oai import OpenAI
@@ -51,7 +51,7 @@ from genkit.plugins.vertex_ai import ModelGardenPlugin
 from genkit.plugins.xai import XAI
 
 logging.basicConfig(level=logging.INFO)
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 st.set_page_config(page_title='Genkit Chat Demo', page_icon='💬')
 st.title('💬 Genkit Chat Demo')

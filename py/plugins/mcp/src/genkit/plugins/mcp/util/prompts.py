@@ -106,11 +106,13 @@ def to_mcp_prompt_arguments(input_schema: dict[str, Any] | None) -> list[dict[st
     if not input_schema:
         return None
 
-    if not input_schema.get('properties'):
-        raise ValueError('MCP prompts must take objects with properties as input schema.')
+    # Handle empty schemas - if no properties, return None instead of raising
+    properties = input_schema.get('properties')
+    if not properties:
+        # Empty schema is valid - prompt has no parameters
+        return None
 
     args: list[dict[str, Any]] = []
-    properties = input_schema['properties']
     required = input_schema.get('required', [])
 
     for name, prop in properties.items():

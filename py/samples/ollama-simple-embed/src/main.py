@@ -35,17 +35,17 @@ See README.md for testing instructions.
 from math import sqrt
 from typing import Annotated, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition
 from genkit.types import GenerateResponse
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 EMBEDDER_MODEL = 'nomic-embed-text'
 EMBEDDER_DIMENSIONS = 768
@@ -207,7 +207,8 @@ async def pokemon_flow(
     response = await generate_response(question=question)
     if not response.message or not response.message.content:
         raise ValueError('No message content returned from model')
-    return response.message.content[0].root.text
+    text = response.message.content[0].root.text
+    return text if text is not None else ''
 
 
 async def main() -> None:

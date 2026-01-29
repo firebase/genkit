@@ -16,6 +16,8 @@
 
 """Tests for Genkit document."""
 
+from typing import cast
+
 from genkit.blocks.document import Document
 from genkit.core.typing import (
     DocumentData,
@@ -33,11 +35,13 @@ def test_makes_deep_copy() -> None:
     metadata = {'foo': 'bar'}
     doc = Document(content=content, metadata=metadata)
 
-    content[0].root.text = 'other text'  # ty: ignore[invalid-assignment]
+    text_part = cast(TextPart, content[0].root)
+    text_part.text = 'other text'
     metadata['foo'] = 'faz'
 
     assert doc.content[0].root.text == 'some text'
-    assert doc.metadata['foo'] == 'bar'  # ty: ignore[not-subscriptable]
+    assert doc.metadata is not None
+    assert doc.metadata['foo'] == 'bar'
 
 
 def test_from_dcoument_data() -> None:
@@ -164,9 +168,10 @@ def test_get_embedding_documents_multiple_embeddings() -> None:
 
     for i in range(len(docs)):
         assert docs[i].content == doc.content
-        assert docs[i].metadata['embedMetadata'] == embeddings[i].metadata  # ty: ignore[not-subscriptable]
-        orig_metadata = docs[i].metadata
-        orig_metadata.pop('embedMetadata', None)  # ty: ignore[possibly-missing-attribute]
+        metadata = docs[i].metadata or {}
+        assert metadata.get('embedMetadata') == embeddings[i].metadata
+        orig_metadata = dict(metadata)
+        orig_metadata.pop('embedMetadata', None)
         assert orig_metadata, doc.metadata
 
 

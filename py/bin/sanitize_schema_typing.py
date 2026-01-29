@@ -40,6 +40,8 @@ Transformations applied:
 - Add docstrings if missing.
 """
 
+from __future__ import annotations
+
 import ast
 import sys
 from datetime import datetime
@@ -65,8 +67,10 @@ class ClassTransformer(ast.NodeTransformer):
                     return True
         return False
 
-    def create_model_config(self, existing_config: ast.Call | None = None, frozen: bool = False) -> ast.Assign:
-        """Create or update a model_config assignment.
+    def create_model_config(self, existing_config: ast.Call | None = None, frozen: bool = False) -> ast.AnnAssign:
+        """Create or update a model_config assignment with proper type annotation.
+
+        Creates: model_config: ClassVar[ConfigDict] = ConfigDict(...)
 
         Ensures alias_generator=to_camel, populate_by_name=True, and extra='forbid',
         keeping other existing settings.
@@ -127,12 +131,21 @@ class ClassTransformer(ast.NodeTransformer):
         # Sort keywords for consistent output (optional but good practice)
         keywords.sort(key=lambda kw: kw.arg or '')
 
-        return ast.Assign(
-            targets=[ast.Name(id='model_config')],
-            value=ast.Call(func=ast.Name(id='ConfigDict'), args=[], keywords=keywords),
+        # Create ClassVar[ConfigDict] annotation
+        annotation = ast.Subscript(
+            value=ast.Name(id='ClassVar', ctx=ast.Load()),
+            slice=ast.Name(id='ConfigDict', ctx=ast.Load()),
+            ctx=ast.Load(),
         )
 
-    def has_model_config(self, node: ast.ClassDef) -> ast.Assign | None:
+        return ast.AnnAssign(
+            target=ast.Name(id='model_config', ctx=ast.Store()),
+            annotation=annotation,
+            value=ast.Call(func=ast.Name(id='ConfigDict'), args=[], keywords=keywords),
+            simple=1,
+        )
+
+    def has_model_config(self, node: ast.ClassDef) -> ast.Assign | ast.AnnAssign | None:
         """Check if class already has model_config assignment and return it."""
         for item in node.body:
             if isinstance(item, ast.Assign):
@@ -140,6 +153,9 @@ class ClassTransformer(ast.NodeTransformer):
                 if len(targets) == 1 and isinstance(targets[0], ast.Name):
                     if targets[0].id == 'model_config':
                         return item
+            elif isinstance(item, ast.AnnAssign):
+                if isinstance(item.target, ast.Name) and item.target.id == 'model_config':
+                    return item
         return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:  # noqa: N802
@@ -250,11 +266,18 @@ class ClassTransformer(ast.NodeTransformer):
         if self.is_rootmodel_class(node):
             # Remove model_config from RootModel classes
             for stmt in node.body[body_start_index:]:
-                # Skip existing model_config
+                # Skip existing model_config (both Assign and AnnAssign)
                 if isinstance(stmt, ast.Assign) and any(
                     isinstance(target, ast.Name) and target.id == 'model_config' for target in stmt.targets
                 ):
                     self.modified = True  # Mark modified even if removing
+                    continue
+                if (
+                    isinstance(stmt, ast.AnnAssign)
+                    and isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == 'model_config'
+                ):
+                    self.modified = True
                     continue
                 new_body.append(stmt)
         elif any(isinstance(base, ast.Name) and base.id == 'BaseModel' for base in node.bases):
@@ -262,9 +285,20 @@ class ClassTransformer(ast.NodeTransformer):
             added_config = False
             frozen = node.name == 'PathMetadata'
             for stmt in node.body[body_start_index:]:
+                # Check for model_config (both Assign and AnnAssign)
+                is_model_config = False
                 if isinstance(stmt, ast.Assign) and any(
                     isinstance(target, ast.Name) and target.id == 'model_config' for target in stmt.targets
                 ):
+                    is_model_config = True
+                elif (
+                    isinstance(stmt, ast.AnnAssign)
+                    and isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == 'model_config'
+                ):
+                    is_model_config = True
+
+                if is_model_config:
                     # Update existing model_config
                     updated_config = self.create_model_config(existing_model_config_call, frozen=frozen)
                     # Check if the config actually changed
@@ -354,6 +388,21 @@ class ClassTransformer(ast.NodeTransformer):
         self.modified = True
 
 
+def fix_field_defaults(content: str) -> str:
+    """Fix Field(None) and Field(None, ...) to use default=None for pyright compatibility.
+
+    Pyright doesn't recognize Field(None) as providing a default value,
+    but it does recognize Field(default=None).
+    """
+    import re
+
+    # Replace Field(None) with Field(default=None)
+    content = content.replace('Field(None)', 'Field(default=None)')
+    # Replace Field(None, other_args) with Field(default=None, other_args)
+    content = re.sub(r'Field\(None,', 'Field(default=None,', content)
+    return content
+
+
 def add_header(content: str) -> str:
     """Add the generated header to the content."""
     header = '''# Copyright {year} Google LLC
@@ -385,14 +434,11 @@ actions, tools, and configuration options.
     # Ensure there's exactly one newline between header and content
     # and future import is right after the header block's closing quotes.
     future_import = 'from __future__ import annotations'
-    str_enum_block = """
+    compat_import_block = """
 import sys
+from typing import ClassVar
 
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
-
+from genkit.core._compat import StrEnum
 from pydantic.alias_generators import to_camel
 """
 
@@ -405,7 +451,7 @@ from pydantic.alias_generators import to_camel
     ]
     cleaned_content = '\n'.join(filtered_lines)
 
-    final_output = header_text + future_import + '\n' + str_enum_block + '\n\n' + cleaned_content
+    final_output = header_text + future_import + '\n' + compat_import_block + '\n\n' + cleaned_content
     if not final_output.endswith('\n'):
         final_output += '\n'
     return final_output
@@ -440,6 +486,9 @@ def process_file(filename: str) -> None:
         # Generate source from potentially modified AST
         ast.fix_missing_locations(modified_tree)
         modified_source_no_header = ast.unparse(modified_tree)
+
+        # Fix Field(None) to Field(default=None) for pyright compatibility
+        modified_source_no_header = fix_field_defaults(modified_source_no_header)
 
         # Add header and specific imports correctly
         final_source = add_header(modified_source_no_header)

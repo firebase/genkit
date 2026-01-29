@@ -342,14 +342,14 @@ class TestSchemaConversion(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_convert_schema_without_properties_fails(self) -> None:
-        """Test that schema without properties raises an error."""
+    def test_convert_schema_without_properties_returns_none(self) -> None:
+        """Test that schema without properties returns None (no parameters)."""
         schema = {'type': 'object'}
 
-        with self.assertRaises(ValueError) as context:
-            to_mcp_prompt_arguments(schema)
+        # Schema without properties is valid - it just means no input parameters
+        result = to_mcp_prompt_arguments(schema)
 
-        self.assertIn('properties', str(context.exception).lower())
+        self.assertIsNone(result)
 
 
 if __name__ == '__main__':

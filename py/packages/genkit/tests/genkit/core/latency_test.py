@@ -7,6 +7,7 @@
 
 import asyncio
 import time
+from typing import cast
 
 import pytest
 from pydantic import BaseModel
@@ -33,7 +34,7 @@ async def test_action_latency_ms_population() -> None:
 
     # We need asyncio for sleep in the actual test, but for simplicity we can use time.sleep
     # if we want to test sync wrapper or just await a task.
-    action = Action(name='testModel', kind=ActionKind.MODEL, fn=async_model_fn)
+    action = cast(Action[str, MockResponse], Action(name='testModel', kind=ActionKind.MODEL, fn=async_model_fn))
 
     response = await action.arun('world')
 
@@ -49,7 +50,7 @@ def test_sync_action_latency_ms_population() -> None:
         time.sleep(0.1)
         return MockResponse(value=f'sync hello {input}')
 
-    action = Action(name='syncTestModel', kind=ActionKind.CUSTOM, fn=sync_model_fn)
+    action = cast(Action[str, MockResponse], Action(name='syncTestModel', kind=ActionKind.CUSTOM, fn=sync_model_fn))
 
     # run() is sync
     response = action.run('world')
@@ -74,7 +75,10 @@ async def test_immutable_action_latency_ms_population() -> None:
     async def async_model_fn(input: str) -> ImmutableMockResponse:
         return ImmutableMockResponse(value=f'hello {input}')
 
-    action = Action(name='testImmutableModel', kind=ActionKind.MODEL, fn=async_model_fn)
+    action = cast(
+        Action[str, ImmutableMockResponse],
+        Action(name='testImmutableModel', kind=ActionKind.MODEL, fn=async_model_fn),
+    )
 
     response = await action.arun('world')
 
@@ -102,7 +106,10 @@ async def test_readonly_action_latency_ms_population() -> None:
     async def async_model_fn(input: str) -> ReadOnlyMockResponse:
         return ReadOnlyMockResponse(value=f'hello {input}')
 
-    action = Action(name='testReadOnlyModel', kind=ActionKind.MODEL, fn=async_model_fn)
+    action = cast(
+        Action[str, ReadOnlyMockResponse],
+        Action(name='testReadOnlyModel', kind=ActionKind.MODEL, fn=async_model_fn),
+    )
 
     # In this case, it should NOT be updated because model_copy on a non-frozen model
     # will still try to use setattr if the field exists, or it won't have latency_ms in its fields.

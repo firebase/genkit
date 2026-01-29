@@ -39,17 +39,17 @@ Key Features
 
 from typing import Annotated, Any, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 # Model can be pulled with `ollama pull *LLM_VERSION*`
 GEMMA_MODEL = 'gemma3:latest'
@@ -231,7 +231,7 @@ async def generate_character(
     result = await ai.generate(
         model=ollama_name(GEMMA_MODEL),
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
 
@@ -275,7 +275,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')]
     """
     response = await ai.generate(
         prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',
-        output_schema=HelloSchema,
+        output=Output(schema=HelloSchema),
     )
     output = response.output
     if isinstance(output, HelloSchema):
@@ -292,7 +292,7 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')]
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
@@ -309,7 +309,8 @@ async def say_hi_stream(
     )
     result: str = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
 
     return result

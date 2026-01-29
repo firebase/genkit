@@ -33,14 +33,14 @@ See README.md for testing instructions.
 
 from typing import Annotated, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[
@@ -145,7 +145,7 @@ async def generate_character(
     result = await ai.generate(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
 
@@ -200,7 +200,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Say hi to a name and stream the response.
 
@@ -218,7 +218,8 @@ async def say_hi_stream(
     )
     result = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
     return result
 

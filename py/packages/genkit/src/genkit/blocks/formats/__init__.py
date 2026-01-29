@@ -77,13 +77,13 @@ built_in_formats = [
 
 
 __all__ = [
-    ArrayFormat.__name__,
-    EnumFormat.__name__,
-    FormatDef.__name__,
-    Formatter.__name__,
-    FormatterConfig.__name__,
-    JsonFormat.__name__,
-    JsonlFormat.__name__,
-    TextFormat.__name__,
-    package_name.__name__,
+    'ArrayFormat',
+    'EnumFormat',
+    'FormatDef',
+    'Formatter',
+    'FormatterConfig',
+    'JsonFormat',
+    'JsonlFormat',
+    'TextFormat',
+    'package_name',
 ]

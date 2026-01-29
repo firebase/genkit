@@ -34,11 +34,11 @@ See README.md for testing instructions.
 import os
 from typing import Annotated
 
-import structlog
 from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
+from genkit.core.logging import get_logger
 from genkit.core.typing import CustomPart, Message, TextPart
 from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 from genkit.plugins.google_genai.models.utils import PartConverter
@@ -46,7 +46,7 @@ from genkit.plugins.google_genai.models.utils import PartConverter
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],

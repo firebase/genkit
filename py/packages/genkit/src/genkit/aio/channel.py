@@ -20,14 +20,17 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from typing import Generic, TypeVar
+from typing import Any, Generic
+
+from typing_extensions import TypeVar
 
 from ._compat import wait_for
 
-T = TypeVar('T')
+T = TypeVar('T')  # Type of items in the channel
+R = TypeVar('R', default=Any)  # Type of the close future result (defaults to Any)
 
 
-class Channel(Generic[T]):
+class Channel(Generic[T, R]):
     """An asynchronous channel for sending and receiving values.
 
     This class provides an asynchronous queue-like interface, allowing values to
@@ -40,7 +43,7 @@ class Channel(Generic[T]):
 
     Typical usage:
         ```python
-        channel = Channel[int](timeout=0.1)
+        channel: Channel[int, int] = Channel(timeout=0.1)
 
         # Send values to the channel
         channel.send(1)
@@ -71,8 +74,8 @@ class Channel(Generic[T]):
             raise ValueError('Timeout must be non-negative')
 
         self.queue: asyncio.Queue[T] = asyncio.Queue()
-        self.closed: asyncio.Future[T] = asyncio.Future()
-        self._close_future: asyncio.Future[T] | None = None
+        self.closed: asyncio.Future[R] = asyncio.Future()
+        self._close_future: asyncio.Future[R] | None = None
         self._timeout: float | int | None = timeout
 
     def __aiter__(self) -> AsyncIterator[T]:
@@ -115,24 +118,21 @@ class Channel(Generic[T]):
             # pending task.
             return await wait_for(pop_task, timeout=self._timeout)
 
-        try:
-            # Wait for either the pop task or the close future to complete.  A
-            # timeout is added to prevent indefinite blocking, unless
-            # specifically set to None.
-            # NOTE: asyncio.wait does not cancel tasks on timeout by default.
-            finished, pending = await asyncio.wait(
-                [pop_task, self._close_future],
-                return_when=asyncio.FIRST_COMPLETED,
-                timeout=self._timeout,
-            )
+        # Wait for either the pop task or the close future to complete.  A
+        # timeout is added to prevent indefinite blocking, unless
+        # specifically set to None.
+        # NOTE: asyncio.wait does not cancel tasks on timeout by default.
+        finished, pending = await asyncio.wait(
+            [pop_task, self._close_future],
+            return_when=asyncio.FIRST_COMPLETED,
+            timeout=self._timeout,
+        )
 
-        except TimeoutError as e:
-            # If the wait operation timed out, both tasks will be in pending.
-            # asyncio.wait() doesn't automatically cancel pending tasks, so we
-            # ensure we cancel our pending tasks.
-            for t in pending:
-                t.cancel()
-            raise e
+        # If timeout occurred (nothing finished), cancel pop task and raise
+        # Note: Don't cancel _close_future as it's owned by external code
+        if not finished:
+            _ = pop_task.cancel()
+            raise TimeoutError('Channel timeout exceeded')
 
         # If the pop task completed, return its result.
         if pop_task in finished:
@@ -141,7 +141,7 @@ class Channel(Generic[T]):
         # If the close future completed, raise StopAsyncIteration.
         if self._close_future in finished:
             # Cancel pop task if we're done, avoid warnings.
-            pop_task.cancel()
+            _ = pop_task.cancel()
             raise StopAsyncIteration
 
         # Wait for the pop task with a timeout, raise TimeoutError if a timeout
@@ -166,7 +166,7 @@ class Channel(Generic[T]):
         """
         self.queue.put_nowait(value)
 
-    def set_close_future(self, future: asyncio.Future[T]) -> None:
+    def set_close_future(self, future: asyncio.Future[R]) -> None:
         """Sets a future that, when completed, will close the channel.
 
         When the provided future completes, the channel will be marked as
@@ -179,10 +179,10 @@ class Channel(Generic[T]):
         Raises:
             ValueError: If the provided future is None.
         """
-        if future is None:
-            raise ValueError('Cannot set a None future')
+        if future is None:  # pyright: ignore[reportUnnecessaryComparison]
+            raise ValueError('Cannot set a None future')  # pyright: ignore[reportUnreachable]
 
-        def _handle_done(v: asyncio.Future[T]) -> None:
+        def _handle_done(v: asyncio.Future[R]) -> None:
             """Handle future completion, propagating results or errors to self.closed.
 
             This callback ensures proper propagation of the future's final state
@@ -191,14 +191,14 @@ class Channel(Generic[T]):
             """
             # Propagate cancellation to notify consumers that the operation was cancelled
             if v.cancelled():
-                self.closed.cancel()
-            elif v.exception() is not None:
-                self.closed.set_exception(v.exception())  # type: ignore[arg-type]
+                _ = self.closed.cancel()
+            elif (exc := v.exception()) is not None:
+                self.closed.set_exception(exc)
             else:
                 self.closed.set_result(v.result())
 
         self._close_future = asyncio.ensure_future(future)
-        if self._close_future is not None:
+        if self._close_future is not None:  # pyright: ignore[reportUnnecessaryComparison]
             self._close_future.add_done_callback(_handle_done)
 
     async def _pop(self) -> T:
