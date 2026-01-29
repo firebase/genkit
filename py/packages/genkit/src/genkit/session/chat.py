@@ -101,6 +101,7 @@ See Also:
     - JavaScript Chat: js/ai/src/chat.ts
     - Session: genkit/session/session.py
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 
@@ -174,8 +175,8 @@ class ChatStreamResponse:
 
     def __init__(
         self,
-        channel: Channel,
-        response_future: asyncio.Future[GenerateResponseWrapper],
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]],
+        response_future: asyncio.Future[GenerateResponseWrapper[Any]],
     ) -> None:
         """Initialize the stream response.
 
@@ -183,8 +184,8 @@ class ChatStreamResponse:
             channel: The channel providing response chunks.
             response_future: Future resolving to the complete response.
         """
-        self._channel = channel
-        self._response_future = response_future
+        self._channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = channel
+        self._response_future: asyncio.Future[GenerateResponseWrapper[Any]] = response_future
 
     @property
     def stream(self) -> AsyncIterable[GenerateResponseChunkWrapper]:
@@ -266,9 +267,9 @@ class Chat:
             thread: Thread name for this conversation (default: 'main').
             messages: Initial messages (from session thread or provided).
         """
-        self._session = session
-        self._request_base = request_base or {}
-        self._thread_name = thread
+        self._session: Session = session
+        self._request_base: dict[str, Any] = request_base or {}
+        self._thread_name: str = thread
 
         # Initialize messages: provided messages > session thread messages > empty
         if messages is not None:
@@ -327,7 +328,7 @@ class Chat:
         }
 
         # Generate using session's ai instance
-        response = await self._session._ai.generate(**gen_options)
+        response = await self._session._ai.generate(**gen_options)  # pyright: ignore[reportPrivateUsage]
 
         # Update message history
         self._messages = response.messages
@@ -366,9 +367,9 @@ class Chat:
             print(f'\\nDone! Used {final.usage} tokens')
             ```
         """
-        channel: Channel = Channel()
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel()
 
-        async def _do_send() -> GenerateResponseWrapper:
+        async def _do_send() -> GenerateResponseWrapper[Any]:
             # Build generation options from request_base with streaming callback
             gen_options: dict[str, Any] = {
                 **self._request_base,
@@ -379,7 +380,7 @@ class Chat:
             }
 
             # Generate using session's ai instance
-            response = await self._session._ai.generate(**gen_options)
+            response = await self._session._ai.generate(**gen_options)  # pyright: ignore[reportPrivateUsage]
 
             # Update message history
             self._messages = response.messages

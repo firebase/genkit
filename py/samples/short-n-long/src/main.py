@@ -53,14 +53,14 @@ import asyncio
 import os
 from typing import Annotated, cast
 
-import structlog
 import uvicorn
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
 from genkit.core.flows import create_flows_asgi_app
+from genkit.core.logging import get_logger
 from genkit.core.typing import Part
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
@@ -77,7 +77,7 @@ from genkit.types import (
     TextPart,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
@@ -235,7 +235,7 @@ async def say_hi_with_configured_temperature(
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
@@ -249,7 +249,8 @@ async def say_hi_stream(
     stream, _ = ai.generate_stream(prompt=f'hi {name}')
     result: str = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
 
     return result
@@ -258,7 +259,7 @@ async def say_hi_stream(
 @ai.flow()
 async def stream_greeting(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Stream a greeting for the given name.
 
@@ -276,7 +277,8 @@ async def stream_greeting(
     ]
     for data in chunks:
         await asyncio.sleep(1)
-        ctx.send_chunk(data)
+        if ctx is not None:
+            ctx.send_chunk(data)
 
     return 'test streaming response'
 
@@ -301,7 +303,7 @@ class RpgCharacter(BaseModel):
 @ai.flow()
 async def generate_character(
     name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -312,10 +314,10 @@ async def generate_character(
     Returns:
         The generated RPG character.
     """
-    if ctx.is_streaming:
+    if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
             prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
         )
         async for data in stream:
             ctx.send_chunk(data.output)
@@ -324,7 +326,7 @@ async def generate_character(
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
         )
         return cast(RpgCharacter, result.output)
 
@@ -332,20 +334,20 @@ async def generate_character(
 @ai.flow()
 async def generate_character_unconstrained(
     name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    _ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
         name: the name of the character
-        ctx: the context of the tool
+        _ctx: the context of the tool (unused)
 
     Returns:
         The generated RPG character.
     """
     result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
         output_constrained=False,
         output_instructions=True,
     )
@@ -355,7 +357,7 @@ async def generate_character_unconstrained(
 @ai.flow()
 async def generate_images(
     name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Generate images for the given name.
 

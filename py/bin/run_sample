@@ -26,6 +26,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SAMPLES_DIR="$PY_DIR/samples"
 
+PYTHONPATH="${PYTHONPATH:-}"
+export PYTHONPATH="$PY_DIR:$PYTHONPATH"
+
 # List available samples using find for robustness
 list_samples() {
     # Only list directories that contain a run.sh script
@@ -79,7 +82,7 @@ fi
 if [[ $# -lt 1 ]]; then
     while true; do
         SAMPLES=$(list_samples)
-        
+
         if [[ -n "$FZF_CMD" ]]; then
             # Use fzf with preview window if available
             SAMPLE_NAME=$(echo "$SAMPLES" | $FZF_CMD --preview "if [ -f $SAMPLES_DIR/{}/README.md ]; then cat $SAMPLES_DIR/{}/README.md; else echo 'No README found.'; fi" --preview-window=right:60%:wrap --height=100% --reverse --header="Select a sample to run (Ctrl-C to exit sample and return here)")
@@ -129,7 +132,7 @@ if [[ $# -lt 1 ]]; then
                 echo "Error: Sample '$SAMPLE_NAME' does not have a 'run.sh' script."
             fi
         )
-        
+
         echo ""
         echo "Sample '$SAMPLE_NAME' exited. Returning to menu..."
         echo ""
@@ -141,7 +144,7 @@ if [[ $# -lt 1 ]]; then
 else
     SAMPLE_NAME="$1"
     shift
-    
+
     SAMPLE_DIR="$SAMPLES_DIR/$SAMPLE_NAME"
 
     if [[ ! -d "$SAMPLE_DIR" ]]; then

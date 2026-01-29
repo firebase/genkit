@@ -41,17 +41,18 @@ Key Features
 import os
 from typing import Annotated, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
+from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.anthropic import Anthropic, anthropic_name
-from genkit.types import ActionRunContext, GenerationCommonConfig
+from genkit.types import GenerationCommonConfig
 
 if 'ANTHROPIC_API_KEY' not in os.environ:
     os.environ['ANTHROPIC_API_KEY'] = input('Please enter your ANTHROPIC_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[Anthropic()],
@@ -172,22 +173,30 @@ async def generate_character(
     """
     result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
 
 
 @ai.tool()
 def get_weather(input: WeatherInput) -> str:
-    """Get weather for a location.
+    """Return a random realistic weather string for a city name.
 
     Args:
-        input: Weather input with location.
+        input: Weather input  location.
 
     Returns:
-        Weather information.
+        Weather information with temperature in degree Celsius.
     """
-    return f'Weather in {input.location}: Sunny, 23°C'
+    import random
+
+    weather_options = [
+        '32° C sunny',
+        '17° C cloudy',
+        '22° C cloudy',
+        '19° C humid',
+    ]
+    return random.choice(weather_options)
 
 
 @ai.flow()

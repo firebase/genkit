@@ -83,12 +83,12 @@ Testing This Demo
 import os
 from typing import Annotated, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,
@@ -102,7 +102,7 @@ from genkit.types import (
     TextPart,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
@@ -243,7 +243,7 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
 @ai.flow()
 async def generate_character(
     name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 
@@ -254,10 +254,10 @@ async def generate_character(
     Returns:
         The generated RPG character.
     """
-    if ctx.is_streaming:
+    if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
             prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
         )
         async for data in stream:
             ctx.send_chunk(data.output)
@@ -266,7 +266,7 @@ async def generate_character(
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            output=Output(schema=RpgCharacter),
         )
         return cast(RpgCharacter, result.output)
 
@@ -274,7 +274,7 @@ async def generate_character(
 @ai.flow()
 async def generate_character_unconstrained(
     name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
@@ -287,7 +287,7 @@ async def generate_character_unconstrained(
     """
     result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
         output_constrained=False,
         output_instructions=True,
     )
@@ -313,7 +313,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
@@ -327,7 +327,8 @@ async def say_hi_stream(
     stream, _ = ai.generate_stream(prompt=f'hi {name}')
     result: str = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
 
     return result

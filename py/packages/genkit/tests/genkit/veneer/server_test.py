@@ -40,6 +40,7 @@ def test_runtime_manager() -> None:
         spec = ServerSpec(port=3100)
 
         # Test runtime file creation using context manager
+        runtime_path = None
         with RuntimeManager(spec=spec, runtime_dir=temp_dir) as rm:
             runtime_path = rm.write_runtime_file()
             assert runtime_path.exists()
@@ -52,6 +53,7 @@ def test_runtime_manager() -> None:
             assert 'timestamp' in content
 
         # Verify cleanup on exit
+        assert runtime_path is not None
         assert not runtime_path.exists()
 
         # Test directory creation

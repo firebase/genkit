@@ -41,18 +41,18 @@ Key Features
 import os
 from typing import Annotated, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
 
 if 'DEEPSEEK_API_KEY' not in os.environ:
     os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[DeepSeek()],
@@ -96,7 +96,48 @@ class RpgCharacter(BaseModel):
 class WeatherInput(BaseModel):
     """Input schema for the weather tool."""
 
-    location: str = Field(description='The city and state, e.g. San Francisco, CA')
+    location: str = Field(description='City or location name')
+
+
+@ai.tool()
+def get_weather(input: WeatherInput) -> str:
+    """Return a random realistic weather string for a location.
+
+    Args:
+        input: Weather input location.
+
+    Returns:
+        Weather information with temperature in degrees Celsius.
+    """
+    import random
+
+    weather_options = [
+        '32° C sunny',
+        '17° C cloudy',
+        '22° C cloudy',
+        '19° C humid',
+    ]
+    return random.choice(weather_options)
+
+
+@ai.flow()
+async def reasoning_flow(prompt: str | None = None) -> str:
+    """Solve reasoning problems using deepseek-reasoner model.
+
+    Args:
+        prompt: The reasoning question to solve. Defaults to a classic logic problem.
+
+    Returns:
+        The reasoning and answer.
+    """
+    if prompt is None:
+        prompt = 'What is heavier, one kilo of steel or one kilo of feathers?'
+
+    response = await ai.generate(
+        model=deepseek_name('deepseek-reasoner'),
+        prompt=prompt,
+    )
+    return response.text
 
 
 @ai.flow()
@@ -214,19 +255,19 @@ async def custom_config_flow(task: str | None = None) -> str:
 
     configs = {
         'creative': {
-            'temperature': 1.5,  # High temperature for creativity
+            'temperature': 1.5,
             'max_tokens': 200,
             'top_p': 0.95,
         },
         'precise': {
-            'temperature': 0.1,  # Low temperature for consistency
+            'temperature': 0.1,
             'max_tokens': 150,
-            'presence_penalty': 0.5,  # Encourage covering all steps
+            'presence_penalty': 0.5,
         },
         'detailed': {
             'temperature': 0.7,
-            'max_tokens': 400,  # More tokens for detailed explanation
-            'frequency_penalty': 0.8,  # Reduce repetitive phrasing
+            'max_tokens': 400,
+            'frequency_penalty': 0.8,
         },
     }
 
@@ -255,51 +296,9 @@ async def generate_character(
     result = await ai.generate(
         model=deepseek_name('deepseek-chat'),
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
-
-
-@ai.tool()
-def get_weather(input: WeatherInput) -> str:
-    """Get weather of a location, the user should supply a location first.
-
-    Args:
-        input: Weather input with location (city and state, e.g. San Francisco, CA).
-
-    Returns:
-        Weather information with temperature in degrees Fahrenheit.
-    """
-    # Mocked weather data
-    weather_data = {
-        'San Francisco, CA': {'temp': 72, 'condition': 'sunny', 'humidity': 65},
-        'Seattle, WA': {'temp': 55, 'condition': 'rainy', 'humidity': 85},
-    }
-
-    location = input.location
-    data = weather_data.get(location, {'temp': 70, 'condition': 'partly cloudy', 'humidity': 55})
-
-    return f'The weather in {location} is {data["temp"]}°F and {data["condition"]}. Humidity is {data["humidity"]}%.'
-
-
-@ai.flow()
-async def reasoning_flow(prompt: str | None = None) -> str:
-    """Solve reasoning problems using deepseek-reasoner model.
-
-    Args:
-        prompt: The reasoning question to solve. Defaults to a classic logic problem.
-
-    Returns:
-        The reasoning and answer.
-    """
-    if prompt is None:
-        prompt = 'What is heavier, one kilo of steel or one kilo of feathers?'
-
-    response = await ai.generate(
-        model=deepseek_name('deepseek-reasoner'),
-        prompt=prompt,
-    )
-    return response.text
 
 
 @ai.flow()
@@ -319,7 +318,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def streaming_flow(
     topic: Annotated[str, Field(default='pandas')] = 'pandas',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate with streaming response.
 
@@ -332,13 +331,13 @@ async def streaming_flow(
     """
     response = await ai.generate(
         prompt=f'Tell me a fun fact about {topic}',
-        on_chunk=ctx.send_chunk,
+        on_chunk=ctx.send_chunk if ctx else None,
     )
     return response.text
 
 
 @ai.flow()
-async def weather_flow(location: Annotated[str, Field(default='San Francisco, CA')] = 'San Francisco, CA') -> str:
+async def weather_flow(location: Annotated[str, Field(default='London')] = 'London') -> str:
     """Get weather using compat-oai auto tool calling."""
     response = await ai.generate(
         model=deepseek_name('deepseek-chat'),

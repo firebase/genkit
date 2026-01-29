@@ -67,6 +67,11 @@ jobs:
           uv pip install -e .[dev,test,docs]
           uv pip install --group dev
 
+      - name: Install type checkers
+        run: |
+          cd py
+          uv pip install pyright mypy
+
       - name: Install NPM packages
         run: |
           npm install -g license-checker
@@ -96,6 +101,22 @@ jobs:
           fi
 
       - name: Type check with Ty
+        env:
+          PYTHONPATH: >-
+            packages/genkit/src:
+            plugins/anthropic/src:
+            plugins/compat-oai/src:
+            plugins/deepseek/src:
+            plugins/dev-local-vectorstore/src:
+            plugins/evaluators/src:
+            plugins/firebase/src:
+            plugins/flask/src:
+            plugins/google-cloud/src:
+            plugins/google-genai/src:
+            plugins/mcp/src:
+            plugins/ollama/src:
+            plugins/vertex-ai/src:
+            plugins/xai/src
         run: uv run --directory py ty check .
 
       - name: Run security scan

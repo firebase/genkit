@@ -84,7 +84,8 @@ class ToolInterruptError(Exception):
         Args:
             metadata: Metadata associated with the interruption.
         """
-        self.metadata = metadata or {}
+        super().__init__()
+        self.metadata: dict[str, Any] = metadata or {}
 
 
 def tool_response(
