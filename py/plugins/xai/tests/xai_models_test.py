@@ -21,10 +21,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.plugins.xai.models import XAIConfig, XAIModel
+from genkit.plugins.xai.models import XAIModel
 from genkit.types import (
     GenerateRequest,
     GenerateResponseChunk,
+    GenerationCommonConfig,
     Message,
     Part,
     Role,
@@ -43,7 +44,7 @@ def _create_sample_request() -> GenerateRequest:
                 content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
-        config=XAIConfig(),
+        config=GenerationCommonConfig(),
         tools=[
             ToolDefinition(
                 name='get_weather',
@@ -120,7 +121,7 @@ async def test_generate_with_config() -> None:
 
     request = GenerateRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
-        config=XAIConfig(
+        config=GenerationCommonConfig(
             temperature=0.7,
             max_output_tokens=100,
             top_p=0.9,
@@ -282,7 +283,7 @@ async def test_build_params_basic() -> None:
 
     request = GenerateRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
-        config=XAIConfig(),
+        config=GenerationCommonConfig(),
     )
 
     params = model._build_params(request)
@@ -300,11 +301,11 @@ async def test_build_params_with_config() -> None:
 
     request = GenerateRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
-        config=XAIConfig(
-            temperature=0.5,
-            max_output_tokens=200,
-            top_p=0.8,
-        ),
+        config={
+            'temperature': 0.5,
+            'max_output_tokens': 200,
+            'top_p': 0.8,
+        },
     )
 
     params = model._build_params(request)
@@ -322,13 +323,13 @@ async def test_build_params_with_xai_specific_config() -> None:
 
     request = GenerateRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
-        config=XAIConfig(
-            temperature=0.7,
-            max_output_tokens=300,
-            deferred=True,
-            reasoning_effort='high',
-            web_search_options={'enabled': True},
-        ),
+        config={
+            'temperature': 0.7,
+            'max_output_tokens': 300,
+            'deferred': True,
+            'reasoning_effort': 'high',
+            'web_search_options': {'enabled': True},
+        },
     )
 
     params = model._build_params(request)
