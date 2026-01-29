@@ -160,7 +160,7 @@ class Registry:
         action = Action(
             kind=kind,
             name=name,
-            fn=fn,
+            fn=cast(Callable[..., Awaitable[OutputT]], fn),
             metadata_fn=metadata_fn,
             description=description,
             metadata=metadata,
@@ -170,7 +170,7 @@ class Registry:
         with self._lock:
             if kind not in self._entries:
                 self._entries[kind] = {}
-            self._entries[kind][name] = action_typed
+            self._entries[kind][name] = action
         return action_typed
 
     def register_action_from_instance(self, action: Action) -> None:

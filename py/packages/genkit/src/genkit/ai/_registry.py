@@ -76,7 +76,7 @@ from genkit.blocks.reranker import (
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
-from genkit.core.action import Action, ActionResponse
+from genkit.core.action import Action, ActionResponse, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
@@ -216,11 +216,11 @@ class GenkitRegistry:
     @overload
     def flow(
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']: ...
+    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']: ...
 
     def flow(
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']:
+    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']:
         """Decorator to register a function as a flow.
 
         Args:
@@ -264,7 +264,7 @@ class GenkitRegistry:
                     The response from the flow function.
                 """
                 # Flows accept at most one input argument
-                input_arg = args[0] if args else None
+                input_arg = cast(T | None, args[0] if args else None)
                 return (await action.arun(input_arg)).response
 
             @wraps(func)
@@ -279,16 +279,17 @@ class GenkitRegistry:
                     The response from the flow function.
                 """
                 # Flows accept at most one input argument
-                input_arg = args[0] if args else None
+                input_arg = cast(T | None, args[0] if args else None)
                 return action.run(input_arg).response
 
             wrapped_fn = cast(
                 Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper
             )
-            return FlowWrapper(
-                fn=cast(Callable[P, CallT], wrapped_fn),  # pyright: ignore[reportGeneralTypeIssues]
+            flow = FlowWrapper(
+                fn=cast(Callable[P, Awaitable[T] | T], wrapped_fn),
                 action=cast(Action[Any, T, Never], action),
             )
+            return flow
 
         return wrapper
 
@@ -369,15 +370,17 @@ class GenkitRegistry:
 
             input_spec = inspect.getfullargspec(func)
 
+            func_any = cast(Callable[..., Any], func)
+
             def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
                 # Dynamic dispatch based on function signature - pyright can't verify ParamSpec here
                 match len(input_spec.args):
                     case 0:
-                        return func()  # pyright: ignore[reportCallIssue]
+                        return func_any()
                     case 1:
-                        return func(args[0])  # pyright: ignore[reportCallIssue]
+                        return func_any(args[0])
                     case 2:
-                        return func(args[0], ToolRunContext(args[1]))  # pyright: ignore[reportCallIssue]
+                        return func_any(args[0], ToolRunContext(cast(ActionRunContext, args[1])))
                     case _:
                         raise ValueError('tool must have 0-2 args...')
 
@@ -400,7 +403,8 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return (await action.arun(*args, **kwargs)).response  # pyright: ignore[reportCallIssue]
+                action_any = cast(Any, action)
+                return (await action_any.arun(*args, **kwargs)).response
 
             @wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
@@ -413,7 +417,8 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return action.run(*args, **kwargs).response  # pyright: ignore[reportCallIssue]
+                action_any = cast(Any, action)
+                return action_any.run(*args, **kwargs).response
 
             return cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
 
@@ -436,13 +441,19 @@ class GenkitRegistry:
             metadata: Optional metadata for the retriever.
             description: Optional description for the retriever.
         """
-        retriever_meta = metadata if metadata else {}
-        if 'retriever' not in retriever_meta:
-            retriever_meta['retriever'] = {}
-        if 'label' not in retriever_meta['retriever'] or not retriever_meta['retriever']['label']:
-            retriever_meta['retriever']['label'] = name
+        retriever_meta: dict[str, object] = dict(metadata) if metadata else {}
+        retriever_info: dict[str, object]
+        existing_retriever = retriever_meta.get('retriever')
+        if isinstance(existing_retriever, dict):
+            retriever_info = {str(key): value for key, value in existing_retriever.items()}
+        else:
+            retriever_info = {}
+        retriever_meta['retriever'] = retriever_info
+        label_value = retriever_info.get('label')
+        if not isinstance(label_value, str) or not label_value:
+            retriever_info['label'] = name
         if config_schema:
-            retriever_meta['retriever']['customOptions'] = to_json_schema(config_schema)
+            retriever_info['customOptions'] = to_json_schema(config_schema)
 
         retriever_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -513,14 +524,19 @@ class GenkitRegistry:
             metadata: Optional metadata for the indexer.
             description: Optional description for the indexer.
         """
-        indexer_meta = metadata if metadata else {}
-
-        if 'indexer' not in indexer_meta:
-            indexer_meta['indexer'] = {}
-        if 'label' not in indexer_meta['indexer'] or not indexer_meta['indexer']['label']:
-            indexer_meta['indexer']['label'] = name
+        indexer_meta: dict[str, object] = dict(metadata) if metadata else {}
+        indexer_info: dict[str, object]
+        existing_indexer = indexer_meta.get('indexer')
+        if isinstance(existing_indexer, dict):
+            indexer_info = {str(key): value for key, value in existing_indexer.items()}
+        else:
+            indexer_info = {}
+        indexer_meta['indexer'] = indexer_info
+        label_value = indexer_info.get('label')
+        if not isinstance(label_value, str) or not label_value:
+            indexer_info['label'] = name
         if config_schema:
-            indexer_meta['indexer']['customOptions'] = to_json_schema(config_schema)
+            indexer_info['customOptions'] = to_json_schema(config_schema)
 
         indexer_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -666,16 +682,22 @@ class GenkitRegistry:
             metadata: Optional metadata for the evaluator.
             description: Optional description for the evaluator.
         """
-        evaluator_meta = metadata if metadata else {}
-        if 'evaluator' not in evaluator_meta:
-            evaluator_meta['evaluator'] = {}
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
-        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
-            evaluator_meta['evaluator']['label'] = name
+        evaluator_meta: dict[str, object] = dict(metadata) if metadata else {}
+        evaluator_info: dict[str, object]
+        existing_evaluator = evaluator_meta.get('evaluator')
+        if isinstance(existing_evaluator, dict):
+            evaluator_info = {str(key): value for key, value in existing_evaluator.items()}
+        else:
+            evaluator_info = {}
+        evaluator_meta['evaluator'] = evaluator_info
+        evaluator_info[EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_info[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_info[EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        label_value = evaluator_info.get('label')
+        if not isinstance(label_value, str) or not label_value:
+            evaluator_info['label'] = name
         if config_schema:
-            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+            evaluator_info['customOptions'] = to_json_schema(config_schema)
 
         evaluator_description = get_func_description(fn, description)
 
@@ -875,19 +897,24 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, object] = metadata or {}
-        if 'embedder' not in embedder_meta:
-            embedder_meta['embedder'] = {}
+        embedder_meta: dict[str, object] = dict(metadata) if metadata else {}
+        embedder_info: dict[str, object]
+        existing_embedder = embedder_meta.get('embedder')
+        if isinstance(existing_embedder, dict):
+            embedder_info = {str(key): value for key, value in existing_embedder.items()}
+        else:
+            embedder_info = {}
+        embedder_meta['embedder'] = embedder_info
 
         if options:
             if options.label:
-                embedder_meta['embedder']['label'] = options.label
+                embedder_info['label'] = options.label
             if options.dimensions:
-                embedder_meta['embedder']['dimensions'] = options.dimensions
+                embedder_info['dimensions'] = options.dimensions
             if options.supports:
-                embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+                embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
             if options.config_schema:
-                embedder_meta['embedder']['customOptions'] = to_json_schema(options.config_schema)
+                embedder_info['customOptions'] = to_json_schema(options.config_schema)
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -1110,6 +1137,87 @@ class GenkitRegistry:
             response.output.name  # ✓ Typed as str
             ```
         """
+        if input is not None and output is not None:
+            return define_prompt(
+                self.registry,
+                name=name,
+                variant=variant,
+                model=model,
+                config=config,
+                description=description,
+                input_schema=input_schema,
+                system=system,
+                prompt=prompt,
+                messages=messages,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
+                max_turns=max_turns,
+                return_tool_requests=return_tool_requests,
+                metadata=metadata,
+                tools=tools,
+                tool_choice=tool_choice,
+                use=use,
+                docs=docs,
+                input=input,
+                output=output,
+            )
+        if input is not None:
+            return define_prompt(
+                self.registry,
+                name=name,
+                variant=variant,
+                model=model,
+                config=config,
+                description=description,
+                input_schema=input_schema,
+                system=system,
+                prompt=prompt,
+                messages=messages,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
+                max_turns=max_turns,
+                return_tool_requests=return_tool_requests,
+                metadata=metadata,
+                tools=tools,
+                tool_choice=tool_choice,
+                use=use,
+                docs=docs,
+                input=input,
+                output=None,
+            )
+        if output is not None:
+            return define_prompt(
+                self.registry,
+                name=name,
+                variant=variant,
+                model=model,
+                config=config,
+                description=description,
+                input_schema=input_schema,
+                system=system,
+                prompt=prompt,
+                messages=messages,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
+                max_turns=max_turns,
+                return_tool_requests=return_tool_requests,
+                metadata=metadata,
+                tools=tools,
+                tool_choice=tool_choice,
+                use=use,
+                docs=docs,
+                input=None,
+                output=output,
+            )
         return define_prompt(
             self.registry,
             name=name,
@@ -1133,8 +1241,8 @@ class GenkitRegistry:
             tool_choice=tool_choice,
             use=use,
             docs=docs,
-            input=input,
-            output=output,
+            input=None,
+            output=None,
         )
 
     def prompt(

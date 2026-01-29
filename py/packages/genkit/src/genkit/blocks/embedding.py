@@ -182,17 +182,18 @@ def embedder_action_metadata(
         The action metadata for the embedder.
     """
     options = options if options is not None else EmbedderOptions()
-    embedder_metadata_dict = {'embedder': {}}
+    embedder_metadata_dict: dict[str, object] = {'embedder': {}}
+    embedder_info = cast(dict[str, object], embedder_metadata_dict['embedder'])
 
     if options.label:
-        embedder_metadata_dict['embedder']['label'] = options.label
+        embedder_info['label'] = options.label
 
-    embedder_metadata_dict['embedder']['dimensions'] = options.dimensions
+    embedder_info['dimensions'] = options.dimensions
 
     if options.supports:
-        embedder_metadata_dict['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+        embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
 
-    embedder_metadata_dict['embedder']['customOptions'] = options.config_schema if options.config_schema else None
+    embedder_info['customOptions'] = options.config_schema if options.config_schema else None
 
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.EMBEDDER),

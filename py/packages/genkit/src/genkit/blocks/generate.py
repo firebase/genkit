@@ -662,7 +662,7 @@ async def action_to_generate_request(
         output=OutputConfig(
             content_type=options.output.content_type if options.output else None,
             format=options.output.format if options.output else None,
-            schema=options.output.json_schema if options.output else None,
+            schema_=options.output.json_schema if options.output else None,
             constrained=options.output.constrained if options.output else None,
         ),
     )

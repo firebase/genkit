@@ -32,7 +32,7 @@ Key Features
 """
 
 import os
-from typing import Annotated
+from typing import Annotated, cast
 
 from flask import Flask
 from pydantic import Field
@@ -58,7 +58,10 @@ app = Flask(__name__)
 
 async def my_context_provider(request: RequestData[dict[str, object]]) -> dict[str, object]:
     """Provide a context for the flow."""
-    return {'username': request.request.headers.get('authorization')}
+    headers_raw = request.request.get('headers') if isinstance(request.request, dict) else None
+    headers = cast(dict[str, str], headers_raw) if isinstance(headers_raw, dict) else {}
+    auth_header = headers.get('authorization')
+    return {'username': auth_header}
 
 
 @app.post('/chat')

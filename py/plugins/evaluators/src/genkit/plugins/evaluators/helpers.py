@@ -146,9 +146,9 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                 )
                 statements: list[str] = []
                 if isinstance(longform_response.output, dict):
-                    statements = longform_response.output.get('statements', [])  # type: ignore[assignment]
+                    statements = longform_response.output.get('statements', [])
                 elif longform_response.output and hasattr(longform_response.output, 'statements'):
-                    statements = longform_response.output.statements  # type: ignore[union-attr]
+                    statements = longform_response.output.statements
                 if not statements:
                     raise ValueError('No statements returned')
 
@@ -172,7 +172,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     raw_resp = nli_dict.get('responses')
                     responses = raw_resp if isinstance(raw_resp, list) else []
                 elif nli_output and hasattr(nli_output, 'responses'):
-                    responses = nli_output.responses  # type: ignore[union-attr]
+                    responses = nli_output.responses
 
                 if not responses:
                     raise ValueError('Evaluator response empty')

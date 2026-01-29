@@ -129,4 +129,4 @@ def get_logger(name: str | None = None) -> Logger:
         >>> await logger.ainfo('Async operation complete')
     """
     # The cast is safe because structlog's BoundLogger implements these methods
-    return structlog.get_logger(name)  # type: ignore[return-value]
+    return structlog.get_logger(name)

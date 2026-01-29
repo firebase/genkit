@@ -95,13 +95,15 @@ class EnumFormat(FormatDef):
             return re.sub(r'[\'"]', '', chunk.accumulated_text).strip()
 
         instructions = None
-        if schema and schema.get('enum'):
-            enum_values = '\n'.join([str(v) for v in schema['enum']])
-            instructions = (
-                'Output should be ONLY one of the following enum values. '
-                'Do not output any additional information or add quotes.\n\n'
-                f'{enum_values}'
-            )
+        if schema:
+            enum_values = schema.get('enum')
+            if isinstance(enum_values, list | tuple) and enum_values:
+                enum_text = '\n'.join(str(v) for v in enum_values)
+                instructions = (
+                    'Output should be ONLY one of the following enum values. '
+                    'Do not output any additional information or add quotes.\n\n'
+                    f'{enum_text}'
+                )
 
         return Formatter(
             chunk_parser=chunk_parser,

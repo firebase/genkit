@@ -17,7 +17,7 @@
 """Base error classes and utilities for Genkit."""
 
 import traceback
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -94,7 +94,7 @@ class GenkitError(Exception):
         super().__init__(f'{source_prefix}{self.status}: {message}')
         self.original_message: str = message
 
-        self.http_code: int = http_status_code(self.status)
+        self.http_code: int = http_status_code(cast(StatusName, self.status))
 
         if not details:
             details = {}

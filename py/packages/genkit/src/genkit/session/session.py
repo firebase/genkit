@@ -118,7 +118,8 @@ class Session:
         self._ai: Genkit = ai
         self._store: SessionStore = store
         if data:
-            self._id: str = data['id']
+            data_id = data.get('id')
+            self._id = data_id if data_id is not None else (id or str(uuid.uuid4()))
             self._state: dict[str, Any] = data.get('state') or {}
             # Load threads, with backward compat for legacy 'messages' field
             self._threads: dict[str, list[Message]] = data.get('threads') or {}
@@ -267,8 +268,9 @@ class Session:
         if chat_options:
             # Copy generate-related options to request_base
             for key in ('system', 'model', 'config', 'tools', 'tool_choice'):
-                if key in chat_options:
-                    request_base[key] = chat_options[key]
+                value = chat_options.get(key)
+                if value is not None:
+                    request_base[key] = value
 
         # TODO: Handle preamble rendering (JS pre-renders preamble here)
         # For now, preamble support is deferred

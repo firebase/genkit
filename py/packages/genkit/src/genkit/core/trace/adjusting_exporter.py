@@ -68,7 +68,7 @@ See Also:
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Event, ReadableSpan
@@ -108,12 +108,12 @@ class RedactedSpan(ReadableSpan):
     @override
     def context(self) -> SpanContext:
         """Return the span context."""
-        return self._span.context
+        return cast(SpanContext, self._span.context)
 
     @override
     def get_span_context(self) -> SpanContext:
         """Return the span context."""
-        return self._span.get_span_context()
+        return cast(SpanContext, self._span.get_span_context())
 
     @property
     @override

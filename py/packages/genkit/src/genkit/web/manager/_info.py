@@ -181,7 +181,7 @@ def _get_network_info() -> dict[str, Any]:
     Returns:
         A dictionary containing network information.
     """
-    info = {
+    info: dict[str, Any] = {
         'hostname': socket.gethostname(),
     }
 
@@ -358,9 +358,7 @@ def get_server_info(config: ServerConfig) -> dict[str, Any]:
     env_prefix = config.env_prefix if has_prefix else None  # type: ignore[attr-defined]
 
     # Get feature flags if available
-    feature_flags = {}
-    if hasattr(config, 'feature_flags'):
-        feature_flags = config.feature_flags
+    feature_flags: dict[str, Any] = getattr(config, 'feature_flags', {})
 
     return {
         'process': _get_process_info(),

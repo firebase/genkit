@@ -35,6 +35,8 @@ Key Features
 import argparse
 import asyncio
 import random
+from collections.abc import Coroutine
+from typing import Any, cast
 
 from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
 
@@ -98,6 +100,6 @@ if __name__ == '__main__':
     if args.setup:
         from .setup import setup as run_setup  # pyright: ignore[reportImplicitRelativeImport]
 
-        ai.run_main(run_setup())
+        ai.run_main(cast(Coroutine[Any, Any, object], run_setup()))
     else:
         ai.run_main(main())

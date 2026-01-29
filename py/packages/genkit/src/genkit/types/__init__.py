@@ -52,6 +52,7 @@ from genkit.core.typing import (
     MediaPart,
     # Message and Part types
     Message,
+    Metadata,
     # Model info (for plugin authors)
     ModelInfo,
     OutputConfig,
@@ -86,6 +87,7 @@ __all__ = [
     'TextPart',
     'MediaPart',
     'Media',
+    'Metadata',
     'CustomPart',
     'DataPart',
     'ReasoningPart',

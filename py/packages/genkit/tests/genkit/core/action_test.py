@@ -5,6 +5,8 @@
 
 """Tests for the action module."""
 
+from typing import cast
+
 import pytest
 
 from genkit.codec import dump_json
@@ -258,17 +260,17 @@ async def test_propagates_context_via_contextvar() -> None:
     async def foo(_: str | None, ctx: ActionRunContext) -> str:
         return dump_json(ctx.context)
 
-    foo_action = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
+    foo_action = cast(Action[str | None, str], Action(name='foo', kind=ActionKind.CUSTOM, fn=foo))
 
     async def bar() -> str:
         return (await foo_action.arun()).response
 
-    bar_action = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
+    bar_action = cast(Action[None, str], Action(name='bar', kind=ActionKind.CUSTOM, fn=bar))
 
     async def baz() -> str:
         return (await bar_action.arun()).response
 
-    baz_action = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)
+    baz_action = cast(Action[None, str], Action(name='baz', kind=ActionKind.CUSTOM, fn=baz))
 
     first = baz_action.arun(context={'foo': 'bar'})
     second = baz_action.arun(context={'bar': 'baz'})

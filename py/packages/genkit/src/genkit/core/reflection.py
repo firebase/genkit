@@ -43,7 +43,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator, Callable
-from typing import Any
+from typing import Any, cast
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -579,4 +579,4 @@ def create_reflection_asgi_app(
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
     )
     app.active_actions = active_actions  # type: ignore[attr-defined]
-    return app
+    return cast(Application, app)

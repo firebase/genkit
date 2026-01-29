@@ -120,7 +120,7 @@ class GenkitBase(GenkitRegistry):
         if not spec:
             spec = ServerSpec(scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999))
 
-        async def dev_runner() -> T | None:
+        async def dev_runner() -> T:
             """Internal async function to run tasks using AnyIO TaskGroup."""
             user_result: T | None = None
             user_task_finished_event = anyio.Event()
@@ -219,17 +219,19 @@ class GenkitBase(GenkitRegistry):
             except anyio.get_cancelled_exc_class():
                 logger.info('Development server task group cancelled (e.g., Ctrl+C).')
                 raise
-            except Exception as e:
-                logger.exception(e)
+            except Exception:
+                logger.exception('Development server task group error')
                 raise
 
             # After the TaskGroup finishes (error or cancelation).
             if user_task_finished_event.is_set():
                 await logger.adebug('User coroutine finished before TaskGroup exit.')
+                if user_result is None:
+                    raise RuntimeError('User coroutine finished without a result.')
                 return user_result
-            else:
-                await logger.adebug('User coroutine did not finish before TaskGroup exit.')
-                return None
+
+            await logger.adebug('User coroutine did not finish before TaskGroup exit.')
+            raise RuntimeError('User coroutine did not finish before TaskGroup exit.')
 
         return anyio.run(dev_runner)
 

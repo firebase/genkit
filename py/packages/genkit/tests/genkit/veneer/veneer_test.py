@@ -6,7 +6,7 @@
 """Tests for the action module."""
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import BaseModel, Field
@@ -833,7 +833,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         tools=[],
         output=OutputConfig(
             format='json',
-            schema={
+            schema_={
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -894,7 +894,7 @@ async def test_generate_defaults_to_json_format(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema={
+            schema_={
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -954,7 +954,7 @@ async def test_generate_json_format_unconstrained(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema={
+            schema_={
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -1144,7 +1144,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         tools=[],
         output=OutputConfig(
             format='json',
-            schema={
+            schema_={
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -1263,7 +1263,7 @@ class MockBananaFormat(FormatDef):
             parts = [p.root.text or '' for p in chunk.content if hasattr(p.root, 'text') and p.root.text]
             return f'banana chunk {"".join(parts)}'  # type: ignore[arg-type]
 
-        instructions: str | None
+        instructions: str | None = None
 
         if schema:
             instructions = f'schema: {json.dumps(schema)}'
@@ -1343,7 +1343,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
         tools=[],
         output=OutputConfig(
             format='json',
-            schema={
+            schema_={
                 'properties': {
                     'foo': {
                         'anyOf': [{'type': 'integer'}, {'type': 'null'}],
@@ -1614,11 +1614,12 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
     """Test defining a synchronous flow."""
     ai, _, _, *_ = setup_test
 
-    @ai.flow()
-    def my_flow(input: str, ctx: ActionRunContext) -> str:
-        ctx.send_chunk(1)
-        ctx.send_chunk(2)
-        ctx.send_chunk(3)
+    @cast(Any, ai.flow())
+    def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
+        if ctx:
+            ctx.send_chunk(1)
+            ctx.send_chunk(2)
+            ctx.send_chunk(3)
         return input
 
     assert my_flow('banana') == 'banana'
@@ -1639,10 +1640,11 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
     ai, _, _, *_ = setup_test
 
     @ai.flow()
-    async def my_flow(input: str, ctx: ActionRunContext) -> str:
-        ctx.send_chunk(1)
-        ctx.send_chunk(2)
-        ctx.send_chunk(3)
+    async def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
+        if ctx:
+            ctx.send_chunk(1)
+            ctx.send_chunk(2)
+            ctx.send_chunk(3)
         return input
 
     assert (await my_flow('banana')) == 'banana'

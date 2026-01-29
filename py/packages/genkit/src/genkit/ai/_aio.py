@@ -887,7 +887,7 @@ class Genkit(GenkitBase):
             IndexerRequest(
                 # Document subclasses DocumentData, so this is type-safe at runtime.
                 # list is invariant so list[Document] isn't assignable to list[DocumentData]
-                documents=documents,  # pyright: ignore[reportArgumentType]
+                documents=cast(list[DocumentData], documents),
                 options=req_options if req_options else None,
             )
         )

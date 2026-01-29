@@ -274,15 +274,15 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     def metadata(self) -> dict[str, object]:
         return self._metadata
 
-    @cached_property
+    @property
     def input_type(self) -> TypeAdapter[InputT] | None:
         return self._input_type
 
-    @cached_property
+    @property
     def input_schema(self) -> dict[str, object]:
         return self._input_schema
 
-    @cached_property
+    @property
     def output_schema(self) -> dict[str, object]:
         return self._output_schema
 

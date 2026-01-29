@@ -30,7 +30,7 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -46,6 +46,7 @@ from genkit.core.logging import get_logger
 
 if TYPE_CHECKING:
     from opentelemetry.sdk.trace import SpanProcessor
+    from opentelemetry.trace import SpanContext
 
 ATTR_PREFIX = 'genkit'
 logger = get_logger(__name__)
@@ -58,8 +59,9 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
     a dictionary containing the span data.
     """
     # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
-    trace_id_hex = format(span.context.trace_id, '032x')
-    span_id_hex = format(span.context.span_id, '016x')
+    context = cast('SpanContext', span.context)
+    trace_id_hex = format(context.trace_id, '032x')
+    span_id_hex = format(context.span_id, '016x')
     parent_span_id_hex = format(span.parent.span_id, '016x') if span.parent else None
 
     span_data: dict[str, Any] = {'traceId': trace_id_hex, 'spans': {}}

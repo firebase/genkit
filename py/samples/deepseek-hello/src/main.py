@@ -332,7 +332,7 @@ async def streaming_flow(
     """
     response = await ai.generate(
         prompt=f'Tell me a fun fact about {topic}',
-        on_chunk=ctx.send_chunk,
+        on_chunk=ctx.send_chunk if ctx else None,
     )
     return response.text
 

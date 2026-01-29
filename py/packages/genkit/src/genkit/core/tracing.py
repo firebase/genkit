@@ -84,9 +84,9 @@ def add_custom_exporter(exporter: SpanExporter | None, name: str = 'last') -> No
         processor = create_span_processor(exporter)
         current_provider.add_span_processor(processor)
         logger.debug(f'{name} exporter added successfully.')
-    except Exception as e:
+    except Exception:
         logger.error(f'tracing.add_custom_exporter: failed to add exporter {name}')
-        logger.exception(e)
+        logger.exception('Failed to add custom exporter')
 
 
 if is_dev_environment():

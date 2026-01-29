@@ -317,7 +317,7 @@ class StaticResponseModel:
         Args:
             message: The message data to always return.
         """
-        self.response_message: Message = message
+        self.response_message: Message = Message.model_validate(message)
         self.last_request: GenerateRequest | None = None
         self.request_count: int = 0
 
@@ -333,7 +333,7 @@ class StaticResponseModel:
         """
         self.last_request = request
         self.request_count += 1
-        return GenerateResponse(message=Message.model_validate(self.response_message))
+        return GenerateResponse(message=self.response_message)
 
 
 def define_static_response_model(

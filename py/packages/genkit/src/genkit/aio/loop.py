@@ -127,7 +127,7 @@ def iter_over_async(ait: AsyncIterable[T], loop: asyncio.AbstractEventLoop) -> I
         done, obj = loop.run_until_complete(get_next())
         if done:
             break
-        yield obj  # type: ignore[misc]
+        yield obj
 
 
 def run_loop(coro: Coroutine[object, object, T], *, debug: bool | None = None) -> T:

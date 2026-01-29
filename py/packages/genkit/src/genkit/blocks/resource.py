@@ -226,7 +226,7 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
 
     matcher = create_matcher(opts.get('uri'), opts.get('template'))
 
-    async def wrapped_fn(input_data: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+    async def wrapped_fn(input_data: ResourceInput, ctx: ActionRunContext) -> ResourcePayload:
         if isinstance(input_data, dict):
             input_data = ResourceInput(**input_data)
 
@@ -254,12 +254,14 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
                     p = p.root
 
                 if hasattr(p, 'metadata'):
-                    if p.metadata is None or isinstance(p.metadata, dict):
-                        p.metadata = Metadata(root=p.metadata or {})
-
+                    if p.metadata is None:
+                        p.metadata = {}
                     if isinstance(p.metadata, Metadata):
-                        p_metadata = p.metadata.root
+                        p.metadata = p.metadata.root
+                    if isinstance(p.metadata, dict):
+                        p_metadata = p.metadata
                     else:
+                        p.metadata = {}
                         p_metadata = p.metadata
 
                     if 'resource' in p_metadata:

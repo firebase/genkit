@@ -109,15 +109,16 @@ def retriever_action_metadata(
 ) -> ActionMetadata:
     """Creates action metadata for a retriever."""
     options = options if options is not None else RetrieverOptions()
-    retriever_metadata_dict = {'retriever': {}}
+    retriever_metadata_dict: dict[str, object] = {'retriever': {}}
+    retriever_info = cast(dict[str, object], retriever_metadata_dict['retriever'])
 
     if options.label:
-        retriever_metadata_dict['retriever']['label'] = options.label
+        retriever_info['label'] = options.label
 
     if options.supports:
-        retriever_metadata_dict['retriever']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+        retriever_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
 
-    retriever_metadata_dict['retriever']['customOptions'] = options.config_schema if options.config_schema else None
+    retriever_info['customOptions'] = options.config_schema if options.config_schema else None
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.RETRIEVER),
         name=name,
@@ -182,15 +183,16 @@ def indexer_action_metadata(
 ) -> ActionMetadata:
     """Creates action metadata for an indexer."""
     options = options if options is not None else IndexerOptions()
-    indexer_metadata_dict = {'indexer': {}}
+    indexer_metadata_dict: dict[str, object] = {'indexer': {}}
+    indexer_info = cast(dict[str, object], indexer_metadata_dict['indexer'])
 
     if options.label:
-        indexer_metadata_dict['indexer']['label'] = options.label
+        indexer_info['label'] = options.label
 
     if options.supports:
-        indexer_metadata_dict['indexer']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+        indexer_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
 
-    indexer_metadata_dict['indexer']['customOptions'] = options.config_schema if options.config_schema else None
+    indexer_info['customOptions'] = options.config_schema if options.config_schema else None
 
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.INDEXER),
