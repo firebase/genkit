@@ -17,10 +17,10 @@
 import os
 from typing import Annotated
 
-from genkit_demo import ai
 from pydantic import Field
 from pypdf import PdfReader
 
+from evaluator_demo.genkit_demo import ai
 from genkit.blocks.document import Document
 
 pdf_chat_retriever = 'pdf_qa'
@@ -65,7 +65,7 @@ async def pdf_qa(query: Annotated[str, Field(default='What is in the PDF?')] = '
     augmented_prompt = rag_template(
         question=query,
         context='\n\n'.join([
-            d.content[0].root.text or '' for d in docs.documents if d.content and d.content[0].root.text
+            str(d.content[0].root.text) for d in docs.documents if d.content and d.content[0].root.text
         ]),
     )
     llm_response = await ai.generate(

@@ -38,15 +38,14 @@ import random
 from collections.abc import Coroutine
 from typing import Any, cast
 
-from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
-
 # Import flows so they get registered
-from . import (
-    eval_in_code,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    pdf_rag,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    setup,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+from evaluator_demo import (
+    eval_in_code,  # noqa: F401
+    pdf_rag,  # noqa: F401
+    setup as setup_module,  # noqa: F401
 )
-from .genkit_demo import ai
+from evaluator_demo.genkit_demo import ai
+from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
 
 
 # Test evaluator that generates random scores and randomly fails
@@ -98,7 +97,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.setup:
-        from .setup import setup as run_setup  # pyright: ignore[reportImplicitRelativeImport]
+        from evaluator_demo.setup import setup as run_setup
 
         ai.run_main(cast(Coroutine[Any, Any, object], run_setup()))
     else:

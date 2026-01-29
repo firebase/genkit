@@ -16,9 +16,10 @@
 
 import os
 
-from genkit_demo import ai
-from pdf_rag import index_pdf
 from pydantic import BaseModel
+
+from evaluator_demo.genkit_demo import ai
+from evaluator_demo.pdf_rag import index_pdf
 
 # Default document to index
 CAT_FACTS = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs', 'cat-handbook.pdf'))]

@@ -208,7 +208,7 @@ async def pokemon_flow(
     if not response.message or not response.message.content:
         raise ValueError('No message content returned from model')
     text = response.message.content[0].root.text
-    return text if text is not None else ''
+    return str(text) if text is not None else ''
 
 
 async def main() -> None:

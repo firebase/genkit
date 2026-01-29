@@ -66,7 +66,10 @@ dev = [
 ]
 
 lint = [
+  "mypy>=1.14.0",
   "pypdf>=6.6.2",
+  "pyrefly>=0.15.0",
+  "pyright>=1.1.392",
   "strenum>=0.4.15",
   "streamlit>=1.41.0",
   "ty>=0.0.1",
@@ -134,8 +137,8 @@ google-genai-image                  = { workspace = true }
 prompt-demo                         = { workspace = true }
 
 [tool.uv.workspace]
-members = ["packages/*", "plugins/*", "samples/*"]
 exclude = ["*/shared"]
+members = ["packages/*", "plugins/*", "samples/*"]
 
 
 # Ruff checks and formatting.
@@ -287,3 +290,99 @@ google-crc32c    = "1.8.0"    # Apache-2.0
 multidict        = "6.7.0"    # Apache-2.0
 ollama           = "0.5.1"    # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
 pyasn1           = "0.6.2"    # BSD-2-Clause
+
+# Ty (Astral/Ruff) type checking configuration.
+# See: https://docs.astral.sh/ty/modules/#first-party-modules
+[tool.ty.environment]
+root = [
+  # Core package
+  "packages/genkit/src",
+  # Plugins
+  "plugins/anthropic/src",
+  "plugins/compat-oai/src",
+  "plugins/deepseek/src",
+  "plugins/dev-local-vectorstore/src",
+  "plugins/evaluators/src",
+  "plugins/firebase/src",
+  "plugins/flask/src",
+  "plugins/google-cloud/src",
+  "plugins/google-genai/src",
+  "plugins/mcp/src",
+  "plugins/ollama/src",
+  "plugins/vertex-ai/src",
+  "plugins/xai/src",
+  # Samples
+  ".",                      # For samples.shared imports
+  "samples/evaluator-demo", # For evaluator_demo package imports
+]
+
+# Pyright type checking configuration.
+[tool.pyright]
+exclude = [
+  "**/__pycache__",
+  ".git",
+  ".mypy_cache",
+  ".nox",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".tox",
+  "build",
+  "dist",
+]
+# Use the venv where packages are installed as editable installs
+pythonVersion          = "3.10"
+reportMissingImports   = true
+reportMissingTypeStubs = false
+typeCheckingMode       = "basic"
+venv                   = ".venv"
+venvPath               = "."
+
+# Pyrefly type checking configuration (Meta's new type checker).
+#
+# Import Resolution Note:
+# Pyrefly doesn't fully support PEP 420 namespace packages. The genkit plugins use
+# namespace packages (genkit.plugins.*) where intermediate directories (genkit/ and
+# genkit/plugins/) don't have __init__.py files. This is intentional for allowing
+# multiple packages to contribute to the same namespace, but pyrefly can't resolve
+# these imports statically. We use ignore-missing-imports for "genkit.plugins.*" to
+# suppress false positive import errors while still catching real type errors.
+# At runtime, these imports work correctly because Python's import system handles
+# PEP 420 namespace packages natively.
+[tool.pyrefly]
+project_excludes = [
+  "**/__pycache__",
+  ".git",
+  ".mypy_cache",
+  ".nox",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".tox",
+  ".venv",
+  "build",
+  "dist",
+]
+project_includes = [
+  # Core package (source and tests)
+  "packages/genkit/src/**/*.py",
+  "packages/genkit/tests/**/*.py",
+  # Plugins (source and tests)
+  "plugins/*/src/**/*.py",
+  "plugins/*/tests/**/*.py",
+  # Samples
+  "samples/*/src/**/*.py",
+  "samples/evaluator-demo/evaluator_demo/**/*.py",
+]
+# Search path for first-party code import resolution.
+# The project root "." covers all packages. Additional paths are needed for:
+# - plugins/mcp/tests: has a local `fakes` module for test mocks
+# - samples/evaluator-demo: has `evaluator_demo` package with internal imports
+search-path = [".", "plugins/mcp/tests", "samples/evaluator-demo"]
+# Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
+# namespace packages but these imports work at runtime
+ignore-missing-imports = ["genkit.plugins.*"]
+python_version         = "3.10"
+
+# Treat warnings as errors.
+[tool.pyrefly.errors]
+deprecated     = "error"
+redundant-cast = "error"

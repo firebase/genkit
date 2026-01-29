@@ -184,6 +184,7 @@ class GeminiConfigSchema(genai_types.GenerateContentConfig):
 
     code_execution: bool | None = None
     response_modalities: list[str] | None = None
+    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
     thinking_config: dict[str, object] | None = None
     file_search: dict[str, object] | None = None
     url_context: dict[str, object] | None = None
@@ -199,12 +200,14 @@ class GeminiConfigSchema(genai_types.GenerateContentConfig):
 class GeminiTtsConfigSchema(GeminiConfigSchema):
     """Gemini TTS Config Schema."""
 
+    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
     speech_config: dict[str, object] | None = None
 
 
 class GeminiImageConfigSchema(GeminiConfigSchema):
     """Gemini Image Config Schema."""
 
+    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
     image_config: dict[str, object] | None = None
 
 
@@ -804,7 +807,8 @@ class GeminiModel:
         """
         validate_context_cache_request(request=request, model_name=model_name)
 
-        ttl = cache_config.get('ttl_seconds', DEFAULT_TTL)
+        ttl_value = cache_config.get('ttl_seconds', DEFAULT_TTL)
+        ttl: float = float(ttl_value) if ttl_value is not None else DEFAULT_TTL
         cache_key = generate_cache_key(request=request)
 
         iterator_config = genai_types.ListCachedContentsConfig()
@@ -1030,6 +1034,7 @@ class GeminiModel:
         Returns:
             model metadata.
         """
+        # pyrefly: ignore[no-matching-overload] - _version can be str for custom models
         model_info = SUPPORTED_MODELS.get(self._version)
         if model_info and model_info.supports:
             supports = model_info.supports.model_dump()

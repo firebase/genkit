@@ -39,7 +39,7 @@ Key Features
 """
 
 import os
-from typing import Annotated, cast
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -274,6 +274,7 @@ async def custom_config_flow(task: str | None = None) -> str:
     prompt = prompts.get(task, prompts['creative'])
     config = configs.get(task, configs['creative'])
 
+    # pyrefly: ignore[no-matching-overload] - config dict is compatible with dict[str, object]
     response = await ai.generate(
         prompt=prompt,
         config=config,
@@ -298,7 +299,7 @@ async def generate_character(
         prompt=f'generate an RPG character named {name}',
         output=Output(schema=RpgCharacter),
     )
-    return cast(RpgCharacter, result.output)
+    return result.output
 
 
 @ai.flow()

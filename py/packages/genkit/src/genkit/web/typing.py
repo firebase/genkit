@@ -50,7 +50,7 @@ except ImportError:
 
 # NOTE: Please ask these frameworks to standardize on asgiref.
 if litestar is not None and starlette is not None:
-    Application = atyping.ASGIApplication | litestar.Litestar | StarletteApp
+    Application = atyping.ASGIApplication | litestar.Litestar | StarletteApp  # pyright: ignore[reportOperatorIssue]
     HTTPScope = atyping.HTTPScope | litestar.types.HTTPScope | starlette.types.Scope
     LifespanScope = atyping.LifespanScope | litestar.types.LifeSpanScope | starlette.types.Scope
     Receive = atyping.ASGIReceiveCallable | litestar.types.Receive | starlette.types.Scope
@@ -64,7 +64,7 @@ elif litestar is not None:
     Scope = atyping.Scope | litestar.types.Scope
     Send = atyping.ASGISendCallable | litestar.types.Send
 elif starlette is not None:
-    Application = StarletteApp | atyping.ASGIApplication
+    Application = StarletteApp | atyping.ASGIApplication  # pyright: ignore[reportOptionalOperand]
     HTTPScope = atyping.HTTPScope | starlette.types.Scope
     LifespanScope = atyping.LifespanScope | starlette.types.Scope
     Receive = atyping.ASGIReceiveCallable | starlette.types.Receive

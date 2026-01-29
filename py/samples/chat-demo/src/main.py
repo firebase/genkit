@@ -327,6 +327,7 @@ if prompt := st.chat_input('What is up?'):
                     message_placeholder.markdown(full_text + '▌')
 
             # Send the message
+            assert prompt is not None  # Guaranteed by walrus operator guard
             if enable_streaming:
                 result = chat.send_stream(prompt)
                 async for chunk in result.stream:

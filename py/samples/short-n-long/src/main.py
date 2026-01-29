@@ -51,7 +51,7 @@ See README.md for testing instructions.
 import argparse
 import asyncio
 import os
-from typing import Annotated, cast
+from typing import Annotated
 
 import uvicorn
 from pydantic import BaseModel, Field
@@ -322,13 +322,13 @@ async def generate_character(
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return cast(RpgCharacter, (await result).output)
+        return (await result).output
     else:
         result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
             output=Output(schema=RpgCharacter),
         )
-        return cast(RpgCharacter, result.output)
+        return result.output
 
 
 @ai.flow()
@@ -351,7 +351,7 @@ async def generate_character_unconstrained(
         output_constrained=False,
         output_instructions=True,
     )
-    return cast(RpgCharacter, result.output)
+    return result.output
 
 
 @ai.flow()
@@ -403,6 +403,7 @@ async def server_main(ai: Genkit) -> None:
         on_app_startup=on_app_startup,
         on_app_shutdown=on_app_shutdown,
     )
+    # pyrefly: ignore[bad-argument-type] - app type is compatible with uvicorn
     config = uvicorn.Config(app, host='localhost', port=3400)
     server = uvicorn.Server(config)
     await server.serve()

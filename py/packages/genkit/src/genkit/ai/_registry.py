@@ -170,7 +170,7 @@ def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentDa
             return Document.from_text(transformed)
         else:
             # transformed is list[DocumentPart]
-            return DocumentData(content=cast(list[DocumentPart], transformed))
+            return DocumentData(content=transformed)
 
     if isinstance(options.content, str) and isinstance(item, dict):
         return Document.from_text(str(item[options.content]))
@@ -209,16 +209,18 @@ class GenkitRegistry:
         self.registry: Registry = Registry()
 
     @overload
+    # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
     def flow(
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T]']: ...
 
     @overload
+    # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
     def flow(
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']: ...
 
-    def flow(
+    def flow(  # pyright: ignore[reportInconsistentOverload]
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']:
         """Decorator to register a function as a flow.
@@ -247,11 +249,13 @@ class GenkitRegistry:
             action = self.registry.register_action(
                 name=flow_name,
                 kind=cast(ActionKind, ActionKind.FLOW),
+                # pyrefly: ignore[bad-argument-type] - func union type is valid for register_action
                 fn=func,
                 description=flow_description,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
 
+            # pyrefly: ignore[bad-argument-type] - func is valid for wraps despite union type
             @wraps(func)
             async def async_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Asynchronous wrapper for the flow function.
@@ -267,6 +271,7 @@ class GenkitRegistry:
                 input_arg = cast(T | None, args[0] if args else None)
                 return (await action.arun(input_arg)).response
 
+            # pyrefly: ignore[bad-argument-type] - func is valid for wraps despite union type
             @wraps(func)
             def sync_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Synchronous wrapper for the flow function.
@@ -801,16 +806,18 @@ class GenkitRegistry:
             metadata: Optional metadata for the evaluator.
             description: Optional description for the evaluator.
         """
-        evaluator_meta = metadata if metadata else {}
+        evaluator_meta: dict[str, object] = metadata.copy() if metadata else {}
         if 'evaluator' not in evaluator_meta:
             evaluator_meta['evaluator'] = {}
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
-        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
-            evaluator_meta['evaluator']['label'] = name
+        # Cast to dict for nested operations - pyrefly doesn't narrow nested dict types
+        evaluator_dict = cast(dict[str, object], evaluator_meta['evaluator'])
+        evaluator_dict[EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_dict[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_dict[EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        if 'label' not in evaluator_dict or not evaluator_dict['label']:
+            evaluator_dict['label'] = name
         if config_schema:
-            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+            evaluator_dict['customOptions'] = to_json_schema(config_schema)
 
         evaluator_description = get_func_description(fn, description)
         return self.registry.register_action(

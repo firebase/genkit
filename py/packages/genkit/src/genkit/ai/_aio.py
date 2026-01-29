@@ -300,6 +300,7 @@ class Genkit(GenkitBase):
         if store is None:
             store = InMemorySessionStore()
 
+        # pyrefly: ignore[bad-argument-type] - Self type is compatible with Genkit
         session = Session(ai=self, store=store)
         if initial_state:
             session.update_state(initial_state)
@@ -338,6 +339,7 @@ class Genkit(GenkitBase):
         data = await store.get(session_id)
         if not data:
             return None
+        # pyrefly: ignore[bad-argument-type] - Self type is compatible with Genkit
         return Session(ai=self, store=store, data=data)
 
     def chat(
@@ -1140,7 +1142,7 @@ class Genkit(GenkitBase):
         Returns:
             An Action instance of kind TOOL, configured for dynamic execution.
         """
-        tool_meta = metadata.copy() if metadata else {}
+        tool_meta: dict[str, object] = metadata.copy() if metadata else {}
         tool_meta['type'] = 'tool'
         tool_meta['dynamic'] = True
         return Action(
