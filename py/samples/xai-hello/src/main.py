@@ -30,14 +30,30 @@ Key features demonstrated in this sample:
 """
 
 import os
-from typing import Annotated, cast
+from typing import Annotated
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.plugins.xai import XAI, xai_name
+from samples.shared import (
+    CalculatorInput,
+    CurrencyExchangeInput,
+    RpgCharacter,
+    WeatherInput,
+    calculate,
+    calculation_logic,
+    convert_currency,
+    currency_exchange_logic,
+    generate_character_logic,
+    get_weather,
+    say_hi_logic,
+    say_hi_stream_logic,
+    say_hi_with_config_logic,
+    weather_logic,
+)
 
 if 'XAI_API_KEY' not in os.environ:
     os.environ['XAI_API_KEY'] = input('Please enter your XAI_API_KEY: ')
@@ -50,147 +66,28 @@ ai = Genkit(
 )
 
 
-class CalculatorInput(BaseModel):
-    """Input for the calculator tool."""
-
-    operation: str = Field(description='Math operation: add, subtract, multiply, divide')
-    a: float = Field(description='First number')
-    b: float = Field(description='Second number')
-
-
-class CurrencyExchangeInput(BaseModel):
-    """Currency exchange flow input schema."""
-
-    amount: float = Field(description='Amount to convert', default=100)
-    from_curr: str = Field(description='Source currency code', default='USD')
-    to_curr: str = Field(description='Target currency code', default='EUR')
-
-
-class CurrencyInput(BaseModel):
-    """Currency conversion input schema."""
-
-    amount: float = Field(description='Amount to convert', default=100)
-    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
-    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
-
-
-class Skills(BaseModel):
-    """A set of core character skills for an RPG character."""
-
-    strength: int = Field(description='strength (0-100)')
-    charisma: int = Field(description='charisma (0-100)')
-    endurance: int = Field(description='endurance (0-100)')
-
-
-class RpgCharacter(BaseModel):
-    """An RPG character."""
-
-    name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
-    abilities: list[str] = Field(description='list of abilities (3-4)')
-    skills: Skills
-
-
-class WeatherInput(BaseModel):
-    """Input for the weather tool."""
-
-    location: str = Field(description='City or location name')
-
-
-@ai.tool()
-def calculate(input: CalculatorInput) -> dict:
-    """Perform basic arithmetic operations.
-
-    Args:
-        input: Calculation request input.
-
-    Returns:
-        Calculation result dictionary.
-    """
-    operations = {
-        'add': lambda a, b: a + b,
-        'subtract': lambda a, b: a - b,
-        'multiply': lambda a, b: a * b,
-        'divide': lambda a, b: a / b if b != 0 else None,
-    }
-
-    operation = input.operation.lower()
-    if operation not in operations:
-        return {'error': f'Unknown operation: {operation}'}
-
-    result = operations[operation](input.a, input.b)
-    return {
-        'operation': operation,
-        'a': input.a,
-        'b': input.b,
-        'result': result,
-    }
+# Decorated tools
+ai.tool()(get_weather)
+ai.tool()(convert_currency)
+ai.tool()(calculate)
 
 
 @ai.flow()
-async def calculator_flow(expression: Annotated[str, Field(default='add_5_3')] = 'add_5_3') -> str:
-    """Parse and calculate a math expression.
+async def currency_exchange_flow(input_data: CurrencyExchangeInput) -> str:
+    """Genkit entry point for the currency exchange flow.
 
-    Args:
-        expression: String in format 'operation_a_b'.
-
-    Returns:
-        Calculation result string.
-
-    Example:
-        >>> await calculator_flow('add_5_3')
-        "Add(5.0, 3.0) = 8.0"
+    Exposes conversion logic as a traceable Genkit flow.
     """
-    parts = expression.split('_')
-    if len(parts) < 3:
-        return 'Invalid expression format. Use: operation_a_b (e.g., add_5_3)'
-
-    operation, a, b = parts[0], float(parts[1]), float(parts[2])
-    result = calculate(CalculatorInput(operation=operation, a=a, b=b))
-    if 'error' in result:
-        return f'Error: {result["error"]}'
-    return f'{operation.title()}({a}, {b}) = {result.get("result")}'
-
-
-@ai.tool()
-def convert_currency(input: CurrencyInput) -> str:
-    """Convert currency amount.
-
-    Args:
-        input: Currency conversion parameters.
-
-    Returns:
-        Converted amount.
-    """
-    # Mock conversion rates
-    rates = {
-        ('USD', 'EUR'): 0.85,
-        ('EUR', 'USD'): 1.18,
-        ('USD', 'GBP'): 0.73,
-        ('GBP', 'USD'): 1.37,
-    }
-
-    rate = rates.get((input.from_currency, input.to_currency), 1.0)
-    converted = input.amount * rate
-
-    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
+    return await currency_exchange_logic(ai, input_data)
 
 
 @ai.flow()
-async def currency_exchange(input: CurrencyExchangeInput) -> str:
-    """Convert currency using tools.
+async def calculator_flow(input_data: CalculatorInput) -> str:
+    """Genkit entry point for the calculator flow.
 
-    Args:
-        input: Currency exchange parameters.
-
-    Returns:
-        Conversion result.
+    Exposes calculation logic as a traceable Genkit flow.
     """
-    response = await ai.generate(
-        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
-        tools=['convert_currency'],
-    )
-    return response.text
+    return await calculation_logic(ai, input_data)
 
 
 @ai.flow()
@@ -205,32 +102,7 @@ async def generate_character(
     Returns:
         The generated RPG character.
     """
-    result = await ai.generate(
-        prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
-    )
-    return cast(RpgCharacter, result.output)
-
-
-@ai.tool()
-def get_weather(input: WeatherInput) -> str:
-    """Return a random realistic weather string for a city name.
-
-    Args:
-        input: Weather input  location.
-
-    Returns:
-        Weather information with temperature in degree Celsius.
-    """
-    import random
-
-    weather_options = [
-        '32° C sunny',
-        '17° C cloudy',
-        '22° C cloudy',
-        '19° C humid',
-    ]
-    return random.choice(weather_options)
+    return await generate_character_logic(ai, name)
 
 
 @ai.flow()
@@ -247,8 +119,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
         >>> await say_hi('Alice')
         "Hello Alice!"
     """
-    response = await ai.generate(prompt=f'Say hello to {name}!')
-    return response.text
+    return await say_hi_logic(ai, name)
 
 
 @ai.flow()
@@ -269,11 +140,7 @@ async def say_hi_stream(
         >>> await say_hi_stream('Bob', ctx)
         "Once upon a time..."
     """
-    response = await ai.generate(
-        prompt=f'Tell me a short story about {name}',
-        on_chunk=ctx.send_chunk,
-    )
-    return response.text
+    return await say_hi_stream_logic(ai, name, ctx)
 
 
 @ai.flow()
@@ -285,37 +152,17 @@ async def say_hi_with_config(name: Annotated[str, Field(default='Charlie')] = 'C
 
     Returns:
         Greeting message.
-
-    Example:
-        >>> await say_hi_with_config('Charlie')
-        "Greetings, Charlie!"
     """
-    response = await ai.generate(
-        prompt=f'Write a creative greeting for {name}',
-        config={'temperature': 1.0, 'max_output_tokens': 200},
-    )
-    return response.text
+    return await say_hi_with_config_logic(ai, name)
 
 
 @ai.flow()
-async def weather_flow(location: Annotated[str, Field(default='New York')] = 'New York') -> str:
-    """Get weather info using the weather tool (via model tool calling).
+async def weather_flow(input_data: WeatherInput) -> str:
+    """Genkit entry point for the weather information flow.
 
-    Args:
-        location: City name.
-
-    Returns:
-        Formatted weather string.
-
-    Example:
-        >>> await weather_flow('New York')
-        "Weather in New York: 15°C, cloudy"
+    Exposes weather logic as a traceable Genkit flow.
     """
-    response = await ai.generate(
-        prompt=f'What is the weather in {location}?',
-        tools=['get_weather'],
-    )
-    return response.text
+    return await weather_logic(ai, input_data)
 
 
 async def main() -> None:

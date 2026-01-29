@@ -20,7 +20,7 @@ import asyncio
 import json
 from typing import Any, cast
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 from xai_sdk import Client as XAIClient
 from xai_sdk.proto.v6 import chat_pb2, image_pb2
 
@@ -142,7 +142,7 @@ class XAIModel:
         if not isinstance(config, XAIConfig):
             try:
                 config = XAIConfig.model_validate(config)
-            except Exception:
+            except ValidationError:
                 config = XAIConfig()
 
         params: dict[str, object] = {
@@ -278,6 +278,7 @@ class XAIModel:
                     result.append(
                         chat_pb2.Message(
                             role=chat_pb2.MessageRole.ROLE_TOOL,
+                            name=actual_part.tool_response.ref,
                             content=[chat_pb2.Content(text=str(actual_part.tool_response.output))],
                         )
                     )

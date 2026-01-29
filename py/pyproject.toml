@@ -135,6 +135,8 @@ prompt-demo                         = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
+exclude = ["*/shared"]
+
 
 # Ruff checks and formatting.
 [tool.ruff]
