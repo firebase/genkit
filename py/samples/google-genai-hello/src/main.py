@@ -52,11 +52,11 @@ Key Features
 """
 
 import argparse
-import sys
-import base64
-import httpx
-from google import genai as google_genai_sdksys
+import asyncio
 import os
+import sys
+
+from google import genai as google_genai_sdk
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum  # pyright: ignore[reportUnreachable]
@@ -287,12 +287,6 @@ async def describe_image(
     return response.text
 
 
-
-
-
-
-
-
 @ai.tool(name='gablorkenTool')
 def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
     """Calculate a gablorken.
@@ -380,33 +374,6 @@ async def generate_character_unconstrained(
     return cast(RpgCharacter, result.output)
 
 
-
-
-
-@ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        name: the name to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    resp = await ai.generate(
-        prompt=f'hi {name}',
-    )
-
-    await logger.ainfo(
-        'generation_response',
-        has_usage=hasattr(resp, 'usage'),
-        usage_dict=resp.usage.model_dump() if hasattr(resp, 'usage') and resp.usage else None,
-        text_length=len(resp.text),
-    )
-
-    return resp.text
-
-
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Alice')] = 'Alice',
@@ -455,38 +422,6 @@ async def search_grounding() -> str:
     response = await ai.generate(
         prompt='Who is Albert Einstein?',
         config={'tools': [{'googleSearch': {}}], 'api_version': 'v1alpha'},
-    )
-    return response.text
-
-
-@ai.flow()
-async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        value: the integer to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
-    response1 = await ai.generate(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
-            ),
-        ],
-        tools=['gablorkenTool2'],
-    )
-    await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
-    if len(response1.interrupts) == 0:
-        return response1.text
-
-    tr = tool_response(response1.interrupts[0], {'output': 178})
-    response = await ai.generate(
-        messages=response1.messages,
-        tool_responses=[tr],
-        tools=['gablorkenTool'],
     )
     return response.text
 
@@ -567,17 +502,6 @@ async def thinking_level_pro(_level: ThinkingLevel) -> str:
 
 
 @ai.flow()
-async def tool_calling(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
-    """Tool calling with Gemini."""
-    response = await ai.generate(
-        tools=['getWeather', 'celsiusToFahrenheit'],
-        prompt=f"What's the weather in {location}? Convert the temperature to Fahrenheit.",
-        config=GenerationCommonConfig(temperature=1),
-    )
-    return response.text
-
-
-@ai.flow()
 async def url_context() -> str:
     """Url context."""
     response = await ai.generate(
@@ -612,8 +536,8 @@ async def upload_blob_to_file_search_store(client: google_genai_sdk.Client, file
         'Elara replied, her heart racing. “Adventure lies not in faraway lands but within your spirit,” the willow '
         'said, swaying gently. “Every choice you make is a step into the unknown.” With newfound courage, Elara left '
         'the woods, her mind buzzing with possibilities. The villagers would say the woods were magical, but to Elara, '
-        'it was the spark of her imagination that had transformed her ordinary world into a realm of endless adventures. '
-        'She smiled, knowing her journey was just beginning'
+        'it was the spark of her imagination that had transformed her ordinary world into a realm of endless '
+        'adventures. She smiled, knowing her journey was just beginning'
     )
 
     # Create a temporary file to upload
@@ -668,7 +592,6 @@ async def file_search() -> str:
 
         # 3. Generate
         response = await ai.generate(
-            model='googleai/gemini-3-pro-preview',
             prompt="What is the character's name in the story?",
             config={
                 'file_search': {
@@ -734,12 +657,6 @@ def take_screenshot(input_: ScreenshotInput) -> dict:
     # Implement your screenshot logic here
     print(f'Taking screenshot of {input_.url}')
     return {'url': input_.url, 'screenshot_path': '/tmp/screenshot.png'}
-
-
-class WeatherInput(BaseModel):
-    """Input for getting weather."""
-
-    location: str = Field(description='The city and state, e.g. San Francisco, CA')
 
 
 @ai.tool(name='getWeather')
