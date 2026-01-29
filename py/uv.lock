@@ -2249,6 +2249,7 @@ dependencies = [
     { name = "genkit-plugin-xai" },
     { name = "liccheck" },
     { name = "mcp" },
+    { name = "python-multipart" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
 ]
 
@@ -2300,6 +2301,7 @@ requires-dist = [
     { name = "genkit-plugin-xai", editable = "plugins/xai" },
     { name = "liccheck", specifier = ">=0.9.2" },
     { name = "mcp", specifier = ">=1.25.0" },
+    { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
 ]
 

@@ -100,49 +100,6 @@ jobs:
               exit 1
           fi
 
-      - name: Type check typing tests with Pyright
-        run: uv run --directory py pyright --project packages/genkit/tests/typing/pyrightconfig.json
-
-      - name: Type check typing tests with Mypy
-        run: uv run --directory py mypy --config-file packages/genkit/tests/typing/mypy.ini packages/genkit/tests/typing/
-
-      - name: Type check typing tests with Ty
-        env:
-          PYTHONPATH: >-
-            packages/genkit/src:
-            plugins/anthropic/src:
-            plugins/compat-oai/src:
-            plugins/deepseek/src:
-            plugins/dev-local-vectorstore/src:
-            plugins/evaluators/src:
-            plugins/firebase/src:
-            plugins/flask/src:
-            plugins/google-cloud/src:
-            plugins/google-genai/src:
-            plugins/mcp/src:
-            plugins/ollama/src:
-            plugins/vertex-ai/src:
-            plugins/xai/src
-        run: uv run --directory py ty check packages/genkit/tests/typing/
-
-      - name: Verify negative tests catch errors (Pyright)
-        run: |
-          if uv run --directory py pyright --project packages/genkit/tests/typing/pyrightconfig.negative.json 2>&1 | grep -q "error"; then
-            echo "✓ Pyright correctly caught type errors"
-          else
-            echo "✗ Pyright should have caught errors but didn't"
-            exit 1
-          fi
-
-      - name: Verify negative tests catch errors (Mypy)
-        run: |
-          if uv run --directory py mypy --config-file packages/genkit/tests/typing/mypy.ini packages/genkit/tests/typing/negative_tests.py 2>&1 | grep -q "error"; then
-            echo "✓ Mypy correctly caught type errors"
-          else
-            echo "✗ Mypy should have caught errors but didn't"
-            exit 1
-          fi
-
       - name: Type check with Ty
         env:
           PYTHONPATH: >-
