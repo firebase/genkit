@@ -16,9 +16,9 @@
 
 """Convenience functionality to determine the running environment."""
 
-import enum
 import os
 import sys
+from typing import cast
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum
@@ -65,8 +65,8 @@ def get_current_environment() -> GenkitEnvironment:
     """
     env = os.getenv(EnvVar.GENKIT_ENV)
     if env is None:
-        return GenkitEnvironment.PROD
+        return cast(GenkitEnvironment, GenkitEnvironment.PROD)
     try:
         return GenkitEnvironment(env)
     except ValueError:
-        return GenkitEnvironment.PROD
+        return cast(GenkitEnvironment, GenkitEnvironment.PROD)

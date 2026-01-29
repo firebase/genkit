@@ -25,10 +25,7 @@ from genkit.plugins.evaluators.constant import (
     MetricConfig,
     PluginOptions,
 )
-from genkit.plugins.evaluators.plugin_api import (
-    GenkitEvaluators,
-    evaluators_name,
-)
+from genkit.plugins.evaluators.helpers import define_genkit_evaluators, evaluators_name
 
 
 def package_name() -> str:
@@ -40,4 +37,11 @@ def package_name() -> str:
     return 'genkit.plugins.evaluators'
 
 
-__all__ = ['package_name', 'GenkitEvaluators', 'evaluators_name', 'GenkitMetricType', 'MetricConfig', 'PluginOptions']
+__all__ = [
+    'package_name',
+    'define_genkit_evaluators',
+    'evaluators_name',
+    'GenkitMetricType',
+    'MetricConfig',
+    'PluginOptions',
+]

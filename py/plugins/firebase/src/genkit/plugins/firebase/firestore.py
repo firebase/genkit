@@ -14,13 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from collections.abc import Callable
-from typing import Any
 
+"""Firestore vector store operations for Genkit."""
+
+from collections.abc import Callable
+
+from google.cloud import firestore
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai import Genkit
+from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.core.action.types import ActionKind
+from genkit.core.typing import DocumentPart
 from genkit.plugins.firebase.retriever import FirestoreRetriever
 
 from .constant import MetadataTransformFn
@@ -39,81 +45,59 @@ def firestore_action_name(name: str) -> str:
     return f'firestore/{name}'
 
 
-class FirestoreVectorStore(Plugin):
-    """Firestore retriever plugin.
+def define_firestore_vector_store(
+    ai: Genkit,
+    *,
+    name: str,
+    embedder: str,
+    embedder_options: dict[str, object] | None = None,
+    collection: str,
+    vector_field: str,
+    content_field: str | Callable[[DocumentSnapshot], list['DocumentPart']],
+    firestore_client: firestore.Client,
+    distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
+    metadata_fields: list[str] | MetadataTransformFn | None = None,
+) -> str:
+    """Define and register a Firestore vector store retriever.
 
     Args:
-        name: name if the retriever.
+        ai: The Genkit instance to register the retriever with.
+        name: Name of the retriever.
+        embedder: The embedder to use (e.g., 'vertexai/text-embedding-004').
+        embedder_options: Optional configuration to pass to the embedder.
         collection: The name of the Firestore collection to query.
         vector_field: The name of the field containing the vector embeddings.
         content_field: The name of the field containing the document content, you wish to return.
-        embedder: The embedder to use with this retriever.
-        embedder_options: Optional configuration to pass to the embedder.
-        distance_measure: The distance measure to use when comparing vectors. Defaults to 'COSINE'.
         firestore_client: The Firestore database instance from which to query.
+        distance_measure: The distance measure to use when comparing vectors. Defaults to 'COSINE'.
         metadata_fields: Optional list of metadata fields to include.
+
+    Returns:
+        The registered retriever name.
     """
+    retriever = FirestoreRetriever(
+        ai=ai,
+        name=name,
+        embedder=embedder,
+        embedder_options=embedder_options,
+        firestore_client=firestore_client,
+        collection=collection,
+        vector_field=vector_field,
+        content_field=content_field,
+        distance_measure=distance_measure,
+        metadata_fields=metadata_fields,
+    )
 
-    def __init__(
-        self,
-        name: str,
-        firestore_client: Any,
-        collection: str,
-        vector_field: str,
-        content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]],
-        embedder: str,
-        embedder_options: dict[str, Any] | None = None,
-        distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
-        metadata_fields: list[str] | MetadataTransformFn | None = None,
-    ) -> None:
-        """Initialize the firestore plugin.
+    action_name = firestore_action_name(name)
 
-        Args:
-            name: name if the retriever.
-            collection: The name of the Firestore collection to query.
-            vector_field: The name of the field containing the vector embeddings.
-            content_field: The name of the field containing the document content, you wish to return.
-            embedder: The embedder to use with this retriever.
-            embedder_options: Optional configuration to pass to the embedder.
-            distance_measure: The distance measure to use when comparing vectors. Defaults to 'COSINE'.
-            firestore_client: The Firestore database instance from which to query.
-            metadata_fields: Optional list of metadata fields to include.
-        """
-        self.name = name
-        self.firestore_client = firestore_client
-        self.collection = collection
-        self.vector_field = vector_field
-        self.content_field = content_field
-        self.embedder = embedder
-        self.embedder_options = embedder_options
-        self.distance_measure = distance_measure
-        self.metadata_fields = metadata_fields
+    ai.registry.register_action(
+        kind=ActionKind.RETRIEVER,
+        name=action_name,
+        fn=retriever.retrieve,
+        metadata=retriever_action_metadata(
+            name=action_name,
+            options=RetrieverOptions(label=name),
+        ).metadata,
+    )
 
-    def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize firestore plugin.
-
-        Register actions with the registry making them available for use in the Genkit framework.
-
-        Args:
-            ai: The registry to register actions with.
-
-        Returns:
-            None
-        """
-        retriever = FirestoreRetriever(
-            ai=ai,
-            name=self.name,
-            firestore_client=self.firestore_client,
-            collection=self.collection,
-            vector_field=self.vector_field,
-            content_field=self.content_field,
-            embedder=self.embedder,
-            embedder_options=self.embedder_options,
-            distance_measure=self.distance_measure,
-            metadata_fields=self.metadata_fields,
-        )
-
-        return ai.define_retriever(
-            name=firestore_action_name(self.name),
-            fn=retriever.retrieve,
-        )
+    return action_name

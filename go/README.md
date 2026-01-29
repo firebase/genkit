@@ -42,7 +42,6 @@ package main
 import (
     "context"
     "fmt"
-    "log"
 
     "github.com/firebase/genkit/go/ai"
     "github.com/firebase/genkit/go/genkit"
@@ -58,7 +57,7 @@ func main() {
         ai.WithPrompt("Why is Go a great language for AI applications?"),
     )
     if err != nil {
-        log.Fatal("could not generate: %w", err)
+        fmt.Println("could not generate: %s", err)
     }
     fmt.Println(answer)
 }
@@ -463,6 +462,32 @@ curl -X POST http://localhost:8080/tellJoke \
   -d '{"data": "programming"}'
 ```
 
+### Works with Any HTTP Framework
+
+`genkit.Handler` returns a standard `http.HandlerFunc`, so it works with any Go HTTP framework:
+
+```go
+// net/http (standard library)
+mux := http.NewServeMux()
+mux.HandleFunc("POST /joke", genkit.Handler(jokeFlow))
+log.Fatal(http.ListenAndServe(":8080", mux))
+
+// Gin
+r := gin.Default()
+r.POST("/joke", gin.WrapF(genkit.Handler(jokeFlow)))
+r.Run(":8080")
+
+// Echo
+e := echo.New()
+e.POST("/joke", echo.WrapHandler(genkit.Handler(jokeFlow)))
+e.Start(":8080")
+
+// Chi
+r := chi.NewRouter()
+r.Post("/joke", genkit.Handler(jokeFlow))
+http.ListenAndServe(":8080", r)
+```
+
 ---
 
 ## Model Providers
@@ -531,7 +556,7 @@ response, _ := genkit.Generate(ctx, g,
 Use the Genkit CLI to run your app with tracing and a local development UI:
 
 ```bash
-npm install -g genkit-cli
+curl -sL cli.genkit.dev | bash
 genkit start -- go run main.go
 ```
 
@@ -618,5 +643,5 @@ Explore working examples to see Genkit in action:
 ---
 
 <p align="center">
-  Built by <a href="https://firebase.google.com/">Google</a> with contributions from the <a href="https://github.com/firebase/genkit/graphs/contributors">Open Source Community</a>
+  Built by Google with contributions from the <a href="https://github.com/firebase/genkit/graphs/contributors">Open Source Community</a>
 </p>

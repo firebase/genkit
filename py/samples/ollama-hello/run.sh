@@ -15,4 +15,30 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-exec genkit start -- uv run src/main.py "$@"
+# Check if ollama is installed
+if ! command -v ollama &> /dev/null; then
+  echo "Ollama not found. Installing..."
+  curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+# Check if ollama server is running
+if ! curl -s http://localhost:11434/api/tags &> /dev/null; then
+  echo "Ollama server not running. Starting..."
+  ollama serve &
+  # Wait for server to be ready
+  until curl -s http://localhost:11434/api/tags &> /dev/null; do
+    sleep 1
+  done
+fi
+
+ollama pull gemma3:latest
+ollama pull mistral-nemo:latest
+
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run src/main.py "$@"

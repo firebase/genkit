@@ -19,9 +19,9 @@
 from collections.abc import Callable
 from typing import Any
 
-from genkit.ai import GenkitRegistry
+from openai import OpenAI
+
 from genkit.plugins.compat_oai.models.model import OpenAIModel
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.deepseek.client import DeepSeekClient
 from genkit.plugins.deepseek.model_info import (
     SUPPORTED_DEEPSEEK_MODELS,
@@ -58,21 +58,18 @@ class DeepSeekModel:
         self,
         model: str,
         api_key: str,
-        registry: GenkitRegistry,
-        **deepseek_params,
+        **deepseek_params: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the DeepSeek instance.
 
         Args:
             model: The name of the specific DeepSeek model (e.g., 'deepseek-chat').
             api_key: DeepSeek API key for authentication.
-            registry: An instance of GenkitRegistry to register the model.
             **deepseek_params: Additional parameters for the DeepSeek client.
         """
         self.name = model
-        self.ai = registry
         client_params = {'api_key': api_key, **deepseek_params}
-        self.client = DeepSeekClient(**client_params)
+        self.client: OpenAI = DeepSeekClient(**client_params)
 
     def get_model_info(self) -> dict[str, Any] | None:
         """Retrieve metadata and supported features for the specified model.
@@ -86,9 +83,10 @@ class DeepSeekModel:
             capabilities (e.g., tools, streaming).
         """
         model_info = SUPPORTED_DEEPSEEK_MODELS.get(self.name, get_default_model_info(self.name))
+        supports_dict = model_info.supports.model_dump() if model_info.supports else {}
         return {
             'name': model_info.label,
-            'supports': model_info.supports.model_dump(),
+            'supports': supports_dict,
         }
 
     def to_deepseek_model(self) -> Callable:
@@ -102,23 +100,5 @@ class DeepSeekModel:
             A callable function (the generate method of an OpenAIModel instance)
             that can be used by Genkit.
         """
-        deepseek_model = OpenAIModel(self.name, self.client, self.ai)
+        deepseek_model = OpenAIModel(self.name, self.client)
         return deepseek_model.generate
-
-    def define_model(self) -> None:
-        """Define and register the DeepSeek model with the Genkit registry.
-
-        This method orchestrates the retrieval of model metadata and the
-        creation of the generation function, then registers this model
-        within the Genkit framework using self.ai.define_model.
-        """
-        model_info = self.get_model_info()
-        generate_fn = self.to_deepseek_model()
-        self.ai.define_model(
-            name=deepseek_name(self.name),
-            fn=generate_fn,
-            config_schema=OpenAIConfig,
-            metadata={
-                'model': model_info,
-            },
-        )

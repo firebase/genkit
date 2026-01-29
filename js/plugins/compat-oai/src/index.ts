@@ -19,6 +19,7 @@ import { ResolvableAction, genkitPluginV2 } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI, { type ClientOptions } from 'openai';
 import { compatOaiModelRef, defineCompatOpenAIModel } from './model.js';
+import { toModelName } from './utils.js';
 
 export {
   SpeechConfigSchema,
@@ -135,11 +136,12 @@ export const openAICompatible = (options: PluginOptions) => {
       } else {
         if (actionType === 'model') {
           return defineCompatOpenAIModel({
-            name: actionName,
+            name: toModelName(actionName, options.name),
             client: createClient(),
             pluginOptions: options,
             modelRef: compatOaiModelRef({
               name: actionName,
+              namespace: options.name,
             }),
           });
         }

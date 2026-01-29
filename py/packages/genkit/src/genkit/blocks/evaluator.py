@@ -21,10 +21,11 @@ Evaluators are used for assessint the quality of output of a Genkit flow or
 model.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit.core.typing import (
     BaseDataPoint,
@@ -35,24 +36,23 @@ from genkit.core.typing import (
 T = TypeVar('T')
 
 # User-provided evaluator function that evaluates a single datapoint.
-# type EvaluatorFn[T] = Callable[[BaseDataPoint, T], EvalFnResponse]
-EvaluatorFn = Callable[[BaseDataPoint, T], EvalFnResponse]
+# Must be async (coroutine function).
+EvaluatorFn = Callable[[BaseDataPoint, T], Coroutine[Any, Any, EvalFnResponse]]
 
 # User-provided batch evaluator function that evaluates an EvaluationRequest
-# type BatchEvaluatorFn[T] = Callable[[EvalRequest, T], list[EvalFnResponse]]
-BatchEvaluatorFn = Callable[[EvalRequest, T], list[EvalFnResponse]]
+BatchEvaluatorFn = Callable[[EvalRequest, T], Coroutine[Any, Any, list[EvalFnResponse]]]
 
 
 class EvaluatorRef(BaseModel):
     """Reference to an evaluator."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     name: str
-    config_schema: Any | None = Field(None, alias='configSchema')
+    config_schema: dict[str, object] | None = None
 
 
-def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
+def evaluator_ref(name: str, config_schema: dict[str, object] | None = None) -> EvaluatorRef:
     """Create a reference to an evaluator.
 
     Args:

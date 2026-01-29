@@ -43,12 +43,15 @@ dependencies = [
   "httpx>=0.28.1",
   "psutil>=7.0.0",
   "starlette>=0.46.1",
+  "python-multipart>=0.0.22",
   "sse-starlette>=2.2.1",
   "pillow",
   "strenum>=0.4.15; python_version < '3.11'",
   "dotpromptz>=0.1.4",
   "uvicorn>=0.34.0",
+  "uvloop>=0.21.0; sys_platform != 'win32'",
   "anyio>=4.9.0",
+  "opentelemetry-instrumentation-logging>=0.60b1",
 ]
 description = "Genkit AI Framework"
 license = "Apache-2.0"

@@ -134,6 +134,13 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
         return manager.listActions(input);
       }),
 
+    /** Retrieves all values. */
+    listValues: loggedProcedure
+      .input(apis.ListValuesRequestSchema)
+      .query(async ({ input }): Promise<Record<string, unknown>> => {
+        return manager.listValues(input);
+      }),
+
     /** Generate a .prompt file from messages and model config. */
     createPrompt: loggedProcedure
       .input(apis.CreatePromptRequestSchema)

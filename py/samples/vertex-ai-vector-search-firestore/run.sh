@@ -15,4 +15,32 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-exec genkit start -- uv run src/main.py "$@"
+# Check for required environment variables
+required_vars="LOCATION PROJECT_ID FIRESTORE_COLLECTION VECTOR_SEARCH_DEPLOYED_INDEX_ID VECTOR_SEARCH_INDEX_ENDPOINT_PATH VECTOR_SEARCH_API_ENDPOINT"
+missing_vars=""
+for var in $required_vars; do
+  if [ -z "${!var}" ]; then
+    missing_vars="$missing_vars $var"
+  fi
+done
+
+if [ -n "$missing_vars" ]; then
+  echo "ERROR: Missing required environment variables:$missing_vars"
+  echo "See README.md for setup instructions."
+  exit 1
+fi
+
+# Check for gcloud ADC
+if ! gcloud auth application-default print-access-token &>/dev/null; then
+  echo "WARNING: gcloud ADC not configured."
+  echo "Run: gcloud auth application-default login"
+fi
+
+genkit start -- \
+  uv tool run --from watchdog watchmedo auto-restart \
+    -d src \
+    -d ../../packages \
+    -d ../../plugins \
+    -p '*.py;*.prompt;*.json' \
+    -R \
+    -- uv run src/main.py "$@"

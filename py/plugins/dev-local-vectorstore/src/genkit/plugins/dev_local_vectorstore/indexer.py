@@ -15,31 +15,65 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""Indexer for dev-local-vectorstore."""
+
 import asyncio
 import json
 from hashlib import md5
+from typing import Any
 
+from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.blocks.retriever import IndexerRequest
 from genkit.codec import dump_json
-from genkit.types import DocumentData, Embedding
+from genkit.types import Embedding
 
 from .constant import DbValue
-from .local_vector_store_api import (
-    LocalVectorStoreAPI,
-)
+from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
+    """Indexer for development-level local vector store."""
+
+    def __init__(
+        self,
+        ai: Genkit,
+        index_name: str,
+        embedder: str,
+        embedder_options: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize the DevLocalVectorStoreIndexer.
+
+        Args:
+            ai: Genkit instance used to embed documents.
+            index_name: Name of the index.
+            embedder: The embedder to use for document embeddings.
+            embedder_options: Optional configuration to pass to the embedder.
+        """
+        super().__init__(index_name=index_name)
+        self.ai = ai
+        self.embedder = embedder
+        self.embedder_options = embedder_options
+
     async def index(self, request: IndexerRequest) -> None:
+        """Index documents into the local vector store."""
         docs = request.documents
         data = self._load_filestore()
-        tasks = []
 
-        for doc_data in docs:
+        embed_resp = await self.ai.embed_many(
+            embedder=self.embedder,
+            content=docs,
+            options=self.embedder_options,
+        )
+        if not embed_resp:
+            raise ValueError('Embedder returned no embeddings for documents')
+
+        tasks = []
+        for doc_data, emb in zip(docs, embed_resp, strict=True):
             tasks.append(
                 self.process_document(
                     document=Document.from_document_data(document_data=doc_data),
+                    embedding=Embedding(embedding=emb.embedding),
                     data=data,
                 )
             )
@@ -49,16 +83,10 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         with open(self.index_file_name, 'w', encoding='utf-8') as f:
             f.write(dump_json(self._serialize_data(data=data), indent=2))
 
-    async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
-        embeddings = await self.ai.embed(
-            embedder=self.embedder,
-            documents=[document],
-            options=self.embedder_options,
-        )
-        embedding_docs = document.get_embedding_documents(embeddings.embeddings)
-
-        for embedding, emb_doc in zip(embeddings.embeddings, embedding_docs, strict=False):
-            self._add_document(data=data, embedding=embedding, doc=emb_doc)
+    async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
+        """Process a single document and add its embedding to the store."""
+        embedding_docs = document.get_embedding_documents([embedding])
+        self._add_document(data=data, embedding=embedding, doc=embedding_docs[0])
 
     def _add_document(
         self,

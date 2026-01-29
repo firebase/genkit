@@ -35,6 +35,7 @@ fi
 # in the corresponding check_license script.
 $HOME/go/bin/addlicense \
   -c "Google LLC" \
+  -y "$(date +%Y)" \
   -s \
   -l apache \
   -ignore '**/.dist/**/*' \

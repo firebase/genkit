@@ -62,10 +62,31 @@ SUPPORTED_XAI_MODELS: dict[str, ModelInfo] = {
         versions=['grok-2-vision-1212'],
         supports=_VISION_MODEL_SUPPORTS,
     ),
+    'grok-4': ModelInfo(
+        label='xAI - Grok 4',
+        versions=['grok-4'],
+        supports=_LANGUAGE_MODEL_SUPPORTS,
+    ),
+    'grok-4.1': ModelInfo(
+        label='xAI - Grok 4.1',
+        versions=['grok-4.1'],
+        supports=_LANGUAGE_MODEL_SUPPORTS,
+    ),
+    'grok-2-1212': ModelInfo(
+        label='xAI - Grok 2',
+        versions=['grok-2-1212'],
+        supports=_LANGUAGE_MODEL_SUPPORTS,
+    ),
+    'grok-2-latest': ModelInfo(
+        label='xAI - Grok 2 Latest',
+        versions=['grok-2-latest'],
+        supports=_LANGUAGE_MODEL_SUPPORTS,
+    ),
 }
 
 
 def get_model_info(name: str) -> ModelInfo:
+    """Get information for a specific model."""
     return SUPPORTED_XAI_MODELS.get(
         name,
         ModelInfo(

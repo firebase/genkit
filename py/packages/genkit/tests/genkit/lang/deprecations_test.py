@@ -20,8 +20,6 @@ import sys
 import unittest
 import warnings
 
-import pytest
-
 if sys.version_info < (3, 11):
     from strenum import StrEnum
 else:

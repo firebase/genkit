@@ -54,11 +54,8 @@ import {
   openAIModelRef,
   SUPPORTED_GPT_MODELS,
 } from './gpt.js';
+import { openAITranscriptionModelRef, SUPPORTED_STT_MODELS } from './stt.js';
 import { openAISpeechModelRef, SUPPORTED_TTS_MODELS } from './tts.js';
-import {
-  openAITranscriptionModelRef,
-  SUPPORTED_STT_MODELS,
-} from './whisper.js';
 
 export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
@@ -246,13 +243,6 @@ export type OpenAIPlugin = {
   (params?: OpenAIPluginOptions): GenkitPluginV2;
   model(
     name:
-      | keyof typeof SUPPORTED_GPT_MODELS
-      | (`gpt-${string}` & {})
-      | (`o${number}` & {}),
-    config?: z.infer<typeof OpenAIChatCompletionConfigSchema>
-  ): ModelReference<typeof OpenAIChatCompletionConfigSchema>;
-  model(
-    name:
       | keyof typeof SUPPORTED_IMAGE_MODELS
       | (`dall-e${string}` & {})
       | (`gpt-image-${string}` & {}),
@@ -272,6 +262,13 @@ export type OpenAIPlugin = {
       | (`${string}-transcribe` & {}),
     config?: z.infer<typeof TranscriptionConfigSchema>
   ): ModelReference<typeof TranscriptionConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_GPT_MODELS
+      | (`gpt-${string}` & {})
+      | (`o${number}` & {}),
+    config?: z.infer<typeof OpenAIChatCompletionConfigSchema>
+  ): ModelReference<typeof OpenAIChatCompletionConfigSchema>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
   embedder(
     name:
@@ -287,21 +284,18 @@ const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
     return openAIImageModelRef({
       name,
       config,
-      namespace: 'openai',
     });
   }
   if (name.includes('tts')) {
     return openAISpeechModelRef({
       name,
       config,
-      namespace: 'openai',
     });
   }
   if (name.includes('whisper') || name.includes('transcribe')) {
     return openAITranscriptionModelRef({
       name,
       config,
-      namespace: 'openai',
     });
   }
   return openAIModelRef({

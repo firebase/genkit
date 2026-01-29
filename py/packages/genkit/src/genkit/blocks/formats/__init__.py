@@ -15,9 +15,50 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Genkit format package. Provides implementation for various formats like json, jsonl, etc."""
+"""Genkit format package. Provides implementation for various formats like json, jsonl, etc.
 
+Genkit includes built-in formats to handle common output patterns. These formats can be
+specified in `GenerateActionOptions` or `OutputConfig`.
+
+| Format | Description | Constraints |
+| :--- | :--- | :--- |
+| `json` | JSON object. Default when a schema is provided. | Enforced by `constrained: true`. |
+| `text` | Returns the raw text output from the model. | No constraints. |
+| `array` | JSON array of items. Useful for generating lists. | Enforced by `constrained: true`. |
+| `enum` | Parses output as a single enum value. | Enforced by `constrained: true`. |
+| `jsonl` | Newline-delimited JSON. Useful for streaming lists. | No constraints. |
+
+Usage Example:
+
+    # JSON Format (default with schema)
+    ai.generate(
+        output=OutputConfig(
+            schema={'type': 'object', 'properties': {'foo': {'type': 'string'}}}
+        )
+    )
+
+    # Array Format
+    ai.generate(
+        output=OutputConfig(
+            format='array',
+            schema={'type': 'array', 'items': {'type': 'string'}}
+        )
+    )
+
+    # Enum Format
+    ai.generate(
+        output=OutputConfig(
+            format='enum',
+            schema={'type': 'string', 'enum': ['cat', 'dog']}
+        )
+    )
+"""
+
+from genkit.blocks.formats.array import ArrayFormat
+from genkit.blocks.formats.enum import EnumFormat
 from genkit.blocks.formats.json import JsonFormat
+from genkit.blocks.formats.jsonl import JsonlFormat
+from genkit.blocks.formats.text import TextFormat
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 
 
@@ -26,13 +67,23 @@ def package_name() -> str:
     return 'genkit.blocks.formats'
 
 
-built_in_formats = [JsonFormat()]
+built_in_formats = [
+    ArrayFormat(),
+    EnumFormat(),
+    JsonFormat(),
+    JsonlFormat(),
+    TextFormat(),
+]
 
 
 __all__ = [
+    ArrayFormat.__name__,
+    EnumFormat.__name__,
     FormatDef.__name__,
     Formatter.__name__,
     FormatterConfig.__name__,
     JsonFormat.__name__,
+    JsonlFormat.__name__,
+    TextFormat.__name__,
     package_name.__name__,
 ]

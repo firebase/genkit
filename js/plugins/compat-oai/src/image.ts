@@ -28,7 +28,7 @@ import type {
   ImagesResponse,
 } from 'openai/resources/images.mjs';
 import { PluginOptions } from './index.js';
-import { maybeCreateRequestScopedOpenAIClient } from './utils.js';
+import { maybeCreateRequestScopedOpenAIClient, toModelName } from './utils.js';
 
 export type ImageRequestBuilder = (
   req: GenerateRequest,
@@ -135,11 +135,14 @@ export function defineCompatOpenAIImageModel<
     modelRef,
     requestBuilder,
   } = params;
-  const modelName = name.substring(name.indexOf('/') + 1);
+
+  const modelName = toModelName(name, pluginOptions?.name);
+  const actionName =
+    modelRef?.name ?? `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
 
   return model(
     {
-      name,
+      name: actionName,
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
@@ -150,7 +153,7 @@ export function defineCompatOpenAIImageModel<
         defaultClient
       );
       const result = await client.images.generate(
-        toImageGenerateParams(modelName!, request, requestBuilder),
+        toImageGenerateParams(modelName, request, requestBuilder),
         { signal: abortSignal }
       );
       return toGenerateResponse(result);

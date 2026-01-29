@@ -131,27 +131,26 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
 """
 
-import sys  # noqa
-from datetime import datetime, timezone, timedelta
+import sys
+from datetime import datetime, timedelta, timezone
 
 from genkit.plugins.google_genai.models.context_caching.constants import DEFAULT_TTL
 from genkit.plugins.google_genai.models.context_caching.utils import generate_cache_key, validate_context_cache_request
 
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 from functools import cached_property
-from typing import Any
+from typing import Any, cast
 
 from google import genai
-from google.genai import types as genai_types  # type: ignore
+from google.genai import types as genai_types
+from pydantic import ConfigDict, Field
 
 from genkit.ai import (
-    ActionKind,
     ActionRunContext,
-    GenkitRegistry,
 )
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
@@ -163,6 +162,7 @@ from genkit.lang.deprecations import (
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit.types import (
+    Constrained,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -180,24 +180,32 @@ from genkit.types import (
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
     """Gemini Config Schema."""
 
+    model_config = ConfigDict(extra='allow')
+
     code_execution: bool | None = None
     response_modalities: list[str] | None = None
-    thinking_config: dict[str, Any] | None = None
-    file_search: dict[str, Any] | None = None
-    url_context: dict[str, Any] | None = None
+    thinking_config: dict[str, object] | None = None
+    file_search: dict[str, object] | None = None
+    url_context: dict[str, object] | None = None
     api_version: str | None = None
+
+    http_options: Any | None = Field(None, exclude=True)
+    tools: Any | None = Field(None, exclude=True)
+    tool_config: Any | None = Field(None, exclude=True)
+    response_schema: Any | None = Field(None, exclude=True)
+    response_json_schema: Any | None = Field(None, exclude=True)
 
 
 class GeminiTtsConfigSchema(GeminiConfigSchema):
     """Gemini TTS Config Schema."""
 
-    speech_config: dict[str, Any] | None = None
+    speech_config: dict[str, object] | None = None
 
 
 class GeminiImageConfigSchema(GeminiConfigSchema):
     """Gemini Image Config Schema."""
 
-    image_config: dict[str, Any] | None = None
+    image_config: dict[str, object] | None = None
 
 
 class GemmaConfigSchema(GeminiConfigSchema):
@@ -220,7 +228,8 @@ GEMINI_1_5_PRO = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -238,7 +247,8 @@ GEMINI_1_5_FLASH = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -252,7 +262,8 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -264,7 +275,8 @@ GEMINI_2_0_FLASH = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -276,7 +288,8 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -288,7 +301,8 @@ GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -300,7 +314,8 @@ GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -312,7 +327,8 @@ GEMINI_2_0_FLASH_THINKING_EXP_01_21 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -324,7 +340,8 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -336,7 +353,8 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -348,7 +366,8 @@ GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -360,7 +379,8 @@ GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
+        output=['text', 'json'],
     ),
 )
 
@@ -372,7 +392,7 @@ GENERIC_GEMINI_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text', 'json'],
     ),
 )
@@ -385,7 +405,7 @@ GENERIC_TTS_MODEL = ModelInfo(
         tools=False,
         tool_choice=False,
         system_role=False,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
     ),
 )
 
@@ -397,7 +417,7 @@ GENERIC_IMAGE_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text'],
     ),
 )
@@ -410,7 +430,7 @@ GENERIC_GEMMA_MODEL = ModelInfo(
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained='no-tools',
+        constrained=Constrained.NO_TOOLS,
         output=['text', 'json'],
     ),
 )
@@ -612,7 +632,7 @@ DEFAULT_SUPPORTS_MODEL = Supports(
     tools=True,
     tool_choice=True,
     system_role=True,
-    constrained='no-tools',
+    constrained=Constrained.NO_TOOLS,
 )
 
 
@@ -643,18 +663,15 @@ class GeminiModel:
         self,
         version: str | GoogleAIGeminiVersion | VertexAIGeminiVersion,
         client: genai.Client,
-        registry: GenkitRegistry,
-    ):
+    ) -> None:
         """Initialize Gemini model.
 
         Args:
             version: Gemini version
             client: Google AI client
-            registry: Genkit registry
         """
         self._version = version
         self._client = client
-        self._registry = registry
 
     def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
@@ -666,7 +683,7 @@ class GeminiModel:
              list of Gemini tools
         """
         tools = []
-        for tool in request.tools:
+        for tool in request.tools or []:
             genai_tool = self._create_tool(tool)
             tools.append(genai_tool)
 
@@ -696,7 +713,7 @@ class GeminiModel:
         return genai_types.Tool(function_declarations=[function])
 
     def _convert_schema_property(
-        self, input_schema: dict[str, Any], defs: dict[str, Any] | None = None
+        self, input_schema: dict[str, object] | None, defs: dict[str, object] | None = None
     ) -> genai_types.Schema | None:
         """Sanitizes a schema to be compatible with Gemini API.
 
@@ -711,77 +728,62 @@ class GeminiModel:
             return None
 
         if defs is None:
-            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
+            defs_value = input_schema.get('$defs')
+            defs = cast(dict[str, object], defs_value) if isinstance(defs_value, dict) else {}
 
         if '$ref' in input_schema:
             ref_path = input_schema['$ref']
-            ref_tokens = ref_path.split('/')
-            ref_name = ref_tokens[-1]
+            if isinstance(ref_path, str):
+                ref_tokens = ref_path.split('/')
+                ref_name = ref_tokens[-1]
 
-            if ref_name not in defs:
-                raise ValueError(f'Failed to resolve schema for {ref_name}')
+                if defs is None or ref_name not in defs:
+                    raise ValueError(f'Failed to resolve schema for {ref_name}')
 
-            schema = self._convert_schema_property(defs[ref_name], defs)
+                ref_schema = defs[ref_name]
+                if isinstance(ref_schema, dict):
+                    schema = self._convert_schema_property(cast(dict[str, object], ref_schema), defs)
+                else:
+                    schema = None
 
-            if input_schema.get('description'):
-                schema.description = input_schema['description']
+                if schema and input_schema.get('description'):
+                    schema.description = cast(str, input_schema['description'])
 
-            return schema
+                return schema
 
         if 'type' not in input_schema:
             return None
 
         schema = genai_types.Schema()
         if input_schema.get('description'):
-            schema.description = input_schema['description']
+            schema.description = cast(str, input_schema['description'])
 
         if 'required' in input_schema:
-            schema.required = input_schema['required']
+            schema.required = cast(list[str], input_schema['required'])
 
         if 'type' in input_schema:
-            schema_type = genai_types.Type(input_schema['type'])
+            schema_type = genai_types.Type(cast(str, input_schema['type']))
             schema.type = schema_type
 
             if 'enum' in input_schema:
-                schema.enum = input_schema['enum']
+                schema.enum = cast(list[str], input_schema['enum'])
 
             if schema_type == genai_types.Type.ARRAY:
-                schema.items = self._convert_schema_property(input_schema['items'], defs)
+                items_value = input_schema.get('items')
+                if isinstance(items_value, dict):
+                    schema.items = self._convert_schema_property(cast(dict[str, object], items_value), defs)
 
             if schema_type == genai_types.Type.OBJECT:
                 schema.properties = {}
-                properties = input_schema.get('properties', {})
-                for key in properties:
-                    nested_schema = self._convert_schema_property(properties[key], defs)
-                    schema.properties[key] = nested_schema
+                properties_value = input_schema.get('properties', {})
+                if isinstance(properties_value, dict):
+                    properties = cast(dict[str, dict[str, object]], properties_value)
+                    for key in properties:
+                        nested_schema = self._convert_schema_property(properties[key], defs)
+                        if nested_schema:
+                            schema.properties[key] = nested_schema
 
         return schema
-
-    def _call_tool(self, call: genai_types.FunctionCall) -> genai_types.Content:
-        """Calls tool's function from the registry.
-
-        Args:
-            call: FunctionCall from Gemini response
-
-        Returns:
-            Gemini message content to add to the message
-        """
-        tool_function = self._registry.registry.lookup_action(ActionKind.TOOL, call.name)
-        if tool_function is None:
-            raise LookupError(f'Tool {call.name} not found')
-
-        args = tool_function.input_type.validate_python(call.args)
-        tool_answer = tool_function.run(args)
-        return genai_types.Content(
-            parts=[
-                genai_types.Part.from_function_response(
-                    name=call.name,
-                    response={
-                        'content': tool_answer.response,
-                    },
-                )
-            ]
-        )
 
     async def _retrieve_cached_content(
         self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
@@ -813,16 +815,16 @@ class GeminiModel:
             if item.display_name == cache_key:
                 cache = item
                 break
-        if cache:
-            updated_expiration_time = datetime.now(timezone.UTC) + timedelta(seconds=ttl)
+        if cache and cache.name:
+            updated_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=ttl)
             cache = await self._client.aio.caches.update(
-                name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
+                name=cache.name, config=genai_types.UpdateCachedContentConfig(expire_time=updated_expiration_time)
             )
         else:
             cache = await self._client.aio.caches.create(
                 model=model_name,
                 config=genai_types.CreateCachedContentConfig(
-                    contents=contents,
+                    contents=cast(genai_types.ContentListUnion, contents),
                     display_name=cache_key,
                     ttl=f'{ttl}s',
                 ),
@@ -850,7 +852,9 @@ class GeminiModel:
 
         request_contents, cached_content = await self._build_messages(request=request, model_name=model_name)
 
-        if cached_content:
+        if cached_content and cached_content.name:
+            if not request_cfg:
+                request_cfg = genai_types.GenerateContentConfig()
             request_cfg.cached_content = cached_content.name
 
         client = self._client
@@ -871,29 +875,36 @@ class GeminiModel:
             # If the library changes its internal structure (e.g. renames _api_client or _credentials),
             # this code WILL BREAK.
             api_client = self._client._api_client
-            kwargs = {
-                'vertexai': api_client.vertexai,
-                'http_options': {'api_version': api_version},
-            }
+            http_opts: genai_types.HttpOptionsDict = {'api_version': api_version}
             if api_client.vertexai:
-                # Vertex AI mode: requires project/location (api_key is optional/unlikely)
-                if api_client.project:
-                    kwargs['project'] = api_client.project
-                if api_client.location:
-                    kwargs['location'] = api_client.location
-                if api_client._credentials:
-                    kwargs['credentials'] = api_client._credentials
-                # Don't pass api_key if we are in Vertex AI mode with credentials/project
+                # Vertex AI mode: requires project/location
+                client = genai.Client(
+                    vertexai=True,
+                    http_options=http_opts,
+                    project=api_client.project,
+                    location=api_client.location,
+                    credentials=api_client._credentials,
+                )
             else:
                 # Google AI mode: primarily uses api_key
                 if api_client.api_key:
-                    kwargs['api_key'] = api_client.api_key
-                # Do NOT pass project/location/credentials if in Google AI mode to be safe
-                if api_client._credentials and not kwargs.get('api_key'):
-                    # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
-                    kwargs['credentials'] = api_client._credentials
-
-            client = genai.Client(**kwargs)
+                    client = genai.Client(
+                        vertexai=False,
+                        http_options=http_opts,
+                        api_key=api_client.api_key,
+                    )
+                elif api_client._credentials:
+                    # Fallback if no api_key but credentials present
+                    client = genai.Client(
+                        vertexai=False,
+                        http_options=http_opts,
+                        credentials=api_client._credentials,
+                    )
+                else:
+                    client = genai.Client(
+                        vertexai=False,
+                        http_options=http_opts,
+                    )
 
         if ctx.is_streaming:
             response = await self._streaming_generate(
@@ -915,7 +926,7 @@ class GeminiModel:
     async def _generate(
         self,
         request_contents: list[genai_types.Content],
-        request_cfg: genai_types.GenerateContentConfig,
+        request_cfg: genai_types.GenerateContentConfig | None,
         model_name: str,
         client: genai.Client | None = None,
     ) -> GenerateResponse:
@@ -925,6 +936,7 @@ class GeminiModel:
             request_contents: request contents
             request_cfg: request configuration
             model_name: name of generation model to use
+            client: optional client to use for the request
 
         Returns:
             genai response.
@@ -943,7 +955,9 @@ class GeminiModel:
             )
             client = client or self._client
             response = await client.aio.models.generate_content(
-                model=model_name, contents=request_contents, config=request_cfg
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
             span.set_attribute('genkit:output', dump_json(response))
 
@@ -971,6 +985,7 @@ class GeminiModel:
             request_cfg: request configuration
             ctx: action context
             model_name: name of generation model to use
+            client: optional client to use for the request
 
         Returns:
             empty genai response
@@ -986,7 +1001,9 @@ class GeminiModel:
             )
             client = client or self._client
             generator = client.aio.models.generate_content_stream(
-                model=model_name, contents=request_contents, config=request_cfg
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
         accumulated_content = []
         async for response_chunk in await generator:
@@ -1013,24 +1030,20 @@ class GeminiModel:
         Returns:
             model metadata.
         """
-        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
+        model_info = SUPPORTED_MODELS.get(self._version)
+        if model_info and model_info.supports:
+            supports = model_info.supports.model_dump()
+        else:
+            supports = {}
         return {
             'model': {
                 'supports': supports,
             }
         }
 
-    def is_multimode(self):
-        """Check if the model supports media.
-
-        Returns:
-            True if the model supports media, False otherwise.
-        """
-        return SUPPORTED_MODELS[self._version].supports.media
-
     async def _build_messages(
         self, request: GenerateRequest, model_name: str
-    ) -> tuple[list[genai_types.Content], genai_types.CachedContent]:
+    ) -> tuple[list[genai_types.Content], genai_types.CachedContent | None]:
         """Build google-genai request contents from Genkit request.
 
         Args:
@@ -1080,7 +1093,7 @@ class GeminiModel:
         content = []
         if response.candidates:
             for candidate in response.candidates:
-                if candidate.content:
+                if candidate.content and candidate.content.parts:
                     for i, part in enumerate(candidate.content.parts):
                         content.append(PartConverter.from_gemini(part=part, ref=str(i)))
 
@@ -1110,8 +1123,6 @@ class GeminiModel:
                 )
             elif isinstance(request_config, GeminiConfigSchema):
                 cfg = request_config
-                if request_config.code_execution:
-                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
                 if 'image_config' in request_config:
                     cfg = GeminiImageConfigSchema(**request_config)
@@ -1121,10 +1132,33 @@ class GeminiModel:
                     cfg = GeminiConfigSchema(**request_config)
 
             if isinstance(cfg, GeminiConfigSchema):
+                if cfg.code_execution:
+                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
+
                 dumped_config = cfg.model_dump(exclude_none=True)
                 for key in ['code_execution', 'file_search', 'url_context', 'api_version']:
                     if key in dumped_config:
                         del dumped_config[key]
+
+                if 'image_config' in dumped_config and isinstance(dumped_config['image_config'], dict):
+                    valid_image_keys = {
+                        'aspect_ratio',
+                        'image_size',
+                        'person_generation',
+                        'output_mime_type',
+                        'output_compression_quality',
+                    }
+                    dumped_config['image_config'] = {
+                        k: v for k, v in dumped_config['image_config'].items() if k in valid_image_keys
+                    }
+
+                # Check if image_config is actually supported by the installed SDK version
+                if (
+                    'image_config' in dumped_config
+                    and 'image_config' not in genai_types.GenerateContentConfig.model_fields
+                ):
+                    del dumped_config['image_config']
+
                 cfg = genai_types.GenerateContentConfig(**dumped_config)
 
         if request.output:
@@ -1144,6 +1178,8 @@ class GeminiModel:
             tools.extend(self._get_tools(request))
 
         if tools:
+            if not cfg:
+                cfg = genai_types.GenerateContentConfig()
             cfg.tools = tools
 
         system_messages = list(filter(lambda m: m.role == Role.SYSTEM, request.messages))
@@ -1154,7 +1190,11 @@ class GeminiModel:
 
             for msg in system_messages:
                 for p in msg.content:
-                    system_parts.append(PartConverter.to_gemini(p))
+                    converted = PartConverter.to_gemini(p)
+                    if isinstance(converted, list):
+                        system_parts.extend(converted)
+                    else:
+                        system_parts.append(converted)
             cfg.system_instruction = genai.types.Content(parts=system_parts)
 
         return cfg
@@ -1169,7 +1209,10 @@ class GeminiModel:
         Returns:
             usage statistics
         """
-        usage = get_basic_usage_stats(input_=request.messages, response=response.message)
+        if response.message:
+            usage = get_basic_usage_stats(input_=request.messages, response=response.message)
+        else:
+            usage = GenerationUsage()
         if response.usage:
             usage.input_tokens = response.usage.input_tokens
             usage.output_tokens = response.usage.output_tokens

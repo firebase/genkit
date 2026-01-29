@@ -461,11 +461,6 @@ const KNOWN_IMAGE_MODELS = {
     { ...GENERIC_IMAGE_MODEL.info },
     GeminiImageConfigSchema
   ),
-  'gemini-2.5-flash-image-preview': commonRef(
-    'gemini-2.5-flash-image-preview',
-    { ...GENERIC_IMAGE_MODEL.info },
-    GeminiImageConfigSchema
-  ),
   'gemini-2.5-flash-image': commonRef(
     'gemini-2.5-flash-image',
     { ...GENERIC_IMAGE_MODEL.info },

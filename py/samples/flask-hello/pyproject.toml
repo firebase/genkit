@@ -33,10 +33,11 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit",
-  "genkit-plugin-google-genai",
-  "genkit-plugin-flask",
   "flask",
+  "genkit",
+  "genkit-plugin-flask",
+  "genkit-plugin-google-genai",
+  "uvloop>=0.21.0",
 ]
 description = "hello Genkit sample"
 license = "Apache-2.0"
@@ -44,6 +45,9 @@ name = "flask-hello"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["watchdog>=6.0.0"]
 
 [build-system]
 build-backend = "hatchling.build"

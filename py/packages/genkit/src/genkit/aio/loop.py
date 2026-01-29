@@ -42,7 +42,7 @@ def create_loop() -> AbstractEventLoop:
         return asyncio.new_event_loop()
 
 
-def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | None:
+def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | None:  # noqa: ANN401
     """Runs an async callable on the given event loop and blocks until completion.
 
     If the loop is already running (e.g., called from within an async context),
@@ -67,7 +67,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
         lock = threading.Lock()
         lock.acquire()
 
-        async def run_fn() -> Any:
+        async def run_fn() -> Any:  # noqa: ANN401
             nonlocal lock
             nonlocal output
             nonlocal error
@@ -97,7 +97,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
         return loop.run_until_complete(fn())
 
 
-def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) -> Iterable:
+def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) -> Iterable[Any]:  # noqa: ANN401
     """Synchronously iterates over an AsyncIterable using a specified event loop.
 
     This function bridges asynchronous iteration with synchronous code by
@@ -113,7 +113,7 @@ def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) ->
     """
     ait = ait.__aiter__()
 
-    async def get_next() -> tuple[bool, Any]:
+    async def get_next() -> tuple[bool, Any]:  # noqa: ANN401
         try:
             obj = await ait.__anext__()
             return False, obj
@@ -127,24 +127,23 @@ def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) ->
         yield obj
 
 
-def run_loop(coro: Coroutine[Any, Any, Any], *args: Any, **kwargs: Any) -> Any:
+def run_loop(coro: Coroutine[Any, Any, Any], *, debug: bool | None = None) -> Any:  # noqa: ANN401
     """Runs a coroutine using uvloop if available.
 
     Otherwise uses plain `asyncio.run`.
 
     Args:
         coro: The asynchronous coroutine to run.
-        *args: Additional positional arguments to pass to asyncio.run.
-        **kwargs: Additional keyword arguments to pass to asyncio.run.
+        debug: If True, run in debug mode.
     """
     try:
         import uvloop
 
         logger.debug('✅ Using uvloop (recommended)')
-        return uvloop.run(coro, *args, **kwargs)
+        return uvloop.run(coro, debug=debug)
     except ImportError as e:
         logger.debug(
             '❓ Using asyncio (install uvloop for better performance)',
             error=e,
         )
-        return asyncio.run(coro, *args, **kwargs)
+        return asyncio.run(coro, debug=debug)

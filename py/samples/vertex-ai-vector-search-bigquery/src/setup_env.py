@@ -18,53 +18,46 @@
 
 import json
 import os
+from typing import Any
 
 import structlog
 from google.cloud import aiplatform, aiplatform_v1, bigquery
 
 from genkit.ai import Genkit
+from genkit.core.typing import DocumentPart
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai.vector_search import (
-    BigQueryRetriever,
-    VertexAIVectorSearch,
-    vertexai_name,
-)
+from genkit.plugins.vertex_ai import define_vertex_vector_search_big_query
 from genkit.types import Document, TextPart
 
 # Environment Variables
-LOCATION = os.getenv('LOCATION')
-PROJECT_ID = os.getenv('PROJECT_ID')
+LOCATION = os.environ['LOCATION']
+PROJECT_ID = os.environ['PROJECT_ID']
 EMBEDDING_MODEL = 'text-embedding-004'
 
-BIGQUERY_DATASET_NAME = os.getenv('BIGQUERY_DATASET_NAME')
-BIGQUERY_TABLE_NAME = os.getenv('BIGQUERY_TABLE_NAME')
+BIGQUERY_DATASET_NAME = os.environ['BIGQUERY_DATASET_NAME']
+BIGQUERY_TABLE_NAME = os.environ['BIGQUERY_TABLE_NAME']
 
-VECTOR_SEARCH_INDEX_ID = os.getenv('VECTOR_SEARCH_INDEX_ID')
+VECTOR_SEARCH_INDEX_ID = os.environ['VECTOR_SEARCH_INDEX_ID']
 
 bq_client = bigquery.Client(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
 logger = structlog.get_logger(__name__)
 
-ai = Genkit(
-    plugins=[
-        VertexAI(),
-        VertexAIVectorSearch(
-            retriever=BigQueryRetriever,
-            retriever_extra_args={
-                'bq_client': bq_client,
-                'dataset_id': BIGQUERY_DATASET_NAME,
-                'table_id': BIGQUERY_TABLE_NAME,
-            },
-            embedder=EMBEDDING_MODEL,
-            embedder_options={'task': 'RETRIEVAL_DOCUMENT'},
-        ),
-    ]
+ai = Genkit(plugins=[VertexAI()])
+
+define_vertex_vector_search_big_query(
+    ai,
+    name='bigquery-vector-search',
+    embedder=f'vertexai/{EMBEDDING_MODEL}',
+    bq_client=bq_client,
+    dataset_id=BIGQUERY_DATASET_NAME,
+    table_id=BIGQUERY_TABLE_NAME,
 )
 
 
 @ai.flow(name='generateEmbeddings')
-async def generate_embeddings():
+async def generate_embeddings() -> None:
     """Generates document embeddings and upserts them to the Vertex AI Vector Search index.
 
     This flow retrieves data from BigQuery, generates embeddings for the documents,
@@ -103,15 +96,15 @@ async def generate_embeddings():
         table_id=BIGQUERY_TABLE_NAME,
     )
 
-    genkit_documents = [Document(content=[TextPart(text=text)]) for text in results_dict.values()]
+    genkit_documents = [Document(content=[DocumentPart(root=TextPart(text=text))]) for text in results_dict.values()]
 
-    embed_response = await ai.embed(
-        embedder=vertexai_name(EMBEDDING_MODEL),
-        documents=genkit_documents,
+    embed_response = await ai.embed_many(
+        embedder=f'vertexai/{EMBEDDING_MODEL}',
+        content=genkit_documents,
         options={'task': 'RETRIEVAL_DOCUMENT', 'output_dimensionality': 128},
     )
 
-    embeddings = [emb.embedding for emb in embed_response.embeddings]
+    embeddings = [emb.embedding for emb in embed_response]
 
     ids = list(results_dict.keys())[: len(embeddings)]
     data_embeddings = list(zip(ids, embeddings, strict=True))
@@ -125,7 +118,7 @@ def create_bigquery_dataset_and_table(
     location: str,
     dataset_id: str,
     table_id: str,
-    documents: list[dict[str, str]],
+    documents: list[dict[str, Any]],
 ) -> None:
     """Creates a BigQuery dataset and table, and inserts documents.
 

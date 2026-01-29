@@ -14,6 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Vertex AI client."""
+
+import google.auth.transport.requests  # noqa: F401 - explicit import for ty
 from google import auth
 from openai import OpenAI as _OpenAI
 
@@ -21,7 +25,7 @@ from openai import OpenAI as _OpenAI
 class OpenAIClient:
     """Handles OpenAI API client Initialization."""
 
-    def __new__(cls, **openai_params) -> _OpenAI:
+    def __new__(cls, **openai_params: object) -> _OpenAI:
         """Initializes the OpenAIClient based on the plugin source."""
         location = openai_params.get('location')
         project_id = openai_params.get('project_id')
