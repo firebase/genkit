@@ -370,7 +370,7 @@ async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') 
 
 
 @ai.flow()
-def sum_two_numbers2(my_input: MyInput) -> int:
+async def sum_two_numbers2(my_input: MyInput) -> int:
     """Sum two numbers.
 
     Args:
