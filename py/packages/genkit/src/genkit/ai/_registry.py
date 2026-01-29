@@ -43,15 +43,14 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, cast, overload
+from typing import Any, Generic, ParamSpec, cast, overload
 
 from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit.aio import ensure_async
 
-if TYPE_CHECKING:
-    from genkit.ai._aio import Input, Output
+from genkit.blocks.interfaces import Input, Output
     from genkit.blocks.prompt import ExecutablePrompt
     from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 

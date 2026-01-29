@@ -37,16 +37,14 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from genkit.blocks.interfaces import ExecutablePromptLike
 from genkit.types import Message
-
-if TYPE_CHECKING:
-    from genkit.ai import Genkit
-    from genkit.blocks.prompt import ExecutablePrompt
 
 from .chat import Chat, ChatOptions
 from .store import MAIN_THREAD, SessionData, SessionStore
+from .types import GenkitLike
 
 
 class Session:
@@ -102,7 +100,7 @@ class Session:
 
     def __init__(
         self,
-        ai: Genkit,
+        ai: GenkitLike,
         store: SessionStore,
         id: str | None = None,
         data: SessionData | None = None,
@@ -115,25 +113,24 @@ class Session:
             id: The session ID. If not provided, a new UUID is generated.
             data: Existing session data (if loading).
         """
-        self._ai: Genkit = ai
+        self._ai: GenkitLike = ai
         self._store: SessionStore = store
         if data:
-            data_id = data.get('id')
-            self._id = data_id if data_id is not None else (id or str(uuid.uuid4()))
-            self._state: dict[str, Any] = data.get('state') or {}
-            # Load threads, with backward compat for legacy 'messages' field
-            self._threads: dict[str, list[Message]] = data.get('threads') or {}
-            if not self._threads and data.get('messages'):
-                # Migrate legacy messages to main thread
-                self._threads[MAIN_THREAD] = data.get('messages') or []
+            self._id: str = data.get('id', str(uuid.uuid4()))
+            self._state: dict[str, Any] = data.get('state', {}) or {}
+            threads = data.get('threads', {}) or {}
+            if not threads and data.get('messages'):
+                # Backwards compatibility: use legacy messages field as main thread
+                threads = {MAIN_THREAD: data.get('messages', [])}
+            self._threads: dict[str, list[Message]] = threads
             self._created_at: float = data.get('created_at') or time.time()
-            self._updated_at: float = data.get('updated_at') or time.time()
+            self._updated_at: float = data.get('updated_at') or self._created_at
         else:
             self._id = id or str(uuid.uuid4())
             self._state = {}
-            self._threads = {}
+            self._threads = {MAIN_THREAD: []}
             self._created_at = time.time()
-            self._updated_at = time.time()
+            self._updated_at = self._created_at
 
     @property
     def id(self) -> str:
@@ -142,41 +139,44 @@ class Session:
 
     @property
     def state(self) -> dict[str, Any]:
-        """The session state."""
+        """Session state data (mutable)."""
         return self._state
 
     @property
     def messages(self) -> list[Message]:
-        """The main thread message history (for backward compatibility)."""
-        return self.get_messages(MAIN_THREAD)
+        """Messages for the main thread (legacy compatibility)."""
+        return self._threads.get(MAIN_THREAD, [])
 
-    @property
-    def threads(self) -> dict[str, list[Message]]:
-        """All thread message histories."""
-        return self._threads
-
-    def get_messages(self, thread: str = MAIN_THREAD) -> list[Message]:
-        """Get messages for a specific thread.
+    def get_messages(self, thread_name: str = MAIN_THREAD) -> list[Message]:
+        """Get messages for a thread.
 
         Args:
-            thread: The thread name (defaults to MAIN_THREAD).
+            thread_name: Name of the thread.
 
         Returns:
-            List of messages for the thread, or empty list if thread doesn't exist.
+            List of messages for the thread (empty list if thread not found).
         """
-        return self._threads.get(thread, [])
+        return self._threads.get(thread_name, [])
 
-    def update_messages(self, thread: str, messages: list[Message]) -> None:
-        """Update messages for a specific thread.
+    def update_messages(self, thread_name: str, messages: list[Message]) -> None:
+        """Update messages for a thread.
 
         Args:
-            thread: The thread name.
-            messages: The new message list for the thread.
+            thread_name: Name of the thread.
+            messages: New list of messages.
         """
-        self._threads[thread] = messages
+        self._threads[thread_name] = messages
+
+    def update_state(self, updates: dict[str, Any]) -> None:
+        """Update session state.
+
+        Args:
+            updates: Dictionary of state updates to apply.
+        """
+        self._state.update(updates)
 
     async def save(self) -> None:
-        """Persist the current session state to the store."""
+        """Persist the session to the store."""
         self._updated_at = time.time()
         data: SessionData = {
             'id': self._id,
@@ -188,18 +188,10 @@ class Session:
         }
         await self._store.save(self._id, data)
 
-    def update_state(self, updates: dict[str, Any]) -> None:
-        """Update session state.
-
-        Args:
-            updates: Dictionary of state updates to apply.
-        """
-        self._state.update(updates)
-
     def chat(
         self,
-        thread_or_preamble_or_options: str | ExecutablePrompt | ChatOptions | None = None,
-        preamble_or_options: ExecutablePrompt | ChatOptions | None = None,
+        thread_or_preamble_or_options: str | ExecutablePromptLike | ChatOptions | None = None,
+        preamble_or_options: ExecutablePromptLike | ChatOptions | None = None,
         options: ChatOptions | None = None,
     ) -> Chat:
         """Create a Chat object for multi-turn conversation (matching JS API).

@@ -33,7 +33,6 @@ from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
-from genkit.session import Chat, ChatOptions, ChatStreamResponse
 
 from ._aio import Genkit, Input, Output
 from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
@@ -61,10 +60,6 @@ __all__ = [
     'OutputOptions',
     'PromptGenerateOptions',
     'ResumeOptions',
-    # Session/Chat
-    'Chat',
-    'ChatOptions',
-    'ChatStreamResponse',
     # Document
     'Document',
     # Plugin

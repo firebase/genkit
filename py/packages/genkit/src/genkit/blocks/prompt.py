@@ -131,8 +131,8 @@ import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
-
+from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
+from genkit.blocks.interfaces import Input, Output
 from dotpromptz.typing import (
     DataArgument,
     PromptFunction,
@@ -1173,10 +1173,6 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             )
 
         return action
-
-
-if TYPE_CHECKING:
-    from genkit.ai._aio import Input, Output
 
 
 # Overload 1: Both input and output typed -> ExecutablePrompt[InputT, OutputT]
