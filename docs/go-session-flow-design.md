@@ -138,10 +138,23 @@ type Session[State any] struct {
     state SessionFlowState[State]
     store SnapshotStore[State]
 
+    // Internal references set by the framework
+    responder any // typed as *Responder[Stream] internally
+    inCh      <-chan *SessionFlowInput
+
     // Snapshot tracking
     lastSnapshot *SessionFlowSnapshot[State]
     turnIndex    int
 }
+
+// Run loops over the input channel, calling fn for each turn. Each turn is
+// wrapped in an OTel span for tracing. Input messages are automatically added
+// to the session before fn is called. After fn returns successfully, an EndTurn
+// chunk is sent and a snapshot check is triggered.
+func (s *Session[State]) Run(
+    ctx context.Context,
+    fn func(ctx context.Context, input *SessionFlowInput) error,
+) error
 
 // State returns a copy of the current session flow state.
 func (s *Session[State]) State() *SessionFlowState[State]
@@ -204,12 +217,6 @@ func (r *Responder[Stream]) SendStatus(status Stream)
 // SendArtifact sends an artifact to the stream and adds it to the session.
 // If an artifact with the same name already exists in the session, it is replaced.
 func (r *Responder[Stream]) SendArtifact(artifact *SessionFlowArtifact)
-
-// EndTurn signals that the session flow has finished responding to the current input.
-// This triggers a snapshot check (based on the configured callback) and sends
-// a chunk with EndTurn: true. The client should check for this field and break
-// out of their Receive() loop to send the next input.
-func (r *Responder[Stream]) EndTurn()
 ```
 
 ### 1.6 SessionFlow Function and Parameters
@@ -228,7 +235,6 @@ type SessionFlowParams[Stream, State any] struct {
 //   - State: Type for user-defined state in snapshots
 type SessionFlowFunc[Stream, State any] func(
     ctx context.Context,
-    inCh <-chan *SessionFlowInput,
     resp *Responder[Stream],
     params *SessionFlowParams[Stream, State],
 ) error
@@ -400,7 +406,7 @@ Snapshots are created at two points:
 
 | Event | Trigger | Description |
 |-------|---------|-------------|
-| Turn end | `resp.EndTurn()` | After processing user input and generating a response |
+| Turn end | `Session.Run` completes a turn | After the turn function returns successfully |
 | Invocation end | Session flow function returns | Final state capture when invocation completes |
 
 At each point:
@@ -443,6 +449,7 @@ func (sf *SessionFlow[Stream, State]) runWrapped(
     outCh chan<- *SessionFlowStreamChunk[Stream],
 ) (*SessionFlowResponse[State], error) {
     session := newSessionFromInit(init, sf.store)
+    session.inCh = inCh
     ctx = NewSessionContext(ctx, session)
 
     responder := &Responder[Stream]{
@@ -451,12 +458,13 @@ func (sf *SessionFlow[Stream, State]) runWrapped(
         snapshotCallback: sf.snapshotCallback,
         store:            sf.store,
     }
+    session.responder = responder
 
     params := &SessionFlowParams[Stream, State]{
         Session: session,
     }
 
-    err := sf.fn(ctx, inCh, responder, params)
+    err := sf.fn(ctx, responder, params)
     if err != nil {
         return nil, err
     }
@@ -470,21 +478,38 @@ func (sf *SessionFlow[Stream, State]) runWrapped(
 }
 ```
 
-### 6.2 Turn Signaling
+### 6.2 Session.Run and Turn Lifecycle
 
-When `resp.EndTurn()` is called:
+`Session.Run` owns the input loop. For each input received from the channel:
 
-1. Trigger snapshot callback
-2. If callback returns true, create and persist snapshot with a UUID
-3. Set `message.Metadata["snapshotId"]` on the last message
-4. Send `SnapshotCreated` notification on stream
-5. Send end-of-turn signal so consumer's `Receive()` loop sees `EndTurn: true`
+1. Create an OTel span (`sessionFlow/turn/{turnIndex}`) with input messages as attributes
+2. Add input messages to session
+3. Call the user's turn function with the span context
+4. On success: trigger snapshot, send `EndTurn` chunk, increment turn index
+5. On error: record error on span and return
 
 ```go
-func (r *Responder[Stream]) EndTurn() {
-    r.triggerSnapshot()
+func (s *Session[State]) Run(
+    ctx context.Context,
+    fn func(ctx context.Context, input *SessionFlowInput) error,
+) error {
+    for input := range s.inCh {
+        ctx, span := tracer.Start(ctx, fmt.Sprintf("sessionFlow/turn/%d", s.turnIndex))
 
-    r.ch <- &SessionFlowStreamChunk[Stream]{EndTurn: true}
+        s.AddMessages(input.Messages...)
+
+        if err := fn(ctx, input); err != nil {
+            span.RecordError(err)
+            span.SetStatus(codes.Error, err.Error())
+            span.End()
+            return err
+        }
+
+        s.responder.(*Responder[any]).endTurn()
+        s.turnIndex++
+        span.End()
+    }
+    return nil
 }
 ```
 
@@ -527,11 +552,9 @@ func main() {
     )
 
     chatFlow := genkit.DefineSessionFlow(g, "chatFlow",
-        func(ctx context.Context, inCh <-chan *aix.SessionFlowInput, resp *aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatStatus, ChatState]) error {
-            sess := params.Session
-
-            for input := range inCh {
-                sess.AddMessages(input.Messages...)
+        func(ctx context.Context, resp *aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatStatus, ChatState]) error {
+            return params.Session.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
+                sess := params.Session
 
                 resp.SendStatus(ChatStatus{Phase: "generating"})
 
@@ -553,10 +576,8 @@ func main() {
                 })
 
                 resp.SendStatus(ChatStatus{Phase: "complete"})
-                resp.EndTurn()
-            }
-
-            return nil
+                return nil
+            })
         },
         aix.WithSnapshotStore(store),
     )
@@ -642,11 +663,9 @@ type CodeStatus struct {
 }
 
 codeFlow := genkit.DefineSessionFlow(g, "codeFlow",
-    func(ctx context.Context, inCh <-chan *aix.SessionFlowInput, resp *aix.Responder[CodeStatus], params *aix.SessionFlowParams[CodeStatus, CodeState]) error {
-        sess := params.Session
-
-        for input := range inCh {
-            sess.AddMessages(input.Messages...)
+    func(ctx context.Context, resp *aix.Responder[CodeStatus], params *aix.SessionFlowParams[CodeStatus, CodeState]) error {
+        return params.Session.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
+            sess := params.Session
 
             generatedCode := "func main() { fmt.Println(\"Hello\") }"
 
@@ -659,10 +678,8 @@ codeFlow := genkit.DefineSessionFlow(g, "codeFlow",
             })
 
             sess.AddMessages(ai.NewModelTextMessage("Here's the code you requested."))
-            resp.EndTurn()
-        }
-
-        return nil
+            return nil
+        })
     },
     aix.WithSnapshotStore(store),
 )
@@ -672,7 +689,9 @@ codeFlow := genkit.DefineSessionFlow(g, "codeFlow",
 
 ## 8. Tracing Integration
 
-When a snapshot is created, metadata is recorded on the current trace span:
+Each turn executed by `Session.Run` creates an OTel span named `sessionFlow/turn/{turnIndex}`. This provides per-turn visibility into inputs, outputs, and timing.
+
+When a snapshot is created (at turn end or invocation end), metadata is recorded on the current span:
 
 - `genkit:metadata:snapshotId` - The snapshot ID
 - `genkit:metadata:sessionFlow` - The session flow name (e.g., `chatFlow`)
