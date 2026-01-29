@@ -111,11 +111,11 @@ func generateStream(ctx context.Context, client *openai.Client, req *responses.R
 		return mResp, nil
 	}
 
-	// prevent returning an error if stream does not provide [responses.ResponseCompletedEvent]
-	// user might already have received the chunks throughout the loop
 	return &ai.ModelResponse{
-		Request: input,
-		Message: &ai.Message{Role: ai.RoleModel},
+		Request:       input,
+		Message:       &ai.Message{Role: ai.RoleModel},
+		FinishReason:  ai.FinishReasonOther,
+		FinishMessage: "stream finished without a completion event; usage statistics and final message might be incomplete",
 	}, nil
 }
 
