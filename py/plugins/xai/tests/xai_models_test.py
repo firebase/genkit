@@ -36,8 +36,6 @@ from genkit.types import (
 
 def _create_sample_request() -> GenerateRequest:
     """Create a sample generation request for testing."""
-    from genkit.plugins.xai.models import XAIConfig
-
     return GenerateRequest(
         messages=[
             Message(
