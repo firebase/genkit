@@ -32,10 +32,11 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-from typing import Any, Literal
-
-from pydantic import BaseModel, ConfigDict, Field, RootModel
 from pydantic.alias_generators import to_camel
+
+
+from typing import Any, Literal
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class Model(RootModel[Any]):
