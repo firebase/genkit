@@ -25,7 +25,7 @@ func TestIndex_Success_NoDocuments(t *testing.T) {
 	ds := DocStore{}
 	err := ds.Index(context.Background(), nil)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -45,6 +45,6 @@ func TestIndex_Fail_EmbedReturnError(t *testing.T) {
 
 	err := ds.Index(context.Background(), docs)
 	if err == nil {
-		t.Error("expected error, got nil")
+		t.Fatal("expected error, got nil")
 	}
 }

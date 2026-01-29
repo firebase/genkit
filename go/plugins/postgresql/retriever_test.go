@@ -26,7 +26,7 @@ func TestRetriever_Fail_WrongTypeOfOption(t *testing.T) {
 	ds := DocStore{}
 	res, err := ds.Retrieve(context.Background(), &ai.RetrieverRequest{Options: struct{}{}})
 	if res != nil {
-		t.Errorf("Retrieve() res = %v, want nil", res)
+		t.Fatalf("Retrieve() res = %v, want nil", res)
 	}
 	if err == nil {
 		t.Fatal("Retrieve() expected error, got nil")
@@ -42,9 +42,9 @@ func TestRetriever_Fail_EmbedReturnError(t *testing.T) {
 	}
 	res, err := ds.Retrieve(context.Background(), &ai.RetrieverRequest{})
 	if res != nil {
-		t.Errorf("Retrieve() res = %v, want nil", res)
+		t.Fatalf("Retrieve() res = %v, want nil", res)
 	}
 	if err == nil {
-		t.Error("Retrieve() expected error, got nil")
+		t.Fatal("Retrieve() expected error, got nil")
 	}
 }
