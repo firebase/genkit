@@ -193,6 +193,10 @@ select = [
   "F841", # unused variables
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Typing tests use reveal_type(), intentional unused vars, and don't need docstrings
+"packages/genkit/tests/typing/*.py" = ["D", "F821", "F841", "B018", "ANN"]
+
 [tool.ruff.lint.isort]
 combine-as-imports = true
 force-single-line = false

@@ -34,14 +34,14 @@ import asyncio
 import os
 from typing import Any, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.core.typing import OutputConfig
 from genkit.plugins.google_genai import GoogleAI
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
@@ -126,7 +126,7 @@ async def classify_sentiment_enum(input: ClassifySentimentInput) -> str:
         prompt=f'Classify the sentiment of this review: "{input.review}"',
         output=OutputConfig(
             format='enum',
-            schema={
+            schema_={
                 'type': 'string',
                 'enum': ['POSITIVE', 'NEGATIVE', 'NEUTRAL'],
             },
@@ -136,7 +136,7 @@ async def classify_sentiment_enum(input: ClassifySentimentInput) -> str:
 
 
 @ai.flow()
-async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> list:
+async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> list[dict[str, object]]:
     """Create characters for a story with a given theme.
 
     Uses the 'jsonl' format which outputs newline-delimited JSON objects.
@@ -158,7 +158,7 @@ async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> li
         prompt=f'Generate 5 characters for a {input.theme} story',
         output=OutputConfig(
             format='jsonl',
-            schema={
+            schema_={
                 'type': 'array',
                 'items': Character.model_json_schema(),
             },
@@ -187,7 +187,7 @@ async def generate_haiku_text(input: HaikuInput) -> str:
 
 
 @ai.flow()
-async def get_country_info_json(input: CountryInfoInput) -> dict:
+async def get_country_info_json(input: CountryInfoInput) -> dict[str, Any]:
     """Get structured information about a country.
 
     Uses the 'json' format which parses the model's response as a JSON object.
@@ -199,13 +199,13 @@ async def get_country_info_json(input: CountryInfoInput) -> dict:
     """
     response = await ai.generate(
         prompt=f'Give me information about {input.country}',
-        output=OutputConfig(format='json', schema=CountryInfo.model_json_schema()),
+        output=OutputConfig(format='json', schema_=CountryInfo.model_json_schema()),
     )
     return cast(dict[str, Any], response.output)
 
 
 @ai.flow()
-async def recommend_books_array(input: RecommendBooksInput) -> list:
+async def recommend_books_array(input: RecommendBooksInput) -> list[dict[str, object]]:
     """Recommend famous books in a given genre.
 
     Uses the 'array' format which parses the model's response as a JSON array of objects.
@@ -223,7 +223,7 @@ async def recommend_books_array(input: RecommendBooksInput) -> list:
         prompt=f'List 3 famous {input.genre} books',
         output=OutputConfig(
             format='array',
-            schema={
+            schema_={
                 'type': 'array',
                 'items': Book.model_json_schema(),
             },

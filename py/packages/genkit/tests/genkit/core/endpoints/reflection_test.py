@@ -36,8 +36,8 @@ each endpoint's behavior.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Any
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any, cast
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
@@ -200,8 +200,9 @@ async def test_run_action_streaming(
         **kwargs: Any,  # noqa: ANN401
     ) -> MagicMock:
         if on_chunk:
-            await on_chunk({'chunk': 1})
-            await on_chunk({'chunk': 2})
+            on_chunk_fn = cast(Callable[[object], Awaitable[None]], on_chunk)
+            await on_chunk_fn({'chunk': 1})
+            await on_chunk_fn({'chunk': 2})
         mock_output = MagicMock()
         mock_output.response = {'final': 'result'}
         mock_output.trace_id = 'stream_trace_id'

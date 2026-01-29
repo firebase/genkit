@@ -43,16 +43,17 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, cast, overload
+
+from pydantic import BaseModel
+from typing_extensions import Never, TypeVar
 
 from genkit.aio import ensure_async
 
 if TYPE_CHECKING:
+    from genkit.ai._aio import Input, Output
     from genkit.blocks.prompt import ExecutablePrompt
     from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
-
-import structlog
-from pydantic import BaseModel
 
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
@@ -75,8 +76,9 @@ from genkit.blocks.reranker import (
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
-from genkit.core.action import Action, ActionResponse
+from genkit.core.action import Action, ActionResponse, ActionRunContext
 from genkit.core.action.types import ActionKind
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.tracing import run_in_new_span
@@ -101,13 +103,19 @@ EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
 EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
+
+# TypeVars for generic input/output typing
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
 P = ParamSpec('P')
 R = TypeVar('R')
 T = TypeVar('T')
+CallT = TypeVar('CallT')
+ChunkT = TypeVar('ChunkT', default=Never)
 
 
-def get_func_description(func: Callable, description: str | None = None) -> str:
+def get_func_description(func: Callable[..., Any], description: str | None = None) -> str:
     """Get the description of a function.
 
     Args:
@@ -200,9 +208,19 @@ class GenkitRegistry:
         """Initialize the Genkit registry."""
         self.registry: Registry = Registry()
 
+    @overload
     def flow(
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T]']:
+    ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T]']: ...
+
+    @overload
+    def flow(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']: ...
+
+    def flow(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']:
         """Decorator to register a function as a flow.
 
         Args:
@@ -215,7 +233,7 @@ class GenkitRegistry:
             A decorator function that registers the flow.
         """
 
-        def wrapper(func: Callable[P, T]) -> 'FlowWrapper[P, T]':
+        def wrapper(func: Callable[P, Awaitable[T]] | Callable[P, T]) -> 'FlowWrapper[P, Awaitable[T] | T, T]':
             """Register the decorated function as a flow.
 
             Args:
@@ -235,43 +253,47 @@ class GenkitRegistry:
             )
 
             @wraps(func)
-            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
+            async def async_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Asynchronous wrapper for the flow function.
 
                 Args:
                     *args: Positional arguments to pass to the flow function.
-                    **kwargs: Keyword arguments to pass to the flow function.
+                    **_kwargs: Keyword arguments (unused, for signature compatibility).
 
                 Returns:
                     The response from the flow function.
                 """
                 # Flows accept at most one input argument
-                input_arg = args[0] if args else None
-                return cast(T, (await action.arun(input_arg)).response)
+                input_arg = cast(T | None, args[0] if args else None)
+                return (await action.arun(input_arg)).response
 
             @wraps(func)
-            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            def sync_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Synchronous wrapper for the flow function.
 
                 Args:
                     *args: Positional arguments to pass to the flow function.
-                    **kwargs: Keyword arguments to pass to the flow function.
+                    **_kwargs: Keyword arguments (unused, for signature compatibility).
 
                 Returns:
                     The response from the flow function.
                 """
                 # Flows accept at most one input argument
-                input_arg = args[0] if args else None
-                return cast(T, action.run(input_arg).response)
+                input_arg = cast(T | None, args[0] if args else None)
+                return action.run(input_arg).response
 
-            return FlowWrapper(
-                fn=cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper),
-                action=action,
+            wrapped_fn = cast(
+                Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper
             )
+            flow = FlowWrapper(
+                fn=cast(Callable[P, Awaitable[T] | T], wrapped_fn),
+                action=cast(Action[Any, T, Never], action),
+            )
+            return flow
 
         return wrapper
 
-    def define_helper(self, name: str, fn: Callable) -> None:
+    def define_helper(self, name: str, fn: Callable[..., Any]) -> None:
         """Define a Handlebars helper function in the registry.
 
         Args:
@@ -348,14 +370,17 @@ class GenkitRegistry:
 
             input_spec = inspect.getfullargspec(func)
 
+            func_any = cast(Callable[..., Any], func)
+
             def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
+                # Dynamic dispatch based on function signature - pyright can't verify ParamSpec here
                 match len(input_spec.args):
                     case 0:
-                        return func()
+                        return func_any()
                     case 1:
-                        return func(args[0])
+                        return func_any(args[0])
                     case 2:
-                        return func(args[0], ToolRunContext(args[1]))  # type: ignore[arg-type]
+                        return func_any(args[0], ToolRunContext(cast(ActionRunContext, args[1])))
                     case _:
                         raise ValueError('tool must have 0-2 args...')
 
@@ -378,7 +403,8 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return (await action.arun(*args, **kwargs)).response  # type: ignore[arg-type]
+                action_any = cast(Any, action)
+                return (await action_any.arun(*args, **kwargs)).response
 
             @wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
@@ -391,7 +417,8 @@ class GenkitRegistry:
                 Returns:
                     The response from the tool function.
                 """
-                return action.run(*args, **kwargs).response  # type: ignore[arg-type]
+                action_any = cast(Any, action)
+                return action_any.run(*args, **kwargs).response
 
             return cast(Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
 
@@ -400,7 +427,7 @@ class GenkitRegistry:
     def define_retriever(
         self,
         name: str,
-        fn: RetrieverFn,
+        fn: RetrieverFn[Any],
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
@@ -414,13 +441,19 @@ class GenkitRegistry:
             metadata: Optional metadata for the retriever.
             description: Optional description for the retriever.
         """
-        retriever_meta = metadata if metadata else {}
-        if 'retriever' not in retriever_meta:
-            retriever_meta['retriever'] = {}
-        if 'label' not in retriever_meta['retriever'] or not retriever_meta['retriever']['label']:
-            retriever_meta['retriever']['label'] = name
+        retriever_meta: dict[str, object] = dict(metadata) if metadata else {}
+        retriever_info: dict[str, object]
+        existing_retriever = retriever_meta.get('retriever')
+        if isinstance(existing_retriever, dict):
+            retriever_info = {str(key): value for key, value in existing_retriever.items()}
+        else:
+            retriever_info = {}
+        retriever_meta['retriever'] = retriever_info
+        label_value = retriever_info.get('label')
+        if not isinstance(label_value, str) or not label_value:
+            retriever_info['label'] = name
         if config_schema:
-            retriever_meta['retriever']['customOptions'] = to_json_schema(config_schema)
+            retriever_info['customOptions'] = to_json_schema(config_schema)
 
         retriever_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -477,7 +510,7 @@ class GenkitRegistry:
     def define_indexer(
         self,
         name: str,
-        fn: IndexerFn,
+        fn: IndexerFn[Any],
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
@@ -491,14 +524,19 @@ class GenkitRegistry:
             metadata: Optional metadata for the indexer.
             description: Optional description for the indexer.
         """
-        indexer_meta = metadata if metadata else {}
-
-        if 'indexer' not in indexer_meta:
-            indexer_meta['indexer'] = {}
-        if 'label' not in indexer_meta['indexer'] or not indexer_meta['indexer']['label']:
-            indexer_meta['indexer']['label'] = name
+        indexer_meta: dict[str, object] = dict(metadata) if metadata else {}
+        indexer_info: dict[str, object]
+        existing_indexer = indexer_meta.get('indexer')
+        if isinstance(existing_indexer, dict):
+            indexer_info = {str(key): value for key, value in existing_indexer.items()}
+        else:
+            indexer_info = {}
+        indexer_meta['indexer'] = indexer_info
+        label_value = indexer_info.get('label')
+        if not isinstance(label_value, str) or not label_value:
+            indexer_info['label'] = name
         if config_schema:
-            indexer_meta['indexer']['customOptions'] = to_json_schema(config_schema)
+            indexer_info['customOptions'] = to_json_schema(config_schema)
 
         indexer_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -512,7 +550,7 @@ class GenkitRegistry:
     def define_reranker(
         self,
         name: str,
-        fn: RerankerFn,
+        fn: RerankerFn[Any],
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
@@ -622,7 +660,7 @@ class GenkitRegistry:
         name: str,
         display_name: str,
         definition: str,
-        fn: EvaluatorFn,
+        fn: EvaluatorFn[Any],
         is_billed: bool = False,
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
@@ -644,16 +682,22 @@ class GenkitRegistry:
             metadata: Optional metadata for the evaluator.
             description: Optional description for the evaluator.
         """
-        evaluator_meta = metadata if metadata else {}
-        if 'evaluator' not in evaluator_meta:
-            evaluator_meta['evaluator'] = {}
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
-        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
-            evaluator_meta['evaluator']['label'] = name
+        evaluator_meta: dict[str, object] = dict(metadata) if metadata else {}
+        evaluator_info: dict[str, object]
+        existing_evaluator = evaluator_meta.get('evaluator')
+        if isinstance(existing_evaluator, dict):
+            evaluator_info = {str(key): value for key, value in existing_evaluator.items()}
+        else:
+            evaluator_info = {}
+        evaluator_meta['evaluator'] = evaluator_info
+        evaluator_info[EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_info[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_info[EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        label_value = evaluator_info.get('label')
+        if not isinstance(label_value, str) or not label_value:
+            evaluator_info['label'] = name
         if config_schema:
-            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+            evaluator_info['customOptions'] = to_json_schema(config_schema)
 
         evaluator_description = get_func_description(fn, description)
 
@@ -736,7 +780,7 @@ class GenkitRegistry:
         name: str,
         display_name: str,
         definition: str,
-        fn: BatchEvaluatorFn,
+        fn: BatchEvaluatorFn[Any],
         is_billed: bool = False,
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
@@ -853,19 +897,24 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, object] = metadata or {}
-        if 'embedder' not in embedder_meta:
-            embedder_meta['embedder'] = {}
+        embedder_meta: dict[str, object] = dict(metadata) if metadata else {}
+        embedder_info: dict[str, object]
+        existing_embedder = embedder_meta.get('embedder')
+        if isinstance(existing_embedder, dict):
+            embedder_info = {str(key): value for key, value in existing_embedder.items()}
+        else:
+            embedder_info = {}
+        embedder_meta['embedder'] = embedder_info
 
         if options:
             if options.label:
-                embedder_meta['embedder']['label'] = options.label
+                embedder_info['label'] = options.label
             if options.dimensions:
-                embedder_meta['embedder']['dimensions'] = options.dimensions
+                embedder_info['dimensions'] = options.dimensions
             if options.supports:
-                embedder_meta['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+                embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
             if options.config_schema:
-                embedder_meta['embedder']['customOptions'] = to_json_schema(options.config_schema)
+                embedder_info['customOptions'] = to_json_schema(options.config_schema)
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -884,6 +933,8 @@ class GenkitRegistry:
         """
         self.registry.register_value('format', format.name, format)
 
+    # Overload 1: Both input and output typed -> ExecutablePrompt[InputT, OutputT]
+    @overload
     def define_prompt(
         self,
         name: str | None = None,
@@ -892,9 +943,9 @@ class GenkitRegistry:
         config: GenerationCommonConfig | dict[str, object] | None = None,
         description: str | None = None,
         input_schema: type | dict[str, object] | str | None = None,
-        system: str | Part | list[Part] | Callable | None = None,
-        prompt: str | Part | list[Part] | Callable | None = None,
-        messages: str | list[Message] | Callable | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
@@ -906,8 +957,127 @@ class GenkitRegistry:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable | None = None,
-    ) -> 'ExecutablePrompt':
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        *,
+        input: 'Input[InputT]',
+        output: 'Output[OutputT]',
+    ) -> 'ExecutablePrompt[InputT, OutputT]': ...
+
+    # Overload 2: Only input typed -> ExecutablePrompt[InputT, Any]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        *,
+        input: 'Input[InputT]',
+        output: None = None,
+    ) -> 'ExecutablePrompt[InputT, Any]': ...
+
+    # Overload 3: Only output typed -> ExecutablePrompt[Any, OutputT]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        input: None = None,
+        *,
+        output: 'Output[OutputT]',
+    ) -> 'ExecutablePrompt[Any, OutputT]': ...
+
+    # Overload 4: Neither typed -> ExecutablePrompt[Any, Any]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        input: None = None,
+        output: None = None,
+    ) -> 'ExecutablePrompt[Any, Any]': ...
+
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        input: 'Input[Any] | None' = None,
+        output: 'Output[Any] | None' = None,
+    ) -> 'ExecutablePrompt[Any, Any]':
         """Define a prompt.
 
         Args:
@@ -934,7 +1104,120 @@ class GenkitRegistry:
             tool_choice: Optional tool choice for the prompt.
             use: Optional list of model middlewares to use for the prompt.
             docs: Optional list of documents or a callable to be used for grounding.
+            input: Typed input configuration using Input[T]. When provided,
+                the prompt's input parameter is type-checked.
+            output: Typed output configuration using Output[T]. When provided,
+                the response output is typed.
+
+        Example:
+            ```python
+            from genkit import Input, Output
+            from pydantic import BaseModel
+
+
+            class RecipeInput(BaseModel):
+                dish: str
+
+
+            class Recipe(BaseModel):
+                name: str
+                ingredients: list[str]
+
+
+            # With typed input AND output
+            recipe_prompt = ai.define_prompt(
+                name='recipe',
+                prompt='Create a recipe for {dish}',
+                input=Input(schema=RecipeInput),
+                output=Output(schema=Recipe),
+            )
+
+            # Input is type-checked!
+            response = await recipe_prompt(RecipeInput(dish='pizza'))
+            response.output.name  # ✓ Typed as str
+            ```
         """
+        if input is not None and output is not None:
+            return define_prompt(
+                self.registry,
+                name=name,
+                variant=variant,
+                model=model,
+                config=config,
+                description=description,
+                input_schema=input_schema,
+                system=system,
+                prompt=prompt,
+                messages=messages,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
+                max_turns=max_turns,
+                return_tool_requests=return_tool_requests,
+                metadata=metadata,
+                tools=tools,
+                tool_choice=tool_choice,
+                use=use,
+                docs=docs,
+                input=input,
+                output=output,
+            )
+        if input is not None:
+            return define_prompt(
+                self.registry,
+                name=name,
+                variant=variant,
+                model=model,
+                config=config,
+                description=description,
+                input_schema=input_schema,
+                system=system,
+                prompt=prompt,
+                messages=messages,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
+                max_turns=max_turns,
+                return_tool_requests=return_tool_requests,
+                metadata=metadata,
+                tools=tools,
+                tool_choice=tool_choice,
+                use=use,
+                docs=docs,
+                input=input,
+                output=None,
+            )
+        if output is not None:
+            return define_prompt(
+                self.registry,
+                name=name,
+                variant=variant,
+                model=model,
+                config=config,
+                description=description,
+                input_schema=input_schema,
+                system=system,
+                prompt=prompt,
+                messages=messages,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
+                max_turns=max_turns,
+                return_tool_requests=return_tool_requests,
+                metadata=metadata,
+                tools=tools,
+                tool_choice=tool_choice,
+                use=use,
+                docs=docs,
+                input=None,
+                output=output,
+            )
         return define_prompt(
             self.registry,
             name=name,
@@ -958,13 +1241,15 @@ class GenkitRegistry:
             tool_choice=tool_choice,
             use=use,
             docs=docs,
+            input=None,
+            output=None,
         )
 
     def prompt(
         self,
         name: str,
         variant: str | None = None,
-    ) -> 'ExecutablePrompt':
+    ) -> 'ExecutablePrompt[Any, Any]':
         """Look up a prompt by name and optional variant.
 
         This matches the JavaScript prompt() function behavior.
@@ -1035,24 +1320,24 @@ class GenkitRegistry:
         return define_resource_block(self.registry, opts, fn)
 
 
-class FlowWrapper(Generic[P, T]):
+class FlowWrapper(Generic[P, CallT, T, ChunkT]):
     """A wapper for flow functions to add `stream` method.
 
     This class wraps a flow function and provides a `stream` method for
     asynchronous execution.
     """
 
-    def __init__(self, fn: Callable[P, T], action: Action) -> None:
+    def __init__(self, fn: Callable[P, CallT], action: Action[Any, T, ChunkT]) -> None:
         """Initialize the FlowWrapper.
 
         Args:
             fn: The function to wrap.
             action: The action to wrap.
         """
-        self._fn = fn
-        self._action = action
+        self._fn: Callable[P, CallT] = fn
+        self._action: Action[Any, T, ChunkT] = action
 
-    def __call__(self, *args: P.args, **kwds: P.kwargs) -> T:
+    def __call__(self, *args: P.args, **kwds: P.kwargs) -> CallT:
         """Call the wrapped function.
 
         Args:
@@ -1070,10 +1355,7 @@ class FlowWrapper(Generic[P, T]):
         context: dict[str, object] | None = None,
         telemetry_labels: dict[str, object] | None = None,
         timeout: float | None = None,
-    ) -> tuple[
-        AsyncIterator[object],  # noqa: ANN401
-        asyncio.Future[ActionResponse],
-    ]:
+    ) -> tuple[AsyncIterator[ChunkT], asyncio.Future[ActionResponse[T]]]:
         """Run the flow and return an async iterator of the results.
 
         Args:

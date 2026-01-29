@@ -115,18 +115,19 @@ class Session:
             id: The session ID. If not provided, a new UUID is generated.
             data: Existing session data (if loading).
         """
-        self._ai = ai
-        self._store = store
+        self._ai: Genkit = ai
+        self._store: SessionStore = store
         if data:
-            self._id = data['id']
-            self._state = data.get('state') or {}
+            data_id = data.get('id')
+            self._id = data_id if data_id is not None else (id or str(uuid.uuid4()))
+            self._state: dict[str, Any] = data.get('state') or {}
             # Load threads, with backward compat for legacy 'messages' field
             self._threads: dict[str, list[Message]] = data.get('threads') or {}
             if not self._threads and data.get('messages'):
                 # Migrate legacy messages to main thread
                 self._threads[MAIN_THREAD] = data.get('messages') or []
-            self._created_at = data.get('created_at') or time.time()
-            self._updated_at = data.get('updated_at') or time.time()
+            self._created_at: float = data.get('created_at') or time.time()
+            self._updated_at: float = data.get('updated_at') or time.time()
         else:
             self._id = id or str(uuid.uuid4())
             self._state = {}
@@ -267,8 +268,9 @@ class Session:
         if chat_options:
             # Copy generate-related options to request_base
             for key in ('system', 'model', 'config', 'tools', 'tool_choice'):
-                if key in chat_options:
-                    request_base[key] = chat_options[key]
+                value = chat_options.get(key)
+                if value is not None:
+                    request_base[key] = value
 
         # TODO: Handle preamble rendering (JS pre-renders preamble here)
         # For now, preamble support is deferred

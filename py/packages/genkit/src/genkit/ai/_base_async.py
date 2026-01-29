@@ -22,23 +22,23 @@ from collections.abc import Coroutine
 from typing import Any, TypeVar
 
 import anyio
-import structlog
 import uvicorn
 
 from genkit.aio.loop import run_loop
 from genkit.blocks.formats import built_in_formats
 from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
+from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
-from genkit.web.manager import find_free_port_sync
+from genkit.web.manager._ports import find_free_port_sync
 
 from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
 from ._server import ServerSpec
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar('T')
 
@@ -61,7 +61,7 @@ class GenkitBase(GenkitRegistry):
                 server. If not provided in dev mode, a default will be used.
         """
         super().__init__()
-        self._reflection_server_spec = reflection_server_spec
+        self._reflection_server_spec: ServerSpec | None = reflection_server_spec
         self._initialize_registry(model, plugins)
         # Ensure the default generate action is registered for async usage.
         define_generate_action(self.registry)
@@ -87,7 +87,7 @@ class GenkitBase(GenkitRegistry):
             logger.warning('No plugins provided to Genkit')
         else:
             for plugin in plugins:
-                if isinstance(plugin, Plugin):
+                if isinstance(plugin, Plugin):  # pyright: ignore[reportUnnecessaryIsInstance]
                     self.registry.register_plugin(plugin)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
@@ -120,7 +120,7 @@ class GenkitBase(GenkitRegistry):
         if not spec:
             spec = ServerSpec(scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999))
 
-        async def dev_runner() -> T | None:
+        async def dev_runner() -> T:
             """Internal async function to run tasks using AnyIO TaskGroup."""
             user_result: T | None = None
             user_task_finished_event = anyio.Event()
@@ -206,7 +206,7 @@ class GenkitBase(GenkitRegistry):
                             logger.warning(f'Reflection server at {spec.url} did not become healthy in time.')
 
                         # Now write the file (or verify it persisted)
-                        runtime_manager.write_runtime_file()
+                        _ = runtime_manager.write_runtime_file()
 
                         # Start the (potentially short-lived) user coroutine wrapper
                         tg.start_soon(run_user_coro_wrapper, name='genkit-user-coroutine')
@@ -219,17 +219,19 @@ class GenkitBase(GenkitRegistry):
             except anyio.get_cancelled_exc_class():
                 logger.info('Development server task group cancelled (e.g., Ctrl+C).')
                 raise
-            except Exception as e:
-                logger.exception(e)
+            except Exception:
+                logger.exception('Development server task group error')
                 raise
 
             # After the TaskGroup finishes (error or cancelation).
             if user_task_finished_event.is_set():
                 await logger.adebug('User coroutine finished before TaskGroup exit.')
+                if user_result is None:
+                    raise RuntimeError('User coroutine finished without a result.')
                 return user_result
-            else:
-                await logger.adebug('User coroutine did not finish before TaskGroup exit.')
-                return None
+
+            await logger.adebug('User coroutine did not finish before TaskGroup exit.')
+            raise RuntimeError('User coroutine did not finish before TaskGroup exit.')
 
         return anyio.run(dev_runner)
 

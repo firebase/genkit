@@ -94,8 +94,8 @@ class ProgrammableModel:
 
     def __init__(self) -> None:
         """Initialize a new ProgrammableModel instance."""
-        self._request_idx = 0
-        self.request_count = 0
+        self._request_idx: int = 0
+        self.request_count: int = 0
         self.responses: list[GenerateResponse] = []
         self.chunks: list[list[GenerateResponseChunk]] | None = None
         self.last_request: GenerateRequest | None = None
@@ -219,7 +219,7 @@ class EchoModel:
             stream_countdown: If True, stream "3", "2", "1" chunks before response.
         """
         self.last_request: GenerateRequest | None = None
-        self.stream_countdown = stream_countdown
+        self.stream_countdown: bool = stream_countdown
 
     def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Process a generation request and echo it back in the response.
@@ -317,23 +317,23 @@ class StaticResponseModel:
         Args:
             message: The message data to always return.
         """
-        self.response_message = message
+        self.response_message: Message = Message.model_validate(message)
         self.last_request: GenerateRequest | None = None
-        self.request_count = 0
+        self.request_count: int = 0
 
-    def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    def model_fn(self, request: GenerateRequest, _ctx: ActionRunContext) -> GenerateResponse:
         """Return the static response.
 
         Args:
             request: The generation request (stored but not used).
-            ctx: The action run context (unused).
+            _ctx: The action run context (unused).
 
         Returns:
             GenerateResponse with the static message.
         """
         self.last_request = request
         self.request_count += 1
-        return GenerateResponse(message=Message.model_validate(self.response_message))
+        return GenerateResponse(message=self.response_message)
 
 
 def define_static_response_model(

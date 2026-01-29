@@ -41,18 +41,18 @@ Key Features
 import os
 from typing import Annotated, cast
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
 
 if 'DEEPSEEK_API_KEY' not in os.environ:
     os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[DeepSeek()],
@@ -296,7 +296,7 @@ async def generate_character(
     result = await ai.generate(
         model=deepseek_name('deepseek-chat'),
         prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
 
@@ -318,7 +318,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def streaming_flow(
     topic: Annotated[str, Field(default='pandas')] = 'pandas',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate with streaming response.
 
@@ -331,7 +331,7 @@ async def streaming_flow(
     """
     response = await ai.generate(
         prompt=f'Tell me a fun fact about {topic}',
-        on_chunk=ctx.send_chunk,
+        on_chunk=ctx.send_chunk if ctx else None,
     )
     return response.text
 

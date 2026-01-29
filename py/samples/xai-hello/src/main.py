@@ -37,11 +37,11 @@ Key Features
 import os
 from typing import Annotated
 
-import structlog
 from pydantic import Field
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.xai import XAI, xai_name
 from samples.shared import (
     CalculatorInput,
@@ -63,7 +63,7 @@ from samples.shared import (
 if 'XAI_API_KEY' not in os.environ:
     os.environ['XAI_API_KEY'] = input('Please enter your XAI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[XAI()],
@@ -130,7 +130,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 @ai.flow()
 async def say_hi_stream(
     name: Annotated[str, Field(default='Bob')] = 'Bob',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a streaming story response.
 

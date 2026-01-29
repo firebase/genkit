@@ -18,7 +18,7 @@
 
 from typing import cast
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 
 from .types import CalculatorInput, CurrencyExchangeInput, RpgCharacter, WeatherInput
@@ -72,7 +72,7 @@ async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
     """
     result = await ai.generate(
         prompt=f'Generate a structured RPG character named {name}. Output ONLY the JSON object.',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return cast(RpgCharacter, result.output)
 
@@ -91,7 +91,7 @@ async def say_hi_logic(ai: Genkit, name: str) -> str:
     return response.text
 
 
-async def say_hi_stream_logic(ai: Genkit, name: str, ctx: ActionRunContext) -> str:
+async def say_hi_stream_logic(ai: Genkit, name: str, ctx: ActionRunContext | None) -> str:
     """Generates a streaming story.
 
     Args:
@@ -101,7 +101,7 @@ async def say_hi_stream_logic(ai: Genkit, name: str, ctx: ActionRunContext) -> s
     """
     response = await ai.generate(
         prompt=f'Tell me a short story about {name}',
-        on_chunk=ctx.send_chunk,
+        on_chunk=ctx.send_chunk if ctx is not None else None,
     )
     return response.text
 
