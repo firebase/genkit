@@ -22,6 +22,8 @@ NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but 
 
 ---
 
+> Note: Gemini 3.0 models are currently in preview.
+
 ## Usage Scenarios
 
 ### Basic Inference (Text Generation)
@@ -45,7 +47,7 @@ func main() {
 	genkit.DefineFlow(g, "basicInferenceFlow",
 		func(ctx context.Context, topic string) (string, error) {
 			response, err := genkit.Generate(ctx, g,
-				ai.WithModelName("googleai/gemini-2.5-pro"),
+				ai.WithModelName("googleai/gemini-3-flash-preview"),
 				ai.WithPrompt("Write a short, creative paragraph about %s.", topic),
 				ai.WithConfig(&genai.GenerateContentConfig{
 					Temperature: genai.Ptr[float32](0.8),
@@ -139,7 +141,7 @@ func main() {
 	genkit.DefineFlow(g, "imageGenerationFlow",
 		func(ctx context.Context, prompt string) ([]string, error) {
 			response, err := genkit.Generate(ctx, g,
-				ai.WithModelName("vertexai/imagen-3.0-generate-001"),
+				ai.WithModelName("googleai/gemini-3-pro-image-preview"),
 				ai.WithPrompt("Generate an image of %s", prompt),
 				ai.WithConfig(&genai.GenerateImagesConfig{
 					NumberOfImages:    2,
@@ -194,11 +196,14 @@ You can can automate starting genkit using the following steps:
 
 Here are suggested models to use for various task types. This is NOT an exhaustive list.
 
+> Note: Gemini 3.0 models are currently in preview.
+
 ### Advanced Text/Reasoning
 
 ```
 | Plugin                                                     | Recommended Model                  |
 |------------------------------------------------------------|------------------------------------|
+| github.com/firebase/genkit/go/plugins/googlegenai         | gemini-3-pro-preview (Preview)    |
 | github.com/firebase/genkit/go/plugins/googlegenai         | gemini-2.5-pro                    |
 | github.com/firebase/genkit/go/plugins/compat_oai/openai   | gpt-4o                             |
 | github.com/firebase/genkit/go/plugins/compat_oai/deepseek | deepseek-reasoner                  |
@@ -210,6 +215,7 @@ Here are suggested models to use for various task types. This is NOT an exhausti
 ```
 | Plugin                                                     | Recommended Model                  |
 |------------------------------------------------------------|------------------------------------|
+| github.com/firebase/genkit/go/plugins/googlegenai         | gemini-3-flash-preview (Preview)  |
 | github.com/firebase/genkit/go/plugins/googlegenai         | gemini-2.5-flash                  |
 | github.com/firebase/genkit/go/plugins/compat_oai/openai   | gpt-4o-mini                        |
 | github.com/firebase/genkit/go/plugins/compat_oai/deepseek | deepseek-chat                      |
@@ -230,7 +236,8 @@ Here are suggested models to use for various task types. This is NOT an exhausti
 ```
 | Plugin                                                     | Recommended Model                  | Input Modalities  |
 |------------------------------------------------------------|------------------------------------|-------------------|
-| github.com/firebase/genkit/go/plugins/googlegenai         | gemini-2.5-flash-image-preview     | Text, Image       |
-| github.com/firebase/genkit/go/plugins/googlegenai         | imagen-4.0-generate-preview-06-06  | Text              |
-| github.com/firebase/genkit/go/plugins/compat_oai/openai   | gpt-image-1                        | Text              |
+| github.com/firebase/genkit/go/plugins/googlegenai         | gemini-3-pro-image-preview (Preview) | Text, Image       |
+| github.com/firebase/genkit/go/plugins/googlegenai         | gemini-2.5-flash-image               | Text, Image       |
+| github.com/firebase/genkit/go/plugins/googlegenai         | imagen-4.0-generate-001              | Text              |
+| github.com/firebase/genkit/go/plugins/compat_oai/openai   | gpt-image-1                          | Text              |
 ```
