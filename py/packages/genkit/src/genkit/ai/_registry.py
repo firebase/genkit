@@ -43,23 +43,19 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, cast, overload
+from typing import Any, Generic, ParamSpec, cast, overload
 
 from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit.aio import ensure_async
-
-if TYPE_CHECKING:
-    from genkit.ai._aio import Input, Output
-    from genkit.blocks.prompt import ExecutablePrompt
-    from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
-
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
+from genkit.blocks.interfaces import Input, Output
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import (
+    ExecutablePrompt,
     define_helper,
     define_partial,
     define_prompt,
@@ -73,6 +69,7 @@ from genkit.blocks.reranker import (
     define_reranker as define_reranker_block,
     rerank as rerank_block,
 )
+from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict

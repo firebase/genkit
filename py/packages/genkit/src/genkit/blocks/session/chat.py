@@ -99,7 +99,7 @@ Caveats:
 
 See Also:
     - JavaScript Chat: js/ai/src/chat.ts
-    - Session: genkit/session/session.py
+    - Session: genkit/blocks/session/session.py
 """
 # pyright: reportImportCycles=false
 
@@ -107,16 +107,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterable
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import Any, TypedDict
 
 from genkit.aio import Channel
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper
-from genkit.types import Message, Part
+from genkit.types import Message, Part, TextPart
 
 from .store import MAIN_THREAD
-
-if TYPE_CHECKING:
-    from .session import Session
+from .types import SessionLike
 
 
 class ChatOptions(TypedDict, total=False):
@@ -198,6 +196,18 @@ class ChatStreamResponse:
         return self._response_future
 
 
+def _normalize_prompt_parts(prompt: str | Part | list[Part]) -> list[Part]:
+    """Normalize prompt input into a list of Parts."""
+    if isinstance(prompt, str):
+        # Part is a RootModel, so we pass content via the 'root' parameter.
+        return [Part(root=TextPart(text=prompt))]
+    if isinstance(prompt, list):
+        return list(prompt)
+    if isinstance(prompt, Part):  # pyright: ignore[reportUnnecessaryIsInstance]
+        return [prompt]
+    return []
+
+
 class Chat:
     """A stateful chat conversation.
 
@@ -248,7 +258,7 @@ class Chat:
 
     def __init__(
         self,
-        session: Session,
+        session: SessionLike,
         request_base: dict[str, Any] | None = None,
         *,
         thread: str = MAIN_THREAD,
@@ -267,7 +277,7 @@ class Chat:
             thread: Thread name for this conversation (default: 'main').
             messages: Initial messages (from session thread or provided).
         """
-        self._session: Session = session
+        self._session: SessionLike = session
         self._request_base: dict[str, Any] = request_base or {}
         self._thread_name: str = thread
 
@@ -279,7 +289,7 @@ class Chat:
             self._messages = list(session.get_messages(self._thread_name))
 
     @property
-    def session(self) -> Session:
+    def session(self) -> SessionLike:
         """The underlying Session object (readonly, matches JS)."""
         return self._session
 
@@ -298,42 +308,26 @@ class Chat:
         prompt: str | Part | list[Part],
         **kwargs: Any,  # noqa: ANN401 - Forwarding generation arguments.
     ) -> GenerateResponseWrapper:
-        """Send a message and get the complete response.
+        """Send a message and get the complete response (matches JS chat.send)."""
+        # Append user message to history
+        self._messages.append(Message(role='user', content=_normalize_prompt_parts(prompt)))
 
-        This method sends a user message, generates a response, updates the
-        message history, and persists the session state.
+        # Merge base options and call-specific options
+        gen_options = {**self._request_base, **kwargs}
+        gen_options['messages'] = self._messages
 
-        Args:
-            prompt: The user message (string or parts).
-            **kwargs: Additional arguments passed to ai.generate().
-
-        Returns:
-            The model's response.
-
-        Example:
-            ```python
-            response = await chat.send('What is the weather?')
-            print(response.text)
-
-            # With additional options
-            response = await chat.send('Explain briefly', config={'temperature': 0.5})
-            ```
-        """
-        # Build generation options from request_base (pre-rendered options)
-        gen_options: dict[str, Any] = {
-            **self._request_base,
-            **kwargs,
-            'messages': self._messages,
-            'prompt': prompt,
-        }
-
-        # Generate using session's ai instance
+        # Use session's AI instance to generate response
         response = await self._session._ai.generate(**gen_options)  # pyright: ignore[reportPrivateUsage]
 
-        # Update message history
-        self._messages = response.messages
-
-        # Persist to session
+        # Append model response to history
+        if response.message is not None:
+            self._messages.append(
+                Message(
+                    role=response.message.role,
+                    content=response.message.content,
+                    metadata=response.message.metadata,
+                )
+            )
         self._session.update_messages(self._thread_name, self._messages)
         await self._session.save()
 
@@ -344,55 +338,41 @@ class Chat:
         prompt: str | Part | list[Part],
         **kwargs: Any,  # noqa: ANN401 - Forwarding generation arguments.
     ) -> ChatStreamResponse:
-        r"""Send a message and stream the response.
+        """Send a message and stream the response (matches JS chat.sendStream)."""
+        # Append user message to history
+        self._messages.append(Message(role='user', content=_normalize_prompt_parts(prompt)))
 
-        This method sends a user message and returns a streaming response
-        that can be iterated for chunks while also awaiting the final result.
+        # Merge base options and call-specific options
+        gen_options = {**self._request_base, **kwargs}
+        gen_options['messages'] = self._messages
 
-        Args:
-            prompt: The user message (string or parts).
-            **kwargs: Additional arguments passed to ai.generate().
+        # Use session's AI instance to generate response (streaming)
+        stream, base_response_future = self._session._ai.generate_stream(  # pyright: ignore[reportPrivateUsage]
+            **gen_options
+        )
 
-        Returns:
-            A ChatStreamResponse with stream and response properties.
-
-        Example:
-            ```python
-            result = chat.send_stream('Tell me a long story')
-
-            async for chunk in result.stream:
-                print(chunk.text, end='', flush=True)
-
-            final = await result.response
-            print(f'\\nDone! Used {final.usage} tokens')
-            ```
-        """
-        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel()
-
-        async def _do_send() -> GenerateResponseWrapper[Any]:
-            # Build generation options from request_base with streaming callback
-            gen_options: dict[str, Any] = {
-                **self._request_base,
-                **kwargs,
-                'messages': self._messages,
-                'prompt': prompt,
-                'on_chunk': lambda chunk: channel.send(chunk),
-            }
-
-            # Generate using session's ai instance
-            response = await self._session._ai.generate(**gen_options)  # pyright: ignore[reportPrivateUsage]
-
-            # Update message history
-            self._messages = response.messages
-
-            # Persist to session
+        async def _run_stream() -> GenerateResponseWrapper:
+            response = await base_response_future
+            # Append model response to history
+            if response.message is not None:
+                self._messages.append(
+                    Message(
+                        role=response.message.role,
+                        content=response.message.content,
+                        metadata=response.message.metadata,
+                    )
+                )
             self._session.update_messages(self._thread_name, self._messages)
             await self._session.save()
-
             return response
 
-        # Create task and use set_close_future to close the channel when done
-        response_task = asyncio.create_task(_do_send())
-        channel.set_close_future(response_task)
+        wrapped_response_future = asyncio.ensure_future(_run_stream())
+        return ChatStreamResponse(stream, wrapped_response_future)
 
-        return ChatStreamResponse(channel=channel, response_future=response_task)
+
+def _merge_chat_options(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+    """Merge chat options, filtering out chat-only keys."""
+    merged = {**base, **updates}
+    for key in _CHAT_ONLY_KEYS:
+        merged.pop(key, None)
+    return merged

@@ -33,10 +33,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, TypedDict, TypeVar, cast, overload  # noqa: F401
-
-if TYPE_CHECKING:
-    from genkit.blocks.prompt import ExecutablePrompt
+from typing import Any, TypeVar, cast, overload  # noqa: F401
 
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
@@ -50,6 +47,7 @@ from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
 )
+from genkit.blocks.interfaces import Input as _Input, Output, OutputConfigDict
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -70,7 +68,6 @@ from genkit.core.typing import (
     Operation,
     SpanMetadata,
 )
-from genkit.session import Chat, ChatOptions, InMemorySessionStore, Session, SessionStore
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -86,133 +83,11 @@ from ._base_async import GenkitBase
 from ._server import ServerSpec
 
 T = TypeVar('T')
-
-
-class OutputConfigDict(TypedDict, total=False):
-    """TypedDict for output configuration when passed as a dict."""
-
-    format: str | None
-    content_type: str | None
-    instructions: bool | str | None
-    schema: type | dict[str, object] | None
-    constrained: bool | None
+Input = _Input
 
 
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
-
-
-class Input(Generic[InputT]):
-    """Typed input configuration that preserves schema type information.
-
-    This class provides a type-safe way to configure input schemas for prompts.
-    When you pass a Pydantic model as the schema, the prompt's input parameter
-    will be properly typed.
-
-    Example:
-        ```python
-        from pydantic import BaseModel
-
-
-        class RecipeInput(BaseModel):
-            dish: str
-            servings: int
-
-
-        class Recipe(BaseModel):
-            name: str
-            ingredients: list[str]
-
-
-        # With Input[T] and Output[T], both input and output are typed
-        recipe_prompt = ai.define_prompt(
-            name='recipe',
-            prompt='Create a recipe for {dish} serving {servings} people',
-            input=Input(schema=RecipeInput),
-            output=Output(schema=Recipe),
-        )
-
-        # Input is type-checked!
-        response = await recipe_prompt(RecipeInput(dish='pizza', servings=4))
-        response.output.name  # ✓ Type checker knows this is str
-        ```
-
-    Attributes:
-        schema: The type/class for the input (Pydantic model, dataclass, etc.)
-    """
-
-    def __init__(self, schema: type[InputT]) -> None:
-        """Initialize typed input configuration.
-
-        Args:
-            schema: The type/class for structured input.
-        """
-        self.schema: type[InputT] = schema
-
-
-class Output(Generic[OutputT]):
-    """Typed output configuration that preserves schema type information.
-
-    This class provides a type-safe way to configure output options for generate().
-    When you pass a Pydantic model or other type as the schema, the return type
-    of generate() will be properly typed.
-
-    Example:
-        ```python
-        from pydantic import BaseModel
-
-
-        class Recipe(BaseModel):
-            name: str
-            ingredients: list[str]
-
-
-        # With Output[T], response.output is typed as Recipe
-        response = await ai.generate(prompt='Give me a pasta recipe', output=Output(schema=Recipe, format='json'))
-        response.output.name  # ✓ Type checker knows this is str
-        ```
-
-    Attributes:
-        schema: The type/class for the output (Pydantic model, dataclass, etc.)
-        format: Output format name (e.g., 'json', 'text'). Defaults to 'json'.
-        content_type: MIME content type for the output.
-        instructions: Formatting instructions (True for default, False to disable, or custom str).
-        constrained: Whether to constrain model output to the schema.
-    """
-
-    def __init__(
-        self,
-        schema: type[OutputT],
-        format: str = 'json',
-        content_type: str | None = None,
-        instructions: bool | str | None = None,
-        constrained: bool | None = None,
-    ) -> None:
-        """Initialize typed output configuration.
-
-        Args:
-            schema: The type/class for structured output.
-            format: Output format name. Defaults to 'json'.
-            content_type: Optional MIME content type.
-            instructions: Optional formatting instructions.
-            constrained: Whether to constrain output to schema.
-        """
-        self.schema: type[OutputT] = schema
-        self.format: str = format
-        self.content_type: str | None = content_type
-        self.instructions: bool | str | None = instructions
-        self.constrained: bool | None = constrained
-
-    def to_dict(self) -> OutputConfigDict:
-        """Convert to OutputConfigDict for internal use."""
-        result: OutputConfigDict = {'schema': self.schema, 'format': self.format}
-        if self.content_type is not None:
-            result['content_type'] = self.content_type
-        if self.instructions is not None:
-            result['instructions'] = self.instructions
-        if self.constrained is not None:
-            result['constrained'] = self.constrained
-        return result
 
 
 class Genkit(GenkitBase):
@@ -264,173 +139,6 @@ class Genkit(GenkitBase):
             return embedder
         else:
             raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
-
-    def create_session(
-        self,
-        store: SessionStore | None = None,
-        initial_state: dict[str, Any] | None = None,
-    ) -> Session:
-        """Creates a new session for multi-turn conversations.
-
-        **Overview:**
-
-        Initializes a new `Session` instance, which manages conversation history
-        and state. By default, it uses an ephemeral `InMemorySessionStore`, but
-        you should provide a persistent store (e.g. Firestore, Redis) for
-        production use.
-
-        **Args:**
-            store: The `SessionStore` implementation to use. Defaults to `InMemorySessionStore`.
-            initial_state: A dictionary of initial state to populate the session with.
-
-        **Returns:**
-            A new `Session` object bound to this Genkit instance.
-
-        **Examples:**
-
-        ```python
-        # ephemeral session
-        session = ai.create_session()
-
-        # persistent session with initial state
-        session = ai.create_session(store=my_firestore_store, initial_state={'username': 'jdoe'})
-        await session.chat('Hello')
-        ```
-        """
-        if store is None:
-            store = InMemorySessionStore()
-
-        # pyrefly: ignore[bad-argument-type] - Self type is compatible with Genkit
-        session = Session(ai=self, store=store)
-        if initial_state:
-            session.update_state(initial_state)
-        return session
-
-    async def load_session(
-        self,
-        session_id: str,
-        store: SessionStore,
-    ) -> Session | None:
-        """Loads an existing session from a store.
-
-        **Overview:**
-
-        Retrieves session data (history and state) from the provided `SessionStore`
-        and reconstructs a `Session` object. If the session ID is not found,
-        returns `None`.
-
-        **Args:**
-            session_id: The unique identifier of the session to load.
-            store: The `SessionStore` to query.
-
-        **Returns:**
-            The loaded `Session` object, or `None` if not found.
-
-        **Examples:**
-
-        ```python
-        session = await ai.load_session('sess_12345', store=my_store)
-        if session:
-            await session.chat('Continue our conversation')
-        else:
-            print('Session not found')
-        ```
-        """
-        data = await store.get(session_id)
-        if not data:
-            return None
-        # pyrefly: ignore[bad-argument-type] - Self type is compatible with Genkit
-        return Session(ai=self, store=store, data=data)
-
-    def chat(
-        self,
-        preamble_or_options: ExecutablePrompt | ChatOptions | None = None,
-        options: ChatOptions | None = None,
-    ) -> Chat:
-        r"""Creates a chat session for multi-turn conversations (matches JS API).
-
-        This method creates a Session and returns a Chat object for
-        conversational AI. It matches the JavaScript `ai.chat()` API exactly.
-
-        Args:
-            preamble_or_options: Either an ExecutablePrompt to use as the
-                conversation preamble, or a ChatOptions dict with system
-                prompt, model, config, etc.
-            options: Additional ChatOptions (only used when first arg is
-                an ExecutablePrompt).
-
-        Returns:
-            A Chat instance ready for multi-turn conversation.
-
-        Example:
-            Basic chat with system prompt:
-
-            ```python
-            chat = ai.chat({'system': 'You are a helpful pirate.'})
-            response = await chat.send('Hello!')
-            print(response.text)  # "Ahoy, matey!"
-            ```
-
-            Using an ExecutablePrompt:
-
-            ```python
-            support_agent = ai.define_prompt(
-                name='support',
-                system='You are a customer support agent.',
-            )
-            chat = ai.chat(support_agent)
-            response = await chat.send('My order is late')
-            ```
-
-            Streaming responses:
-
-            ```python
-            chat = ai.chat({'system': 'Be verbose.'})
-            result = chat.send_stream('Explain quantum physics')
-
-            async for chunk in result.stream:
-                print(chunk.text, end='', flush=True)
-
-            final = await result.response
-            ```
-
-            Multiple threads (use session.chat for thread names):
-
-            ```python
-            session = ai.create_session()
-            lawyer = session.chat('lawyer', {'system': 'Talk like a lawyer'})
-            pirate = session.chat('pirate', {'system': 'Talk like a pirate'})
-            await lawyer.send('Tell me a joke')
-            await pirate.send('Tell me a joke')
-            ```
-
-        See Also:
-            - session.chat(): For named threads within a session
-            - JavaScript ai.chat(): js/genkit/src/genkit-beta.ts
-        """
-        from genkit.blocks.prompt import ExecutablePrompt
-
-        # Resolve preamble and options (matching JS pattern exactly)
-        preamble: ExecutablePrompt | None = None
-        chat_options: ChatOptions | None = None
-
-        if preamble_or_options is not None:
-            if isinstance(preamble_or_options, ExecutablePrompt):
-                preamble = preamble_or_options
-                chat_options = options
-            else:
-                chat_options = preamble_or_options
-
-        # Create session and use session.chat() (matches JS)
-        store = chat_options.get('store') if chat_options else None
-        session = self.create_session(store=store)
-
-        if preamble is not None:
-            return session.chat(preamble, chat_options)
-        elif chat_options:
-            return session.chat(chat_options)
-        else:
-            return session.chat()
 
     @overload
     async def generate(
