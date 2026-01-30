@@ -46,7 +46,7 @@ This document organizes the identified gaps into executable milestones with depe
 | **flask** | N/A | ✅ | N/A | Python-specific (Express equiv.) |
 | **express** | ✅ | N/A | N/A | JS-specific |
 | **next** | ✅ | N/A | N/A | JS-specific |
-| **cloud-sql-pg** | ✅ | ❌ | ⚠️ Gap | Cloud SQL PostgreSQL vectorstore |
+| **cloud-sql-pg** | ✅ | ✅ | ✅ Complete | Cloud SQL PostgreSQL vectorstore |
 | **langchain** | ✅ | ❌ | ⚠️ Gap | LangChain integration |
 
 ### Remaining Work
@@ -55,7 +55,7 @@ This document organizes the identified gaps into executable milestones with depe
 |----------|------|--------|--------|
 | **P1** | Live/Realtime API (google-genai) | L | ❌ Not Started |
 | **P2** | Durable Streaming (StreamManager) | M | ❌ Not Started |
-| **P2** | `cloud-sql-pg` plugin | M | ❌ Not Started |
+| **P2** | `cloud-sql-pg` plugin | M | ✅ Complete |
 | **P2** | `langchain` plugin | M | ❌ Not Started |
 | **P2** | Multi-agent sample | M | ❌ Not Started |
 | **P3** | `session.run()` method | S | ❌ Not Started |
@@ -80,7 +80,7 @@ This document organizes the identified gaps into executable milestones with depe
 | Gap | Description | Effort | Status |
 |-----|-------------|--------|--------|
 | **Durable Streaming** | `StreamManager` interface, reconnection support | M | ❌ Not Started |
-| **cloud-sql-pg plugin** | Cloud SQL PostgreSQL vector store | M | ❌ Not Started |
+| **cloud-sql-pg plugin** | Cloud SQL PostgreSQL vector store | M | ✅ Complete |
 | **langchain plugin** | LangChain integration for existing chains | M | ❌ Not Started |
 
 ### P3 - Low Priority (Minor Enhancements)

@@ -142,6 +142,7 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-mcp                   = { workspace = true }
 genkit-plugin-msfoundry             = { workspace = true }
+genkit-cloud-sql-pg-plugin          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-pinecone              = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
@@ -151,6 +152,7 @@ google-genai-image                  = { workspace = true }
 msfoundry-hello                     = { workspace = true }
 prompt-demo                         = { workspace = true }
 rag-chroma-demo                     = { workspace = true }
+rag-cloud-sql-pg-sample             = { workspace = true }
 rag-pinecone-demo                   = { workspace = true }
 
 [tool.uv.workspace]
@@ -342,6 +344,7 @@ root = [
   "plugins/mcp/src",
   "plugins/ollama/src",
   "plugins/pinecone/src",
+  "plugins/cloud-sql-pg/src",
   "plugins/vertex-ai/src",
   "plugins/xai/src",
   "plugins/msfoundry/src",
