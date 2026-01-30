@@ -73,8 +73,9 @@ async def test_initialize(ollama_plugin_instance: Ollama) -> None:
     embedder_ref = EmbeddingDefinition(name='test_embedder')
     ollama_plugin_instance.models = [model_ref]
     ollama_plugin_instance.embedders = [embedder_ref]
+    mock_registry = MagicMock()
 
-    result = await ollama_plugin_instance.init()
+    result = await ollama_plugin_instance.init(mock_registry)
 
     # init returns actions for pre-configured models and embedders
     assert len(result) == 2

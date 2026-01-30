@@ -27,6 +27,7 @@ from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import GenerationCommonConfig
 from genkit.plugins.compat_oai.models import (
@@ -79,8 +80,11 @@ class OpenAI(Plugin):
         self._openai_params = openai_params
         self._openai_client = OpenAIClient(**openai_params)
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Initialize plugin.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             Actions for built-in OpenAI models and embedders.

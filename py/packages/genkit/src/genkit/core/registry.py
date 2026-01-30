@@ -292,7 +292,8 @@ class Registry:
                 async def run_init() -> None:
                     # Assert for type narrowing inside closure (pyrefly doesn't propagate from outer scope)
                     assert plugin is not None
-                    actions = await plugin.init()
+                    # pyrefly: ignore[bad-argument-type] - Self is Registry, pyrefly doesn't recognize
+                    actions = await plugin.init(registry=self)
                     for action in actions or []:
                         self.register_action_instance(action, namespace=plugin_name)
 

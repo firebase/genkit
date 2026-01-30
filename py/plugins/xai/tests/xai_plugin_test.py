@@ -64,8 +64,11 @@ def test_custom_models() -> None:
 @pytest.mark.asyncio
 async def test_plugin_initialize() -> None:
     """Test plugin initialization."""
+    from unittest.mock import MagicMock
+
     plugin = XAI(api_key='test-key')
-    actions = await plugin.init()
+    mock_registry = MagicMock()
+    actions = await plugin.init(mock_registry)
     assert len(actions) == len(SUPPORTED_XAI_MODELS)
 
 

@@ -42,19 +42,45 @@ def tests(session: nox.Session) -> None:
     Returns:
         None
     """
+    # TODO(#4333): Re-enable chroma tests for Python 3.14 when onnxruntime adds wheels.
+    # Track: https://github.com/microsoft/onnxruntime/issues/21292
+    # Skip chroma tests on Python 3.14+ (onnxruntime lacks 3.14 wheels)
+    python_version = str(session.python) if session.python else ''
+    is_py314 = python_version.startswith('3.14')
+
+    # Build the pytest arguments
+    if is_py314:
+        # For Python 3.14, use --no-project to skip workspace validation
+        # since genkit-plugin-chroma and rag-chroma-demo are incompatible
+        pytest_args = [
+            'uv',
+            'run',
+            '--no-project',
+            '--python',
+            f'{session.python}',
+            'pytest',
+            '-v',
+            '.',
+            '--ignore=plugins/chroma',
+            '--ignore=samples/rag-chroma',
+        ]
+    else:
+        pytest_args = [
+            'uv',
+            'run',
+            '--python',
+            f'{session.python}',
+            '--active',
+            '--isolated',
+            'pytest',
+            '-v',
+            '.',
+        ]
+
+    pytest_args.extend(session.posargs)
+
     session.run(
-        'uv',
-        'run',
-        '--python',
-        f'{session.python}',
-        '--active',
-        '--isolated',
-        'pytest',
-        '-v',
-        # '-vv',
-        # '--log-level=DEBUG',
-        '.',
-        *session.posargs,
+        *pytest_args,
         external=True,
     )
 

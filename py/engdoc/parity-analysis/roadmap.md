@@ -7,7 +7,7 @@ This document organizes the identified gaps into executable milestones with depe
 ## Current Status (Updated 2026-01-30)
 
 > [!IMPORTANT]
-> **Overall Parity: ~99% Complete** - Nearly all milestones done!
+> **Overall Parity: ~99% Complete** - Core functionality is feature-complete!
 
 ### Completed Milestones ✅
 
@@ -20,44 +20,104 @@ This document organizes the identified gaps into executable milestones with depe
 | **M4: Telemetry** | ✅ Complete | RealtimeSpanProcessor, flushTracing, AdjustingTraceExporter, GCP parity |
 | **M5: Advanced** | ✅ Complete | embed_many ✅, define_simple_retriever ✅, define_background_model ✅ |
 | **M6: Media Models** | ✅ Complete | Veo, Lyria, TTS, Gemini Image models |
+| **M7: Vector Stores** | ✅ Complete | Chroma, Pinecone plugins with samples |
+| **M8: Safety** | ✅ Complete | Checks plugin (guardrails, middleware) |
+| **M9: DAP & Testing** | ✅ Complete | Dynamic Action Providers, test_models() suite |
+
+### Plugin Comparison (JS vs Python)
+
+| Plugin | JS | Python | Status | Notes |
+|--------|-----|--------|--------|-------|
+| **anthropic** | ✅ | ✅ | ✅ Complete | Claude models, ThinkingConfig |
+| **google-genai** | ✅ | ✅ | ✅ Complete | Gemini, Imagen, Veo, Lyria, TTS |
+| **vertexai** | ✅ | ✅ | ✅ Complete | Model Garden, Vector Search |
+| **compat-oai** | ✅ | ✅ | ✅ Complete | OpenAI-compatible endpoints |
+| **ollama** | ✅ | ✅ | ✅ Complete | Local models, embeddings |
+| **deepseek** | ✅ | ✅ | ✅ Complete | DeepSeek models |
+| **xai** | ✅ | ✅ | ✅ Complete | Grok models |
+| **pinecone** | ✅ | ✅ | ✅ Complete | Vector store (indexer/retriever) |
+| **chroma** | ✅ | ✅ | ✅ Complete | Vector store (indexer/retriever) |
+| **dev-local-vectorstore** | ✅ | ✅ | ✅ Complete | Local development store |
+| **evaluators** | ✅ | ✅ | ✅ Complete | Built-in evaluators |
+| **checks** | ✅ | ✅ | ✅ Complete | Guardrails, safety checks |
+| **mcp** | ✅ | ✅ | ✅ Complete | MCP client/server/host |
+| **firebase** | ✅ | ✅ | ⚠️ Partial | Missing: Firestore session store, stream managers |
+| **google-cloud** | ✅ | ✅ | ✅ Complete | Telemetry, tracing, metrics |
+| **flask** | N/A | ✅ | N/A | Python-specific (Express equiv.) |
+| **express** | ✅ | N/A | N/A | JS-specific |
+| **next** | ✅ | N/A | N/A | JS-specific |
+| **cloud-sql-pg** | ✅ | ❌ | ⚠️ Gap | Cloud SQL PostgreSQL vectorstore |
+| **langchain** | ✅ | ❌ | ⚠️ Gap | LangChain integration |
 
 ### Remaining Work
 
 | Priority | Task | Effort | Status |
 |----------|------|--------|--------|
-| **P0** | Testing Infrastructure (`genkit.testing`) | S | ✅ Complete |
-| **P0** | Context Caching (google-genai) | M | ✅ Complete |
-| **P1** | `define_background_model()` | M | ✅ Complete |
-| **P1** | Veo support in google-genai plugin | M | ✅ Complete |
-| **P1** | TTS (Text-to-Speech) models | S | ✅ Complete |
-| **P1** | Gemini Image models | S | ✅ Complete |
-| **P1** | Lyria audio generation (Vertex AI) | S | ✅ Complete |
-| **P1** | Live/Realtime API | L | ❌ Not Started |
+| **P1** | Live/Realtime API (google-genai) | L | ❌ Not Started |
+| **P2** | Durable Streaming (StreamManager) | M | ❌ Not Started |
+| **P2** | `cloud-sql-pg` plugin | M | ❌ Not Started |
+| **P2** | `langchain` plugin | M | ❌ Not Started |
 | **P2** | Multi-agent sample | M | ❌ Not Started |
-| **P2** | MCP sample | M | ❌ Not Started |
+| **P3** | `session.run()` method | S | ❌ Not Started |
+| **P3** | `stopServers()` method | S | ❌ Not Started |
+| **P3** | Firestore session store | S | ❌ Not Started |
 
 ---
 
 ## Remaining Gaps (Prioritized)
 
 > [!NOTE]
-> Most original gaps have been addressed. These are the remaining items.
+> Core functionality is complete. These are enhancement items.
 
-| Gap | Description | Priority | Status |
-|-----|-------------|----------|--------|
-| **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. | **P0** | ✅ Complete |
-| **Context Caching** | `ai.cacheContent()`, `cachedContent` option in generate | **P0** | ✅ Complete |
-| **define_background_model** | Core API for background models (Veo, etc.) | **P1** | ✅ Complete |
-| **Veo plugin support** | Add `veo.py` to google-genai plugin (JS has `veo.ts`) | **P1** | ✅ Complete |
-| **TTS models** | Text-to-speech Gemini models (gemini-*-tts) | **P1** | ✅ Complete |
-| **Gemini Image models** | Native image generation (gemini-*-image) | **P1** | ✅ Complete |
-| **Lyria audio generation** | Audio generation via Vertex AI (lyria-002) | **P1** | ✅ Complete |
-| **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
-| **CLI/Tooling Parity** | `genkit` CLI commands and Python project behavior | Medium | ⚠️ Mostly Working |
-| **Error Types** | Python error hierarchy parity check | Low | ⚠️ Needs Review |
-| **Auth/Security Patterns** | Auth context flow through actions | Medium | ⚠️ Needs Review |
-| **Performance Benchmarks** | Streaming latency, memory usage | Low | ❌ Not Started |
-| **Migration Guide** | Documentation for JS to Python migration | Low | ❌ Not Started |
+### P1 - Important (User-Facing Features)
+
+| Gap | Description | Effort | Status |
+|-----|-------------|--------|--------|
+| **Live/Realtime API** | Google GenAI Live API for real-time bidirectional streaming | L | ❌ Not Started |
+
+### P2 - Nice to Have (Ecosystem Completeness)
+
+| Gap | Description | Effort | Status |
+|-----|-------------|--------|--------|
+| **Durable Streaming** | `StreamManager` interface, reconnection support | M | ❌ Not Started |
+| **cloud-sql-pg plugin** | Cloud SQL PostgreSQL vector store | M | ❌ Not Started |
+| **langchain plugin** | LangChain integration for existing chains | M | ❌ Not Started |
+
+### P3 - Low Priority (Minor Enhancements)
+
+| Gap | Description | Effort | Status |
+|-----|-------------|--------|--------|
+| **session.run()** | Execute functions within session context | S | ❌ Not Started |
+| **stopServers()** | Graceful server shutdown API | S | ❌ Not Started |
+| **Firestore session store** | Persistent session storage via Firestore | S | ❌ Not Started |
+| **MCP host as DAP** | Register MCP host as Dynamic Action Provider | S | ❌ Not Started |
+
+### Python 3.14 Compatibility
+
+> [!WARNING]
+> The Chroma plugin is **not compatible with Python 3.14** due to `onnxruntime` lacking 3.14 wheels.
+> Track: https://github.com/microsoft/onnxruntime/issues/21292
+
+| Component | Compatibility | Notes |
+|-----------|---------------|-------|
+| Core Genkit | ✅ Python 3.10-3.14 | Full support |
+| All plugins except Chroma | ✅ Python 3.10-3.14 | Full support |
+| Chroma plugin | ⚠️ Python 3.10-3.13 only | Waiting on onnxruntime |
+| rag-chroma sample | ⚠️ Python 3.10-3.13 only | Uses Chroma |
+
+**CI Workarounds Applied:**
+- noxfile uses `--no-project` for Python 3.14 sessions
+- tox.ini has py314-specific config skipping chroma
+- GitHub Actions workflow skips serial tests for 3.14
+- All workarounds have TODO comments referencing the tracking issue
+
+### Recent Bug Fixes (2026-01-30)
+
+| Bug | Component | Fix |
+|-----|-----------|-----|
+| `data_type()` method not called | Chroma, Pinecone | Added `()` to call method instead of accessing as property |
+| Plugin `init()` signature | All plugins | Standardized to accept optional `registry: Registry | None` |
+| RAG samples require manual indexing | rag-chroma, rag-pinecone | Added auto-indexing at startup in `main()` |
 
 ---
 
@@ -149,6 +209,171 @@ This document organizes the identified gaps into executable milestones with depe
 |-----|----------|--------|
 | `plugin.model()` factory pattern | Low | ⚠️ Different pattern (direct import) |
 | Zod schema validation | N/A | Pydantic equivalent | ✅ Complete |
+
+---
+
+## Comprehensive JS vs Python Feature Parity (2026-01-30)
+
+> [!NOTE]
+> Complete audit of all JS features compared to Python implementation.
+
+### Core Genkit Class Methods
+
+| Method | JS | Python | Status | Notes |
+|--------|-----|--------|--------|-------|
+| `generate()` | ✅ | ✅ | ✅ Complete | String, Part[], or options overloads |
+| `generateStream()` | ✅ | ✅ | ✅ Complete | Returns iterator + future |
+| `generateOperation()` | ✅ | ✅ | ✅ Complete | Operation-tracked generation |
+| `checkOperation()` | ✅ | ✅ | ✅ Complete | Background op status |
+| `cancelOperation()` | ✅ | ✅ | ✅ Complete | Cancel background op |
+| `embed()` | ✅ | ✅ | ✅ Complete | Single embedding |
+| `embedMany()` | ✅ | ✅ | ✅ Complete | Batch embeddings |
+| `evaluate()` | ✅ | ✅ | ✅ Complete | Dataset evaluation |
+| `rerank()` | ✅ | ✅ | ✅ Complete | Document reranking |
+| `index()` | ✅ | ✅ | ✅ Complete | Document indexing |
+| `retrieve()` | ✅ | ✅ | ✅ Complete | Document retrieval |
+| `run()` | ✅ | ✅ | ✅ Complete | Traced sub-steps |
+| `currentContext()` | ✅ | ✅ | ✅ Complete | Static method |
+| `flushTracing()` | ✅ | ✅ | ✅ Complete | Flush trace exporters |
+| `stopServers()` | ✅ | ❌ | ⚠️ Gap | Server cleanup |
+
+### Action Definition Methods
+
+| Method | JS | Python | Status | Notes |
+|--------|-----|--------|--------|-------|
+| `defineFlow()` / `@flow()` | ✅ | ✅ | ✅ Complete | Decorator pattern in Python |
+| `defineTool()` / `@tool()` | ✅ | ✅ | ✅ Complete | Decorator pattern in Python |
+| `dynamicTool()` | ✅ | ✅ | ✅ Complete | Unregistered tools |
+| `defineModel()` | ✅ | ✅ | ✅ Complete | Custom models |
+| `defineBackgroundModel()` | ✅ | ✅ | ✅ Complete | Long-running operations |
+| `definePrompt()` | ✅ | ✅ | ✅ Complete | Programmatic prompts |
+| `prompt()` | ✅ | ✅ | ✅ Complete | Prompt lookup |
+| `defineRetriever()` | ✅ | ✅ | ✅ Complete | Custom retrievers |
+| `defineSimpleRetriever()` | ✅ | ✅ | ✅ Complete | Simple retriever helper |
+| `defineIndexer()` | ✅ | ✅ | ✅ Complete | Custom indexers |
+| `defineEvaluator()` | ✅ | ✅ | ✅ Complete | Custom evaluators |
+| `defineBatchEvaluator()` | ❌ | ✅ | 🎉 Python extra | Python has batch evaluator |
+| `defineEmbedder()` | ✅ | ✅ | ✅ Complete | Custom embedders |
+| `defineReranker()` | ✅ | ✅ | ✅ Complete | Custom rerankers |
+| `defineSchema()` | ✅ | ✅ | ✅ Complete | Schema registration |
+| `defineJsonSchema()` | ✅ | ✅ | ✅ Complete | JSON schema registration |
+| `defineHelper()` | ✅ | ✅ | ✅ Complete | Handlebars helpers |
+| `definePartial()` | ✅ | ✅ | ✅ Complete | Handlebars partials |
+| `defineResource()` | ✅ | ✅ | ✅ Complete | Resource actions |
+| `defineFormat()` | ✅ | ✅ | ✅ Complete | Custom formats |
+| `defineDynamicActionProvider()` | ✅ | ✅ | ✅ Complete | Dynamic action providers |
+
+### Session & Chat APIs
+
+| Feature | JS | Python | Status | Notes |
+|---------|-----|--------|--------|-------|
+| `Session` class | ✅ | ✅ | ✅ Complete | Stateful execution |
+| `session.chat()` | ✅ | ✅ | ✅ Complete | Create chat instances |
+| `chat.send()` | ✅ | ✅ | ✅ Complete | Send messages |
+| `chat.sendStream()` | ✅ | ✅ | ✅ Complete | Streaming messages |
+| `session.updateState()` | ✅ | ✅ | ✅ Complete | State management |
+| `session.updateMessages()` | ✅ | ✅ | ✅ Complete | Message management |
+| `session.run()` | ✅ | ❌ | ⚠️ Gap | Execute within session |
+| `SessionStore` interface | ✅ | ✅ | ✅ Complete | Persistence protocol |
+| `InMemorySessionStore` | ✅ | ✅ | ✅ Complete | In-memory impl |
+| Thread support | ✅ | ✅ | ✅ Complete | Multiple threads |
+
+### Streaming & Durable Streaming
+
+| Feature | JS | Python | Status | Notes |
+|---------|-----|--------|--------|-------|
+| Basic streaming | ✅ | ✅ | ✅ Complete | `generate_stream()` |
+| `on_chunk` callback | ✅ | ✅ | ✅ Complete | Per-chunk callback |
+| `StreamManager` interface | ✅ | ❌ | ⚠️ Gap | Durable streaming |
+| `InMemoryStreamManager` | ✅ | ❌ | ⚠️ Gap | In-memory impl |
+| `FirestoreStreamManager` | ✅ | ❌ | ⚠️ Gap | Firestore backend |
+| `RtdbStreamManager` | ✅ | ❌ | ⚠️ Gap | RTDB backend |
+| Stream reconnection | ✅ | ❌ | ⚠️ Gap | HTTP reconnection |
+
+### Interrupts (Tool Pause/Resume)
+
+| Feature | JS | Python | Status | Notes |
+|---------|-----|--------|--------|-------|
+| `ctx.interrupt()` | ✅ | ✅ | ✅ Complete | In `ToolRunContext` |
+| `ToolInterruptError` | ✅ | ✅ | ✅ Complete | Exception class |
+| `tool_response()` helper | ✅ | ✅ | ✅ Complete | Resume helper |
+| `response.interrupts` | ✅ | ✅ | ✅ Complete | Interrupt list on response |
+| Interrupt handling in generate loop | ✅ | ✅ | ✅ Complete | Auto-handles interrupts |
+| `defineInterrupt()` | ✅ | ❌ | ⚠️ Gap | Standalone interrupt tool |
+| `tool.respond()` | ✅ | ✅ | ⚠️ Partial | In prompt.py docstring |
+| `tool.restart()` | ✅ | ❌ | ⚠️ Gap | Restart from interrupt |
+
+### MCP (Model Context Protocol)
+
+| Feature | JS | Python | Status | Notes |
+|---------|-----|--------|--------|-------|
+| `createMcpClient()` | ✅ | ✅ | ✅ Complete | Single MCP client |
+| `createMcpHost()` | ✅ | ✅ | ✅ Complete | Multi-server host |
+| `createMcpServer()` | ✅ | ✅ | ✅ Complete | Expose as MCP server |
+| `defineMcpHost()` as DAP | ✅ | ❌ | ⚠️ Gap | Register host as DAP |
+| `defineMcpClient()` as DAP | ✅ | ❌ | ⚠️ Gap | Register client as DAP |
+| Stdio transport | ✅ | ✅ | ✅ Complete | |
+| HTTP/SSE transport | ✅ | ✅ | ✅ Complete | |
+
+### Testing Infrastructure
+
+| Feature | JS | Python | Status | Notes |
+|---------|-----|--------|--------|-------|
+| `EchoModel` | ✅ | ✅ | ✅ Complete | Echo input |
+| `ProgrammableModel` | ✅ | ✅ | ✅ Complete | Configurable responses |
+| `StaticResponseModel` | ❌ | ✅ | 🎉 Python extra | Fixed response |
+| `testModels()` suite | ✅ | ✅ | ✅ Complete | Model test suite |
+| Request inspection | ✅ | ✅ | ✅ Complete | `last_request` |
+| Streaming test support | ✅ | ✅ | ✅ Complete | Countdown chunks |
+| `skip()` helper | ✅ | ✅ | ✅ Complete | Skip test cases |
+
+### Tracing & Telemetry
+
+| Feature | JS | Python | Status | Notes |
+|---------|-----|--------|--------|-------|
+| OpenTelemetry integration | ✅ | ✅ | ✅ Complete | |
+| `runInNewSpan()` | ✅ | ✅ | ✅ Complete | Traced spans |
+| `RealtimeSpanProcessor` | ✅ | ✅ | ✅ Complete | Live trace export |
+| `flushTracing()` | ✅ | ✅ | ✅ Complete | Flush exporters |
+| `AdjustingTraceExporter` | ✅ | ✅ | ✅ Complete | PII redaction |
+| Logging instrumentation | ✅ | ✅ | ✅ Complete | Log correlation |
+
+### Framework Integration
+
+| Feature | JS | Python | Status | Notes |
+|---------|-----|--------|--------|-------|
+| Express integration | ✅ | N/A | N/A | JS-specific |
+| Next.js integration | ✅ | N/A | N/A | JS-specific |
+| Flask integration | N/A | ✅ | N/A | Python-specific |
+| HTTP endpoints | ✅ | ✅ | ✅ Complete | Flow endpoints |
+| Durable streaming HTTP | ✅ | ❌ | ⚠️ Gap | Stream reconnection |
+
+### Priority Gaps Summary
+
+**P0 - Critical:**
+- None identified - core functionality complete ✅
+
+**P1 - Important:**
+| Gap | Description | Effort |
+|-----|-------------|--------|
+| **Live/Realtime API** | Google GenAI Live API for bidirectional streaming | L |
+
+**P2 - Nice to Have:**
+| Gap | Description | Effort |
+|-----|-------------|--------|
+| **Durable Streaming** | StreamManager, reconnection | M |
+| `stopServers()` | Server cleanup | S |
+| `defineMcpHost()` as DAP | MCP host as DAP | S |
+| **langchain** plugin | LangChain integration | M |
+| **cloud-sql-pg** plugin | Cloud SQL PostgreSQL vectorstore | M |
+| Firestore session store | Session persistence | S |
+
+**P3 - Low Priority:**
+| Gap | Description | Effort |
+|-----|-------------|--------|
+| `session.run()` | Execute within session | S |
+| `defineInterrupt()` | Standalone interrupt tool definition | S |
+| `tool.restart()` | Restart from interrupt | S |
 
 ---
 

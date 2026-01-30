@@ -59,8 +59,9 @@ def test_plugin_initialization_without_api_key() -> None:
 async def test_plugin_initialize(mock_client: MagicMock) -> None:
     """Test plugin init method."""
     plugin = DeepSeek(api_key='test-key', models=['deepseek-chat'])
+    mock_registry = MagicMock()
 
-    result = await plugin.init()
+    result = await plugin.init(mock_registry)
 
     # init returns empty list for lazy loading
     assert result == []
@@ -112,8 +113,9 @@ def test_plugin_with_custom_params(mock_client: MagicMock) -> None:
 async def test_plugin_initialize_no_models(mock_client: MagicMock) -> None:
     """Test plugin init returns empty list for lazy loading."""
     plugin = DeepSeek(api_key='test-key')
+    mock_registry = MagicMock()
 
-    result = await plugin.init()
+    result = await plugin.init(mock_registry)
 
     # init returns empty list for lazy loading
     assert result == []

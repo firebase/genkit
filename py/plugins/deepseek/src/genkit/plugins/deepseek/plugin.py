@@ -24,6 +24,7 @@ from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
+from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.deepseek.model_info import SUPPORTED_DEEPSEEK_MODELS
@@ -65,8 +66,11 @@ class DeepSeek(Plugin):
         self.models = models
         self.deepseek_params = deepseek_params
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Initialize the plugin.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             Empty list (using lazy loading via resolve).

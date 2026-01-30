@@ -155,19 +155,32 @@ jobs:
         run: ./py/bin/generate_schema_typing --ci
 
       - name: Run serial tests
-        if: matrix.test-type == 'serial'
-        run: uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
+        # TODO: Re-enable serial tests for Python 3.14 when onnxruntime adds wheels.
+        # Track: https://github.com/microsoft/onnxruntime/issues/21292
+        # Skip serial tests for Python 3.14 - chromadb doesn't support it yet.
+        # Nox tests handle Python 3.14 with proper exclusions.
+        if: matrix.test-type == 'serial' && matrix.python-version != '3.14'
+        run: |
+          uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
 
       - name: Run tox tests
         if: matrix.test-type == 'tox'
         run: |
           clean_version=$(echo "${{ matrix.python-version }}" | tr -d '.')
-          uv run --directory py tox -e "py$clean_version"
+          # TODO: Remove --python 3.12 when onnxruntime adds Python 3.14 wheels.
+          # Track: https://github.com/microsoft/onnxruntime/issues/21292
+          # Run tox with Python 3.12 to avoid workspace compatibility issues
+          uv run --python 3.12 --directory py tox -e "py$clean_version"
 
       - name: Run nox tests
         if: matrix.test-type == 'nox'
         run: |
-          uv run --directory py nox -s "tests-${{ matrix.python-version }}"
+          # TODO: Remove --python 3.12 when onnxruntime adds Python 3.14 wheels.
+          # Track: https://github.com/microsoft/onnxruntime/issues/21292
+          # Run nox with Python 3.12 to avoid workspace compatibility issues
+          # with chromadb (which doesn't support Python 3.14 yet).
+          # Nox will still create the test environment with the target Python version.
+          uv run --python 3.12 --directory py nox -s "tests-${{ matrix.python-version }}"
 
   python-build:
     name: Build Distributions

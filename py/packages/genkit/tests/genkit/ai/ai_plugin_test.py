@@ -24,7 +24,7 @@ import pytest
 
 from genkit.ai import Genkit, Plugin
 from genkit.core.action import Action, ActionMetadata, ActionRunContext
-from genkit.core.registry import ActionKind
+from genkit.core.registry import ActionKind, Registry
 from genkit.core.typing import FinishReason
 from genkit.types import GenerateRequest, GenerateResponse, Message, Part, Role, TextPart
 
@@ -34,7 +34,7 @@ class AsyncResolveOnlyPlugin(Plugin):
 
     name = 'async-resolve-only'
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: Registry | None = None) -> list[Action]:
         """Initialize the plugin."""
         # Intentionally register nothing eagerly.
         return []
@@ -73,7 +73,7 @@ class AsyncInitPlugin(Plugin):
 
     name = 'async-init-plugin'
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: Registry | None = None) -> list[Action]:
         """Initialize the plugin."""
         action = await self.resolve(ActionKind.MODEL, f'{self.name}/init-model')
         return [action] if action else []

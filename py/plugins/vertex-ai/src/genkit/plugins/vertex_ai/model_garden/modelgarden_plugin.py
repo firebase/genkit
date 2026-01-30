@@ -23,6 +23,7 @@ from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS
 from genkit.plugins.compat_oai.typing import OpenAIConfig
@@ -77,8 +78,11 @@ class ModelGardenPlugin(Plugin):
         self.models = models
         self.model_locations = model_locations or {}
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Initialize plugin.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             Empty list (using lazy loading via resolve).

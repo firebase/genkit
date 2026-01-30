@@ -58,8 +58,28 @@
     # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
     schema_=options.output.json_schema if options.output else None,
     ```
-* Move imports to the top of the file and avoid using imports inside function
-  definitions.
+* **Import Location**: Always place all imports at the top of the file.
+  Do not use imports inside functions, methods, or class definitions.
+  This ensures:
+  * Faster module loading (imports are resolved once at module load time)
+  * Clearer dependency visibility (all dependencies visible at a glance)
+  * Easier refactoring and testing
+  * Better IDE support for auto-imports and navigation
+
+  **Wrong**:
+  ```python
+  async def my_function():
+      from genkit.ai import Genkit  # Don't import inside functions
+      ...
+  ```
+
+  **Correct**:
+  ```python
+  from genkit.ai import Genkit  # Import at module top
+
+  async def my_function():
+      ...
+  ```
 
 ## Generated Files & Data Model
 
@@ -101,7 +121,27 @@
 * **Comments**:
   * Use proper punctuation.
   * Avoid comments explaining obvious code.
-  * Use `TODO: Fix this later.` format for stubs.
+  * **TODO Format**: All TODOs **MUST** include a GitHub issue link for tracking.
+    Plain `# TODO: description` comments are **NOT** allowed.
+    
+    **Correct format:**
+    ```python
+    # TODO(https://github.com/firebase/genkit/issues/1234): Implement caching
+    ```
+    
+    **Short format (also accepted):**
+    ```python
+    # TODO(#1234): Implement caching
+    ```
+    
+    **Wrong format (will fail CI):**
+    ```python
+    # TODO: Implement caching
+    # TODO: Fix this later.
+    ```
+    
+    Before adding a TODO, create a GitHub issue first, then reference it.
+    This ensures all technical debt is tracked and prioritized.
   * **Do not add section marker comments** (e.g., `# ============` banners).
     Keep code clean and let structure speak for itself.
 * Ensure that `bin/lint` passes without errors.
@@ -201,6 +241,12 @@
 * Update the roadmap.md file as and when features are implemented.
 * When a plugin such as a model provider is updated or changes, please also
   update relevant documentation and samples.
+* **Keep Directory READMEs Updated**: When adding or modifying plugins or samples,
+  always update the corresponding directory README files:
+  * **`py/plugins/README.md`**: Update when adding a new plugin. Add it to the
+    appropriate category table with package name, description, and features.
+  * **`py/samples/README.md`**: Update when adding a new sample. Add it to the
+    appropriate category table with description and requirements.
 * Try to make running the sample flows a one-click operation by always defining
   default input values.
 * **IMPORTANT**: For default values to appear in the Dev UI input fields, use
@@ -312,6 +358,36 @@ Include the Apache 2.0 license header at the top of each file (update year as ne
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+```
+
+## Plugin Package Naming Convention
+
+All Genkit plugins **MUST** follow the naming convention `genkit-plugin-{name}`:
+
+| Pattern | Example | Status |
+|---------|---------|--------|
+| `genkit-plugin-{name}` | `genkit-plugin-google-genai` | ✅ Correct |
+| `genkit-{name}-plugin` | `genkit-google-genai-plugin` | ❌ Wrong |
+| `{name}-genkit-plugin` | `google-genai-genkit-plugin` | ❌ Wrong |
+
+**Requirements:**
+* Package name in `pyproject.toml` must be `genkit-plugin-{name}`
+* Use lowercase with hyphens (not underscores) in package names
+* The `{name}` should match the plugin directory name (e.g., `plugins/google-genai/` → `genkit-plugin-google-genai`)
+* Set `requires-python = ">=3.10"` for CI compatibility
+* Include Python 3.10, 3.11, and 3.12 in classifiers
+
+**Example pyproject.toml:**
+```toml
+[project]
+name = "genkit-plugin-example"
+version = "0.1.0"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 ```
 
 ## Dependency Management

@@ -108,7 +108,7 @@ from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
-from genkit.core.registry import ActionKind
+from genkit.core.registry import ActionKind, Registry
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     default_embedder_info,
@@ -345,8 +345,11 @@ class GoogleAI(Plugin):
             http_options=_inject_attribution_headers(http_options, base_url, api_version),
         )
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Initialize the plugin.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             List of Action objects for known/supported models.
@@ -684,8 +687,11 @@ class VertexAI(Plugin):
             http_options=_inject_attribution_headers(http_options, base_url, api_version),
         )
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Initialize the plugin.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             List of Action objects for known/supported models.
