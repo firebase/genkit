@@ -370,7 +370,9 @@ async def generate_images(
     """
     return await ai.generate(
         prompt='tell me a about the Eifel Tower with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image']).model_dump(),
+        config=GeminiConfigSchema.model_validate({
+            'response_modalities': ['text', 'image'],
+        }).model_dump(),
     )
 
 

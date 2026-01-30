@@ -74,7 +74,7 @@ async def execute_code(
     """
     response = await ai.generate(
         prompt=f'Generate and run code for the task: {task}',
-        config=GeminiConfigSchema(temperature=1, code_execution=True).model_dump(),
+        config=GeminiConfigSchema.model_validate({'temperature': 1, 'code_execution': True}).model_dump(),
     )
     if not response.message:
         raise ValueError('No message returned from model')

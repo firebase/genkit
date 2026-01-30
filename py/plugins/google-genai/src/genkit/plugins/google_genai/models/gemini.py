@@ -143,11 +143,11 @@ else:
     from enum import StrEnum
 
 from functools import cached_property
-from typing import Any, cast
+from typing import Annotated, Any, cast
 
 from google import genai
 from google.genai import types as genai_types
-from pydantic import ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
 from genkit.ai import (
     ActionRunContext,
@@ -156,8 +156,6 @@ from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
 from genkit.core.tracing import tracer
 from genkit.lang.deprecations import (
-    DeprecationInfo,
-    DeprecationStatus,
     deprecated_enum_metafactory,
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
@@ -177,18 +175,308 @@ from genkit.types import (
 )
 
 
-class GeminiConfigSchema(genai_types.GenerateContentConfig):
+class HarmCategory(StrEnum):
+    """Harm categories."""
+
+    HARM_CATEGORY_UNSPECIFIED = 'HARM_CATEGORY_UNSPECIFIED'
+    HARM_CATEGORY_HATE_SPEECH = 'HARM_CATEGORY_HATE_SPEECH'
+    HARM_CATEGORY_SEXUALLY_EXPLICIT = 'HARM_CATEGORY_SEXUALLY_EXPLICIT'
+    HARM_CATEGORY_HARASSMENT = 'HARM_CATEGORY_HARASSMENT'
+    HARM_CATEGORY_DANGEROUS_CONTENT = 'HARM_CATEGORY_DANGEROUS_CONTENT'
+
+
+class HarmBlockThreshold(StrEnum):
+    """Harm block thresholds."""
+
+    BLOCK_LOW_AND_ABOVE = 'BLOCK_LOW_AND_ABOVE'
+    BLOCK_MEDIUM_AND_ABOVE = 'BLOCK_MEDIUM_AND_ABOVE'
+    BLOCK_ONLY_HIGH = 'BLOCK_ONLY_HIGH'
+    BLOCK_NONE = 'BLOCK_NONE'
+
+
+class SafetySettingsSchema(BaseModel):
+    """Safety settings schema."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    category: HarmCategory
+    threshold: HarmBlockThreshold
+
+
+class PrebuiltVoiceConfig(BaseModel):
+    """Prebuilt voice config."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    voice_name: str | None = Field(None, alias='voiceName')
+
+
+class FunctionCallingMode(StrEnum):
+    """Function calling mode."""
+
+    MODE_UNSPECIFIED = 'MODE_UNSPECIFIED'
+    AUTO = 'AUTO'
+    ANY = 'ANY'
+    NONE = 'NONE'
+
+
+class FunctionCallingConfig(BaseModel):
+    """Function calling config."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    mode: FunctionCallingMode | None = None
+    allowed_function_names: list[str] | None = Field(None, alias='allowedFunctionNames')
+
+
+class ThinkingLevel(StrEnum):
+    """Thinking level."""
+
+    MINIMAL = 'MINIMAL'
+    LOW = 'LOW'
+    MEDIUM = 'MEDIUM'
+    HIGH = 'HIGH'
+
+
+class ThinkingConfigSchema(BaseModel):
+    """Thinking config schema."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    include_thoughts: bool | None = Field(None, alias='includeThoughts')
+    thinking_budget: int | None = Field(None, alias='thinkingBudget')
+    thinking_level: ThinkingLevel | None = Field(None, alias='thinkingLevel')
+
+
+class FileSearchConfigSchema(BaseModel):
+    """File search config schema."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    file_search_store_names: list[str] | None = Field(None, alias='fileSearchStoreNames')
+    metadata_filter: str | None = Field(None, alias='metadataFilter')
+    top_k: int | None = Field(None, alias='topK')
+
+
+class ImageAspectRatio(StrEnum):
+    """Image aspect ratio."""
+
+    RATIO_1_1 = '1:1'
+    RATIO_2_3 = '2:3'
+    RATIO_3_2 = '3:2'
+    RATIO_3_4 = '3:4'
+    RATIO_4_3 = '4:3'
+    RATIO_4_5 = '4:5'
+    RATIO_5_4 = '5:4'
+    RATIO_9_16 = '9:16'
+    RATIO_16_9 = '16:9'
+    RATIO_21_9 = '21:9'
+
+
+class ImageSize(StrEnum):
+    """Image size."""
+
+    SIZE_1K = '1K'
+    SIZE_2K = '2K'
+    SIZE_4K = '4K'
+
+
+class ImageConfigSchema(BaseModel):
+    """Image config schema."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    aspect_ratio: ImageAspectRatio | None = Field(None, alias='aspectRatio')
+    image_size: ImageSize | None = Field(None, alias='imageSize')
+
+
+class VoiceConfigSchema(BaseModel):
+    """Voice config schema."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    prebuilt_voice_config: PrebuiltVoiceConfig | None = Field(None, alias='prebuiltVoiceConfig')
+
+
+class GeminiConfigSchema(GenerationCommonConfig):
     """Gemini Config Schema."""
 
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+
+    safety_settings: Annotated[
+        list[SafetySettingsSchema] | None,
+        WithJsonSchema({
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'category': {'type': 'string', 'enum': [e.value for e in HarmCategory]},
+                    'threshold': {'type': 'string', 'enum': [e.value for e in HarmBlockThreshold]},
+                },
+                'required': ['category', 'threshold'],
+                'additionalProperties': True,
+            },
+            'description': (
+                'Adjust how likely you are to see responses that could be harmful. '
+                'Content is blocked based on the probability that it is harmful.'
+            ),
+        }),
+    ] = Field(
+        None,
+        alias='safetySettings',
+    )
+    # Gemini specific
     model_config = ConfigDict(extra='allow')
 
-    code_execution: bool | None = None
-    response_modalities: list[str] | None = None
-    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
-    thinking_config: dict[str, object] | None = None
-    file_search: dict[str, object] | None = None
-    url_context: dict[str, object] | None = None
-    api_version: str | None = None
+    # inherited from GenerationCommonConfig:
+    # version, temperature, max_output_tokens, top_k, top_p, stop_sequences
+
+    temperature: float | None = Field(
+        default=None,
+        description='Controls the randomness of the output. Values can range over [0.0, 2.0].',
+    )
+
+    top_p: float | None = Field(
+        default=None,
+        alias='topP',
+        description=(
+            'The maximum cumulative probability of tokens to consider when sampling. Values can range over [0.0, 1.0].'
+        ),
+    )
+    top_k: int | None = Field(  # pyrefly: ignore[bad-override]
+        default=None,
+        alias='topK',
+        description=('The maximum number of tokens to consider when sampling. Values can range over [1, 40].'),
+    )
+    candidate_count: int | None = Field(
+        default=None, description='Number of generated responses to return.', alias='candidateCount'
+    )
+    max_output_tokens: int | None = Field(  # pyrefly: ignore[bad-override]
+        default=None, alias='maxOutputTokens', description='Maximum number of tokens to generate.'
+    )
+    stop_sequences: list[str] | None = Field(default=None, alias='stopSequences', description='Stop sequences.')
+    presence_penalty: float | None = Field(default=None, description='Presence penalty.', alias='presencePenalty')
+    frequency_penalty: float | None = Field(default=None, description='Frequency penalty.', alias='frequencyPenalty')
+    response_mime_type: str | None = Field(default=None, description='Response MIME type.', alias='responseMimeType')
+    response_schema: dict[str, Any] | None = Field(default=None, description='Response schema.', alias='responseSchema')
+
+    code_execution: bool | dict[str, Any] | None = Field(
+        None, description='Enables the model to generate and run code.', alias='codeExecution'
+    )
+    response_modalities: list[str] | None = Field(
+        None,
+        description=(
+            "The modalities to be used in response. Only supported for 'gemini-2.0-flash-exp' model at present."
+        ),
+        alias='responseModalities',
+    )
+
+    thinking_config: Annotated[
+        ThinkingConfigSchema | None,
+        WithJsonSchema({
+            'type': 'object',
+            'properties': {
+                'includeThoughts': {
+                    'type': 'boolean',
+                    'description': (
+                        'Indicates whether to include thoughts in the response. If true, thoughts are returned only if '
+                        'the model supports thought and thoughts are available.'
+                    ),
+                },
+                'thinkingBudget': {
+                    'type': 'integer',
+                    'description': (
+                        'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. -1 is AUTOMATIC. '
+                        'The default values and allowed ranges are model dependent. The thinking budget parameter '
+                        'gives the model guidance on the number of thinking tokens it can use when generating a '
+                        'response. A greater number of tokens is typically associated with more detailed thinking, '
+                        'which is needed for solving more complex tasks.'
+                    ),
+                },
+                'thinkingLevel': {
+                    'type': 'string',
+                    'enum': [e.value for e in ThinkingLevel],
+                    'description': (
+                        'For Gemini 3.0 - Indicates the thinking level. A higher level is associated with more '
+                        'detailed thinking, which is needed for solving more complex tasks.'
+                    ),
+                },
+            },
+            'additionalProperties': True,
+        }),
+    ] = Field(None, alias='thinkingConfig')
+
+    file_search: Annotated[
+        FileSearchConfigSchema | None,
+        WithJsonSchema({
+            'type': 'object',
+            'properties': {
+                'fileSearchStoreNames': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'description': (
+                        'The names of the fileSearchStores to retrieve from. '
+                        'Example: fileSearchStores/my-file-search-store-123'
+                    ),
+                },
+                'metadataFilter': {
+                    'type': 'string',
+                    'description': 'Metadata filter to apply to the semantic retrieval documents and chunks.',
+                },
+                'topK': {
+                    'type': 'integer',
+                    'description': 'The number of semantic retrieval chunks to retrieve.',
+                },
+            },
+            'additionalProperties': True,
+        }),
+    ] = Field(None, alias='fileSearch')
+
+    url_context: bool | dict[str, Any] | None = Field(
+        None, description='Return grounding metadata from links included in the query', alias='urlContext'
+    )
+    google_search_retrieval: bool | dict[str, Any] | None = Field(
+        None,
+        description='Retrieve public web data for grounding, powered by Google Search.',
+        alias='googleSearchRetrieval',
+    )
+    function_calling_config: Annotated[
+        FunctionCallingConfig | None,
+        WithJsonSchema({
+            'type': 'object',
+            'properties': {
+                'mode': {'type': 'string', 'enum': [e.value for e in FunctionCallingMode]},
+                'allowedFunctionNames': {'type': 'array', 'items': {'type': 'string'}},
+            },
+            'description': (
+                'Controls how the model uses the provided tools (function declarations). With AUTO (Default) '
+                'mode, the model decides whether to generate a natural language response or suggest a function '
+                'call based on the prompt and context. With ANY, the model is constrained to always predict a '
+                'function call and guarantee function schema adherence. With NONE, the model is prohibited '
+                'from making function calls.'
+            ),
+            'additionalProperties': True,
+        }),
+    ] = Field(
+        None,
+        alias='functionCallingConfig',
+    )
+
+    api_version: str | None = Field(
+        None, description='Overrides the plugin-configured or default apiVersion, if specified.', alias='apiVersion'
+    )
+    base_url: str | None = Field(
+        None, description='Overrides the plugin-configured or default baseUrl, if specified.', alias='baseUrl'
+    )
+    api_key: str | None = Field(
+        None, description='Overrides the plugin-configured API key, if specified.', alias='apiKey', exclude=True
+    )
+    context_cache: bool | None = Field(
+        None,
+        description=(
+            'Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.'
+        ),
+        alias='contextCache',
+    )
+
+
+class SpeechConfigSchema(BaseModel):
+    """Speech config schema."""
+
+    voice_config: VoiceConfigSchema | None = Field(None, alias='voiceConfig')
 
     http_options: Any | None = Field(None, exclude=True)
     tools: Any | None = Field(None, exclude=True)
@@ -200,20 +488,29 @@ class GeminiConfigSchema(genai_types.GenerateContentConfig):
 class GeminiTtsConfigSchema(GeminiConfigSchema):
     """Gemini TTS Config Schema."""
 
-    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
-    speech_config: dict[str, object] | None = None
+    speech_config: SpeechConfigSchema | None = Field(None, alias='speechConfig')
 
 
 class GeminiImageConfigSchema(GeminiConfigSchema):
     """Gemini Image Config Schema."""
 
-    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
-    image_config: dict[str, object] | None = None
+    image_config: Annotated[
+        ImageConfigSchema | None,
+        WithJsonSchema({
+            'type': 'object',
+            'properties': {
+                'aspectRatio': {'type': 'string', 'enum': [e.value for e in ImageAspectRatio]},
+                'imageSize': {'type': 'string', 'enum': [e.value for e in ImageSize]},
+            },
+            'additionalProperties': True,
+        }),
+    ] = Field(None, alias='imageConfig')
 
 
 class GemmaConfigSchema(GeminiConfigSchema):
     """Gemma Config Schema."""
 
+    # Inherits temperature from GeminiConfigSchema
     temperature: float | None = None
 
 
@@ -232,7 +529,6 @@ GEMINI_1_5_PRO = ModelInfo(
         tool_choice=True,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
-        output=['text', 'json'],
     ),
 )
 
@@ -439,12 +735,7 @@ GENERIC_GEMMA_MODEL = ModelInfo(
 )
 
 
-Deprecations = deprecated_enum_metafactory({
-    'GEMINI_1_0_PRO': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
-    'GEMINI_1_5_PRO': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
-    'GEMINI_1_5_FLASH': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
-    'GEMINI_1_5_FLASH_8B': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
-})
+Deprecations = deprecated_enum_metafactory({})
 
 
 class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
@@ -482,9 +773,6 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemma-3n-e4b-it`                    | Gemma 3n E4B IT                      | Supported    |
     """
 
-    GEMINI_1_5_FLASH = 'gemini-1.5-flash'
-    GEMINI_1_5_FLASH_8B = 'gemini-1.5-flash-8b'
-    GEMINI_1_5_PRO = 'gemini-1.5-pro'
     GEMINI_2_0_FLASH = 'gemini-2.0-flash'
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
     GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
@@ -545,9 +833,6 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemma-3n-e4b-it`                    | Gemma 3n E4B IT                      | Supported  |
     """
 
-    GEMINI_1_5_FLASH = 'gemini-1.5-flash'
-    GEMINI_1_5_FLASH_8B = 'gemini-1.5-flash-8b'
-    GEMINI_1_5_PRO = 'gemini-1.5-pro'
     GEMINI_2_0_FLASH = 'gemini-2.0-flash'
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
     GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
@@ -573,60 +858,7 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMMA_3N_E4B_IT = 'gemma-3n-e4b-it'
 
 
-SUPPORTED_MODELS = {
-    GoogleAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
-    GoogleAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
-    GoogleAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
-    GoogleAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
-    GoogleAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
-    GoogleAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
-    GoogleAIGeminiVersion.GEMINI_2_0_FLASH_THINKING_EXP_01_21: GEMINI_2_0_FLASH_THINKING_EXP_01_21,
-    GoogleAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
-    GoogleAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
-    GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
-    GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
-    GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW: GENERIC_GEMINI_MODEL,
-    GoogleAIGeminiVersion.GEMINI_3_PRO_PREVIEW: GENERIC_GEMINI_MODEL,
-    GoogleAIGeminiVersion.GEMINI_2_5_PRO: GENERIC_GEMINI_MODEL,
-    GoogleAIGeminiVersion.GEMINI_2_5_FLASH: GENERIC_GEMINI_MODEL,
-    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_LITE: GENERIC_GEMINI_MODEL,
-    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_TTS: GENERIC_TTS_MODEL,
-    GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_TTS: GENERIC_TTS_MODEL,
-    GoogleAIGeminiVersion.GEMINI_3_PRO_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
-    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
-    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE: GENERIC_IMAGE_MODEL,
-    GoogleAIGeminiVersion.GEMMA_3_12B_IT: GENERIC_GEMMA_MODEL,
-    GoogleAIGeminiVersion.GEMMA_3_1B_IT: GENERIC_GEMMA_MODEL,
-    GoogleAIGeminiVersion.GEMMA_3_27B_IT: GENERIC_GEMMA_MODEL,
-    GoogleAIGeminiVersion.GEMMA_3_4B_IT: GENERIC_GEMMA_MODEL,
-    GoogleAIGeminiVersion.GEMMA_3N_E4B_IT: GENERIC_GEMMA_MODEL,
-    VertexAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
-    VertexAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
-    VertexAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
-    VertexAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
-    VertexAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
-    VertexAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
-    VertexAIGeminiVersion.GEMINI_2_0_FLASH_THINKING_EXP_01_21: GEMINI_2_0_FLASH_THINKING_EXP_01_21,
-    VertexAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
-    VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
-    VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
-    VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
-    VertexAIGeminiVersion.GEMINI_3_FLASH_PREVIEW: GENERIC_GEMINI_MODEL,
-    VertexAIGeminiVersion.GEMINI_3_PRO_PREVIEW: GENERIC_GEMINI_MODEL,
-    VertexAIGeminiVersion.GEMINI_2_5_PRO: GENERIC_GEMINI_MODEL,
-    VertexAIGeminiVersion.GEMINI_2_5_FLASH: GENERIC_GEMINI_MODEL,
-    VertexAIGeminiVersion.GEMINI_2_5_FLASH_LITE: GENERIC_GEMINI_MODEL,
-    VertexAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_TTS: GENERIC_TTS_MODEL,
-    VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_TTS: GENERIC_TTS_MODEL,
-    VertexAIGeminiVersion.GEMINI_3_PRO_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
-    VertexAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE_PREVIEW: GENERIC_IMAGE_MODEL,
-    VertexAIGeminiVersion.GEMINI_2_5_FLASH_IMAGE: GENERIC_IMAGE_MODEL,
-    VertexAIGeminiVersion.GEMMA_3_12B_IT: GENERIC_GEMMA_MODEL,
-    VertexAIGeminiVersion.GEMMA_3_1B_IT: GENERIC_GEMMA_MODEL,
-    VertexAIGeminiVersion.GEMMA_3_27B_IT: GENERIC_GEMMA_MODEL,
-    VertexAIGeminiVersion.GEMMA_3_4B_IT: GENERIC_GEMMA_MODEL,
-    VertexAIGeminiVersion.GEMMA_3N_E4B_IT: GENERIC_GEMMA_MODEL,
-}
+SUPPORTED_MODELS = {}
 
 
 DEFAULT_SUPPORTS_MODEL = Supports(
@@ -637,6 +869,37 @@ DEFAULT_SUPPORTS_MODEL = Supports(
     system_role=True,
     constrained=Constrained.NO_TOOLS,
 )
+
+
+def is_gemini_model(name: str) -> bool:
+    """Check if the model is a Gemini model."""
+    return name.startswith('gemini-') and not is_tts_model(name) and not is_image_model(name)
+
+
+def is_tts_model(name: str) -> bool:
+    """Check if the model is a TTS model."""
+    return (name.startswith('gemini-') and name.endswith('-tts')) or 'tts' in name
+
+
+def is_image_model(name: str) -> bool:
+    """Check if the model is an image model."""
+    return (name.startswith('gemini-') and '-image' in name) or 'image' in name
+
+
+def is_gemma_model(name: str) -> bool:
+    """Check if the model is a Gemma model."""
+    return name.startswith('gemma-')
+
+
+def get_model_config_schema(name: str) -> type[GeminiConfigSchema]:
+    """Get the config schema for a given model name."""
+    if is_tts_model(name):
+        return GeminiTtsConfigSchema
+    if is_image_model(name):
+        return GeminiImageConfigSchema
+    if is_gemma_model(name):
+        return GemmaConfigSchema
+    return GeminiConfigSchema
 
 
 def google_model_info(
@@ -653,6 +916,16 @@ def google_model_info(
     Returns:
         ModelInfo object.
     """
+    if version in SUPPORTED_MODELS:
+        return SUPPORTED_MODELS[version]
+
+    if is_tts_model(version):
+        return GENERIC_TTS_MODEL
+    if is_image_model(version):
+        return GENERIC_IMAGE_MODEL
+    if is_gemma_model(version):
+        return GENERIC_GEMMA_MODEL
+
     return ModelInfo(
         label=f'Google AI - {version}',
         supports=DEFAULT_SUPPORTS_MODEL,
@@ -879,36 +1152,29 @@ class GeminiModel:
             # If the library changes its internal structure (e.g. renames _api_client or _credentials),
             # this code WILL BREAK.
             api_client = self._client._api_client
-            http_opts: genai_types.HttpOptionsDict = {'api_version': api_version}
+            kwargs: dict[str, Any] = {
+                'vertexai': api_client.vertexai,
+                'http_options': {'api_version': api_version},
+            }
             if api_client.vertexai:
-                # Vertex AI mode: requires project/location
-                client = genai.Client(
-                    vertexai=True,
-                    http_options=http_opts,
-                    project=api_client.project,
-                    location=api_client.location,
-                    credentials=api_client._credentials,
-                )
+                # Vertex AI mode: requires project/location (api_key is optional/unlikely)
+                if api_client.project:
+                    kwargs['project'] = api_client.project
+                if api_client.location:
+                    kwargs['location'] = api_client.location
+                if api_client._credentials:
+                    kwargs['credentials'] = api_client._credentials
+                # Don't pass api_key if we are in Vertex AI mode with credentials/project
             else:
                 # Google AI mode: primarily uses api_key
                 if api_client.api_key:
-                    client = genai.Client(
-                        vertexai=False,
-                        http_options=http_opts,
-                        api_key=api_client.api_key,
-                    )
-                elif api_client._credentials:
-                    # Fallback if no api_key but credentials present
-                    client = genai.Client(
-                        vertexai=False,
-                        http_options=http_opts,
-                        credentials=api_client._credentials,
-                    )
-                else:
-                    client = genai.Client(
-                        vertexai=False,
-                        http_options=http_opts,
-                    )
+                    kwargs['api_key'] = api_client.api_key
+                # Do NOT pass project/location/credentials if in Google AI mode to be safe
+                if api_client._credentials and not kwargs.get('api_key'):
+                    # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
+                    kwargs['credentials'] = api_client._credentials
+
+            client = genai.Client(**kwargs)
 
         if ctx.is_streaming:
             response = await self._streaming_generate(
@@ -1034,12 +1300,7 @@ class GeminiModel:
         Returns:
             model metadata.
         """
-        # pyrefly: ignore[no-matching-overload] - _version can be str for custom models
-        model_info = SUPPORTED_MODELS.get(self._version)
-        if model_info and model_info.supports:
-            supports = model_info.supports.model_dump()
-        else:
-            supports = {}
+        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
         return {
             'model': {
                 'supports': supports,
@@ -1118,7 +1379,9 @@ class GeminiModel:
 
         if request.config:
             request_config = request.config
-            if isinstance(request_config, GenerationCommonConfig):
+            if isinstance(request_config, GeminiConfigSchema):
+                cfg = request_config
+            elif isinstance(request_config, GenerationCommonConfig):
                 cfg = genai_types.GenerateContentConfig(
                     max_output_tokens=request_config.max_output_tokens,
                     top_k=request_config.top_k,
@@ -1126,8 +1389,6 @@ class GeminiModel:
                     temperature=request_config.temperature,
                     stop_sequences=request_config.stop_sequences,
                 )
-            elif isinstance(request_config, GeminiConfigSchema):
-                cfg = request_config
             elif isinstance(request_config, dict):
                 if 'image_config' in request_config:
                     cfg = GeminiImageConfigSchema(**request_config)
@@ -1141,7 +1402,49 @@ class GeminiModel:
                     tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
 
                 dumped_config = cfg.model_dump(exclude_none=True)
-                for key in ['code_execution', 'file_search', 'url_context', 'api_version']:
+
+                if 'code_execution' in dumped_config:
+                    dumped_config.pop('code_execution')
+
+                if 'safety_settings' in dumped_config:
+                    dumped_config['safety_settings'] = [
+                        s
+                        for s in dumped_config['safety_settings']
+                        if s['category'] != HarmCategory.HARM_CATEGORY_UNSPECIFIED
+                    ]
+
+                if 'google_search_retrieval' in dumped_config:
+                    val = dumped_config.pop('google_search_retrieval')
+                    if val is not None:
+                        val = {} if val is True else val
+                        tools.append(genai_types.Tool(google_search_retrieval=genai_types.GoogleSearchRetrieval(**val)))
+
+                if 'file_search' in dumped_config:
+                    val = dumped_config.pop('file_search')
+                    # File search requires a store name to be valid.
+                    if val and val.get('file_search_store_names'):
+                        # Filter out empty strings from store names
+                        valid_stores = [s for s in val['file_search_store_names'] if s]
+                        if valid_stores:
+                            val['file_search_store_names'] = valid_stores
+                            tools.append(genai_types.Tool(file_search=genai_types.FileSearch(**val)))
+
+                if 'url_context' in dumped_config:
+                    val = dumped_config.pop('url_context')
+                    if val is not None:
+                        val = {} if val is True else val
+                        tools.append(genai_types.Tool(url_context=genai_types.UrlContext(**val)))
+
+                # Map Function Calling Config to ToolConfig
+                if 'function_calling_config' in dumped_config:
+                    dumped_config['tool_config'] = genai_types.ToolConfig(
+                        function_calling_config=genai_types.FunctionCallingConfig(
+                            **dumped_config.pop('function_calling_config')
+                        )
+                    )
+
+                # Clean up fields not supported by GenerateContentConfig
+                for key in ['api_version', 'api_key', 'base_url', 'context_cache']:
                     if key in dumped_config:
                         del dumped_config[key]
 
@@ -1214,10 +1517,14 @@ class GeminiModel:
         Returns:
             usage statistics
         """
-        if response.message:
-            usage = get_basic_usage_stats(input_=request.messages, response=response.message)
-        else:
+        if not response.message:
             usage = GenerationUsage()
+            usage.input_tokens = 0
+            usage.output_tokens = 0
+            usage.total_tokens = 0
+            return usage
+
+        usage = get_basic_usage_stats(input_=request.messages, response=response.message)
         if response.usage:
             usage.input_tokens = response.usage.input_tokens
             usage.output_tokens = response.usage.output_tokens

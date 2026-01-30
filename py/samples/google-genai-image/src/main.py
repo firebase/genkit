@@ -144,9 +144,10 @@ async def generate_images(
     return await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=f'tell me about {name} with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image'], api_version='v1alpha').model_dump(
-            exclude_none=True
-        ),
+        config=GeminiConfigSchema.model_validate({
+            'response_modalities': ['text', 'image'],
+            'api_version': 'v1alpha',
+        }).model_dump(exclude_none=True),
     )
 
 
@@ -193,11 +194,11 @@ async def gemini_image_editing() -> Media | None:
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}'))),
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}'))),
         ],
-        config=GeminiImageConfigSchema(
-            response_modalities=['TEXT', 'IMAGE'],
-            image_config={'aspect_ratio': '1:1'},
-            api_version='v1alpha',
-        ).model_dump(exclude_none=True),
+        config=GeminiImageConfigSchema.model_validate({
+            'response_modalities': ['TEXT', 'IMAGE'],
+            'image_config': {'aspect_ratio': '1:1'},
+            'api_version': 'v1alpha',
+        }).model_dump(exclude_none=True),
     )
     for part in response.message.content if response.message else []:
         if isinstance(part.root, MediaPart):
