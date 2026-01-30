@@ -118,8 +118,63 @@ async def test_resolve_returns_none_for_other_namespace() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolve_returns_evaluator_action() -> None:
+    """Test that resolve returns the guardrails evaluator action."""
+    plugin = Checks(
+        project_id='test-project',
+        evaluation=ChecksEvaluationConfig(
+            metrics=[
+                ChecksMetricType.DANGEROUS_CONTENT,
+                ChecksMetricType.HARASSMENT,
+            ]
+        ),
+    )
+
+    # Create a mock registry
+    mock_registry = MagicMock()
+
+    # Initialize plugin
+    with patch.object(plugin, '_initialize_auth') as mock_auth:
+        mock_auth.return_value = MagicMock()
+        await plugin.init(registry=mock_registry)
+
+    # Resolve the guardrails evaluator
+    action = await plugin.resolve(ActionKind.EVALUATOR, 'checks/guardrails')
+
+    assert action is not None
+    assert action.name == 'checks/guardrails'
+    assert action.kind == ActionKind.EVALUATOR
+    assert action.metadata is not None
+    assert 'evaluator' in action.metadata
+
+
+@pytest.mark.asyncio
+async def test_resolve_returns_none_for_non_guardrails_evaluator() -> None:
+    """Test that resolve returns None for individual metric evaluators."""
+    plugin = Checks(
+        project_id='test-project',
+        evaluation=ChecksEvaluationConfig(
+            metrics=[ChecksMetricType.DANGEROUS_CONTENT]
+        ),
+    )
+
+    # Initialize plugin
+    with patch.object(plugin, '_initialize_auth') as mock_auth:
+        mock_auth.return_value = MagicMock()
+        await plugin.init(registry=None)
+
+    # Should return None for individual metric names (not supported)
+    result = await plugin.resolve(ActionKind.EVALUATOR, 'checks/dangerous_content')
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_list_actions_returns_evaluator_metadata() -> None:
-    """Test that list_actions returns metadata for configured metrics."""
+    """Test that list_actions returns metadata for the guardrails evaluator.
+
+    The Checks plugin returns a single evaluator (checks/guardrails) that
+    evaluates all configured metrics, matching the JS implementation.
+    """
     plugin = Checks(
         project_id='test-project',
         evaluation=ChecksEvaluationConfig(
@@ -137,13 +192,11 @@ async def test_list_actions_returns_evaluator_metadata() -> None:
 
     actions = await plugin.list_actions()
 
-    assert len(actions) == 2
+    # Should return a single guardrails evaluator
+    assert len(actions) == 1
     assert all(isinstance(a, ActionMetadata) for a in actions)
     assert all(a.kind == ActionKind.EVALUATOR for a in actions)
-
-    action_names = [a.name for a in actions]
-    assert 'checks/dangerous_content' in action_names
-    assert 'checks/harassment' in action_names
+    assert actions[0].name == 'checks/guardrails'
 
 
 @pytest.mark.asyncio

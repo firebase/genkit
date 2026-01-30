@@ -22,16 +22,16 @@ AI Safety with Genkit applications.
 Plugin Registration
 ===================
 
-The Checks plugin registers evaluators for each configured safety metric,
-allowing you to evaluate content safety using Genkit's evaluation framework.
+The Checks plugin registers a guardrails evaluator that evaluates content
+against all configured safety metrics using Genkit's evaluation framework.
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    Checks Plugin Registration                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────────────┐        │
-│  │   Genkit     │     │   Checks     │     │   Evaluators         │        │
-│  │   Instance   │ ──► │   Plugin     │ ──► │   Registered         │        │
+│  │   Genkit     │     │   Checks     │     │   Evaluator          │        │
+│  │   Instance   │ ──► │   Plugin     │ ──► │   checks/guardrails  │        │
 │  └──────────────┘     └──────────────┘     │   - DANGEROUS_CONTENT│        │
 │                              │             │   - HARASSMENT        │        │
 │                              │             │   - etc.              │        │
@@ -71,8 +71,10 @@ See Also:
 """
 
 import os
+import traceback
+import uuid
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from google.auth import default as default_credentials
 from google.auth.credentials import Credentials
@@ -83,10 +85,25 @@ from genkit.core.action.types import ActionKind
 from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
 from genkit.core.registry import Registry
+from genkit.core.tracing import SpanMetadata, run_in_new_span
+from genkit.core.typing import (
+    BaseDataPoint,
+    Details,
+    EvalFnResponse,
+    EvalRequest,
+    EvalResponse,
+    EvalStatusEnum,
+    Score,
+)
 from genkit.plugins.checks.guardrails import Guardrails
 from genkit.plugins.checks.metrics import ChecksMetric, ChecksMetricConfig, ChecksMetricType
 
 logger = get_logger(__name__)
+
+# Evaluator metadata keys (matching JS implementation)
+EVALUATOR_METADATA_KEY_DEFINITION = 'definition'
+EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'displayName'
+EVALUATOR_METADATA_KEY_IS_BILLED = 'isBilled'
 
 CLOUD_PLATFORM_OAUTH_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
 CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks'
@@ -128,9 +145,9 @@ class Checks(Plugin):
     providing content safety evaluation capabilities.
 
     Key Features:
-        - Evaluators for each safety metric type
+        - Single guardrails evaluator for all configured safety metrics
         - Automatic authentication with Google Cloud
-        - Configurable safety thresholds
+        - Configurable safety thresholds per metric
 
     Example:
         ```python
@@ -179,6 +196,7 @@ class Checks(Plugin):
     """
 
     name = 'checks'
+    _GUARDRAILS_EVALUATOR_NAME = 'checks/guardrails'
 
     def __init__(
         self,
@@ -200,6 +218,8 @@ class Checks(Plugin):
         self._registry: Registry | None = None
         self._guardrails: Guardrails | None = None
         self._metrics: list[ChecksMetric] = []
+        self._policy_configs: list[ChecksMetricConfig] = []
+        self._evaluator_action: Action | None = None
 
     def _initialize_auth(self) -> Credentials:
         """Initialize Google Cloud authentication.
@@ -238,6 +258,20 @@ class Checks(Plugin):
 
         return credentials
 
+    def _build_policy_configs(self) -> list[ChecksMetricConfig]:
+        """Build policy configurations from metrics.
+
+        Returns:
+            List of ChecksMetricConfig with type and optional threshold.
+        """
+        configs: list[ChecksMetricConfig] = []
+        for metric in self._metrics:
+            if isinstance(metric, ChecksMetricConfig):
+                configs.append(metric)
+            elif isinstance(metric, ChecksMetricType):
+                configs.append(ChecksMetricConfig(type=metric))
+        return configs
+
     async def init(self, registry: Registry | None = None) -> list[Action]:
         """Initialize the plugin with the Genkit registry.
 
@@ -274,20 +308,193 @@ class Checks(Plugin):
             elif isinstance(self._evaluation, dict):
                 self._metrics = self._evaluation.get('metrics', [])
 
+        # Build policy configs for evaluation
+        self._policy_configs = self._build_policy_configs()
+
         logger.info(f'Checks plugin initialized with {len(self._metrics)} metrics')
 
         # Actions are created lazily via resolve()
         return []
 
+    async def _evaluate_datapoint(
+        self,
+        datapoint: BaseDataPoint,
+        options: object | None,
+    ) -> EvalFnResponse:
+        """Evaluate a single datapoint against configured safety policies.
+
+        Args:
+            datapoint: The evaluation datapoint containing content to evaluate.
+            options: Optional evaluation options (unused).
+
+        Returns:
+            EvalFnResponse with scores for each policy.
+        """
+        if self._guardrails is None:
+            raise ValueError('Plugin not initialized: guardrails client is None')
+
+        # Get the output content to evaluate
+        output = datapoint.output
+        if output is None:
+            return EvalFnResponse(
+                test_case_id=datapoint.test_case_id or '',
+                evaluation=Score(
+                    error='No output content to evaluate',
+                    status=EvalStatusEnum.FAIL,
+                ),
+            )
+
+        # Convert output to string
+        content = output if isinstance(output, str) else str(output)
+
+        # Call the Checks API
+        response = await self._guardrails.classify_content(
+            content=content,
+            policies=[config.type for config in self._policy_configs],
+        )
+
+        # Convert policy results to evaluation scores
+        # Return the first policy result as the main score, with all results in details
+        if response.policy_results:
+            # Create individual scores for each policy
+            scores: list[Score] = []
+            for result in response.policy_results:
+                # Determine pass/fail based on violation result
+                is_violative = result.violation_result == 'VIOLATIVE'
+                status = EvalStatusEnum.FAIL if is_violative else EvalStatusEnum.PASS_
+                scores.append(
+                    Score(
+                        id=result.policy_type,
+                        score=result.score,
+                        status=status,
+                        details=Details(reasoning=f'Status {result.violation_result}'),
+                    )
+                )
+
+            # Return the first score as the main evaluation
+            # (Genkit evaluator framework expects a single Score)
+            main_score = scores[0] if scores else Score(status=EvalStatusEnum.UNKNOWN)
+            return EvalFnResponse(
+                test_case_id=datapoint.test_case_id or '',
+                evaluation=main_score,
+            )
+        else:
+            return EvalFnResponse(
+                test_case_id=datapoint.test_case_id or '',
+                evaluation=Score(
+                    error='No policy results returned from Checks API',
+                    status=EvalStatusEnum.FAIL,
+                ),
+            )
+
+    def _create_evaluator_action(self) -> Action:
+        """Create the guardrails evaluator action.
+
+        This creates a single evaluator that evaluates content against all
+        configured safety policies, matching the JS implementation.
+
+        Returns:
+            The evaluator Action.
+        """
+        if self._registry is None:
+            raise ValueError('Plugin not initialized: registry is None')
+
+        # Build definition string listing the policies
+        policy_names = [config.type.value for config in self._policy_configs]
+        definition = f"Evaluates input text against the Checks {', '.join(policy_names)} policies."
+
+        # Build evaluator metadata
+        evaluator_meta: dict[str, object] = {
+            'evaluator': {
+                EVALUATOR_METADATA_KEY_DEFINITION: definition,
+                EVALUATOR_METADATA_KEY_DISPLAY_NAME: self._GUARDRAILS_EVALUATOR_NAME,
+                EVALUATOR_METADATA_KEY_IS_BILLED: True,  # Checks API is a paid service
+                'label': self._GUARDRAILS_EVALUATOR_NAME,
+            }
+        }
+
+        # Create the eval stepper function that iterates over the dataset
+        # This matches the pattern in genkit.ai._registry.define_evaluator
+        async def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
+            """Process all datapoints in the evaluation request."""
+            eval_responses: list[EvalFnResponse] = []
+            for datapoint in req.dataset:
+                if datapoint.test_case_id is None:
+                    datapoint.test_case_id = str(uuid.uuid4())
+                span_metadata = SpanMetadata(
+                    name=f'Test Case {datapoint.test_case_id}',
+                    metadata={'evaluator:evalRunId': req.eval_run_id},
+                )
+                try:
+                    # Try to run with tracing
+                    try:
+                        with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
+                            span_id = span.span_id
+                            trace_id = span.trace_id
+                            try:
+                                span.set_input(datapoint)
+                                test_case_output = await self._evaluate_datapoint(datapoint, req.options)
+                                test_case_output.span_id = span_id
+                                test_case_output.trace_id = trace_id
+                                span.set_output(test_case_output)
+                                eval_responses.append(test_case_output)
+                            except Exception as e:
+                                logger.debug(f'Checks evaluator error: {e!s}')
+                                logger.debug(traceback.format_exc())
+                                evaluation = Score(
+                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{e!s}',
+                                    status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
+                                )
+                                eval_responses.append(
+                                    EvalFnResponse(
+                                        span_id=span_id,
+                                        trace_id=trace_id,
+                                        test_case_id=datapoint.test_case_id,
+                                        evaluation=evaluation,
+                                    )
+                                )
+                                raise
+                    except (AttributeError, UnboundLocalError):
+                        # Fallback: run without span
+                        try:
+                            test_case_output = await self._evaluate_datapoint(datapoint, req.options)
+                            eval_responses.append(test_case_output)
+                        except Exception as e:
+                            logger.debug(f'Checks evaluator error: {e!s}')
+                            logger.debug(traceback.format_exc())
+                            evaluation = Score(
+                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{e!s}',
+                                status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
+                            )
+                            eval_responses.append(
+                                EvalFnResponse(
+                                    test_case_id=datapoint.test_case_id,
+                                    evaluation=evaluation,
+                                )
+                            )
+                except Exception:
+                    # Continue to process other datapoints
+                    continue
+            return EvalResponse(eval_responses)
+
+        # Create and return the Action directly
+        return Action(
+            kind=cast(ActionKind, ActionKind.EVALUATOR),
+            name=self._GUARDRAILS_EVALUATOR_NAME,
+            fn=eval_stepper_fn,
+            metadata=evaluator_meta,
+            description=definition,
+        )
+
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve a single action by type and name.
 
-        Currently, the Checks plugin provides evaluator actions for content
-        safety classification.
+        The Checks plugin provides a single evaluator action for content
+        safety classification called 'checks/guardrails'.
 
         Args:
             action_type: The kind of action to resolve.
-            name: The namespaced name of the action (e.g., 'checks/dangerous_content').
+            name: The namespaced name of the action (e.g., 'checks/guardrails').
 
         Returns:
             Action | None: The Action instance if found, None otherwise.
@@ -295,42 +502,33 @@ class Checks(Plugin):
         if action_type != ActionKind.EVALUATOR:
             return None
 
-        # Check if this is a checks evaluator
-        if not name.startswith(f'{self.name}/'):
+        # Check if this is the checks guardrails evaluator
+        if name != self._GUARDRAILS_EVALUATOR_NAME:
             return None
 
-        # TODO(#4357): Create and return evaluator action for the requested metric
-        # The JS implementation creates evaluators using ai.defineEvaluator()
-        # See: js/plugins/checks/src/evaluation.ts
-        logger.debug(f'Checks evaluator requested but not yet implemented: {name}')
-        return None
+        # Create the evaluator action lazily (only when first requested)
+        if self._evaluator_action is None:
+            self._evaluator_action = self._create_evaluator_action()
+
+        return self._evaluator_action
 
     async def list_actions(self) -> list[ActionMetadata]:
         """Return metadata for available evaluator actions.
 
         Returns:
-            List of ActionMetadata for each configured safety metric evaluator.
+            List with a single ActionMetadata for the guardrails evaluator
+            if metrics are configured.
         """
-        actions: list[ActionMetadata] = []
+        # Only advertise the evaluator if metrics are configured
+        if not self._metrics:
+            return []
 
-        for metric in self._metrics:
-            # Get metric type name
-            if isinstance(metric, ChecksMetricConfig):
-                metric_name = metric.type.value
-            elif isinstance(metric, ChecksMetricType):
-                metric_name = metric.value
-            else:
-                continue
-
-            evaluator_name = f'{self.name}/{metric_name.lower()}'
-            actions.append(
-                ActionMetadata(
-                    kind=ActionKind.EVALUATOR,
-                    name=evaluator_name,
-                )
+        return [
+            ActionMetadata(
+                kind=ActionKind.EVALUATOR,
+                name=self._GUARDRAILS_EVALUATOR_NAME,
             )
-
-        return actions
+        ]
 
 
 __all__ = [
