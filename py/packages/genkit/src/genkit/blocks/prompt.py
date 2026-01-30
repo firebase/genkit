@@ -1681,7 +1681,7 @@ async def render_system_prompt(
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
@@ -1789,7 +1789,7 @@ async def render_message_prompt(
             ),
             options=PromptMetadata(
                 input=PromptInputConfig(
-                    schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                    schema=to_json_schema(options.input_schema) if options.input_schema else None,
                 )
             ),
         )
@@ -1846,7 +1846,7 @@ async def render_user_prompt(
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
