@@ -139,7 +139,7 @@ type Session[State any] struct {
     store SnapshotStore[State]
 
     // Internal references set by the framework
-    responder any // typed as *Responder[Stream] internally
+    onEndTurn func() // set by runWrapped; triggers snapshot + EndTurn chunk
     inCh      <-chan *SessionFlowInput
 
     // Snapshot tracking
@@ -458,7 +458,7 @@ func (sf *SessionFlow[Stream, State]) runWrapped(
         snapshotCallback: sf.snapshotCallback,
         store:            sf.store,
     }
-    session.responder = responder
+    session.onEndTurn = responder.endTurn
 
     params := &SessionFlowParams[Stream, State]{
         Session: session,
@@ -505,7 +505,7 @@ func (s *Session[State]) Run(
             return err
         }
 
-        s.responder.(*Responder[any]).endTurn()
+        s.onEndTurn()
         s.turnIndex++
         span.End()
     }
