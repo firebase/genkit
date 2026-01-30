@@ -281,7 +281,7 @@
   | `checks` | `checks_evaluator_test.py` | ✅ Correct |
   
   **Requirements:**
-  * Prefix test files with the plugin/package name (using underscores)
+  * Prefix test files with the plugin/package name, replacing any hyphens (`-`) with underscores (`_`).
   * Use the `foo_test.py` suffix format (not `test_foo.py`)
   * Do **NOT** add `__init__.py` to `tests/` directories (causes module conflicts)
   * Place tests in `plugins/{name}/tests/` or `packages/{name}/tests/`
