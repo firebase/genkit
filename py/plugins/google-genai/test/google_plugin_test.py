@@ -43,7 +43,12 @@ from genkit.plugins.google_genai.models.imagen import (
     DEFAULT_IMAGE_SUPPORT,
 )
 from genkit.types import (
+    GenerateRequest,
+    Message,
     ModelInfo,
+    Part,
+    Role,
+    TextPart,
 )
 
 
@@ -139,7 +144,8 @@ async def test_googleai_initialize(mock_client_cls: MagicMock) -> None:
     # Ensure usage of mock
     plugin._client = mock_client
 
-    result = await plugin.init()
+    await plugin.init()
+    result = await plugin.list_actions()
 
     # init returns known models and embedders
     assert len(result) > 0, 'Should initialize with known models and embedders'
@@ -391,7 +397,7 @@ def test_inject_attribution_headers(
     input_options: HttpOptions | dict[str, object] | None, expected_headers: dict[str, str]
 ) -> None:
     """Tests the _inject_attribution_headers function with various inputs."""
-    result = _inject_attribution_headers(input_options)
+    result = _inject_attribution_headers(input_options)  # type: ignore
     assert isinstance(result, HttpOptions)
     assert result.headers == expected_headers
 
@@ -483,13 +489,18 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     m2.name = 'publishers/google/models/text-embedding-004'
     m2.supported_actions = ['embedContent']
 
-    plugin._client.models.list.return_value = [m1, m2]
+    plugin._client.models.list.return_value = [m1, m2]  # type: ignore
 
-    result = await plugin.init()
+    await plugin.init()
 
-    # init returns known models and embedders
+    # init returns known models and embedders in internal registry, but list_actions returns them list
+    result = await plugin.list_actions()
+
     assert len(result) > 0, 'Should initialize with known models and embedders'
     assert all(hasattr(action, 'kind') for action in result), 'All actions should have a kind'
+
+    # ... (rest of test unchanged)
+
     assert all(hasattr(action, 'name') for action in result), 'All actions should have a name'
     assert all(action.name.startswith('vertexai/') for action in result), (
         "All actions should be namespaced with 'vertexai/'"
@@ -700,11 +711,14 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
 
 def test_config_schema_extra_fields() -> None:
     """Test that config schema accepts extra fields (dynamic config)."""
-    # Validation should succeed with unknown field
-    config = GeminiConfigSchema(temperature=0.5, new_experimental_param='test')
+    # Validation should succeed with unknown field by using model_validate for dynamic fields
+    # to avoid static type checker errors on constructor
+    config_data = {'temperature': 0.5, 'new_experimental_param': 'test'}
+    config = GeminiConfigSchema.model_validate(config_data)
+
     assert config.temperature == 0.5
-    assert config.new_experimental_param == 'test'
-    assert config.new_experimental_param == 'test'
+    # Access dynamic fields via getattr or __dict__ to make type checker happy
+    assert config.new_experimental_param == 'test'  # type: ignore
     assert config.model_dump()['new_experimental_param'] == 'test'
 
 
@@ -713,15 +727,14 @@ def test_system_prompt_handling() -> None:
     from google import genai
 
     from genkit.plugins.google_genai.models.gemini import GeminiModel
-    from genkit.types import GenerateRequest, Message, Role, TextPart
 
     mock_client = MagicMock(spec=genai.Client)
     model = GeminiModel(version='gemini-1.5-flash', client=mock_client)
 
     request = GenerateRequest(
         messages=[
-            Message(role=Role.SYSTEM, content=[TextPart(text='You are a helpful assistant')]),
-            Message(role=Role.USER, content=[TextPart(text='Hello')]),
+            Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are a helpful assistant'))]),
+            Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
         ],
         config=None,
     )
@@ -730,5 +743,6 @@ def test_system_prompt_handling() -> None:
 
     assert cfg is not None
     assert cfg.system_instruction is not None
-    assert len(cfg.system_instruction.parts) == 1
-    assert cfg.system_instruction.parts[0].text == 'You are a helpful assistant'
+    assert cfg.system_instruction.parts is not None  # type: ignore
+    assert len(cfg.system_instruction.parts) == 1  # type: ignore
+    assert cfg.system_instruction.parts[0].text == 'You are a helpful assistant'  # type: ignore

@@ -239,7 +239,7 @@ class ImagenModel:
         """
         supports = {}
         if self._version in SUPPORTED_MODELS:
-            model_supports = SUPPORTED_MODELS[self._version].supports
+            model_supports = SUPPORTED_MODELS[self._version].supports  # pyrefly: ignore[bad-index]
             if model_supports:
                 supports = model_supports.model_dump()
         else:

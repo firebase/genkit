@@ -321,17 +321,6 @@ class GeminiConfigSchema(GenerationCommonConfig):
     # Gemini specific
     model_config = ConfigDict(extra='allow')
 
-    code_execution: bool | None = None
-    response_modalities: list[str] | None = None
-    # pyrefly: ignore[bad-override] - intentionally widen type to accept dict before conversion
-    thinking_config: dict[str, object] | None = None
-    file_search: dict[str, object] | None = None
-    url_context: dict[str, object] | None = None
-    google_search_retrieval: dict[str, Any] | None = None
-    function_calling_config: dict[str, Any] | None = None
-    api_version: str | None = None
-    base_url: str | None = None
-
     # inherited from GenerationCommonConfig:
     # version, temperature, max_output_tokens, top_k, top_p, stop_sequences
 
@@ -347,7 +336,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
             'The maximum cumulative probability of tokens to consider when sampling. Values can range over [0.0, 1.0].'
         ),
     )
-    top_k: int | None = Field(
+    top_k: int | None = Field(  # pyrefly: ignore[bad-override]
         default=None,
         alias='topK',
         description=('The maximum number of tokens to consider when sampling. Values can range over [1, 40].'),
@@ -355,7 +344,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
     candidate_count: int | None = Field(
         default=None, description='Number of generated responses to return.', alias='candidateCount'
     )
-    max_output_tokens: int | None = Field(
+    max_output_tokens: int | None = Field(  # pyrefly: ignore[bad-override]
         default=None, alias='maxOutputTokens', description='Maximum number of tokens to generate.'
     )
     stop_sequences: list[str] | None = Field(default=None, alias='stopSequences', description='Stop sequences.')

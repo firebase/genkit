@@ -283,8 +283,8 @@ async def describe_image() -> str:
 
     response = await ai.generate(
         prompt=[
-            {'text': 'describe this photo'},
-            {'media': {'contentType': 'image/jpeg', 'url': f'data:image/jpeg;base64,{photo_base64}'}},
+            Part(root=TextPart(text='describe this photo')),
+            Part(root=MediaPart(media=Media(url=f'data:image/jpeg;base64,{photo_base64}', content_type='image/jpeg'))),
         ],
     )
     return response.text
@@ -424,7 +424,7 @@ async def search_grounding() -> str:
     """Search grounding."""
     response = await ai.generate(
         prompt='Who is Albert Einstein?',
-        config={'tools': [{'googleSearch': {}}], 'api_version': 'v1alpha'},
+        config={'google_search_retrieval': True},
     )
     return response.text
 
@@ -688,7 +688,6 @@ async def tool_calling(location: Annotated[str, Field(default='Paris, France')] 
 
 async def main() -> None:
     """Main function - keep alive for Dev UI."""
-    logger.info('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     _ = await asyncio.Event().wait()
 
