@@ -117,6 +117,9 @@ class OpenAIModel:
             - 'type': 'text' as the default fallback.
         """
         if output.format == 'json':
+            # Special handling for DeepSeek models: always use 'json_object' for structured output
+            if self._model.startswith('deepseek'):
+                return {'type': 'json_object'}
             if output.schema:
                 return {
                     'type': 'json_schema',

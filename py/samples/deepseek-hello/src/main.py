@@ -329,9 +329,20 @@ async def generate_character(input: CharacterInput) -> RpgCharacter:
     Returns:
         The generated RPG character.
     """
+    # DeepSeek JSON mode: prompt must mention 'json' and provide an example
+    prompt = (
+        f'Generate an RPG character named {input.name} in JSON format.\n'
+        'Example:\n'
+        '{\n'
+        '  "name": "<character_name>",\n'
+        '  "backStory": "A mysterious cat...",\n'
+        '  "abilities": ["stealth", "agility", "night vision"],\n'
+        '  "skills": {"strength": 10, "charisma": 15, "endurance": 12}\n'
+        '}\n'
+    )
     result = await ai.generate(
         model=deepseek_name('deepseek-chat'),
-        prompt=f'generate an RPG character named {input.name}',
+        prompt=prompt,
         output=Output(schema=RpgCharacter),
     )
     return result.output
