@@ -49,6 +49,13 @@ from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit.aio import ensure_async
+from genkit.blocks.background_model import (
+    BackgroundAction,
+    CancelModelOpFn,
+    CheckModelOpFn,
+    StartModelOpFn,
+    define_background_model as define_background_model_block,
+)
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
@@ -882,6 +889,72 @@ class GenkitRegistry:
             fn=fn,
             metadata=model_meta,
             description=model_description,
+        )
+
+    def define_background_model(
+        self,
+        name: str,
+        start: StartModelOpFn,
+        check: CheckModelOpFn,
+        cancel: CancelModelOpFn | None = None,
+        label: str | None = None,
+        info: ModelInfo | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> BackgroundAction:
+        """Define a background model for long-running AI operations.
+
+        Background models are used for tasks like video generation (Veo) or
+        large image generation that may take seconds or minutes to complete.
+        Unlike regular models that return results immediately, background models
+        return an Operation that can be polled for completion.
+
+        This matches JS defineBackgroundModel from js/ai/src/model.ts.
+
+        Args:
+            name: Unique name for this background model.
+            start: Async function to start the background operation.
+                Takes (GenerateRequest, ActionRunContext) -> Operation.
+            check: Async function to check operation status.
+                Takes (Operation) -> Operation.
+            cancel: Optional async function to cancel operations.
+                Takes (Operation) -> Operation.
+            label: Human-readable label (defaults to name).
+            info: Model capability information (ModelInfo).
+            config_schema: Schema for model configuration options.
+            metadata: Additional metadata for the model.
+            description: Description for the model action.
+
+        Returns:
+            A BackgroundAction that can be used to start/check/cancel operations.
+
+        Example:
+            >>> async def start_video(req: GenerateRequest, ctx) -> Operation:
+            ...     job_id = await video_api.submit(req.messages[0].content[0].text)
+            ...     return Operation(id=job_id, done=False)
+            >>> async def check_video(op: Operation) -> Operation:
+            ...     status = await video_api.get_status(op.id)
+            ...     if status.complete:
+            ...         return Operation(id=op.id, done=True, output=...)
+            ...     return Operation(id=op.id, done=False)
+            >>> action = ai.define_background_model(
+            ...     name='video-gen',
+            ...     start=start_video,
+            ...     check=check_video,
+            ... )
+        """
+        return define_background_model_block(
+            registry=self.registry,
+            name=name,
+            start=start,
+            check=check,
+            cancel=cancel,
+            label=label,
+            info=info,
+            config_schema=config_schema,
+            metadata=metadata,
+            description=description,
         )
 
     def define_embedder(

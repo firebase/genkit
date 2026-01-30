@@ -40,6 +40,7 @@ members = [
     "google-genai-image",
     "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
+    "media-models-demo",
     "menu",
     "model-garden-example",
     "multi-server",
@@ -1725,6 +1726,7 @@ dependencies = [
     { name = "psutil" },
     { name = "pydantic" },
     { name = "python-multipart" },
+    { name = "rich" },
     { name = "sse-starlette" },
     { name = "starlette" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
@@ -1779,6 +1781,7 @@ requires-dist = [
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "python-multipart", specifier = ">=0.0.22" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "sse-starlette", specifier = ">=2.2.1" },
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
@@ -3738,6 +3741,30 @@ sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec9
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
 ]
+
+[[package]]
+name = "media-models-demo"
+version = "0.1.0"
+source = { editable = "samples/media-models-demo" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "rich" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "watchdog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "menu"

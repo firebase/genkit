@@ -81,7 +81,6 @@ Testing This Demo
 """
 
 import os
-from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -150,6 +149,36 @@ class RpgCharacter(BaseModel):
     back_story: str = Field(description='back story', alias='backStory')
     abilities: list[str] = Field(description='list of abilities (3-4)')
     skills: Skills
+
+
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name for streaming greeting')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class TemperatureInput(BaseModel):
+    """Input for temperature config flow."""
+
+    data: str = Field(default='Mittens', description='Name to greet')
+
+
+class ToolsFlowInput(BaseModel):
+    """Input for tools flow."""
+
+    value: int = Field(default=42, description='Value for gablorken calculation')
 
 
 @ai.tool()
@@ -242,13 +271,13 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    input: CharacterInput,
     ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
         ctx: the context of the tool
 
     Returns:
@@ -256,7 +285,7 @@ async def generate_character(
     """
     if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
-            prompt=f'generate an RPG character named {name}',
+            prompt=f'generate an RPG character named {input.name}',
             output=Output(schema=RpgCharacter),
         )
         async for data in stream:
@@ -265,7 +294,7 @@ async def generate_character(
         return (await result).output
     else:
         result = await ai.generate(
-            prompt=f'generate an RPG character named {name}',
+            prompt=f'generate an RPG character named {input.name}',
             output=Output(schema=RpgCharacter),
         )
         return result.output
@@ -273,20 +302,20 @@ async def generate_character(
 
 @ai.flow()
 async def generate_character_unconstrained(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    input: CharacterInput,
     ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
         ctx: the context of the tool
 
     Returns:
         The generated RPG character.
     """
     result = await ai.generate(
-        prompt=f'generate an RPG character named {name}',
+        prompt=f'generate an RPG character named {input.name}',
         output=Output(schema=RpgCharacter),
         output_constrained=False,
         output_instructions=True,
@@ -295,36 +324,36 @@ async def generate_character_unconstrained(
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name to greet.
 
     Returns:
         The generated response with a function.
     """
     resp = await ai.generate(
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
     return resp.text
 
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name for streaming.
         ctx: the context of the tool
 
     Returns:
         The generated response with a function.
     """
-    stream, _ = ai.generate_stream(prompt=f'hi {name}')
+    stream, _ = ai.generate_stream(prompt=f'hi {input.name}')
     result: str = ''
     async for data in stream:
         if ctx is not None:
@@ -335,35 +364,33 @@ async def say_hi_stream(
 
 
 @ai.flow()
-async def say_hi_with_configured_temperature(
-    data: Annotated[str, Field(default='Alice')] = 'Alice',
-) -> GenerateResponseWrapper:
+async def say_hi_with_configured_temperature(input: TemperatureInput) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
     Args:
-        data: the name to send to test function
+        input: Input with name to greet.
 
     Returns:
         The generated response with a function.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {input.data}'))])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
+async def simple_generate_with_interrupts(input: ToolsFlowInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        value: the integer to send to test function
+        input: Input with value for gablorken calculation.
 
     Returns:
         The generated response with a function.
     """
     response1 = await ai.generate(
-        prompt=f'what is a gablorken of {value}',
+        prompt=f'what is a gablorken of {input.value}',
         tools=['gablorkenTool2'],
     )
     await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
@@ -380,17 +407,17 @@ async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
+async def simple_generate_with_tools_flow(input: ToolsFlowInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        value: the integer to send to test function
+        input: Input with value for gablorken calculation.
 
     Returns:
         The generated response with a function.
     """
     response = await ai.generate(
-        prompt=f'what is a gablorken of {value}',
+        prompt=f'what is a gablorken of {input.value}',
         tools=['gablorkenTool'],
     )
     return response.text
@@ -398,7 +425,7 @@ async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42
 
 async def main() -> None:
     """Main function."""
-    await logger.ainfo(await say_hi(', tell me a joke'))
+    await logger.ainfo(await say_hi(SayHiInput(name='tell me a joke')))
 
 
 if __name__ == '__main__':

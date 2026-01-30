@@ -39,7 +39,6 @@ See README.md for testing instructions.
 
 import os
 from decimal import Decimal
-from typing import Annotated
 
 import httpx
 from pydantic import BaseModel, Field
@@ -136,6 +135,42 @@ class WeatherResponse(BaseModel):
     answer: list[Temperature]
 
 
+class GablorkenFlowInput(BaseModel):
+    """Input for gablorken calculation flow."""
+
+    value: int = Field(default=42, description='Value to calculate gablorken for')
+
+
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class SayHiConstrainedInput(BaseModel):
+    """Input for constrained greeting flow."""
+
+    hi_input: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name for streaming greeting')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class WeatherFlowInput(BaseModel):
+    """Input for weather flow."""
+
+    location: str = Field(default='New York', description='Location to get weather for')
+
+
 @ai.tool(description='calculates a gablorken', name='gablorkenTool')
 def gablorken_tool(input_: GablorkenInput) -> int:
     """Calculate a gablorken.
@@ -195,17 +230,17 @@ def convert_currency(input: CurrencyInput) -> str:
 
 
 @ai.flow()
-async def calculate_gablorken(value: Annotated[int, Field(default=42)] = 42) -> str:
+async def calculate_gablorken(input: GablorkenFlowInput) -> str:
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
-        value: Input data containing number
+        input: Input with value for gablorken calculation.
 
     Returns:
         A GenerateRequest object with the evaluation output
     """
     response = await ai.generate(
-        prompt=f'what is the gablorken of {value}',
+        prompt=f'what is the gablorken of {input.value}',
         model=openai_model('gpt-4'),
         tools=['gablorkenTool'],
     )
@@ -232,13 +267,13 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    input: CharacterInput,
     ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
         ctx: the context of the tool
 
     Returns:
@@ -246,7 +281,7 @@ async def generate_character(
     """
     if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
-            prompt=f'generate an RPG character named {name} with gablorken based on 42',
+            prompt=f'generate an RPG character named {input.name} with gablorken based on 42',
             output=Output(schema=RpgCharacter),
             config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
             tools=['gablorkenTool'],
@@ -257,7 +292,7 @@ async def generate_character(
         return (await result).output
     else:
         result = await ai.generate(
-            prompt=f'generate an RPG character named {name} with gablorken based on 13',
+            prompt=f'generate an RPG character named {input.name} with gablorken based on 13',
             output=Output(schema=RpgCharacter),
             config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
             tools=['gablorkenTool'],
@@ -266,11 +301,11 @@ async def generate_character(
 
 
 @ai.flow()
-async def get_weather_flow(location: Annotated[str, Field(default='New York')] = 'New York') -> str:
+async def get_weather_flow(input: WeatherFlowInput) -> str:
     """Get the weather for a location.
 
     Args:
-        location: The location to get the weather for.
+        input: Input with location to get weather for.
 
     Returns:
         The weather for the location.
@@ -279,7 +314,7 @@ async def get_weather_flow(location: Annotated[str, Field(default='New York')] =
         model=openai_model('gpt-4o-mini'),
         system='You are an assistant that provides current weather information in JSON format.',
         config={'model': 'gpt-4o-mini-2024-07-18', 'temperature': 1},
-        prompt=f"What's the weather like in {location} today?",
+        prompt=f"What's the weather like in {input.location} today?",
         tools=['get_weather_tool'],
         output=Output(schema=WeatherResponse),
     )
@@ -287,11 +322,11 @@ async def get_weather_flow(location: Annotated[str, Field(default='New York')] =
 
 
 @ai.flow()
-async def get_weather_flow_stream(location: Annotated[str, Field(default='New York')] = 'New York') -> str:
+async def get_weather_flow_stream(input: WeatherFlowInput) -> str:
     """Get the weather for a location using a stream.
 
     Args:
-        location: The location to get the weather for.
+        input: Input with location to get weather for.
 
     Returns:
         The weather for the location as a string.
@@ -303,7 +338,7 @@ async def get_weather_flow_stream(location: Annotated[str, Field(default='New Yo
             'gablorken based on weather value'
         ),
         config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
-        prompt=f"What's the weather like in {location} today?",
+        prompt=f"What's the weather like in {input.location} today?",
         tools=['get_weather_tool', 'gablorkenTool'],
         output=Output(schema=WeatherResponse),
     )
@@ -314,11 +349,11 @@ async def get_weather_flow_stream(location: Annotated[str, Field(default='New Yo
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Say hi to a name.
 
     Args:
-        name: The name to say hi to.
+        input: Input with name to greet.
 
     Returns:
         The response from the OpenAI API.
@@ -326,34 +361,34 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
     response = await ai.generate(
         model=openai_model('gpt-4o'),
         config={'temperature': 1},
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
     return response.text
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: Annotated[str, Field(default='World')] = 'World') -> HelloSchema:
+async def say_hi_constrained(input: SayHiConstrainedInput) -> HelloSchema:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:
-        hi_input: Input data containing user information.
+        input: Input with name to greet.
 
     Returns:
         A `HelloSchema` object with the greeting message.
     """
     response = await ai.generate(
-        prompt='hi ' + hi_input,
+        prompt='hi ' + input.hi_input,
         output=Output(schema=HelloSchema),
     )
     return response.output
 
 
 @ai.flow()
-async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi_stream(input: StreamInput) -> str:
     """Say hi to a name and stream the response.
 
     Args:
-        name: The name to say hi to.
+        input: Input with name for streaming greeting.
 
     Returns:
         The response from the OpenAI API.
@@ -361,7 +396,7 @@ async def say_hi_stream(name: Annotated[str, Field(default='Alice')] = 'Alice') 
     stream, _ = ai.generate_stream(
         model=openai_model('gpt-4'),
         config={'model': 'gpt-4-0613', 'temperature': 1},
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
     result: str = ''
     async for data in stream:

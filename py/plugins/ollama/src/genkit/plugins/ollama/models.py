@@ -150,8 +150,8 @@ class OllamaModel:
 
         if request.output:
             # ollama api either accepts 'json' literal, or the JSON schema
-            if request.output.schema_:
-                fmt = request.output.schema_
+            if request.output.schema:
+                fmt = request.output.schema
             elif request.output.format:
                 fmt = request.output.format
             else:

@@ -35,9 +35,8 @@ Key Features
 """
 
 import os
-from typing import Annotated
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
@@ -71,6 +70,30 @@ ai = Genkit(
 )
 
 
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name for streaming story')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class ConfigInput(BaseModel):
+    """Input for config flow."""
+
+    name: str = Field(default='Ginger', description='User name for greeting')
+
+
 # Decorated tools
 ai.tool()(get_weather)
 ai.tool()(convert_currency)
@@ -96,69 +119,67 @@ async def calculator_flow(input_data: CalculatorInput) -> str:
 
 
 @ai.flow()
-async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-) -> RpgCharacter:
+async def generate_character(input: CharacterInput) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
 
     Returns:
         The generated RPG character.
     """
-    return await generate_character_logic(ai, name)
+    return await generate_character_logic(ai, input.name)
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a simple greeting.
 
     Args:
-        name: Name to greet.
+        input: Input with name to greet.
 
     Returns:
         Greeting message.
 
     Example:
-        >>> await say_hi('Alice')
+        >>> await say_hi(SayHiInput(name='Alice'))
         "Hello Alice!"
     """
-    return await say_hi_logic(ai, name)
+    return await say_hi_logic(ai, input.name)
 
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Bob')] = 'Bob',
+    input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a streaming story response.
 
     Args:
-        name: Subject of the story.
+        input: Input with name for story.
         ctx: Action context for streaming.
 
     Returns:
         Complete story text.
 
     Example:
-        >>> await say_hi_stream('Bob', ctx)
+        >>> await say_hi_stream(StreamInput(name='Bob'), ctx)
         "Once upon a time..."
     """
-    return await say_hi_stream_logic(ai, name, ctx)
+    return await say_hi_stream_logic(ai, input.name, ctx)
 
 
 @ai.flow()
-async def say_hi_with_config(name: Annotated[str, Field(default='Charlie')] = 'Charlie') -> str:
+async def say_hi_with_config(input: ConfigInput) -> str:
     """Generate a greeting with custom model configuration.
 
     Args:
-        name: User name.
+        input: Input with user name.
 
     Returns:
         Greeting message.
     """
-    return await say_hi_with_config_logic(ai, name)
+    return await say_hi_with_config_logic(ai, input.name)
 
 
 @ai.flow()

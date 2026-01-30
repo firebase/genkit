@@ -32,10 +32,10 @@ Key Features
 """
 
 import os
-from typing import Annotated, cast
+from typing import cast
 
 from flask import Flask
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
@@ -56,6 +56,12 @@ ai = Genkit(
 app = Flask(__name__)
 
 
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
 async def my_context_provider(request: RequestData[dict[str, object]]) -> dict[str, object]:
     """Provide a context for the flow."""
     headers_raw = request.request.get('headers') if isinstance(request.request, dict) else None
@@ -68,12 +74,12 @@ async def my_context_provider(request: RequestData[dict[str, object]]) -> dict[s
 @genkit_flask_handler(ai, context_provider=my_context_provider)
 @ai.flow()
 async def say_hi(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    input: SayHiInput,
     ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Say hi to the user."""
     username = ctx.context.get('username') if ctx is not None else 'unknown'
     return await ai.generate(
         on_chunk=ctx.send_chunk if ctx is not None else None,
-        prompt=f'tell a medium sized joke about {name} for user {username}',
+        prompt=f'tell a medium sized joke about {input.name} for user {username}',
     )

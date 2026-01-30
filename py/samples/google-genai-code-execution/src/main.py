@@ -32,9 +32,8 @@ See README.md for testing instructions.
 """
 
 import os
-from typing import Annotated
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
@@ -57,14 +56,18 @@ ai = Genkit(
 DEFAULT_CODE_TASK = 'What is the sum of the first 50 prime numbers?'
 
 
+class CodeExecutionInput(BaseModel):
+    """Input for code execution flow."""
+
+    task: str = Field(default=DEFAULT_CODE_TASK, description='Task to execute code for')
+
+
 @ai.flow()
-async def execute_code(
-    task: Annotated[str, Field(default=DEFAULT_CODE_TASK)] = DEFAULT_CODE_TASK,
-) -> MessageWrapper:
+async def execute_code(input: CodeExecutionInput) -> MessageWrapper:
     """Execute code for the given task.
 
     Args:
-        task: the task to send to test function
+        input: Input with task to execute code for.
 
     Returns:
         The generated response enclosed in a MessageWrapper. The content field should contain the following:
@@ -73,7 +76,7 @@ async def execute_code(
         3. Textpart describing code and output generated.
     """
     response = await ai.generate(
-        prompt=f'Generate and run code for the task: {task}',
+        prompt=f'Generate and run code for the task: {input.task}',
         config=GeminiConfigSchema.model_validate({'temperature': 1, 'code_execution': True}).model_dump(),
     )
     if not response.message:
@@ -115,7 +118,7 @@ async def main() -> None:
     This function demonstrates how to perform code execution using the
     Genkit framework.
     """
-    response_msg = await execute_code('What is the sum of the first 50 prime numbers?')
+    response_msg = await execute_code(CodeExecutionInput(task='What is the sum of the first 50 prime numbers?'))
     display_code_execution(response_msg)
     await logger.ainfo(response_msg.text)
 

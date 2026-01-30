@@ -14,14 +14,30 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Model Garden sample."""
+"""Model Garden sample.
+
+This sample demonstrates how to use Vertex AI Model Garden, which provides
+access to various third-party models (like Anthropic Claude) through
+Google Cloud's infrastructure.
+
+Key Features
+============
+| Feature Description                     | Example Function / Code Snippet     |
+|-----------------------------------------|-------------------------------------|
+| Model Garden Plugin                     | `ModelGardenPlugin()`               |
+| Specific Model Usage                    | `model_garden_name('anthropic/...')`|
+| Generation Config                       | `max_output_tokens`, `temperature`  |
+
+See README.md for testing instructions.
+"""
 
 import asyncio
 import os
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
+from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
@@ -29,19 +45,24 @@ from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garde
 logger = get_logger(__name__)
 
 
+class RpgCharacter(BaseModel):
+    """An RPG character with stats."""
+
+    name: str = Field(..., description='Character name')
+    backstory: str = Field(..., description='Character backstory')
+    abilities: list[str] = Field(..., description='List of character abilities')
+
+
 def get_project_id() -> str:
     """Get Google Cloud project ID from environment."""
     project_id = os.getenv('GCLOUD_PROJECT') or os.getenv('GOOGLE_CLOUD_PROJECT')
     if not project_id:
-        # Fallback to a hardcoded default for testing if env var is missing,
-        # or raise error. Since user provided a project ID that had quotes,
-        # they likely set it in env var.
         project_id = input('Enter your Google Cloud Project ID: ').strip()
         if not project_id:
             raise ValueError('GCLOUD_PROJECT, GOOGLE_CLOUD_PROJECT or user input must be set.')
 
     # Sanitize project_id to remove potential smart quotes or regular quotes
-    project_id = project_id.strip().strip("'").strip('"').strip('‘').strip('’')
+    project_id = project_id.strip().strip("'").strip('"').strip(""").strip(""")
 
     # Update env vars so other plugins (like VertexAI) pick up the sanitized ID
     os.environ['GCLOUD_PROJECT'] = project_id
@@ -71,6 +92,7 @@ ai = Genkit(
             location=location,
             model_locations={
                 'anthropic/claude-sonnet-4@20250514': 'us-east5',
+                'anthropic/claude-3-5-sonnet-v2@20241022': 'us-east5',
                 'meta/llama-3.2-90b-vision-instruct-maas': 'us-central1',
                 'mistralai/ministral-3-14b-instruct-2512': 'us-central1',
             },
@@ -86,6 +108,48 @@ class WeatherInput(BaseModel):
     location: str = Field(..., description='Location for which to get the weather, ex: San-Francisco, CA')
 
 
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name for streaming greeting')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class JokesInput(BaseModel):
+    """Input for jokes flow."""
+
+    subject: str = Field(default='banana', description='Subject for the joke')
+
+
+class WeatherFlowInput(BaseModel):
+    """Input for weather flow."""
+
+    location: str = Field(default='Paris, France', description='Location to get weather for')
+
+
+class TemperatureInput(BaseModel):
+    """Input for converting temperature."""
+
+    celsius: float = Field(..., description='Temperature in Celsius')
+
+
+class ToolFlowInput(BaseModel):
+    """Input for tool flow."""
+
+    location: str = Field('Paris, France', description='Location to check weather for')
+
+
 @ai.tool()
 def get_weather(input: WeatherInput) -> dict:
     """Used to get current weather for a location."""
@@ -96,22 +160,16 @@ def get_weather(input: WeatherInput) -> dict:
     }
 
 
-class TemperatureInput(BaseModel):
-    """Input for converting temperature."""
-
-    celsius: float = Field(..., description='Temperature in Celsius')
-
-
 @ai.tool()
 def celsius_to_fahrenheit(input: TemperatureInput) -> float:
     """Converts Celsius to Fahrenheit."""
     return (input.celsius * 9) / 5 + 32
 
 
-class ToolFlowInput(BaseModel):
-    """Input for tool flow."""
-
-    location: str = Field('Paris, France', description='Location to check weather for')
+@ai.tool(name='getWeather')
+def get_weather_tool(input_: WeatherInput) -> str:
+    """Used to get current weather for a location."""
+    return f'Weather in {input_.location}: Sunny, 21.5°C'
 
 
 @ai.flow(name='gemini-2.5-flash - tool_flow')
@@ -156,12 +214,106 @@ async def anthropic_model(input: ToolFlowInput) -> str:
         input: The location input.
     """
     response = await ai.generate(
-        # Note: The model name includes the publisher prefix for Model Garden
         model=model_garden_name('anthropic/claude-sonnet-4@20250514'),
         config={'temperature': 1},
         tools=['get_weather', 'celsius_to_fahrenheit'],
         prompt=f"What's the weather in {input.location}? Convert the temperature to Fahrenheit.",
     )
+    return response.text
+
+
+@ai.flow()
+async def generate_character(input: CharacterInput) -> RpgCharacter:
+    """Generate an RPG character.
+
+    Args:
+        input: Input with character name.
+
+    Returns:
+        The generated RPG character.
+    """
+    result = await ai.generate(
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        prompt=f'generate an RPG character named {input.name}',
+        output=Output(schema=RpgCharacter),
+    )
+    return result.output
+
+
+@ai.flow()
+async def jokes_flow(input: JokesInput) -> str:
+    """Generate a joke about the given subject.
+
+    Args:
+        input: Input with joke subject.
+
+    Returns:
+        The generated joke.
+    """
+    response = await ai.generate(
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        config={'temperature': 1, 'max_output_tokens': 1024},
+        prompt=f'Tell a short joke about {input.subject}',
+    )
+
+    return response.text
+
+
+@ai.flow()
+async def say_hi(input: SayHiInput) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        input: Input with name to greet.
+
+    Returns:
+        The generated greeting response.
+    """
+    response = await ai.generate(
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        config={'temperature': 1},
+        prompt=f'hi {input.name}',
+    )
+
+    return response.text
+
+
+@ai.flow()
+async def say_hi_stream(
+    input: StreamInput,
+    ctx: ActionRunContext | None = None,
+) -> str:
+    """Say hi to a name and stream the response.
+
+    Args:
+        input: Input with name for streaming.
+        ctx: Action context for streaming.
+
+    Returns:
+        The response from the model.
+    """
+    stream, _ = ai.generate_stream(
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        config={'temperature': 1},
+        prompt=f'hi {input.name}',
+    )
+    result = ''
+    async for data in stream:
+        if ctx is not None:
+            ctx.send_chunk(data.text)
+        result += data.text
+    return result
+
+
+@ai.flow()
+async def weather_flow(input: WeatherFlowInput) -> str:
+    """Tool calling with Model Garden."""
+    response = await ai.generate(
+        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
+        tools=['getWeather'],
+        prompt=f"What's the weather in {input.location}?",
+    )
+
     return response.text
 
 

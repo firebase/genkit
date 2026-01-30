@@ -117,12 +117,12 @@ class OpenAIModel:
             - 'type': 'text' as the default fallback.
         """
         if output.format == 'json':
-            if output.schema_:
+            if output.schema:
                 return {
                     'type': 'json_schema',
                     'json_schema': {
-                        'name': output.schema_.get('title', 'Response'),
-                        'schema': _ensure_strict_json_schema(output.schema_, path=(), root=output.schema_),
+                        'name': output.schema.get('title', 'Response'),
+                        'schema': _ensure_strict_json_schema(output.schema, path=(), root=output.schema),
                         'strict': True,
                     },
                 }
