@@ -998,3 +998,174 @@ class Genkit(GenkitBase):
             raise ValueError(f'Failed to resolve background action from original request: {operation.action}')
 
         return await background_action.cancel(operation)
+
+    async def generate_operation(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+    ) -> Operation:
+        """Generate content using a long-running model and return an Operation.
+
+        This method is for models that support long-running operations (like
+        video generation with Veo). It returns an Operation that can be polled
+        with check_operation() until completion.
+
+        Note: This is a beta feature. Only models that support long-running
+        operations (model.supports.long_running = True) can be used with this
+        method.
+
+        The Operation Flow
+        ==================
+
+        ┌─────────────────────────────────────────────────────────────────┐
+        │                    generate_operation() Flow                     │
+        ├─────────────────────────────────────────────────────────────────┤
+        │                                                                  │
+        │   ┌──────────────────┐                                          │
+        │   │ Resolve Model    │                                          │
+        │   │ Check supports   │                                          │
+        │   │ long_running     │                                          │
+        │   └────────┬─────────┘                                          │
+        │            │                                                     │
+        │      ┌─────┴─────┐                                              │
+        │      │           │                                              │
+        │      ▼           ▼                                              │
+        │   ┌───────┐   ┌───────────────┐                                │
+        │   │ Error │   │ Call generate │                                │
+        │   │ (no   │   │ Get operation │                                │
+        │   │ LRO)  │   └───────┬───────┘                                │
+        │   └───────┘           │                                         │
+        │                       ▼                                         │
+        │              ┌──────────────┐                                   │
+        │              │  Operation   │                                   │
+        │              │  done=False  │ ──► poll with check_operation()  │
+        │              │  id=...      │                                   │
+        │              └──────────────┘                                   │
+        │                                                                  │
+        └─────────────────────────────────────────────────────────────────┘
+
+        Args:
+            model: The model to use for generation (must support long_running).
+            prompt: The prompt text or parts.
+            system: System message for the model.
+            messages: Conversation history.
+            tools: Tool names available to the model.
+            return_tool_requests: Whether to return tool requests.
+            tool_choice: How the model should choose tools.
+            config: Generation configuration.
+            max_turns: Maximum conversation turns.
+            context: Additional context data.
+            output_format: Output format (e.g., 'json').
+            output_content_type: Output content type.
+            output_instructions: Output formatting instructions.
+            output_constrained: Whether to constrain output to schema.
+            output: Typed output configuration.
+            use: Middleware to apply.
+            docs: Documents for grounding.
+            on_chunk: Callback for streaming chunks.
+
+        Returns:
+            An Operation object for tracking the long-running generation.
+
+        Raises:
+            GenkitError: If the model doesn't support long-running operations.
+            GenkitError: If the model didn't return an operation.
+
+        Example:
+            >>> # Generate video with Veo (long-running operation)
+            >>> operation = await ai.generate_operation(
+            ...     model='googleai/veo-2.0-generate-001',
+            ...     prompt='A banana riding a bicycle.',
+            ... )
+            >>> # Poll until done
+            >>> while not operation.done:
+            ...     await asyncio.sleep(5)
+            ...     operation = await ai.check_operation(operation)
+            >>> # Access result
+            >>> print(operation.output)
+        """
+        from genkit.core.error import GenkitError
+
+        # Resolve the model and check for long_running support
+        resolved_model = model or self.registry.default_model
+        if not resolved_model:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message='No model specified for generate_operation.',
+            )
+
+        model_action = await self.registry.resolve_action(ActionKind.MODEL, resolved_model)
+        if not model_action:
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f"Model '{resolved_model}' not found.",
+            )
+
+        # Check if model supports long-running operations
+        model_info = model_action.metadata.get('model') if model_action.metadata else None
+        supports_long_running = False
+        if model_info:
+            # model_info can be ModelInfo or dict
+            if hasattr(model_info, 'supports'):
+                supports_attr = getattr(model_info, 'supports', None)
+                if supports_attr:
+                    supports_long_running = getattr(supports_attr, 'long_running', False)
+            elif isinstance(model_info, dict):
+                # Cast to dict[str, Any] for type checker
+                model_info_dict: dict[str, Any] = model_info  # type: ignore[assignment]
+                supports = model_info_dict.get('supports')
+                if isinstance(supports, dict):
+                    supports_long_running = bool(supports.get('longRunning', False))
+
+        if not supports_long_running:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f"Model '{model_action.name}' does not support long running operations.",
+            )
+
+        # Call generate
+        response = await self.generate(
+            model=model,
+            prompt=prompt,
+            system=system,
+            messages=messages,
+            tools=tools,
+            return_tool_requests=return_tool_requests,
+            tool_choice=tool_choice,
+            config=config,
+            max_turns=max_turns,
+            context=context,
+            output_format=output_format,
+            output_content_type=output_content_type,
+            output_instructions=output_instructions,
+            output_constrained=output_constrained,
+            output=output,
+            use=use,
+            docs=docs,
+            on_chunk=on_chunk,
+        )
+
+        # Extract operation from response
+        if not hasattr(response, 'operation') or not response.operation:
+            raise GenkitError(
+                status='FAILED_PRECONDITION',
+                message=f"Model '{model_action.name}' did not return an operation.",
+            )
+
+        return response.operation
