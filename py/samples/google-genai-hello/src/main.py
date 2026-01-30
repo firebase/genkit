@@ -430,15 +430,11 @@ async def search_grounding() -> str:
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(
-    value: Annotated[int, Field(default=42)] = 42,
-    ctx: ActionRunContext | None = None,
-) -> str:
+async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
     """Generate a greeting for the given name.
 
     Args:
         value: the integer to send to test function
-        ctx: the flow context
 
     Returns:
         The generated response with a function.
@@ -446,7 +442,6 @@ async def simple_generate_with_tools_flow(
     response = await ai.generate(
         prompt=f'what is a gablorken of {value}',
         tools=['gablorkenTool'],
-        on_chunk=ctx.send_chunk if ctx is not None else None,
     )
     return response.text
 

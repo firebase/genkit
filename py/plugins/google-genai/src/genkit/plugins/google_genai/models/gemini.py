@@ -1015,7 +1015,8 @@ class GeminiModel:
             return None
 
         if defs is None:
-            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
+            defs_value = input_schema.get('$defs')
+            defs = cast(dict[str, object], defs_value) if isinstance(defs_value, dict) else {}
 
         if '$ref' in input_schema:
             ref_path = input_schema['$ref']
@@ -1042,28 +1043,32 @@ class GeminiModel:
 
         schema = genai_types.Schema()
         if input_schema.get('description'):
-            schema.description = input_schema['description']
+            schema.description = cast(str, input_schema['description'])
 
         if 'required' in input_schema:
-            schema.required = input_schema['required']
+            schema.required = cast(list[str], input_schema['required'])
 
         if 'type' in input_schema:
-            schema_type = genai_types.Type(input_schema['type'])
+            schema_type = genai_types.Type(cast(str, input_schema['type']))
             schema.type = schema_type
 
             if 'enum' in input_schema:
-                schema.enum = input_schema['enum']
+                schema.enum = cast(list[str], input_schema['enum'])
 
             if schema_type == genai_types.Type.ARRAY:
-                schema.items = self._convert_schema_property(input_schema['items'], defs)
+                items_value = input_schema.get('items')
+                if isinstance(items_value, dict):
+                    schema.items = self._convert_schema_property(cast(dict[str, object], items_value), defs)
 
             if schema_type == genai_types.Type.OBJECT:
                 schema.properties = {}
-                properties = input_schema.get('properties', {})
-                for key in properties:
-                    nested_schema = self._convert_schema_property(properties[key], defs)
-                    if nested_schema:
-                        schema.properties[key] = nested_schema
+                properties_value = input_schema.get('properties', {})
+                if isinstance(properties_value, dict):
+                    properties = cast(dict[str, dict[str, object]], properties_value)
+                    for key in properties:
+                        nested_schema = self._convert_schema_property(properties[key], defs)
+                        if nested_schema:
+                            schema.properties[key] = nested_schema
 
         return schema
 
@@ -1158,7 +1163,7 @@ class GeminiModel:
             # If the library changes its internal structure (e.g. renames _api_client or _credentials),
             # this code WILL BREAK.
             api_client = self._client._api_client
-            kwargs = {
+            kwargs: dict[str, Any] = {
                 'vertexai': api_client.vertexai,
                 'http_options': {'api_version': api_version},
             }

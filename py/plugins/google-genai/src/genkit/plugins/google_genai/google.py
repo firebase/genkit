@@ -43,6 +43,7 @@ from genkit.plugins.google_genai.models.gemini import (
 )
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
+    ImagenConfigSchema,
     ImagenModel,
     vertexai_image_model_info,
 )
@@ -56,10 +57,10 @@ from genkit.plugins.google_genai.models.veo import (
 class GenaiModels:
     """Container for models discovered from the API."""
 
-    gemini: list[str] = []
-    imagen: list[str] = []
-    embedders: list[str] = []
-    veo: list[str] = []
+    gemini: list[str]
+    imagen: list[str]
+    embedders: list[str]
+    veo: list[str]
 
     def __init__(self) -> None:
         """Initialize Google GenAI plugin."""
@@ -78,6 +79,9 @@ def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
 
     for m in client.models.list():
         name = m.name
+        if not name:
+            continue
+
         # Cleanup prefix
         if is_vertex:
             if name.startswith('publishers/google/models/'):
@@ -87,6 +91,9 @@ def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
 
         description = (m.description or '').lower()
         if 'deprecated' in description:
+            continue
+
+        if not m.supported_actions:
             continue
 
         # Embedders
@@ -547,11 +554,11 @@ class VertexAI(Plugin):
             )
 
         for name in genai_models.imagen:
-            # Imagen models might use vertexai_image_model_info or similar
             actions_list.append(
                 model_action_metadata(
                     name=vertexai_name(name),
-                    info=vertexai_image_model_info(name).model_dump(),
+                    info=vertexai_image_model_info(name).model_dump(by_alias=True),
+                    config_schema=ImagenConfigSchema,
                 )
             )
 
@@ -581,7 +588,7 @@ class VertexAI(Plugin):
 
 
 def _inject_attribution_headers(
-    http_options: HttpOptions | dict | None = None,
+    http_options: HttpOptions | HttpOptionsDict | None = None,
     base_url: str | None = None,
     api_version: str | None = None,
 ) -> HttpOptions:
