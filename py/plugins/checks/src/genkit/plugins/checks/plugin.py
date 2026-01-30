@@ -354,29 +354,22 @@ class Checks(Plugin):
         )
 
         # Convert policy results to evaluation scores
-        # Return the first policy result as the main score, with all results in details
+        # Return all policy results as an array of scores (matching JS implementation)
         if response.policy_results:
-            # Create individual scores for each policy
-            scores: list[Score] = []
+            # Create individual scores for each policy (matches JS evaluationResults)
+            evaluation_results: list[Score] = []
             for result in response.policy_results:
-                # Determine pass/fail based on violation result
-                is_violative = result.violation_result == 'VIOLATIVE'
-                status = EvalStatusEnum.FAIL if is_violative else EvalStatusEnum.PASS_
-                scores.append(
+                evaluation_results.append(
                     Score(
                         id=result.policy_type,
                         score=result.score,
-                        status=status,
                         details=Details(reasoning=f'Status {result.violation_result}'),
                     )
                 )
 
-            # Return the first score as the main evaluation
-            # (Genkit evaluator framework expects a single Score)
-            main_score = scores[0] if scores else Score(status=EvalStatusEnum.UNKNOWN)
             return EvalFnResponse(
                 test_case_id=datapoint.test_case_id or '',
-                evaluation=main_score,
+                evaluation=evaluation_results,
             )
         else:
             return EvalFnResponse(
@@ -401,7 +394,7 @@ class Checks(Plugin):
 
         # Build definition string listing the policies
         policy_names = [config.type.value for config in self._policy_configs]
-        definition = f"Evaluates input text against the Checks {', '.join(policy_names)} policies."
+        definition = f'Evaluates input text against the Checks {", ".join(policy_names)} policies.'
 
         # Build evaluator metadata
         evaluator_meta: dict[str, object] = {

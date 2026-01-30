@@ -78,6 +78,7 @@ else:
 from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from genkit.core.action import ActionRunContext
 from genkit.core.tracing import tracer
@@ -127,18 +128,14 @@ def is_veo_model(name: str) -> bool:
 class VeoConfigSchema(BaseModel):
     """Veo Config Schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
-    negative_prompt: str | None = Field(
-        default=None, alias='negativePrompt', description='Negative prompt for video generation.'
-    )
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+    negative_prompt: str | None = Field(default=None, description='Negative prompt for video generation.')
     aspect_ratio: str | None = Field(
-        default=None, alias='aspectRatio', description='Desired aspect ratio of the output video (e.g. "16:9").'
+        default=None, description='Desired aspect ratio of the output video (e.g. "16:9").'
     )
-    person_generation: str | None = Field(default=None, alias='personGeneration', description='Person generation mode.')
-    duration_seconds: int | None = Field(
-        default=None, alias='durationSeconds', description='Length of video in seconds.'
-    )
-    enhance_prompt: bool | None = Field(default=None, alias='enhancePrompt', description='Enable prompt enhancement.')
+    person_generation: str | None = Field(default=None, description='Person generation mode.')
+    duration_seconds: int | None = Field(default=None, description='Length of video in seconds.')
+    enhance_prompt: bool | None = Field(default=None, description='Enable prompt enhancement.')
 
 
 # Alias for backwards compatibility with __init__.py exports

@@ -39,7 +39,8 @@ Key Features
 
 from typing import Any, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
@@ -136,8 +137,10 @@ class Skills(BaseModel):
 class RpgCharacter(BaseModel):
     """An RPG character."""
 
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
+    back_story: str = Field(description='back story')
     abilities: list[str] = Field(description='list of abilities (3-4)')
     skills: Skills
 

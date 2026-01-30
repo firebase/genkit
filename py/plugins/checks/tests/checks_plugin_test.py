@@ -153,9 +153,7 @@ async def test_resolve_returns_none_for_non_guardrails_evaluator() -> None:
     """Test that resolve returns None for individual metric evaluators."""
     plugin = Checks(
         project_id='test-project',
-        evaluation=ChecksEvaluationConfig(
-            metrics=[ChecksMetricType.DANGEROUS_CONTENT]
-        ),
+        evaluation=ChecksEvaluationConfig(metrics=[ChecksMetricType.DANGEROUS_CONTENT]),
     )
 
     # Initialize plugin

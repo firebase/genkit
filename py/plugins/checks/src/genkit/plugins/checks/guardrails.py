@@ -76,6 +76,7 @@ import httpx
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from genkit.plugins.checks.metrics import ChecksMetric, ChecksMetricConfig, ChecksMetricType
 
@@ -92,11 +93,11 @@ class PolicyResult(BaseModel):
             Values: 'VIOLATIVE', 'NON_VIOLATIVE', or 'CLASSIFICATION_UNSPECIFIED'.
     """
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    policy_type: str = Field(alias='policyType')
+    policy_type: str
     score: float | None = None
-    violation_result: str = Field(default='CLASSIFICATION_UNSPECIFIED', alias='violationResult')
+    violation_result: str = 'CLASSIFICATION_UNSPECIFIED'
 
 
 class ClassifyContentResponse(BaseModel):
@@ -106,9 +107,9 @@ class ClassifyContentResponse(BaseModel):
         policy_results: List of results for each evaluated policy.
     """
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    policy_results: list[PolicyResult] = Field(default_factory=list, alias='policyResults')
+    policy_results: list[PolicyResult] = Field(default_factory=list)
 
 
 @dataclass

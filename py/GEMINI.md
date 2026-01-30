@@ -114,6 +114,39 @@
 * **Imports**: Import types like `Callable`, `Awaitable` from `collections.abc`,
   not standard library `typing`.
 * **Enums**: Use `StrEnum` instead of `(str, Enum)`.
+* **Pydantic Models**: When defining Pydantic `BaseModel` classes that need
+  camelCase JSON serialization (for API compatibility with JavaScript):
+  * Use `alias_generator=to_camel` from `pydantic.alias_generators` in `model_config`
+  * Include `populate_by_name=True` to allow instantiation with Python snake_case names
+  * Do **NOT** use manual `Field(alias='camelCase')` for individual fields
+  
+  This approach:
+  * Ensures type checkers understand the model correctly
+  * Allows Pythonic constructor calls with snake_case field names
+  * Automatically handles camelCase serialization/deserialization for JSON
+  
+  **Correct:**
+  ```python
+  from pydantic import BaseModel, ConfigDict
+  from pydantic.alias_generators import to_camel
+
+  class MyConfig(BaseModel):
+      model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+      
+      my_field: str | None = None
+      another_field: int = 0
+  ```
+  
+  **Wrong** (causes type checker errors):
+  ```python
+  from pydantic import BaseModel, ConfigDict, Field
+
+  class MyConfig(BaseModel):
+      model_config = ConfigDict(populate_by_name=True)
+      
+      my_field: str | None = Field(None, alias='myField')  # Don't use manual aliases
+      another_field: int = Field(0, alias='anotherField')
+  ```
 * **Strictness**: Apply type hints strictly, including `-> None` for void functions.
 * **Design**:
   * Code against interfaces, not implementations.

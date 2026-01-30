@@ -148,6 +148,7 @@ from typing import Annotated, Any, cast
 from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
+from pydantic.alias_generators import to_camel
 
 from genkit.ai import (
     ActionRunContext,
@@ -197,7 +198,7 @@ class HarmBlockThreshold(StrEnum):
 class SafetySettingsSchema(BaseModel):
     """Safety settings schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     category: HarmCategory
     threshold: HarmBlockThreshold
 
@@ -205,8 +206,8 @@ class SafetySettingsSchema(BaseModel):
 class PrebuiltVoiceConfig(BaseModel):
     """Prebuilt voice config."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
-    voice_name: str | None = Field(None, alias='voiceName')
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+    voice_name: str | None = None
 
 
 class FunctionCallingMode(StrEnum):
@@ -221,9 +222,9 @@ class FunctionCallingMode(StrEnum):
 class FunctionCallingConfig(BaseModel):
     """Function calling config."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     mode: FunctionCallingMode | None = None
-    allowed_function_names: list[str] | None = Field(None, alias='allowedFunctionNames')
+    allowed_function_names: list[str] | None = None
 
 
 class ThinkingLevel(StrEnum):
@@ -238,19 +239,19 @@ class ThinkingLevel(StrEnum):
 class ThinkingConfigSchema(BaseModel):
     """Thinking config schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
-    include_thoughts: bool | None = Field(None, alias='includeThoughts')
-    thinking_budget: int | None = Field(None, alias='thinkingBudget')
-    thinking_level: ThinkingLevel | None = Field(None, alias='thinkingLevel')
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+    include_thoughts: bool | None = None
+    thinking_budget: int | None = None
+    thinking_level: ThinkingLevel | None = None
 
 
 class FileSearchConfigSchema(BaseModel):
     """File search config schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
-    file_search_store_names: list[str] | None = Field(None, alias='fileSearchStoreNames')
-    metadata_filter: str | None = Field(None, alias='metadataFilter')
-    top_k: int | None = Field(None, alias='topK')
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+    file_search_store_names: list[str] | None = None
+    metadata_filter: str | None = None
+    top_k: int | None = None
 
 
 class ImageAspectRatio(StrEnum):
@@ -279,22 +280,22 @@ class ImageSize(StrEnum):
 class ImageConfigSchema(BaseModel):
     """Image config schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
-    aspect_ratio: ImageAspectRatio | None = Field(None, alias='aspectRatio')
-    image_size: ImageSize | None = Field(None, alias='imageSize')
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+    aspect_ratio: ImageAspectRatio | None = None
+    image_size: ImageSize | None = None
 
 
 class VoiceConfigSchema(BaseModel):
     """Voice config schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
-    prebuilt_voice_config: PrebuiltVoiceConfig | None = Field(None, alias='prebuiltVoiceConfig')
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+    prebuilt_voice_config: PrebuiltVoiceConfig | None = None
 
 
 class GeminiConfigSchema(GenerationCommonConfig):
     """Gemini Config Schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
 
     safety_settings: Annotated[
         list[SafetySettingsSchema] | None,
@@ -314,12 +315,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
                 'Content is blocked based on the probability that it is harmful.'
             ),
         }),
-    ] = Field(
-        None,
-        alias='safetySettings',
-    )
-    # Gemini specific
-    model_config = ConfigDict(extra='allow')
+    ] = None
 
     # inherited from GenerationCommonConfig:
     # version, temperature, max_output_tokens, top_k, top_p, stop_sequences
@@ -331,37 +327,32 @@ class GeminiConfigSchema(GenerationCommonConfig):
 
     top_p: float | None = Field(
         default=None,
-        alias='topP',
         description=(
             'The maximum cumulative probability of tokens to consider when sampling. Values can range over [0.0, 1.0].'
         ),
     )
     top_k: int | None = Field(  # pyrefly: ignore[bad-override]
         default=None,
-        alias='topK',
         description=('The maximum number of tokens to consider when sampling. Values can range over [1, 40].'),
     )
-    candidate_count: int | None = Field(
-        default=None, description='Number of generated responses to return.', alias='candidateCount'
-    )
+    candidate_count: int | None = Field(default=None, description='Number of generated responses to return.')
     max_output_tokens: int | None = Field(  # pyrefly: ignore[bad-override]
-        default=None, alias='maxOutputTokens', description='Maximum number of tokens to generate.'
+        default=None, description='Maximum number of tokens to generate.'
     )
-    stop_sequences: list[str] | None = Field(default=None, alias='stopSequences', description='Stop sequences.')
-    presence_penalty: float | None = Field(default=None, description='Presence penalty.', alias='presencePenalty')
-    frequency_penalty: float | None = Field(default=None, description='Frequency penalty.', alias='frequencyPenalty')
-    response_mime_type: str | None = Field(default=None, description='Response MIME type.', alias='responseMimeType')
-    response_schema: dict[str, Any] | None = Field(default=None, description='Response schema.', alias='responseSchema')
+    stop_sequences: list[str] | None = Field(default=None, description='Stop sequences.')
+    presence_penalty: float | None = Field(default=None, description='Presence penalty.')
+    frequency_penalty: float | None = Field(default=None, description='Frequency penalty.')
+    response_mime_type: str | None = Field(default=None, description='Response MIME type.')
+    response_schema: dict[str, Any] | None = Field(default=None, description='Response schema.')
 
     code_execution: bool | dict[str, Any] | None = Field(
-        None, description='Enables the model to generate and run code.', alias='codeExecution'
+        None, description='Enables the model to generate and run code.'
     )
     response_modalities: list[str] | None = Field(
         None,
         description=(
             "The modalities to be used in response. Only supported for 'gemini-2.0-flash-exp' model at present."
         ),
-        alias='responseModalities',
     )
 
     thinking_config: Annotated[
@@ -397,7 +388,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
             },
             'additionalProperties': True,
         }),
-    ] = Field(None, alias='thinkingConfig')
+    ] = None
 
     file_search: Annotated[
         FileSearchConfigSchema | None,
@@ -423,15 +414,14 @@ class GeminiConfigSchema(GenerationCommonConfig):
             },
             'additionalProperties': True,
         }),
-    ] = Field(None, alias='fileSearch')
+    ] = None
 
     url_context: bool | dict[str, Any] | None = Field(
-        None, description='Return grounding metadata from links included in the query', alias='urlContext'
+        None, description='Return grounding metadata from links included in the query'
     )
     google_search_retrieval: bool | dict[str, Any] | None = Field(
         None,
         description='Retrieve public web data for grounding, powered by Google Search.',
-        alias='googleSearchRetrieval',
     )
     function_calling_config: Annotated[
         FunctionCallingConfig | None,
@@ -450,33 +440,29 @@ class GeminiConfigSchema(GenerationCommonConfig):
             ),
             'additionalProperties': True,
         }),
-    ] = Field(
-        None,
-        alias='functionCallingConfig',
-    )
+    ] = None
 
     api_version: str | None = Field(
-        None, description='Overrides the plugin-configured or default apiVersion, if specified.', alias='apiVersion'
+        None, description='Overrides the plugin-configured or default apiVersion, if specified.'
     )
-    base_url: str | None = Field(
-        None, description='Overrides the plugin-configured or default baseUrl, if specified.', alias='baseUrl'
-    )
+    base_url: str | None = Field(None, description='Overrides the plugin-configured or default baseUrl, if specified.')
     api_key: str | None = Field(
-        None, description='Overrides the plugin-configured API key, if specified.', alias='apiKey', exclude=True
+        None, description='Overrides the plugin-configured API key, if specified.', exclude=True
     )
     context_cache: bool | None = Field(
         None,
         description=(
             'Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.'
         ),
-        alias='contextCache',
     )
 
 
 class SpeechConfigSchema(BaseModel):
     """Speech config schema."""
 
-    voice_config: VoiceConfigSchema | None = Field(None, alias='voiceConfig')
+    model_config = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+
+    voice_config: VoiceConfigSchema | None = None
 
     http_options: Any | None = Field(None, exclude=True)
     tools: Any | None = Field(None, exclude=True)
@@ -488,7 +474,7 @@ class SpeechConfigSchema(BaseModel):
 class GeminiTtsConfigSchema(GeminiConfigSchema):
     """Gemini TTS Config Schema."""
 
-    speech_config: SpeechConfigSchema | None = Field(None, alias='speechConfig')
+    speech_config: SpeechConfigSchema | None = None
 
 
 class GeminiImageConfigSchema(GeminiConfigSchema):
@@ -504,7 +490,7 @@ class GeminiImageConfigSchema(GeminiConfigSchema):
             },
             'additionalProperties': True,
         }),
-    ] = Field(None, alias='imageConfig')
+    ] = None
 
 
 class GemmaConfigSchema(GeminiConfigSchema):
