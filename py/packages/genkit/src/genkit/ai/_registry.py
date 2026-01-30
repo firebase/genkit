@@ -56,6 +56,12 @@ from genkit.blocks.background_model import (
     StartModelOpFn,
     define_background_model as define_background_model_block,
 )
+from genkit.blocks.dap import (
+    DapConfig,
+    DapFn,
+    DynamicActionProvider,
+    define_dynamic_action_provider as define_dap_block,
+)
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
@@ -349,6 +355,158 @@ class GenkitRegistry:
         """
         define_schema(self.registry, name, schema)
         return schema
+
+    def define_json_schema(self, name: str, json_schema: dict[str, object]) -> dict[str, object]:
+        """Register a JSON schema for use in prompts.
+
+        This method registers a raw JSON Schema (as a dictionary) rather than
+        a Pydantic model class. Use this when you have a JSON Schema from an
+        external source or need more control over the schema definition.
+
+        Schema Types Comparison
+        =======================
+
+        ┌─────────────────────────────────────────────────────────────────┐
+        │                   Schema Registration Methods                    │
+        ├─────────────────────────────────────────────────────────────────┤
+        │                                                                  │
+        │  define_schema()           │  define_json_schema()              │
+        │  ──────────────────────────┼───────────────────────────────────│
+        │  Input: Pydantic class     │  Input: JSON Schema dict          │
+        │  Type-safe                 │  Dynamic/external schemas         │
+        │  Auto-converts to JSON     │  Direct JSON Schema control       │
+        │                                                                  │
+        └─────────────────────────────────────────────────────────────────┘
+
+        Args:
+            name: The name to register the schema under.
+            json_schema: The JSON Schema dictionary to register.
+
+        Returns:
+            The JSON schema that was registered (for convenience).
+
+        Example:
+            ```python
+            # Register a JSON Schema directly
+            recipe_schema = ai.define_json_schema(
+                'Recipe',
+                {
+                    'type': 'object',
+                    'properties': {
+                        'title': {'type': 'string'},
+                        'ingredients': {'type': 'array', 'items': {'type': 'string'}},
+                        'instructions': {'type': 'string'},
+                    },
+                    'required': ['title', 'ingredients', 'instructions'],
+                },
+            )
+            ```
+
+            Then in a .prompt file:
+            ```yaml
+            output:
+              schema: Recipe
+            ```
+
+        See Also:
+            - define_schema: For registering Pydantic models
+            - JSON Schema spec: https://json-schema.org/
+        """
+        self.registry.register_schema(name, json_schema)
+        return json_schema
+
+    def define_dynamic_action_provider(
+        self,
+        config: DapConfig | str,
+        fn: DapFn,
+    ) -> DynamicActionProvider:
+        """Define and register a Dynamic Action Provider (DAP).
+
+        A DAP is a factory that can dynamically provide actions at runtime,
+        enabling integration with external systems like MCP (Model Context
+        Protocol) servers, plugin marketplaces, or other dynamic action sources.
+
+        Dynamic Action Provider Overview
+        ================================
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                    How DAPs Work                                     │
+        ├─────────────────────────────────────────────────────────────────────┤
+        │                                                                      │
+        │  1. Register DAP with Genkit                                        │
+        │  2. When resolving an unknown action, Genkit queries DAPs           │
+        │  3. DAP fetches actions from external source (cached)               │
+        │  4. Actions are returned and can be used like static actions        │
+        │                                                                      │
+        │  ┌──────────┐     ┌──────────┐     ┌──────────────┐                │
+        │  │  Genkit  │ ──► │   DAP    │ ──► │ External     │                │
+        │  │ Registry │     │  Cache   │     │ System       │                │
+        │  └──────────┘     └──────────┘     │ (MCP, etc.)  │                │
+        │       ▲                │           └──────────────┘                │
+        │       │                │                   │                        │
+        │       └────────────────┴───────────────────┘                        │
+        │                    Actions                                          │
+        └─────────────────────────────────────────────────────────────────────┘
+
+        Args:
+            config: DAP configuration (DapConfig) or just a name string.
+                - name: Unique identifier for this DAP
+                - description: What this DAP provides
+                - cache_config: Caching behavior (ttl_millis)
+                - metadata: Additional metadata
+            fn: Async function that returns actions organized by type.
+                Should return a dict like: {'tool': [action1, action2], ...}
+
+        Returns:
+            The registered DynamicActionProvider.
+
+        Example:
+            ```python
+            from genkit.ai import Genkit
+            from genkit.blocks.dap import DapConfig, DapCacheConfig
+
+            ai = Genkit()
+
+
+            # Simple DAP - just a name
+            async def get_tools():
+                return {
+                    'tool': [
+                        ai.dynamic_tool(name='tool1', fn=lambda x: x),
+                    ]
+                }
+
+
+            dap = ai.define_dynamic_action_provider('my-tools', get_tools)
+
+            # DAP with custom caching
+            dap = ai.define_dynamic_action_provider(
+                config=DapConfig(
+                    name='mcp-tools',
+                    description='Tools from MCP server',
+                    cache_config=DapCacheConfig(ttl_millis=10000),
+                ),
+                fn=get_tools,
+            )
+
+            # Invalidate cache when needed
+            dap.invalidate_cache()
+
+            # Get a specific action
+            action = await dap.get_action('tool', 'tool1')
+            ```
+
+        Use Cases:
+            - MCP Integration: Connect to Model Context Protocol servers
+            - Plugin Systems: Load actions from external plugins
+            - Multi-tenant: Provide tenant-specific actions
+            - Feature Flags: Enable/disable actions at runtime
+
+        See Also:
+            - genkit.plugins.mcp: MCP plugin using DAPs
+            - JS implementation: js/core/src/dynamic-action-provider.ts
+        """
+        return define_dap_block(self.registry, config, fn)
 
     def tool(
         self, name: str | None = None, description: str | None = None

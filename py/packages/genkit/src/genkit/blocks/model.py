@@ -184,6 +184,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
+            operation=response.operation,
         )
         # Set subclass-specific field after parent initialization
         self._message_parser = message_parser
