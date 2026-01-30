@@ -47,14 +47,13 @@ from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
 )
+from genkit.blocks.interfaces import Input as _Input, Output, OutputConfigDict
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     ModelMiddleware,
 )
 from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
-from genkit.blocks.interfaces import Input as _Input
-from genkit.blocks.interfaces import Output, OutputConfigDict
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
@@ -140,7 +139,6 @@ class Genkit(GenkitBase):
             return embedder
         else:
             raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
-
 
     @overload
     async def generate(

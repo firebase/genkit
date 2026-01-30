@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Generic, Protocol, TypedDict, TypeVar
+from typing import Generic, Protocol, TypedDict, TypeVar
 
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
@@ -48,7 +48,6 @@ class Input(Generic[InputT]):
         Args:
             schema: The type/class for structured input.
         """
-
         self.schema: type[InputT] = schema
 
 
@@ -77,7 +76,6 @@ class Output(Generic[OutputT]):
             instructions: Optional formatting instructions.
             constrained: Whether to constrain output to schema.
         """
-
         self.schema: type[OutputT] = schema
         self.format: str = format
         self.content_type: str | None = content_type
@@ -86,7 +84,6 @@ class Output(Generic[OutputT]):
 
     def to_dict(self) -> OutputConfigDict:
         """Convert to OutputConfigDict for internal use."""
-
         result: OutputConfigDict = {'schema': self.schema, 'format': self.format}
         if self.content_type is not None:
             result['content_type'] = self.content_type
@@ -100,8 +97,14 @@ class Output(Generic[OutputT]):
 class ExecutablePromptLike(Protocol):
     """Minimal interface for prompt-like objects used in typing."""
 
-    async def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
+    async def __call__(self, *args: object, **kwargs: object) -> object:
+        """Execute the prompt with positional and keyword arguments."""
+        ...
 
-    def stream(self, *args: Any, **kwargs: Any) -> Any: ...
+    def stream(self, *args: object, **kwargs: object) -> object:
+        """Stream prompt execution results."""
+        ...
 
-    async def render(self, *args: Any, **kwargs: Any) -> Any: ...
+    async def render(self, *args: object, **kwargs: object) -> object:
+        """Render the prompt into a concrete representation."""
+        ...

@@ -132,7 +132,7 @@ import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
-from genkit.blocks.interfaces import Input, Output
+
 from dotpromptz.typing import (
     DataArgument,
     PromptFunction,
@@ -147,6 +147,7 @@ from genkit.blocks.generate import (
     generate_action,
     to_tool_definition,
 )
+from genkit.blocks.interfaces import Input, Output
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,

@@ -12,7 +12,6 @@ resolution-markers = [
 [manifest]
 members = [
     "anthropic-hello",
-    "chat-demo",
     "compat-oai-hello",
     "deepseek-hello",
     "dev-local-vectorstore-hello",
@@ -48,7 +47,6 @@ members = [
     "ollama-simple-embed",
     "prompt-demo",
     "realtime-tracing-demo",
-    "session-demo",
     "short-n-long",
     "tool-interrupts",
     "vertex-ai-vector-search-bigquery",
@@ -771,52 +769,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/da/5f/6b8f83a55bb8278772c5ae54a577f3099025f9ade59d0136ac24a0df4bde/charset_normalizer-3.4.4-cp314-cp314-win_arm64.whl", hash = "sha256:de00632ca48df9daf77a2c65a484531649261ec9f25489917f09e455cb09ddb2", size = 100743, upload-time = "2025-10-14T04:41:52.122Z" },
     { url = "https://files.pythonhosted.org/packages/0a/4c/925909008ed5a988ccbb72dcc897407e5d6d3bd72410d69e051fc0c14647/charset_normalizer-3.4.4-py3-none-any.whl", hash = "sha256:7a32c560861a02ff789ad905a2fe94e3f840803362c84fecf1851cb4cf3dc37f", size = 53402, upload-time = "2025-10-14T04:42:31.76Z" },
 ]
-
-[[package]]
-name = "chat-demo"
-version = "0.1.0"
-source = { editable = "samples/chat-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-anthropic" },
-    { name = "genkit-plugin-compat-oai" },
-    { name = "genkit-plugin-deepseek" },
-    { name = "genkit-plugin-google-cloud" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "genkit-plugin-ollama" },
-    { name = "genkit-plugin-vertex-ai" },
-    { name = "genkit-plugin-xai" },
-    { name = "ollama" },
-    { name = "pydantic" },
-    { name = "streamlit" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
-    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
-    { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
-    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "genkit-plugin-xai", editable = "plugins/xai" },
-    { name = "ollama" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "streamlit", specifier = ">=1.40.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "click"
@@ -6426,46 +6378,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/c5/f0/184b4b5f8d00f2a92
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1c/78/504fdd027da3b84ff1aecd9f6957e65f35134534ccc6da8628eb71e76d3f/send2trash-2.1.0-py3-none-any.whl", hash = "sha256:0da2f112e6d6bb22de6aa6daa7e144831a4febf2a87261451c4ad849fe9a873c", size = 17610, upload-time = "2026-01-14T06:27:35.218Z" },
 ]
-
-[[package]]
-name = "session-demo"
-version = "0.1.0"
-source = { editable = "samples/session-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-anthropic" },
-    { name = "genkit-plugin-deepseek" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "genkit-plugin-ollama" },
-    { name = "genkit-plugin-xai" },
-    { name = "ollama" },
-    { name = "pydantic" },
-    { name = "streamlit" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
-    { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
-    { name = "genkit-plugin-xai", editable = "plugins/xai" },
-    { name = "ollama" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "streamlit", specifier = ">=1.40.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "setuptools"

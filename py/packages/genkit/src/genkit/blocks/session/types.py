@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from genkit.types import Message
 
@@ -26,7 +26,9 @@ from genkit.types import Message
 class GenkitLike(Protocol):
     """Minimal Genkit surface needed by session/chat."""
 
-    async def generate(self, *args: Any, **kwargs: Any) -> Any: ...
+    async def generate(self, *args: object, **kwargs: object) -> object:
+        """Generate content using the Genkit instance."""
+        ...
 
 
 class SessionLike(Protocol):
@@ -35,8 +37,14 @@ class SessionLike(Protocol):
     id: str
     _ai: GenkitLike
 
-    def get_messages(self, thread_name: str) -> list[Message]: ...
+    def get_messages(self, thread_name: str) -> list[Message]:
+        """Return messages for the named thread."""
+        ...
 
-    def update_messages(self, thread_name: str, messages: list[Message]) -> None: ...
+    def update_messages(self, thread_name: str, messages: list[Message]) -> None:
+        """Replace messages for the named thread."""
+        ...
 
-    async def save(self) -> None: ...
+    async def save(self) -> None:
+        """Persist session state."""
+        ...
