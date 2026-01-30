@@ -55,7 +55,7 @@ genkit start -- uv run src/main.py
 ```
 
 ## Set up env for sample
-In the file `setup_env.py` you will find some code that will help you to create the bigquery dataset, table with the expected schema, encode the content of the table and push this to the VertexAI Vector Search index. 
+In the file `setup_env.py` you will find some code that will help you to create the bigquery dataset, table with the expected schema, encode the content of the table and push this to the VertexAI Vector Search index.
 This index must be created with update method set as `stream`. VertexAI Index is expected to be already created.
 
 ## Testing This Demo
@@ -98,4 +98,4 @@ This index must be created with update method set as `stream`. VertexAI Index is
    - Query is embedded and sent to Vector Search
    - Similar vectors are found and IDs returned
    - BigQuery is queried for full document content
-   - Duration metrics show performance 
+   - Duration metrics show performance

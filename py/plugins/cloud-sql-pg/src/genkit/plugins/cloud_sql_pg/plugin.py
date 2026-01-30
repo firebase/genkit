@@ -45,6 +45,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+import structlog
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
@@ -66,6 +67,8 @@ from genkit.types import DocumentData, EmbedRequest
 
 from .engine import PostgresEngine
 from .indexes import DEFAULT_DISTANCE_STRATEGY, DistanceStrategy, QueryOptions
+
+logger = structlog.get_logger(__name__)
 
 POSTGRES_PLUGIN_NAME = 'postgres'
 MAX_K = 1000
@@ -321,8 +324,8 @@ class PostgresRetriever:
                     if isinstance(json_meta, str):
                         try:
                             metadata = json.loads(json_meta)
-                        except json.JSONDecodeError:
-                            pass
+                        except json.JSONDecodeError as e:
+                            logger.warning('Failed to parse document metadata', error=str(e))
                     elif isinstance(json_meta, dict):
                         metadata = dict(json_meta)
 

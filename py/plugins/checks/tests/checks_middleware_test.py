@@ -55,7 +55,7 @@ class TestChecksMiddleware:
         })
 
         with (
-            patch('genkit.plugins.checks.middleware._initialize_credentials') as mock_init_creds,
+            patch('genkit.plugins.checks.middleware.initialize_credentials') as mock_init_creds,
             patch(
                 'genkit.plugins.checks.guardrails.Guardrails.classify_content',
                 new_callable=AsyncMock,
@@ -118,7 +118,7 @@ class TestChecksMiddleware:
         })
 
         with (
-            patch('genkit.plugins.checks.middleware._initialize_credentials') as mock_init_creds,
+            patch('genkit.plugins.checks.middleware.initialize_credentials') as mock_init_creds,
             patch(
                 'genkit.plugins.checks.guardrails.Guardrails.classify_content',
                 new_callable=AsyncMock,
@@ -178,7 +178,7 @@ class TestChecksMiddleware:
         })
 
         with (
-            patch('genkit.plugins.checks.middleware._initialize_credentials') as mock_init_creds,
+            patch('genkit.plugins.checks.middleware.initialize_credentials') as mock_init_creds,
             patch(
                 'genkit.plugins.checks.guardrails.Guardrails.classify_content',
                 new_callable=AsyncMock,
@@ -234,7 +234,7 @@ class TestChecksMiddleware:
             )
 
         with (
-            patch('genkit.plugins.checks.middleware._initialize_credentials') as mock_init_creds,
+            patch('genkit.plugins.checks.middleware.initialize_credentials') as mock_init_creds,
             patch(
                 'genkit.plugins.checks.guardrails.Guardrails.classify_content',
                 new_callable=AsyncMock,
@@ -287,7 +287,7 @@ class TestChecksMiddleware:
         )
 
         with (
-            patch('genkit.plugins.checks.middleware._initialize_credentials') as mock_init_creds,
+            patch('genkit.plugins.checks.middleware.initialize_credentials') as mock_init_creds,
             patch(
                 'genkit.plugins.checks.guardrails.Guardrails.classify_content',
                 new_callable=AsyncMock,
@@ -319,7 +319,7 @@ class TestChecksMiddleware:
     async def test_middleware_skips_empty_text_content(self) -> None:
         """Test middleware skips messages without text content."""
         with (
-            patch('genkit.plugins.checks.middleware._initialize_credentials') as mock_init_creds,
+            patch('genkit.plugins.checks.middleware.initialize_credentials') as mock_init_creds,
             patch(
                 'genkit.plugins.checks.guardrails.Guardrails.classify_content',
                 new_callable=AsyncMock,

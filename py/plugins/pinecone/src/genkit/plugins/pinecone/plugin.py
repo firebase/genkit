@@ -44,6 +44,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+import structlog
 from pydantic import BaseModel, Field
 
 from genkit.blocks.document import Document
@@ -63,6 +64,8 @@ from genkit.core.schema import to_json_schema
 from genkit.types import DocumentData, EmbedRequest
 from pinecone import Pinecone as PineconeClient, ServerlessSpec
 from pinecone.db_data.index import Index as PineconeIndex
+
+logger = structlog.get_logger(__name__)
 
 PINECONE_PLUGIN_NAME = 'pinecone'
 CONTENT_KEY = '_content'
@@ -257,8 +260,8 @@ class PineconeRetriever:
             if 'doc_metadata' in metadata:
                 try:
                     doc_metadata = json.loads(str(metadata['doc_metadata']))
-                except (json.JSONDecodeError, TypeError):
-                    pass
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.warning('Failed to parse document metadata', error=str(e))
 
             # Add score to metadata
             doc_metadata['_score'] = match.get('score', 0.0)

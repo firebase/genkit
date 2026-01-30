@@ -70,15 +70,12 @@ See Also:
     - Checks API: https://developers.google.com/checks
 """
 
-import os
 import traceback
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-from google.auth import default as default_credentials
 from google.auth.credentials import Credentials
-from google.oauth2 import service_account
 
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
@@ -95,6 +92,7 @@ from genkit.core.typing import (
     EvalStatusEnum,
     Score,
 )
+from genkit.plugins.checks.auth import initialize_credentials
 from genkit.plugins.checks.guardrails import Guardrails
 from genkit.plugins.checks.metrics import ChecksMetric, ChecksMetricConfig, ChecksMetricType
 
@@ -104,9 +102,6 @@ logger = get_logger(__name__)
 EVALUATOR_METADATA_KEY_DEFINITION = 'definition'
 EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'displayName'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'isBilled'
-
-CLOUD_PLATFORM_OAUTH_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
-CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks'
 
 
 @dataclass
@@ -230,27 +225,7 @@ class Checks(Plugin):
         Raises:
             ValueError: If authentication cannot be established.
         """
-        # Check for service account in environment
-        if os.environ.get('GCLOUD_SERVICE_ACCOUNT_CREDS'):
-            import json
-
-            creds_data = json.loads(os.environ['GCLOUD_SERVICE_ACCOUNT_CREDS'])
-            credentials = service_account.Credentials.from_service_account_info(
-                creds_data,
-                scopes=[CLOUD_PLATFORM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
-            )
-            return credentials
-
-        # Use credentials file if provided
-        if self._google_auth_options and self._google_auth_options.get('credentials_file'):
-            credentials = service_account.Credentials.from_service_account_file(
-                self._google_auth_options['credentials_file'],
-                scopes=[CLOUD_PLATFORM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
-            )
-            return credentials
-
-        # Fall back to default credentials
-        credentials, project = default_credentials(scopes=[CLOUD_PLATFORM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE])
+        credentials, project = initialize_credentials(self._google_auth_options)
 
         # Update project_id if not set
         if self._project_id is None and project:

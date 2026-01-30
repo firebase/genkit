@@ -45,6 +45,7 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import chromadb
+import structlog
 from chromadb.api.models.Collection import Collection
 from chromadb.api.types import Embeddings, Include, Metadatas
 from pydantic import BaseModel, Field
@@ -64,6 +65,8 @@ from genkit.core.plugin import Plugin
 from genkit.core.registry import ActionKind, Registry
 from genkit.core.schema import to_json_schema
 from genkit.types import DocumentData, EmbedRequest
+
+logger = structlog.get_logger(__name__)
 
 CHROMA_PLUGIN_NAME = 'chroma'
 
@@ -284,8 +287,8 @@ class ChromaRetriever:
                         if 'doc_metadata' in stored_meta:
                             try:
                                 metadata = json.loads(str(stored_meta['doc_metadata']))
-                            except (json.JSONDecodeError, TypeError):
-                                pass
+                            except (json.JSONDecodeError, TypeError) as e:
+                                logger.warning('Failed to parse document metadata', error=str(e))
                         # Add distance/embedding info if requested
                         if result_distances and result_distances[0]:
                             metadata['_distance'] = result_distances[0][i]

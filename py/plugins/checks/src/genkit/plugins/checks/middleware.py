@@ -78,16 +78,12 @@ See Also:
     - JS implementation: js/plugins/checks/src/middleware.ts
 """
 
-import os
 from typing import Any
-
-from google.auth import default as default_credentials
-from google.auth.credentials import Credentials
-from google.oauth2 import service_account
 
 from genkit.blocks.model import ModelMiddleware, ModelMiddlewareNext
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import FinishReason, GenerateRequest, GenerateResponse, Message
+from genkit.plugins.checks.auth import initialize_credentials
 from genkit.plugins.checks.guardrails import Guardrails
 from genkit.plugins.checks.metrics import ChecksMetric
 
@@ -108,55 +104,6 @@ def _get_text_content(message: Message) -> str:
         elif hasattr(part, 'text') and part.text:
             texts.append(str(part.text))
     return ' '.join(texts)
-
-
-def _initialize_credentials(auth_options: dict[str, Any] | None = None) -> tuple[Credentials, str | None]:
-    """Initialize Google Cloud credentials.
-
-    Args:
-        auth_options: Optional authentication options including:
-            - credentials_file: Path to service account JSON file
-            - project_id: GCP project ID
-
-    Returns:
-        Tuple of (credentials, project_id).
-    """
-    # Check for service account credentials in environment
-    if os.environ.get('GCLOUD_SERVICE_ACCOUNT_CREDS'):
-        import json
-
-        creds_data = json.loads(os.environ['GCLOUD_SERVICE_ACCOUNT_CREDS'])
-        credentials = service_account.Credentials.from_service_account_info(
-            creds_data,
-            scopes=[
-                'https://www.googleapis.com/auth/cloud-platform',
-                'https://www.googleapis.com/auth/checks',
-            ],
-        )
-        project_id = auth_options.get('project_id') if auth_options else None
-        return credentials, project_id
-
-    # Use credentials file if provided
-    if auth_options and auth_options.get('credentials_file'):
-        credentials = service_account.Credentials.from_service_account_file(
-            auth_options['credentials_file'],
-            scopes=[
-                'https://www.googleapis.com/auth/cloud-platform',
-                'https://www.googleapis.com/auth/checks',
-            ],
-        )
-        project_id = auth_options.get('project_id')
-        return credentials, project_id
-
-    # Fall back to default credentials
-    credentials, default_project = default_credentials(
-        scopes=[
-            'https://www.googleapis.com/auth/cloud-platform',
-            'https://www.googleapis.com/auth/checks',
-        ]
-    )
-    project_id = (auth_options or {}).get('project_id') or default_project
-    return credentials, project_id
 
 
 def checks_middleware(
@@ -215,7 +162,7 @@ def checks_middleware(
         - Checks plugin: For plugin-based configuration
     """
     # Initialize credentials and guardrails client
-    credentials, project_id = _initialize_credentials(auth_options)
+    credentials, project_id = initialize_credentials(auth_options)
     guardrails = Guardrails(credentials, project_id)
 
     async def classify_content(content: str) -> list[str]:

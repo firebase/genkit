@@ -33,7 +33,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-  "genkit>=1.0.0",
+  "genkit>=0.4.0",
   "cloud-sql-python-connector[asyncpg]>=1.14.0",
   "sqlalchemy[asyncio]>=2.0.0",
   "asyncpg>=0.30.0",

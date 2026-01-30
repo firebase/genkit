@@ -318,6 +318,7 @@ certifi               = "2026.1.4" # TODO: Verify.
 dependencies          = true
 dotpromptz-handlebars = "0.1.8"    # Apache-2.0 "https://github.com/google/dotprompt/blob/main/LICENSE"
 google-crc32c         = "1.8.0"    # Apache-2.0
+greenlet              = ">=3.0.0"  # MIT AND Python-2.0 (transitive dep of sqlalchemy)
 multidict             = "6.7.0"    # Apache-2.0
 numpy                 = ">=2.0.0"  # BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 (transitive dep of chromadb)
 ollama                = "0.5.1"    # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"

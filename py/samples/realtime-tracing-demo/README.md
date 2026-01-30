@@ -13,7 +13,7 @@ With realtime tracing enabled:
 
 ```
 Standard Tracing:          Realtime Tracing:
-                           
+
 Start ─────────────────►   Start ────► [Span appears!]
       (nothing visible)           │
       ...                         │ (visible as "in progress")

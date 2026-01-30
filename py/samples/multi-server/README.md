@@ -12,10 +12,11 @@ For an enhanced development experience, use the provided `run.sh` script to star
 ```
 
 This script uses `watchmedo` to monitor changes in:
-- `src/` (Python logic)
-- `../../packages` (Genkit core)
-- `../../plugins` (Genkit plugins)
-- File patterns: `*.py`, `*.prompt`, `*.json`
+
+* `src/` (Python logic)
+* `../../packages` (Genkit core)
+* `../../plugins` (Genkit plugins)
+* File patterns: `*.py`, `*.prompt`, `*.json`
 
 Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
 
@@ -61,11 +62,11 @@ kill -15 ${PROCESS_ID}
    ```
 
 2. **Test the servers**:
-   - [ ] Main API server at http://localhost:8000
-   - [ ] Health check endpoint at /health
-   - [ ] Server info endpoint at /info
+   * \[ ] Main API server at http://localhost:8000
+   * \[ ] Health check endpoint at /health
+   * \[ ] Server info endpoint at /info
 
 3. **Expected behavior**:
-   - Multiple servers start and run concurrently
-   - Graceful shutdown handles all servers
-   - Middleware and logging work across servers
+   * Multiple servers start and run concurrently
+   * Graceful shutdown handles all servers
+   * Middleware and logging work across servers
