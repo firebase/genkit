@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import Generic, Protocol, TypedDict, TypeVar
+from typing import Generic, TypedDict, TypeVar
 
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
@@ -92,19 +92,3 @@ class Output(Generic[OutputT]):
         if self.constrained is not None:
             result['constrained'] = self.constrained
         return result
-
-
-class ExecutablePromptLike(Protocol):
-    """Minimal interface for prompt-like objects used in typing."""
-
-    async def __call__(self, *args: object, **kwargs: object) -> object:
-        """Execute the prompt with positional and keyword arguments."""
-        ...
-
-    def stream(self, *args: object, **kwargs: object) -> object:
-        """Stream prompt execution results."""
-        ...
-
-    async def render(self, *args: object, **kwargs: object) -> object:
-        """Render the prompt into a concrete representation."""
-        ...

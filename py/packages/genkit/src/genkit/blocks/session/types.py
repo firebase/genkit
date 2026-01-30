@@ -18,24 +18,40 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Protocol
 
+from genkit.aio import Channel
+from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper
 from genkit.types import Message
 
 
 class GenkitLike(Protocol):
     """Minimal Genkit surface needed by session/chat."""
 
-    async def generate(self, *args: object, **kwargs: object) -> object:
+    async def generate(self, *args: object, **kwargs: object) -> GenerateResponseWrapper[object]:
         """Generate content using the Genkit instance."""
+        ...
+
+    def generate_stream(
+        self, *args: object, **kwargs: object
+    ) -> tuple[
+        Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[object]],
+        asyncio.Future[GenerateResponseWrapper[object]],
+    ]:
+        """Generate streaming content using the Genkit instance."""
         ...
 
 
 class SessionLike(Protocol):
     """Minimal Session surface needed by Chat."""
 
-    id: str
     _ai: GenkitLike
+
+    @property
+    def id(self) -> str:
+        """Return the session ID."""
+        ...
 
     def get_messages(self, thread_name: str) -> list[Message]:
         """Return messages for the named thread."""

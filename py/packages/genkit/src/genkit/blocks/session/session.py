@@ -39,7 +39,7 @@ import time
 import uuid
 from typing import Any
 
-from genkit.blocks.interfaces import ExecutablePromptLike
+from genkit.blocks.prompt import ExecutablePrompt
 from genkit.types import Message
 
 from .chat import Chat, ChatOptions
@@ -118,10 +118,16 @@ class Session:
         if data:
             self._id: str = data.get('id', str(uuid.uuid4()))
             self._state: dict[str, Any] = data.get('state', {}) or {}
-            threads = data.get('threads', {}) or {}
-            if not threads and data.get('messages'):
+            threads: dict[str, list[Message]] = {}
+            threads_value = data.get('threads')
+            if isinstance(threads_value, dict):
+                threads = {
+                    str(name): messages for name, messages in threads_value.items() if isinstance(messages, list)
+                }
+            messages = data.get('messages')
+            if not threads and messages:
                 # Backwards compatibility: use legacy messages field as main thread
-                threads = {MAIN_THREAD: data.get('messages', [])}
+                threads = {MAIN_THREAD: messages}
             self._threads: dict[str, list[Message]] = threads
             self._created_at: float = data.get('created_at') or time.time()
             self._updated_at: float = data.get('updated_at') or self._created_at
@@ -190,8 +196,8 @@ class Session:
 
     def chat(
         self,
-        thread_or_preamble_or_options: str | ExecutablePromptLike | ChatOptions | None = None,
-        preamble_or_options: ExecutablePromptLike | ChatOptions | None = None,
+        thread_or_preamble_or_options: str | ExecutablePrompt | ChatOptions | None = None,
+        preamble_or_options: ExecutablePrompt | ChatOptions | None = None,
         options: ChatOptions | None = None,
     ) -> Chat:
         """Create a Chat object for multi-turn conversation (matching JS API).
@@ -279,7 +285,4 @@ class Session:
 
     def _is_executable_prompt(self, obj: Any) -> bool:  # noqa: ANN401
         """Check if an object is an ExecutablePrompt."""
-        # Import here to avoid circular imports
-        from genkit.blocks.prompt import ExecutablePrompt
-
         return isinstance(obj, ExecutablePrompt)

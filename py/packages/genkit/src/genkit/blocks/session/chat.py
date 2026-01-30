@@ -111,7 +111,7 @@ from typing import Any, TypedDict
 
 from genkit.aio import Channel
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper
-from genkit.types import Message, Part
+from genkit.types import Message, Part, TextPart
 
 from .store import MAIN_THREAD
 from .types import SessionLike
@@ -194,6 +194,18 @@ class ChatStreamResponse:
     def response(self) -> asyncio.Future[GenerateResponseWrapper]:
         """Get the awaitable for the complete response."""
         return self._response_future
+
+
+def _normalize_prompt_parts(prompt: str | Part | list[Part]) -> list[Part]:
+    """Normalize prompt input into a list of Parts."""
+    if isinstance(prompt, str):
+        # Part is a RootModel, so we pass content via the 'root' parameter.
+        return [Part(root=TextPart(text=prompt))]
+    if isinstance(prompt, list):
+        return list(prompt)
+    if isinstance(prompt, Part):  # pyright: ignore[reportUnnecessaryIsInstance]
+        return [prompt]
+    return []
 
 
 class Chat:
@@ -298,7 +310,7 @@ class Chat:
     ) -> GenerateResponseWrapper:
         """Send a message and get the complete response (matches JS chat.send)."""
         # Append user message to history
-        self._messages.append(Message(role='user', content=[Part.from_text(prompt)]))
+        self._messages.append(Message(role='user', content=_normalize_prompt_parts(prompt)))
 
         # Merge base options and call-specific options
         gen_options = {**self._request_base, **kwargs}
@@ -308,7 +320,14 @@ class Chat:
         response = await self._session._ai.generate(**gen_options)  # pyright: ignore[reportPrivateUsage]
 
         # Append model response to history
-        self._messages.append(Message(role='assistant', content=response.content))
+        if response.message is not None:
+            self._messages.append(
+                Message(
+                    role=response.message.role,
+                    content=response.message.content,
+                    metadata=response.message.metadata,
+                )
+            )
         self._session.update_messages(self._thread_name, self._messages)
         await self._session.save()
 
@@ -321,25 +340,34 @@ class Chat:
     ) -> ChatStreamResponse:
         """Send a message and stream the response (matches JS chat.sendStream)."""
         # Append user message to history
-        self._messages.append(Message(role='user', content=[Part.from_text(prompt)]))
+        self._messages.append(Message(role='user', content=_normalize_prompt_parts(prompt)))
 
         # Merge base options and call-specific options
         gen_options = {**self._request_base, **kwargs}
         gen_options['messages'] = self._messages
 
         # Use session's AI instance to generate response (streaming)
-        stream_result = self._session._ai.generate_stream(**gen_options)  # pyright: ignore[reportPrivateUsage]
+        stream, base_response_future = self._session._ai.generate_stream(  # pyright: ignore[reportPrivateUsage]
+            **gen_options
+        )
 
         async def _run_stream() -> GenerateResponseWrapper:
-            response = await stream_result.response
+            response = await base_response_future
             # Append model response to history
-            self._messages.append(Message(role='assistant', content=response.content))
+            if response.message is not None:
+                self._messages.append(
+                    Message(
+                        role=response.message.role,
+                        content=response.message.content,
+                        metadata=response.message.metadata,
+                    )
+                )
             self._session.update_messages(self._thread_name, self._messages)
             await self._session.save()
             return response
 
-        response_future = asyncio.ensure_future(_run_stream())
-        return ChatStreamResponse(stream_result.stream, response_future)
+        wrapped_response_future = asyncio.ensure_future(_run_stream())
+        return ChatStreamResponse(stream, wrapped_response_future)
 
 
 def _merge_chat_options(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
