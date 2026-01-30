@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Google Cloud Veo Model Support."""
+
 import asyncio
 from typing import Any, cast
 
@@ -152,8 +154,8 @@ class VeoModel:
             for video in response.generated_videos:
                 # Video URI is typically in video.video.uri
                 if video.video and video.video.uri:
-                     uri = video.video.uri
-                     content.append(
+                    uri = video.video.uri
+                    content.append(
                         Part(
                             root=MediaPart(
                                 media=Media(
@@ -167,4 +169,5 @@ class VeoModel:
 
     @property
     def metadata(self) -> dict:
+        """Model metadata."""
         return {'model': {'supports': DEFAULT_VEO_SUPPORT.model_dump()}}

@@ -62,6 +62,7 @@ class GenaiModels:
     veo: list[str] = []
 
     def __init__(self) -> None:
+        """Initialize Google GenAI plugin."""
         self.gemini = []
         self.imagen = []
         self.embedders = []
@@ -74,9 +75,6 @@ def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
     Mirrors logic from Go plugin's listGenaiModels.
     """
     models = GenaiModels()
-    # Go logic uses "gemini", "gemma" as allowed substrings for Gemini models
-    # and checks for "embedContent" capability for embedders
-    # and "predict" + "imagen" (or similar) for Imagen.
 
     for m in client.models.list():
         name = m.name
@@ -94,27 +92,20 @@ def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
         # Embedders
         if 'embedContent' in m.supported_actions:
             models.embedders.append(name)
-            continue
 
         # Imagen (Vertex mostly)
-        # Go checks: slices.Contains(item.SupportedActions, "predict") && strings.Contains(name, "imagen")
         if 'predict' in m.supported_actions and 'imagen' in name.lower():
             models.imagen.append(name)
-            continue
 
         # Veo
         if 'generateVideos' in m.supported_actions or 'veo' in name.lower():
             models.veo.append(name)
-            continue
 
         # Gemini / Gemma
-        # Go checks: slices.Contains(item.SupportedActions, "generateContent")
-        # then filters for "gemini" or "gemma" in name
         if 'generateContent' in m.supported_actions:
             lower_name = name.lower()
             if 'gemini' in lower_name or 'gemma' in lower_name:
                 models.gemini.append(name)
-                continue
 
     return models
 
@@ -550,7 +541,7 @@ class VertexAI(Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=vertexai_name(name),
-                    info=google_model_info(name).model_dump(),
+                    info=google_model_info(name).model_dump(by_alias=True),
                     config_schema=get_model_config_schema(name),
                 )
             )
@@ -561,7 +552,7 @@ class VertexAI(Plugin):
                 model_action_metadata(
                     name=vertexai_name(name),
                     info=vertexai_image_model_info(name).model_dump(),
-                    # Image models config? Maybe different
+                    config_schema=ImagenConfigSchema,
                 )
             )
 
@@ -597,27 +588,28 @@ def _inject_attribution_headers(
 ) -> HttpOptions:
     """Adds genkit client info to the appropriate http headers."""
     if not http_options:
-        http_options = HttpOptions()
+        opts = HttpOptions()
+    elif isinstance(http_options, HttpOptions):
+        opts = http_options
     else:
-        if isinstance(http_options, dict):
-            http_options = HttpOptions(**http_options)
+        opts = HttpOptions.model_validate(http_options)
 
     if base_url:
-        http_options.base_url = base_url
+        opts.base_url = base_url
     if api_version:
-        http_options.api_version = api_version
+        opts.api_version = api_version
 
-    if not http_options.headers:
-        http_options.headers = {}
+    if not opts.headers:
+        opts.headers = {}
 
-    if 'x-goog-api-client' not in http_options.headers:
-        http_options.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
+    if 'x-goog-api-client' not in opts.headers:
+        opts.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
     else:
-        http_options.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
 
-    if 'user-agent' not in http_options.headers:
-        http_options.headers['user-agent'] = GENKIT_CLIENT_HEADER
+    if 'user-agent' not in opts.headers:
+        opts.headers['user-agent'] = GENKIT_CLIENT_HEADER
     else:
-        http_options.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
 
-    return http_options
+    return opts

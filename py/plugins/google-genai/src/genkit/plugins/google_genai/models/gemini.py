@@ -176,6 +176,8 @@ from genkit.types import (
 
 
 class HarmCategory(StrEnum):
+    """Harm categories."""
+
     HARM_CATEGORY_UNSPECIFIED = 'HARM_CATEGORY_UNSPECIFIED'
     HARM_CATEGORY_HATE_SPEECH = 'HARM_CATEGORY_HATE_SPEECH'
     HARM_CATEGORY_SEXUALLY_EXPLICIT = 'HARM_CATEGORY_SEXUALLY_EXPLICIT'
@@ -184,6 +186,8 @@ class HarmCategory(StrEnum):
 
 
 class HarmBlockThreshold(StrEnum):
+    """Harm block thresholds."""
+
     BLOCK_LOW_AND_ABOVE = 'BLOCK_LOW_AND_ABOVE'
     BLOCK_MEDIUM_AND_ABOVE = 'BLOCK_MEDIUM_AND_ABOVE'
     BLOCK_ONLY_HIGH = 'BLOCK_ONLY_HIGH'
@@ -191,17 +195,23 @@ class HarmBlockThreshold(StrEnum):
 
 
 class SafetySettingsSchema(BaseModel):
+    """Safety settings schema."""
+
     model_config = ConfigDict(extra='allow', populate_by_name=True)
     category: HarmCategory
     threshold: HarmBlockThreshold
 
 
 class PrebuiltVoiceConfig(BaseModel):
+    """Prebuilt voice config."""
+
     model_config = ConfigDict(extra='allow', populate_by_name=True)
     voice_name: str | None = Field(None, alias='voiceName')
 
 
 class FunctionCallingMode(StrEnum):
+    """Function calling mode."""
+
     MODE_UNSPECIFIED = 'MODE_UNSPECIFIED'
     AUTO = 'AUTO'
     ANY = 'ANY'
@@ -209,12 +219,16 @@ class FunctionCallingMode(StrEnum):
 
 
 class FunctionCallingConfig(BaseModel):
+    """Function calling config."""
+
     model_config = ConfigDict(extra='allow', populate_by_name=True)
     mode: FunctionCallingMode | None = None
     allowed_function_names: list[str] | None = Field(None, alias='allowedFunctionNames')
 
 
 class ThinkingLevel(StrEnum):
+    """Thinking level."""
+
     MINIMAL = 'MINIMAL'
     LOW = 'LOW'
     MEDIUM = 'MEDIUM'
@@ -222,6 +236,8 @@ class ThinkingLevel(StrEnum):
 
 
 class ThinkingConfigSchema(BaseModel):
+    """Thinking config schema."""
+
     model_config = ConfigDict(extra='allow', populate_by_name=True)
     include_thoughts: bool | None = Field(None, alias='includeThoughts')
     thinking_budget: int | None = Field(None, alias='thinkingBudget')
@@ -229,6 +245,8 @@ class ThinkingConfigSchema(BaseModel):
 
 
 class FileSearchConfigSchema(BaseModel):
+    """File search config schema."""
+
     model_config = ConfigDict(extra='allow', populate_by_name=True)
     file_search_store_names: list[str] | None = Field(None, alias='fileSearchStoreNames')
     metadata_filter: str | None = Field(None, alias='metadataFilter')
@@ -236,6 +254,8 @@ class FileSearchConfigSchema(BaseModel):
 
 
 class ImageAspectRatio(StrEnum):
+    """Image aspect ratio."""
+
     RATIO_1_1 = '1:1'
     RATIO_2_3 = '2:3'
     RATIO_3_2 = '3:2'
@@ -249,18 +269,24 @@ class ImageAspectRatio(StrEnum):
 
 
 class ImageSize(StrEnum):
+    """Image size."""
+
     SIZE_1K = '1K'
     SIZE_2K = '2K'
     SIZE_4K = '4K'
 
 
 class ImageConfigSchema(BaseModel):
+    """Image config schema."""
+
     model_config = ConfigDict(extra='allow', populate_by_name=True)
     aspect_ratio: ImageAspectRatio | None = Field(None, alias='aspectRatio')
     image_size: ImageSize | None = Field(None, alias='imageSize')
 
 
 class VoiceConfigSchema(BaseModel):
+    """Voice config schema."""
+
     model_config = ConfigDict(extra='allow', populate_by_name=True)
     prebuilt_voice_config: PrebuiltVoiceConfig | None = Field(None, alias='prebuiltVoiceConfig')
 
@@ -283,7 +309,10 @@ class GeminiConfigSchema(GenerationCommonConfig):
                 'required': ['category', 'threshold'],
                 'additionalProperties': True,
             },
-            'description': 'Adjust how likely you are to see responses that could be harmful. Content is blocked based on the probability that it is harmful.',
+            'description': (
+                'Adjust how likely you are to see responses that could be harmful. '
+                'Content is blocked based on the probability that it is harmful.'
+            ),
         }),
     ] = Field(
         None,
@@ -310,15 +339,18 @@ class GeminiConfigSchema(GenerationCommonConfig):
         default=None,
         description='Controls the randomness of the output. Values can range over [0.0, 2.0].',
     )
+
     top_p: float | None = Field(
         default=None,
         alias='topP',
-        description='The maximum cumulative probability of tokens to consider when sampling. Values can range over [0.0, 1.0].',
+        description=(
+            'The maximum cumulative probability of tokens to consider when sampling. Values can range over [0.0, 1.0].'
+        ),
     )
     top_k: int | None = Field(
         default=None,
         alias='topK',
-        description='The maximum number of tokens to consider when sampling. Values can range over [1, 40].',
+        description=('The maximum number of tokens to consider when sampling. Values can range over [1, 40].'),
     )
     candidate_count: int | None = Field(
         default=None, description='Number of generated responses to return.', alias='candidateCount'
@@ -337,7 +369,9 @@ class GeminiConfigSchema(GenerationCommonConfig):
     )
     response_modalities: list[str] | None = Field(
         None,
-        description="The modalities to be used in response. Only supported for 'gemini-2.0-flash-exp' model at present.",
+        description=(
+            "The modalities to be used in response. Only supported for 'gemini-2.0-flash-exp' model at present."
+        ),
         alias='responseModalities',
     )
 
@@ -348,16 +382,28 @@ class GeminiConfigSchema(GenerationCommonConfig):
             'properties': {
                 'includeThoughts': {
                     'type': 'boolean',
-                    'description': 'Indicates whether to include thoughts in the response. If true, thoughts are returned only if the model supports thought and thoughts are available.',
+                    'description': (
+                        'Indicates whether to include thoughts in the response. If true, thoughts are returned only if '
+                        'the model supports thought and thoughts are available.'
+                    ),
                 },
                 'thinkingBudget': {
                     'type': 'integer',
-                    'description': 'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. -1 is AUTOMATIC. The default values and allowed ranges are model dependent. The thinking budget parameter gives the model guidance on the number of thinking tokens it can use when generating a response. A greater number of tokens is typically associated with more detailed thinking, which is needed for solving more complex tasks.',
+                    'description': (
+                        'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. -1 is AUTOMATIC. '
+                        'The default values and allowed ranges are model dependent. The thinking budget parameter '
+                        'gives the model guidance on the number of thinking tokens it can use when generating a '
+                        'response. A greater number of tokens is typically associated with more detailed thinking, '
+                        'which is needed for solving more complex tasks.'
+                    ),
                 },
                 'thinkingLevel': {
                     'type': 'string',
                     'enum': [e.value for e in ThinkingLevel],
-                    'description': 'For Gemini 3.0 - Indicates the thinking level. A higher level is associated with more detailed thinking, which is needed for solving more complex tasks.',
+                    'description': (
+                        'For Gemini 3.0 - Indicates the thinking level. A higher level is associated with more '
+                        'detailed thinking, which is needed for solving more complex tasks.'
+                    ),
                 },
             },
             'additionalProperties': True,
@@ -372,7 +418,10 @@ class GeminiConfigSchema(GenerationCommonConfig):
                 'fileSearchStoreNames': {
                     'type': 'array',
                     'items': {'type': 'string'},
-                    'description': 'The names of the fileSearchStores to retrieve from. Example: fileSearchStores/my-file-search-store-123',
+                    'description': (
+                        'The names of the fileSearchStores to retrieve from. '
+                        'Example: fileSearchStores/my-file-search-store-123'
+                    ),
                 },
                 'metadataFilter': {
                     'type': 'string',
@@ -403,7 +452,13 @@ class GeminiConfigSchema(GenerationCommonConfig):
                 'mode': {'type': 'string', 'enum': [e.value for e in FunctionCallingMode]},
                 'allowedFunctionNames': {'type': 'array', 'items': {'type': 'string'}},
             },
-            'description': 'Controls how the model uses the provided tools (function declarations). With AUTO (Default) mode, the model decides whether to generate a natural language response or suggest a function call based on the prompt and context. With ANY, the model is constrained to always predict a function call and guarantee function schema adherence. With NONE, the model is prohibited from making function calls.',
+            'description': (
+                'Controls how the model uses the provided tools (function declarations). With AUTO (Default) '
+                'mode, the model decides whether to generate a natural language response or suggest a function '
+                'call based on the prompt and context. With ANY, the model is constrained to always predict a '
+                'function call and guarantee function schema adherence. With NONE, the model is prohibited '
+                'from making function calls.'
+            ),
             'additionalProperties': True,
         }),
     ] = Field(
@@ -418,16 +473,20 @@ class GeminiConfigSchema(GenerationCommonConfig):
         None, description='Overrides the plugin-configured or default baseUrl, if specified.', alias='baseUrl'
     )
     api_key: str | None = Field(
-        None, description='Overrides the plugin-configured API key, if specified.', alias='apiKey'
+        None, description='Overrides the plugin-configured API key, if specified.', alias='apiKey', exclude=True
     )
     context_cache: bool | None = Field(
         None,
-        description='Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.',
+        description=(
+            'Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.'
+        ),
         alias='contextCache',
     )
 
 
 class SpeechConfigSchema(BaseModel):
+    """Speech config schema."""
+
     voice_config: VoiceConfigSchema | None = Field(None, alias='voiceConfig')
 
     http_options: Any | None = Field(None, exclude=True)
@@ -1351,8 +1410,7 @@ class GeminiModel:
                 dumped_config = cfg.model_dump(exclude_none=True)
 
                 if 'code_execution' in dumped_config:
-                    if dumped_config.pop('code_execution'):
-                        tools.append(genai_types.Tool(code_execution=genai_types.ToolCodeExecution()))
+                    dumped_config.pop('code_execution')
 
                 if 'safety_settings' in dumped_config:
                     dumped_config['safety_settings'] = [
@@ -1465,16 +1523,13 @@ class GeminiModel:
         Returns:
             usage statistics
         """
-        if response.message:
-            usage = get_basic_usage_stats(input_=request.messages, response=response.message)
-        else:
-            usage = GenerationUsage()
         if not response.message:
             usage = GenerationUsage()
             usage.input_tokens = 0
             usage.output_tokens = 0
             usage.total_tokens = 0
             return usage
+
         usage = get_basic_usage_stats(input_=request.messages, response=response.message)
         if response.usage:
             usage.input_tokens = response.usage.input_tokens
