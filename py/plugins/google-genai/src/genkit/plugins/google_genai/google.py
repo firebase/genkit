@@ -552,7 +552,6 @@ class VertexAI(Plugin):
                 model_action_metadata(
                     name=vertexai_name(name),
                     info=vertexai_image_model_info(name).model_dump(),
-                    config_schema=ImagenConfigSchema,
                 )
             )
 

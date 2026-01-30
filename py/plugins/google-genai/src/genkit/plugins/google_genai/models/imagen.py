@@ -239,4 +239,3 @@ class ImagenModel:
                     'supports': supports.model_dump(),
                 }
             }
-        }

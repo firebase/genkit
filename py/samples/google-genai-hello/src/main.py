@@ -53,6 +53,7 @@ Key Features
 
 import argparse
 import asyncio
+import base64
 import os
 import sys
 
@@ -77,7 +78,6 @@ from genkit.plugins.google_genai import (
     GoogleAI,
 )
 from genkit.types import (
-    Embedding,
     GenerationCommonConfig,
     Media,
     MediaPart,
@@ -272,16 +272,19 @@ async def demo_dynamic_tools(
 
 
 @ai.flow()
-async def describe_image(
-    image_url: Annotated[
-        str, Field(default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png')
-    ] = 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
-) -> str:
-    """Describe an image."""
+async def describe_image() -> str:
+    """Describe an image (reads from photo.jpg)."""
+    # Read the photo.jpg file and encode to base64
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    photo_path = os.path.join(current_dir, '..', 'photo.jpg')
+
+    with open(photo_path, 'rb') as photo_file:
+        photo_base64 = base64.b64encode(photo_file.read()).decode('utf-8')
+
     response = await ai.generate(
         prompt=[
-            Part(root=TextPart(text='Describe this image')),
-            Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
+            {'text': 'describe this photo'},
+            {'media': {'contentType': 'image/jpeg', 'url': f'data:image/jpeg;base64,{photo_base64}'}},
         ],
     )
     return response.text
@@ -611,23 +614,25 @@ async def file_search() -> str:
 @ai.flow()
 async def embed_docs(
     docs: list[str] | None = None,
-) -> list[Embedding]:
+) -> list[dict]:
     """Generate an embedding for the words in a list.
 
     Args:
         docs: list of texts (string)
 
     Returns:
-        The generated embedding.
+        The generated embeddings as serializable dicts.
     """
     if docs is None:
         docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.embed_many(
+    embeddings = await ai.embed_many(
         embedder='googleai/text-embedding-004',
         content=docs,
         options=options,
     )
+    # Serialize embeddings to dicts for JSON compatibility
+    return [emb.model_dump(by_alias=True) for emb in embeddings]
 
 
 @ai.flow()
