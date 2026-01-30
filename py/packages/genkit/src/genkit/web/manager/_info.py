@@ -32,7 +32,7 @@ except ImportError:
 
 from ._server import ServerConfig
 
-# TODO: OpenTelemetry integration
+# TODO(#4354): OpenTelemetry integration
 
 
 def get_health_info(config: ServerConfig) -> dict[str, Any]:

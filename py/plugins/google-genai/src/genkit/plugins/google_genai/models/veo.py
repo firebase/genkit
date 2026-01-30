@@ -279,7 +279,7 @@ class VeoModel:
                 if isinstance(part.root, TextPart):
                     prompt.append(part.root.text)
                 else:
-                    # TODO: Support image input if Veo supports it (e.g. for image-to-video)
+                    # TODO(#4363): Support image input if Veo supports it (e.g. for image-to-video)
                     # For now, strict text text-to-video
                     pass
         return ' '.join(prompt)

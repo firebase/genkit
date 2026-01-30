@@ -113,7 +113,7 @@ class Registry:
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
         self.dotprompt: Dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
-        # TODO: Figure out how to set this.
+        # TODO(#4352): Figure out how to set this.
         self.api_stability: str = 'stable'
 
         # Plugin infrastructure

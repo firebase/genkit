@@ -429,7 +429,7 @@ class ServerManager:
 
         await logger.ainfo('All servers stopped')
 
-    # TODO: I'm not sure the async context manager is useful, but it's here for
+    # TODO(#4355): I'm not sure the async context manager is useful, but it's here for
     # now.
     async def __aenter__(self) -> ServerManager:
         """Enter the async context, starting all servers.

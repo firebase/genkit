@@ -549,7 +549,7 @@ class GcpAdjustingTraceExporter(AdjustingTraceExporter):
                     generate_telemetry.tick(span, self._log_input_and_output, self._project_id)
 
                 if span_type == 'action' and subtype == 'tool':
-                    # TODO: Report input and output for tool actions (matching JS comment)
+                    # TODO(#4359): Report input and output for tool actions (matching JS comment)
                     pass
 
                 if span_type in ('action', 'flow', 'flowStep', 'util'):

@@ -318,7 +318,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         Raises:
             GenkitError: If an error occurs during action execution.
         """
-        # TODO: handle telemetry_labels
+        # TODO(#4348): handle telemetry_labels
 
         if context:
             _ = _action_context.set(context)
@@ -358,7 +358,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         Raises:
             GenkitError: If an error occurs during action execution.
         """
-        # TODO: handle telemetry_labels
+        # TODO(#4348): handle telemetry_labels
 
         if context:
             _ = _action_context.set(context)

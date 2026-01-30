@@ -101,7 +101,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     config=param.judge_config,
                     output=Output(schema=AnswerRelevancyResponseSchema),
                 )
-                # TODO: embedding comparison between the input and the result of the llm
+                # TODO(#4358): embedding comparison between the input and the result of the llm
                 answered = False
                 if response.output and hasattr(response.output, 'answered'):
                     answered = bool(response.output.answered)

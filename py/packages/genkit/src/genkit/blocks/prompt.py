@@ -699,7 +699,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
         _prompt_action: Action | None = None,  # reference to PROMPT action
-        # TODO:
+        # TODO(#4344):
         #  docs: list[Document]):
     ) -> None:
         """Initializes an ExecutablePrompt instance.

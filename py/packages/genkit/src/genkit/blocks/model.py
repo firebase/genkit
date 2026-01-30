@@ -196,7 +196,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
         Raises:
             AssertionError: If the response structure is considered invalid.
         """
-        # TODO: implement
+        # TODO(#4343): implement
         pass
 
     def assert_valid_schema(self) -> None:
@@ -207,7 +207,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
         Raises:
             AssertionError: If the response message does not conform to the schema.
         """
-        # TODO: implement
+        # TODO(#4343): implement
         pass
 
     @cached_property

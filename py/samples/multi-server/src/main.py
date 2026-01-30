@@ -56,14 +56,14 @@ from genkit.web.typing import Application, Receive, Scope, Send
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
-# TODO: Logging middleware > log ALL access requests and fix dups
-# TODO: Logging middleware > access requests different color for each server.
-# TODO: Logging middleware > show the METHOD and path first and then the structure.
-# TODO: Logging middleware > if the response is an error code, highlight in red
+# TODO(#4368): Logging middleware > log ALL access requests and fix dups
+# TODO(#4368): Logging middleware > access requests different color for each server.
+# TODO(#4368): Logging middleware > show the METHOD and path first and then the structure.
+# TODO(#4368): Logging middleware > if the response is an error code, highlight in red
 # when logging to the console.
-# TODO: Logger > default configuration and console output and json output
-# TODO: Add opentelemetry integration
-# TODO: replace 'requests' with 'aiohttp' or 'httpx' in genkit
+# TODO(#4369): Logger > default configuration and console output and json output
+# TODO(#4370): Add opentelemetry integration
+# TODO(#4371): replace 'requests' with 'aiohttp' or 'httpx' in genkit
 
 logging_config = LoggingConfig(
     loggers={

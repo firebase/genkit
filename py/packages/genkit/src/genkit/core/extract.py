@@ -39,7 +39,7 @@ def parse_partial_json(json_string: str) -> Any:  # noqa: ANN401
     Raises:
         AssertionError: If the string cannot be parsed as JSON.
     """
-    # TODO: add handling for malformed JSON cases.
+    # TODO(#4350): add handling for malformed JSON cases.
     return loads(json_string)
 
 
