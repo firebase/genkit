@@ -23,7 +23,7 @@ import pytest
 
 from genkit.core.extract import extract_items, extract_json, parse_partial_json
 
-# TODO: consider extracting these tests into shared yaml spec. They are already
+# TODO(#4356): consider extracting these tests into shared yaml spec. They are already
 # duplicated in js/ai/tests/extract_test.ts
 
 test_cases_extract_items = [

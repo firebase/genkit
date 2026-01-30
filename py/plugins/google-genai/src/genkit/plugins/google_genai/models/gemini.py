@@ -1193,7 +1193,8 @@ class GeminiModel:
             if version:
                 model_name = version
 
-        # TODO: do not move - this method mutates `request` by extracting system prompts into configuration object
+        # TODO(#4361): Do not move - this method mutates `request` by extracting system
+        # prompts into configuration object
         request_cfg = self._genkit_to_googleai_cfg(request=request)
 
         # TTS models require response_modalities: ["AUDIO"]
@@ -1225,7 +1226,7 @@ class GeminiModel:
                 api_version = request.config.get('api_version')
 
         if api_version:
-            # TODO: Request public API from google-genai maintainers.
+            # TODO(#4362): Request public API from google-genai maintainers.
             # Currently, there is no public way to access the configured api_key, project, or location
             # from an existing Client instance. We need to access the private _api_client to
             # clone the configuration when overriding the api_version.

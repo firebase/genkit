@@ -187,7 +187,7 @@ class GenkitBase(GenkitRegistry):
                         max_retries = 20  # 2 seconds total roughly
                         for _i in range(max_retries):
                             try:
-                                # TODO: Use async http client if available to avoid blocking loop?
+                                # TODO(#4334): Use async http client if available to avoid blocking loop?
                                 # But we are in dev mode, so maybe okay.
                                 # Actually we should use anyio.to_thread to avoid blocking event loop
                                 # or assume standard lib urllib is fast enough for localhost.

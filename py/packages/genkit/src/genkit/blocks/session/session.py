@@ -270,7 +270,7 @@ class Session:
                 if value is not None:
                     request_base[key] = value
 
-        # TODO: Handle preamble rendering (JS pre-renders preamble here)
+        # TODO(#4345): Handle preamble rendering (JS pre-renders preamble here)
         # For now, preamble support is deferred
 
         # Get messages for this thread

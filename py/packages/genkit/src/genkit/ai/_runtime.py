@@ -70,7 +70,7 @@ def _register_atexit_cleanup_handler(path_to_remove: Path | None) -> None:
         return
 
     def sync_cleanup() -> None:
-        # TODO: Neither print nor logger appears to work during atexit.
+        # TODO(#4335): Neither print nor logger appears to work during atexit.
         _ = _remove_file(path_to_remove)
 
     logger.debug(f'Registering synchronous atexit cleanup for {path_to_remove}')

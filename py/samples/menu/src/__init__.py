@@ -24,7 +24,7 @@
 # 03
 
 # 04
-# TODO: uncomment once implemented
+# TODO(#4367): uncomment once implemented
 # from case_04.flows import s04_indexMenuItemsFlow, s04_ragMenuQuestionFlow
 # from case_04.prompts import s04_ragDataMenuPrompt
 # 05

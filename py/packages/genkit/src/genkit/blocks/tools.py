@@ -168,7 +168,7 @@ class ToolRunContext(ActionRunContext):
         raise ToolInterruptError(metadata=metadata)
 
 
-# TODO: make this extend GenkitError once it has INTERRUPTED status
+# TODO(#4346): make this extend GenkitError once it has INTERRUPTED status
 class ToolInterruptError(Exception):
     """Exception raised to signal a controlled interruption of tool execution.
 
@@ -209,7 +209,7 @@ def tool_response(
     Returns:
         A Part object containing the constructed ToolResponse.
     """
-    # TODO: validate against tool schema
+    # TODO(#4347): validate against tool schema
     tool_request = interrupt.root.tool_request if isinstance(interrupt, Part) else interrupt.tool_request
 
     interrupt_metadata = True

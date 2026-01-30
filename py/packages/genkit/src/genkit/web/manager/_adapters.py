@@ -183,7 +183,7 @@ class UvicornAdapter(ASGIServerAdapter):
             host=host,
             port=port,
             log_level=log_level,
-            # TODO: Disable after we complete logging middleware.
+            # TODO(#4353): Disable after we complete logging middleware.
             # log_config=None,
             # access_log=True,
         )
