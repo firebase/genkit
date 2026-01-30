@@ -104,7 +104,7 @@ try {
   const message = err instanceof Error ? err.message : String(err);
   return {
     isError: true,
-    content: [{ type: 'text', text: `Error: ${message}` }]
+    content: [{ type: 'text', text: `Error: ${message}` }],
   };
 }
 ```
