@@ -114,10 +114,13 @@ from genkit.plugins.google_genai.models.embedder import (
 from genkit.plugins.google_genai.models.gemini import (
     GeminiConfigSchema,
     GeminiImageConfigSchema,
+    GeminiTtsConfigSchema,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
 )
 from genkit.plugins.google_genai.models.imagen import ImagenVersion
+from genkit.plugins.google_genai.models.lyria import LyriaConfig, LyriaVersion
+from genkit.plugins.google_genai.models.veo import VeoConfig, VeoVersion
 
 
 def package_name() -> str:
@@ -140,5 +143,10 @@ __all__ = [
     EmbeddingTaskType.__name__,
     GeminiConfigSchema.__name__,
     GeminiImageConfigSchema.__name__,
+    GeminiTtsConfigSchema.__name__,
     ImagenVersion.__name__,
+    VeoVersion.__name__,
+    VeoConfig.__name__,
+    LyriaVersion.__name__,
+    LyriaConfig.__name__,
 ]

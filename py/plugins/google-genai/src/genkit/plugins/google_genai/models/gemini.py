@@ -872,27 +872,96 @@ DEFAULT_SUPPORTS_MODEL = Supports(
 
 
 def is_gemini_model(name: str) -> bool:
-    """Check if the model is a Gemini model."""
+    """Check if the model is a standard Gemini text generation model.
+
+    Excludes TTS and image variants which have different capabilities.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a standard Gemini model (not TTS or image).
+
+    Example:
+        >>> is_gemini_model('gemini-2.0-flash-001')
+        True
+        >>> is_gemini_model('gemini-2.5-flash-preview-tts')
+        False
+    """
     return name.startswith('gemini-') and not is_tts_model(name) and not is_image_model(name)
 
 
 def is_tts_model(name: str) -> bool:
-    """Check if the model is a TTS model."""
+    """Check if the model is a text-to-speech (TTS) model.
+
+    TTS models output audio instead of text and use GeminiTtsConfigSchema.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a TTS model.
+
+    Example:
+        >>> is_tts_model('gemini-2.5-flash-preview-tts')
+        True
+    """
     return (name.startswith('gemini-') and name.endswith('-tts')) or 'tts' in name
 
 
 def is_image_model(name: str) -> bool:
-    """Check if the model is an image model."""
+    """Check if the model is a Gemini image generation model.
+
+    Image models output images instead of text and use GeminiImageConfigSchema.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a Gemini image model.
+
+    Example:
+        >>> is_image_model('gemini-2.0-flash-preview-image-generation')
+        True
+    """
     return (name.startswith('gemini-') and '-image' in name) or 'image' in name
 
 
 def is_gemma_model(name: str) -> bool:
-    """Check if the model is a Gemma model."""
+    """Check if the model is a Gemma open model.
+
+    Gemma models are Google's open-weight models with different configuration.
+
+    Args:
+        name: The model name to check.
+
+    Returns:
+        True if this is a Gemma model.
+
+    Example:
+        >>> is_gemma_model('gemma-2-27b-it')
+        True
+    """
     return name.startswith('gemma-')
 
 
 def get_model_config_schema(name: str) -> type[GeminiConfigSchema]:
-    """Get the config schema for a given model name."""
+    """Get the appropriate config schema for a dynamically discovered model.
+
+    Different model types (TTS, image, Gemma, standard) have different
+    configuration options. This function returns the correct schema based
+    on the model name.
+
+    Args:
+        name: The model name to determine schema for.
+
+    Returns:
+        The appropriate config schema class:
+        - GeminiTtsConfigSchema for TTS models
+        - GeminiImageConfigSchema for image models
+        - GemmaConfigSchema for Gemma models
+        - GeminiConfigSchema for standard Gemini models
+    """
     if is_tts_model(name):
         return GeminiTtsConfigSchema
     if is_image_model(name):
@@ -907,14 +976,14 @@ def google_model_info(
 ) -> ModelInfo:
     """Generates a ModelInfo object.
 
-    This function tries to get the best ModelInfo Supports
-    for the given version.
+    This function returns the best ModelInfo Supports based on model type.
+    Detects TTS, Image, Gemma, and standard Gemini models.
 
     Args:
         version: Version of the model.
 
     Returns:
-        ModelInfo object.
+        ModelInfo object with appropriate capabilities.
     """
     if version in SUPPORTED_MODELS:
         return SUPPORTED_MODELS[version]
@@ -1126,6 +1195,18 @@ class GeminiModel:
 
         # TODO: do not move - this method mutates `request` by extracting system prompts into configuration object
         request_cfg = self._genkit_to_googleai_cfg(request=request)
+
+        # TTS models require response_modalities: ["AUDIO"]
+        if is_tts_model(model_name):
+            if not request_cfg:
+                request_cfg = genai_types.GenerateContentConfig()
+            request_cfg.response_modalities = ['AUDIO']
+
+        # Image models require response_modalities: ["TEXT", "IMAGE"]
+        if is_image_model(model_name):
+            if not request_cfg:
+                request_cfg = genai_types.GenerateContentConfig()
+            request_cfg.response_modalities = ['TEXT', 'IMAGE']
 
         request_contents, cached_content = await self._build_messages(request=request, model_name=model_name)
 
@@ -1476,8 +1557,8 @@ class GeminiModel:
             response_mime_type = 'application/json' if request.output.format == 'json' and not request.tools else None
             cfg.response_mime_type = response_mime_type
 
-            if request.output.schema_ and request.output.constrained:
-                cfg.response_schema = self._convert_schema_property(request.output.schema_)
+            if request.output.schema and request.output.constrained:
+                cfg.response_schema = self._convert_schema_property(request.output.schema)
 
         if request.tools:
             if not cfg:

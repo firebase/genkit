@@ -63,7 +63,6 @@ if sys.version_info < (3, 11):
     from strenum import StrEnum  # pyright: ignore[reportUnreachable]
 else:
     from enum import StrEnum
-from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -153,6 +152,48 @@ class WeatherInput(BaseModel):
     location: str = Field(description='The city and state, e.g. San Francisco, CA')
 
 
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Whiskers', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name to write story about')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class TemperatureInput(BaseModel):
+    """Input for temperature config flow."""
+
+    data: str = Field(default='Mittens', description='Name to greet')
+
+
+class ToolsFlowInput(BaseModel):
+    """Input for tools flow."""
+
+    value: int = Field(default=42, description='Value for gablorken calculation')
+
+
+class DynamicToolsInput(BaseModel):
+    """Input for dynamic tools demo."""
+
+    input_val: str = Field(default='Dynamic tools demo', description='Input value for demo')
+
+
+class ToolCallingInput(BaseModel):
+    """Input for tool calling flow."""
+
+    location: str = Field(default='Paris, France', description='Location to get weather for')
+
+
 @ai.tool()
 def convert_currency(input: CurrencyInput) -> str:
     """Convert currency amount.
@@ -178,11 +219,11 @@ def convert_currency(input: CurrencyInput) -> str:
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
+async def simple_generate_with_interrupts(input: ToolsFlowInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        value: the integer to send to test function
+        input: Input with value for gablorken calculation.
 
     Returns:
         The generated response with a function.
@@ -191,7 +232,7 @@ async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42
         messages=[
             Message(
                 role=Role.USER,
-                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
+                content=[Part(root=TextPart(text=f'what is a gablorken of {input.value}'))],
             ),
         ],
         tools=['gablorkenTool2'],
@@ -210,17 +251,22 @@ async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name to greet.
 
     Returns:
-        The generated response with a function.
+        The generated greeting response.
+
+    Example:
+        >>> result = await say_hi(SayHiInput(name='Mr. Fluffington'))
+        >>> print(result)
+        Hello Mr. Fluffington! *purrs contentedly*
     """
     resp = await ai.generate(
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
 
     await logger.ainfo(
@@ -234,9 +280,7 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 
 @ai.flow()
-async def demo_dynamic_tools(
-    input_val: Annotated[str, Field(default='Dynamic tools demo')] = 'Dynamic tools demo',
-) -> dict[str, object]:
+async def demo_dynamic_tools(input: DynamicToolsInput) -> dict[str, object]:
     """Demonstrates advanced Genkit features: ai.run() and ai.dynamic_tool().
 
     This flow shows how to:
@@ -254,7 +298,7 @@ async def demo_dynamic_tools(
     def process_data(data: str) -> str:
         return f'processed: {data}'
 
-    run_result = await ai.run('process_data_step', input_val, process_data)
+    run_result = await ai.run('process_data_step', input.input_val, process_data)
 
     # ai.dynamic_tool() creates a tool that isn't globally registered but can be
     # used immediately or passed to generate() calls.
@@ -325,13 +369,13 @@ class RpgCharacter(BaseModel):
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    input: CharacterInput,
     ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
         ctx: the context of the tool
 
     Returns:
@@ -339,7 +383,7 @@ async def generate_character(
     """
     if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
-            prompt=f'generate an RPG character named {name}',
+            prompt=f'generate an RPG character named {input.name}',
             output=Output(schema=RpgCharacter),
         )
         async for data in stream:
@@ -348,7 +392,7 @@ async def generate_character(
         return (await result).output
     else:
         result = await ai.generate(
-            prompt=f'generate an RPG character named {name}',
+            prompt=f'generate an RPG character named {input.name}',
             output=Output(schema=RpgCharacter),
         )
         return result.output
@@ -356,20 +400,20 @@ async def generate_character(
 
 @ai.flow()
 async def generate_character_unconstrained(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
+    input: CharacterInput,
     _ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
         _ctx: the context of the tool (unused)
 
     Returns:
         The generated RPG character.
     """
     result = await ai.generate(
-        prompt=f'generate an RPG character named {name}',
+        prompt=f'generate an RPG character named {input.name}',
         output=Output(schema=RpgCharacter),
         output_constrained=False,
         output_instructions=True,
@@ -379,19 +423,19 @@ async def generate_character_unconstrained(
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name for streaming.
         ctx: the context of the tool
 
     Returns:
         The generated response with a function.
     """
-    stream, _ = ai.generate_stream(prompt=f'hi {name}')
+    stream, _ = ai.generate_stream(prompt=f'hi {input.name}')
     result: str = ''
     async for data in stream:
         if ctx is not None:
@@ -402,45 +446,50 @@ async def say_hi_stream(
 
 
 @ai.flow()
-async def say_hi_with_configured_temperature(
-    data: Annotated[str, Field(default='Alice')] = 'Alice',
-) -> GenerateResponseWrapper:
+async def say_hi_with_configured_temperature(input: TemperatureInput) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
     Args:
-        data: the name to send to test function
+        input: Input with name for greeting.
 
     Returns:
         The generated response with a function.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {input.data}'))])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
 
 @ai.flow()
 async def search_grounding() -> str:
-    """Search grounding."""
+    """Search grounding demo - retrieves current info from the web.
+
+    This flow demonstrates Google Search grounding, which allows the model
+    to access real-time information from the web to answer questions.
+
+    Returns:
+        Information about cats with web-grounded facts.
+    """
     response = await ai.generate(
-        prompt='Who is Albert Einstein?',
+        prompt='What are the most popular cat breeds in 2024 and their characteristics?',
         config={'google_search_retrieval': True},
     )
     return response.text
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
+async def simple_generate_with_tools_flow(input: ToolsFlowInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        value: the integer to send to test function
+        input: Input with value for gablorken calculation.
 
     Returns:
         The generated response with a function.
     """
     response = await ai.generate(
-        prompt=f'what is a gablorken of {value}',
+        prompt=f'what is a gablorken of {input.value}',
         tools=['gablorkenTool'],
     )
     return response.text
@@ -501,13 +550,16 @@ async def thinking_level_pro(_level: ThinkingLevel) -> str:
 
 @ai.flow()
 async def url_context() -> str:
-    """Url context."""
+    """URL context demo - analyzes content from web pages.
+
+    This flow demonstrates URL context feature, allowing the model to
+    read and analyze content from specified web URLs.
+
+    Returns:
+        Analysis of cat care information from the web.
+    """
     response = await ai.generate(
-        prompt=(
-            'Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/'
-            'perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/70679/'
-            'simple-whole-roasted-chicken/'
-        ),
+        prompt=('Summarize the key cat care tips from https://www.aspca.org/pet-care/cat-care/general-cat-care'),
         config={'url_context': {}, 'api_version': 'v1alpha'},
     )
     return response.text
@@ -676,11 +728,11 @@ def celsius_to_fahrenheit(celsius: float) -> float:
 
 
 @ai.flow()
-async def tool_calling(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
+async def tool_calling(input: ToolCallingInput) -> str:
     """Tool calling with Gemini."""
     response = await ai.generate(
         tools=['getWeather', 'celsiusToFahrenheit'],
-        prompt=f"What's the weather in {location}? Convert the temperature to Fahrenheit.",
+        prompt=f"What's the weather in {input.location}? Convert the temperature to Fahrenheit.",
         config=GenerationCommonConfig(temperature=1),
     )
     return response.text

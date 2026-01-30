@@ -126,8 +126,7 @@ async def classify_sentiment_enum(input: ClassifySentimentInput) -> str:
         prompt=f'Classify the sentiment of this review: "{input.review}"',
         output=OutputConfig(
             format='enum',
-            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
-            schema_={
+            schema={
                 'type': 'string',
                 'enum': ['POSITIVE', 'NEGATIVE', 'NEUTRAL'],
             },
@@ -159,8 +158,7 @@ async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> li
         prompt=f'Generate 5 characters for a {input.theme} story',
         output=OutputConfig(
             format='jsonl',
-            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
-            schema_={
+            schema={
                 'type': 'array',
                 'items': Character.model_json_schema(),
             },
@@ -201,8 +199,7 @@ async def get_country_info_json(input: CountryInfoInput) -> dict[str, Any]:
     """
     response = await ai.generate(
         prompt=f'Give me information about {input.country}',
-        # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
-        output=OutputConfig(format='json', schema_=CountryInfo.model_json_schema()),
+        output=OutputConfig(format='json', schema=CountryInfo.model_json_schema()),
     )
     return cast(dict[str, Any], response.output)
 
@@ -226,8 +223,7 @@ async def recommend_books_array(input: RecommendBooksInput) -> list[dict[str, ob
         prompt=f'List 3 famous {input.genre} books',
         output=OutputConfig(
             format='array',
-            # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
-            schema_={
+            schema={
                 'type': 'array',
                 'items': Book.model_json_schema(),
             },

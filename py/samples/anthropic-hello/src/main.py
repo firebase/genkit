@@ -39,7 +39,6 @@ Key Features
 """
 
 import os
-from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -99,6 +98,45 @@ class WeatherInput(BaseModel):
     location: str = Field(description='Location to get weather for')
 
 
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    topic: str = Field(default='cats and their behaviors', description='Topic to write about')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class ImageDescribeInput(BaseModel):
+    """Input for image description."""
+
+    image_url: str = Field(
+        default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+        description='URL of the image to describe',
+    )
+
+
+class ThinkingInput(BaseModel):
+    """Input for thinking demo."""
+
+    question: str = Field(default='Why do cats purr?', description='Question to answer')
+
+
+class WeatherFlowInput(BaseModel):
+    """Input for weather flow."""
+
+    location: str = Field(default='San Francisco', description='Location to get weather for')
+
+
 @ai.tool()
 def convert_currency(input: CurrencyInput) -> str:
     """Convert currency amount.
@@ -141,38 +179,31 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 
 @ai.flow()
-async def describe_image(
-    image_url: Annotated[
-        str,
-        Field(default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png'),
-    ] = 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
-) -> str:
+async def describe_image(input: ImageDescribeInput) -> str:
     """Describe an image using Anthropic."""
     from genkit.types import Media, MediaPart, Part, TextPart
 
     response = await ai.generate(
         prompt=[
             Part(root=TextPart(text='Describe this image')),
-            Part(root=MediaPart(media=Media(url=image_url, content_type='image/png'))),
+            Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/png'))),
         ],
     )
     return response.text
 
 
 @ai.flow()
-async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-) -> RpgCharacter:
+async def generate_character(input: CharacterInput) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Character generation input with name.
 
     Returns:
         The generated RPG character.
     """
     result = await ai.generate(
-        prompt=f'generate an RPG character named {name}',
+        prompt=f'generate an RPG character named {input.name}',
         output=Output(schema=RpgCharacter),
     )
     return result.output
@@ -200,54 +231,54 @@ def get_weather(input: WeatherInput) -> str:
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a simple greeting.
 
     Args:
-        name: Name to greet.
+        input: Input with name to greet.
 
     Returns:
         Greeting message.
     """
     response = await ai.generate(
-        prompt=f'Say hello to {name} in a friendly way',
+        prompt=f'Say hello to {input.name} in a friendly way',
     )
     return response.text
 
 
 @ai.flow()
 async def say_hi_stream(
-    topic: Annotated[str, Field(default='space exploration')] = 'space exploration',
+    input: StreamInput,
     ctx: ActionRunContext = None,  # type: ignore[assignment]
 ) -> str:
     """Generate streaming response.
 
     Args:
-        topic: Topic to write about.
+        input: Input with topic to write about.
         ctx: Action run context for streaming.
 
     Returns:
         Complete generated text.
     """
     response = await ai.generate(
-        prompt=f'Write a short story about {topic}',
+        prompt=f'Write a short story about {input.topic}',
         on_chunk=ctx.send_chunk,
     )
     return response.text
 
 
 @ai.flow()
-async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi_with_config(input: SayHiInput) -> str:
     """Generate greeting with custom configuration.
 
     Args:
-        name: Name to greet.
+        input: Input with name to greet.
 
     Returns:
         Greeting message.
     """
     response = await ai.generate(
-        prompt=f'Say hello to {name}',
+        prompt=f'Say hello to {input.name}',
         config=GenerationCommonConfig(
             temperature=0.7,
             max_output_tokens=100,
@@ -257,16 +288,14 @@ async def say_hi_with_config(name: Annotated[str, Field(default='Alice')] = 'Ali
 
 
 @ai.flow()
-async def thinking_demo(
-    question: Annotated[str, Field(default='Explain quantum entanglement')] = 'Explain quantum entanglement',
-) -> str:
+async def thinking_demo(input: ThinkingInput) -> str:
     """Demonstrate Anthropic thinking capability.
 
     Note: 'thinking' requires a compatible model (e.g., Claude 3.7 Sonnet).
     """
     response = await ai.generate(
         model=anthropic_name('claude-3-7-sonnet-20250219'),
-        prompt=question,
+        prompt=input.question,
         config={
             'thinking': {'type': 'enabled', 'budget_tokens': 1024},
             'max_output_tokens': 4096,  # Required when thinking is enabled
@@ -276,17 +305,17 @@ async def thinking_demo(
 
 
 @ai.flow()
-async def weather_flow(location: Annotated[str, Field(default='San Francisco')] = 'San Francisco') -> str:
+async def weather_flow(input: WeatherFlowInput) -> str:
     """Get weather using tools.
 
     Args:
-        location: Location to get weather for.
+        input: Input with location to get weather for.
 
     Returns:
         Weather information.
     """
     response = await ai.generate(
-        prompt=f'What is the weather in {location}?',
+        prompt=f'What is the weather in {input.location}?',
         tools=['get_weather'],
     )
     return response.text
