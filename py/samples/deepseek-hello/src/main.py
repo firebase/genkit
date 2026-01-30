@@ -331,7 +331,7 @@ async def generate_character(input: CharacterInput) -> RpgCharacter:
         f'Generate an RPG character named {input.name} in JSON format.\n'
         'Example:\n'
         '{\n'
-        '  "name": "Whiskers",\n'
+        '  "name": "<character_name>",\n'
         '  "backStory": "A mysterious cat...",\n'
         '  "abilities": ["stealth", "agility", "night vision"],\n'
         '  "skills": {"strength": 10, "charisma": 15, "endurance": 12}\n'
