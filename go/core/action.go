@@ -186,12 +186,12 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 	inputBytes, _ := json.Marshal(input)
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.Name(),
-		"input", inputBytes)
+		"input_bytes_count", len(inputBytes))
 	defer func() {
 		outputBytes, _ := json.Marshal(output)
 		logger.FromContext(ctx).Debug("Action.Run",
 			"name", a.Name(),
-			"output", outputBytes,
+			"output_bytes_count", len(outputBytes),
 			"err", err)
 	}()
 
