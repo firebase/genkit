@@ -2068,6 +2068,131 @@ func TestGenerateDataStream(t *testing.T) {
 		}
 	})
 
+	t.Run("handles tool interrupts", func(t *testing.T) {
+		interruptTool := DefineTool(r, "streamInterruptor", "always interrupts",
+			func(ctx *ToolContext, input any) (any, error) {
+				return nil, ctx.Interrupt(&InterruptOptions{
+					Metadata: map[string]any{
+						"reason": "needs confirmation",
+					},
+				})
+			},
+		)
+
+		streamModel := DefineModel(r, "test/streamInterruptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Tools:       true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("thinking...")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role: RoleModel,
+					Content: []*Part{
+						NewToolRequestPart(&ToolRequest{
+							Name:  "streamInterruptor",
+							Input: nil,
+						}),
+					},
+				},
+			}, nil
+		})
+
+		var finalResponse *ModelResponse
+		var gotError error
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("trigger interrupt"),
+			WithTools(interruptTool),
+		) {
+			if err != nil {
+				gotError = err
+				break
+			}
+			if val.Done {
+				finalResponse = val.Response
+			}
+		}
+
+		if gotError != nil {
+			t.Fatalf("unexpected error: %v", gotError)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.FinishReason != "interrupted" {
+			t.Errorf("expected finish reason 'interrupted', got %q", finalResponse.FinishReason)
+		}
+		if len(finalResponse.Interrupts()) != 1 {
+			t.Errorf("expected 1 interrupt, got %d", len(finalResponse.Interrupts()))
+		}
+	})
+
+	t.Run("handles returnToolRequests", func(t *testing.T) {
+		greetTool := DefineTool(r, "streamGreeter", "greets",
+			func(ctx *ToolContext, input any) (any, error) {
+				return "hello", nil
+			},
+		)
+
+		streamModel := DefineModel(r, "test/streamReturnToolModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Tools:       true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role: RoleModel,
+					Content: []*Part{
+						NewToolRequestPart(&ToolRequest{
+							Name:  "streamGreeter",
+							Input: map[string]any{"name": "world"},
+						}),
+					},
+				},
+			}, nil
+		})
+
+		var finalResponse *ModelResponse
+		var gotError error
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("greet"),
+			WithTools(greetTool),
+			WithReturnToolRequests(true),
+		) {
+			if err != nil {
+				gotError = err
+				break
+			}
+			if val.Done {
+				finalResponse = val.Response
+			}
+		}
+
+		if gotError != nil {
+			t.Fatalf("unexpected error: %v", gotError)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if len(finalResponse.ToolRequests()) != 1 {
+			t.Errorf("expected 1 tool request, got %d", len(finalResponse.ToolRequests()))
+		}
+	})
+
 	t.Run("propagates chunk parsing errors", func(t *testing.T) {
 		streamModel := DefineModel(r, "test/parseErrorModel", &ModelOptions{
 			Supports: &ModelSupports{
