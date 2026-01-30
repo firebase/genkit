@@ -20,10 +20,10 @@ members = [
     "flask-hello",
     "format-demo",
     "genkit",
-    "genkit-cloud-sql-pg-plugin",
     "genkit-plugin-anthropic",
     "genkit-plugin-checks",
     "genkit-plugin-chroma",
+    "genkit-plugin-cloud-sql-pg",
     "genkit-plugin-compat-oai",
     "genkit-plugin-deepseek",
     "genkit-plugin-dev-local-vectorstore",
@@ -1915,39 +1915,6 @@ requires-dist = [
 provides-extras = ["dev-local-vectorstore", "flask", "google-cloud", "google-genai", "ollama", "openai", "vertex-ai"]
 
 [[package]]
-name = "genkit-cloud-sql-pg-plugin"
-source = { editable = "plugins/cloud-sql-pg" }
-dependencies = [
-    { name = "asyncpg" },
-    { name = "cloud-sql-python-connector", extra = ["asyncpg"] },
-    { name = "genkit" },
-    { name = "google-auth" },
-    { name = "pgvector" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-mock" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "asyncpg", specifier = ">=0.30.0" },
-    { name = "cloud-sql-python-connector", extras = ["asyncpg"], specifier = ">=1.14.0" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "google-auth", specifier = ">=2.0.0" },
-    { name = "pgvector", specifier = ">=0.3.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "genkit-plugin-anthropic"
 version = "0.4.0"
 source = { editable = "plugins/anthropic" }
@@ -2013,6 +1980,39 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "genkit-plugin-cloud-sql-pg"
+source = { editable = "plugins/cloud-sql-pg" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "cloud-sql-python-connector", extra = ["asyncpg"] },
+    { name = "genkit" },
+    { name = "google-auth" },
+    { name = "pgvector" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.30.0" },
+    { name = "cloud-sql-python-connector", extras = ["asyncpg"], specifier = ">=1.14.0" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "google-auth", specifier = ">=2.0.0" },
+    { name = "pgvector", specifier = ">=0.3.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
 ]
 provides-extras = ["dev"]
 
@@ -2295,6 +2295,7 @@ dependencies = [
     { name = "genkit-plugin-anthropic" },
     { name = "genkit-plugin-checks" },
     { name = "genkit-plugin-chroma" },
+    { name = "genkit-plugin-cloud-sql-pg" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore" },
@@ -2356,6 +2357,7 @@ requires-dist = [
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "genkit-plugin-checks", editable = "plugins/checks" },
     { name = "genkit-plugin-chroma", marker = "python_full_version < '3.14'", editable = "plugins/chroma" },
+    { name = "genkit-plugin-cloud-sql-pg", editable = "plugins/cloud-sql-pg" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
@@ -6495,14 +6497,14 @@ version = "0.0.1"
 source = { editable = "samples/rag-cloud-sql-pg" }
 dependencies = [
     { name = "genkit" },
-    { name = "genkit-cloud-sql-pg-plugin" },
+    { name = "genkit-plugin-cloud-sql-pg" },
     { name = "genkit-plugin-google-genai" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-cloud-sql-pg-plugin", editable = "plugins/cloud-sql-pg" },
+    { name = "genkit-plugin-cloud-sql-pg", editable = "plugins/cloud-sql-pg" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
 ]
 

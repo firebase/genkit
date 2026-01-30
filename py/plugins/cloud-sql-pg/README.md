@@ -15,7 +15,7 @@ This plugin provides a vector store implementation for [Cloud SQL for PostgreSQL
 ## Installation
 
 ```bash
-pip install genkit-cloud-sql-pg-plugin
+pip install genkit-plugin-cloud-sql-pg
 ```
 
 ## Prerequisites

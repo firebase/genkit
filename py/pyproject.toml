@@ -24,6 +24,7 @@ dependencies = [
   # Track: https://github.com/microsoft/onnxruntime/issues/21292
   "genkit-plugin-chroma; python_version < '3.14'",
   "genkit-plugin-checks",
+  "genkit-plugin-cloud-sql-pg",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
@@ -142,7 +143,7 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-mcp                   = { workspace = true }
 genkit-plugin-msfoundry             = { workspace = true }
-genkit-cloud-sql-pg-plugin          = { workspace = true }
+genkit-plugin-cloud-sql-pg          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-pinecone              = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }

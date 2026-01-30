@@ -44,7 +44,7 @@ description = "Cloud SQL PostgreSQL vector store plugin for Genkit AI framework"
 dynamic = ["version"]
 keywords = ["ai", "genkit", "cloud-sql", "postgresql", "pgvector", "vector-store", "rag"]
 license = {text = "Apache-2.0"}
-name = "genkit-cloud-sql-pg-plugin"
+name = "genkit-plugin-cloud-sql-pg"
 readme = "README.md"
 requires-python = ">=3.10"
 

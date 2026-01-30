@@ -22,5 +22,5 @@ requires-python = ">=3.10"
 dependencies = [
   "genkit",
   "genkit-plugin-google-genai",
-  "genkit-cloud-sql-pg-plugin",
+  "genkit-plugin-cloud-sql-pg",
 ]
