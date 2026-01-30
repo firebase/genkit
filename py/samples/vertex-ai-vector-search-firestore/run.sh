@@ -1,46 +1,64 @@
 #!/usr/bin/env bash
-# Copyright 2025 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# Copyright 2026 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-# Check for required environment variables
-required_vars="LOCATION PROJECT_ID FIRESTORE_COLLECTION VECTOR_SEARCH_DEPLOYED_INDEX_ID VECTOR_SEARCH_INDEX_ENDPOINT_PATH VECTOR_SEARCH_API_ENDPOINT"
-missing_vars=""
-for var in $required_vars; do
-  if [ -z "${!var}" ]; then
-    missing_vars="$missing_vars $var"
-  fi
-done
+# Vertex AI Vector Search with Firestore Demo
+# ============================================
+#
+# Demonstrates enterprise-grade vector search using GCP services.
+#
+# Prerequisites:
+#   - GOOGLE_CLOUD_PROJECT environment variable set
+#   - gcloud CLI authenticated
+#   - Firestore database and Vertex AI index configured
+#
+# Usage:
+#   ./run.sh          # Start the demo with Dev UI
+#   ./run.sh --help   # Show this help message
 
-if [ -n "$missing_vars" ]; then
-  echo "ERROR: Missing required environment variables:$missing_vars"
-  echo "See README.md for setup instructions."
-  exit 1
-fi
+set -euo pipefail
 
-# Check for gcloud ADC
-if ! gcloud auth application-default print-access-token &>/dev/null; then
-  echo "WARNING: gcloud ADC not configured."
-  echo "Run: gcloud auth application-default login"
-fi
+cd "$(dirname "$0")"
+source "../_common.sh"
 
-genkit start -- \
-  uv tool run --from watchdog watchmedo auto-restart \
-    -d src \
-    -d ../../packages \
-    -d ../../plugins \
-    -p '*.py;*.prompt;*.json' \
-    -R \
-    -- uv run src/main.py "$@"
+print_help() {
+    print_banner "Vertex AI Vector Search (Firestore)" "🔍"
+    echo "Usage: ./run.sh [options]"
+    echo ""
+    echo "Options:"
+    echo "  --help     Show this help message"
+    echo ""
+    echo "Environment Variables:"
+    echo "  GOOGLE_CLOUD_PROJECT    Required. Your GCP project ID"
+    echo ""
+    echo "Getting Started:"
+    echo "  1. Authenticate: gcloud auth application-default login"
+    echo "  2. Set project: export GOOGLE_CLOUD_PROJECT=your-project"
+    echo "  3. Configure Firestore and Vertex AI index"
+    print_help_footer
+}
+
+case "${1:-}" in
+    --help|-h)
+        print_help
+        exit 0
+        ;;
+esac
+
+print_banner "Vertex AI Vector Search (Firestore)" "🔍"
+
+check_env_var "PROJECT_ID" "" || exit 1
+check_env_var "LOCATION" "" || exit 1
+check_env_var "FIRESTORE_COLLECTION" "" || exit 1
+check_env_var "VECTOR_SEARCH_DEPLOYED_INDEX_ID" "" || exit 1
+
+install_deps
+
+genkit_start_with_browser -- \
+    uv tool run --from watchdog watchmedo auto-restart \
+        -d src \
+        -d ../../packages \
+        -d ../../plugins \
+        -p '*.py;*.prompt;*.json' \
+        -R \
+        -- uv run src/main.py "$@"
