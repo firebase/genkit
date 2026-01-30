@@ -35,12 +35,15 @@ import asyncio
 import os
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 logger = get_logger(__name__)
 

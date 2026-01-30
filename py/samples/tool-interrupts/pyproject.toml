@@ -33,6 +33,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "rich>=13.0.0",
   "genkit",
   "genkit-plugin-google-genai",
   "pydantic>=2.10.5",

@@ -33,6 +33,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "rich>=13.0.0",
   "genkit",
   "genkit-plugin-compat-oai",
   "httpx>=0.28.1",

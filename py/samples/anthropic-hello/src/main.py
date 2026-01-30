@@ -41,12 +41,15 @@ Key Features
 import os
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from genkit.types import GenerationCommonConfig
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'ANTHROPIC_API_KEY' not in os.environ:
     os.environ['ANTHROPIC_API_KEY'] = input('Please enter your ANTHROPIC_API_KEY: ')

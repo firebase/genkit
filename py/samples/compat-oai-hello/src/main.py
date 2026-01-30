@@ -42,10 +42,13 @@ from decimal import Decimal
 
 import httpx
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import ActionRunContext, Genkit, Output
 from genkit.core.logging import get_logger
 from genkit.plugins.compat_oai import OpenAI, openai_model
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'OPENAI_API_KEY' not in os.environ:
     os.environ['OPENAI_API_KEY'] = input('Please enter your OPENAI_API_KEY: ')

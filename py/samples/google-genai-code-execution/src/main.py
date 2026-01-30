@@ -34,6 +34,7 @@ See README.md for testing instructions.
 import os
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.model import MessageWrapper
@@ -41,6 +42,8 @@ from genkit.core.logging import get_logger
 from genkit.core.typing import CustomPart, Message, TextPart
 from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 from genkit.plugins.google_genai.models.utils import PartConverter
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')

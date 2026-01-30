@@ -31,6 +31,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "rich>=13.0.0",
   "genkit",
   "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",

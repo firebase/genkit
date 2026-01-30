@@ -35,10 +35,13 @@ import os
 from io import BytesIO
 
 from PIL import Image
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.plugins.google_genai import VertexAI
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')

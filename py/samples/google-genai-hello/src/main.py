@@ -58,6 +58,9 @@ import os
 import sys
 
 from google import genai as google_genai_sdk
+from rich.traceback import install as install_rich_traceback
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum  # pyright: ignore[reportUnreachable]

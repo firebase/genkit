@@ -36,6 +36,7 @@ from math import sqrt
 from typing import cast
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.core.logging import get_logger
@@ -44,6 +45,8 @@ from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition
 from genkit.types import GenerateResponse
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 logger = get_logger(__name__)
 

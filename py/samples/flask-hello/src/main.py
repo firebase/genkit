@@ -36,6 +36,7 @@ from typing import cast
 
 from flask import Flask
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
@@ -44,6 +45,8 @@ from genkit.core.context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
