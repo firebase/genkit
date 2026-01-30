@@ -36,7 +36,9 @@ def get_project_id() -> str:
         # Fallback to a hardcoded default for testing if env var is missing,
         # or raise error. Since user provided a project ID that had quotes,
         # they likely set it in env var.
-        raise ValueError('Environment variable GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT must be set.')
+        project_id = input('Enter your Google Cloud Project ID: ').strip()
+        if not project_id:
+            raise ValueError('GCLOUD_PROJECT, GOOGLE_CLOUD_PROJECT or user input must be set.')
 
     # Sanitize project_id to remove potential smart quotes or regular quotes
     project_id = project_id.strip().strip("'").strip('"').strip('‘').strip('’')
@@ -49,13 +51,13 @@ def get_project_id() -> str:
 
 
 def get_location() -> str:
-    """Get Google Cloud location from environment or prompt user."""
+    """Get Google Cloud location from environment."""
     location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION')
     if not location:
         location = input('Enter your Google Cloud Location (default: us-central1): ').strip()
         if not location:
             location = 'us-central1'
-        os.environ['GOOGLE_CLOUD_LOCATION'] = location
+    os.environ['GOOGLE_CLOUD_LOCATION'] = location
     return location
 
 
@@ -89,7 +91,7 @@ def get_weather(input: WeatherInput) -> dict:
     """Used to get current weather for a location."""
     return {
         'location': input.location,
-        'temperature_celcius': 21.5,
+        'temperature_celsius': 21.5,
         'conditions': 'cloudy',
     }
 
