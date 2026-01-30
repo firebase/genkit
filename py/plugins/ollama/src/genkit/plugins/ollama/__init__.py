@@ -14,8 +14,61 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Ollama plugin for Genkit.
 
-"""Ollama Plugin for Genkit."""
+This plugin provides integration with Ollama for running local LLMs. Ollama
+allows you to run models like Llama, Mistral, and others on your own hardware.
+
+Overview:
+    The Ollama plugin connects Genkit to locally running Ollama models.
+    This is ideal for development, privacy-sensitive applications, or
+    when you want to run models without cloud dependencies.
+
+Prerequisites:
+    - Install Ollama: https://ollama.ai/
+    - Pull a model: ``ollama pull llama3.2`` or ``ollama pull mistral``
+    - Ollama server running (default: http://localhost:11434)
+
+Key Components:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Component         │ Purpose                                             │
+    ├───────────────────┼─────────────────────────────────────────────────────┤
+    │ Ollama            │ Plugin class to register with Genkit                │
+    │ ollama_name()     │ Helper to create namespaced model names             │
+    └───────────────────┴─────────────────────────────────────────────────────┘
+
+Example:
+    Basic usage:
+
+    ```python
+    from genkit import Genkit
+    from genkit.plugins.ollama import Ollama
+
+    # Configure with model name and optional server URL
+    ai = Genkit(
+        plugins=[Ollama(models=['llama3.2', 'mistral'])],
+        model='ollama/llama3.2',
+    )
+
+    response = await ai.generate(prompt='Hello, Llama!')
+    print(response.text)
+
+    # Use a specific model
+    response = await ai.generate(
+        model='ollama/mistral',
+        prompt='Write a haiku about coding',
+    )
+    ```
+
+Caveats:
+    - Requires Ollama installed and running locally
+    - Model names are prefixed with 'ollama/' (e.g., 'ollama/llama3.2')
+    - Performance depends on local hardware
+
+See Also:
+    - Ollama documentation: https://ollama.ai/
+    - Genkit documentation: https://genkit.dev/
+"""
 
 from genkit.plugins.ollama.plugin_api import Ollama, ollama_name
 

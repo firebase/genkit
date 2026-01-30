@@ -15,7 +15,92 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Google GenAI plugin for Genkit."""
+"""Google GenAI plugin for Genkit.
+
+This plugin provides integration with Google's AI services, including
+Google AI (Gemini API) and Vertex AI. It registers Gemini models and
+embedders for use with the Genkit framework.
+
+Overview:
+    The Google GenAI plugin supports two backends:
+    - **GoogleAI**: Direct Gemini API access (requires GEMINI_API_KEY)
+    - **VertexAI**: Google Cloud Vertex AI platform access
+
+    Both plugins register Gemini models and text embedding models as
+    Genkit actions, enabling generation and embedding operations.
+
+Supported Models:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Plugin     │ Models                                                     │
+    ├────────────┼─────────────────────────────────────────────────────────────┤
+    │ GoogleAI   │ gemini-2.0-flash, gemini-2.5-flash, gemini-2.5-pro, etc.  │
+    │ VertexAI   │ Same Gemini models + imagen-4.0-generate-001               │
+    └────────────┴─────────────────────────────────────────────────────────────┘
+
+Key Components:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Component             │ Purpose                                         │
+    ├───────────────────────┼─────────────────────────────────────────────────┤
+    │ GoogleAI              │ Plugin for Gemini API (api_key auth)            │
+    │ VertexAI              │ Plugin for Vertex AI (GCP project auth)         │
+    │ GeminiConfigSchema    │ Configuration schema for Gemini models          │
+    │ GeminiEmbeddingModels │ Enum of available GoogleAI embedding models     │
+    │ VertexEmbeddingModels │ Enum of available VertexAI embedding models     │
+    │ EmbeddingTaskType     │ Task types for embeddings (CLUSTERING, etc.)    │
+    └───────────────────────┴─────────────────────────────────────────────────┘
+
+Example:
+    Using GoogleAI (Gemini API):
+
+    ```python
+    from genkit import Genkit
+    from genkit.plugins.google_genai import GoogleAI
+
+    # Uses GEMINI_API_KEY env var or pass api_key explicitly
+    ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.0-flash')
+
+    response = await ai.generate(prompt='Hello, world!')
+    print(response.text)
+
+    # Embeddings
+    embeddings = await ai.embed(
+        embedder='googleai/gemini-embedding-001',
+        content='Hello, world!',
+    )
+    ```
+
+    Using VertexAI (Google Cloud):
+
+    ```python
+    from genkit import Genkit
+    from genkit.plugins.google_genai import VertexAI
+
+    # Uses default GCP credentials; optionally pass project/location
+    ai = Genkit(
+        plugins=[VertexAI(project='my-project', location='us-central1')],
+        model='vertexai/gemini-2.0-flash',
+    )
+
+    response = await ai.generate(prompt='Hello, world!')
+    print(response.text)
+
+    # Image generation with Imagen
+    response = await ai.generate(
+        model='vertexai/imagen-4.0-generate-001',
+        prompt='A beautiful sunset over mountains',
+    )
+    ```
+
+Caveats:
+    - GoogleAI requires GEMINI_API_KEY environment variable
+    - VertexAI uses Google Cloud credentials (ADC or explicit)
+    - Model names are prefixed with 'googleai/' or 'vertexai/'
+
+See Also:
+    - Gemini API: https://ai.google.dev/
+    - Vertex AI: https://cloud.google.com/vertex-ai
+    - Model catalog: https://genkit.dev/docs/models
+"""
 
 from genkit.plugins.google_genai.google import (
     GoogleAI,

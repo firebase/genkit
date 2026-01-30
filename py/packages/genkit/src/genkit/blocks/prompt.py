@@ -123,7 +123,7 @@ Caveats:
 
 See Also:
     - JavaScript implementation: js/ai/src/prompt.ts
-    - Dotprompt documentation: https://firebase.google.com/docs/genkit/dotprompt
+    - Dotprompt documentation: https://genkit.dev/docs/dotprompt
 """
 
 import asyncio
@@ -297,7 +297,7 @@ class ResumeOptions(TypedDict, total=False):
         ```
 
     See Also:
-        - Interrupts documentation: https://firebase.google.com/docs/genkit/interrupts
+        - Interrupts documentation: https://genkit.dev/docs/tool-calling#pause-agentic-loops-with-interrupts
     """
 
     respond: ToolResponsePart | list[ToolResponsePart] | None
@@ -668,7 +668,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
     See Also:
         - JavaScript ExecutablePrompt: js/ai/src/prompt.ts
-        - Dotprompt: https://firebase.google.com/docs/genkit/dotprompt
+        - Dotprompt: https://genkit.dev/docs/dotprompt
     """
 
     def __init__(
