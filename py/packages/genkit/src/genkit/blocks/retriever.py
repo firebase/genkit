@@ -16,10 +16,100 @@
 
 """Retriever type definitions for the Genkit framework.
 
-This module defines the type interfaces for retrievers in the Genkit framework.
-Retrievers are used for fetching Genkit documents from a datastore, given a
-query. These documents can then be used to provide additional context to models
-to accomplish a task.
+This module defines the type interfaces for retrievers and indexers in the
+Genkit framework. Retrievers are used for fetching documents from a datastore
+given a query, enabling Retrieval-Augmented Generation (RAG) patterns.
+
+Overview:
+    Retrievers are a core component of RAG (Retrieval-Augmented Generation)
+    workflows. They search a document store and return relevant documents
+    that can be used to ground model responses with factual information.
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                      RAG Data Flow                                      │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │                                                                         │
+    │  ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐    │
+    │  │  User    │ ───► │ Embedder │ ───► │ Retriever│ ───► │  Model   │    │
+    │  │  Query   │      │          │      │  Search  │      │ Generate │    │
+    │  └──────────┘      └──────────┘      └──────────┘      └──────────┘    │
+    │                                             │                          │
+    │                                             ▼                          │
+    │                                      ┌──────────┐                      │
+    │                                      │ Document │                      │
+    │                                      │   Store  │                      │
+    │                                      └──────────┘                      │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Terminology:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Term              │ Description                                         │
+    ├───────────────────┼─────────────────────────────────────────────────────┤
+    │ Retriever         │ Action that searches a document store and returns   │
+    │                   │ relevant documents based on a query.                │
+    │ Indexer           │ Action that adds documents to a document store,     │
+    │                   │ typically with embeddings for similarity search.    │
+    │ RetrieverRef      │ Reference to a retriever with optional config.      │
+    │ IndexerRef        │ Reference to an indexer with optional config.       │
+    │ Document          │ A structured piece of content with text/media and   │
+    │                   │ metadata. See genkit.blocks.document.               │
+    │ Query             │ The search query, typically as a Document object.   │
+    └───────────────────┴─────────────────────────────────────────────────────┘
+
+Key Components:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Component           │ Description                                       │
+    ├─────────────────────┼───────────────────────────────────────────────────┤
+    │ Retriever[T]        │ Base class for retriever implementations          │
+    │ RetrieverRequest    │ Input model with query and options                │
+    │ RetrieverOptions    │ Configuration for defining retrievers             │
+    │ RetrieverRef        │ Reference bundling name, config, version          │
+    │ IndexerRequest      │ Input model for indexing documents                │
+    │ IndexerOptions      │ Configuration for defining indexers               │
+    │ define_retriever()  │ Factory function for creating retriever actions   │
+    │ define_indexer()    │ Factory function for creating indexer actions     │
+    └─────────────────────┴───────────────────────────────────────────────────┘
+
+Example:
+    Defining a simple retriever:
+
+    ```python
+    from genkit import Genkit, Document
+    from genkit.blocks.retriever import RetrieverOptions
+
+    ai = Genkit()
+
+
+    # Simple in-memory retriever
+    @ai.retriever(name='my_retriever')
+    async def my_retriever(query: Document, options: dict) -> list[Document]:
+        # Search logic here (e.g., vector similarity search)
+        results = search_documents(query.text(), top_k=options.get('k', 5))
+        return [Document.from_text(r['text'], r['metadata']) for r in results]
+
+
+    # Use the retriever
+    docs = await ai.retrieve(retriever='my_retriever', query='What is Genkit?')
+    ```
+
+    Using simple_retriever for easier definition:
+
+    ```python
+    @ai.simple_retriever(name='docs_retriever', configSchema=MyConfigSchema)
+    async def docs_retriever(query: str, options: MyConfigSchema) -> list[Document]:
+        # The query is automatically converted to string
+        return await search_docs(query, limit=options.limit)
+    ```
+
+Caveats:
+    - Retriever functions receive a Document object, not a raw string
+    - Use simple_retriever() for a more convenient string-based query API
+    - Indexers are typically used during data ingestion, not query time
+
+See Also:
+    - genkit.blocks.document: Document model
+    - genkit.blocks.embedding: Embedder for generating document embeddings
+    - RAG documentation: https://genkit.dev/docs/rag
 """
 
 import inspect

@@ -37,7 +37,7 @@ Cross-Language Parity:
     - Go: go/ai/testutil_test.go
 
 See Also:
-    - https://firebase.google.com/docs/genkit for Genkit documentation
+    - https://genkit.dev for Genkit documentation
 """
 
 from copy import deepcopy
