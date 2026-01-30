@@ -35,11 +35,14 @@ import os
 from typing import Any, cast
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.core.logging import get_logger
 from genkit.core.typing import OutputConfig
 from genkit.plugins.google_genai import GoogleAI
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 logger = get_logger(__name__)
 

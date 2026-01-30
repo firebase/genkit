@@ -42,6 +42,7 @@ import pathlib
 from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
@@ -61,6 +62,8 @@ from genkit.types import (
     Role,
     TextPart,
 )
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')

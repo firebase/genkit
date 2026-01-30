@@ -54,6 +54,7 @@ import os
 
 import uvicorn
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.blocks.model import GenerateResponseWrapper
@@ -75,6 +76,8 @@ from genkit.types import (
     Role,
     TextPart,
 )
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 logger = get_logger(__name__)
 

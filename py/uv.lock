@@ -267,6 +267,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-anthropic" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -281,6 +282,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=24.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -822,6 +824,7 @@ dependencies = [
     { name = "genkit-plugin-compat-oai" },
     { name = "httpx" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -837,6 +840,7 @@ requires-dist = [
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -1195,6 +1199,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-deepseek" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -1209,6 +1214,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
     { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=24.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -1246,6 +1252,7 @@ dependencies = [
     { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -1261,6 +1268,7 @@ requires-dist = [
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -1403,6 +1411,7 @@ dependencies = [
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
     { name = "pypdf" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -1420,6 +1429,7 @@ requires-dist = [
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pypdf", specifier = ">=6.6.2" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=24.0.0" },
     { name = "uvloop", specifier = ">=0.22.1" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -1486,6 +1496,7 @@ dependencies = [
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-genai" },
     { name = "google-cloud-firestore" },
+    { name = "rich" },
     { name = "uvloop" },
 ]
 
@@ -1500,6 +1511,7 @@ requires-dist = [
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "google-cloud-firestore" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
@@ -1531,6 +1543,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-genai" },
+    { name = "rich" },
     { name = "uvloop" },
 ]
 
@@ -1545,6 +1558,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
@@ -1558,6 +1572,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -1572,6 +1587,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -2418,6 +2434,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -2432,6 +2449,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -2447,6 +2465,7 @@ dependencies = [
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
     { name = "requests" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -2462,6 +2481,7 @@ requires-dist = [
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "requests", specifier = ">=2.32.3" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -2478,6 +2498,7 @@ dependencies = [
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -2494,6 +2515,7 @@ requires-dist = [
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -2510,6 +2532,7 @@ dependencies = [
     { name = "google-genai" },
     { name = "pillow" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "uvloop" },
 ]
 
@@ -2525,6 +2548,7 @@ requires-dist = [
     { name = "google-genai" },
     { name = "pillow" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
@@ -2538,6 +2562,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -2552,6 +2577,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -2567,6 +2593,7 @@ dependencies = [
     { name = "genkit-plugin-google-genai" },
     { name = "pillow" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "uvloop" },
 ]
 
@@ -2581,6 +2608,7 @@ requires-dist = [
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pillow" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
@@ -3779,6 +3807,7 @@ dependencies = [
     { name = "genkit-plugin-ollama" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "uvloop" },
 ]
 
@@ -3797,6 +3826,7 @@ requires-dist = [
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
@@ -3822,6 +3852,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "uvloop" },
 ]
 
@@ -3835,6 +3866,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
@@ -3913,6 +3945,7 @@ dependencies = [
     { name = "asgiref" },
     { name = "genkit" },
     { name = "litestar" },
+    { name = "rich" },
     { name = "starlette" },
     { name = "structlog" },
     { name = "uvicorn" },
@@ -3929,6 +3962,7 @@ requires-dist = [
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "litestar", specifier = ">=2.15.1" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
@@ -4484,6 +4518,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-ollama" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -4498,6 +4533,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -4512,6 +4548,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-ollama" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -4526,6 +4563,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -4970,6 +5008,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -4984,6 +5023,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -5934,6 +5974,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -5948,6 +5989,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
@@ -6530,6 +6572,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "uvloop" },
 ]
 
@@ -6543,6 +6586,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
@@ -6842,6 +6886,7 @@ dependencies = [
     { name = "google-cloud-aiplatform" },
     { name = "google-cloud-bigquery" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
     { name = "uvloop" },
@@ -6860,6 +6905,7 @@ requires-dist = [
     { name = "google-cloud-aiplatform" },
     { name = "google-cloud-bigquery" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
@@ -6878,6 +6924,7 @@ dependencies = [
     { name = "google-cloud-aiplatform" },
     { name = "google-cloud-firestore" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
     { name = "uvloop" },
@@ -6896,6 +6943,7 @@ requires-dist = [
     { name = "google-cloud-aiplatform" },
     { name = "google-cloud-firestore" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
@@ -7143,6 +7191,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-xai" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
 ]
@@ -7157,6 +7206,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-xai", editable = "plugins/xai" },
     { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=24.0.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },

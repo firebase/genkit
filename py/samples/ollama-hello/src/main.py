@@ -40,6 +40,7 @@ Key Features
 from typing import Any, cast
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
@@ -48,6 +49,8 @@ from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,
 )
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 logger = get_logger(__name__)
 

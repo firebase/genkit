@@ -38,6 +38,10 @@ import random
 from collections.abc import Coroutine
 from typing import Any, cast
 
+from rich.traceback import install as install_rich_traceback
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+
 # Import flows so they get registered
 from evaluator_demo import (
     eval_in_code,  # noqa: F401

@@ -34,6 +34,7 @@ from litestar.logging.config import LoggingConfig  # type: ignore
 from litestar.middleware.base import AbstractMiddleware  # type: ignore
 from litestar.plugins.structlog import StructlogPlugin  # type: ignore
 from litestar.types import Message  # type: ignore
+from rich.traceback import install as install_rich_traceback
 from starlette.applications import Starlette
 
 from genkit.aio.loop import run_loop
@@ -52,6 +53,8 @@ from genkit.web.manager import (
 )
 from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.typing import Application, Receive, Scope, Send
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 # TODO: Logging middleware > log ALL access requests and fix dups
 # TODO: Logging middleware > access requests different color for each server.

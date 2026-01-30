@@ -41,12 +41,15 @@ Key Features
 import os
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'DEEPSEEK_API_KEY' not in os.environ:
     os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')

@@ -37,6 +37,7 @@ Key Features
 import os
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
@@ -58,6 +59,8 @@ from samples.shared import (
     say_hi_with_config_logic,
     weather_logic,
 )
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'XAI_API_KEY' not in os.environ:
     os.environ['XAI_API_KEY'] = input('Please enter your XAI_API_KEY: ')
