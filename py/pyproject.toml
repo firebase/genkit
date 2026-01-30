@@ -120,6 +120,8 @@ default-groups = ["dev", "lint"]
 evaluator-demo                      = { workspace = true }
 genkit                              = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
+msfoundry-hello                     = { workspace = true }
+genkit-plugin-msfoundry             = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -317,6 +319,7 @@ root = [
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
   "plugins/xai/src",
+  "plugins/msfoundry/src",
   # Samples
   ".",                      # For samples.shared imports
   "samples/evaluator-demo", # For evaluator_demo package imports
