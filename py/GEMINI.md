@@ -269,6 +269,22 @@
 * **Porting**: Maintain 1:1 logic parity accurately if porting tests.
   Do not invent behavior.
 * **Fixes**: Fix underlying code issues rather than special-casing tests.
+* **Test File Naming**: Test files **MUST** have unique names across the entire
+  repository to avoid pytest module collection conflicts. Use the format
+  `{plugin_name}_{component}_test.py`:
+  
+  | Plugin | Test File | Status |
+  |--------|-----------|--------|
+  | `cloud-sql-pg` | `cloud_sql_pg_engine_test.py` | ✅ Correct |
+  | `cloud-sql-pg` | `engine_test.py` | ❌ Wrong (conflicts with other plugins) |
+  | `chroma` | `chroma_retriever_test.py` | ✅ Correct |
+  | `checks` | `checks_evaluator_test.py` | ✅ Correct |
+  
+  **Requirements:**
+  * Prefix test files with the plugin/package name, replacing any hyphens (`-`) with underscores (`_`).
+  * Use the `foo_test.py` suffix format (not `test_foo.py`)
+  * Do **NOT** add `__init__.py` to `tests/` directories (causes module conflicts)
+  * Place tests in `plugins/{name}/tests/` or `packages/{name}/tests/`
 
 ### Logging
 
