@@ -48,8 +48,8 @@ if [[ $CI_ENABLED == "true" ]] && [[ -f $TYPING_FILE ]]; then
 fi
 
 # Generate types using configuration from pyproject.toml.
-# TODO: Remove --python 3.12 when onnxruntime adds Python 3.14 wheels.
-# Track: https://github.com/microsoft/onnxruntime/issues/21292
+# TODO(https://github.com/microsoft/onnxruntime/issues/21292): Remove --python 3.12
+# when onnxruntime adds Python 3.14 wheels.
 # Note: We use --python 3.12 to avoid compatibility issues with chromadb
 # which doesn't support Python 3.14 yet (onnxruntime lacks 3.14 wheels).
 uv run --python 3.12 --directory "${TOP_DIR}/py" datamodel-codegen \

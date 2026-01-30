@@ -46,6 +46,7 @@ from typing import Any, cast
 
 import chromadb
 from chromadb.api.models.Collection import Collection
+from chromadb.api.types import Embeddings, Include, Metadatas
 from pydantic import BaseModel, Field
 
 from genkit.blocks.document import Document
@@ -257,12 +258,13 @@ class ChromaRetriever:
 
         # Query ChromaDB
         collection = await self._get_collection()
+        # Cast to chromadb types - our list types are compatible at runtime
         results = collection.query(
-            query_embeddings=[query_embedding],  # pyrefly: ignore[bad-argument-type]
+            query_embeddings=cast(Embeddings, [query_embedding]),
             n_results=k,
             where=where,
             where_document=where_document,
-            include=include_fields,  # type: ignore[arg-type]
+            include=cast(Include, include_fields),
         )
 
         # Convert results to Documents
@@ -405,11 +407,12 @@ class ChromaIndexer:
 
         # Add to collection
         collection = await self._get_collection()
+        # Cast to chromadb types - our list types are compatible at runtime
         collection.add(
             ids=ids,
-            embeddings=embedding_vectors,  # type: ignore[arg-type]
+            embeddings=cast(Embeddings, embedding_vectors),
             documents=documents_list,
-            metadatas=metadatas,  # type: ignore[arg-type]
+            metadatas=cast(Metadatas, metadatas),
         )
 
 
