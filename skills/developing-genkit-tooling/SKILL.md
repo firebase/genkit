@@ -101,9 +101,10 @@ MCP tools should generally catch errors and return them as content blocks with `
 try {
   // operation
 } catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
   return {
     isError: true,
-    content: [{ type: 'text', text: `Error: ${err.message}` }],
+    content: [{ type: 'text', text: `Error: ${message}` }]
   };
 }
 ```
