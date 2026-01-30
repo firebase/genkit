@@ -247,6 +247,24 @@ Include the Apache 2.0 license header at the top of each file (update year as ne
 # SPDX-License-Identifier: Apache-2.0
 ```
 
+## Dependency Management
+
+When updating dependencies for the Python SDK, ensure consistency across both files:
+
+1. **`py/pyproject.toml`** - Workspace-level dependencies (pinned versions with `==`)
+2. **`py/packages/genkit/pyproject.toml`** - Package-level dependencies (minimum versions with `>=`)
+
+Both files must be updated together to avoid inconsistencies where developers test
+against one version but users of the published `genkit` package might install a
+different version.
+
+After updating dependencies, regenerate the lock file:
+
+```bash
+# Run from the repository root
+cd py && uv lock
+```
+
 ## Git commit message guidelines
 
 * Please draft a plain-text commit message after you're done with changes.
