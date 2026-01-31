@@ -59,7 +59,7 @@ To test Google Cloud Platform telemetry (tracing and metrics), you need a GCP pr
     proceeding so that the authentication process can complete successfully.
     Otherwise, you may run into a lot of HTTP 503 service unavailable or
     `invalid_grant` errors.
-    
+
 3.  **Run with Telemetry**:
     ```bash
     genkit start -- uv run src/main.py --enable-gcp-telemetry

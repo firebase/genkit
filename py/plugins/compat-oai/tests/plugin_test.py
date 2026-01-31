@@ -31,9 +31,10 @@ from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 async def test_openai_plugin_init() -> None:
     """Test OpenAI plugin init method."""
     plugin = OpenAI(api_key='test-key')
+    mock_registry = MagicMock()
 
     # init() should return known models and embedders
-    result = await plugin.init()
+    result = await plugin.init(mock_registry)
     assert len(result) > 0, 'Should initialize with known models and embedders'
     assert all(hasattr(action, 'kind') for action in result), 'All actions should have a kind'
     assert all(hasattr(action, 'name') for action in result), 'All actions should have a name'

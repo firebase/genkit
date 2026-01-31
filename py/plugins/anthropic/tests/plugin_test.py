@@ -74,10 +74,13 @@ def test_custom_models() -> None:
 @pytest.mark.asyncio
 async def test_plugin_init() -> None:
     """Test plugin init method."""
+    from unittest.mock import MagicMock
+
     plugin = Anthropic(api_key='test-key', models=['claude-sonnet-4'])
+    mock_registry = MagicMock()
 
     # init() should return an empty list (using lazy loading)
-    result = await plugin.init()
+    result = await plugin.init(mock_registry)
     assert result == []
 
 

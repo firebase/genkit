@@ -25,7 +25,7 @@ from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
-from genkit.core.registry import ActionKind
+from genkit.core.registry import ActionKind, Registry
 from genkit.core.schema import to_json_schema
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
@@ -91,10 +91,13 @@ class Ollama(Plugin):
 
         self.client = partial(ollama_api.AsyncClient, host=self.server_address)
 
-    async def init(self) -> list:
+    async def init(self, registry: 'Registry | None' = None) -> list:
         """Initialize the Ollama plugin.
 
         Returns pre-registered models and embedders.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             List of Action objects for pre-configured models and embedders.

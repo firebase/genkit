@@ -32,14 +32,14 @@ Overview:
     │                                                                         │
     │  ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐    │
     │  │ Register │ ───► │   init   │ ───► │ resolve  │ ───► │  Action  │    │
-    │  │  Plugin  │      │ (async)  │      │  (lazy)  │      │ Returns  │    │
+    │  │  Plugin  │      │(registry)│      │  (lazy)  │      │ Returns  │    │
     │  └──────────┘      └──────────┘      └──────────┘      └──────────┘    │
     │       │                 │                                              │
     │       │                 ▼                                              │
-    │       │          ┌──────────┐                                          │
-    │       └─────────►│  List    │                                          │
-    │                  │ Actions  │                                          │
-    │                  └──────────┘                                          │
+    │       └────────►  ┌──────────┐                                         │
+    │                   │  List    │                                         │
+    │                   │ Actions  │                                         │
+    │                   └──────────┘                                         │
     └─────────────────────────────────────────────────────────────────────────┘
 
 Terminology:
@@ -48,7 +48,7 @@ Terminology:
     ├───────────────────┼─────────────────────────────────────────────────────┤
     │ Plugin            │ Abstract base class that defines the plugin API     │
     │ name              │ Plugin namespace (e.g., 'googleai', 'anthropic')    │
-    │ init()            │ Async method called once on first action resolve    │
+    │ init(registry)    │ Async method called once on first action resolve    │
     │ resolve()         │ Lazy resolution of actions by kind and name         │
     │ list_actions()    │ Returns metadata for plugin's available actions     │
     │ model()           │ Helper to create namespaced ModelReference          │
@@ -59,21 +59,37 @@ Key Methods:
     ┌─────────────────────────────────────────────────────────────────────────┐
     │ Method            │ Purpose                                             │
     ├───────────────────┼─────────────────────────────────────────────────────┤
-    │ init()            │ One-time initialization; return pre-registered      │
-    │                   │ actions (e.g., known models to pre-register)        │
+    │ init(registry)    │ One-time initialization; receives Registry for      │
+    │                   │ resolving other actions (e.g., embedders).          │
+    │                   │ Return pre-registered actions.                      │
     │ resolve()         │ Create/return Action for a given kind and name;     │
     │                   │ called when action is first used                    │
     │ list_actions()    │ Return ActionMetadata for dev UI action discovery   │
     │                   │ (should be fast, no heavy initialization)           │
     └───────────────────┴─────────────────────────────────────────────────────┘
 
+Registry vs Genkit:
+    The `init()` method receives a `Registry` instance, not a `Genkit` instance.
+    This is intentional - plugins operate at the registry level and should not
+    depend on the high-level Genkit API.
+
+    Registry provides all necessary methods for plugins:
+    - `register_action()` - register new actions
+    - `resolve_embedder()` - resolve embedder actions (for vector stores)
+    - `resolve_retriever()` - resolve retriever actions
+    - `resolve_model()` - resolve model actions
+
+    Vector store plugins (Chroma, Pinecone) use `registry.resolve_embedder()`
+    to get embedder actions and call them directly via `action.arun()`.
+
 Example:
-    Implementing a custom plugin:
+    Implementing a simple model plugin:
 
     ```python
     from genkit.core.plugin import Plugin
     from genkit.core.action import Action, ActionMetadata
     from genkit.core.action.types import ActionKind
+    from genkit.core.registry import Registry
 
 
     class MyPlugin(Plugin):
@@ -82,7 +98,7 @@ Example:
         def __init__(self, api_key: str) -> None:
             self.api_key = api_key
 
-        async def init(self) -> list[Action]:
+        async def init(self, registry: Registry | None = None) -> list[Action]:
             # Return actions to pre-register (optional)
             return []
 
@@ -103,6 +119,31 @@ Example:
             ...
     ```
 
+    Implementing a vector store plugin that needs an embedder:
+
+    ```python
+    class VectorStorePlugin(Plugin):
+        name = 'vectorstore'
+
+        def __init__(self, embedder: str) -> None:
+            self._embedder = embedder
+            self._registry: Registry | None = None
+
+        async def init(self, registry: Registry | None = None) -> list[Action]:
+            self._registry = registry
+            # Register retriever/indexer actions that use the embedder
+            # Actions registered here can use self._registry.resolve_embedder()
+            return []
+
+        async def _embed_content(self, texts: list[str]) -> list[list[float]]:
+            # Use registry to resolve and call embedder
+            embedder = await self._registry.resolve_embedder(self._embedder)
+            if embedder is None:
+                raise ValueError(f'Embedder "{self._embedder}" not found')
+            response = await embedder.arun(embed_request)
+            return [e.embedding for e in response.response.embeddings]
+    ```
+
     Using the plugin:
 
     ```python
@@ -117,9 +158,11 @@ Caveats:
     - Plugin names must be unique within a Genkit instance
     - Actions returned from init() are pre-registered with the plugin namespace
     - resolve() receives the fully namespaced name (e.g., 'plugin/model')
+    - init() receives a Registry, not Genkit - use registry methods for resolution
 
 See Also:
     - Built-in plugins: genkit.plugins.google_genai, genkit.plugins.anthropic
+    - Vector store plugins: genkit.plugins.chroma, genkit.plugins.pinecone
     - Registry: genkit.core.registry
 """
 
@@ -132,6 +175,7 @@ from genkit.core.action.types import ActionKind
 if TYPE_CHECKING:
     from genkit.blocks.embedding import EmbedderRef
     from genkit.blocks.model import ModelReference
+    from genkit.core.registry import Registry
 
 
 class Plugin(abc.ABC):
@@ -145,12 +189,34 @@ class Plugin(abc.ABC):
     name: str  # plugin namespace
 
     @abc.abstractmethod
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Lazy warm-up called once per plugin per registry instance.
 
         This method is called lazily when the first action resolution attempt
         involving this plugin occurs. It should return a list of Action objects
         to pre-register.
+
+        Args:
+            registry: Optional reference to the registry. Most plugins don't
+                need this, but it's useful for plugins that need to call
+                actions from OTHER plugins at runtime.
+
+                Example: A vector store plugin needs to call an embedder
+                from a different plugin (e.g., GoogleAI). Since each plugin's
+                resolve() method only handles its own actions, the vector
+                store must use the registry to resolve cross-plugin actions::
+
+                    # In a vector store plugin:
+                    async def init(self, registry: Registry | None = None):
+                        self._registry = registry  # Store for later use
+                        return []
+
+
+                    async def _embed(self, docs: list[str]) -> list[list[float]]:
+                        # Call embedder from another plugin
+                        embedder = await self._registry.resolve_embedder('googleai/text-embedding-004')
+                        result = await embedder.arun(EmbedRequest(input=docs))
+                        return [e.embedding for e in result.response.embeddings]
 
         Returns:
             list[Action]: A list of Action instances to register.

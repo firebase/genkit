@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from genkit.ai import Genkit, Plugin
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.registry import Registry
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
@@ -65,10 +66,13 @@ class McpClient(Plugin):
         """Returns the name of the plugin."""
         return self.name
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Initialize MCP plugin.
 
         MCP tools are registered dynamically upon connection, so this returns an empty list.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             Empty list (tools are registered dynamically).

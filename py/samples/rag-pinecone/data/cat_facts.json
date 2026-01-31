@@ -1,0 +1,68 @@
+{
+  "cat_facts": [
+    {
+      "category": "anatomy",
+      "fact": "Cats have over 20 vocalizations, including the meow, purr, chirp, and trill. Interestingly, adult cats typically only meow to communicate with humans, not other cats."
+    },
+    {
+      "category": "anatomy",
+      "fact": "A cat's nose print is unique, like a human's fingerprint. No two cats have the same nose print pattern."
+    },
+    {
+      "category": "anatomy",
+      "fact": "Cats have 230 bones in their body, compared to 206 in humans. Many of these extra bones are in their spine and tail, giving them exceptional flexibility."
+    },
+    {
+      "category": "anatomy",
+      "fact": "A cat's whiskers are roughly as wide as their body, helping them determine if they can fit through tight spaces."
+    },
+    {
+      "category": "behavior",
+      "fact": "Cats spend 70% of their lives sleeping, averaging 13-16 hours per day. This is an evolutionary adaptation from their wild ancestors who needed to conserve energy for hunting."
+    },
+    {
+      "category": "behavior",
+      "fact": "When a cat brings you a 'gift' like a dead mouse, they're trying to teach you to hunt because they see you as a poor hunter who needs help."
+    },
+    {
+      "category": "behavior",
+      "fact": "Cats can rotate their ears 180 degrees and can move each ear independently, allowing them to pinpoint the source of sounds precisely."
+    },
+    {
+      "category": "history",
+      "fact": "Cats were first domesticated around 10,000 years ago in the Near East, likely because they hunted mice attracted to stored grain."
+    },
+    {
+      "category": "history",
+      "fact": "In ancient Egypt, killing a cat, even accidentally, was punishable by death. When a family cat died, family members would shave their eyebrows in mourning."
+    },
+    {
+      "category": "history",
+      "fact": "The first cat show was held in London in 1871 at the Crystal Palace, organized by Harrison Weir."
+    },
+    {
+      "category": "abilities",
+      "fact": "Cats can jump up to six times their length and can run at speeds up to 30 miles per hour in short bursts."
+    },
+    {
+      "category": "abilities",
+      "fact": "A cat's hearing is about four times more sensitive than a human's, and they can hear ultrasonic sounds that are inaudible to humans."
+    },
+    {
+      "category": "abilities",
+      "fact": "Cats have a specialized collarbone that allows them to always land on their feet when falling. This is called the 'righting reflex' and develops around 3-4 weeks of age."
+    },
+    {
+      "category": "health",
+      "fact": "A group of cats is called a 'clowder,' while a group of kittens is called a 'kindle.'"
+    },
+    {
+      "category": "health",
+      "fact": "The oldest known cat lived to be 38 years old. Her name was Creme Puff and she lived in Austin, Texas."
+    },
+    {
+      "category": "health",
+      "fact": "Cats cannot taste sweetness because they lack the taste receptor for it. This is likely because their carnivorous diet never required detecting sugars."
+    }
+  ]
+}

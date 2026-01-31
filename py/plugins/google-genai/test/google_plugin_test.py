@@ -143,8 +143,9 @@ async def test_googleai_initialize(mock_client_cls: MagicMock) -> None:
     plugin = GoogleAI(api_key=api_key)
     # Ensure usage of mock
     plugin._client = mock_client
+    mock_registry = MagicMock()
 
-    await plugin.init()
+    await plugin.init(mock_registry)
     result = await plugin.list_actions()
 
     # init returns known models and embedders
@@ -490,8 +491,9 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     m2.supported_actions = ['embedContent']
 
     plugin._client.models.list.return_value = [m1, m2]  # type: ignore
+    mock_registry = MagicMock()
 
-    await plugin.init()
+    await plugin.init(mock_registry)
 
     # init returns known models and embedders in internal registry, but list_actions returns them list
     result = await plugin.list_actions()

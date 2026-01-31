@@ -22,7 +22,7 @@ from anthropic import AsyncAnthropic
 from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
-from genkit.core.registry import ActionKind
+from genkit.core.registry import ActionKind, Registry
 from genkit.core.schema import to_json_schema
 from genkit.plugins.anthropic.model_info import SUPPORTED_ANTHROPIC_MODELS, get_model_info
 from genkit.plugins.anthropic.models import AnthropicModel
@@ -68,8 +68,11 @@ class Anthropic(Plugin):
         self._anthropic_params = anthropic_params
         self._anthropic_client = AsyncAnthropic(**cast(dict[str, Any], anthropic_params))
 
-    async def init(self) -> list[Action]:
+    async def init(self, registry: 'Registry | None' = None) -> list[Action]:
         """Initialize plugin.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             Empty list (using lazy loading via resolve).

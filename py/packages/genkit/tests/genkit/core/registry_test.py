@@ -59,7 +59,7 @@ async def test_resolve_action_from_plugin() -> None:
     class MyPlugin(Plugin):
         name = 'myplugin'
 
-        async def init(self) -> list[Action]:
+        async def init(self, registry: Registry | None = None) -> list[Action]:
             return []
 
         async def resolve(self, action_type: ActionKind, name: str) -> Action:

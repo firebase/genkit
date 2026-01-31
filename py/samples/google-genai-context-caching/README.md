@@ -1,5 +1,5 @@
 # Context Caching example.
- 
+
 ### How to Get Your Gemini API Key
 
 To use the Google GenAI plugin, you need a Gemini API key.

@@ -25,7 +25,7 @@ from genkit.ai import Plugin
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action
 from genkit.core.error import GenkitError
-from genkit.core.registry import ActionKind
+from genkit.core.registry import ActionKind, Registry
 from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import SUPPORTED_XAI_MODELS, get_model_info
 from genkit.plugins.xai.models import XAIConfig, XAIModel
@@ -67,8 +67,11 @@ class XAI(Plugin):
         self._xai_params = xai_params
         self._xai_client = XAIClient(api_key=api_key, **cast(dict[str, Any], xai_params))
 
-    async def init(self) -> list:
+    async def init(self, registry: 'Registry | None' = None) -> list:
         """Initialize plugin.
+
+        Args:
+            registry: Optional registry (not used by this plugin).
 
         Returns:
             List of Action objects for pre-configured models.
