@@ -58,8 +58,60 @@
     # pyrefly: ignore[unexpected-keyword] - Pydantic populate_by_name=True allows schema_
     schema_=options.output.json_schema if options.output else None,
     ```
-* Move imports to the top of the file and avoid using imports inside function
-  definitions.
+* **Import Placement**: All imports must be at the top of the file, outside any
+  function definitions. This is a strict Python convention that ensures:
+  * Predictable module loading behavior
+  * Easier code review and maintenance
+  * Proper type checking and tooling support
+
+  **Correct (Top-Level Imports)**:
+
+  ```python
+  import asyncio
+  import json
+  import os
+  import random
+  import tempfile
+  from collections.abc import Callable
+
+  from pydantic import BaseModel, Field
+
+  from genkit.types import Media, MediaPart, Part, TextPart
+
+
+  async def main() -> None:
+      """Entry point - uses imports from top of file."""
+      await asyncio.Event().wait()
+
+
+  def process_data(data: dict) -> str:
+      """Uses json from top-level import."""
+      return json.dumps(data)
+  ```
+
+  **Incorrect (In-Function Imports)**:
+
+  ```python
+  async def main() -> None:
+      """WRONG: Import inside function."""
+      import asyncio  # ❌ Should be at top of file
+
+      await asyncio.Event().wait()
+
+
+  def describe_image(url: str) -> Part:
+      """WRONG: Import inside function."""
+      from genkit.types import MediaPart  # ❌ Should be at top of file
+
+      return MediaPart(media=Media(url=url))
+  ```
+
+  **Note**: There are NO legitimate use cases for in-function imports in this
+  codebase. The only traditionally acceptable reasons (circular imports, optional
+  dependencies, heavy import cost) do not apply here because:
+  * Circular imports should be resolved through proper module design
+  * All dependencies in this codebase are mandatory
+  * Standard library imports are negligible cost
 
 ## Generated Files & Data Model
 
