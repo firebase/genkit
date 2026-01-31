@@ -120,9 +120,13 @@ source = ["packages", "plugins"]
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+aws-bedrock-hello                   = { workspace = true }
+aws-hello                           = { workspace = true }
 evaluator-demo                      = { workspace = true }
 genkit                              = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
+genkit-plugin-aws                   = { workspace = true }
+genkit-plugin-aws-bedrock           = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -133,16 +137,12 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-mcp                   = { workspace = true }
 genkit-plugin-msfoundry             = { workspace = true }
-genkit-plugin-aws-bedrock           = { workspace = true }
-genkit-plugin-aws                   = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
 msfoundry-hello                     = { workspace = true }
-aws-bedrock-hello                   = { workspace = true }
-aws-hello                           = { workspace = true }
 prompt-demo                         = { workspace = true }
 
 [tool.uv.workspace]
@@ -285,7 +285,7 @@ authorized_licenses = [
   "bsd-2-clause",
   "apache license 2.0",
   "apache-2.0 and mit",
-  "mpl-2.0 and mit",  # tqdm uses this dual license
+  "mpl-2.0 and mit",                    # tqdm uses this dual license
 ]
 dependencies = true
 unauthorized_licenses = [

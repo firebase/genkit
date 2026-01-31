@@ -55,6 +55,7 @@ Key Features
 | Tool Calling                            | `weather_flow`                      |
 """
 
+import asyncio
 import os
 
 from pydantic import BaseModel, Field
@@ -217,8 +218,6 @@ async def weather_flow(input_data: WeatherInput) -> str:
 
 async def main() -> None:
     """Main entry point - keep alive for Dev UI."""
-    import asyncio
-
     logger.info('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()

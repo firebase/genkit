@@ -43,6 +43,7 @@ See Also:
     - Workload Metrics: https://cloud.google.com/monitoring/api/metrics_other
 """
 
+import json
 import re
 
 import structlog
@@ -164,8 +165,6 @@ def record_generate_metrics(span: ReadableSpan) -> None:
     Args:
         span: OpenTelemetry span containing model execution data
     """
-    import json
-
     attrs = span.attributes
     if not attrs:
         return

@@ -135,6 +135,7 @@ Note:
     "Microsoft", "Azure", and "Microsoft Foundry" are trademarks of Microsoft Corporation.
 """
 
+import asyncio
 import os
 import random
 
@@ -145,6 +146,7 @@ from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.msfoundry import MSFoundry, gpt4o
+from genkit.types import Media, MediaPart, Part, TextPart
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
@@ -290,8 +292,6 @@ async def describe_image(input: ImageDescribeInput) -> str:
     This demonstrates multimodal capabilities with vision models.
     Note: Requires a vision-capable model like gpt-4o.
     """
-    from genkit.types import Media, MediaPart, Part, TextPart
-
     response = await ai.generate(
         prompt=[
             Part(root=TextPart(text='Describe this image in detail')),
@@ -321,8 +321,6 @@ async def say_hi_with_config(input: SayHiInput) -> str:
 
 async def main() -> None:
     """Main entry point for the sample."""
-    import asyncio
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     await logger.ainfo('Open the Genkit Dev UI to test the flows.')
     # Keep the process alive for Dev UI

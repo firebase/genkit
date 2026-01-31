@@ -91,6 +91,7 @@ How Context Caching Works
 See README.md for testing instructions.
 """
 
+import asyncio
 import os
 
 import httpx
@@ -223,8 +224,6 @@ async def main() -> None:
     This function demonstrates how to use context caching in Genkit for
     improved performance.
     """
-    import asyncio
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()

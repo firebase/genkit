@@ -59,7 +59,9 @@ Key Features
 | Multi-turn Chat                         | `chat_flow`                             |
 """
 
+import asyncio
 import os
+import random
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -171,8 +173,6 @@ def get_weather(input: WeatherInput) -> str:
     Returns:
         Weather information with temperature in degrees Celsius.
     """
-    import random
-
     weather_options = [
         '32° C sunny',
         '17° C cloudy',
@@ -425,8 +425,6 @@ async def weather_flow(input: WeatherFlowInput) -> str:
 
 async def main() -> None:
     """Main entry point for the DeepSeek sample - keep alive for Dev UI."""
-    import asyncio
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
