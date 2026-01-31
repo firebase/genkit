@@ -150,8 +150,8 @@ class OllamaModel:
 
         if request.output:
             # ollama api either accepts 'json' literal, or the JSON schema
-            if request.output.schema_:
-                fmt = request.output.schema_
+            if request.output.schema:
+                fmt = request.output.schema
             elif request.output.format:
                 fmt = request.output.format
             else:
@@ -331,7 +331,7 @@ class OllamaModel:
         return prompt
 
     @classmethod
-    def build_chat_messages(cls, request: GenerateRequest) -> list[dict[str, str]]:
+    def build_chat_messages(cls, request: GenerateRequest) -> list[ollama_api.Message]:
         """Build the messages for the chat API.
 
         Args:
@@ -340,7 +340,7 @@ class OllamaModel:
         Returns:
             The messages for the chat API.
         """
-        messages = []
+        messages: list[ollama_api.Message] = []
         for message in request.messages:
             item = ollama_api.Message(
                 role=cls._to_ollama_role(role=cast(Role, message.role)),
@@ -416,11 +416,14 @@ def _convert_parameters(input_schema: dict[str, object]) -> ollama_api.Tool.Func
 
     schema = ollama_api.Tool.Function.Parameters()
     if 'required' in input_schema:
-        schema.required = input_schema['required']
+        required = input_schema['required']
+        if isinstance(required, list):
+            schema.required = cast(list[str], required)
 
     if 'type' in input_schema:
         schema_type = input_schema['type']
-        schema.type = schema_type
+        if schema_type == 'object':
+            schema.type = 'object'
 
         if schema_type == 'object':
             schema.properties = {}

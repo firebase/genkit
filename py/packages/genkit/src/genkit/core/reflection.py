@@ -43,9 +43,8 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator, Callable
-from typing import Any
+from typing import Any, cast
 
-import structlog
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -58,6 +57,7 @@ from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_reflection_json
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.requests import (
@@ -68,7 +68,7 @@ from genkit.web.typing import (
     StartupHandler,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def _list_registered_actions(registry: Registry) -> dict[str, Action]:
@@ -149,7 +149,7 @@ def create_reflection_asgi_app(
     on_app_startup: StartupHandler | None = None,
     on_app_shutdown: StartupHandler | None = None,
     version: str = DEFAULT_GENKIT_VERSION,
-    encoding: str = 'utf-8',
+    _encoding: str = 'utf-8',
 ) -> Application:
     """Create and return a ASGI application for the Genkit reflection API.
 
@@ -184,22 +184,22 @@ def create_reflection_asgi_app(
         An ASGI application configured with the given registry.
     """
 
-    async def handle_health_check(request: Request) -> JSONResponse:
+    async def handle_health_check(_request: Request) -> JSONResponse:
         """Handle health check requests.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             A JSON response with status code 200.
         """
         return JSONResponse(content={'status': 'OK'})
 
-    async def handle_terminate(request: Request) -> JSONResponse:
+    async def handle_terminate(_request: Request) -> JSONResponse:
         """Handle the quit endpoint.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             An empty JSON response with status code 200.
@@ -208,11 +208,11 @@ def create_reflection_asgi_app(
         terminate_all_servers()
         return JSONResponse(content={'status': 'OK'})
 
-    async def handle_list_actions(request: Request) -> JSONResponse:
+    async def handle_list_actions(_request: Request) -> JSONResponse:
         """Handle the request for listing available actions.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             A JSON response containing all serializable actions.
@@ -248,22 +248,22 @@ def create_reflection_asgi_app(
         values = registry.list_values(kind)
         return JSONResponse(content=values, status_code=200)
 
-    async def handle_list_envs(request: Request) -> JSONResponse:
+    async def handle_list_envs(_request: Request) -> JSONResponse:
         """Handle the request for listing environments.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
              A JSON response containing environments.
         """
         return JSONResponse(content=['dev'], status_code=200)
 
-    async def handle_notify(request: Request) -> JSONResponse:
+    async def handle_notify(_request: Request) -> JSONResponse:
         """Handle the notification endpoint.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             An empty JSON response with status code 200.
@@ -275,7 +275,7 @@ def create_reflection_asgi_app(
         )
 
     # Map of active actions indexed by trace ID for cancellation support.
-    active_actions: dict[str, asyncio.Task] = {}
+    active_actions: dict[str, asyncio.Task[Any]] = {}
 
     async def handle_cancel_action(request: Request) -> JSONResponse:
         """Handle the cancelAction endpoint.
@@ -294,7 +294,7 @@ def create_reflection_asgi_app(
 
             task = active_actions.get(trace_id)
             if task:
-                task.cancel()
+                _ = task.cancel()
                 return JSONResponse(content={'message': 'Action cancelled'}, status_code=200)
             else:
                 return JSONResponse(content={'message': 'Action not found or already completed'}, status_code=404)
@@ -357,7 +357,7 @@ def create_reflection_asgi_app(
     async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: object,
+        _action_input: object,
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
@@ -416,10 +416,8 @@ def create_reflection_asgi_app(
 
             except Exception as e:
                 error_response = get_reflection_json(e).model_dump(by_alias=True)
-                logger.error(
-                    'Error streaming action',
-                    error=error_response,
-                )
+                # Log with exc_info for pretty exception output via rich/structlog
+                logger.exception('Error streaming action', exc_info=e)
                 # Error response also should not have trailing newline (final message)
                 chunk_queue.put_nowait(json.dumps(error_response))
                 # Ensure trace_id_event is set even on error
@@ -431,13 +429,13 @@ def create_reflection_asgi_app(
                 # Signal end of stream
                 chunk_queue.put_nowait(None)
                 if run_trace_id:
-                    active_actions.pop(run_trace_id, None)
+                    _ = active_actions.pop(run_trace_id, None)
 
         # Start the action task immediately so trace ID becomes available ASAP
         action_task = asyncio.create_task(run_action_task())
 
         # Wait for trace ID before returning response - this enables early header flushing
-        await trace_id_event.wait()
+        _ = await trace_id_event.wait()
 
         # Now we have the trace ID, include it in headers
         headers = {
@@ -445,7 +443,7 @@ def create_reflection_asgi_app(
             'Transfer-Encoding': 'chunked',
         }
         if run_trace_id:
-            headers['X-Genkit-Trace-Id'] = run_trace_id
+            headers['X-Genkit-Trace-Id'] = run_trace_id  # pyright: ignore[reportUnreachable]
 
         async def stream_generator() -> AsyncGenerator[str, None]:
             """Yield chunks from the queue as they arrive."""
@@ -457,7 +455,7 @@ def create_reflection_asgi_app(
                     yield chunk
             finally:
                 # Cancel task if still running (no-op if already done)
-                action_task.cancel()
+                _ = action_task.cancel()
 
         return StreamingResponse(
             stream_generator(),
@@ -470,7 +468,7 @@ def create_reflection_asgi_app(
     async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
-        action_input: object,
+        _action_input: object,
         context: dict[str, Any],
         version: str,
         on_trace_start: Callable[[str], None],
@@ -526,7 +524,7 @@ def create_reflection_asgi_app(
         action_task = asyncio.create_task(run_action_and_get_result())
 
         # Wait for trace ID before returning response
-        await trace_id_event.wait()
+        _ = await trace_id_event.wait()
 
         # Now return streaming response - headers will include trace ID
         async def body_generator() -> AsyncGenerator[bytes, None]:
@@ -535,19 +533,20 @@ def create_reflection_asgi_app(
 
             if action_error:
                 error_response = get_reflection_json(action_error).model_dump(by_alias=True)
-                logger.error('Error executing action', error=error_response)
+                # Log with exc_info for pretty exception output via rich/structlog
+                logger.exception('Error executing action', exc_info=action_error)
                 yield json.dumps(error_response).encode('utf-8')
             else:
                 yield json.dumps(action_result).encode('utf-8')
 
             if run_trace_id:
-                active_actions.pop(run_trace_id, None)
+                _ = active_actions.pop(run_trace_id, None)
 
         headers = {
             'x-genkit-version': version,
         }
         if run_trace_id:
-            headers['X-Genkit-Trace-Id'] = run_trace_id
+            headers['X-Genkit-Trace-Id'] = run_trace_id  # pyright: ignore[reportUnreachable]
 
         return StreamingResponse(
             body_generator(),
@@ -579,4 +578,4 @@ def create_reflection_asgi_app(
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
     )
     app.active_actions = active_actions  # type: ignore[attr-defined]
-    return app
+    return cast(Application, app)

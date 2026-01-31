@@ -37,11 +37,14 @@ import os
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.plugins.firebase import add_firebase_telemetry, define_firestore_vector_store
 from genkit.plugins.google_genai import VertexAI
 from genkit.types import Document, RetrieverResponse
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')

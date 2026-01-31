@@ -87,6 +87,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
         return RetrieverResponse(documents=[d.document for d in docs])
 
     def _get_closest_documents(self, k: int, query_embeddings: Embedding) -> list[ScoredDocument]:
+        # pyrefly: ignore[missing-attribute] - _load_filestore inherited from LocalVectorStoreAPI
         db = self._load_filestore()
         scored_documents = []
 

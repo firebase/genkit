@@ -33,6 +33,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "rich>=13.0.0",
   "genkit",
   "asgiref>=3.8.1",
   "litestar>=2.15.1",

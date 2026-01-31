@@ -33,19 +33,22 @@ See README.md for testing instructions.
 """
 
 from math import sqrt
-from typing import Annotated, cast
+from typing import cast
 
-import structlog
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition
 from genkit.types import GenerateResponse
 
-logger = structlog.get_logger(__name__)
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+
+logger = get_logger(__name__)
 
 EMBEDDER_MODEL = 'nomic-embed-text'
 EMBEDDER_DIMENSIONS = 768
@@ -189,30 +192,35 @@ async def generate_response(question: str) -> GenerateResponse:
     )
 
 
+class PokemonFlowInput(BaseModel):
+    """Input for Pokemon flow."""
+
+    question: str = Field(default='Who is the best water pokemon?', description='Question about Pokemon')
+
+
 @ai.flow(
     name='Pokedex',
 )
-async def pokemon_flow(
-    question: Annotated[str, Field(default='Who is the best water pokemon?')] = 'Who is the best water pokemon?',
-) -> str:
+async def pokemon_flow(input: PokemonFlowInput) -> str:
     """Generate a request to greet a user.
 
     Args:
-        question: Question for pokemons.
+        input: Input with question about Pokemon.
 
     Returns:
         A GenerateRequest object with the greeting message.
     """
     await embed_pokemons()
-    response = await generate_response(question=question)
+    response = await generate_response(question=input.question)
     if not response.message or not response.message.content:
         raise ValueError('No message content returned from model')
-    return response.message.content[0].root.text
+    text = response.message.content[0].root.text
+    return str(text) if text is not None else ''
 
 
 async def main() -> None:
     """Main function."""
-    response = await pokemon_flow('Who is the best water pokemon?')
+    response = await pokemon_flow(PokemonFlowInput(question='Who is the best water pokemon?'))
     await logger.ainfo(response)
 
 

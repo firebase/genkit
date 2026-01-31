@@ -387,22 +387,24 @@ async def test_generate_action_spec(spec: dict[str, Any]) -> None:
 
     if 'streamChunks' in spec:
         pm.chunks = []
-        for chunks in spec['streamChunks']:
+        for stream_chunks in spec['streamChunks']:
             converted = []
-            for chunk in chunks:
-                converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
+            if stream_chunks:
+                for chunk in stream_chunks:
+                    converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
             pm.chunks.append(converted)
 
     action = await ai.registry.resolve_action(kind=ActionKind.UTIL, name='generate')
     assert action is not None
 
     response = None
-    chunks = None
+    chunks: list[GenerateResponseChunk] | None = None
     if 'stream' in spec and spec['stream']:
         chunks = []
+        captured_chunks = chunks  # Capture list reference for closure
 
         def on_chunk(chunk: GenerateResponseChunk) -> None:
-            chunks.append(chunk)
+            captured_chunks.append(chunk)
 
         action_response = await action.arun(
             ai.registry,

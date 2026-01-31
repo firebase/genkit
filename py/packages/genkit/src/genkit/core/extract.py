@@ -39,7 +39,7 @@ def parse_partial_json(json_string: str) -> Any:  # noqa: ANN401
     Raises:
         AssertionError: If the string cannot be parsed as JSON.
     """
-    # TODO: add handling for malformed JSON cases.
+    # TODO(#4350): add handling for malformed JSON cases.
     return loads(json_string)
 
 
@@ -81,12 +81,13 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:  # noqa: ANN
     if text.strip() == '':
         return None
 
-    opening_char = None
-    closing_char = None
-    start_pos = None
-    nesting_count = 0
-    in_string = False
-    escape_next = False
+    # Explicit type annotations for loop variables to help type checkers
+    opening_char: str | None = None
+    closing_char: str | None = None
+    start_pos: int | None = None
+    nesting_count: int = 0
+    in_string: bool = False
+    escape_next: bool = False
 
     for i in range(len(text)):
         char = text[i].replace(CHAR_NON_BREAKING_SPACE, ' ')
@@ -153,8 +154,8 @@ class ExtractItemsResult:
             items: A list of the extracted JSON objects.
             cursor: The updated cursor position.
         """
-        self.items = items
-        self.cursor = cursor
+        self.items: list[Any] = items
+        self.cursor: int = cursor
 
 
 def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:

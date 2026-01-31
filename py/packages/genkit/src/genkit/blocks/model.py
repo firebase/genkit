@@ -32,9 +32,10 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 from functools import cached_property
-from typing import Any, TypeVar, cast
+from typing import Any, Generic, cast
 
 from pydantic import BaseModel, Field, PrivateAttr
+from typing_extensions import TypeVar
 
 from genkit.core.action import ActionMetadata, ActionRunContext
 from genkit.core.action.types import ActionKind
@@ -59,14 +60,6 @@ from genkit.core.typing import (
 # type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 ModelFn = Callable[[GenerateRequest, ActionRunContext], GenerateResponse]
 
-# These types are duplicated in genkit.blocks.formats.types due to circular deps
-T = TypeVar('T')
-# type MessageParser[T] = Callable[[MessageWrapper], T]
-MessageParser = Callable[['MessageWrapper'], T]
-# type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
-ChunkParser = Callable[['GenerateResponseChunkWrapper'], T]
-
-
 # type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
 ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
 # type ModelMiddleware = Callable[
@@ -77,6 +70,9 @@ ModelMiddleware = Callable[
     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
     Awaitable[GenerateResponse],
 ]
+
+# TypeVar for generic output type in GenerateResponseWrapper
+OutputT = TypeVar('OutputT', default=object)
 
 
 class ModelReference(BaseModel):
@@ -111,7 +107,7 @@ class MessageWrapper(Message):
             content=message.content,
             metadata=message.metadata,
         )
-        self._original_message = message
+        self._original_message: Message = message
 
     @cached_property
     def text(self) -> str:
@@ -141,24 +137,27 @@ class MessageWrapper(Message):
         return [p for p in self.tool_requests if p.metadata and p.metadata.root.get('interrupt')]
 
 
-class GenerateResponseWrapper(GenerateResponse):
+class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
     """A wrapper around GenerateResponse providing utility methods.
 
     Extends the base `GenerateResponse` with cached properties (`text`, `output`,
     `messages`, `tool_requests`) and methods for validation (`assert_valid`,
     `assert_valid_schema`). It also handles optional message/chunk parsing.
+
+    When used with `Output[T]`, the `output` property is typed as `T`.
     """
 
     # _message_parser is a private attribute that Pydantic will ignore
-    _message_parser: MessageParser | None = PrivateAttr(None)
-    # Override the parent's message field with our wrapper type
-    message: MessageWrapper | None = None
+    _message_parser: Callable[[MessageWrapper], object] | None = PrivateAttr(None)
+    # Override the parent's message field with our wrapper type (intentional Liskov violation)
+    # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
+    message: MessageWrapper | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
         response: GenerateResponse,
         request: GenerateRequest,
-        message_parser: MessageParser | None = None,
+        message_parser: Callable[[MessageWrapper], object] | None = None,
     ) -> None:
         """Initializes a GenerateResponseWrapper instance.
 
@@ -185,6 +184,7 @@ class GenerateResponseWrapper(GenerateResponse):
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
+            operation=response.operation,
         )
         # Set subclass-specific field after parent initialization
         self._message_parser = message_parser
@@ -197,7 +197,7 @@ class GenerateResponseWrapper(GenerateResponse):
         Raises:
             AssertionError: If the response structure is considered invalid.
         """
-        # TODO: implement
+        # TODO(#4343): implement
         pass
 
     def assert_valid_schema(self) -> None:
@@ -208,7 +208,7 @@ class GenerateResponseWrapper(GenerateResponse):
         Raises:
             AssertionError: If the response message does not conform to the schema.
         """
-        # TODO: implement
+        # TODO(#4343): implement
         pass
 
     @cached_property
@@ -223,15 +223,17 @@ class GenerateResponseWrapper(GenerateResponse):
         return self.message.text
 
     @cached_property
-    def output(self) -> object:
+    def output(self) -> OutputT:
         """Parses out JSON data from the text parts of the response.
 
+        When used with `Output[T]`, returns the parsed output typed as `T`.
+
         Returns:
-            Any: The parsed JSON data from the response.
+            The parsed JSON data from the response, typed according to the schema.
         """
-        if self._message_parser:
-            return self._message_parser(self.message)
-        return extract_json(self.text)
+        if self._message_parser and self.message is not None:
+            return cast(OutputT, self._message_parser(self.message))
+        return cast(OutputT, extract_json(self.text))
 
     @cached_property
     def messages(self) -> list[Message]:
@@ -244,7 +246,7 @@ class GenerateResponseWrapper(GenerateResponse):
             return list(self.request.messages) if self.request else []
         return [
             *(self.request.messages if self.request else []),
-            self.message._original_message,
+            self.message._original_message,  # pyright: ignore[reportPrivateUsage]
         ]
 
     @cached_property
@@ -281,14 +283,14 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
 
     # Field(exclude=True) means these fields are not included in serialization
     previous_chunks: list[GenerateResponseChunk] = Field(default_factory=list, exclude=True)
-    chunk_parser: ChunkParser | None = Field(None, exclude=True)
+    chunk_parser: Callable[[GenerateResponseChunkWrapper], object] | None = Field(None, exclude=True)
 
     def __init__(
         self,
         chunk: GenerateResponseChunk,
         previous_chunks: list[GenerateResponseChunk],
         index: int,
-        chunk_parser: ChunkParser | None = None,
+        chunk_parser: Callable[[GenerateResponseChunkWrapper], object] | None = None,
     ) -> None:
         """Initializes the GenerateResponseChunkWrapper.
 

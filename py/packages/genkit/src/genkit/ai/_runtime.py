@@ -26,13 +26,12 @@ from datetime import datetime
 from pathlib import Path
 from types import TracebackType
 
-import structlog
-
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
+from genkit.core.logging import get_logger
 
 from ._server import ServerSpec
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 DEFAULT_RUNTIME_DIR_NAME = '.genkit/runtimes'
 
@@ -71,11 +70,11 @@ def _register_atexit_cleanup_handler(path_to_remove: Path | None) -> None:
         return
 
     def sync_cleanup() -> None:
-        # TODO: Neither print nor logger appears to work during atexit.
-        _remove_file(path_to_remove)
+        # TODO(#4335): Neither print nor logger appears to work during atexit.
+        _ = _remove_file(path_to_remove)
 
     logger.debug(f'Registering synchronous atexit cleanup for {path_to_remove}')
-    atexit.register(sync_cleanup)
+    _ = atexit.register(sync_cleanup)
 
 
 def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
@@ -111,11 +110,11 @@ def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
 
     logger.debug(f'Writing runtime file: {runtime_file_path}')
     with open(runtime_file_path, 'w', encoding='utf-8') as f:
-        f.write(metadata)
+        _ = f.write(metadata)
 
     logger.info(f'Initialized runtime file: {runtime_file_path}')
-    sys.stdout.flush()
-    sys.stderr.flush()
+    _ = sys.stdout.flush()
+    _ = sys.stderr.flush()
     return runtime_file_path
 
 
@@ -162,33 +161,33 @@ class RuntimeManager:
                         on context entry. It must be written manually by calling
                         write_runtime_file().
         """
-        self.spec = spec
+        self.spec: ServerSpec = spec
         if runtime_dir is None:
-            self._runtime_dir = Path(os.getcwd()) / DEFAULT_RUNTIME_DIR_NAME
+            self._runtime_dir: Path = Path(os.getcwd()) / DEFAULT_RUNTIME_DIR_NAME
         else:
             self._runtime_dir = Path(runtime_dir)
 
-        self.lazy_write = lazy_write
+        self.lazy_write: bool = lazy_write
         self._runtime_file_path: Path | None = None
 
     async def __aenter__(self) -> RuntimeManager:
         """Create the runtime directory and file."""
         try:
             await logger.adebug(f'Ensuring runtime directory exists: {self._runtime_dir}')
-            self._runtime_dir.mkdir(parents=True, exist_ok=True)
+            _ = self._runtime_dir.mkdir(parents=True, exist_ok=True)
             if not self.lazy_write:
-                self.write_runtime_file()
+                _ = self.write_runtime_file()
 
         except Exception as e:
             logger.error(f'Failed to initialize runtime file: {e}', exc_info=True)
-            sys.stdout.flush()
-            sys.stderr.flush()
+            _ = sys.stdout.flush()
+            _ = sys.stderr.flush()
             raise
 
         return self
 
     async def __aexit__(
-        self, exc_type: Exception | None, exc_val: Exception | None, exc_tb: TracebackType | None
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
     ) -> bool:
         """Async context manager exit handler.
 
@@ -208,19 +207,24 @@ class RuntimeManager:
         """Synchronous entry point: Create the runtime directory and file."""
         try:
             logger.debug(f'[sync] Ensuring runtime directory exists: {self._runtime_dir}')
-            self._runtime_dir.mkdir(parents=True, exist_ok=True)
+            _ = self._runtime_dir.mkdir(parents=True, exist_ok=True)
             if not self.lazy_write:
-                self.write_runtime_file()
+                _ = self.write_runtime_file()
 
         except Exception as e:
             logger.error(f'[sync] Failed to initialize runtime file: {e}', exc_info=True)
-            sys.stdout.flush()
-            sys.stderr.flush()
+            _ = sys.stdout.flush()
+            _ = sys.stderr.flush()
             raise
 
         return self
 
-    def __exit__(self, exc_type: Exception | None, exc_val: Exception | None, exc_tb: TracebackType | None) -> bool:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
         """Synchronous exit handler.
 
         Cleanup is handled by atexit. This method primarily ensures the context
@@ -250,4 +254,4 @@ class RuntimeManager:
         """Explicitly cleanup the runtime file."""
         if self._runtime_file_path:
             logger.debug(f'Cleaning up runtime file: {self._runtime_file_path}')
-            _remove_file(self._runtime_file_path)
+            _ = _remove_file(self._runtime_file_path)

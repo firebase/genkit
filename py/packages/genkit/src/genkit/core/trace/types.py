@@ -34,14 +34,15 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-import structlog
 from opentelemetry import trace as trace_api
 from opentelemetry.util import types
 from pydantic import BaseModel
 
+from genkit.core.logging import get_logger
+
 ATTR_PREFIX = 'genkit'
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class GenkitSpan:

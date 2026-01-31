@@ -49,18 +49,12 @@ from __future__ import annotations
 
 import abc
 import socket
-import sys
 
-import structlog
-
+from genkit.core._compat import StrEnum, override
+from genkit.core.logging import get_logger
 from genkit.web.typing import Application
 
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
-
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ServerType(StrEnum):
@@ -148,8 +142,8 @@ class ASGIServerAdapter(abc.ABC):
                 return UvicornAdapter()
             case ServerType.GRANIAN:
                 return GranianAdapter()
-            case _:
-                raise ValueError(f'Unsupported server type: {server_type}')
+            case _:  # pyright: ignore[reportUnnecessaryComparison]
+                raise ValueError(f'Unsupported server type: {server_type}')  # pyright: ignore[reportUnreachable]
 
 
 class UvicornAdapter(ASGIServerAdapter):
@@ -164,6 +158,7 @@ class UvicornAdapter(ASGIServerAdapter):
     unnecessary imports when the adapter is not being used.
     """
 
+    @override
     async def serve(
         self,
         app: Application,
@@ -183,11 +178,12 @@ class UvicornAdapter(ASGIServerAdapter):
 
         # Configure Uvicorn
         config = uvicorn.Config(
+            # pyrefly: ignore[bad-argument-type] - Starlette app is valid ASGI app for uvicorn
             app,
             host=host,
             port=port,
             log_level=log_level,
-            # TODO: Disable after we complete logging middleware.
+            # TODO(#4353): Disable after we complete logging middleware.
             # log_config=None,
             # access_log=True,
         )
@@ -218,6 +214,7 @@ class GranianAdapter(ASGIServerAdapter):
     available, an ImportError will be raised when the serve method is called.
     """
 
+    @override
     async def serve(
         self,
         app: Application,

@@ -77,21 +77,25 @@ def genkit_flask_handler(
 
             request_data = _FlaskRequestData()
             context = None
+            action_context: dict[str, object] | None = None
             if context_provider:
                 context = context_provider(request_data)
                 if asyncio.iscoroutine(context):
                     context = await context
+                if isinstance(context, dict):
+                    action_context = context
 
             stream = request_data.headers.get('accept') == 'text/event-stream' or request.args.get('stream') == 'true'
             if stream:
 
                 async def async_gen() -> AsyncIterator[str]:
                     try:
-                        stream, response = flow._action.stream(input_data.get('data'), context=context)
+                        stream, response = flow._action.stream(input_data.get('data'), context=action_context)
                         async for chunk in stream:
                             yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
 
-                        yield f'data: {dump_json({"result": dump_dict(await response)})}\n\n'
+                        result = await response
+                        yield f'data: {dump_json({"result": dump_dict(result.response)})}\n\n'
                     except Exception as e:
                         ex = e
                         if isinstance(ex, GenkitError):
@@ -102,7 +106,7 @@ def genkit_flask_handler(
                 return iter
             else:
                 try:
-                    response = await flow._action.arun_raw(input_data.get('data'), context=context)
+                    response = await flow._action.arun_raw(input_data.get('data'), context=action_context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e

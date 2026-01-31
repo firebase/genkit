@@ -74,6 +74,8 @@ from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 
+from genkit.core._compat import override
+
 
 class RealtimeSpanProcessor(SpanProcessor):
     """Exports spans both when they start and when they end.
@@ -104,8 +106,9 @@ class RealtimeSpanProcessor(SpanProcessor):
         Args:
             exporter: The SpanExporter to use for exporting spans.
         """
-        self._exporter = exporter
+        self._exporter: SpanExporter = exporter
 
+    @override
     def on_start(self, span: Span, parent_context: Context | None = None) -> None:
         """Called when a span is started.
 
@@ -118,8 +121,9 @@ class RealtimeSpanProcessor(SpanProcessor):
         """
         # Export the span immediately (it won't have endTime yet)
         # We ignore the result - we don't want to block span creation
-        self._exporter.export([span])
+        _ = self._exporter.export([span])
 
+    @override
     def on_end(self, span: ReadableSpan) -> None:
         """Called when a span ends.
 
@@ -129,8 +133,9 @@ class RealtimeSpanProcessor(SpanProcessor):
             span: The span that just ended.
         """
         # Export the completed span
-        self._exporter.export([span])
+        _ = self._exporter.export([span])
 
+    @override
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Force the exporter to flush any buffered spans.
 
@@ -144,6 +149,7 @@ class RealtimeSpanProcessor(SpanProcessor):
             return self._exporter.force_flush(timeout_millis)
         return True
 
+    @override
     def shutdown(self) -> None:
         """Shut down the processor and exporter."""
         self._exporter.shutdown()

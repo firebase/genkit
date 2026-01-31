@@ -79,13 +79,13 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
-import structlog
+from genkit.core.logging import get_logger
 
 from ._ports import is_port_available
 from ._server import Server
 from .signals import SignalHandler
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ServerManagerProtocol(Protocol):
@@ -165,11 +165,11 @@ class ServerManager:
         """
         self._servers: list[Server] = []
         self._server_tasks: list[asyncio.Task[None]] = []
-        self._signal_handler = SignalHandler()
-        self._handle_signals = handle_signals
+        self._signal_handler: SignalHandler = SignalHandler()
+        self._handle_signals: bool = handle_signals
         self._shutdown_callbacks: list[Callable[[], Any]] = []
         self._server_queue: asyncio.Queue[Server] = asyncio.Queue()
-        self._is_running = False
+        self._is_running: bool = False
 
     async def _attempt_ports(self, server: Server) -> int:
         """Attempt to use a port from among a list of ports.
@@ -217,7 +217,7 @@ class ServerManager:
         self._servers.append(server)
         # If we're already running, add to the queue
         if self._is_running:
-            asyncio.create_task(self._server_queue.put(server))
+            _ = asyncio.create_task(self._server_queue.put(server))
 
     async def queue_server(self, server: Server) -> None:
         """Queue a server to be started.
@@ -298,8 +298,8 @@ class ServerManager:
         await server.lifecycle.on_start(server.config)
 
         # Start the server.
-        if server.adapter is None:
-            raise ValueError('server_adapter cannot be None')
+        if server.adapter is None:  # pyright: ignore[reportUnnecessaryComparison]
+            raise ValueError('server_adapter cannot be None')  # pyright: ignore[reportUnreachable]
         await server.adapter.serve(
             app=app,
             host=server.config.host,
@@ -322,13 +322,13 @@ class ServerManager:
         # Add tasks to monitor:
         # - shutdown event and server errors.
         # - server queue.
-        asyncio.create_task(self._monitor_shutdown())
-        asyncio.create_task(self._monitor_server_tasks())
-        asyncio.create_task(self._monitor_server_queue())
+        _ = asyncio.create_task(self._monitor_shutdown())
+        _ = asyncio.create_task(self._monitor_server_tasks())
+        _ = asyncio.create_task(self._monitor_server_queue())
 
         try:
             # Wait for shutdown.
-            await self._signal_handler.shutdown_event.wait()
+            _ = await self._signal_handler.shutdown_event.wait()
         except asyncio.CancelledError:
             await logger.adebug('ServersManager.start_all was cancelled')
             raise
@@ -343,7 +343,7 @@ class ServerManager:
         while True:
             try:
                 server = await self._server_queue.get()
-                if server is None:
+                if server is None:  # pyright: ignore[reportUnnecessaryComparison]
                     break
 
                 await logger.ainfo(
@@ -395,7 +395,7 @@ class ServerManager:
 
     async def _monitor_shutdown(self) -> None:
         """Monitor for shutdown events."""
-        await self._signal_handler.shutdown_event.wait()
+        _ = await self._signal_handler.shutdown_event.wait()
         await logger.ainfo('Shutdown event detected')
 
     async def stop_all(self) -> None:
@@ -421,15 +421,15 @@ class ServerManager:
         # Cancel all server tasks.
         for task in self._server_tasks:
             if not task.done():
-                task.cancel()
+                _ = task.cancel()
 
         # Wait for all tasks to complete.
         if self._server_tasks:
-            await asyncio.gather(*self._server_tasks, return_exceptions=True)
+            _ = await asyncio.gather(*self._server_tasks, return_exceptions=True)
 
         await logger.ainfo('All servers stopped')
 
-    # TODO: I'm not sure the async context manager is useful, but it's here for
+    # TODO(#4355): I'm not sure the async context manager is useful, but it's here for
     # now.
     async def __aenter__(self) -> ServerManager:
         """Enter the async context, starting all servers.
@@ -486,7 +486,7 @@ class ServerManager:
                 if stopping is not None:
                     await stopping
                 # Block until shutdown is triggered.
-                await self._signal_handler.shutdown_event.wait()
+                _ = await self._signal_handler.shutdown_event.wait()
         except asyncio.CancelledError:
             logger.debug('Servers task was cancelled')
             raise

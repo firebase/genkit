@@ -53,7 +53,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 20.x
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install uv and setup Python version
         uses: astral-sh/setup-uv@v5
@@ -66,6 +66,11 @@ jobs:
           cd py
           uv pip install -e .[dev,test,docs]
           uv pip install --group dev
+
+      - name: Install type checkers
+        run: |
+          cd py
+          uv pip install pyright pyrefly
 
       - name: Install NPM packages
         run: |
@@ -96,7 +101,14 @@ jobs:
           fi
 
       - name: Type check with Ty
+        # ty reads environment.root config from py/pyproject.toml
         run: uv run --directory py ty check .
+
+      - name: Type check with Pyrefly
+        run: uv run --directory py pyrefly check .
+
+      - name: Type check with Pyright
+        run: uv run --directory py pyright packages/
 
       - name: Run security scan
         run: ./py/bin/run_python_security_checks
@@ -149,13 +161,13 @@ jobs:
       - name: Run tox tests
         if: matrix.test-type == 'tox'
         run: |
-           clean_version=$(echo "${{ matrix.python-version }}" | tr -d '.')
-           uv run --directory py tox -e "py$clean_version"
+          clean_version=$(echo "${{ matrix.python-version }}" | tr -d '.')
+          uv run --directory py tox -e "py$clean_version"
 
       - name: Run nox tests
         if: matrix.test-type == 'nox'
         run: |
-           uv run --directory py nox -s "tests-${{ matrix.python-version }}"
+          uv run --directory py nox -s "tests-${{ matrix.python-version }}"
 
   python-build:
     name: Build Distributions

@@ -429,7 +429,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(call_kwargs['format'], 'json')
 
     async def test_chat_with_output_format_schema(self) -> None:
-        """Test _chat_with_ollama with request.output.schema_ dictionary."""
+        """Test _chat_with_ollama with request.output.schema dictionary."""
         schema_dict = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
         self.request.output = OutputConfig(schema=schema_dict)
 

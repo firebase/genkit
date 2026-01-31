@@ -68,7 +68,7 @@ See Also:
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, ClassVar, cast
 
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Event, ReadableSpan
@@ -76,6 +76,8 @@ from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.util.instrumentation import InstrumentationInfo, InstrumentationScope
 from opentelemetry.trace import Link, SpanContext, SpanKind, Status, StatusCode
 from opentelemetry.util.types import Attributes
+
+from genkit.core._compat import override
 
 
 class RedactedSpan(ReadableSpan):
@@ -97,70 +99,85 @@ class RedactedSpan(ReadableSpan):
         self._redacted_attributes = redacted_attributes
 
     @property
+    @override
     def name(self) -> str:
         """Return the span name."""
         return self._span.name
 
     @property
+    @override
     def context(self) -> SpanContext:
         """Return the span context."""
-        return self._span.context
+        return cast(SpanContext, self._span.context)
 
+    @override
     def get_span_context(self) -> SpanContext:
         """Return the span context."""
-        return self._span.get_span_context()
+        return cast(SpanContext, self._span.get_span_context())
 
     @property
+    @override
     def parent(self) -> SpanContext | None:
         """Return the parent span context."""
         return self._span.parent
 
     @property
+    @override
     def start_time(self) -> int | None:
         """Return the span start time."""
         return self._span.start_time
 
     @property
+    @override
     def end_time(self) -> int | None:
         """Return the span end time."""
         return self._span.end_time
 
     @property
+    @override
     def status(self) -> Status:
         """Return the span status."""
         return self._span.status
 
     @property
+    @override
     def attributes(self) -> Attributes:
         """Return the redacted attributes."""
         return self._redacted_attributes
 
     @property
+    @override
     def events(self) -> Sequence[Event]:
         """Return the span events."""
         return self._span.events
 
     @property
+    @override
     def links(self) -> Sequence[Link]:
         """Return the span links."""
         return self._span.links
 
     @property
+    @override
     def kind(self) -> SpanKind:
         """Return the span kind."""
         return self._span.kind
 
     @property
+    @override
     def resource(self) -> Resource:
         """Return the span resource."""
         return self._span.resource
 
     @property
+    @override
     def instrumentation_info(self) -> InstrumentationInfo | None:
         """Return the instrumentation info."""
+        # pyrefly: ignore[deprecated] - Required override for ReadableSpan interface compatibility
         return self._span.instrumentation_info
 
     @property
+    @override
     def instrumentation_scope(self) -> InstrumentationScope | None:
         """Return the instrumentation scope."""
         return self._span.instrumentation_scope
@@ -191,7 +208,7 @@ class AdjustingTraceExporter(SpanExporter):
         ```
     """
 
-    REDACTED_VALUE = '<redacted>'
+    REDACTED_VALUE: ClassVar[str] = '<redacted>'
 
     def __init__(
         self,
@@ -209,11 +226,12 @@ class AdjustingTraceExporter(SpanExporter):
             project_id: Optional project ID for cloud-specific features.
             error_handler: Optional callback invoked when export errors occur.
         """
-        self._exporter = exporter
-        self._log_input_and_output = log_input_and_output
-        self._project_id = project_id
-        self._error_handler = error_handler
+        self._exporter: SpanExporter = exporter
+        self._log_input_and_output: bool = log_input_and_output
+        self._project_id: str | None = project_id
+        self._error_handler: Callable[[Exception], None] | None = error_handler
 
+    @override
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Export spans after adjusting them.
 
@@ -236,10 +254,12 @@ class AdjustingTraceExporter(SpanExporter):
                 self._error_handler(e)
             raise
 
+    @override
     def shutdown(self) -> None:
         """Shut down the underlying exporter."""
         self._exporter.shutdown()
 
+    @override
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Force the underlying exporter to flush.
 
