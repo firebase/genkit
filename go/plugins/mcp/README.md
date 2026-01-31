@@ -49,7 +49,7 @@ func main() {
 }
 ```
 
-## GenkitMCPManager - Multiple Server Management
+## MCPHost - Multiple Server Management
 
 Manage connections to multiple MCP servers:
 
@@ -66,24 +66,28 @@ import (
 
 func main() {
     ctx := context.Background()
-    g, _ := genkit.Init(ctx)
+    g := genkit.Init(ctx)
 
-    // Create manager with multiple servers
-    manager, err := mcp.NewMCPManager(mcp.MCPManagerOptions{
+    // Create host with multiple servers
+    host, err := mcp.NewMCPHost(g, mcp.MCPHostOptions{
         Name: "my-app",
-        MCPServers: map[string]mcp.MCPClientOptions{
-            "everything": {
-                Name: "everything-server",
-                Stdio: &mcp.StdioConfig{
-                    Command: "npx",
-                    Args: []string{"-y", "@modelcontextprotocol/server-everything"},
+        MCPServers: []mcp.MCPServerConfig{
+            {
+                Name: "everything",
+                Config: mcp.MCPClientOptions{
+                    Stdio: &mcp.StdioConfig{
+                        Command: "npx",
+                        Args: []string{"-y", "@modelcontextprotocol/server-everything"},
+                    },
                 },
             },
-            "filesystem": {
-                Name: "fs-server",
-                Stdio: &mcp.StdioConfig{
-                    Command: "npx",
-                    Args: []string{"@modelcontextprotocol/server-filesystem", "/tmp"},
+            {
+                Name: "filesystem",
+                Config: mcp.MCPClientOptions{
+                    Stdio: &mcp.StdioConfig{
+                        Command: "npx",
+                        Args: []string{"@modelcontextprotocol/server-filesystem", "/tmp"},
+                    },
                 },
             },
         },
@@ -93,7 +97,7 @@ func main() {
     }
 
     // Connect to new server at runtime
-    err = manager.ConnectServer(ctx, "weather", mcp.MCPClientOptions{
+    err = host.Connect(ctx, g, "weather", mcp.MCPClientOptions{
         Name: "weather-server",
         Stdio: &mcp.StdioConfig{
             Command: "python",
@@ -105,14 +109,10 @@ func main() {
     }
 
     // Temporarily disable/enable servers
-    manager.DisableServer("filesystem")
-    manager.EnableServer("filesystem")
-
-    // Disconnect server
-    manager.DisconnectServer("weather")
+    host.Disconnect(ctx, "weather")
 
     // Get tools from all active servers
-    tools, err := manager.GetActiveTools(ctx, g)
+    tools, err := host.GetActiveTools(ctx, g)
     if err != nil {
         log.Fatal(err)
     }
@@ -121,7 +121,7 @@ func main() {
 
 ## GenkitMCPServer - Expose Genkit Tools
 
-Turn your Genkit app into an MCP server:
+Turn your Genkit app into an MCP server that others can connect to:
 
 ```go
 package main
@@ -130,69 +130,30 @@ import (
   "context"
   "log"
 
+  "github.com/firebase/genkit/go/ai"
   "github.com/firebase/genkit/go/genkit"
   "github.com/firebase/genkit/go/plugins/mcp"
 )
 
 func main() {
-  ctx := context.Background()
-  g := genkit.Init(ctx)
+  g := genkit.Init(context.Background())
 
-  // Create a host with multiple servers
-  host, err := mcp.NewMCPHost(g, mcp.MCPHostOptions{
-    Name: "my-app",
-    MCPServers: []mcp.MCPServerConfig{
-      {
-        Name: "everything-server",
-        Config: mcp.MCPClientOptions{
-          Name: "everything-server",
-          Stdio: &mcp.StdioConfig{
-            Command: "npx",
-            Args:    []string{"-y", "@modelcontextprotocol/server-everything"},
-          },
-        },
-      },
-      {
-        Name: "fs-server",
-        Config: mcp.MCPClientOptions{
-          Name: "fs-server",
-          Stdio: &mcp.StdioConfig{
-            Command: "npx",
-            Args:    []string{"@modelcontextprotocol/server-filesystem", "/tmp"},
-          },
-        },
-      },
-    },
+  // Define tools and resources you want to expose
+  genkit.DefineTool(g, "hello", "says hello", func(ctx *ai.ToolContext, input any) (string, error) {
+      return "Hello from Genkit!", nil
   })
-  if err != nil {
-    log.Fatal(err)
-  }
 
-  // Connect to new server at runtime
-  err = host.Connect(ctx, g, "weather", mcp.MCPClientOptions{
-    Name: "weather-server",
-    Stdio: &mcp.StdioConfig{
-      Command: "python",
-      Args:    []string{"weather_server.py"},
-    },
+  // Create the MCP server
+  server := mcp.NewMCPServer(g, mcp.MCPServerOptions{
+    Name: "my-genkit-server",
+    Version: "1.0.0",
   })
-  if err != nil {
-    log.Fatal(err)
-  }
 
-  // Reconnect server
-  host.Reconnect(ctx, "fs-server")
-
-  // Disconnect server
-  host.Disconnect(ctx, "weather")
-
-  // Get tools from all active servers
-  tools, err := host.GetActiveTools(ctx, g)
-  if err != nil {
+  // Start serving over Stdio
+  if err := server.ServeStdio(); err != nil {
     log.Fatal(err)
   }
 }
-
 ```
 
 ## Testing Your Server
@@ -222,5 +183,6 @@ Stdio: &mcp.StdioConfig{
 ```go
 SSE: &mcp.SSEConfig{
     BaseURL: "http://localhost:3000/sse",
+    Headers: map[string]string{"Authorization": "Bearer token"},
 }
 ```

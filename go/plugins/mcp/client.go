@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
+// Package mcp provides a client for integration with the Model Context Protocol.
 package mcp
 
 import (
@@ -42,7 +44,7 @@ type SSEConfig struct {
 	HTTPClient *http.Client // Optional custom HTTP client
 }
 
-// StreamableHTTPConfig contains optons for the Streamable HTTP transport
+// StreamableHTTPConfig contains options for the Streamable HTTP transport
 type StreamableHTTPConfig struct {
 	BaseURL    string
 	Headers    map[string]string
@@ -60,7 +62,7 @@ type MCPClientOptions struct {
 	// Disabled flag to temporarily disable this client
 	Disabled bool
 
-	// Transport options -- only should be provided
+	// Transport options -- only one should be provided
 
 	// Stdio contains config for starting a local server process using stdio transport
 	Stdio *StdioConfig
@@ -121,7 +123,6 @@ func (c *GenkitMCPClient) connect(ctx context.Context) error {
 	}
 
 	// if disabled, return without establishing a session
-	// TODO: wouldn't this wipe the whole server from the client?
 	if c.options.Disabled {
 		c.server = nil
 		return nil

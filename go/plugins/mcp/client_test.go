@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 package mcp
 
@@ -36,7 +38,7 @@ func TestWrapHTTPClient(t *testing.T) {
 		if got.Transport == nil {
 			t.Fatal("transport is nil, want headerTransport")
 		}
-		
+
 		_, ok := got.Transport.(*headerTransport)
 		if !ok {
 			t.Errorf("transport type got = %T, want *headerTransport", got.Transport)
@@ -45,14 +47,10 @@ func TestWrapHTTPClient(t *testing.T) {
 }
 
 func TestMCPClientDefaults(t *testing.T) {
-	// Mock connection to avoid real network call in NewGenkitMCPClient
-	// We only test the option processing here.
 	opts := MCPClientOptions{
 		Name: "my-mcp",
 	}
-	
-	// We can't call NewGenkitMCPClient because it calls connect()
-	// Let's test the naming in Name()
+
 	c := &GenkitMCPClient{options: opts}
 	if got := c.Name(); got != "my-mcp" {
 		t.Errorf("c.Name() got = %q, want %q", got, "my-mcp")
