@@ -15,7 +15,66 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Google Cloud Plugin for Genkit."""
+"""Google Cloud Plugin for Genkit.
+
+This plugin provides Google Cloud observability integration for Genkit,
+enabling telemetry export to Cloud Trace and Cloud Monitoring.
+
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                      Google Cloud Plugin                                │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  └── add_gcp_telemetry() - Enable Cloud Trace/Monitoring export         │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  telemetry/__init__.py - Telemetry Module                               │
+    │  └── Re-exports from submodules                                         │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  telemetry/tracing.py - Distributed Tracing                             │
+    │  ├── Cloud Trace exporter configuration                                 │
+    │  └── OpenTelemetry integration                                          │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  telemetry/metrics.py - Metrics Collection                              │
+    │  ├── Cloud Monitoring exporter                                          │
+    │  └── Custom Genkit metrics                                              │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  telemetry/action.py - Action Instrumentation                           │
+    │  └── Automatic span creation for Genkit actions                         │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                     Telemetry Data Flow                                 │
+    │                                                                         │
+    │  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐      │
+    │  │ Genkit App   │───►│ OpenTelemetry│───►│ Google Cloud         │      │
+    │  │ (actions,    │    │ SDK          │    │ (Trace, Monitoring)  │      │
+    │  │  flows)      │    └──────────────┘    └──────────────────────┘      │
+    │  └──────────────┘                                                       │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Example:
+    ```python
+    from genkit.plugins.google_cloud import add_gcp_telemetry
+
+    # Enable telemetry export to Google Cloud
+    add_gcp_telemetry()
+
+    # Traces and metrics are now exported to:
+    # - Cloud Trace (distributed tracing)
+    # - Cloud Monitoring (metrics)
+    ```
+
+Caveats:
+    - Requires Google Cloud credentials (ADC or explicit)
+    - Telemetry is disabled by default in development mode (GENKIT_ENV=dev)
+    - Requires opentelemetry and google-cloud-* packages
+
+See Also:
+    - Cloud Trace: https://cloud.google.com/trace
+    - Cloud Monitoring: https://cloud.google.com/monitoring
+    - Genkit documentation: https://genkit.dev/
+"""
 
 from .telemetry import add_gcp_telemetry
 

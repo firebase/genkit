@@ -29,6 +29,36 @@ provides access to 11,000+ AI models from multiple providers including:
 - **Cohere**: Command, Embed, Rerank
 - **And many more...**
 
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                      Microsoft Foundry Plugin                           │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── MSFoundry - Plugin class                                           │
+    │  ├── Model References (gpt4o, gpt4o_mini, o1, o3_mini, etc.)            │
+    │  ├── Helper Functions (msfoundry_name, msfoundry_model)                 │
+    │  └── get_config_schema_for_model() - Dynamic config selection           │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  typing.py - Type-Safe Configuration Classes                            │
+    │  ├── MSFoundryConfig (base), OpenAIConfig                               │
+    │  ├── AnthropicConfig, LlamaConfig, MistralConfig, ...                   │
+    │  └── Model-specific enums (ReasoningEffort, CohereSafetyMode, ...)      │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  plugin.py - Plugin Implementation                                      │
+    │  ├── MSFoundry class (registers models/embedders)                       │
+    │  └── Azure OpenAI client initialization                                 │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/model.py - Model Implementation                                 │
+    │  ├── FoundryModel (chat completions API)                                │
+    │  ├── Request/response conversion                                        │
+    │  └── Streaming support                                                  │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/model_info.py - Model Registry                                  │
+    │  ├── SUPPORTED_MODELS (30+ model families)                              │
+    │  └── SUPPORTED_EMBEDDING_MODELS                                         │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Documentation Links:
     - Microsoft Foundry Portal: https://ai.azure.com/
     - Model Catalog: https://ai.azure.com/catalog/models

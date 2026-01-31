@@ -20,6 +20,29 @@ This plugin provides integration with Anthropic's Claude models for the
 Genkit framework. It registers Claude models as Genkit actions, enabling
 text generation operations.
 
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        Anthropic Plugin                                 │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── Anthropic - Plugin class                                           │
+    │  └── anthropic_name() - Helper to create namespaced model names         │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  plugin.py - Plugin Implementation                                      │
+    │  ├── Anthropic class (registers models)                                 │
+    │  └── Client initialization with Anthropic SDK                           │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models.py - Model Implementation                                       │
+    │  ├── AnthropicModel (Messages API integration)                          │
+    │  ├── Request/response conversion                                        │
+    │  └── Streaming support                                                  │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  model_info.py - Model Registry                                         │
+    │  ├── SUPPORTED_MODELS (claude-3.5-sonnet, opus, haiku, etc.)            │
+    │  └── Model capabilities and metadata                                    │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Overview:
     The Anthropic plugin adds support for Claude models to Genkit. It uses
     the official Anthropic Python SDK and registers models that can be used

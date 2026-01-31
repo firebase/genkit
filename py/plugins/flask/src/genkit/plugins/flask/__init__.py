@@ -15,7 +15,64 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Flask Plugin for Genkit."""
+"""Flask Plugin for Genkit.
+
+This plugin provides Flask integration for Genkit, enabling you to expose
+Genkit flows as HTTP endpoints in a Flask application.
+
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                         Flask Plugin                                    │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  └── genkit_flask_handler() - Create Flask route handler                │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  handler.py - Request Handler                                           │
+    │  ├── genkit_flask_handler() - Factory for Flask handlers                │
+    │  ├── Request parsing and validation                                     │
+    │  └── Response serialization                                             │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        Request Flow                                     │
+    │                                                                         │
+    │  HTTP Request ──► Flask Route ──► genkit_flask_handler ──► Genkit Flow  │
+    │                                                                         │
+    │  HTTP Response ◄── Flask Route ◄── Handler ◄── Flow Result              │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Example:
+    ```python
+    from flask import Flask
+    from genkit import Genkit
+    from genkit.plugins.flask import genkit_flask_handler
+
+    app = Flask(__name__)
+    ai = Genkit(...)
+
+
+    @ai.flow()
+    async def my_flow(prompt: str) -> str:
+        response = await ai.generate(prompt=prompt)
+        return response.text
+
+
+    # Expose flow as HTTP endpoint
+    @app.route('/api/flow', methods=['POST'])
+    def handle_flow():
+        return genkit_flask_handler(ai, my_flow)
+    ```
+
+Caveats:
+    - Requires Flask to be installed
+    - Async flows are run synchronously in Flask (use async frameworks for better performance)
+    - For production, consider using the async-native Genkit server
+
+See Also:
+    - Flask documentation: https://flask.palletsprojects.com/
+    - Genkit documentation: https://genkit.dev/
+"""
 
 from .handler import genkit_flask_handler
 

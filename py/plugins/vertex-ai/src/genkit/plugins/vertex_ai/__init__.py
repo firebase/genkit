@@ -17,7 +17,72 @@
 """Vertex AI Plugin for Genkit.
 
 This plugin provides integration with Google Cloud's Vertex AI platform,
-including Model Garden and Vector Search.
+including Model Garden for accessing third-party models and Vector Search
+for RAG applications.
+
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        Vertex AI Plugin                                 │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── ModelGardenPlugin - Access third-party models via Model Garden     │
+    │  ├── Vector Search Retrievers (BigQuery, Firestore)                     │
+    │  └── Helper functions for defining vector search                        │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  model_garden/modelgarden_plugin.py - Model Garden Integration          │
+    │  ├── ModelGardenPlugin class                                            │
+    │  └── Access to Anthropic, Llama, Mistral via Vertex AI                  │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  model_garden/client.py - API Client                                    │
+    │  └── Google Cloud client initialization                                 │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  model_garden/anthropic.py - Anthropic Models                           │
+    │  └── Claude models via Vertex AI Model Garden                           │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  vector_search.py - Vector Search Integration                           │
+    │  ├── BigQueryRetriever - Vector search with BigQuery backend            │
+    │  ├── FirestoreRetriever - Vector search with Firestore backend          │
+    │  └── RetrieverOptionsSchema - Configuration for retrievers              │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Key Components:
+    - ModelGardenPlugin: Access third-party models (Anthropic, Meta, Mistral)
+      through Vertex AI Model Garden
+    - BigQueryRetriever: Vector similarity search using BigQuery
+    - FirestoreRetriever: Vector similarity search using Firestore
+
+Example:
+    ```python
+    from genkit import Genkit
+    from genkit.plugins.vertex_ai import (
+        ModelGardenPlugin,
+        define_vertex_vector_search_firestore,
+    )
+
+    # Model Garden for third-party models
+    ai = Genkit(
+        plugins=[ModelGardenPlugin(project='my-project', location='us-central1')],
+    )
+
+    # Vector Search with Firestore
+    store = define_vertex_vector_search_firestore(
+        ai,
+        name='my_store',
+        collection='documents',
+        embedder='vertexai/text-embedding-005',
+    )
+    ```
+
+Caveats:
+    - Requires Google Cloud credentials (ADC or explicit)
+    - Model Garden requires models to be deployed in your project
+    - Vector Search requires appropriate index configuration
+
+See Also:
+    - Vertex AI Model Garden: https://cloud.google.com/vertex-ai/docs/model-garden
+    - Vertex AI Vector Search: https://cloud.google.com/vertex-ai/docs/vector-search
+    - Genkit documentation: https://genkit.dev/
 """
 
 from genkit.plugins.vertex_ai.model_garden.modelgarden_plugin import (

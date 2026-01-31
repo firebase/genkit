@@ -15,7 +15,73 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""OpenAI-compatible model provider for Genkit."""
+"""OpenAI-compatible model provider for Genkit.
+
+This plugin provides integration with OpenAI and any OpenAI-compatible API
+endpoints (like Azure OpenAI, Together AI, Anyscale, etc.) for the Genkit
+framework. It uses the official OpenAI Python SDK.
+
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                     OpenAI-Compatible Plugin                            │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── OpenAI - Plugin class                                              │
+    │  ├── openai_model() - Helper to create model references                 │
+    │  └── OpenAIConfig - Configuration schema                                │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  typing.py - Type-Safe Configuration Classes                            │
+    │  ├── OpenAIConfig (base configuration)                                  │
+    │  └── Model-specific parameters                                          │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  openai_plugin.py - Plugin Implementation                               │
+    │  ├── OpenAI class (registers models)                                    │
+    │  └── Client initialization with OpenAI SDK                              │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/model.py - Model Implementation                                 │
+    │  ├── OpenAIModel (chat completions API)                                 │
+    │  ├── Request/response conversion                                        │
+    │  └── Streaming support                                                  │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/handler.py - Request Handler                                    │
+    │  └── Message conversion and tool handling                               │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Supported Providers:
+    - OpenAI (api.openai.com)
+    - Azure OpenAI
+    - Together AI
+    - Anyscale
+    - Any OpenAI-compatible endpoint
+
+Example:
+    ```python
+    from genkit import Genkit
+    from genkit.plugins.compat_oai import OpenAI
+
+    # Uses OPENAI_API_KEY env var or pass api_key explicitly
+    ai = Genkit(plugins=[OpenAI()], model='openai/gpt-4o')
+
+    response = await ai.generate(prompt='Hello, GPT!')
+    print(response.text)
+
+    # With custom endpoint (e.g., Together AI)
+    ai = Genkit(
+        plugins=[OpenAI(base_url='https://api.together.xyz/v1')],
+        model='openai/meta-llama/Llama-3-70b-chat-hf',
+    )
+    ```
+
+Caveats:
+    - Requires OPENAI_API_KEY environment variable or api_key parameter
+    - Model names are prefixed with 'openai/' (e.g., 'openai/gpt-4o')
+    - Custom endpoints may have different model availability
+
+See Also:
+    - OpenAI documentation: https://platform.openai.com/docs/
+    - Genkit documentation: https://genkit.dev/
+"""
 
 from .openai_plugin import OpenAI, openai_model
 from .typing import OpenAIConfig

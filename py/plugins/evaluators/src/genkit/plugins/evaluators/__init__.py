@@ -15,9 +15,80 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""RAGAS Evaluators Plugin for Genkit.
+"""Evaluators Plugin for Genkit.
 
-This plugin provides Genkit evaluators, built as wrappers on RAGAS.
+This plugin provides evaluation metrics for RAG (Retrieval-Augmented Generation)
+applications, built as wrappers on the RAGAS framework.
+
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                       Evaluators Plugin                                 │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── define_genkit_evaluators() - Register evaluators with Genkit       │
+    │  ├── evaluators_name() - Helper for namespaced evaluator names          │
+    │  ├── GenkitMetricType - Enum of available metrics                       │
+    │  ├── MetricConfig - Configuration for individual metrics                │
+    │  └── PluginOptions - Plugin-wide configuration                          │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  constant.py - Constants and Configuration Types                        │
+    │  ├── GenkitMetricType (enum of metric types)                            │
+    │  ├── MetricConfig (per-metric configuration)                            │
+    │  └── PluginOptions (plugin configuration)                               │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  helpers.py - Evaluator Registration                                    │
+    │  ├── define_genkit_evaluators() - Main registration function            │
+    │  └── Metric implementation wrappers                                     │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  prompts/ - Evaluation Prompts                                          │
+    │  ├── answer_accuracy.prompt                                             │
+    │  ├── answer_relevancy.prompt                                            │
+    │  ├── faithfulness_*.prompt                                              │
+    │  └── maliciousness.prompt                                               │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Supported Metrics:
+    - ANSWER_RELEVANCY: How relevant is the answer to the question?
+    - FAITHFULNESS: Is the answer faithful to the retrieved context?
+    - ANSWER_ACCURACY: How accurate is the answer?
+    - MALICIOUSNESS: Does the response contain harmful content?
+
+Example:
+    ```python
+    from genkit import Genkit
+    from genkit.plugins.evaluators import (
+        define_genkit_evaluators,
+        GenkitMetricType,
+        PluginOptions,
+    )
+
+    ai = Genkit(...)
+
+    # Register evaluators
+    define_genkit_evaluators(
+        ai,
+        PluginOptions(
+            metrics=[GenkitMetricType.ANSWER_RELEVANCY, GenkitMetricType.FAITHFULNESS],
+            judge_model='googleai/gemini-2.0-flash',
+        ),
+    )
+
+    # Run evaluation
+    result = await ai.evaluate(
+        evaluator='genkit/answer_relevancy',
+        input={'question': '...', 'answer': '...', 'context': '...'},
+    )
+    ```
+
+Caveats:
+    - Requires a judge model to be configured
+    - Some metrics require context (retrieved documents)
+    - Evaluation quality depends on the judge model
+
+See Also:
+    - RAGAS: https://docs.ragas.io/
+    - Genkit documentation: https://genkit.dev/
 """
 
 from genkit.plugins.evaluators.constant import (
@@ -29,7 +100,7 @@ from genkit.plugins.evaluators.helpers import define_genkit_evaluators, evaluato
 
 
 def package_name() -> str:
-    """Get the package name for the Google AI plugin.
+    """Get the package name for the Evaluators plugin.
 
     Returns:
         The fully qualified package name as a string.
