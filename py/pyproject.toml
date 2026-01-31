@@ -285,6 +285,7 @@ authorized_licenses = [
   "bsd-2-clause",
   "apache license 2.0",
   "apache-2.0 and mit",
+  "mpl-2.0 and mit",  # tqdm uses this dual license
 ]
 dependencies = true
 unauthorized_licenses = [

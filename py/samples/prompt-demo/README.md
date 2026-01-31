@@ -57,7 +57,7 @@ genkit start -- uv run src/main.py
 
 2. **Run the demo**:
    ```bash
-   cd py/samples/prompt_demo
+   cd py/samples/prompt-demo
    ./run.sh
    ```
 
