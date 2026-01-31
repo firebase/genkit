@@ -265,6 +265,7 @@ prioritize implementation efforts.
 | Plugin | Estimated Days | Dependencies |
 |--------|---------------|--------------|
 | **azure** | 5-7 days | azure-monitor-opentelemetry (official) |
+| **observability** | 5-7 days | opentelemetry-* |
 | **cloudflare-ai** | 10-15 days | httpx, pydantic |
 | **cloudflare** (telemetry) | 5-7 days | opentelemetry-* |
 | **vercel** | 3-5 days | opentelemetry-* |

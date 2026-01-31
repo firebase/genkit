@@ -120,32 +120,42 @@ This directory contains all official Genkit plugins for Python.
 │   NATIVE PLATFORM BACKENDS              THIRD-PARTY BACKENDS                    │
 │   ────────────────────────              ────────────────────                    │
 │                                                                                 │
-│   ┌─────────┐  ┌─────────┐             Use standard OTLP export:               │
-│   │   aws   │  │ google- │             • Sentry                                │
-│   │         │  │ cloud   │             • Honeycomb                             │
-│   │ • SigV4 │  │ • ADC   │             • Datadog                               │
-│   │ • X-Ray │  │ • Trace │             • Grafana Cloud                         │
-│   │ • CW    │  │ • Logs  │             • Axiom                                 │
-│   └────┬────┘  └────┬────┘                                                     │
-│        │            │                                                          │
-│        ▼            ▼                                                          │
-│   ┌─────────┐  ┌─────────┐                                                     │
-│   │ X-Ray   │  │ Cloud   │                                                     │
-│   │ Console │  │ Trace   │                                                     │
-│   └─────────┘  └─────────┘                                                     │
+│   ┌─────────┐  ┌─────────┐             ┌───────────────────┐                   │
+│   │   aws   │  │ google- │             │   observability   │  ← PLANNED        │
+│   │         │  │ cloud   │             │   • Sentry        │                   │
+│   │ • SigV4 │  │ • ADC   │             │   • Honeycomb     │                   │
+│   │ • X-Ray │  │ • Trace │             │   • Datadog       │                   │
+│   │ • CW    │  │ • Logs  │             │   • Grafana       │                   │
+│   └────┬────┘  └────┬────┘             │   • Axiom         │                   │
+│        │            │                   └─────────┬─────────┘                   │
+│        ▼            ▼                             │                             │
+│   ┌─────────┐  ┌─────────┐                        ▼                             │
+│   │ X-Ray   │  │ Cloud   │             ┌───────────────────┐                   │
+│   │ Console │  │ Trace   │             │  Any OTLP Backend │                   │
+│   └─────────┘  └─────────┘             └───────────────────┘                   │
 │                                                                                 │
-│   CAN'T BE REPLICATED                  CAN BE REPLICATED                       │
-│   WITH GENERIC OTLP                    WITH GENERIC OTLP                       │
+│   ┌─────────┐                                                                   │
+│   │  azure  │  ← PLANNED                                                        │
+│   │ • Distro│                                                                   │
+│   │ • Live  │   CAN'T BE REPLICATED           CAN BE REPLICATED                │
+│   │ • Map   │   WITH GENERIC OTLP             WITH GENERIC OTLP                │
+│   └────┬────┘                                                                   │
+│        │                                                                        │
+│        ▼                                                                        │
+│   ┌─────────┐                                                                   │
+│   │  App    │                                                                   │
+│   │Insights │                                                                   │
+│   └─────────┘                                                                   │
 │                                                                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
 │   "I'm on AWS and want X-Ray"           → aws plugin                           │
 │   "I'm on GCP and want Cloud Trace"     → google-cloud plugin                  │
+│   "I'm on Azure and want App Insights"  → azure plugin (PLANNED)               │
 │   "I'm using Firebase"                  → firebase plugin (auto telemetry)     │
 │                                                                                 │
-│   "I'm on AWS but want Honeycomb"       → Standard OTLP export                 │
-│   "I'm on GCP but want Sentry"          → Standard OTLP export                 │
-│   "I'm multi-cloud, want Datadog"       → Standard OTLP export                 │
+│   "I want Sentry/Honeycomb/Datadog"     → observability plugin (PLANNED)       │
+│   "I'm multi-cloud"                     → observability plugin (PLANNED)       │
 │                                                                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```

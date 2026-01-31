@@ -37,12 +37,12 @@ This directory contains detailed implementation plans for proposed Genkit plugin
 
 ### Consider Building
 
-3. **[cloudflare-telemetry-plugin.md](./cloudflare-telemetry-plugin.md)** - Cloudflare Telemetry
+4. **[cloudflare-telemetry-plugin.md](./cloudflare-telemetry-plugin.md)** - Cloudflare Telemetry
    - No native backend, but exports to Sentry, Honeycomb, Datadog, etc.
    - AI Gateway auto-exports AI traces to third-party backends
    - Recommend: Plugin with presets for common backends
 
-4. **[vercel-plugins.md](./vercel-plugins.md)** - Vercel AI & Telemetry
+5. **[vercel-plugins.md](./vercel-plugins.md)** - Vercel AI & Telemetry
    - Python DOES work on Vercel (FastAPI, Flask)
    - AI SDK and @vercel/otel are JS-only, but AI Gateway + standard OTEL work
    - Recommend: Build simple helper plugin if user demand exists
