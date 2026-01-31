@@ -24,6 +24,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -103,32 +104,42 @@ func (s *GenkitMCPServer) toMCPTool(t ai.Tool) *mcp.Tool {
 
 func (s *GenkitMCPServer) createToolHandler(t ai.Tool) mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		var args map[string]any
+		return tracing.RunInNewSpan(ctx, &tracing.SpanMetadata{
+			Name:    "mcp.server.call_tool",
+			Type:    "action",
+			Subtype: "tool",
+			IsRoot:  true,
+			Metadata: map[string]string{
+				"tool": t.Name(),
+			},
+		}, req, func(ctx context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			var args map[string]any
 
-		if len(req.Params.Arguments) > 0 {
-			if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
-				return nil, fmt.Errorf("invalid arguments: %w", err)
+			if len(req.Params.Arguments) > 0 {
+				if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+					return nil, fmt.Errorf("invalid arguments: %w", err)
+				}
 			}
-		}
 
-		res, err := t.RunRaw(ctx, args)
-		if err != nil {
+			res, err := t.RunRaw(ctx, args)
+			if err != nil {
+				return &mcp.CallToolResult{
+					IsError: true,
+					Content: []mcp.Content{&mcp.TextContent{Text: err.Error()}},
+				}, nil
+			}
+
+			var text string
+			if s, ok := res.(string); ok {
+				text = s
+			} else {
+				bytes, _ := json.Marshal(res)
+				text = string(bytes)
+			}
 			return &mcp.CallToolResult{
-				IsError: true,
-				Content: []mcp.Content{&mcp.TextContent{Text: err.Error()}},
+				Content: []mcp.Content{&mcp.TextContent{Text: text}},
 			}, nil
-		}
-
-		var text string
-		if s, ok := res.(string); ok {
-			text = s
-		} else {
-			bytes, _ := json.Marshal(res)
-			text = string(bytes)
-		}
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{&mcp.TextContent{Text: text}},
-		}, nil
+		})
 	}
 }
 
@@ -193,46 +204,64 @@ func (s *GenkitMCPServer) registerResource(resource ai.Resource) error {
 
 func (s *GenkitMCPServer) createResourceHandler(resource ai.Resource) mcp.ResourceHandler {
 	return func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		_, input, err := genkit.FindMatchingResource(s.genkit, req.Params.URI)
-		if err != nil {
-			return nil, mcp.ResourceNotFoundError(req.Params.URI)
-		}
-
-		out, err := resource.Execute(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		var contents []*mcp.ResourceContents
-		for _, p := range out.Content {
-			switch {
-			case p.IsText():
-				contents = append(contents, &mcp.ResourceContents{
-					URI:      req.Params.URI,
-					MIMEType: "text/plain",
-					Text:     p.Text,
-				})
-			case p.IsMedia():
-				contentType, blob, err := uri.Data(p)
-				if err != nil {
-					return nil, err
-				}
-				contents = append(contents, &mcp.ResourceContents{
-					URI:      req.Params.URI,
-					MIMEType: contentType,
-					Blob:     blob,
-				})
-			case p.IsData():
-				contents = append(contents, &mcp.ResourceContents{
-					URI:      req.Params.URI,
-					MIMEType: "application/json",
-					Text:     p.Text,
-				})
+		return tracing.RunInNewSpan(ctx, &tracing.SpanMetadata{
+			Name:    "mcp.server.read_resource",
+			Type:    "action",
+			Subtype: "resource",
+			IsRoot:  true,
+			Metadata: map[string]string{
+				"uri": req.Params.URI,
+			},
+		}, req, func(ctx context.Context, _ *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+			_, input, err := genkit.FindMatchingResource(s.genkit, req.Params.URI)
+			if err != nil {
+				return nil, mcp.ResourceNotFoundError(req.Params.URI)
 			}
-		}
 
-		return &mcp.ReadResourceResult{Contents: contents}, nil
+			out, err := resource.Execute(ctx, input)
+			if err != nil {
+				return nil, err
+			}
+
+			contents, err := s.toMCPResourceContents(req.Params.URI, out.Content)
+			if err != nil {
+				return nil, err
+			}
+
+			return &mcp.ReadResourceResult{Contents: contents}, nil
+		})
 	}
+}
+
+func (s *GenkitMCPServer) toMCPResourceContents(requestURI string, parts []*ai.Part) ([]*mcp.ResourceContents, error) {
+	var contents []*mcp.ResourceContents
+	for _, p := range parts {
+		switch {
+		case p.IsText():
+			contents = append(contents, &mcp.ResourceContents{
+				URI:      requestURI,
+				MIMEType: "text/plain",
+				Text:     p.Text,
+			})
+		case p.IsMedia():
+			contentType, blob, err := uri.Data(p)
+			if err != nil {
+				return nil, err
+			}
+			contents = append(contents, &mcp.ResourceContents{
+				URI:      requestURI,
+				MIMEType: contentType,
+				Blob:     blob,
+			})
+		case p.IsData():
+			contents = append(contents, &mcp.ResourceContents{
+				URI:      requestURI,
+				MIMEType: "application/json",
+				Text:     p.Text,
+			})
+		}
+	}
+	return contents, nil
 }
 
 func (s *GenkitMCPServer) ServeStdio() error {
