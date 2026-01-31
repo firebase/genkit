@@ -27,7 +27,6 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
-	github.com/mark3labs/mcp-go v0.43.2
 	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/pgvector/pgvector-go v0.3.0
 	github.com/stretchr/testify v1.10.0
@@ -52,7 +51,6 @@ require (
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
-	github.com/spf13/cast v1.7.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	golang.org/x/mod v0.25.0 // indirect
