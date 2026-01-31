@@ -29,6 +29,72 @@ provides access to 11,000+ AI models from multiple providers including:
 - **Cohere**: Command, Embed, Rerank
 - **And many more...**
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Microsoft Foundry   │ Microsoft's AI supermarket. One place to access   │
+    │                     │ models from OpenAI, Anthropic, Meta, and more.    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Azure               │ Microsoft's cloud platform. Where the models      │
+    │                     │ actually run and your data stays secure.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ GPT-4o              │ OpenAI's multimodal model. Can see images,        │
+    │                     │ hear audio, and chat - all in one model.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ o-series (o1, o3)   │ OpenAI's reasoning models. Think longer and       │
+    │                     │ harder on complex problems before answering.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Endpoint            │ The web address where your AI models live.        │
+    │                     │ Like your-resource.openai.azure.com.              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ API Version         │ Which version of the API to use. Different        │
+    │                     │ versions have different features.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Deployment          │ A specific instance of a model you've set up.     │
+    │                     │ Like having your own copy of GPT-4o.              │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                HOW MICROSOFT FOUNDRY PROCESSES YOUR REQUEST             │
+    │                                                                         │
+    │    Your Code                                                            │
+    │    ai.generate(prompt="Analyze this data...")                           │
+    │         │                                                               │
+    │         │  (1) Request goes to MSFoundry plugin                         │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  MSFoundry      │   Adds API key, endpoint, version                │
+    │    │  Plugin         │   Selects provider-specific config               │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Azure OpenAI-style request                           │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  FoundryModel   │   Converts Genkit format to Azure format         │
+    │    │                 │   Handles streaming, tools, etc.                 │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) HTTPS to your-resource.openai.azure.com              │
+    │             ▼                                                           │
+    │    ════════════════════════════════════════════════════                 │
+    │             │  Internet                                                 │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Azure AI       │   Routes to the right model                      │
+    │    │  Foundry        │   (GPT-4o, Claude, Llama, etc.)                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Response from chosen model                           │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   response.text = "Here's my analysis..."        │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

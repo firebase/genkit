@@ -19,6 +19,27 @@
 This sample demonstrates how to use Vertex AI (Google Cloud's ML platform)
 with Genkit for enterprise-grade AI applications.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Vertex AI           │ Google Cloud's AI platform. Like GoogleAI but      │
+    │                     │ for enterprise with more security features.        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ GCP Project         │ Your Google Cloud project. Like a folder that      │
+    │                     │ holds all your cloud resources.                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Location            │ Which data center to use (us-central1, etc.).      │
+    │                     │ Pick one near your users.                          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ ADC                 │ Application Default Credentials. Google's way      │
+    │                     │ of auto-finding your login credentials.            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ gcloud auth         │ The command to log in. Run once and Google         │
+    │                     │ remembers who you are.                             │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                                      | Example Function / Code Snippet        |

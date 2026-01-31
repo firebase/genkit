@@ -21,6 +21,61 @@ and wait for human input before continuing, enabling interactive experiences.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Tool Interrupt      │ AI pauses and asks for human input. Like a         │
+    │                     │ waiter asking "How do you want that cooked?"       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Human-in-the-Loop   │ A person reviews/approves AI actions before they   │
+    │                     │ happen. Safety check for important decisions.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ ctx.interrupt()     │ The function that pauses execution. Pass data      │
+    │                     │ the human needs to make a decision.                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ tool_response()     │ Resume execution with the human's answer.          │
+    │                     │ "The user chose option B."                         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ response.interrupts │ Check if AI is waiting for input. Non-empty        │
+    │                     │ means there's a question to answer.                │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (Human-in-the-Loop)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                  HOW TOOL INTERRUPTS PAUSE AND RESUME                   │
+    │                                                                         │
+    │    AI: "Here's a trivia question!"                                      │
+    │         │                                                               │
+    │         │  (1) AI calls tool with question                              │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  present_       │   Tool calls ctx.interrupt({question: ...})      │
+    │    │  questions()    │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Execution PAUSES, returns to your code               │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your Code      │   response.interrupts has the question           │
+    │    │  (waiting)      │   Display to user, get their answer              │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) User answers: "Option B"                             │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  tool_response()│   Pass user's answer back to AI                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) AI continues with the answer                         │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  AI Continues   │   "That's correct!" or "Sorry, wrong."           │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

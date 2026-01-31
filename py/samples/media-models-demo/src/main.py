@@ -19,6 +19,30 @@
 This demo showcases all media generation capabilities in the Google GenAI plugin.
 See README.md for detailed testing instructions and configuration options.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Veo                 │ Google's video generation AI. Describe a scene,    │
+    │                     │ get a video clip. Takes 30s to 5min.               │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ TTS                 │ Text-To-Speech. AI reads text aloud with           │
+    │                     │ realistic human-like voices.                       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Lyria               │ AI music generation. Describe a song and           │
+    │                     │ get an audio file back.                            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Gemini Image        │ Image generation from Gemini. Describe what        │
+    │                     │ you want to see, AI draws it.                      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Background Model    │ Long-running generation (like Veo). Start it,      │
+    │                     │ poll for status, get result when ready.            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Standard Model      │ Quick generation (TTS, Image). Get results         │
+    │                     │ directly in the response.                          │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
     ┌────────────────────────────────────────────────────────────────────────┐
     │                    Media Generation Models Overview                     │
     ├────────────────────────────────────────────────────────────────────────┤

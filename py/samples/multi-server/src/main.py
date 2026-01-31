@@ -20,6 +20,50 @@ This sample demonstrates how to run multiple ASGI servers (Litestar, Starlette)
 alongside Genkit's reflection server for complex deployment scenarios.
 
 See README.md for testing instructions.
+
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ ASGI                │ A standard for Python web servers. Like USB       │
+    │                     │ but for connecting web frameworks.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Litestar            │ A modern Python web framework. Fast and           │
+    │                     │ type-safe for building APIs.                       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Starlette           │ A lightweight ASGI toolkit. The building           │
+    │                     │ block for frameworks like FastAPI.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ ServerManager       │ Runs multiple servers in parallel. Each gets       │
+    │                     │ its own port and can be started/stopped.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Reflection Server   │ Genkit's internal server. Provides DevUI           │
+    │                     │ and flow execution endpoints.                      │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (Multi-Server Architecture)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                    MULTI-SERVER DEPLOYMENT PATTERN                      │
+    │                                                                         │
+    │    ┌─────────────────────────────────────────────────────────────┐      │
+    │    │                     ServerManager                           │      │
+    │    │  (coordinates all servers, handles shutdown signals)        │      │
+    │    └─────────────────────────────────────────────────────────────┘      │
+    │         │              │                    │                           │
+    │         │              │                    │                           │
+    │         ▼              ▼                    ▼                           │
+    │    ┌──────────┐  ┌──────────┐       ┌──────────────┐                    │
+    │    │ Litestar │  │ Starlette│       │  Reflection  │                    │
+    │    │ :8080    │  │ :8081    │       │  (DevUI)     │                    │
+    │    │          │  │          │       │  :4000       │                    │
+    │    └──────────┘  └──────────┘       └──────────────┘                    │
+    │         │              │                    │                           │
+    │         ▼              ▼                    ▼                           │
+    │    Your API      Health Checks        Genkit Flows                      │
+    │    Endpoints     & Monitoring         & Debugging                       │
+    └─────────────────────────────────────────────────────────────────────────┘
 """
 
 from __future__ import annotations

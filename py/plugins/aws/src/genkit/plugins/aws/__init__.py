@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,148 +14,152 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""AWS Plugin for Genkit.
 
-"""OpenAI-compatible model provider for Genkit.
-
-This plugin provides integration with OpenAI and any OpenAI-compatible API
-endpoints (like Azure OpenAI, Together AI, Anyscale, etc.) for the Genkit
-framework. It uses the official OpenAI Python SDK.
+This plugin provides AWS observability integration for Genkit,
+enabling telemetry export to AWS X-Ray (distributed tracing) and
+CloudWatch (metrics and logs).
 
 Key Concepts (ELI5)::
 
     ┌─────────────────────┬────────────────────────────────────────────────────┐
     │ Concept             │ ELI5 Explanation                                   │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ OpenAI              │ The company that made ChatGPT. This plugin        │
-    │                     │ talks to their API directly.                      │
+    │ AWS X-Ray           │ Amazon's tool to see how requests flow through    │
+    │                     │ your app. Like GPS tracking for your API calls.   │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ OpenAI-compatible   │ Many AI providers copy OpenAI's API format.       │
-    │                     │ This plugin works with ALL of them!               │
+    │ CloudWatch          │ Amazon's monitoring dashboard. See graphs of      │
+    │                     │ your app's health, errors, and performance.       │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ GPT-4o              │ OpenAI's latest flagship model. The "o" means     │
-    │                     │ "omni" - it can see, hear, and chat.              │
+    │ Telemetry           │ Data about what your app is doing. Like a         │
+    │                     │ fitness tracker but for your code.                │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ base_url            │ Where to send requests. Change this to use        │
-    │                     │ Together AI, Anyscale, or any compatible API.     │
+    │ Trace               │ The full journey of one request through your      │
+    │                     │ system. All the steps it took.                    │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Chat Completions    │ The API endpoint for conversations. Send          │
-    │                     │ messages, get responses - like texting.           │
+    │ Span                │ One step in a trace. "Called model" or            │
+    │                     │ "Ran tool" - each is a separate span.             │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Streaming           │ Get the response word-by-word as it's generated.  │
-    │                     │ Feels faster, like watching someone type.         │
+    │ SigV4               │ AWS's way of proving you're allowed to send       │
+    │                     │ data. Like showing your ID at the door.           │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Function Calling    │ Let GPT use tools you define. Like giving it      │
-    │                     │ a calculator or database access.                  │
+    │ OTLP                │ OpenTelemetry Protocol - standard format for      │
+    │                     │ sending traces. Works with many cloud providers.  │
     └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow::
 
     ┌─────────────────────────────────────────────────────────────────────────┐
-    │                HOW OPENAI-COMPATIBLE REQUESTS WORK                      │
+    │                HOW TRACES GET TO AWS X-RAY                              │
     │                                                                         │
-    │    Your Code                                                            │
-    │    ai.generate(prompt="Write a poem")                                   │
+    │    Your Genkit App                                                      │
+    │    ai.generate(prompt="Hello!")                                         │
     │         │                                                               │
-    │         │  (1) Request goes to OpenAI plugin                            │
+    │         │  (1) Spans created automatically for each action              │
     │         ▼                                                               │
     │    ┌─────────────────┐                                                  │
-    │    │  OpenAI Plugin  │   Adds API key, selects base_url                 │
-    │    │                 │   (openai.com, together.xyz, etc.)               │
+    │    │  OpenTelemetry  │   Records: flow started, model called,           │
+    │    │  SDK            │   tool executed, response returned               │
     │    └────────┬────────┘                                                  │
     │             │                                                           │
-    │             │  (2) Convert to Chat Completions format                   │
+    │             │  (2) Spans adjusted (PII redacted, errors marked)         │
     │             ▼                                                           │
     │    ┌─────────────────┐                                                  │
-    │    │  OpenAIModel    │   Standard OpenAI SDK format works               │
-    │    │                 │   with any compatible provider                   │
+    │    │  AWS Exporter   │   Adds SigV4 signature (proves identity)         │
+    │    │                 │   Formats for X-Ray requirements                 │
     │    └────────┬────────┘                                                  │
     │             │                                                           │
-    │             │  (3) HTTPS to base_url/v1/chat/completions                │
+    │             │  (3) HTTPS to xray.{region}.amazonaws.com                 │
     │             ▼                                                           │
     │    ════════════════════════════════════════════════════                 │
     │             │  Internet                                                 │
     │             ▼                                                           │
-    │    ┌─────────────────────────────────────────────────────┐              │
-    │    │  OpenAI / Together AI / Anyscale / etc.             │              │
-    │    │  (any OpenAI-compatible endpoint)                   │              │
-    │    └─────────────────────────┬───────────────────────────┘              │
-    │             │                                                           │
-    │             │  (4) Streaming response                                   │
-    │             ▼                                                           │
     │    ┌─────────────────┐                                                  │
-    │    │  Your App       │   response.text = "Roses are red..."             │
+    │    │  AWS X-Ray      │   Trace visualization in AWS Console             │
+    │    │  Console        │   See waterfall diagrams, errors, latency        │
     │    └─────────────────┘                                                  │
     └─────────────────────────────────────────────────────────────────────────┘
 
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐
-    │                     OpenAI-Compatible Plugin                            │
+    │                           AWS Plugin                                    │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  Plugin Entry Point (__init__.py)                                       │
-    │  ├── OpenAI - Plugin class                                              │
-    │  ├── openai_model() - Helper to create model references                 │
-    │  └── OpenAIConfig - Configuration schema                                │
+    │  └── add_aws_telemetry() - Enable X-Ray/CloudWatch export               │
     ├─────────────────────────────────────────────────────────────────────────┤
-    │  typing.py - Type-Safe Configuration Classes                            │
-    │  ├── OpenAIConfig (base configuration)                                  │
-    │  └── Model-specific parameters                                          │
+    │  telemetry/__init__.py - Telemetry Module                               │
+    │  └── Re-exports from submodules                                         │
     ├─────────────────────────────────────────────────────────────────────────┤
-    │  openai_plugin.py - Plugin Implementation                               │
-    │  ├── OpenAI class (registers models)                                    │
-    │  └── Client initialization with OpenAI SDK                              │
-    ├─────────────────────────────────────────────────────────────────────────┤
-    │  models/model.py - Model Implementation                                 │
-    │  ├── OpenAIModel (chat completions API)                                 │
-    │  ├── Request/response conversion                                        │
-    │  └── Streaming support                                                  │
-    ├─────────────────────────────────────────────────────────────────────────┤
-    │  models/handler.py - Request Handler                                    │
-    │  └── Message conversion and tool handling                               │
+    │  telemetry/tracing.py - Distributed Tracing                             │
+    │  ├── AWS X-Ray OTLP exporter configuration                              │
+    │  ├── SigV4 authentication for AWS endpoints                             │
+    │  ├── AwsXRayIdGenerator for X-Ray-compatible trace IDs                  │
+    │  └── OpenTelemetry integration                                          │
     └─────────────────────────────────────────────────────────────────────────┘
 
-Supported Providers:
-    - OpenAI (api.openai.com)
-    - Azure OpenAI
-    - Together AI
-    - Anyscale
-    - Any OpenAI-compatible endpoint
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                     Telemetry Data Flow                                 │
+    │                                                                         │
+    │  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐      │
+    │  │ Genkit App   │───►│ OpenTelemetry│───►│ AWS Observability    │      │
+    │  │ (actions,    │    │ SDK + ADOT   │    │ (X-Ray, CloudWatch)  │      │
+    │  │  flows)      │    └──────────────┘    └──────────────────────┘      │
+    │  └──────────────┘                                                       │
+    │                                                                         │
+    │  Authentication: AWS SigV4 via botocore credentials                     │
+    │  Protocol: OTLP/HTTP to regional AWS endpoints                          │
+    └─────────────────────────────────────────────────────────────────────────┘
 
 Example:
     ```python
-    from genkit import Genkit
-    from genkit.plugins.compat_oai import OpenAI
+    from genkit.plugins.aws import add_aws_telemetry
 
-    # Uses OPENAI_API_KEY env var or pass api_key explicitly
-    ai = Genkit(plugins=[OpenAI()], model='openai/gpt-4o')
+    # Enable telemetry export to AWS X-Ray
+    add_aws_telemetry()
 
-    response = await ai.generate(prompt='Hello, GPT!')
-    print(response.text)
+    # With explicit region
+    add_aws_telemetry(region='us-west-2')
 
-    # With custom endpoint (e.g., Together AI)
-    ai = Genkit(
-        plugins=[OpenAI(base_url='https://api.together.xyz/v1')],
-        model='openai/meta-llama/Llama-3-70b-chat-hf',
-    )
+    # Traces are now exported to:
+    # - AWS X-Ray (distributed tracing)
+    # Future: CloudWatch (metrics, logs)
     ```
 
+OTLP Endpoints (Collector-less Export):
+    AWS X-Ray and CloudWatch support direct OTLP export without a collector:
+
+    - Traces: https://xray.{region}.amazonaws.com/v1/traces
+    - Logs: https://logs.{region}.amazonaws.com/v1/logs
+
+    Both endpoints use AWS SigV4 authentication.
+
+IAM Permissions Required:
+    - Traces: AWSXrayWriteOnlyPolicy or xray:PutTraceSegments permission
+    - Logs: logs:PutLogEvents, logs:DescribeLogGroups, logs:DescribeLogStreams
+
 Caveats:
-    - Requires OPENAI_API_KEY environment variable or api_key parameter
-    - Model names are prefixed with 'openai/' (e.g., 'openai/gpt-4o')
-    - Custom endpoints may have different model availability
+    - Requires AWS credentials (environment variables, IAM role, or explicit)
+    - Telemetry is disabled by default in development mode (GENKIT_ENV=dev)
+    - Region must be configured via AWS_REGION environment variable or explicitly
 
 See Also:
-    - OpenAI documentation: https://platform.openai.com/docs/
+    - AWS X-Ray: https://docs.aws.amazon.com/xray/
+    - CloudWatch: https://docs.aws.amazon.com/cloudwatch/
+    - ADOT Python: https://aws-otel.github.io/docs/getting-started/python-sdk
     - Genkit documentation: https://genkit.dev/
 """
 
-from .openai_plugin import OpenAI, openai_model
-from .typing import OpenAIConfig
+from .telemetry import add_aws_telemetry
 
 
 def package_name() -> str:
-    """The package name for the OpenAI-compatible model provider."""
-    return 'genkit.plugins.compat_oai'
+    """Get the package name for the AWS plugin.
+
+    Returns:
+        The fully qualified package name as a string.
+    """
+    return 'genkit.plugins.aws'
 
 
-__all__ = ['OpenAI', 'OpenAIConfig', 'openai_model', 'package_name']
+__all__ = ['package_name', 'add_aws_telemetry']

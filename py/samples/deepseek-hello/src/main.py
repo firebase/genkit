@@ -21,6 +21,27 @@ including the powerful reasoning model (deepseek-reasoner).
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ DeepSeek            │ Chinese AI company known for efficient models.     │
+    │                     │ Great performance at lower cost.                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ deepseek-chat       │ The standard chat model. Good for most tasks       │
+    │                     │ like writing, Q&A, and coding help.                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ deepseek-reasoner   │ The R1 reasoning model. Shows its thinking         │
+    │                     │ step by step - great for math and logic.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Chain-of-Thought    │ When AI explains its reasoning step by step.       │
+    │                     │ Like showing your work on a test.                  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Streaming           │ Get the response word-by-word as it's generated.   │
+    │                     │ Feels faster, like watching someone type.          │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet         |

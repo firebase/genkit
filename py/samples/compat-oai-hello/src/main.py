@@ -19,6 +19,27 @@
 This sample demonstrates how to use OpenAI's GPT models with Genkit
 using the OpenAI-compatible plugin.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ OpenAI              │ The company that made ChatGPT. This sample         │
+    │                     │ talks to their API directly.                       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ GPT-4o              │ OpenAI's multimodal model. Can see images,         │
+    │                     │ hear audio, and chat - all in one model.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ OpenAI-compatible   │ Many AI providers copy OpenAI's API format.        │
+    │                     │ This plugin works with ALL of them!                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Tool Calling        │ Let GPT use functions you define. Like giving      │
+    │                     │ it a calculator or search engine to use.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Streaming           │ Get the response word-by-word as it's generated.   │
+    │                     │ Feels faster, like watching someone type.          │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                                      | Example Function / Code Snippet        |

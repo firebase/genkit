@@ -19,6 +19,30 @@
 This sample demonstrates Genkit's prompt management system, which allows you
 to define prompts in separate .prompt files with templates, schemas, and config.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ .prompt File        │ A special file that holds your prompt template.    │
+    │                     │ Like a recipe card the AI follows.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Template Variables  │ Placeholders like {{name}} that get filled in.     │
+    │                     │ "Hello {{name}}" → "Hello Alice"                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Input Schema        │ Rules for what variables are allowed.              │
+    │                     │ name: string, age: number, etc.                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Output Schema       │ Rules for what the AI must return.                 │
+    │                     │ Ensures structured, predictable responses.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Variants            │ Different versions of the same prompt.             │
+    │                     │ A/B testing or different use cases.                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Helpers             │ Custom functions usable in templates.              │
+    │                     │ {{#list items}}...{{/list}}                        │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

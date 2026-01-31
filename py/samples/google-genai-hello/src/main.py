@@ -22,6 +22,36 @@ structured output, and multimodal inputs.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Genkit              │ A framework for building AI apps. Like Lego       │
+    │                     │ blocks for connecting AI models to your code.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Flow                │ A function that does AI work. Decorated with      │
+    │                     │ @ai.flow() so Genkit can track and manage it.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Tool                │ A function the AI can call. Like giving the AI    │
+    │                     │ a calculator or search engine to use.             │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Generation          │ Asking the AI to write something. "Generate       │
+    │                     │ a poem about cats" → AI writes the poem.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Streaming           │ Getting the response word-by-word as it's made.   │
+    │                     │ Feels faster, like watching someone type.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Structured Output   │ Getting AI responses as proper data (JSON).       │
+    │                     │ Not just text, but name="Bob", age=25, etc.       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Embedding           │ Converting text to numbers that capture meaning.  │
+    │                     │ "Happy" and "joyful" become similar numbers.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Multimodal          │ AI that understands multiple types of input.      │
+    │                     │ Not just text, but also images and videos.        │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                                      | Example Function / Code Snippet        |

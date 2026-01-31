@@ -19,6 +19,61 @@
 This sample demonstrates how to use Vertex AI Vector Search with BigQuery
 as the document store for large-scale analytics-friendly vector search.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ BigQuery            │ Google's data warehouse. Store and query           │
+    │                     │ massive amounts of data (petabytes!) fast.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Vertex AI Vector    │ Google's enterprise vector search. Handles         │
+    │ Search              │ billions of vectors with sub-second latency.       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Dataset/Table       │ BigQuery organization. Dataset = folder,           │
+    │                     │ Table = spreadsheet with your data.                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Deployed Index      │ Your vector index running in the cloud.            │
+    │                     │ Ready 24/7 to answer similarity queries.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Analytics + AI      │ Combine SQL analytics with AI search.              │
+    │                     │ The best of both worlds!                           │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (BigQuery + Vector Search)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │          HOW BIGQUERY + VERTEX VECTOR SEARCH WORK TOGETHER              │
+    │                                                                         │
+    │    Query: "Find similar products to this one"                           │
+    │         │                                                               │
+    │         │  (1) Convert to embedding                                     │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   Query → [0.3, -0.2, 0.7, ...]                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Search Vector Index                                  │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Vertex AI      │   Returns IDs: ["prod_1", "prod_2", ...]         │
+    │    │  Vector Search  │   (ranked by similarity)                         │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) Fetch from BigQuery (with extra analytics)           │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  BigQuery       │   JOIN with sales data, filter by region,        │
+    │    │  (SQL query)    │   add business logic, return full records        │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Rich results with analytics context                  │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   Products + sales data + similarity scores      │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

@@ -21,6 +21,27 @@ including basic generation, streaming, and tool calling.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ xAI                 │ Elon Musk's AI company. Makes the Grok models.     │
+    │                     │                                                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Grok                │ xAI's AI assistant. Known for being witty and      │
+    │                     │ having access to real-time X/Twitter data.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Grok-3              │ The main Grok model. Good balance of speed         │
+    │                     │ and capability for most tasks.                     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Tool Calling        │ Let Grok use functions you define. Like giving     │
+    │                     │ it a calculator or weather lookup to use.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Streaming           │ Get the response word-by-word as it's generated.   │
+    │                     │ Feels faster, like watching someone type.          │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

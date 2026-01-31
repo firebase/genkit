@@ -21,6 +21,27 @@ including tools, streaming, multimodal, and embedding capabilities.
 
 See README.md for setup and testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ AWS Bedrock         │ Amazon's AI model marketplace. One place to        │
+    │                     │ access Claude, Llama, Nova, and more.              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Converse API        │ A unified way to talk to ANY Bedrock model.        │
+    │                     │ Same code works for Claude, Llama, Nova, etc.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Inference Profile   │ A cross-region alias for a model. Required         │
+    │                     │ when using API keys instead of IAM roles.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ IAM Role            │ AWS's way of granting permissions. Like a          │
+    │                     │ badge that lets your code access models.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Region              │ Which AWS data center to use. Pick one near        │
+    │                     │ you (us-east-1, eu-west-1, ap-northeast-1).        │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

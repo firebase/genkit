@@ -19,6 +19,58 @@
 This sample demonstrates Genkit's realtime tracing feature, which exports
 spans to the DevUI as they START (not just when they complete).
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Realtime Tracing    │ See what's happening AS it happens, not after.    │
+    │                     │ Like watching a live sports game vs highlights.   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Span                │ A "timer" for one operation. Records when it       │
+    │                     │ started, when it ended, and what happened.        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ SpanProcessor       │ The thing that decides when to send span data.    │
+    │                     │ Realtime = send on START, not just END.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Nested Spans        │ Spans inside spans. "Flow" contains "Model call"  │
+    │                     │ contains "HTTP request". Like Russian dolls.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ DevUI Traces Tab    │ The dashboard where you see all your traces.      │
+    │                     │ With realtime, spans appear immediately!          │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (Realtime vs Normal)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                NORMAL TRACING VS REALTIME TRACING                       │
+    │                                                                         │
+    │    NORMAL: You see spans AFTER they complete                            │
+    │    ──────────────────────────────────────────                           │
+    │    Flow starts → ... waiting ... → Flow ends → NOW you see it           │
+    │                                                                         │
+    │    REALTIME: You see spans AS they start                                │
+    │    ─────────────────────────────────────────                            │
+    │    Flow starts → IMMEDIATELY visible → updates as it runs → completes   │
+    │                                                                         │
+    │    Timeline:                                                            │
+    │    ┌─────────────────────────────────────────────────────────────┐      │
+    │    │  0s        1s        2s        3s        4s        5s       │      │
+    │    │   │         │         │         │         │         │       │      │
+    │    │   ├─ Flow starts (visible in realtime!)                     │      │
+    │    │   │    │                                                    │      │
+    │    │   │    ├─ Model call starts (visible!)                      │      │
+    │    │   │    │    │                                               │      │
+    │    │   │    │    └─ Model call ends                              │      │
+    │    │   │    │                                                    │      │
+    │    │   │    ├─ Tool call starts (visible!)                       │      │
+    │    │   │    │    │                                               │      │
+    │    │   │    │    └─ Tool call ends                               │      │
+    │    │   │    │                                                    │      │
+    │    │   └────┴─ Flow ends                                         │      │
+    │    └─────────────────────────────────────────────────────────────┘      │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Key Features
 ============
     ┌─────────────────────────────────────────────────────────────────────────┐

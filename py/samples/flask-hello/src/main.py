@@ -21,6 +21,27 @@ enabling HTTP API endpoints that leverage AI capabilities.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Flask               │ A simple Python web framework. Like a waiter       │
+    │                     │ that takes HTTP requests and serves responses.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ HTTP Endpoint       │ A URL that accepts requests. Like a phone number   │
+    │                     │ your app answers when called.                      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ genkit_flask_handler│ Connects Flask routes to Genkit flows. Does the    │
+    │                     │ plumbing so you can focus on AI logic.             │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Context Provider    │ A function that adds extra info to each request.   │
+    │                     │ Like adding the username from headers.             │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Request Headers     │ Metadata sent with HTTP requests. Like the         │
+    │                     │ "From:" on an envelope.                            │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

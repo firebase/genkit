@@ -19,6 +19,24 @@
 This sample demonstrates how to use Vertex AI's Imagen model for
 high-quality image generation through Genkit.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Imagen              │ Google's image generation AI. Describe what you    │
+    │                     │ want, it draws it for you.                         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Text-to-Image       │ Type words, get a picture. "A cat on a roof"       │
+    │                     │ → image of a cat on a roof.                        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Base64              │ A way to encode images as text. Allows embedding   │
+    │                     │ images in JSON responses.                          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Media URL           │ A link to the generated image. Download or         │
+    │                     │ display directly in your app.                      │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

@@ -116,6 +116,71 @@
     understand these ideas.
   * **Visuals**: Prefer using tabular format and ascii diagrams in the
     docstrings to break down complex concepts or list terminology.
+  * **ELI5 (Explain Like I'm 5)**: Include ELI5 documentation to help newcomers
+    quickly understand what a module does without reading all the code.
+    
+    **Requirements by module type:**
+    
+    | Module Type | Concepts Table | Data Flow Diagram |
+    |-------------|----------------|-------------------|
+    | **Plugins** (`plugins/*/`) | Required | Required |
+    | **Core packages** (`packages/*/`) | Required | Required for complex modules |
+    | **Samples** (`samples/*/`) | Required | Only for complex samples* |
+    
+    *Complex samples include: RAG/vector search demos, multi-step pipelines,
+    telemetry demos, tool interrupts, multi-server setups, etc.
+    
+    **1. Concepts Table** - Required for all modules:
+    
+    ```
+    Key Concepts (ELI5)::
+    
+        ┌─────────────────────┬────────────────────────────────────────────────┐
+        │ Concept             │ ELI5 Explanation                               │
+        ├─────────────────────┼────────────────────────────────────────────────┤
+        │ Span                │ A "timer" that records how long something      │
+        │                     │ took. Like a stopwatch for one task.           │
+        ├─────────────────────┼────────────────────────────────────────────────┤
+        │ Trace               │ A collection of spans showing a request's      │
+        │                     │ journey. Like breadcrumbs through your code.   │
+        ├─────────────────────┼────────────────────────────────────────────────┤
+        │ Exporter            │ Ships your traces somewhere (X-Ray, Jaeger).   │
+        │                     │ Like a postal service for telemetry data.      │
+        ├─────────────────────┼────────────────────────────────────────────────┤
+        │ Propagator          │ Passes trace IDs between services. Like a      │
+        │                     │ relay baton in a race.                         │
+        ├─────────────────────┼────────────────────────────────────────────────┤
+        │ Sampler             │ Decides which traces to keep. Like a bouncer   │
+        │                     │ at a club deciding who gets in.                │
+        └─────────────────────┴────────────────────────────────────────────────┘
+    ```
+    
+    **2. Data Flow Diagram** - Required for plugins, optional for simple samples:
+    
+    ```
+    Data Flow::
+    
+        User Request
+             │
+             ▼
+        ┌─────────┐     ┌─────────┐     ┌─────────┐
+        │ Flow A  │ ──▶ │ Model   │ ──▶ │ Tool    │
+        │ (span)  │     │ (span)  │     │ (span)  │
+        └─────────┘     └─────────┘     └─────────┘
+             │               │               │
+             └───────────────┼───────────────┘
+                             ▼
+                      ┌─────────────┐
+                      │  Exporter   │  ──▶  AWS X-Ray / GCP Trace
+                      └─────────────┘
+    ```
+    
+    **Guidelines for ELI5 content:**
+    * Use analogies from everyday life (mailman, bouncer, stopwatch, etc.)
+    * Keep explanations to 1-2 lines per concept
+    * Focus on the "what" and "why", not implementation details
+    * Use box-drawing characters for professional appearance
+    
 * **Required Sections**:
   * **Overview**: One-liner description followed by rationale.
   * **Key Operations**: Purpose of the component.

@@ -20,6 +20,75 @@ This plugin provides access to AWS Bedrock models through the Genkit framework.
 AWS Bedrock is a fully managed service that provides access to foundation models
 from multiple providers through a unified API.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ AWS Bedrock         │ Amazon's AI model marketplace. One place to       │
+    │                     │ access Claude, Llama, Titan, and more.            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Converse API        │ A unified way to talk to ANY Bedrock model.       │
+    │                     │ Same code works for Claude, Llama, Nova, etc.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Model ID            │ The name of a specific model. Like                │
+    │                     │ "anthropic.claude-3-sonnet-20240229-v1:0".        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Inference Profile   │ A cross-region alias for a model. Required        │
+    │                     │ when using API keys instead of IAM roles.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Region              │ Which AWS data center to use. Pick one near       │
+    │                     │ you (us-east-1, eu-west-1, ap-northeast-1).       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ IAM Role            │ AWS's way of granting permissions. Like a         │
+    │                     │ badge that lets your code access models.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Nova                │ Amazon's own AI models (Pro, Lite, Micro).        │
+    │                     │ Good balance of cost and performance.             │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Inline Bytes        │ Bedrock needs actual image data, not URLs.        │
+    │                     │ We fetch images for you automatically.            │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                  HOW AWS BEDROCK PROCESSES YOUR REQUEST                 │
+    │                                                                         │
+    │    Your Code                                                            │
+    │    ai.generate(prompt="Describe this image", media=[image_url])         │
+    │         │                                                               │
+    │         │  (1) Request goes to AWSBedrock plugin                        │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  AWSBedrock     │   • Adds AWS credentials                         │
+    │    │  Plugin         │   • Converts model ID → inference profile        │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Fetch image bytes (Bedrock needs inline data)        │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  BedrockModel   │   • Downloads image from URL                     │
+    │    │  (httpx async)  │   • Converts to Converse API format              │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) Bedrock Converse API call                            │
+    │             ▼                                                           │
+    │    ════════════════════════════════════════════════════                 │
+    │             │  Internet (HTTPS to bedrock.{region}.amazonaws.com)       │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  AWS Bedrock    │   Routes to the right provider                   │
+    │    │                 │   (Claude, Llama, Nova, etc.)                    │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Streaming response                                   │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   response.text = "I see a cute kitten..."       │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

@@ -19,6 +19,81 @@
 This plugin provides Firebase integrations for Genkit, including Firestore
 vector stores for RAG and Firebase telemetry export to Google Cloud.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Firebase            │ Google's app development platform. Like a         │
+    │                     │ toolbox for building apps with database, auth.    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Firestore           │ A NoSQL database that syncs in real-time.         │
+    │                     │ Store data as flexible documents.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Vector Store        │ A database that can find "similar" items.         │
+    │                     │ Like Google but for YOUR documents.               │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ RAG                 │ Retrieval-Augmented Generation. AI looks up       │
+    │                     │ your docs before answering. Fewer hallucinations! │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Embeddings          │ Convert text to numbers that capture meaning.     │
+    │                     │ "Cat" and "kitten" become similar numbers.        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Indexer             │ Stores documents with their embeddings.           │
+    │                     │ Like adding books to a library catalog.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Retriever           │ Finds documents matching a query.                 │
+    │                     │ Like a librarian finding relevant books.          │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (RAG with Firestore)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                  HOW FIRESTORE VECTOR SEARCH WORKS                      │
+    │                                                                         │
+    │    STEP 1: INDEXING (Store your documents)                              │
+    │    ────────────────────────────────────────                             │
+    │    Your Documents                                                       │
+    │    ["How to reset password", "Billing FAQ", ...]                        │
+    │         │                                                               │
+    │         │  (1) Convert text to embeddings                               │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   "Reset password" → [0.12, -0.34, ...]          │
+    │    │  (Gemini, etc.) │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Store in Firestore with vectors                      │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Firestore      │   Document + embedding stored together           │
+    │    │  (Vector Index) │                                                  │
+    │    └─────────────────┘                                                  │
+    │                                                                         │
+    │    STEP 2: RETRIEVAL (Find relevant documents)                          │
+    │    ─────────────────────────────────────────────                        │
+    │    User Query: "How do I change my password?"                           │
+    │         │                                                               │
+    │         │  (3) Convert query to embedding                               │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   Query → [0.11, -0.33, ...] (similar!)          │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Find nearest neighbors                               │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Firestore      │   "Reset password" doc is 95% match!             │
+    │    │  Vector Search  │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (5) Return matching documents                            │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   AI uses these docs to answer accurately        │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

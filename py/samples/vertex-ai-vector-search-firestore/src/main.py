@@ -19,6 +19,61 @@
 This sample demonstrates how to use Vertex AI Vector Search with Firestore
 as the document store for enterprise-scale vector similarity search.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Vertex AI Vector    │ Google's enterprise vector search. Handles         │
+    │ Search              │ billions of items with fast nearest-neighbor.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Firestore           │ Stores the actual document content. Vector Search  │
+    │                     │ returns IDs, Firestore returns full text.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Deployed Index      │ Your vector index running on Google's servers.     │
+    │                     │ Ready to answer similarity queries 24/7.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Endpoint            │ The address where your index listens for queries.  │
+    │                     │ Like a phone number for your search service.       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Distance            │ How "far apart" two vectors are. Lower = more      │
+    │                     │ similar. 0 = identical match.                      │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (Enterprise RAG)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │        HOW VERTEX VECTOR SEARCH + FIRESTORE WORK TOGETHER               │
+    │                                                                         │
+    │    Query: "What movies are about time travel?"                          │
+    │         │                                                               │
+    │         │  (1) Convert to embedding                                     │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   Query → [0.3, -0.2, 0.7, ...]                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Send to Vector Search endpoint                       │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Vertex AI      │   Returns: ["doc_123", "doc_456", ...]           │
+    │    │  Vector Search  │   (IDs only, ranked by similarity)               │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) Fetch full documents from Firestore                  │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Firestore      │   Returns: full document content                 │
+    │    │  (by ID)        │   "Back to the Future is a 1985 film..."        │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Sorted results returned                              │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   Complete docs, ranked by relevance             │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |
