@@ -23,6 +23,7 @@ Documentation:
 - Microsoft Foundry Portal: https://ai.azure.com/
 - Model Catalog: https://ai.azure.com/catalog/models
 - SDK Overview: https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/sdk-overview
+- Switching Endpoints: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/switching-endpoints
 
 Key Features
 ============
@@ -37,6 +38,20 @@ Key Features
 | Generation with Tools            | `weather_flow`                    |
 | Generation Configuration         | `say_hi_with_config`              |
 | Multimodal (Image Input)         | `describe_image`                  |
+
+Endpoint Types
+==============
+The plugin supports two endpoint types:
+
+1. **Azure OpenAI endpoint** (traditional):
+   Format: `https://<resource-name>.openai.azure.com/`
+   Requires `api_version` parameter (e.g., '2024-10-21').
+
+2. **Azure AI Foundry project endpoint** (new unified endpoint):
+   Format: `https://<resource-name>.services.ai.azure.com/api/projects/<project-name>`
+   Uses v1 API - no api_version needed.
+
+The plugin auto-detects the endpoint type based on the URL format.
 
 Authentication Methods
 ======================
@@ -60,12 +75,30 @@ Authentication Methods
    )
    ```
 
+Finding Your Credentials
+========================
+1. Go to Microsoft Foundry Portal (https://ai.azure.com/)
+2. Select your Project
+3. Navigate to Models → Deployments
+4. Click on your Deployment (e.g., gpt-4o)
+5. Open the Details pane
+
+You'll find:
+- Target URI: Contains the endpoint URL and API version
+- Key: Your API key
+- Name: Your deployment name
+
 Testing
 =======
-1. Set environment variables:
-   export AZURE_OPENAI_API_KEY="your-api-key"
-   export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-   export AZURE_OPENAI_DEPLOYMENT="gpt-4o"  # or your deployment name
+1. Set environment variables (extract from Target URI in the Details pane):
+
+   # Example Target URI:
+   # https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview
+
+   export AZURE_OPENAI_ENDPOINT="https://your-resource.cognitiveservices.azure.com/"  # Base URL only
+   export AZURE_OPENAI_API_KEY="your-api-key"  # From Key field
+   export AZURE_OPENAI_API_VERSION="2024-05-01-preview"  # From api-version in Target URI
+   export AZURE_OPENAI_DEPLOYMENT="gpt-4o"  # From Name field
 
 2. Run the sample:
    ./run.sh
@@ -82,6 +115,7 @@ Note:
 """
 
 import os
+import random
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -94,12 +128,24 @@ from genkit.plugins.msfoundry import MSFoundry, gpt4o
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 # Configuration from environment variables
+# Find these values in Microsoft Foundry Portal:
+# ai.azure.com > [Project] > Models > Deployments > [Deployment] > Details
 API_KEY = os.environ.get('AZURE_OPENAI_API_KEY')
 ENDPOINT = os.environ.get('AZURE_OPENAI_ENDPOINT')
-API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-10-21')
+API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-05-01-preview')
 DEPLOYMENT = os.environ.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o')
 
 logger = get_logger(__name__)
+
+# Log configuration for debugging (mask API key for security)
+print('=' * 60)
+print('Microsoft Foundry Plugin Configuration')
+print('=' * 60)
+print(f'  AZURE_OPENAI_ENDPOINT:    {ENDPOINT}')
+print(f'  AZURE_OPENAI_API_VERSION: {API_VERSION}')
+print(f'  AZURE_OPENAI_DEPLOYMENT:  {DEPLOYMENT}')
+print(f'  AZURE_OPENAI_API_KEY:     {"*" * 8 + API_KEY[-4:] if API_KEY and len(API_KEY) > 4 else "(not set)"}')
+print('=' * 60)
 
 if not API_KEY or not ENDPOINT:
     logger.warning(
@@ -146,8 +192,10 @@ class StreamInput(BaseModel):
 class ImageDescribeInput(BaseModel):
     """Input for image description flow."""
 
+    # Public domain cat image from Wikimedia Commons (no copyright, free for any use)
+    # Source: https://commons.wikimedia.org/wiki/File:Cute_kitten.jpg
     image_url: str = Field(
-        default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+        default='https://upload.wikimedia.org/wikipedia/commons/1/13/Cute_kitten.jpg',
         description='URL of the image to describe',
     )
 
@@ -176,8 +224,6 @@ def get_weather(input: WeatherInput) -> str:
     Returns:
         Weather information string.
     """
-    import random
-
     weather_options = [
         '32° C sunny',
         '17° C cloudy',
@@ -228,7 +274,7 @@ async def describe_image(input: ImageDescribeInput) -> str:
     response = await ai.generate(
         prompt=[
             Part(root=TextPart(text='Describe this image in detail')),
-            Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/png'))),
+            Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/jpeg'))),
         ],
         config={'visual_detail_level': 'auto'},
     )

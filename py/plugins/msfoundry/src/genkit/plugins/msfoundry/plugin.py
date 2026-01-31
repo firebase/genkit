@@ -25,6 +25,7 @@ Documentation:
 - Model Catalog: https://ai.azure.com/catalog/models
 - SDK Overview: https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/sdk-overview
 - Models: https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-models/concepts/models
+- Switching Endpoints: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/switching-endpoints
 
 The plugin supports:
 - Chat completion models (GPT-4o, GPT-5, o-series, Claude, DeepSeek, Grok, Llama, Mistral)
@@ -33,6 +34,21 @@ The plugin supports:
 - Streaming responses
 - Multimodal inputs (images)
 - JSON output mode
+
+Endpoint Types
+==============
+The plugin supports two endpoint types:
+
+1. **Azure OpenAI endpoint** (traditional):
+   Format: `https://<resource-name>.openai.azure.com/`
+   Uses `AsyncAzureOpenAI` client with `api_version` parameter.
+
+2. **Azure AI Foundry project endpoint** (new unified endpoint):
+   Format: `https://<resource-name>.services.ai.azure.com/api/projects/<project-name>`
+   Uses standard `AsyncOpenAI` client with `base_url` parameter.
+   This endpoint eliminates the need for api-version parameters.
+
+The plugin auto-detects the endpoint type based on the URL format.
 
 Authentication
 ==============
@@ -45,7 +61,7 @@ The plugin supports two authentication methods:
 2. **Azure AD / Managed Identity** (recommended for production):
    Use `azure_ad_token_provider` with Azure Identity credentials.
 
-Example::
+Example - Azure OpenAI Endpoint::
 
     from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
@@ -60,6 +76,18 @@ Example::
                 api_version='2024-10-21',
             )
         ]
+    )
+
+Example - Azure AI Foundry Project Endpoint::
+
+    ai = Genkit(
+        plugins=[
+            MSFoundry(
+                api_key='your-api-key',
+                endpoint='https://your-resource.services.ai.azure.com/api/projects/your-project',
+            )
+        ],
+        model=msfoundry_model('gpt-4o'),
     )
 
 Example Usage
@@ -89,15 +117,17 @@ See Also:
 """
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+import httpx
+from openai import APIError, AsyncAzureOpenAI, AsyncOpenAI
 
 from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
+from genkit.core.logging import get_logger
 from genkit.core.registry import ActionKind
 from genkit.plugins.msfoundry.models.model import MSFoundryModel
 from genkit.plugins.msfoundry.models.model_info import (
@@ -105,11 +135,177 @@ from genkit.plugins.msfoundry.models.model_info import (
     SUPPORTED_MSFOUNDRY_MODELS,
     get_model_info,
 )
-from genkit.plugins.msfoundry.typing import MSFoundryConfig
+from genkit.plugins.msfoundry.typing import (
+    AI21JambaConfig,
+    AnthropicConfig,
+    ArcticConfig,
+    BaichuanConfig,
+    CohereConfig,
+    DbrxConfig,
+    DeepSeekConfig,
+    FalconConfig,
+    GemmaConfig,
+    GlmConfig,
+    GraniteConfig,
+    GrokConfig,
+    InflectionConfig,
+    InternLMConfig,
+    JaisConfig,
+    LlamaConfig,
+    MiniCPMConfig,
+    MistralConfig,
+    MptConfig,
+    MSFoundryConfig,
+    NvidiaConfig,
+    PhiConfig,
+    QwenConfig,
+    RekaConfig,
+    StableLMConfig,
+    StarCoderConfig,
+    TimeSeriesConfig,
+    WriterConfig,
+    XGenConfig,
+    YiConfig,
+)
 from genkit.types import Embedding, EmbedRequest, EmbedResponse
+
+_MODEL_CONFIG_PREFIX_MAP: dict[str, type] = {
+    # Anthropic Claude models
+    'claude': AnthropicConfig,
+    'anthropic': AnthropicConfig,
+    # Meta Llama models
+    'llama': LlamaConfig,
+    'meta-llama': LlamaConfig,
+    # Mistral AI models (Mistral, Mixtral, Codestral)
+    'mistral': MistralConfig,
+    'mixtral': MistralConfig,
+    'codestral': MistralConfig,
+    # Cohere models (Command R, Command R+, Embed, Rerank)
+    'command': CohereConfig,
+    'cohere': CohereConfig,
+    # DeepSeek models
+    'deepseek': DeepSeekConfig,
+    # Microsoft Phi models
+    'phi': PhiConfig,
+    # AI21 Jamba models
+    'jamba': AI21JambaConfig,
+    'ai21': AI21JambaConfig,
+    # xAI Grok models
+    'grok': GrokConfig,
+    # NVIDIA NIM models (Nemotron, etc.)
+    'nvidia': NvidiaConfig,
+    'nemotron': NvidiaConfig,
+    # Google Gemma models
+    'gemma': GemmaConfig,
+    # Alibaba Qwen models
+    'qwen': QwenConfig,
+    # Databricks DBRX
+    'dbrx': DbrxConfig,
+    # TII Falcon models
+    'falcon': FalconConfig,
+    'tiiuae': FalconConfig,
+    # IBM Granite models
+    'granite': GraniteConfig,
+    'ibm': GraniteConfig,
+    # G42 Jais (Arabic LLM)
+    'jais': JaisConfig,
+    # BigCode StarCoder
+    'starcoder': StarCoderConfig,
+    'starchat': StarCoderConfig,
+    # Stability AI StableLM
+    'stablelm': StableLMConfig,
+    # MosaicML MPT
+    'mpt': MptConfig,
+    # TimesFM / Chronos (Time Series)
+    'timesfm': TimeSeriesConfig,
+    'chronos': TimeSeriesConfig,
+    # 01.AI Yi models
+    'yi': YiConfig,
+    # Zhipu AI GLM models
+    'glm': GlmConfig,
+    'chatglm': GlmConfig,
+    # Baichuan models
+    'baichuan': BaichuanConfig,
+    # Shanghai AI Lab InternLM
+    'internlm': InternLMConfig,
+    # Snowflake Arctic
+    'arctic': ArcticConfig,
+    'snowflake': ArcticConfig,
+    # Writer Palmyra
+    'palmyra': WriterConfig,
+    'writer': WriterConfig,
+    # Reka models
+    'reka': RekaConfig,
+    # OpenBMB MiniCPM
+    'minicpm': MiniCPMConfig,
+    # Inflection Pi
+    'inflection': InflectionConfig,
+    'pi': InflectionConfig,
+    # Salesforce XGen / CodeGen
+    'xgen': XGenConfig,
+    'codegen': XGenConfig,
+    'salesforce': XGenConfig,
+}
+"""Mapping from model name prefixes to their configuration classes."""
+
+
+def get_config_schema_for_model(model_name: str) -> type:
+    """Get the appropriate config schema for a model based on its name.
+
+    This function maps model names to their model-specific configuration classes,
+    enabling the DevUI to show relevant parameters for each model family.
+
+    Args:
+        model_name: The model name (e.g., 'gpt-4o', 'claude-opus-4-5', 'llama-3.3-70b').
+
+    Returns:
+        The appropriate config class for the model. Returns MSFoundryConfig as default.
+    """
+    name_lower = model_name.lower()
+
+    for prefix, config_class in _MODEL_CONFIG_PREFIX_MAP.items():
+        if name_lower.startswith(prefix):
+            return config_class
+
+    # Default: OpenAI-compatible config (GPT, o-series, etc.)
+    return MSFoundryConfig
+
+
+class _AzureADTokenAuth(httpx.Auth):
+    """Custom httpx Auth class that refreshes Azure AD tokens on each request.
+
+    This ensures that tokens are refreshed for long-running applications,
+    preventing authentication failures when tokens expire.
+    """
+
+    def __init__(self, token_provider: Callable[[], str]) -> None:
+        """Initialize the auth handler.
+
+        Args:
+            token_provider: Callable that returns a fresh bearer token.
+        """
+        self._token_provider = token_provider
+
+    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+        """Add the Authorization header with a fresh token.
+
+        Args:
+            request: The HTTP request to authenticate.
+
+        Yields:
+            The authenticated request.
+        """
+        # Get a fresh token on each request
+        token = self._token_provider()
+        request.headers['Authorization'] = f'Bearer {token}'
+        yield request
+
 
 # Plugin name
 MSFOUNDRY_PLUGIN_NAME = 'msfoundry'
+
+# Logger for this module
+logger = get_logger(__name__)
 
 
 def msfoundry_name(name: str) -> str:
@@ -159,22 +355,32 @@ class MSFoundry(Plugin):
 
         Args:
             api_key: Azure OpenAI API key. Falls back to AZURE_OPENAI_API_KEY env var.
-            endpoint: Azure OpenAI endpoint URL. Falls back to AZURE_OPENAI_ENDPOINT env var.
+            endpoint: Azure endpoint URL. Falls back to AZURE_OPENAI_ENDPOINT env var.
+                Supports two formats:
+                - Azure OpenAI: https://<resource>.openai.azure.com/
+                - Foundry Project: https://<resource>.services.ai.azure.com/api/projects/<project>
             deployment: Default deployment name for models.
             api_version: API version (e.g., '2024-10-21'). Falls back to OPENAI_API_VERSION env var.
+                Only used for Azure OpenAI endpoints. Foundry project endpoints use v1 API.
             azure_ad_token_provider: Token provider for Azure AD authentication.
                 Use with `azure.identity.get_bearer_token_provider()` for managed identity.
             discover_models: If True, dynamically discover models from the Azure API.
                 This queries the /openai/models endpoint to list available models.
                 Default is False (uses the predefined model list).
-            **openai_params: Additional parameters passed to AsyncAzureOpenAI client.
+            **openai_params: Additional parameters passed to the OpenAI client.
 
         Example:
-            # Using API key:
+            # Using API key with Azure OpenAI endpoint:
             plugin = MSFoundry(
                 api_key="your-key",
                 endpoint="https://your-resource.openai.azure.com/",
                 api_version="2024-10-21",
+            )
+
+            # Using API key with Foundry project endpoint:
+            plugin = MSFoundry(
+                api_key="your-key",
+                endpoint="https://your-resource.services.ai.azure.com/api/projects/your-project",
             )
 
             # Using Azure AD:
@@ -198,7 +404,11 @@ class MSFoundry(Plugin):
         # Resolve configuration from environment variables
         api_key = api_key or os.environ.get('AZURE_OPENAI_API_KEY')
         resolved_endpoint = endpoint or os.environ.get('AZURE_OPENAI_ENDPOINT')
-        api_version = api_version or os.environ.get('OPENAI_API_VERSION', '2024-10-21')
+        api_version = (
+            api_version
+            or os.environ.get('AZURE_OPENAI_API_VERSION')
+            or os.environ.get('OPENAI_API_VERSION', '2024-05-01-preview')
+        )
 
         if not resolved_endpoint:
             raise ValueError(
@@ -209,13 +419,59 @@ class MSFoundry(Plugin):
         self._deployment = deployment
         self._discover_models = discover_models
         self._discovered_models: dict[str, dict[str, Any]] | None = None
-        self._openai_client = AsyncAzureOpenAI(
-            api_key=api_key,
-            azure_endpoint=resolved_endpoint,
-            api_version=api_version,
-            azure_ad_token_provider=azure_ad_token_provider,
-            **openai_params,
+
+        # Detect endpoint type and create appropriate client
+        # Foundry project endpoints: *.services.ai.azure.com/api/projects/*
+        # Azure OpenAI endpoints: *.openai.azure.com or *.cognitiveservices.azure.com
+        self._is_foundry_endpoint = (
+            '.services.ai.azure.com' in resolved_endpoint and '/api/projects/' in resolved_endpoint
         )
+
+        if self._is_foundry_endpoint:
+            # Azure AI Foundry project endpoint - use standard OpenAI client with base_url
+            # The v1 API endpoint eliminates the need for api-version parameters
+            # See: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/switching-endpoints
+            base_url = resolved_endpoint.rstrip('/')
+            if not base_url.endswith('/openai/v1'):
+                base_url = f'{base_url}/openai/v1'
+
+            logger.debug(
+                'Using Foundry project endpoint',
+                base_url=base_url,
+            )
+
+            # For Foundry endpoints with Azure AD auth, use a custom httpx client
+            # that refreshes the token on each request to handle token expiration
+            if azure_ad_token_provider and not api_key:
+                # Create an httpx client with token-refreshing auth
+                http_client = httpx.AsyncClient(auth=_AzureADTokenAuth(azure_ad_token_provider))
+                self._openai_client: AsyncOpenAI | AsyncAzureOpenAI = AsyncOpenAI(
+                    api_key='placeholder',  # Required but overridden by auth
+                    base_url=base_url,
+                    http_client=http_client,
+                    **openai_params,
+                )
+            else:
+                # Use API key directly
+                self._openai_client = AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=base_url,
+                    **openai_params,
+                )
+        else:
+            # Standard Azure OpenAI endpoint - use AsyncAzureOpenAI
+            logger.debug(
+                'Using Azure OpenAI endpoint',
+                endpoint=resolved_endpoint,
+                api_version=api_version,
+            )
+            self._openai_client = AsyncAzureOpenAI(
+                api_key=api_key,
+                azure_endpoint=resolved_endpoint,
+                api_version=api_version,
+                azure_ad_token_provider=azure_ad_token_provider,
+                **openai_params,
+            )
 
     async def _discover_models_from_api(self) -> dict[str, dict[str, Any]]:
         """Discover available models from the Azure OpenAI API.
@@ -238,20 +494,26 @@ class MSFoundry(Plugin):
                 model_id = model.id
                 # Extract capabilities from the model response
                 capabilities = getattr(model, 'capabilities', None)
+                # If capabilities is not provided by the API, default all to False
+                # to avoid incorrectly advertising capabilities for unknown models
                 discovered[model_id] = {
                     'id': model_id,
                     'capabilities': {
-                        'chat_completion': getattr(capabilities, 'chat_completion', False) if capabilities else True,
+                        'chat_completion': getattr(capabilities, 'chat_completion', False) if capabilities else False,
                         'completion': getattr(capabilities, 'completion', False) if capabilities else False,
                         'embeddings': getattr(capabilities, 'embeddings', False) if capabilities else False,
                         'fine_tune': getattr(capabilities, 'fine_tune', False) if capabilities else False,
-                        'inference': getattr(capabilities, 'inference', True) if capabilities else True,
+                        'inference': getattr(capabilities, 'inference', False) if capabilities else False,
                     },
                     'lifecycle_status': getattr(model, 'lifecycle_status', 'generally-available'),
                 }
             self._discovered_models = discovered
-        except Exception:
-            # If discovery fails, fall back to predefined models
+        except APIError as e:
+            # If discovery fails, log warning and fall back to predefined models
+            logger.warning(
+                'Failed to discover models from Azure API. Falling back to predefined models.',
+                error=str(e),
+            )
             self._discovered_models = {}
 
         return self._discovered_models
@@ -325,6 +587,9 @@ class MSFoundry(Plugin):
         )
         model_info = get_model_info(clean_name)
 
+        # Get the appropriate config schema for this model family
+        config_schema = get_config_schema_for_model(clean_name)
+
         return Action(
             kind=ActionKind.MODEL,
             name=name,
@@ -332,7 +597,7 @@ class MSFoundry(Plugin):
             metadata=model_action_metadata(
                 name=name,
                 info=model_info.supports.model_dump() if model_info.supports else {},
-                config_schema=MSFoundryConfig,
+                config_schema=config_schema,
             ).metadata,
         )
 
@@ -375,7 +640,10 @@ class MSFoundry(Plugin):
             encoding_format: str | None = None
             if request.options:
                 if dim_val := request.options.get('dimensions'):
-                    dimensions = int(dim_val)
+                    try:
+                        dimensions = int(dim_val)
+                    except (ValueError, TypeError) as e:
+                        raise ValueError(f"Invalid value for 'dimensions' option: {dim_val}") from e
                 if enc_val := request.options.get('encodingFormat'):
                     encoding_format = str(enc_val) if enc_val in ('float', 'base64') else None
 
@@ -429,11 +697,12 @@ class MSFoundry(Plugin):
                 model_info = get_model_info(model_id)
 
                 if caps.get('chat_completion') or caps.get('completion'):
+                    config_schema = get_config_schema_for_model(model_id)
                     actions.append(
                         model_action_metadata(
                             name=msfoundry_name(model_id),
                             info=model_info.supports.model_dump() if model_info.supports else {},
-                            config_schema=MSFoundryConfig,
+                            config_schema=config_schema,
                         )
                     )
                 if caps.get('embeddings'):
@@ -458,11 +727,12 @@ class MSFoundry(Plugin):
         else:
             # Add model metadata from predefined list
             for model_name, model_info in SUPPORTED_MSFOUNDRY_MODELS.items():
+                config_schema = get_config_schema_for_model(model_name)
                 actions.append(
                     model_action_metadata(
                         name=msfoundry_name(model_name),
                         info=model_info.supports.model_dump() if model_info.supports else {},
-                        config_schema=MSFoundryConfig,
+                        config_schema=config_schema,
                     )
                 )
 
@@ -516,3 +786,6 @@ gpt4o = msfoundry_name('gpt-4o')
 gpt4o_mini = msfoundry_name('gpt-4o-mini')
 gpt4 = msfoundry_name('gpt-4')
 gpt35_turbo = msfoundry_name('gpt-3.5-turbo')
+o3_mini = msfoundry_name('o3-mini')
+o1 = msfoundry_name('o1')
+o1_mini = msfoundry_name('o1-mini')

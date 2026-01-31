@@ -36,7 +36,7 @@ Key features:
 import json
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncAzureOpenAI, AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 
 from genkit.ai import ActionRunContext
@@ -78,21 +78,21 @@ class MSFoundryModel:
 
     Attributes:
         model_name: The model name (e.g., 'gpt-4o', 'DeepSeek-V3.2').
-        client: AsyncAzureOpenAI client instance.
+        client: AsyncAzureOpenAI or AsyncOpenAI client instance.
         deployment: Optional deployment name override.
     """
 
     def __init__(
         self,
         model_name: str,
-        client: AsyncAzureOpenAI,
+        client: AsyncAzureOpenAI | AsyncOpenAI,
         deployment: str | None = None,
     ) -> None:
         """Initialize the Microsoft Foundry model.
 
         Args:
             model_name: Name of the model (e.g., 'gpt-4o', 'DeepSeek-V3.2').
-            client: AsyncAzureOpenAI client instance.
+            client: AsyncAzureOpenAI or AsyncOpenAI client instance.
             deployment: Optional deployment name (defaults to model_name).
         """
         self.model_name = model_name
@@ -269,14 +269,18 @@ class MSFoundryModel:
             key_map: dict[str, str] = {
                 'maxOutputTokens': 'max_tokens',
                 'maxTokens': 'max_tokens',
+                'maxCompletionTokens': 'max_completion_tokens',
                 'topP': 'top_p',
                 'stopSequences': 'stop',
                 'frequencyPenalty': 'frequency_penalty',
                 'presencePenalty': 'presence_penalty',
                 'logitBias': 'logit_bias',
-                'logProbs': 'log_probs',
-                'topLogProbs': 'top_log_probs',
+                'logProbs': 'logprobs',
+                'topLogProbs': 'top_logprobs',
                 'visualDetailLevel': 'visual_detail_level',
+                'reasoningEffort': 'reasoning_effort',
+                'parallelToolCalls': 'parallel_tool_calls',
+                'responseFormat': 'response_format',
             }
             for key, value in config.items():
                 # Map camelCase keys to snake_case, or use key as-is
@@ -311,7 +315,10 @@ class MSFoundryModel:
         }
 
         # Add optional parameters
-        if config.max_tokens is not None:
+        # Use max_completion_tokens for o-series models, fall back to max_tokens
+        if config.max_completion_tokens is not None:
+            body['max_completion_tokens'] = config.max_completion_tokens
+        elif config.max_tokens is not None:
             body['max_tokens'] = config.max_tokens
         if config.temperature is not None:
             body['temperature'] = config.temperature
@@ -325,25 +332,45 @@ class MSFoundryModel:
             body['presence_penalty'] = config.presence_penalty
         if config.logit_bias is not None:
             body['logit_bias'] = config.logit_bias
-        if config.log_probs is not None:
-            body['logprobs'] = config.log_probs
-        if config.top_log_probs is not None:
-            body['top_logprobs'] = config.top_log_probs
+        if config.logprobs is not None:
+            body['logprobs'] = config.logprobs
+        if config.top_logprobs is not None:
+            body['top_logprobs'] = config.top_logprobs
         if config.seed is not None:
             body['seed'] = config.seed
         if config.user is not None:
             body['user'] = config.user
-        if request.candidates:
+
+        # Number of completions: prefer config.n, fall back to request.candidates
+        if config.n is not None:
+            body['n'] = config.n
+        elif request.candidates:
             body['n'] = request.candidates
+
+        # Output modalities (text, audio)
+        if config.modalities is not None:
+            body['modalities'] = config.modalities
+
+        # Reasoning model parameters (o1, o3, o4 series)
+        if config.reasoning_effort is not None:
+            body['reasoning_effort'] = config.reasoning_effort
+        if config.verbosity is not None:
+            body['verbosity'] = config.verbosity
 
         # Handle tools
         if request.tools:
             body['tools'] = [self._to_openai_tool(t) for t in request.tools]
             if request.tool_choice:
                 body['tool_choice'] = request.tool_choice
+            # Allow explicit control over parallel tool calls (defaults to True in API)
+            if config.parallel_tool_calls is not None:
+                body['parallel_tool_calls'] = config.parallel_tool_calls
 
-        # Handle response format (JSON mode)
-        if request.output and request.output.format:
+        # Handle response format (JSON mode / Structured Outputs)
+        # Config response_format takes priority over request.output.format
+        if config.response_format is not None:
+            body['response_format'] = config.response_format
+        elif request.output and request.output.format:
             model_name = config.model or self.model_name
             if model_name in MODELS_SUPPORTING_RESPONSE_FORMAT:
                 model_info = get_model_info(model_name)

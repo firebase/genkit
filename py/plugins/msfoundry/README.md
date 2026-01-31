@@ -12,6 +12,7 @@ Microsoft Foundry (formerly Azure AI Foundry) provides access to 11,000+ AI mode
 - **Models Documentation**: https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-models/concepts/models
 - **Deployment Types**: https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-models/concepts/deployment-types
 - **Python SDK**: https://learn.microsoft.com/en-us/python/api/overview/azure/ai-projects-readme
+- **Switching Endpoints**: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/switching-endpoints
 
 ## Installation
 
@@ -23,17 +24,52 @@ pip install genkit-plugin-msfoundry
 
 You'll need a Microsoft Foundry resource deployed. You can deploy one on the [Azure Portal](https://portal.azure.com/) or via [Microsoft Foundry Portal](https://ai.azure.com/).
 
-Once you have your instance running, get the endpoint and key from the Azure Portal under "Keys and Endpoint".
+### Finding Your Credentials
 
-### Environment Variables
+To find your endpoint, API key, and deployment information:
+
+1. Go to [Microsoft Foundry Portal](https://ai.azure.com/)
+2. Select your **Project**
+3. Navigate to **Models** → **Deployments**
+4. Click on your **Deployment** (e.g., `gpt-4o`)
+5. Open the **Details** pane
+
+You'll find the following information:
+
+| Field | Example | Environment Variable |
+|-------|---------|---------------------|
+| **Target URI** | `https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview` | Extract base URL for `AZURE_OPENAI_ENDPOINT` |
+| **Key** | (hidden) | `AZURE_OPENAI_API_KEY` |
+| **Name** (Deployment) | `gpt-4o` | `AZURE_OPENAI_DEPLOYMENT` |
+| **api-version** (from Target URI) | `2024-05-01-preview` | `AZURE_OPENAI_API_VERSION` |
+
+**Extracting the endpoint from Target URI:**
+
+If your Target URI is:
+```
+https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview
+```
+
+Your endpoint is just the base URL:
+```
+https://your-resource.cognitiveservices.azure.com/
+```
+
+## Endpoint Types
+
+The plugin supports two endpoint types that are auto-detected based on the URL format:
+
+### 1. Azure OpenAI Endpoint (Traditional)
+
+**Format:** `https://<resource-name>.openai.azure.com/`
+
+This is the traditional Azure OpenAI endpoint. Requires an `api_version` parameter.
 
 ```bash
 export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
 export AZURE_OPENAI_API_KEY="your-api-key"
 export OPENAI_API_VERSION="2024-10-21"
 ```
-
-### Direct Configuration
 
 ```python
 from genkit import Genkit
@@ -51,6 +87,35 @@ ai = Genkit(
     model=gpt4o,
 )
 ```
+
+### 2. Azure AI Foundry Project Endpoint (New Unified Endpoint)
+
+**Format:** `https://<resource-name>.services.ai.azure.com/api/projects/<project-name>`
+
+This is the new unified Azure AI Foundry project endpoint. Uses the v1 API and doesn't require an `api_version` parameter.
+
+```bash
+export AZURE_OPENAI_ENDPOINT="https://your-resource.services.ai.azure.com/api/projects/your-project"
+export AZURE_OPENAI_API_KEY="your-api-key"
+```
+
+```python
+from genkit import Genkit
+from genkit.plugins.msfoundry import MSFoundry, gpt4o
+
+ai = Genkit(
+    plugins=[
+        MSFoundry(
+            api_key="your-key",
+            endpoint="https://your-resource.services.ai.azure.com/api/projects/your-project",
+            deployment="your-deployment-name",
+        )
+    ],
+    model=gpt4o,
+)
+```
+
+See: [Switching Endpoints Documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/switching-endpoints)
 
 ### Azure Managed Identity (Azure AD / Entra ID)
 
@@ -90,7 +155,10 @@ print(response.text)
 
 ```python
 from genkit.types import Media, MediaPart, Part, TextPart
-from genkit.plugins.msfoundry import MSFoundryConfig
+
+# Public domain cat image from Wikimedia Commons (no copyright, free for any use)
+# Source: https://commons.wikimedia.org/wiki/File:Cute_kitten.jpg
+image_url = "https://upload.wikimedia.org/wikipedia/commons/1/13/Cute_kitten.jpg"
 
 response = await ai.generate(
     model=gpt4o,
@@ -98,9 +166,9 @@ response = await ai.generate(
         Part(root=TextPart(text="What animal is in the photo?")),
         Part(root=MediaPart(media=Media(url=image_url))),
     ],
-    config=MSFoundryConfig(
-        visual_detail_level="low",  # Reduces token usage
-    ),
+    config={
+        "visual_detail_level": "low",  # Reduces token usage
+    },
 )
 print(response.text)
 ```
@@ -112,7 +180,7 @@ from genkit.blocks.document import Document
 
 response = await ai.embed(
     embedder="msfoundry/text-embedding-3-small",
-    input=[Document(content="Hello, world!")],
+    input=[Document.from_text("Hello, world!")],
 )
 print(response.embeddings[0].embedding)
 ```
@@ -243,12 +311,56 @@ config = MSFoundryConfig(
 response = await ai.generate(prompt="...", config=config)
 ```
 
+### Configuration Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `temperature` | float (0.0-2.0) | Sampling temperature. Higher = more random. |
+| `max_tokens` | int | Max tokens to generate (deprecated, use `max_completion_tokens`). |
+| `max_completion_tokens` | int | Max tokens including reasoning tokens (required for o-series). |
+| `top_p` | float (0.0-1.0) | Nucleus sampling probability. |
+| `n` | int | Number of completions to generate. |
+| `stop` | str \| list[str] | Stop sequences. |
+| `stream` | bool | Whether to stream the response. |
+| `frequency_penalty` | float (-2.0-2.0) | Penalize frequent tokens. |
+| `presence_penalty` | float (-2.0-2.0) | Penalize tokens based on presence. |
+| `logit_bias` | dict[str, int] | Token ID to bias value mapping. |
+| `logprobs` | bool | Return log probabilities. |
+| `top_logprobs` | int (0-20) | Number of top log probs to return. |
+| `seed` | int | Random seed for deterministic sampling. |
+| `user` | str | Unique user identifier. |
+| `response_format` | dict | Output format (text, json_object, json_schema). |
+| `modalities` | list[str] | Output modalities: `["text"]` or `["text", "audio"]`. |
+| `visual_detail_level` | str | Image detail: "auto", "low", "high". |
+| `reasoning_effort` | str | For o1/o3/o4 models: "none", "minimal", "low", "medium", "high", "xhigh". |
+| `parallel_tool_calls` | bool | Enable parallel function calling (default: True). |
+| `verbosity` | str | Response verbosity: "low", "medium", "high". |
+
+### Reasoning Models (o1, o3, o4 series)
+
+For reasoning models, use `max_completion_tokens` and `reasoning_effort`:
+
+```python
+from genkit.plugins.msfoundry import MSFoundryConfig, ReasoningEffort, o3_mini
+
+response = await ai.generate(
+    model=o3_mini,
+    prompt="Solve this step by step: What is 15% of 240?",
+    config=MSFoundryConfig(
+        max_completion_tokens=4096,
+        reasoning_effort=ReasoningEffort.MEDIUM,
+    ),
+)
+```
+
+See: [OpenAI Reasoning Guide](https://platform.openai.com/docs/guides/reasoning)
+
 ## References
 
 ### Microsoft Foundry Documentation
 
+- [What is Microsoft Foundry?](https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-foundry?view=foundry&preserve-view=true)
 - [Microsoft Foundry Documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/)
-- [What is Microsoft Foundry?](https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-foundry)
 - [Model Catalog Overview](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-catalog-overview)
 - [Foundry Models Sold Directly by Azure](https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-models/concepts/models)
 - [SDK Overview](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/sdk-overview)

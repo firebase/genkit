@@ -165,7 +165,7 @@ SUPPORTED_MSFOUNDRY_MODELS: dict[str, ModelInfo] = {
     # GPT-3.5 Series
     'gpt-3.5-turbo': ModelInfo(
         label='Microsoft Foundry - GPT-3.5 Turbo',
-        versions=['gpt-3.5-turbo', 'gpt-35-turbo-instruct', 'gpt-35-turbo-16k'],
+        versions=['gpt-3.5-turbo', 'gpt-3.5-turbo-instruct', 'gpt-3.5-turbo-16k'],
         supports=TEXT_ONLY_MODEL_SUPPORTS,
     ),
     # =========================================================================
@@ -205,6 +205,11 @@ SUPPORTED_MSFOUNDRY_MODELS: dict[str, ModelInfo] = {
         label='Microsoft Foundry - o4 Mini',
         versions=['o4-mini'],
         supports=REASONING_MODEL_SUPPORTS,
+    ),
+    'codex-mini': ModelInfo(
+        label='Microsoft Foundry - Codex Mini',
+        versions=['codex-mini'],
+        supports=REASONING_MODEL_MINI_SUPPORTS,
     ),
     # =========================================================================
     # OpenAI GPT-5 Series
@@ -282,6 +287,11 @@ SUPPORTED_MSFOUNDRY_MODELS: dict[str, ModelInfo] = {
     'gpt-oss-120B': ModelInfo(
         label='Microsoft Foundry - GPT-OSS 120B',
         versions=['gpt-oss-120B'],
+        supports=TEXT_ONLY_MODEL_SUPPORTS,
+    ),
+    'gpt-oss-20b': ModelInfo(
+        label='Microsoft Foundry - GPT-OSS 20B',
+        versions=['gpt-oss-20b'],
         supports=TEXT_ONLY_MODEL_SUPPORTS,
     ),
     # =========================================================================
@@ -416,21 +426,22 @@ SUPPORTED_MSFOUNDRY_MODELS: dict[str, ModelInfo] = {
 }
 
 # Models that support the OpenAI response_format parameter
+# Note: Duplicates removed, typos fixed (gpt-o1 -> o1, gpt-oss-120b -> gpt-oss-120B)
 MODELS_SUPPORTING_RESPONSE_FORMAT = [
+    # GPT-3.5 series
+    'gpt-3.5-turbo',
+    'gpt-3.5-turbo-instruct',
+    'gpt-3.5-turbo-16k',
+    # GPT-4 series
     'gpt-4',
     'gpt-4-32k',
     'gpt-4o',
     'gpt-4o-mini',
-    'gpt-o1',
-    'gpt-o1-mini',
-    'gpt-o1-preview',
-    'gpt-3.5-turbo',
-    'gpt-3.5-turbo-instruct',
-    'gpt-3.5-turbo-26k',
-    'gpt-4.5',
+    'gpt-4.1',
     'gpt-4.1-mini',
     'gpt-4.1-nano',
-    'gpt-4.1',
+    'gpt-4.5',
+    # GPT-5 series
     'gpt-5',
     'gpt-5-mini',
     'gpt-5-nano',
@@ -445,15 +456,18 @@ MODELS_SUPPORTING_RESPONSE_FORMAT = [
     'gpt-5.2',
     'gpt-5.2-chat',
     'gpt-5.2-codex',
-    'gpt-oss-120b',
+    # OSS models
     'gpt-oss-20b',
+    'gpt-oss-120B',
+    # o-series reasoning models
+    'o1',
+    'o1-mini',
+    'o1-preview',
     'o3',
     'o3-mini',
     'o3-pro',
     'o4-mini',
-    'o1',
-    'o1-mini',
-    'o1-preview',
+    # Codex
     'codex-mini',
 ]
 

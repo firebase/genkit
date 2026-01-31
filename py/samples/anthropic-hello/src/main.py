@@ -123,8 +123,10 @@ class ImageDescribeInput(BaseModel):
     """Input for image description."""
 
     image_url: str = Field(
-        default='https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
-        description='URL of the image to describe',
+        # Public domain cat image from Wikimedia Commons (no copyright, free for any use)
+        # Source: https://commons.wikimedia.org/wiki/File:Cute_kitten.jpg
+        default='https://upload.wikimedia.org/wikipedia/commons/1/13/Cute_kitten.jpg',
+        description='URL of the image to describe (replace with your own image URL)',
     )
 
 
@@ -189,7 +191,7 @@ async def describe_image(input: ImageDescribeInput) -> str:
     response = await ai.generate(
         prompt=[
             Part(root=TextPart(text='Describe this image')),
-            Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/png'))),
+            Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/jpeg'))),
         ],
     )
     return response.text

@@ -17,14 +17,38 @@ Microsoft Foundry (formerly Azure AI Foundry) provides access to 11,000+ AI mode
 
 2. **Model Deployment**: Deploy a model (e.g., `gpt-4o`) in your Microsoft Foundry resource.
 
-3. **Environment Variables**: Set the following environment variables:
+3. **Find Your Credentials**: Get the endpoint and API key from the Microsoft Foundry portal:
+
+   1. Go to [Microsoft Foundry Portal](https://ai.azure.com/)
+   2. Select your **Project**
+   3. Navigate to **Models** → **Deployments**
+   4. Click on your **Deployment** (e.g., `gpt-4o`)
+   5. Open the **Details** pane
+
+   You'll see information like:
+   - **Target URI**: `https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview`
+   - **Key**: (click to reveal)
+   - **Name**: `gpt-4o` (this is your deployment name)
+
+4. **Environment Variables**: Set the following environment variables:
 
    ```bash
+   # Extract the base URL from Target URI (everything before /openai/...)
+   export AZURE_OPENAI_ENDPOINT="https://your-resource.cognitiveservices.azure.com/"
+   
+   # Your API key from the Details pane
    export AZURE_OPENAI_API_KEY="your-api-key"
-   export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-   export AZURE_OPENAI_API_VERSION="2024-10-21"
-   export AZURE_OPENAI_DEPLOYMENT="gpt-4o"  # your deployment name
+   
+   # API version from the Target URI query parameter
+   export AZURE_OPENAI_API_VERSION="2024-05-01-preview"
+   
+   # Deployment name from the Details pane
+   export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
    ```
+
+   **Note**: The endpoint should be just the base URL without any path. Extract it from the Target URI:
+   - Target URI: `https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/...`
+   - Endpoint: `https://your-resource.cognitiveservices.azure.com/`
 
 ## Authentication Methods
 
@@ -118,6 +142,7 @@ Microsoft Foundry provides access to 11,000+ models from multiple providers. Key
 
 ## References
 
+- [What is Microsoft Foundry?](https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-foundry?view=foundry&preserve-view=true)
 - [Microsoft Foundry Documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/)
 - [Model Catalog](https://ai.azure.com/catalog/models)
 - [SDK Overview](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/sdk-overview)
