@@ -87,14 +87,14 @@ func TestHTTPServerIntegration(t *testing.T) {
 	}
 
 	// Convert rawRes to *mcp.CallToolResult for inspection
-	bytes, err := json.Marshal(rawRes);
+	bytes, err := json.Marshal(rawRes)
 	if err != nil {
-		t.Fatalf("failed to marshal result: %v", err);
+		t.Fatalf("failed to marshal result: %v", err)
 	}
 
-	var res mcp.CallToolResult;
+	var res mcp.CallToolResult
 	if err := json.Unmarshal(bytes, &res); err != nil {
-		t.Fatalf("failed to unmarshal into CallToolResult: %v", err);
+		t.Fatalf("failed to unmarshal into CallToolResult: %v", err)
 	}
 
 	if res.IsError {
