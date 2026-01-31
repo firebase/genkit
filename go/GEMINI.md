@@ -39,13 +39,17 @@
 * **Regenerating gen.go**: If updates to types in `go/ai/gen.go` are needed:
   1. Modify the Zod schemas in `genkit-tools/common/src/types/` (e.g., `model.ts` for `ToolDefinition`).
   2. Regenerate the JSON schema:
+
      ```bash
      cd genkit-tools && pnpm run export:schemas
      ```
+
   3. Regenerate the Go code:
+
      ```bash
      cd go/core && go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json ai
      ```
+
   * **Overwrite Risk**: Do not edit `genkit-tools/genkit-schema.json` directly. It is a generated file and will be overwritten by the `export:schemas` script.
   * **Note**: When adding new Part types, ensure `schemas.config` is updated to add the new Part type on all existing Parts and add "omit" to it accordingly.
 
@@ -67,7 +71,7 @@
 * **Comments**:
   * Use proper punctuation.
   * Start function comments with the function name.
-  * Use `// TODO: Fix this later.` format for stubs.
+  * Use `// TODO(issue-id): Fix this later.` format for stubs.
 * Ensure that `go vet` passes without errors.
 
 ### Documentation
@@ -90,7 +94,8 @@
 
 ### Implementation
 
-* Always add unit tests to improve coverage.
+* Always add unit tests to improve coverage. Use Genkit primitives and helper
+functions instead of mocking types.
 * When aiming to achieve parity the API and behavior should be identical to the JS canonical implementation.
 * Always add/update samples to demonstrate the usage of the API or functionality.
 * Use default input values for flows and actions to make them easier to use.
@@ -98,6 +103,9 @@
 * Avoid mentioning sample specific stuff in core framework or plugin code.
 * Always check for missing dependencies in `go.mod` for each sample and add them if we're using them.
 * When a plugin such as a model provider is updated or changes, please also update relevant documentation and samples.
+* Avoid boilerplate comments in the code. Comments should tell why, not what.
+* Always update the README.md (if exists) to match the updated code changes.
+* Make sure to not leave any dead code or unused imports.
 
 ### Formatting
 
@@ -126,10 +134,11 @@
       }
       ```
 
-* **Scope**: Write comprehensive unit tests.
+* **Scope**: Write comprehensive unit tests following the fail-fast approach.
 * **Execution**: Run via `go test ./...`.
 * **Porting**: Maintain 1:1 logic parity accurately if porting tests. Do not invent behavior.
 * **Fixes**: Fix underlying code issues rather than special-casing tests.
+* **Modernize**: Consider using `modernize` to update code to modern Go idioms (e.g., `slices`, `maps`) when fixing underlying issues.
 
 ### Logging
 
