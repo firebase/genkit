@@ -366,7 +366,7 @@ func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.St
 // a channel, and writes streamed outputs to a channel. It returns a final
 // output when complete.
 func DefineBidiFlow[In, Out, Stream, Init any](g *Genkit, name string, fn core.BidiFunc[In, Out, Stream, Init]) *core.Flow[In, Out, Stream, Init] {
-	return core.DefineBidiFlow[In, Out, Stream, Init](g.reg, name, fn)
+	return core.DefineBidiFlow(g.reg, name, fn)
 }
 
 // Run executes the given function `fn` within the context of the current flow run,
