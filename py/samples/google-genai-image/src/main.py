@@ -19,6 +19,27 @@
 This sample demonstrates Gemini's native image generation and editing
 capabilities, including text-to-image, image description, and Veo video.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Text-to-Image       │ Type words, get a picture. "A sunset over ocean"   │
+    │                     │ → AI creates that image for you.                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Image-to-Text       │ Show AI an image, it describes what's in it.       │
+    │                     │ Like a friend explaining a photo.                  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Inpainting          │ Fix or change parts of an existing image.          │
+    │                     │ "Remove the person, add a tree."                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Outpainting         │ Extend an image beyond its borders.                │
+    │                     │ Make a portrait into a landscape.                  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Veo                 │ Google's video generation AI. Same as images,      │
+    │                     │ but creates video clips instead.                   │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

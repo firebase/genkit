@@ -20,6 +20,62 @@ This plugin provides integration with DeepSeek's AI models for the
 Genkit framework. DeepSeek offers powerful reasoning models (R1) and
 general-purpose models (V3) with competitive performance.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ DeepSeek            │ Chinese AI company known for efficient models.    │
+    │                     │ Great performance at lower cost.                  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ DeepSeek-R1         │ Reasoning model that "thinks out loud". Shows     │
+    │                     │ its work like a math student. Great for logic.   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ DeepSeek-V3         │ General chat model. Fast and capable for          │
+    │                     │ everyday tasks like writing and Q&A.             │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Chain-of-Thought    │ When AI explains its reasoning step by step.      │
+    │                     │ Like showing your work on a test.                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ deepseek-chat       │ The standard chat model name. Good for most       │
+    │                     │ conversational tasks.                            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ deepseek-reasoner   │ The R1 model name. Use when you need step-by-     │
+    │                     │ step reasoning (math, logic, coding).            │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                  HOW DEEPSEEK PROCESSES YOUR REQUEST                    │
+    │                                                                         │
+    │    Your Code                                                            │
+    │    ai.generate(prompt="Solve this math problem...")                     │
+    │         │                                                               │
+    │         │  (1) Request goes to DeepSeek plugin                          │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  DeepSeek       │   Adds API key, formats request                  │
+    │    │  Plugin         │   (OpenAI-compatible format)                     │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) HTTPS to api.deepseek.com                            │
+    │             ▼                                                           │
+    │    ════════════════════════════════════════════════════                 │
+    │             │  Internet                                                 │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  DeepSeek API   │   Model processes your prompt                    │
+    │    │  (R1 or V3)     │   R1: shows reasoning steps                      │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) Response with reasoning (if R1)                      │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   response.text = "Let me solve this..."         │
+    │    └─────────────────┘   (includes thinking steps for R1)               │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

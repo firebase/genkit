@@ -19,6 +19,27 @@ r"""Long-running server mode sample - ASGI deployment with Genkit.
 This sample demonstrates how to deploy Genkit flows as a production-ready
 ASGI application using uvicorn, with proper lifecycle management.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ ASGI                │ A standard for Python web servers. Like USB        │
+    │                     │ but for connecting web frameworks.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ uvicorn             │ A fast ASGI server. Runs your Genkit app and       │
+    │                     │ handles HTTP requests efficiently.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Long-running        │ Server that stays up continuously. Not just        │
+    │                     │ one request, but serving forever.                  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Lifecycle Hooks     │ Functions called when server starts/stops.         │
+    │                     │ Setup database, cleanup connections, etc.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Production-ready    │ Properly handles errors, shutdown signals,         │
+    │                     │ and concurrent requests.                           │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                                      | Example Function / Code Snippet        |

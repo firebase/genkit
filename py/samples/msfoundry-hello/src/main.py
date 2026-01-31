@@ -25,6 +25,27 @@ Documentation:
 - SDK Overview: https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/sdk-overview
 - Switching Endpoints: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/switching-endpoints
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Microsoft Foundry   │ Microsoft's AI supermarket. One place to access    │
+    │                     │ GPT-4o, Claude, Llama, and 11,000+ more models.    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Azure               │ Microsoft's cloud platform. Where the models       │
+    │                     │ actually run and your data stays secure.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Endpoint            │ The web address where your AI models live.         │
+    │                     │ Like your-resource.openai.azure.com.               │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ API Key             │ Your password to access the models. Keep it        │
+    │                     │ secret! Set as AZURE_OPENAI_API_KEY.               │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Deployment          │ A specific instance of a model you've set up.      │
+    │                     │ Like having your own copy of GPT-4o.               │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature                          | Example                           |

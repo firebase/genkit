@@ -20,6 +20,62 @@ This plugin provides integration with xAI's Grok models for the
 Genkit framework. It registers Grok models as Genkit actions, enabling
 text generation and multimodal operations.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ xAI                 │ Elon Musk's AI company. Makes the Grok models.    │
+    │                     │                                                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Grok                │ xAI's AI assistant. Known for being witty and     │
+    │                     │ having access to real-time X/Twitter data.        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Grok-3              │ The main Grok model. Good balance of speed        │
+    │                     │ and capability for most tasks.                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Grok-3-mini         │ Faster, cheaper Grok. Great for simple tasks      │
+    │                     │ where you need quick responses.                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Grok-4              │ Most powerful Grok. For complex reasoning         │
+    │                     │ and challenging problems.                         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ OpenAI-compatible   │ xAI uses the same API format as OpenAI.           │
+    │                     │ Easy to switch between providers.                 │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                    HOW GROK PROCESSES YOUR REQUEST                      │
+    │                                                                         │
+    │    Your Code                                                            │
+    │    ai.generate(prompt="What's trending on X?")                          │
+    │         │                                                               │
+    │         │  (1) Request goes to xAI plugin                               │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  XAI Plugin     │   Adds API key, formats request                  │
+    │    │                 │   (OpenAI-compatible format)                     │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) HTTPS to api.x.ai                                    │
+    │             ▼                                                           │
+    │    ════════════════════════════════════════════════════                 │
+    │             │  Internet                                                 │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  xAI Grok API   │   Grok processes your prompt                     │
+    │    │                 │   (may access real-time X data)                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) Response streamed back                               │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   response.text = "Here's what's trending..."    │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

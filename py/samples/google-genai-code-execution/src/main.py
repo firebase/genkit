@@ -19,6 +19,27 @@
 This sample demonstrates how to use Gemini's server-side code execution
 feature, which allows the model to write and execute Python code.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Code Execution      │ AI writes Python code AND runs it. Ask "what's     │
+    │                     │ 2+2?" and it actually calculates, not guesses.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Server-side         │ Code runs on Google's servers, not your computer.  │
+    │                     │ Safe sandbox environment.                          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Executable Code     │ The Python code Gemini writes to solve your        │
+    │                     │ problem. You can see what it created.              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Execution Result    │ The output from running the code. Numbers,         │
+    │                     │ data, or error messages.                           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ CustomPart          │ Special response parts containing code or          │
+    │                     │ results. Parse them to show the user.              │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

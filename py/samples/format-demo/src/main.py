@@ -19,6 +19,30 @@ structured and unstructured AI-generated content.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Output Format       │ What shape the AI's answer takes. Plain text,      │
+    │                     │ structured JSON, or something else.                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ text                │ Free-form text. Like a normal conversation.        │
+    │                     │ "Once upon a time..."                              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ json                │ Structured data. AI returns objects you can        │
+    │                     │ use in code: {name: "Bob", age: 25}                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ array               │ A list of items. ["item1", "item2", "item3"]       │
+    │                     │ Great for generating multiple things.              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ enum                │ One choice from a list. "What color?" → "blue"     │
+    │                     │ Perfect for classification tasks.                  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ jsonl               │ Multiple JSON objects, one per line.               │
+    │                     │ For streaming or large datasets.                   │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Output Formats
 ==============
 | Format   | Description                              | Use Case                    |

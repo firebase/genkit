@@ -20,6 +20,59 @@ This sample demonstrates Genkit's context caching feature, which allows
 expensive large context (like entire books) to be cached and reused across
 multiple queries, significantly improving response time and cost.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Context Caching     │ Save expensive work to reuse later. Like           │
+    │                     │ pre-cooking a big meal and reheating portions.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Large Context       │ Big documents (books, manuals, codebases).         │
+    │                     │ Expensive to process every time.                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ TTL (Time-To-Live)  │ How long the cache stays valid. After 5 min,       │
+    │                     │ it expires and must be re-created.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Cache Hit           │ Using cached context - FAST! Saves money           │
+    │                     │ and time by reusing previous work.                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Cache Miss          │ No cache available - must process from scratch.    │
+    │                     │ Slower, but creates cache for next time.           │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (Context Caching)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                   HOW CONTEXT CACHING SAVES TIME                        │
+    │                                                                         │
+    │    FIRST REQUEST (Cache Miss - creates cache)                           │
+    │    ─────────────────────────────────────────                            │
+    │    Query + Entire Book                                                  │
+    │         │                                                               │
+    │         │  (1) Send full context (slow, expensive)                      │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Gemini API     │   Processes book, caches internally              │
+    │    │  (with cache)   │   Returns: response + cache_id                   │
+    │    └────────┬────────┘                                                  │
+    │             │   Time: ~10 seconds, Cost: $$$                            │
+    │                                                                         │
+    │    FOLLOW-UP REQUESTS (Cache Hit - uses cache)                          │
+    │    ───────────────────────────────────────────                          │
+    │    Query + cache_id (no book needed!)                                   │
+    │         │                                                               │
+    │         │  (2) Just send new question                                   │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Gemini API     │   Uses cached context, answers quickly           │
+    │    │  (cache hit!)   │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │   Time: ~1 second, Cost: $                                │
+    │                                                                         │
+    │    Savings: 90% faster, 90% cheaper for follow-up questions!            │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

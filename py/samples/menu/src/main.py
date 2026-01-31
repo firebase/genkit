@@ -22,6 +22,24 @@ analysis system.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Multi-file App      │ Code split across multiple files. Each file        │
+    │                     │ handles one part (prompts, flows, tools).          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Module Organization │ Separate files for different concerns.             │
+    │                     │ case_01/prompts.py, case_02/flows.py, etc.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Flow Registration   │ Importing a module registers its flows.            │
+    │                     │ Just import it and Genkit knows about it.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Menu Analysis       │ AI reads menus and answers questions.              │
+    │                     │ "What vegetarian options are there?"               │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

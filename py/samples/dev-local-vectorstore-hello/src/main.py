@@ -21,6 +21,66 @@ This sample demonstrates Genkit's local vector store for development,
 which allows testing RAG (Retrieval Augmented Generation) without
 setting up external vector databases.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ RAG                 │ Retrieval-Augmented Generation. AI looks up        │
+    │                     │ your docs before answering. Fewer hallucinations!  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Vector Store        │ A database that finds "similar" items by meaning.  │
+    │                     │ "Happy" finds docs about "joyful" too.             │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Local Store         │ Runs on your computer, no cloud needed. Perfect    │
+    │                     │ for testing before deploying to production.        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Indexing            │ Adding documents to the store. Like a librarian    │
+    │                     │ cataloging new books.                              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Retrieval           │ Finding documents that match a query. "Show me     │
+    │                     │ docs about sci-fi films" returns matching results. │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow (RAG Pipeline)::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │               HOW RAG FINDS ANSWERS FROM YOUR DOCUMENTS                 │
+    │                                                                         │
+    │    STEP 1: INDEX (one-time setup)                                       │
+    │    ──────────────────────────────                                       │
+    │    Your Documents: ["The Godfather...", "The Matrix...", ...]           │
+    │         │                                                               │
+    │         │  (1) Convert each doc to numbers (embeddings)                 │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   "sci-fi film" → [0.2, -0.5, 0.8, ...]          │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Store in local vector store                          │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Local Store    │   All docs + embeddings saved locally            │
+    │    └─────────────────┘                                                  │
+    │                                                                         │
+    │    STEP 2: RETRIEVE (at query time)                                     │
+    │    ────────────────────────────────                                     │
+    │    Query: "What's a good sci-fi movie?"                                 │
+    │         │                                                               │
+    │         │  (3) Convert query to embedding                               │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   Query → [0.21, -0.48, 0.79, ...] (similar!)    │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Find nearest matches                                 │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Local Store    │   "The Matrix" (0.95 match)                      │
+    │    │                 │   "Inception" (0.89 match)                       │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

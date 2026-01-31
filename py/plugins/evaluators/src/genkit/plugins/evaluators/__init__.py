@@ -20,6 +20,73 @@
 This plugin provides evaluation metrics for RAG (Retrieval-Augmented Generation)
 applications, built as wrappers on the RAGAS framework.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Evaluation          │ Grading how well your AI answers questions.       │
+    │                     │ Like a teacher checking your homework.            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Judge Model         │ Another AI that grades the first AI's answers.    │
+    │                     │ "Is this answer good?" → Score: 0.85              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Relevancy           │ Does the answer actually address the question?    │
+    │                     │ Q: "What's 2+2?" A: "Blue" → Low relevancy!       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Faithfulness        │ Does the answer stick to the provided context?    │
+    │                     │ Or is the AI making stuff up (hallucinating)?     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Accuracy            │ Is the answer actually correct?                   │
+    │                     │ Compared against ground truth if available.       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Maliciousness       │ Is the response harmful or inappropriate?         │
+    │                     │ Safety check for AI outputs.                      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ RAGAS               │ A popular framework for RAG evaluation.           │
+    │                     │ We build on top of their proven metrics.          │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                   HOW AI EVALUATION WORKS                               │
+    │                                                                         │
+    │    Your RAG System                                                      │
+    │    Question: "What causes rain?"                                        │
+    │    Context: [retrieved documents about weather]                         │
+    │    Answer: "Rain is caused by..."                                       │
+    │         │                                                               │
+    │         │  (1) Send Q, A, Context to evaluator                          │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Evaluator      │   Packages data for the judge                    │
+    │    │  (Genkit)       │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Ask judge model to grade                             │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Judge Model    │   "Is this answer relevant?"                     │
+    │    │  (Gemini, etc.) │   "Is it faithful to the context?"              │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) Scores returned                                      │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Evaluation     │   relevancy: 0.92                                │
+    │    │  Results        │   faithfulness: 0.88                             │
+    │    │                 │   accuracy: 0.95                                 │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Use scores to improve your system                    │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   Track metrics, fix low scores,                 │
+    │    │                 │   improve prompts and retrieval                  │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

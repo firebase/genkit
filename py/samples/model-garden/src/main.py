@@ -20,6 +20,27 @@ This sample demonstrates how to use Vertex AI Model Garden, which provides
 access to various third-party models (like Anthropic Claude) through
 Google Cloud's infrastructure.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Model Garden        │ Google Cloud's model marketplace. Access Claude,   │
+    │                     │ Llama, Mistral, etc. through one platform.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Third-party Models  │ Models from other companies (Anthropic, Meta).     │
+    │                     │ Run on Google's infrastructure.                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ GCP Credentials     │ Your Google Cloud login. One auth method for       │
+    │                     │ all models (no separate API keys needed).          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ ModelGardenPlugin   │ The plugin that connects to Model Garden.          │
+    │                     │ Add it to Genkit, access many models.              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ model_garden_name   │ Helper to create model references.                 │
+    │                     │ "anthropic/claude-3-5-sonnet" becomes full path.   │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

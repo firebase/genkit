@@ -21,6 +21,80 @@ This plugin provides a simple, file-based vector store for local development
 and testing. It's not intended for production use but is ideal for prototyping
 RAG applications without setting up external infrastructure.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Vector Store        │ A special database for finding "similar" things.  │
+    │                     │ Like a librarian who knows all related books.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Local Dev Store     │ A simple vector store that runs on your computer. │
+    │                     │ No cloud setup needed - just start coding!        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Embeddings          │ Numbers that represent the meaning of text.       │
+    │                     │ "Happy" and "joyful" get similar numbers.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Indexer             │ Stores documents with their embeddings.           │
+    │                     │ Like a librarian cataloging new books.            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Retriever           │ Finds documents matching a query.                 │
+    │                     │ Like asking "show me docs about X".               │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Cosine Similarity   │ Math to compare how similar two embeddings are.   │
+    │                     │ 1.0 = identical, 0 = totally different.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ RAG                 │ Retrieval-Augmented Generation. Find relevant     │
+    │                     │ docs first, then let AI answer using them.        │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                HOW LOCAL VECTOR SEARCH WORKS                            │
+    │                                                                         │
+    │    STEP 1: INDEX YOUR DOCUMENTS                                         │
+    │    ─────────────────────────────                                        │
+    │    Your Documents: ["How to bake cookies", "Cookie recipes", ...]       │
+    │         │                                                               │
+    │         │  (1) Each doc gets converted to numbers                       │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   "bake cookies" → [0.2, -0.5, 0.8, ...]         │
+    │    │  (any model)    │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Stored in local file/memory                          │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Local Store    │   No database needed!                            │
+    │    │  (JSON file)    │   Just a file on your computer.                  │
+    │    └─────────────────┘                                                  │
+    │                                                                         │
+    │    STEP 2: SEARCH YOUR DOCUMENTS                                        │
+    │    ─────────────────────────────                                        │
+    │    Query: "How do I make chocolate chip cookies?"                       │
+    │         │                                                               │
+    │         │  (3) Query converted to embedding                             │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Embedder       │   Query → [0.21, -0.48, 0.79, ...] (similar!)    │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Find nearest neighbors (cosine similarity)           │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Similarity     │   "Cookie recipes" scores 0.95                   │
+    │    │  Search         │   "How to bake cookies" scores 0.92              │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (5) Return top matches                                   │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your App       │   Now AI can answer using these docs!            │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

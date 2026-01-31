@@ -21,6 +21,30 @@ enabling offline AI capabilities without external API dependencies.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Ollama              │ Software that runs AI on YOUR computer. No cloud  │
+    │                     │ needed - your data stays private!                 │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Local LLM           │ An AI that runs offline on your machine.          │
+    │                     │ Like having a mini ChatGPT at home.               │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Gemma               │ Google's open-source model. Free to run locally.  │
+    │                     │ Good for general tasks and coding help.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Mistral             │ Another open-source model. Good at reasoning      │
+    │                     │ and supports tool calling.                        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ ollama pull         │ Downloads a model. Run "ollama pull gemma3"       │
+    │                     │ before using it in your code.                     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ localhost:11434     │ Where Ollama listens. Your code talks to this     │
+    │                     │ address to use local models.                      │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                                      | Example Function / Code Snippet        |

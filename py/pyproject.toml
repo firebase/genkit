@@ -34,6 +34,7 @@ dependencies = [
   "genkit-plugin-mcp",
   "genkit-plugin-msfoundry",
   "genkit-plugin-aws-bedrock",
+  "genkit-plugin-aws",
   "liccheck>=0.9.2",
   "mcp>=1.25.0",
   "python-multipart>=0.0.22",
@@ -133,6 +134,7 @@ genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-mcp                   = { workspace = true }
 genkit-plugin-msfoundry             = { workspace = true }
 genkit-plugin-aws-bedrock           = { workspace = true }
+genkit-plugin-aws                   = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
@@ -140,6 +142,7 @@ google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
 msfoundry-hello                     = { workspace = true }
 aws-bedrock-hello                   = { workspace = true }
+aws-hello                           = { workspace = true }
 prompt-demo                         = { workspace = true }
 
 [tool.uv.workspace]
@@ -325,6 +328,7 @@ root = [
   "plugins/xai/src",
   "plugins/msfoundry/src",
   "plugins/aws-bedrock/src",
+  "plugins/aws/src",
   # Samples
   ".",                      # For samples.shared imports
   "samples/evaluator-demo", # For evaluator_demo package imports

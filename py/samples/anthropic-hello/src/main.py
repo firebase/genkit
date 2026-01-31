@@ -21,6 +21,33 @@ including tools, streaming, thinking mode, and multimodal capabilities.
 
 See README.md for testing instructions.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Claude              │ Anthropic's AI assistant. Like a helpful friend   │
+    │                     │ who's great at explaining things and writing.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Haiku               │ Claude's fast model. Quick responses for simple   │
+    │                     │ tasks. Great for chatbots and quick Q&A.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Sonnet              │ Claude's balanced model. Good at most tasks       │
+    │                     │ without being too slow or expensive.              │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Tool Calling        │ Let Claude use functions you define. "Get the     │
+    │                     │ weather" → Claude calls your weather function.    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Thinking Mode       │ Claude shows its reasoning step by step.          │
+    │                     │ Like showing your work on a math test.            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Streaming           │ Get Claude's response word-by-word.               │
+    │                     │ Feels faster, like watching someone type.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Multimodal          │ Claude can see images! Send a photo and ask       │
+    │                     │ "What's in this picture?"                         │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |

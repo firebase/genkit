@@ -20,6 +20,66 @@
 This plugin provides Flask integration for Genkit, enabling you to expose
 Genkit flows as HTTP endpoints in a Flask application.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Flask               │ A simple Python web framework. Like a waiter      │
+    │                     │ that takes HTTP requests and serves responses.    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ HTTP Endpoint       │ A URL that accepts requests. Like a phone number  │
+    │                     │ your app answers when called.                     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Flow                │ A Genkit function that does AI work. This plugin  │
+    │                     │ lets you call flows via HTTP requests.            │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Route               │ Maps a URL to a function. /api/chat → chat_flow   │
+    │                     │                                                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Request Handler     │ Code that processes incoming requests.            │
+    │                     │ genkit_flask_handler does this for you.           │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ POST                │ HTTP method for sending data. Like mailing a      │
+    │                     │ letter with your prompt inside.                   │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
+Data Flow::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                HOW FLASK SERVES YOUR GENKIT FLOWS                       │
+    │                                                                         │
+    │    Client (Browser, curl, etc.)                                         │
+    │    POST /api/chat {"prompt": "Hello!"}                                  │
+    │         │                                                               │
+    │         │  (1) HTTP request arrives                                     │
+    │         ▼                                                               │
+    │    ┌─────────────────┐                                                  │
+    │    │  Flask App      │   Routes request to the right handler            │
+    │    │  @app.route()   │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (2) Handler invoked                                      │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │ genkit_flask_   │   Parses JSON body, validates input              │
+    │    │ handler()       │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (3) Calls your Genkit flow                               │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Your Flow      │   Does AI magic (generate, tools, etc.)          │
+    │    │  async def ...  │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  (4) Response serialized to JSON                          │
+    │             ▼                                                           │
+    │    ┌─────────────────┐                                                  │
+    │    │  Client         │   {"result": "Hello! How can I help?"}           │
+    │    └─────────────────┘                                                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Architecture Overview::
 
     ┌─────────────────────────────────────────────────────────────────────────┐

@@ -20,6 +20,27 @@ This sample demonstrates how to create a simple RAG application using
 Ollama for local embeddings and generation, creating a Pokemon glossary
 without any external API dependencies.
 
+Key Concepts (ELI5)::
+
+    ┌─────────────────────┬────────────────────────────────────────────────────┐
+    │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Local RAG           │ RAG that runs on YOUR computer. No cloud needed,   │
+    │                     │ your Pokemon data stays private!                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Ollama Embeddings   │ Convert text to numbers using local models.        │
+    │                     │ "Pikachu" → [0.2, -0.5, 0.8, ...]                  │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Vector Similarity   │ Find similar items by comparing numbers.           │
+    │                     │ "electric mouse" finds Pikachu!                    │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Cosine Similarity   │ Math to compare how similar two things are.        │
+    │                     │ 1.0 = identical, 0 = completely different.         │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Pokemon Glossary    │ A searchable database of Pokemon info.             │
+    │                     │ Ask questions, get answers from your data.         │
+    └─────────────────────┴────────────────────────────────────────────────────┘
+
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |
