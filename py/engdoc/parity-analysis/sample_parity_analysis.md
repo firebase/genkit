@@ -97,7 +97,7 @@ This document analyzes the sample/testapp coverage between JS and Python impleme
 
 | Feature | JS | Python | Notes |
 |---------|-----|--------|-------|
-| Prompt Files | ✅ `prompt-file` | ✅ `prompt_demo` | Parity ✅ |
+| Prompt Files | ✅ `prompt-file` | ✅ `prompt-demo` | Parity ✅ |
 | Flow Samples | ✅ `flow-sample1`, `flow-simple-ai` | ✅ (in menu) | Parity ✅ |
 | Menu Demo | ✅ `menu`, `docs-menu-basic`, `docs-menu-rag` | ✅ `menu` | Parity ✅ |
 | DevUI Gallery | ✅ `dev-ui-gallery` | ❌ | **Python missing** |
