@@ -107,7 +107,7 @@ class DeepSeek(Plugin):
             **self.deepseek_params,
         )
 
-        model_info = deepseek_model.get_model_info()
+        model_info = deepseek_model.get_model_info() or {}
         generate_fn = deepseek_model.to_deepseek_model()
 
         return Action(

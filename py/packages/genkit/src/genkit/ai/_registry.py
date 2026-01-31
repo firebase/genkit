@@ -183,7 +183,8 @@ def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentDa
             return DocumentData(content=transformed)
 
     if isinstance(options.content, str) and isinstance(item, dict):
-        return Document.from_text(str(item[options.content]))
+        item_dict = cast(dict[str, object], item)
+        return Document.from_text(str(item_dict[options.content]))
 
     if options.content is None and isinstance(item, str):
         return Document.from_text(item)
@@ -197,7 +198,14 @@ def _item_to_metadata(item: R, options: SimpleRetrieverOptions[R]) -> dict[str, 
         return None
 
     if isinstance(options.metadata, list) and isinstance(item, dict):
-        return {str(k): item[k] for k in options.metadata if k in item}
+        item_dict = cast(dict[str, object], item)
+        result: dict[str, Any] = {}
+        for key in options.metadata:
+            str_key = str(key)
+            value = item_dict.get(str_key)
+            if value is not None:
+                result[str_key] = value
+        return result
 
     if callable(options.metadata):
         return options.metadata(item)
@@ -754,14 +762,13 @@ class GenkitRegistry:
         if metadata and 'reranker' in metadata:
             existing = metadata['reranker']
             if isinstance(existing, dict):
-                if 'label' in existing and existing['label']:
-                    label_val = existing['label']
-                    if isinstance(label_val, str):
-                        reranker_label = label_val
-                if 'customOptions' in existing:
-                    opts_val = existing['customOptions']
-                    if isinstance(opts_val, dict):
-                        reranker_config_schema = opts_val
+                existing_dict = cast(dict[str, object], existing)
+                label_val = existing_dict.get('label')
+                if isinstance(label_val, str) and label_val:
+                    reranker_label = label_val
+                opts_val = existing_dict.get('customOptions')
+                if isinstance(opts_val, dict):
+                    reranker_config_schema = cast(dict[str, object], opts_val)
 
         # Override with config_schema if provided
         if config_schema:
@@ -1024,8 +1031,9 @@ class GenkitRegistry:
         if metadata and 'model' in metadata:
             existing = metadata['model']
             if isinstance(existing, dict):
-                for key, value in existing.items():
-                    if key not in model_options:  # Don't override info
+                existing_dict = cast(dict[str, object], existing)
+                for key, value in existing_dict.items():
+                    if isinstance(key, str) and key not in model_options:
                         model_options[key] = value
 
         # Default label to name if not set
