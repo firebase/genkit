@@ -359,12 +359,50 @@ func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.St
 	return core.DefineStreamingFlow(g.reg, name, fn)
 }
 
-// DefineBidiFlow defines a bidirectional streaming flow, registers it, and
-// returns a [core.Flow] that can be used to start bidi connections.
+// DefineBidiFlow defines a bidirectional streaming flow, registers it as a [core.Action] of type Flow,
+// and returns a [core.Flow] capable of bidirectional streaming.
 //
-// The provided function receives initialization data, reads inputs from
-// a channel, and writes streamed outputs to a channel. It returns a final
-// output when complete.
+// The provided function `fn` receives initialization data of type `Init`, reads
+// inputs of type `In` from an input channel, and writes streamed outputs of type
+// `Stream` to an output channel. It returns a final output of type `Out` when complete.
+//
+// Example:
+//
+//	chatFlow := genkit.DefineBidiFlow(g, "chat",
+//		func(ctx context.Context, init struct{}, inCh <-chan string, outCh chan<- string) (string, error) {
+//			var count int
+//			for input := range inCh {
+//				count++
+//				outCh <- fmt.Sprintf("reply: %s", input)
+//			}
+//			return fmt.Sprintf("processed %d messages", count), nil
+//		},
+//	)
+//
+//	// Start a bidi connection:
+//	conn, err := chatFlow.StreamBidi(ctx, struct{}{})
+//	if err != nil {
+//		// handle error
+//	}
+//
+//	// Send messages concurrently:
+//	go func() {
+//		conn.Send("hello")
+//		conn.Send("world")
+//		conn.Close()
+//	}()
+//
+//	// Receive streamed responses:
+//	for chunk, err := range conn.Receive() {
+//		if err != nil {
+//			// handle error
+//		}
+//		fmt.Println(chunk) // Outputs: "reply: hello", "reply: world"
+//	}
+//
+//	// Get the final output:
+//	output, err := conn.Output()
+//	fmt.Println(output) // Output: "processed 2 messages"
 func DefineBidiFlow[In, Out, Stream, Init any](g *Genkit, name string, fn core.BidiFunc[In, Out, Stream, Init]) *core.Flow[In, Out, Stream, Init] {
 	return core.DefineBidiFlow(g.reg, name, fn)
 }
