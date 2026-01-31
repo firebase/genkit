@@ -19,35 +19,35 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
-// mockTool implements ai.Tool for testing
-type mockTool struct {
-	ai.Tool
-	name string
-	desc string
-}
-
-func (m *mockTool) Name() string { return m.name }
-func (m *mockTool) Definition() *ai.ToolDefinition {
-	return &ai.ToolDefinition{
-		Name:        m.name,
-		Description: m.desc,
-		InputSchema: map[string]any{"type": "object"},
-	}
-}
-
 func TestToMCPTool(t *testing.T) {
-	server := &GenkitMCPServer{}
-	
-	mt := &mockTool{name: "test_tool", desc: "test desc"}
-	got := server.toMCPTool(mt)
+	ctx := context.Background()
+	g := genkit.Init(ctx)
+	server := &GenkitMCPServer{genkit: g}
 
-	if got.Name != "test_tool" {
-		t.Errorf("mcpTool.Name got = %q, want %q", got.Name, "test_tool")
+	// Use genkit.DefineTool to create a real tool
+	genkitTool := genkit.DefineTool(g, "gablorken", "calculates a gablorken",
+		func(ctx *ai.ToolContext, input struct {
+			Value int
+			Over  float64
+		},
+		) (float64, error) {
+			return 0, nil
+		},
+	)
+
+	got := server.toMCPTool(genkitTool)
+
+	if got.Name != "gablorken" {
+		t.Errorf("mcpTool.Name got = %q, want %q", got.Name, "gablorken")
 	}
-	if got.Description != "test desc" {
-		t.Errorf("mcpTool.Description got = %q, want %q", got.Description, "test desc")
+	if got.Description != "calculates a gablorken" {
+		t.Errorf("mcpTool.Description got = %q, want %q", got.Description, "calculates a gablorken")
+	}
+	if got.InputSchema == nil {
+		t.Fatal("mcpTool.InputSchema is nil")
 	}
 }
 
@@ -55,9 +55,9 @@ func TestNewMCPServer(t *testing.T) {
 	ctx := context.Background()
 	// Basic check that constructor sets up version
 	s := NewMCPServer(nil, MCPServerOptions{Name: "test-server"})
-	
+
 	if got := s.options.Version; got != "1.0.0" {
 		t.Errorf("default version got = %q, want %q", got, "1.0.0")
 	}
-    _ = ctx
+	_ = ctx
 }
