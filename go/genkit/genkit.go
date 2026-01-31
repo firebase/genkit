@@ -304,7 +304,7 @@ func RegisterAction(g *Genkit, action api.Registerable) {
 //		// handle error
 //	}
 //	fmt.Println(result) // Output: Hello, World!
-func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *core.Flow[In, Out, struct{}] {
+func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *core.Flow[In, Out, struct{}, struct{}] {
 	return core.DefineFlow(g.reg, name, fn)
 }
 
@@ -355,8 +355,18 @@ func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *cor
 //			fmt.Println("Stream Chunk:", result.Stream) // Outputs: 1, 2, 3, 4, 5
 //		}
 //	}
-func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.StreamingFunc[In, Out, Stream]) *core.Flow[In, Out, Stream] {
+func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.StreamingFunc[In, Out, Stream]) *core.Flow[In, Out, Stream, struct{}] {
 	return core.DefineStreamingFlow(g.reg, name, fn)
+}
+
+// DefineBidiFlow defines a bidirectional streaming flow, registers it, and
+// returns a [core.Flow] that can be used to start bidi connections.
+//
+// The provided function receives initialization data, reads inputs from
+// a channel, and writes streamed outputs to a channel. It returns a final
+// output when complete.
+func DefineBidiFlow[In, Out, Stream, Init any](g *Genkit, name string, fn core.BidiFunc[In, Out, Stream, Init]) *core.Flow[In, Out, Stream, Init] {
+	return core.DefineBidiFlow[In, Out, Stream, Init](g.reg, name, fn)
 }
 
 // Run executes the given function `fn` within the context of the current flow run,

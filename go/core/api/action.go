@@ -74,5 +74,7 @@ type ActionDesc struct {
 	Description  string         `json:"description"`  // Description of the action.
 	InputSchema  map[string]any `json:"inputSchema"`  // JSON schema to validate against the action's input.
 	OutputSchema map[string]any `json:"outputSchema"` // JSON schema to validate against the action's output.
-	Metadata     map[string]any `json:"metadata"`     // Metadata for the action.
+	Metadata     map[string]any `json:"metadata"`                       // Metadata for the action.
+	StreamSchema map[string]any `json:"streamSchema,omitempty"` // JSON schema for streamed chunks.
+	InitSchema   map[string]any `json:"initSchema,omitempty"`   // JSON schema for initialization data.
 }
