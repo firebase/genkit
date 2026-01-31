@@ -156,6 +156,42 @@ func main() {
 }
 ```
 
+### Exposing as an HTTP Server (SSE)
+
+You can also expose your Genkit tools over HTTP using Server-Sent Events (SSE):
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/mcp"
+)
+
+func main() {
+	g := genkit.Init(context.Background())
+
+	// Define tools...
+
+	server := mcp.NewMCPServer(g, mcp.MCPServerOptions{
+		Name: "my-genkit-http-server",
+	})
+
+	handler, err := server.HTTPHandler()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	http.Handle("/mcp", handler)
+	log.Printf("MCP server listening on http://localhost:8080/mcp")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+```
+
 ## Testing Your Server
 
 ```bash

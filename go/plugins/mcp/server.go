@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
@@ -54,6 +55,10 @@ func NewMCPServer(g *genkit.Genkit, opts MCPServerOptions) *GenkitMCPServer {
 }
 
 func (s *GenkitMCPServer) setup() error {
+	if s.server != nil {
+		return nil
+	}
+
 	s.server = mcp.NewServer(&mcp.Implementation{
 		Name:    s.options.Name,
 		Title:   s.options.Title,
@@ -235,4 +240,17 @@ func (s *GenkitMCPServer) ServeStdio() error {
 		return err
 	}
 	return s.server.Run(context.Background(), &mcp.StdioTransport{})
+}
+
+// HTTPHandler creates an HTTP handler that serves MCP using SSE.
+func (s *GenkitMCPServer) HTTPHandler() (http.Handler, error) {
+	if err := s.setup(); err != nil {
+		return nil, err
+	}
+
+	sseHandler := mcp.NewSSEHandler(func(r *http.Request) *mcp.Server {
+		return s.server
+	}, nil)
+
+	return sseHandler, nil
 }
