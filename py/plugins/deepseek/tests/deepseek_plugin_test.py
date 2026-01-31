@@ -178,11 +178,11 @@ def test_deepseek_client_default_base_url() -> None:
     """Test DeepSeekClient uses default base_url when not provided."""
     from openai import OpenAI
 
-    from genkit.plugins.deepseek.client import DeepSeekClient
+    from genkit.plugins.deepseek.client import DEFAULT_DEEPSEEK_API_URL, DeepSeekClient
 
     with patch.object(OpenAI, '__init__', return_value=None) as mock_init:
         DeepSeekClient(api_key='test-key')
         mock_init.assert_called_once_with(
             api_key='test-key',
-            base_url='https://api.deepseek.com',
+            base_url=DEFAULT_DEEPSEEK_API_URL,
         )

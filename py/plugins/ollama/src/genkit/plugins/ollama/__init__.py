@@ -19,6 +19,31 @@
 This plugin provides integration with Ollama for running local LLMs. Ollama
 allows you to run models like Llama, Mistral, and others on your own hardware.
 
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                          Ollama Plugin                                  │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── Ollama - Plugin class                                              │
+    │  └── ollama_name() - Helper to create namespaced model names            │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  plugin_api.py - Plugin Implementation                                  │
+    │  ├── Ollama class (registers models and embedders)                      │
+    │  └── Configuration for server URL and models                            │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models.py - Model Implementation                                       │
+    │  ├── OllamaModel (chat/generate API integration)                        │
+    │  ├── Request/response conversion                                        │
+    │  └── Streaming support                                                  │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  embedders.py - Embedding Implementation                                │
+    │  └── OllamaEmbedder (embedding API integration)                         │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  constants.py - Default Configuration                                   │
+    │  └── DEFAULT_OLLAMA_SERVER_URL                                          │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Overview:
     The Ollama plugin connects Genkit to locally running Ollama models.
     This is ideal for development, privacy-sensitive applications, or

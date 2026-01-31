@@ -21,6 +21,40 @@ This plugin provides integration with Google's AI services, including
 Google AI (Gemini API) and Vertex AI. It registers Gemini models and
 embedders for use with the Genkit framework.
 
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                       Google GenAI Plugin                               │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── GoogleAI - Plugin for Gemini API (api_key auth)                    │
+    │  ├── VertexAI - Plugin for Vertex AI (GCP auth)                         │
+    │  ├── Model version enums (GoogleAIGeminiVersion, VertexAIGeminiVersion) │
+    │  └── Config schemas (GeminiConfigSchema, etc.)                          │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  google.py - Plugin Implementation                                      │
+    │  ├── GoogleAI class (Gemini API integration)                            │
+    │  └── VertexAI class (Vertex AI integration)                             │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/gemini.py - Gemini Model Implementation                         │
+    │  ├── GeminiModel (generation logic)                                     │
+    │  ├── Request/response conversion                                        │
+    │  └── Streaming and tool calling support                                 │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/embedder.py - Embedding Implementation                          │
+    │  ├── GeminiEmbedder (text embeddings)                                   │
+    │  └── EmbeddingTaskType enum                                             │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/imagen.py - Image Generation                                    │
+    │  └── ImagenModel (Vertex AI only)                                       │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/veo.py - Video Generation                                       │
+    │  └── VeoModel (Vertex AI only)                                          │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  models/lyria.py - Audio Generation                                     │
+    │  └── LyriaModel (Vertex AI only)                                        │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Overview:
     The Google GenAI plugin supports two backends:
     - **GoogleAI**: Direct Gemini API access (requires GEMINI_API_KEY)

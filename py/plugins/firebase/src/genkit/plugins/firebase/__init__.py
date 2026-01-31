@@ -19,6 +19,32 @@
 This plugin provides Firebase integrations for Genkit, including Firestore
 vector stores for RAG and Firebase telemetry export to Google Cloud.
 
+Architecture Overview::
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        Firebase Plugin                                  │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  Plugin Entry Point (__init__.py)                                       │
+    │  ├── define_firestore_vector_store() - Create Firestore vector store    │
+    │  └── add_firebase_telemetry() - Enable Cloud observability              │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  firestore.py - Firestore Vector Store                                  │
+    │  ├── define_firestore_vector_store() - Main factory function            │
+    │  ├── Firestore indexer implementation                                   │
+    │  └── Firestore retriever implementation                                 │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  retriever.py - Retriever Implementation                                │
+    │  └── FirestoreRetriever (vector similarity search)                      │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                     Firestore Vector Store Flow                         │
+    │                                                                         │
+    │  Documents ──► Embedder ──► Firestore (with vector index)               │
+    │                                                                         │
+    │  Query ──► Embedder ──► Firestore Vector Search ──► Results             │
+    └─────────────────────────────────────────────────────────────────────────┘
+
 Overview:
     The Firebase plugin enables:
     - Firestore as a vector store for document retrieval (RAG)

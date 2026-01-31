@@ -123,6 +123,10 @@
   * **Returns**: Required for callables.
   * **Examples**: Required for user-facing API.
   * **Caveats**: Known limitations or edge cases.
+  * **Implementation Notes & Edge Cases**: For complex modules (especially plugins),
+    document implementation details that differ from typical patterns or other
+    similar implementations. Explain both **why** the edge case exists and **what**
+    the solution is.
 * **References**:
   * Please use the descriptions from genkit.dev and
     github.com/genkit-ai/docsite as the source of truth for the API and
@@ -133,10 +137,95 @@
 * Add links to relevant documentation on the Web or elsewhere
   in the relevent places in docstrings.
 * Add ASCII diagrams to illustrate relationships, flows, and concepts.
+* **Plugin Architecture Diagrams**: Every plugin MUST include an ASCII architecture
+  diagram in its module docstring (typically in `__init__.py` or `typing.py`).
+  This helps developers understand the plugin structure at a glance:
+
+  ```
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                         Plugin Name                                     │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  Plugin Entry Point (__init__.py)                                       │
+  │  ├── plugin_factory() - Plugin factory function                         │
+  │  ├── Model References (model_a, model_b, ...)                           │
+  │  └── Helper Functions (name_helper, config_helper, ...)                 │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  typing.py - Type-Safe Configuration Classes                            │
+  │  ├── BaseConfig (base configuration)                                    │
+  │  ├── ProviderAConfig, ProviderBConfig, ...                              │
+  │  └── Provider-specific enums and types                                  │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  plugin.py - Plugin Implementation                                      │
+  │  ├── PluginClass (registers models/embedders/tools)                     │
+  │  └── Configuration and client initialization                            │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  models/model.py - Model Implementation                                 │
+  │  ├── ModelClass (API integration)                                       │
+  │  ├── Request/response conversion                                        │
+  │  └── Streaming support                                                  │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  models/model_info.py - Model Registry (if applicable)                  │
+  │  ├── SUPPORTED_MODELS                                                   │
+  │  └── SUPPORTED_EMBEDDING_MODELS                                         │
+  └─────────────────────────────────────────────────────────────────────────┘
+  ```
+
+  **Guidelines for architecture diagrams**:
+  * Use box-drawing characters (`┌ ┐ └ ┘ ─ │ ├ ┤ ┬ ┴ ┼`) for clean appearance
+  * Show file/module organization and their responsibilities
+  * Highlight key classes, functions, and exports
+  * Include model registries and configuration classes
+  * Keep the diagram updated when plugin structure changes
 * Always update module docstrings and function docstrings when updating code
   to reflect updated reality of any file you add or modify.
 * Scan documentation for every module you edit and keep it up-to-date.
 * In sample code, always add instructions about testing the demo.
+* **Document Edge Cases in Module Docstrings**: When a module handles edge cases
+  differently from typical patterns or other similar implementations, document
+  these in a dedicated "Implementation Notes & Edge Cases" section. Include:
+  * **Why** the edge case exists (API limitations, platform differences, etc.)
+  * **What** the solution is (the implementation approach)
+  * **Comparison** with how other similar systems handle it (if relevant)
+
+  Example from the AWS Bedrock plugin module docstring:
+
+  ```python
+  """AWS Bedrock model implementation for Genkit.
+
+  ...
+
+  Implementation Notes & Edge Cases
+  ---------------------------------
+
+  **Media URL Fetching (Bedrock-Specific Requirement)**
+
+  Unlike other AI providers (Anthropic, OpenAI, Google GenAI, xAI) that accept
+  media URLs directly in their APIs and fetch the content server-side, AWS
+  Bedrock's Converse API **only accepts inline bytes**.
+
+  This means we must fetch media content client-side before sending to Bedrock::
+
+      # Other providers (e.g., Anthropic):
+      {'type': 'url', 'url': 'https://example.com/image.jpg'}  # API fetches it
+
+      # AWS Bedrock requires:
+      {'image': {'format': 'jpeg', 'source': {'bytes': b'...actual bytes...'}}}
+
+  We use ``httpx.AsyncClient`` for true async HTTP requests. This approach:
+
+  - Uses httpx which is already a genkit core dependency
+  - True async I/O (no thread pool needed)
+  - Doesn't block the event loop during network I/O
+
+  **JSON Output Mode (Prompt Engineering)**
+
+  The Bedrock Converse API doesn't have native JSON mode. When JSON output is
+  requested, we inject instructions into the system prompt to guide the model.
+  """
+  ```
+
+  This helps future maintainers understand non-obvious implementation choices
+  and prevents accidental regressions when the code is modified.
 
 ### Implementation
 
@@ -241,6 +330,19 @@
       ...
   ```
 
+* **Sample Media URLs**: When samples need to reference an image URL (e.g., for
+  multimodal/vision demonstrations), use this public domain image from Wikimedia:
+
+  ```
+  https://upload.wikimedia.org/wikipedia/commons/1/13/Cute_kitten.jpg
+  ```
+
+  This ensures:
+  * Consistent testing across all samples
+  * No licensing concerns (public domain)
+  * Reliable availability (Wikimedia infrastructure)
+  * Known working URL that has been tested with various providers
+
 * **Rich Tracebacks**: Use `rich` for beautiful, Rust-like colored exception
   messages in samples. Add to imports and call after all imports:
 
@@ -252,6 +354,76 @@
   ```
 
   Add `"rich>=13.0.0"` to the sample's `pyproject.toml` dependencies.
+
+### Avoiding Hardcoding
+
+Avoid hardcoding region-specific values, URLs, or other configuration that varies by
+deployment environment. This makes the code more portable and user-friendly globally.
+
+* **Environment Variables First**: Always check environment variables before falling back
+  to defaults. Prefer raising clear errors over silently using defaults that may not work
+  for all users.
+
+  ```python
+  # Good: Clear error if not configured
+  region = os.environ.get('AWS_REGION') or os.environ.get('AWS_DEFAULT_REGION')
+  if region is None:
+      raise ValueError('AWS region is required. Set AWS_REGION environment variable.')
+
+  # Bad: Silent default that only works in US
+  region = os.environ.get('AWS_REGION', 'us-east-1')
+  ```
+
+* **Named Constants**: Extract hardcoded values into named constants at module level.
+  This makes them discoverable and documents their purpose.
+
+  ```python
+  # Good: Named constant with clear purpose
+  DEFAULT_OLLAMA_SERVER_URL = 'http://127.0.0.1:11434'
+
+  class OllamaPlugin:
+      def __init__(self, server_url: str | None = None):
+          self.server_url = server_url or DEFAULT_OLLAMA_SERVER_URL
+
+  # Bad: Inline hardcoded value
+  class OllamaPlugin:
+      def __init__(self, server_url: str = 'http://127.0.0.1:11434'):
+          ...
+  ```
+
+* **Region-Agnostic Helpers**: For cloud services with regional endpoints, provide helper
+  functions that auto-detect the region instead of hardcoding a specific region.
+
+  ```python
+  # Good: Helper that detects region from environment
+  def get_inference_profile_prefix(region: str | None = None) -> str:
+      if region is None:
+          region = os.environ.get('AWS_REGION')
+      if region is None:
+          raise ValueError('Region is required.')
+      # Map region to prefix...
+
+  # Bad: Hardcoded US default
+  def get_inference_profile_prefix(region: str = 'us-east-1') -> str:
+      ...
+  ```
+
+* **Documentation Examples**: In documentation and docstrings, use placeholder values
+  that are clearly examples, not real values users might accidentally copy.
+
+  ```python
+  # Good: Clear placeholder
+  endpoint='https://your-resource.openai.azure.com/'
+
+  # Bad: Looks like it might work
+  endpoint='https://eastus.api.example.com/'
+  ```
+
+* **What IS Acceptable to Hardcode**:
+  * Official API endpoints that don't vary (e.g., `https://api.deepseek.com`)
+  * Default ports for local services (e.g., `11434` for Ollama)
+  * AWS/cloud service names (e.g., `'bedrock-runtime'`)
+  * Factual values from documentation (e.g., embedding dimensions)
 
 ### Formatting
 
