@@ -56,6 +56,7 @@ def init_provider() -> TracerProvider:
     if tracer_provider is None or not isinstance(tracer_provider, TracerProvider):  # pyright: ignore[reportUnnecessaryComparison]
         tracer_provider = TracerProvider()
         trace_api.set_tracer_provider(tracer_provider)
+        # pyrefly: ignore[missing-attribute] - LoggingInstrumentor has instrument() method
         LoggingInstrumentor().instrument(set_logging_format=True)
         logger.debug('Creating a new global tracer provider for telemetry.')
 

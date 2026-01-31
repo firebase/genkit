@@ -75,6 +75,7 @@ import time
 
 from google.cloud import aiplatform, firestore
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
@@ -82,6 +83,8 @@ from genkit.core.logging import get_logger
 from genkit.core.typing import RetrieverResponse
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import define_vertex_vector_search_firestore
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 LOCATION = os.environ['LOCATION']
 PROJECT_ID = os.environ['PROJECT_ID']
@@ -175,7 +178,8 @@ async def main() -> None:
         k=3,
     )
 
-    await logger.ainfo(await query_flow(query_input))
+    result = await query_flow(query_input)
+    await logger.ainfo(str(result))
 
 
 if __name__ == '__main__':

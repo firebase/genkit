@@ -121,7 +121,7 @@ class McpClient(Plugin):
                 self._session_context = session_context
 
             elif self.config.url:
-                # TODO: Verify SSE client usage in mcp python SDK
+                # TODO(#4364): Verify SSE client usage in mcp python SDK
                 sse_context = sse_client(self.config.url)
                 read, write = await sse_context.__aenter__()
                 self._exit_stack = sse_context
@@ -220,7 +220,7 @@ class McpClient(Plugin):
                 # We need to capture tool and client in closure
                 async def tool_wrapper(args: object = None, _tool_name: str = tool.name) -> object:
                     # args might be Pydantic model or dict. Genkit passes dict usually?
-                    # TODO: Validate args against schema if needed
+                    # TODO(#4365): Validate args against schema if needed
                     arguments: dict[str, Any] = {}
                     if isinstance(args, dict):
                         arguments = cast(dict[str, Any], args)
@@ -229,7 +229,7 @@ class McpClient(Plugin):
                     return await self.call_tool(_tool_name, arguments)
 
                 # Use metadata to store MCP specific info
-                metadata = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
+                metadata: dict[str, object] = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
 
                 # Define the tool in Genkit registry
                 registry.register_action(
@@ -238,7 +238,7 @@ class McpClient(Plugin):
                     fn=tool_wrapper,
                     description=tool.description,
                     metadata=metadata,
-                    # TODO: json_schema conversion from tool.inputSchema
+                    # TODO(#4366): json_schema conversion from tool.inputSchema
                 )
                 logger.debug(f'Registered MCP tool: {self.server_name}/{tool.name}')
         except Exception as e:

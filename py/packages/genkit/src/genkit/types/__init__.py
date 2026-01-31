@@ -14,10 +14,68 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""User-facing types for Genkit.
+"""User-facing types for the Genkit framework.
 
-This module exports all types that users may need when building Genkit applications.
-For the main Genkit class, import from `genkit` directly.
+This module re-exports all public types that users may need when building
+Genkit applications. It provides a single import point for common types
+like Message, Part, Document, and response types.
+
+Overview:
+    Types in Genkit are organized into categories based on their use case.
+    This module exports types that are commonly needed in user code.
+
+Type Categories:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Category                │ Key Types                                     │
+    ├─────────────────────────┼───────────────────────────────────────────────┤
+    │ Message/Part            │ Message, Part, TextPart, MediaPart, Role      │
+    │ Document                │ Document, DocumentData                        │
+    │ Generation              │ GenerateRequest, GenerateResponse, OutputConf │
+    │ Tools                   │ ToolRequest, ToolResponse, ToolDefinition     │
+    │ Embedding               │ Embedding, EmbedRequest, EmbedResponse        │
+    │ Retrieval               │ RetrieverRequest, RetrieverResponse           │
+    │ Evaluation              │ EvalRequest, EvalResponse, Score              │
+    │ Model Info              │ ModelInfo, Supports, Constrained              │
+    │ Errors                  │ GenkitError, ToolInterruptError               │
+    └─────────────────────────┴───────────────────────────────────────────────┘
+
+Example:
+    Importing types for a Genkit application:
+
+    ```python
+    from genkit import Genkit
+    from genkit.types import Message, Part, TextPart, Document
+
+    ai = Genkit(...)
+
+    # Create a message manually
+    message = Message(
+        role='user',
+        content=[Part(root=TextPart(text='Hello!'))],
+    )
+
+    # Create a document
+    doc = Document.from_text('Some content', metadata={'source': 'file.txt'})
+    ```
+
+    Plugin authors may need model info types:
+
+    ```python
+    from genkit.types import ModelInfo, Supports
+
+    model_info = ModelInfo(
+        label='My Model',
+        supports=Supports(
+            multiturn=True,
+            tools=True,
+            systemRole=True,
+        ),
+    )
+    ```
+
+See Also:
+    - genkit.core.typing: Source definitions for these types
+    - genkit.blocks.document: Document class implementation
 """
 
 from genkit.blocks.document import Document

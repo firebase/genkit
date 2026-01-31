@@ -37,9 +37,10 @@ Key Features
 | Tool Response Handling                                   | `say_hi_constrained`                   |
 """
 
-from typing import Annotated, Any, cast
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
@@ -48,6 +49,8 @@ from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,
 )
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 logger = get_logger(__name__)
 
@@ -145,22 +148,58 @@ class WeatherToolInput(BaseModel):
     location: str = Field(description='weather location')
 
 
+class GablorkenFlowInput(BaseModel):
+    """Input for gablorken calculation flow."""
+
+    value: int = Field(default=33, description='Value to calculate gablorken for')
+
+
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    hi_input: str = Field(default='Mittens', description='Name to greet')
+
+
+class SayHiConstrainedInput(BaseModel):
+    """Input for constrained greeting flow."""
+
+    hi_input: str = Field(default='Fluffy', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name for streaming greeting')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class WeatherFlowInput(BaseModel):
+    """Input for weather flow."""
+
+    location: str = Field(default='San Francisco', description='Location for weather')
+
+
 @ai.flow()
-async def calculate_gablorken(value: Annotated[int, Field(default=33)] = 33) -> str:
+async def calculate_gablorken(input: GablorkenFlowInput) -> str:
     """Generate a request to calculate gablorken according to gablorken_tool.
 
     Args:
-        value: Input data containing number
+        input: Input with value for gablorken calculation.
 
     Returns:
         A GenerateRequest object with the evaluation output
 
     Example:
-        >>> await calculate_gablorken(33)
+        >>> await calculate_gablorken(GablorkenFlowInput(value=33))
         '94'
     """
     response = await ai.generate(
-        prompt=f'Use the gablorken_tool to calculate the gablorken of {value}',
+        prompt=f'Use the gablorken_tool to calculate the gablorken of {input.value}',
         model=ollama_name(MISTRAL_MODEL),
         tools=['gablorken_tool'],
     )
@@ -217,23 +256,21 @@ def gablorken_tool(input: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-) -> RpgCharacter:
+async def generate_character(input: CharacterInput) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
 
     Returns:
         The generated RPG character.
     """
     result = await ai.generate(
         model=ollama_name(GEMMA_MODEL),
-        prompt=f'generate an RPG character named {name}',
+        prompt=f'generate an RPG character named {input.name}',
         output=Output(schema=RpgCharacter),
     )
-    return cast(RpgCharacter, result.output)
+    return result.output
 
 
 @ai.tool()
@@ -243,38 +280,38 @@ def get_weather(input: WeatherToolInput) -> str:
 
 
 @ai.flow()
-async def say_hi(hi_input: Annotated[str, Field(default='World')] = 'World') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a request to greet a user.
 
     Args:
-        hi_input: Input data containing user information.
+        input: Input with name to greet.
 
     Returns:
         A GenerateRequest object with the greeting message.
     """
     response = await ai.generate(
         model=ollama_name(GEMMA_MODEL),
-        prompt='hi ' + hi_input,
+        prompt='hi ' + input.hi_input,
     )
     return response.text
 
 
 @ai.flow()
-async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')] = 'John Doe') -> str:
+async def say_hi_constrained(input: SayHiConstrainedInput) -> str:
     """Generate a request to greet a user with response following `HelloSchema` schema.
 
     Args:
-        hi_input: Input data containing user information.
+        input: Input with name to greet.
 
     Returns:
         The greeting text.
 
     Example:
-        >>> await say_hi_constrained('John Doe')
+        >>> await say_hi_constrained(SayHiConstrainedInput(hi_input='John Doe'))
         'Hi John Doe'
     """
     response = await ai.generate(
-        prompt=f'Say hi to {hi_input} and put {hi_input} in receiver field',
+        prompt=f'Say hi to {input.hi_input} and put {input.hi_input} in receiver field',
         output=Output(schema=HelloSchema),
     )
     output = response.output
@@ -291,13 +328,13 @@ async def say_hi_constrained(hi_input: Annotated[str, Field(default='John Doe')]
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
+    input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name for streaming.
         ctx: the context of the tool
 
     Returns:
@@ -305,7 +342,7 @@ async def say_hi_stream(
     """
     stream, _ = ai.generate_stream(
         model=ollama_name(GEMMA_MODEL),
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
     result: str = ''
     async for data in stream:
@@ -317,21 +354,21 @@ async def say_hi_stream(
 
 
 @ai.flow()
-async def weather_flow(location: Annotated[str, Field(default='San Francisco')] = 'San Francisco') -> str:
-    """Generate a request to calculate gablorken according to gablorken_tool.
+async def weather_flow(input: WeatherFlowInput) -> str:
+    """Generate a request to get weather using the get_weather tool.
 
     Args:
-        location: The location to get weather for.
+        input: Input with location for weather.
 
     Returns:
-        A GenerateRequest object with the evaluation output
+        Weather information for the location.
 
     Example:
-        >>> await weather_flow('San Francisco')
+        >>> await weather_flow(WeatherFlowInput(location='San Francisco'))
         'Weather in San Francisco is 23°'
     """
     response = await ai.generate(
-        prompt=f'Use the get_weather tool to tell me the weather in {location}',
+        prompt=f'Use the get_weather tool to tell me the weather in {input.location}',
         model=ollama_name(MISTRAL_MODEL),
         tools=['get_weather'],
     )
@@ -344,10 +381,10 @@ async def main() -> None:
     Returns:
         None.
     """
-    await logger.ainfo(await say_hi('John Doe'))
-    await logger.ainfo(await say_hi_constrained('John Doe'))
-    await logger.ainfo(await calculate_gablorken(33))
-    await logger.ainfo(await weather_flow('San Francisco'))
+    await logger.ainfo(await say_hi(SayHiInput(hi_input='John Doe')))
+    await logger.ainfo(await say_hi_constrained(SayHiConstrainedInput(hi_input='John Doe')))
+    await logger.ainfo(await calculate_gablorken(GablorkenFlowInput(value=33)))
+    await logger.ainfo(await weather_flow(WeatherFlowInput(location='San Francisco')))
 
 
 if __name__ == '__main__':

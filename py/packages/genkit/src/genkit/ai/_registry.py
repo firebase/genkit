@@ -43,23 +43,32 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, cast, overload
+from typing import Any, Generic, ParamSpec, cast, overload
 
 from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit.aio import ensure_async
-
-if TYPE_CHECKING:
-    from genkit.ai._aio import Input, Output
-    from genkit.blocks.prompt import ExecutablePrompt
-    from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
-
+from genkit.blocks.background_model import (
+    BackgroundAction,
+    CancelModelOpFn,
+    CheckModelOpFn,
+    StartModelOpFn,
+    define_background_model as define_background_model_block,
+)
+from genkit.blocks.dap import (
+    DapConfig,
+    DapFn,
+    DynamicActionProvider,
+    define_dynamic_action_provider as define_dap_block,
+)
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
+from genkit.blocks.interfaces import Input, Output
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import (
+    ExecutablePrompt,
     define_helper,
     define_partial,
     define_prompt,
@@ -73,6 +82,7 @@ from genkit.blocks.reranker import (
     define_reranker as define_reranker_block,
     rerank as rerank_block,
 )
+from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -170,7 +180,7 @@ def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentDa
             return Document.from_text(transformed)
         else:
             # transformed is list[DocumentPart]
-            return DocumentData(content=cast(list[DocumentPart], transformed))
+            return DocumentData(content=transformed)
 
     if isinstance(options.content, str) and isinstance(item, dict):
         return Document.from_text(str(item[options.content]))
@@ -209,16 +219,18 @@ class GenkitRegistry:
         self.registry: Registry = Registry()
 
     @overload
+    # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
     def flow(
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T]']: ...
 
     @overload
+    # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
     def flow(
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']: ...
 
-    def flow(
+    def flow(  # pyright: ignore[reportInconsistentOverload]
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T]']:
         """Decorator to register a function as a flow.
@@ -247,11 +259,13 @@ class GenkitRegistry:
             action = self.registry.register_action(
                 name=flow_name,
                 kind=cast(ActionKind, ActionKind.FLOW),
+                # pyrefly: ignore[bad-argument-type] - func union type is valid for register_action
                 fn=func,
                 description=flow_description,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
 
+            # pyrefly: ignore[bad-argument-type] - func is valid for wraps despite union type
             @wraps(func)
             async def async_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Asynchronous wrapper for the flow function.
@@ -267,6 +281,7 @@ class GenkitRegistry:
                 input_arg = cast(T | None, args[0] if args else None)
                 return (await action.arun(input_arg)).response
 
+            # pyrefly: ignore[bad-argument-type] - func is valid for wraps despite union type
             @wraps(func)
             def sync_wrapper(*args: P.args, **_kwargs: P.kwargs) -> T:
                 """Synchronous wrapper for the flow function.
@@ -340,6 +355,158 @@ class GenkitRegistry:
         """
         define_schema(self.registry, name, schema)
         return schema
+
+    def define_json_schema(self, name: str, json_schema: dict[str, object]) -> dict[str, object]:
+        """Register a JSON schema for use in prompts.
+
+        This method registers a raw JSON Schema (as a dictionary) rather than
+        a Pydantic model class. Use this when you have a JSON Schema from an
+        external source or need more control over the schema definition.
+
+        Schema Types Comparison
+        =======================
+
+        ┌─────────────────────────────────────────────────────────────────┐
+        │                   Schema Registration Methods                    │
+        ├─────────────────────────────────────────────────────────────────┤
+        │                                                                  │
+        │  define_schema()           │  define_json_schema()              │
+        │  ──────────────────────────┼───────────────────────────────────│
+        │  Input: Pydantic class     │  Input: JSON Schema dict          │
+        │  Type-safe                 │  Dynamic/external schemas         │
+        │  Auto-converts to JSON     │  Direct JSON Schema control       │
+        │                                                                  │
+        └─────────────────────────────────────────────────────────────────┘
+
+        Args:
+            name: The name to register the schema under.
+            json_schema: The JSON Schema dictionary to register.
+
+        Returns:
+            The JSON schema that was registered (for convenience).
+
+        Example:
+            ```python
+            # Register a JSON Schema directly
+            recipe_schema = ai.define_json_schema(
+                'Recipe',
+                {
+                    'type': 'object',
+                    'properties': {
+                        'title': {'type': 'string'},
+                        'ingredients': {'type': 'array', 'items': {'type': 'string'}},
+                        'instructions': {'type': 'string'},
+                    },
+                    'required': ['title', 'ingredients', 'instructions'],
+                },
+            )
+            ```
+
+            Then in a .prompt file:
+            ```yaml
+            output:
+              schema: Recipe
+            ```
+
+        See Also:
+            - define_schema: For registering Pydantic models
+            - JSON Schema spec: https://json-schema.org/
+        """
+        self.registry.register_schema(name, json_schema)
+        return json_schema
+
+    def define_dynamic_action_provider(
+        self,
+        config: DapConfig | str,
+        fn: DapFn,
+    ) -> DynamicActionProvider:
+        """Define and register a Dynamic Action Provider (DAP).
+
+        A DAP is a factory that can dynamically provide actions at runtime,
+        enabling integration with external systems like MCP (Model Context
+        Protocol) servers, plugin marketplaces, or other dynamic action sources.
+
+        Dynamic Action Provider Overview
+        ================================
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                    How DAPs Work                                     │
+        ├─────────────────────────────────────────────────────────────────────┤
+        │                                                                      │
+        │  1. Register DAP with Genkit                                        │
+        │  2. When resolving an unknown action, Genkit queries DAPs           │
+        │  3. DAP fetches actions from external source (cached)               │
+        │  4. Actions are returned and can be used like static actions        │
+        │                                                                      │
+        │  ┌──────────┐     ┌──────────┐     ┌──────────────┐                │
+        │  │  Genkit  │ ──► │   DAP    │ ──► │ External     │                │
+        │  │ Registry │     │  Cache   │     │ System       │                │
+        │  └──────────┘     └──────────┘     │ (MCP, etc.)  │                │
+        │       ▲                │           └──────────────┘                │
+        │       │                │                   │                        │
+        │       └────────────────┴───────────────────┘                        │
+        │                    Actions                                          │
+        └─────────────────────────────────────────────────────────────────────┘
+
+        Args:
+            config: DAP configuration (DapConfig) or just a name string.
+                - name: Unique identifier for this DAP
+                - description: What this DAP provides
+                - cache_config: Caching behavior (ttl_millis)
+                - metadata: Additional metadata
+            fn: Async function that returns actions organized by type.
+                Should return a dict like: {'tool': [action1, action2], ...}
+
+        Returns:
+            The registered DynamicActionProvider.
+
+        Example:
+            ```python
+            from genkit.ai import Genkit
+            from genkit.blocks.dap import DapConfig, DapCacheConfig
+
+            ai = Genkit()
+
+
+            # Simple DAP - just a name
+            async def get_tools():
+                return {
+                    'tool': [
+                        ai.dynamic_tool(name='tool1', fn=lambda x: x),
+                    ]
+                }
+
+
+            dap = ai.define_dynamic_action_provider('my-tools', get_tools)
+
+            # DAP with custom caching
+            dap = ai.define_dynamic_action_provider(
+                config=DapConfig(
+                    name='mcp-tools',
+                    description='Tools from MCP server',
+                    cache_config=DapCacheConfig(ttl_millis=10000),
+                ),
+                fn=get_tools,
+            )
+
+            # Invalidate cache when needed
+            dap.invalidate_cache()
+
+            # Get a specific action
+            action = await dap.get_action('tool', 'tool1')
+            ```
+
+        Use Cases:
+            - MCP Integration: Connect to Model Context Protocol servers
+            - Plugin Systems: Load actions from external plugins
+            - Multi-tenant: Provide tenant-specific actions
+            - Feature Flags: Enable/disable actions at runtime
+
+        See Also:
+            - genkit.plugins.mcp: MCP plugin using DAPs
+            - JS implementation: js/core/src/dynamic-action-provider.ts
+        """
+        return define_dap_block(self.registry, config, fn)
 
     def tool(
         self, name: str | None = None, description: str | None = None
@@ -801,16 +968,18 @@ class GenkitRegistry:
             metadata: Optional metadata for the evaluator.
             description: Optional description for the evaluator.
         """
-        evaluator_meta = metadata if metadata else {}
+        evaluator_meta: dict[str, object] = metadata.copy() if metadata else {}
         if 'evaluator' not in evaluator_meta:
             evaluator_meta['evaluator'] = {}
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
-        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
-            evaluator_meta['evaluator']['label'] = name
+        # Cast to dict for nested operations - pyrefly doesn't narrow nested dict types
+        evaluator_dict = cast(dict[str, object], evaluator_meta['evaluator'])
+        evaluator_dict[EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_dict[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_dict[EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        if 'label' not in evaluator_dict or not evaluator_dict['label']:
+            evaluator_dict['label'] = name
         if config_schema:
-            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+            evaluator_dict['customOptions'] = to_json_schema(config_schema)
 
         evaluator_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -878,6 +1047,72 @@ class GenkitRegistry:
             fn=fn,
             metadata=model_meta,
             description=model_description,
+        )
+
+    def define_background_model(
+        self,
+        name: str,
+        start: StartModelOpFn,
+        check: CheckModelOpFn,
+        cancel: CancelModelOpFn | None = None,
+        label: str | None = None,
+        info: ModelInfo | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> BackgroundAction:
+        """Define a background model for long-running AI operations.
+
+        Background models are used for tasks like video generation (Veo) or
+        large image generation that may take seconds or minutes to complete.
+        Unlike regular models that return results immediately, background models
+        return an Operation that can be polled for completion.
+
+        This matches JS defineBackgroundModel from js/ai/src/model.ts.
+
+        Args:
+            name: Unique name for this background model.
+            start: Async function to start the background operation.
+                Takes (GenerateRequest, ActionRunContext) -> Operation.
+            check: Async function to check operation status.
+                Takes (Operation) -> Operation.
+            cancel: Optional async function to cancel operations.
+                Takes (Operation) -> Operation.
+            label: Human-readable label (defaults to name).
+            info: Model capability information (ModelInfo).
+            config_schema: Schema for model configuration options.
+            metadata: Additional metadata for the model.
+            description: Description for the model action.
+
+        Returns:
+            A BackgroundAction that can be used to start/check/cancel operations.
+
+        Example:
+            >>> async def start_video(req: GenerateRequest, ctx) -> Operation:
+            ...     job_id = await video_api.submit(req.messages[0].content[0].text)
+            ...     return Operation(id=job_id, done=False)
+            >>> async def check_video(op: Operation) -> Operation:
+            ...     status = await video_api.get_status(op.id)
+            ...     if status.complete:
+            ...         return Operation(id=op.id, done=True, output=...)
+            ...     return Operation(id=op.id, done=False)
+            >>> action = ai.define_background_model(
+            ...     name='video-gen',
+            ...     start=start_video,
+            ...     check=check_video,
+            ... )
+        """
+        return define_background_model_block(
+            registry=self.registry,
+            name=name,
+            start=start,
+            check=check,
+            cancel=cancel,
+            label=label,
+            info=info,
+            config_schema=config_schema,
+            metadata=metadata,
+            description=description,
         )
 
     def define_embedder(

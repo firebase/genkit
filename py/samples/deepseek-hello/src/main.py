@@ -39,15 +39,17 @@ Key Features
 """
 
 import os
-from typing import Annotated, cast
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'DEEPSEEK_API_KEY' not in os.environ:
     os.environ['DEEPSEEK_API_KEY'] = input('Please enter your DEEPSEEK_API_KEY: ')
@@ -99,6 +101,45 @@ class WeatherInput(BaseModel):
     location: str = Field(description='City or location name')
 
 
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    topic: str = Field(default='cats', description='Topic to generate about')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class WeatherFlowInput(BaseModel):
+    """Input for weather flow."""
+
+    location: str = Field(default='London', description='Location to get weather for')
+
+
+class ReasoningInput(BaseModel):
+    """Input for reasoning flow."""
+
+    prompt: str = Field(
+        default='What is heavier, one kilo of steel or one kilo of feathers?',
+        description='Reasoning question to solve',
+    )
+
+
+class CustomConfigInput(BaseModel):
+    """Input for custom config flow."""
+
+    task: str = Field(default='creative', description='Task type: creative, precise, or detailed')
+
+
 @ai.tool()
 def get_weather(input: WeatherInput) -> str:
     """Return a random realistic weather string for a location.
@@ -121,21 +162,18 @@ def get_weather(input: WeatherInput) -> str:
 
 
 @ai.flow()
-async def reasoning_flow(prompt: str | None = None) -> str:
+async def reasoning_flow(input: ReasoningInput) -> str:
     """Solve reasoning problems using deepseek-reasoner model.
 
     Args:
-        prompt: The reasoning question to solve. Defaults to a classic logic problem.
+        input: Input with reasoning question to solve.
 
     Returns:
         The reasoning and answer.
     """
-    if prompt is None:
-        prompt = 'What is heavier, one kilo of steel or one kilo of feathers?'
-
     response = await ai.generate(
         model=deepseek_name('deepseek-reasoner'),
-        prompt=prompt,
+        prompt=input.prompt,
     )
     return response.text
 
@@ -230,7 +268,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 
 @ai.flow()
-async def custom_config_flow(task: str | None = None) -> str:
+async def custom_config_flow(input: CustomConfigInput) -> str:
     """Demonstrate custom model configurations for different tasks.
 
     Shows how different config parameters affect generation behavior:
@@ -239,13 +277,12 @@ async def custom_config_flow(task: str | None = None) -> str:
     - 'detailed': Extended output with frequency penalty to avoid repetition
 
     Args:
-        task: Type of task - 'creative', 'precise', or 'detailed'
+        input: Input with task type.
 
     Returns:
         Generated response showing the effect of different configs.
     """
-    if task is None:
-        task = 'creative'
+    task = input.task
 
     prompts = {
         'creative': 'Write a creative story opener about a robot discovering art',
@@ -274,6 +311,7 @@ async def custom_config_flow(task: str | None = None) -> str:
     prompt = prompts.get(task, prompts['creative'])
     config = configs.get(task, configs['creative'])
 
+    # pyrefly: ignore[no-matching-overload] - config dict is compatible with dict[str, object]
     response = await ai.generate(
         prompt=prompt,
         config=config,
@@ -282,66 +320,75 @@ async def custom_config_flow(task: str | None = None) -> str:
 
 
 @ai.flow()
-async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-) -> RpgCharacter:
+async def generate_character(input: CharacterInput) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
 
     Returns:
         The generated RPG character.
     """
+    # DeepSeek JSON mode: prompt must mention 'json' and provide an example
+    prompt = (
+        f'Generate an RPG character named {input.name} in JSON format.\n'
+        'Example:\n'
+        '{\n'
+        '  "name": "<character_name>",\n'
+        '  "backStory": "A mysterious cat...",\n'
+        '  "abilities": ["stealth", "agility", "night vision"],\n'
+        '  "skills": {"strength": 10, "charisma": 15, "endurance": 12}\n'
+        '}\n'
+    )
     result = await ai.generate(
         model=deepseek_name('deepseek-chat'),
-        prompt=f'generate an RPG character named {name}',
+        prompt=prompt,
         output=Output(schema=RpgCharacter),
     )
-    return cast(RpgCharacter, result.output)
+    return result.output
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a simple greeting.
 
     Args:
-        name: Name to greet.
+        input: Input with name to greet.
 
     Returns:
         Greeting message.
     """
-    response = await ai.generate(prompt=f'Say hello to {name}!')
+    response = await ai.generate(prompt=f'Say hello to {input.name}!')
     return response.text
 
 
 @ai.flow()
 async def streaming_flow(
-    topic: Annotated[str, Field(default='pandas')] = 'pandas',
+    input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate with streaming response.
 
     Args:
-        topic: Topic to generate about.
+        input: Input with topic to generate about.
         ctx: Action run context for streaming chunks to client.
 
     Returns:
         Generated text.
     """
     response = await ai.generate(
-        prompt=f'Tell me a fun fact about {topic}',
+        prompt=f'Tell me a fun fact about {input.topic}',
         on_chunk=ctx.send_chunk if ctx else None,
     )
     return response.text
 
 
 @ai.flow()
-async def weather_flow(location: Annotated[str, Field(default='London')] = 'London') -> str:
+async def weather_flow(input: WeatherFlowInput) -> str:
     """Get weather using compat-oai auto tool calling."""
     response = await ai.generate(
         model=deepseek_name('deepseek-chat'),
-        prompt=f'What is the weather in {location}?',
+        prompt=f'What is the weather in {input.location}?',
         system=(
             'You have a tool called get_weather. '
             "It takes an object with a 'location' field. "

@@ -87,13 +87,14 @@ class AnthropicModel:
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
 
-        finish_reason_map = {
+        finish_reason_map: dict[str, FinishReason] = {
             'end_turn': FinishReason.STOP,
             'max_tokens': FinishReason.LENGTH,
             'stop_sequence': FinishReason.STOP,
             'tool_use': FinishReason.STOP,
         }
-        finish_reason = finish_reason_map.get(response.stop_reason, FinishReason.UNKNOWN)
+        stop_reason_str = str(response.stop_reason) if response.stop_reason else ''
+        finish_reason = finish_reason_map.get(stop_reason_str, FinishReason.UNKNOWN)
 
         return GenerateResponse(
             message=response_message,
@@ -147,7 +148,7 @@ class AnthropicModel:
 
         if thinking:
             if isinstance(thinking, dict):
-                anthropic_thinking = {}
+                anthropic_thinking: dict[str, str | int] = {}
                 # Handle boolean enabled -> type="enabled"
                 if thinking.get('enabled') is True or thinking.get('type') == 'enabled':
                     anthropic_thinking['type'] = 'enabled'
@@ -223,7 +224,7 @@ class AnthropicModel:
             if msg.role == Role.SYSTEM:
                 continue
             role = 'assistant' if msg.role == Role.MODEL else 'user'
-            content = []
+            content: list[dict[str, Any]] = []
             for part in msg.content:
                 actual_part = part.root if isinstance(part, Part) else part
                 if isinstance(actual_part, TextPart):

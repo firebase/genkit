@@ -70,7 +70,7 @@ def _register_atexit_cleanup_handler(path_to_remove: Path | None) -> None:
         return
 
     def sync_cleanup() -> None:
-        # TODO: Neither print nor logger appears to work during atexit.
+        # TODO(#4335): Neither print nor logger appears to work during atexit.
         _ = _remove_file(path_to_remove)
 
     logger.debug(f'Registering synchronous atexit cleanup for {path_to_remove}')
@@ -187,7 +187,7 @@ class RuntimeManager:
         return self
 
     async def __aexit__(
-        self, exc_type: Exception | None, exc_val: Exception | None, exc_tb: TracebackType | None
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
     ) -> bool:
         """Async context manager exit handler.
 
@@ -219,7 +219,12 @@ class RuntimeManager:
 
         return self
 
-    def __exit__(self, exc_type: Exception | None, exc_val: Exception | None, exc_tb: TracebackType | None) -> bool:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
         """Synchronous exit handler.
 
         Cleanup is handled by atexit. This method primarily ensures the context

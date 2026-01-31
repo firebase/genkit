@@ -38,11 +38,11 @@ import base64
 import logging
 import os
 import pathlib
-from typing import Annotated
 
 from google import genai
 from google.genai import types as genai_types
-from pydantic import Field
+from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
@@ -63,26 +63,38 @@ from genkit.types import (
     TextPart,
 )
 
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(plugins=[GoogleAI()])
 
 
+class DrawImageInput(BaseModel):
+    """Input for image drawing flow."""
+
+    prompt: str = Field(default='Draw a cat in a hat.', description='Image prompt')
+
+
+class GenerateImagesInput(BaseModel):
+    """Input for image generation flow."""
+
+    name: str = Field(default='a fluffy cat', description='Subject to generate images about')
+
+
 @ai.flow()
-async def draw_image_with_gemini(
-    prompt: Annotated[str, Field(default='Draw a cat in a hat.')] = 'Draw a cat in a hat.',
-) -> GenerateResponseWrapper:
+async def draw_image_with_gemini(input: DrawImageInput) -> GenerateResponseWrapper:
     """Draw an image.
 
     Args:
-        prompt: The prompt to draw.
+        input: Input with image prompt.
 
     Returns:
         The image.
     """
     return await ai.generate(
-        prompt=prompt,
+        prompt=input.prompt,
         config={'response_modalities': ['Text', 'Image']},
         model='googleai/gemini-2.5-flash-image',
     )
@@ -129,13 +141,13 @@ async def describe_image_with_gemini(data: str = '') -> str:
 
 @ai.flow()
 async def generate_images(
-    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
+    input: GenerateImagesInput,
     ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Generate images for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with subject to generate images about.
         ctx: the context of the tool
 
     Returns:
@@ -143,10 +155,11 @@ async def generate_images(
     """
     return await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
-        prompt=f'tell me about {name} with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image'], api_version='v1alpha').model_dump(
-            exclude_none=True
-        ),
+        prompt=f'tell me about {input.name} with photos',
+        config=GeminiConfigSchema.model_validate({
+            'response_modalities': ['text', 'image'],
+            'api_version': 'v1alpha',
+        }).model_dump(exclude_none=True),
     )
 
 
@@ -193,11 +206,11 @@ async def gemini_image_editing() -> Media | None:
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}'))),
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}'))),
         ],
-        config=GeminiImageConfigSchema(
-            response_modalities=['TEXT', 'IMAGE'],
-            image_config={'aspect_ratio': '1:1'},
-            api_version='v1alpha',
-        ).model_dump(exclude_none=True),
+        config=GeminiImageConfigSchema.model_validate({
+            'response_modalities': ['TEXT', 'IMAGE'],
+            'image_config': {'aspect_ratio': '1:1'},
+            'api_version': 'v1alpha',
+        }).model_dump(exclude_none=True),
     )
     for part in response.message.content if response.message else []:
         if isinstance(part.root, MediaPart):

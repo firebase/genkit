@@ -150,6 +150,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
     # _message_parser is a private attribute that Pydantic will ignore
     _message_parser: Callable[[MessageWrapper], object] | None = PrivateAttr(None)
     # Override the parent's message field with our wrapper type (intentional Liskov violation)
+    # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
     message: MessageWrapper | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
@@ -183,6 +184,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
+            operation=response.operation,
         )
         # Set subclass-specific field after parent initialization
         self._message_parser = message_parser
@@ -195,7 +197,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
         Raises:
             AssertionError: If the response structure is considered invalid.
         """
-        # TODO: implement
+        # TODO(#4343): implement
         pass
 
     def assert_valid_schema(self) -> None:
@@ -206,7 +208,7 @@ class GenerateResponseWrapper(GenerateResponse, Generic[OutputT]):
         Raises:
             AssertionError: If the response message does not conform to the schema.
         """
-        # TODO: implement
+        # TODO(#4343): implement
         pass
 
     @cached_property

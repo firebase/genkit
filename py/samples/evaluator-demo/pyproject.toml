@@ -17,6 +17,7 @@
 [project]
 authors = [{ name = "Google" }]
 dependencies = [
+  "rich>=13.0.0",
   "genkit",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-evaluators",
@@ -39,4 +40,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["evaluator_demo"]

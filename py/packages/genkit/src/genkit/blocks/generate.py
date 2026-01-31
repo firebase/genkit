@@ -459,7 +459,7 @@ def apply_transfer_preamble(
     Returns:
         The potentially updated `next_request`.
     """
-    # TODO: implement me
+    # TODO(#4338): implement me
     return next_request
 
 
@@ -593,7 +593,7 @@ def assert_valid_tool_names(_raw_request: GenerateActionOptions) -> None:
     Raises:
         ValueError: If any tool names are invalid.
     """
-    # TODO: implement me
+    # TODO(#4338): implement me
     pass
 
 
@@ -649,8 +649,8 @@ async def action_to_generate_request(
     Returns:
         The generated request.
     """
-    # TODO: add warning when tools are not supported in ModelInfo
-    # TODO: add warning when toolChoice is not supported in ModelInfo
+    # TODO(#4340): add warning when tools are not supported in ModelInfo
+    # TODO(#4341): add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
     return GenerateRequest(
@@ -662,7 +662,7 @@ async def action_to_generate_request(
         output=OutputConfig(
             content_type=options.output.content_type if options.output else None,
             format=options.output.format if options.output else None,
-            schema_=options.output.json_schema if options.output else None,
+            schema=options.output.json_schema if options.output else None,
             constrained=options.output.constrained if options.output else None,
         ),
     )
@@ -705,7 +705,7 @@ async def resolve_tool_requests(
         A tuple containing the revised model message, the tool message, and the
         transfer preamble.
     """
-    # TODO: prompt transfer
+    # TODO(#4342): prompt transfer
     tool_dict: dict[str, Action] = {}
     if request.tools:
         for tool_name in request.tools:
@@ -1031,9 +1031,9 @@ def _find_corresponding_tool_response(responses: list[ToolResponsePart], request
     return None
 
 
-# TODO: extend GenkitError
+# TODO(#4336): extend GenkitError
 class GenerationResponseError(Exception):
-    # TODO: use status enum
+    # TODO(#4337): use status enum
     """Error for generation responses."""
 
     def __init__(

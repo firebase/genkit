@@ -40,6 +40,9 @@ class ActionKind(StrEnum):
     including chat models, embedders, evaluators, and other utility functions.
     """
 
+    BACKGROUND_MODEL = 'background-model'
+    CANCEL_OPERATION = 'cancel-operation'
+    CHECK_OPERATION = 'check-operation'
     CUSTOM = 'custom'
     DYNAMIC_ACTION_PROVIDER = 'dynamic-action-provider'
     EMBEDDER = 'embedder'

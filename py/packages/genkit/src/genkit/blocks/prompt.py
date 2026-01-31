@@ -123,7 +123,7 @@ Caveats:
 
 See Also:
     - JavaScript implementation: js/ai/src/prompt.ts
-    - Dotprompt documentation: https://firebase.google.com/docs/genkit/dotprompt
+    - Dotprompt documentation: https://genkit.dev/docs/dotprompt
 """
 
 import asyncio
@@ -131,7 +131,7 @@ import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
+from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
 
 from dotpromptz.typing import (
     DataArgument,
@@ -147,6 +147,7 @@ from genkit.blocks.generate import (
     generate_action,
     to_tool_definition,
 )
+from genkit.blocks.interfaces import Input, Output
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -297,7 +298,7 @@ class ResumeOptions(TypedDict, total=False):
         ```
 
     See Also:
-        - Interrupts documentation: https://firebase.google.com/docs/genkit/interrupts
+        - Interrupts documentation: https://genkit.dev/docs/tool-calling#pause-agentic-loops-with-interrupts
     """
 
     respond: ToolResponsePart | list[ToolResponsePart] | None
@@ -668,7 +669,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
     See Also:
         - JavaScript ExecutablePrompt: js/ai/src/prompt.ts
-        - Dotprompt: https://firebase.google.com/docs/genkit/dotprompt
+        - Dotprompt: https://genkit.dev/docs/dotprompt
     """
 
     def __init__(
@@ -698,7 +699,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
         _prompt_action: Action | None = None,  # reference to PROMPT action
-        # TODO:
+        # TODO(#4344):
         #  docs: list[Document]):
     ) -> None:
         """Initializes an ExecutablePrompt instance.
@@ -1045,7 +1046,8 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         if input is None:
             render_input = {}
         elif isinstance(input, dict):
-            render_input = cast(dict[str, Any], input)
+            # Type narrow: input is dict here, assign to dict[str, Any] typed variable
+            render_input = {str(k): v for k, v in input.items()}
         elif isinstance(input, BaseModel):
             # Pydantic v2 model
             render_input = input.model_dump()
@@ -1172,10 +1174,6 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             )
 
         return action
-
-
-if TYPE_CHECKING:
-    from genkit.ai._aio import Input, Output
 
 
 # Overload 1: Both input and output typed -> ExecutablePrompt[InputT, OutputT]
@@ -1607,7 +1605,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
         output=OutputConfig(
             content_type=options.output.content_type if options.output else None,
             format=options.output.format if options.output else None,
-            schema_=options.output.json_schema if options.output else None,
+            schema=options.output.json_schema if options.output else None,
             constrained=options.output.constrained if options.output else None,
         ),
     )
@@ -1673,19 +1671,21 @@ async def render_system_prompt(
         if options.metadata:
             context = {**(context or {}), 'state': options.metadata.get('state')}
 
-        return Message(
-            role=Role.SYSTEM,
-            content=await render_dotprompt_to_parts(
+        # Cast to list[Part] - Pydantic coerces dicts to Part objects at runtime
+        rendered_parts = cast(
+            list[Part],
+            await render_dotprompt_to_parts(
                 context or {},
                 prompt_cache.system,
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
         )
+        return Message(role=Role.SYSTEM, content=rendered_parts)
 
     if callable(options.system):
         resolved = await ensure_async(options.system)(input, context)
@@ -1699,7 +1699,7 @@ async def render_dotprompt_to_parts(
     prompt_function: PromptFunction[Any],
     input_: dict[str, Any],
     options: PromptMetadata[Any] | None = None,
-) -> list[Part]:
+) -> list[dict[str, Any]]:
     """Renders a prompt template into a list of content parts using dotprompt.
 
     Args:
@@ -1709,7 +1709,7 @@ async def render_dotprompt_to_parts(
         options: Optional prompt metadata configuration.
 
     Returns:
-        A list of Part objects containing the rendered content.
+        A list of dictionaries representing Part objects for Pydantic re-validation.
 
     Raises:
         Exception: If the template produces more than one message.
@@ -1727,7 +1727,8 @@ async def render_dotprompt_to_parts(
     if len(rendered.messages) > 1:
         raise Exception('parts template must produce only one message')
 
-    part_rendered = []
+    # Convert parts to dicts for Pydantic re-validation when creating new Message
+    part_rendered: list[dict[str, Any]] = []
     for message in rendered.messages:
         for part in message.content:
             part_rendered.append(part.model_dump())
@@ -1787,7 +1788,7 @@ async def render_message_prompt(
             ),
             options=PromptMetadata(
                 input=PromptInputConfig(
-                    schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                    schema=to_json_schema(options.input_schema) if options.input_schema else None,
                 )
             ),
         )
@@ -1835,19 +1836,21 @@ async def render_user_prompt(
         if options.metadata:
             context = {**(context or {}), 'state': options.metadata.get('state')}
 
-        return Message(
-            role=Role.USER,
-            content=await render_dotprompt_to_parts(
+        # Cast to list[Part] - Pydantic coerces dicts to Part objects at runtime
+        rendered_parts = cast(
+            list[Part],
+            await render_dotprompt_to_parts(
                 context or {},
                 prompt_cache.user_prompt,
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
         )
+        return Message(role=Role.USER, content=rendered_parts)
 
     if callable(options.prompt):
         resolved = await ensure_async(options.prompt)(input, context)
@@ -2037,6 +2040,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             prompt_metadata_dict = prompt_metadata.model_dump(by_alias=True)
         elif hasattr(prompt_metadata, 'dict'):
             # Fallback for older Pydantic versions
+            # pyrefly: ignore[deprecated] - Intentional for Pydantic v1 compatibility
             prompt_metadata_dict = prompt_metadata.dict(by_alias=True)  # pyright: ignore[reportDeprecated]
         else:
             # Already a dict - cast through object to satisfy type checker
@@ -2271,7 +2275,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
-        logger.error(f'Error loading prompts from {full_path}: {e}')
+        logger.exception(f'Error loading prompts from {full_path}', exc_info=e)
 
 
 def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '') -> None:
@@ -2339,7 +2343,9 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
         # Otherwise, create it from the factory (lazy loading)
         async_factory = getattr(action, '_async_factory', None)
         if callable(async_factory):
-            executable_prompt = await async_factory()
+            # Cast to async callable - getattr returns object but we've verified it's callable
+            async_factory_fn = cast(Callable[[], Awaitable[ExecutablePrompt]], async_factory)
+            executable_prompt = await async_factory_fn()
             if getattr(action, '_executable_prompt', None) is None:
                 setattr(action, '_executable_prompt', executable_prompt)  # noqa: B010
             return executable_prompt

@@ -416,10 +416,8 @@ def create_reflection_asgi_app(
 
             except Exception as e:
                 error_response = get_reflection_json(e).model_dump(by_alias=True)
-                logger.error(
-                    'Error streaming action',
-                    error=error_response,
-                )
+                # Log with exc_info for pretty exception output via rich/structlog
+                logger.exception('Error streaming action', exc_info=e)
                 # Error response also should not have trailing newline (final message)
                 chunk_queue.put_nowait(json.dumps(error_response))
                 # Ensure trace_id_event is set even on error
@@ -535,7 +533,8 @@ def create_reflection_asgi_app(
 
             if action_error:
                 error_response = get_reflection_json(action_error).model_dump(by_alias=True)
-                logger.error('Error executing action', error=error_response)
+                # Log with exc_info for pretty exception output via rich/structlog
+                logger.exception('Error executing action', exc_info=action_error)
                 yield json.dumps(error_response).encode('utf-8')
             else:
                 yield json.dumps(action_result).encode('utf-8')

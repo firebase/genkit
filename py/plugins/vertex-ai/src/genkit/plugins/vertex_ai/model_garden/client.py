@@ -17,7 +17,7 @@
 
 """Vertex AI client."""
 
-import google.auth.transport.requests  # noqa: F401 - explicit import for ty
+import google.auth.transport.requests
 from google import auth
 from openai import OpenAI as _OpenAI
 
@@ -34,6 +34,6 @@ class OpenAIClient:
         else:
             credentials, project_id = auth.default()
 
-        credentials.refresh(auth.transport.requests.Request())
+        credentials.refresh(google.auth.transport.requests.Request())
         base_url = f'https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/endpoints/openapi'
         return _OpenAI(api_key=credentials.token, base_url=base_url)

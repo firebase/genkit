@@ -178,11 +178,12 @@ class UvicornAdapter(ASGIServerAdapter):
 
         # Configure Uvicorn
         config = uvicorn.Config(
+            # pyrefly: ignore[bad-argument-type] - Starlette app is valid ASGI app for uvicorn
             app,
             host=host,
             port=port,
             log_level=log_level,
-            # TODO: Disable after we complete logging middleware.
+            # TODO(#4353): Disable after we complete logging middleware.
             # log_config=None,
             # access_log=True,
         )

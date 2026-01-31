@@ -191,10 +191,10 @@ async def gemini_image_editing() -> Media | None:
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}'))),
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}'))),
         ],
-        config=GeminiImageConfigSchema(
-            response_modalities=['TEXT', 'IMAGE'],
-            image_config={'aspect_ratio': '1:1'},
-        ).model_dump(exclude_none=True),
+        config=GeminiImageConfigSchema.model_validate({
+            'response_modalities': ['TEXT', 'IMAGE'],
+            'image_config': {'aspect_ratio': '1:1'},
+        }).model_dump(exclude_none=True),
     )
 
     for part in response.message.content if response.message else []:

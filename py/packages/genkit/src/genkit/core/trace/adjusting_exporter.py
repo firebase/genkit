@@ -173,6 +173,7 @@ class RedactedSpan(ReadableSpan):
     @override
     def instrumentation_info(self) -> InstrumentationInfo | None:
         """Return the instrumentation info."""
+        # pyrefly: ignore[deprecated] - Required override for ReadableSpan interface compatibility
         return self._span.instrumentation_info
 
     @property

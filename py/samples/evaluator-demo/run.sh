@@ -1,39 +1,75 @@
 #!/usr/bin/env bash
-# Copyright 2025 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# Copyright 2026 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-# Start the sample with automatic reloading
-genkit start -- \
-  uv tool run --from watchdog watchmedo auto-restart \
-    -d src \
-    -d docs \
-    -d ../../packages \
-    -d ../../plugins \
-    -p '*.py;*.prompt;*.json;*.pdf' \
-    -R \
-    -- sh -c '
-      if [ -f __db_pdf_qa.json ]; then
-        for f in docs/*.pdf; do
-          if [ "$f" -nt __db_pdf_qa.json ]; then
-            rm -f __db_pdf_qa.json
-            break
+# Evaluator Demo
+# ==============
+#
+# Demonstrates using Genkit evaluators to assess model outputs.
+#
+# Prerequisites:
+#   - GEMINI_API_KEY environment variable set
+#
+# Usage:
+#   ./run.sh          # Start the demo with Dev UI
+#   ./run.sh --help   # Show this help message
+
+set -euo pipefail
+
+cd "$(dirname "$0")"
+source "../_common.sh"
+
+print_help() {
+    print_banner "Evaluator Demo" "📊"
+    echo "Usage: ./run.sh [options]"
+    echo ""
+    echo "Options:"
+    echo "  --help     Show this help message"
+    echo ""
+    echo "Environment Variables:"
+    echo "  GEMINI_API_KEY    Required. Your Gemini API key"
+    echo ""
+    echo "This demo shows:"
+    echo "  - Output quality evaluation"
+    echo "  - Custom evaluators"
+    echo "  - Scoring metrics"
+    echo ""
+    echo "Get an API key from: https://makersuite.google.com/app/apikey"
+    print_help_footer
+}
+
+case "${1:-}" in
+    --help|-h)
+        print_help
+        exit 0
+        ;;
+esac
+
+print_banner "Evaluator Demo" "📊"
+
+check_env_var "GEMINI_API_KEY" "https://makersuite.google.com/app/apikey" || true
+
+install_deps
+
+genkit_start_with_browser -- \
+    uv tool run --from watchdog watchmedo auto-restart \
+        -d evaluator_demo \
+        -d docs \
+        -d ../../packages \
+        -d ../../plugins \
+        -p '*.py;*.prompt;*.json;*.pdf' \
+        -R \
+        -- sh -c '
+          # Initialize database if missing or if PDFs are newer
+          if [ -f __db_pdf_qa.json ]; then
+            for f in docs/*.pdf; do
+              if [ "$f" -nt __db_pdf_qa.json ]; then
+                rm -f __db_pdf_qa.json
+                break
+              fi
+            done
           fi
-        done
-      fi
-      if [ ! -f __db_pdf_qa.json ]; then
-        uv run src/main.py --setup
-      fi
-      uv run src/main.py "$@"' "$0" "$@"
+          if [ ! -f __db_pdf_qa.json ]; then
+            uv run -m evaluator_demo.main --setup
+          fi
+          uv run -m evaluator_demo.main "$@"' "$0" "$@"

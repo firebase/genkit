@@ -281,9 +281,12 @@ class Operation(BaseModel):
 class OutputConfig(BaseModel):
     """Model for outputconfig data."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        alias_generator=to_camel, extra='forbid', populate_by_name=True, protected_namespaces=()
+    )
     format: str | None = None
-    schema_: dict[str, Any] | None = Field(default=None, alias='schema')
+    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field
+    schema: dict[str, Any] | None = Field(default=None)
     constrained: bool | None = None
     content_type: str | None = Field(default=None)
 

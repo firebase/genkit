@@ -40,6 +40,8 @@ from genkit.plugins.google_genai.models.gemini import (
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
     google_model_info,
+    is_image_model,
+    is_tts_model,
 )
 from genkit.types import (
     GenerateRequest,
@@ -85,11 +87,19 @@ async def test_generate_text_response(mocker: MockerFixture, version: str) -> No
     ctx = ActionRunContext()
     response = await gemini.generate(request, ctx)
 
+    # Determine expected config based on model type
+    if is_tts_model(version):
+        expected_config = genai.types.GenerateContentConfig(response_modalities=['AUDIO'])
+    elif is_image_model(version):
+        expected_config = genai.types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE'])
+    else:
+        expected_config = None
+
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
             model=version,
             contents=[genai.types.Content(parts=[genai.types.Part(text=request_text)], role=Role.USER)],
-            config=None,
+            config=expected_config,
         )
     ])
     assert isinstance(response, GenerateResponse)
@@ -126,11 +136,19 @@ async def test_generate_stream_text_response(mocker: MockerFixture, version: str
     ctx = ActionRunContext(on_chunk=on_chunk_mock)
     response = await gemini.generate(request, ctx)
 
+    # Determine expected config based on model type
+    if is_tts_model(version):
+        expected_config = genai.types.GenerateContentConfig(response_modalities=['AUDIO'])
+    elif is_image_model(version):
+        expected_config = genai.types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE'])
+    else:
+        expected_config = None
+
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content_stream(
             model=version,
             contents=[genai.types.Content(parts=[genai.types.Part(text=request_text)], role=Role.USER)],
-            config=None,
+            config=expected_config,
         )
     ])
     assert isinstance(response, GenerateResponse)

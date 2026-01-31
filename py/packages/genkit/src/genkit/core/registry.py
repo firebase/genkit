@@ -113,7 +113,7 @@ class Registry:
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
         self.dotprompt: Dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
-        # TODO: Figure out how to set this.
+        # TODO(#4352): Figure out how to set this.
         self.api_stability: str = 'stable'
 
         # Plugin infrastructure
@@ -290,6 +290,8 @@ class Registry:
                     raise KeyError(f'Plugin not registered: {plugin_name}')
 
                 async def run_init() -> None:
+                    # Assert for type narrowing inside closure (pyrefly doesn't propagate from outer scope)
+                    assert plugin is not None
                     actions = await plugin.init()
                     for action in actions or []:
                         self.register_action_instance(action, namespace=plugin_name)

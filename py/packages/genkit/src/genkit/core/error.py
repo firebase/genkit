@@ -14,7 +14,88 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Base error classes and utilities for Genkit."""
+"""Error classes and utilities for the Genkit framework.
+
+This module defines the error hierarchy and utilities for handling errors
+in Genkit applications. It provides structured error types with status codes,
+trace IDs, and serialization for HTTP responses.
+
+Overview:
+    Genkit uses a structured error system based on gRPC-style status codes.
+    The base ``GenkitError`` class provides rich error context including
+    status codes, trace IDs, and stack traces for debugging.
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        Error Class Hierarchy                            │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │                                                                         │
+    │  Exception                                                              │
+    │      │                                                                  │
+    │      └── GenkitError                                                    │
+    │              │                                                          │
+    │              ├── UserFacingError  (safe to return to users)             │
+    │              │                                                          │
+    │              └── UnstableApiError (beta/alpha API misuse)               │
+    │                                                                         │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Terminology:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Term              │ Description                                         │
+    ├───────────────────┼─────────────────────────────────────────────────────┤
+    │ GenkitError       │ Base error with status, trace_id, and details       │
+    │ UserFacingError   │ Error safe to return in HTTP responses              │
+    │ StatusName        │ gRPC status name (e.g., 'NOT_FOUND', 'INTERNAL')    │
+    │ StatusCodes       │ Enum mapping status names to numeric codes          │
+    │ http_code         │ HTTP status code derived from StatusName            │
+    │ trace_id          │ Unique ID linking error to trace spans              │
+    └───────────────────┴─────────────────────────────────────────────────────┘
+
+Key Functions:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Function            │ Purpose                                           │
+    ├─────────────────────┼───────────────────────────────────────────────────┤
+    │ get_http_status()   │ Get HTTP status code from any error               │
+    │ get_callable_json() │ Serialize error for callable HTTP responses       │
+    │ get_error_message() │ Extract message string from any error             │
+    │ get_error_stack()   │ Extract stack trace from an exception             │
+    └─────────────────────┴───────────────────────────────────────────────────┘
+
+Example:
+    Raising and handling errors:
+
+    ```python
+    from genkit.core.error import GenkitError, UserFacingError, get_http_status
+
+    # Raise a structured error
+    raise GenkitError(
+        message='Model not found',
+        status='NOT_FOUND',
+        trace_id='abc123',
+    )
+
+    # User-facing error (safe to return in HTTP response)
+    raise UserFacingError(
+        status='INVALID_ARGUMENT',
+        message='Invalid prompt: too long',
+    )
+
+    # Get HTTP status for any error
+    try:
+        await ai.generate(...)
+    except Exception as e:
+        status_code = get_http_status(e)  # 404 for NOT_FOUND, 500 otherwise
+    ```
+
+Caveats:
+    - Only ``UserFacingError`` messages are safe to return to end users
+    - Other ``GenkitError`` messages may contain internal details
+    - Use ``get_callable_json()`` for Genkit callable serialization format
+
+See Also:
+    - gRPC status codes: https://grpc.io/docs/guides/status-codes/
+    - genkit.core.status_types: Status code definitions
+"""
 
 import traceback
 from typing import Any, ClassVar
@@ -82,19 +163,19 @@ class GenkitError(Exception):
             trace_id: A unique identifier for tracing the action execution.
             source: Optional source of the error.
         """
+        temp_status: StatusName
         if status:
-            temp_status: StatusName = status
+            temp_status = status
         elif isinstance(cause, GenkitError):
             temp_status = cause.status
         else:
             temp_status = 'INTERNAL'
         self.status: StatusName = temp_status
+        self.http_code: int = http_status_code(temp_status)
 
         source_prefix = f'{source}: ' if source else ''
         super().__init__(f'{source_prefix}{self.status}: {message}')
         self.original_message: str = message
-
-        self.http_code: int = http_status_code(self.status)
 
         if not details:
             details = {}

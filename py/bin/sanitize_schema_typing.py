@@ -55,6 +55,7 @@ class ClassTransformer(ast.NodeTransformer):
     def __init__(self) -> None:
         """Initialize the ClassTransformer."""
         self.modified = False
+        self.schema_fields_to_suppress: list[ast.AnnAssign] = []
 
     def is_rootmodel_class(self, node: ast.ClassDef) -> bool:
         """Check if a class definition is a RootModel class."""
@@ -67,13 +68,21 @@ class ClassTransformer(ast.NodeTransformer):
                     return True
         return False
 
-    def create_model_config(self, existing_config: ast.Call | None = None, frozen: bool = False) -> ast.AnnAssign:
+    def create_model_config(
+        self, existing_config: ast.Call | None = None, frozen: bool = False, has_schema_field: bool = False
+    ) -> ast.AnnAssign:
         """Create or update a model_config assignment with proper type annotation.
 
         Creates: model_config: ClassVar[ConfigDict] = ConfigDict(...)
 
         Ensures alias_generator=to_camel, populate_by_name=True, and extra='forbid',
         keeping other existing settings.
+
+        Args:
+            existing_config: Existing ConfigDict call to preserve settings from.
+            frozen: Whether to add frozen=True for immutable models.
+            has_schema_field: Whether the class has a 'schema' field. If True,
+                adds protected_namespaces=() to allow using 'schema' as a field name.
         """
         keywords = []
         found_populate = False
@@ -96,6 +105,9 @@ class ClassTransformer(ast.NodeTransformer):
                     continue
                 elif kw.arg == 'alias_generator':
                     # Skip existing alias_generator, we will add our own
+                    continue
+                elif kw.arg == 'protected_namespaces':
+                    # Skip existing protected_namespaces, we will add our own if needed
                     continue
                 elif kw.arg == 'frozen':
                     # Use the provided 'frozen' value
@@ -128,6 +140,17 @@ class ClassTransformer(ast.NodeTransformer):
             )
         )
 
+        # Add protected_namespaces=() if class has a 'schema' field
+        # This allows using 'schema' as a field name without Pydantic warnings
+        # (following the same pattern as dotpromptz library)
+        if has_schema_field:
+            keywords.append(
+                ast.keyword(
+                    arg='protected_namespaces',
+                    value=ast.Tuple(elts=[], ctx=ast.Load()),
+                )
+            )
+
         # Sort keywords for consistent output (optional but good practice)
         keywords.sort(key=lambda kw: kw.arg or '')
 
@@ -158,12 +181,24 @@ class ClassTransformer(ast.NodeTransformer):
                     return item
         return None
 
+    def has_schema_field(self, node: ast.ClassDef) -> bool:
+        """Check if class has a 'schema' or 'schema_' field.
+
+        This is used to determine if we need to add protected_namespaces=()
+        to the model_config to allow 'schema' as a field name.
+        """
+        for item in node.body:
+            if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                if item.target.id in ('schema', 'schema_'):
+                    return True
+        return False
+
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:  # noqa: N802
         """Visit and transform annotated assignment.
 
         - Transform Role type to Role | str for flexibility
         - Remove 'alias' keyword from Field() calls since alias_generator handles it
-        - Add serialization_alias='schema' for schema_ fields (Pydantic reserves 'schema')
+        - Rename schema_ to schema (with protected_namespaces=() in model_config)
         """
         # Transform Role type
         if isinstance(node.annotation, ast.Name) and node.annotation.id == 'Role':
@@ -179,6 +214,15 @@ class ClassTransformer(ast.NodeTransformer):
         if isinstance(node.target, ast.Name):
             field_name = node.target.id
 
+        # Rename schema_ to schema
+        # We use protected_namespaces=() in model_config to allow 'schema' as a field name
+        # This follows the same pattern as the dotpromptz library
+        # Mark this field for pyrefly suppression comment (added in post-processing)
+        if field_name == 'schema_':
+            node.target = ast.Name(id='schema', ctx=ast.Store())
+            self.modified = True
+            self.schema_fields_to_suppress.append(node)
+
         # Handle Field() calls
         if isinstance(node.value, ast.Call):
             func = node.value.func
@@ -188,22 +232,6 @@ class ClassTransformer(ast.NodeTransformer):
                 new_keywords = [kw for kw in original_keywords if kw.arg != 'alias']
                 if len(new_keywords) != len(original_keywords):
                     node.value.keywords = new_keywords
-                    self.modified = True
-
-                # Special handling for schema_ field:
-                # 1. 'schema' is reserved by Pydantic as a method name, so the field is named 'schema_'
-                # 2. pydantic.alias_generators.to_camel('schema_') returns 'schema_' (NOT 'schema')
-                #    because to_camel does NOT strip trailing underscores
-                # 3. Without explicit alias='schema', JSON serialization would produce 'schema_'
-                #    instead of the expected 'schema'
-                # 4. With populate_by_name=True, both schema= and schema_= work for Python input
-                if field_name == 'schema_':
-                    node.value.keywords.append(
-                        ast.keyword(
-                            arg='alias',
-                            value=ast.Constant(value='schema'),
-                        )
-                    )
                     self.modified = True
 
         return node
@@ -284,6 +312,7 @@ class ClassTransformer(ast.NodeTransformer):
             # Add or update model_config for BaseModel classes
             added_config = False
             frozen = node.name == 'PathMetadata'
+            has_schema = self.has_schema_field(node)
             for stmt in node.body[body_start_index:]:
                 # Check for model_config (both Assign and AnnAssign)
                 is_model_config = False
@@ -300,7 +329,9 @@ class ClassTransformer(ast.NodeTransformer):
 
                 if is_model_config:
                     # Update existing model_config
-                    updated_config = self.create_model_config(existing_model_config_call, frozen=frozen)
+                    updated_config = self.create_model_config(
+                        existing_model_config_call, frozen=frozen, has_schema_field=has_schema
+                    )
                     # Check if the config actually changed
                     if ast.dump(updated_config) != ast.dump(stmt):
                         new_body.append(updated_config)
@@ -323,7 +354,7 @@ class ClassTransformer(ast.NodeTransformer):
                 # Add model_config if it wasn't present
                 # Insert after potential docstring
                 insert_pos = 1 if len(new_body) > 0 and isinstance(new_body[0], ast.Expr) else 0
-                new_body.insert(insert_pos, self.create_model_config(frozen=frozen))
+                new_body.insert(insert_pos, self.create_model_config(frozen=frozen, has_schema_field=has_schema))
                 self.modified = True
         elif any(isinstance(base, ast.Name) and base.id == 'Enum' for base in node.bases):
             # Uppercase Enum members
@@ -400,6 +431,23 @@ def fix_field_defaults(content: str) -> str:
     content = content.replace('Field(None)', 'Field(default=None)')
     # Replace Field(None, other_args) with Field(default=None, other_args)
     content = re.sub(r'Field\(None,', 'Field(default=None,', content)
+    return content
+
+
+def add_schema_field_suppression(content: str) -> str:
+    """Add pyrefly suppression comment for 'schema' fields.
+
+    The 'schema' field name shadows a method in Pydantic's BaseModel.
+    While protected_namespaces=() allows this in Pydantic, pyrefly still
+    reports it as a bad-override. We add a suppression comment.
+    """
+    import re
+
+    # Find lines that define a 'schema' field and add the suppression comment
+    # Pattern: "    schema: ... = Field(...)"
+    pattern = r'^(    schema: .+= Field\(.+\))$'
+    replacement = r'    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field\n\1'
+    content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
     return content
 
 
@@ -489,6 +537,9 @@ def process_file(filename: str) -> None:
 
         # Fix Field(None) to Field(default=None) for pyright compatibility
         modified_source_no_header = fix_field_defaults(modified_source_no_header)
+
+        # Add pyrefly suppression for 'schema' fields that shadow BaseModel.schema
+        modified_source_no_header = add_schema_field_suppression(modified_source_no_header)
 
         # Add header and specific imports correctly
         final_source = add_header(modified_source_no_header)
