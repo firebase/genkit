@@ -83,6 +83,7 @@ class GenkitBase(GenkitRegistry):
         for fmt in built_in_formats:
             self.define_format(fmt)
 
+
         if not plugins:
             logger.warning('No plugins provided to Genkit')
         else:
