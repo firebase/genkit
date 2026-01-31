@@ -43,15 +43,23 @@ from genkit.plugins.google_genai import VertexAI
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
+# Check for GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT
+# If GOOGLE_CLOUD_PROJECT is set but GCLOUD_PROJECT isn't, use it
 if 'GCLOUD_PROJECT' not in os.environ:
-    os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
+    if 'GOOGLE_CLOUD_PROJECT' in os.environ:
+        os.environ['GCLOUD_PROJECT'] = os.environ['GOOGLE_CLOUD_PROJECT']
+    else:
+        raise ValueError(
+            'GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT environment variable must be set. '
+            'Run: export GOOGLE_CLOUD_PROJECT=your-project-id'
+        )
 
 ai = Genkit(plugins=[VertexAI()])
 
 
 @ai.flow()
 async def draw_image_with_imagen() -> GenerateResponseWrapper:
-    """Draw an image.
+    """Draw an image using Imagen model.
 
     Returns:
         The image.

@@ -106,12 +106,18 @@ install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 logger = get_logger(__name__)
 
+# Check for GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT
+# If GOOGLE_CLOUD_PROJECT is set but GCLOUD_PROJECT isn't, use it
 if 'GCLOUD_PROJECT' not in os.environ:
-    os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
+    if 'GOOGLE_CLOUD_PROJECT' in os.environ:
+        os.environ['GCLOUD_PROJECT'] = os.environ['GOOGLE_CLOUD_PROJECT']
+    else:
+        os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT_ID: ')
+
 
 ai = Genkit(
     plugins=[VertexAI()],
-    model='vertexai/gemini-2.0-flash',
+    model='vertexai/gemini-3-pro-preview',
 )
 
 
@@ -427,8 +433,8 @@ async def simple_generate_with_tools_flow(input: ToolsFlowInput) -> str:
 
 
 async def main() -> None:
-    """Main function."""
-    await logger.ainfo(await say_hi(SayHiInput(name='tell me a joke')))
+    """Main function - runs when script starts."""
+    await logger.ainfo('VertexAI Hello sample initialized. Use Dev UI to invoke flows.')
 
 
 if __name__ == '__main__':

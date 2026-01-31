@@ -52,7 +52,7 @@ logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model='googleai/gemini-3-flash-preview',
+    model='googleai/gemini-3-pro-preview',
 )
 
 

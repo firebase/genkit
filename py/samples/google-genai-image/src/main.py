@@ -23,6 +23,8 @@ Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
+| Plugin Initialization                   | `ai = Genkit(plugins=[GoogleAI()])` |
+| Default Model Configuration             | `ai = Genkit(model=...)`            |
 | Text-to-Image Generation                | `draw_image_with_gemini`            |
 | Image-to-Text (Description)             | `describe_image_with_gemini`        |
 | Multimodal Prompting                    | `generate_images`                   |
@@ -47,6 +49,7 @@ from rich.traceback import install as install_rich_traceback
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import (
     GeminiConfigSchema,
     GeminiImageConfigSchema,
@@ -65,10 +68,15 @@ from genkit.types import (
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
+logger = get_logger(__name__)
+
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-ai = Genkit(plugins=[GoogleAI()])
+ai = Genkit(
+    plugins=[GoogleAI()],
+    model='googleai/gemini-3-pro-image-preview',
+)
 
 
 class DrawImageInput(BaseModel):

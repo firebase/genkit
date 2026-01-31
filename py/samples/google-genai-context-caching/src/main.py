@@ -24,6 +24,8 @@ Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
+| Plugin Initialization                   | `ai = Genkit(plugins=[GoogleAI()])` |
+| Default Model Configuration             | `ai = Genkit(model=...)`            |
 | Context Caching Config                  | `metadata={'cache': {'ttl_seconds': 300}}` |
 | URL Content Fetching                    | `httpx.AsyncClient().get()`         |
 | Message History Reuse                   | `messages=messages_history`         |
@@ -56,9 +58,13 @@ if 'GEMINI_API_KEY' not in os.environ:
 
 logger = get_logger(__name__)
 
+if 'GEMINI_API_KEY' not in os.environ:
+    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+
+
 ai = Genkit(
     plugins=[GoogleAI()],
-    model='googleai/gemini-2.0-flash-001',
+    model='googleai/gemini-3-pro-preview',
 )
 
 
@@ -117,7 +123,6 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             ),
         ],
         config=GenerationCommonConfig(
-            version='gemini-2.0-flash-001',
             temperature=0.7,
             max_output_tokens=1000,
             top_k=50,
