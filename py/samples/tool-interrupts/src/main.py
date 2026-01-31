@@ -34,6 +34,7 @@ Key Features
 import asyncio
 
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import (
     Genkit,
@@ -42,6 +43,8 @@ from genkit.ai import (
 )
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models import gemini
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 ai = Genkit(
     plugins=[GoogleAI()],

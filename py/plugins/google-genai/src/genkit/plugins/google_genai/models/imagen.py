@@ -28,7 +28,7 @@ from functools import cached_property
 
 from google import genai
 from google.genai import types as genai_types
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from genkit.ai import ActionRunContext
 from genkit.codec import dump_dict, dump_json
@@ -115,6 +115,12 @@ def vertexai_image_model_info(
         label=f'Vertex AI - {version}',
         supports=DEFAULT_IMAGE_SUPPORT,
     )
+
+
+class ImagenConfigSchema(BaseModel):
+    """Imagen Config Schema."""
+
+    model_config = ConfigDict(extra='allow')
 
 
 class ImagenModel:
@@ -231,11 +237,14 @@ class ImagenModel:
         Returns:
             model metadata.
         """
-        supports = SUPPORTED_MODELS[self._version].supports
-        if supports:
-            return {
-                'model': {
-                    'supports': supports.model_dump(),
-                }
-            }
-        return {'model': {'supports': {}}}
+        supports = {}
+        if self._version in SUPPORTED_MODELS:
+            model_supports = SUPPORTED_MODELS[self._version].supports  # pyrefly: ignore[bad-index]
+            if model_supports:
+                supports = model_supports.model_dump()
+        else:
+            model_supports = vertexai_image_model_info(self._version).supports
+            if model_supports:
+                supports = model_supports.model_dump()
+
+        return {'model': {'supports': supports}}

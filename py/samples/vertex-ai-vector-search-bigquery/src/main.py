@@ -74,14 +74,17 @@ Testing This Demo
 import os
 import time
 
-import structlog
 from google.cloud import aiplatform, bigquery
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import define_vertex_vector_search_big_query
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
@@ -96,7 +99,7 @@ VECTOR_SEARCH_API_ENDPOINT = os.getenv('VECTOR_SEARCH_API_ENDPOINT')
 bq_client = bigquery.Client(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(plugins=[VertexAI()])
 
@@ -125,7 +128,7 @@ class QueryFlowInputSchema(BaseModel):
 class QueryFlowOutputSchema(BaseModel):
     """Output schema."""
 
-    result: list[dict]
+    result: list[dict[str, object]]
     length: int
     time: int
 
@@ -177,7 +180,8 @@ async def main() -> None:
         k=3,
     )
 
-    await logger.ainfo(await query_flow(query_input))
+    result = await query_flow(query_input)
+    await logger.ainfo(str(result))
 
 
 if __name__ == '__main__':

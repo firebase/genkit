@@ -41,17 +41,20 @@ See README.md for testing instructions.
 import os
 
 import httpx
-import structlog
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
 from genkit.types import GenerationCommonConfig, Message, Part, Role, TextPart
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],

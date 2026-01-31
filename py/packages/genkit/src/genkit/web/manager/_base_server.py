@@ -18,13 +18,12 @@
 
 import abc
 
-import structlog
-
+from genkit.core.logging import get_logger
 from genkit.web.typing import Application
 
 from ._server import ServerConfig
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class AbstractBaseServer(abc.ABC):

@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Model Garden sample - Access third-party models via Vertex AI.
+"""Model Garden sample.
 
 This sample demonstrates how to use Vertex AI Model Garden, which provides
 access to various third-party models (like Anthropic Claude) through
@@ -31,167 +31,251 @@ Key Features
 See README.md for testing instructions.
 """
 
-from typing import Annotated, cast
+import asyncio
+import os
 
-import structlog
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
+from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 
-logger = structlog.get_logger(__name__)
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
-ai = Genkit(
-    plugins=[
-        ModelGardenPlugin(),
-    ],
-)
-
-
-class CurrencyExchangeInput(BaseModel):
-    """Currency exchange flow input schema."""
-
-    amount: float = Field(description='Amount to convert', default=100)
-    from_curr: str = Field(description='Source currency code', default='USD')
-    to_curr: str = Field(description='Target currency code', default='EUR')
-
-
-class CurrencyInput(BaseModel):
-    """Currency conversion input schema."""
-
-    amount: float = Field(description='Amount to convert', default=100)
-    from_currency: str = Field(description='Source currency code (e.g., USD)', default='USD')
-    to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
-
-
-class Skills(BaseModel):
-    """A set of core character skills for an RPG character."""
-
-    strength: int = Field(description='strength (0-100)')
-    charisma: int = Field(description='charisma (0-100)')
-    endurance: int = Field(description='endurance (0-100)')
+logger = get_logger(__name__)
 
 
 class RpgCharacter(BaseModel):
-    """An RPG character."""
+    """An RPG character with stats."""
 
-    name: str = Field(description='name of the character')
-    back_story: str = Field(description='back story', alias='backStory')
-    abilities: list[str] = Field(description='list of abilities (3-4)')
-    skills: Skills
+    name: str = Field(..., description='Character name')
+    backstory: str = Field(..., description='Character backstory')
+    abilities: list[str] = Field(..., description='List of character abilities')
+
+
+def get_project_id() -> str:
+    """Get Google Cloud project ID from environment."""
+    project_id = os.getenv('GCLOUD_PROJECT') or os.getenv('GOOGLE_CLOUD_PROJECT')
+    if not project_id:
+        project_id = input('Enter your Google Cloud Project ID: ').strip()
+        if not project_id:
+            raise ValueError('GCLOUD_PROJECT, GOOGLE_CLOUD_PROJECT or user input must be set.')
+
+    # Sanitize project_id to remove potential smart quotes or regular quotes
+    project_id = project_id.strip().strip("'").strip('"').strip(""").strip(""")
+
+    # Update env vars so other plugins (like VertexAI) pick up the sanitized ID
+    os.environ['GCLOUD_PROJECT'] = project_id
+    os.environ['GOOGLE_CLOUD_PROJECT'] = project_id
+
+    return project_id
+
+
+def get_location() -> str:
+    """Get Google Cloud location from environment."""
+    location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION')
+    if not location:
+        location = input('Enter your Google Cloud Location (default: us-central1): ').strip()
+        if not location:
+            location = 'us-central1'
+    os.environ['GOOGLE_CLOUD_LOCATION'] = location
+    return location
+
+
+project_id = get_project_id()
+location = get_location()
+
+ai = Genkit(
+    plugins=[
+        ModelGardenPlugin(
+            project_id=project_id,
+            location=location,
+            model_locations={
+                'anthropic/claude-sonnet-4@20250514': 'us-east5',
+                'anthropic/claude-3-5-sonnet-v2@20241022': 'us-east5',
+                'meta/llama-3.2-90b-vision-instruct-maas': 'us-central1',
+                'mistralai/ministral-3-14b-instruct-2512': 'us-central1',
+            },
+        ),
+        VertexAI(location=location),
+    ],
+)
 
 
 class WeatherInput(BaseModel):
     """Input for getting weather."""
 
-    location: str = Field(description='The city and state, e.g. San Francisco, CA')
+    location: str = Field(..., description='Location for which to get the weather, ex: San-Francisco, CA')
+
+
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name for streaming greeting')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class JokesInput(BaseModel):
+    """Input for jokes flow."""
+
+    subject: str = Field(default='banana', description='Subject for the joke')
+
+
+class WeatherFlowInput(BaseModel):
+    """Input for weather flow."""
+
+    location: str = Field(default='Paris, France', description='Location to get weather for')
+
+
+class TemperatureInput(BaseModel):
+    """Input for converting temperature."""
+
+    celsius: float = Field(..., description='Temperature in Celsius')
+
+
+class ToolFlowInput(BaseModel):
+    """Input for tool flow."""
+
+    location: str = Field('Paris, France', description='Location to check weather for')
 
 
 @ai.tool()
-def convert_currency(input: CurrencyInput) -> str:
-    """Convert currency amount.
-
-    Args:
-        input: Currency conversion parameters.
-
-    Returns:
-        Converted amount.
-    """
-    # Mock conversion rates
-    rates = {
-        ('USD', 'EUR'): 0.85,
-        ('EUR', 'USD'): 1.18,
-        ('USD', 'GBP'): 0.73,
-        ('GBP', 'USD'): 1.37,
+def get_weather(input: WeatherInput) -> dict:
+    """Used to get current weather for a location."""
+    return {
+        'location': input.location,
+        'temperature_celsius': 21.5,
+        'conditions': 'cloudy',
     }
 
-    rate = rates.get((input.from_currency, input.to_currency), 1.0)
-    converted = input.amount * rate
 
-    return f'{input.amount} {input.from_currency} = {converted:.2f} {input.to_currency}'
+@ai.tool()
+def celsius_to_fahrenheit(input: TemperatureInput) -> float:
+    """Converts Celsius to Fahrenheit."""
+    return (input.celsius * 9) / 5 + 32
 
 
-@ai.flow()
-async def currency_exchange(input: CurrencyExchangeInput) -> str:
-    """Convert currency using tools.
+@ai.tool(name='getWeather')
+def get_weather_tool(input_: WeatherInput) -> str:
+    """Used to get current weather for a location."""
+    return f'Weather in {input_.location}: Sunny, 21.5°C'
+
+
+@ai.flow(name='gemini-2.5-flash - tool_flow')
+async def gemini_model(input: ToolFlowInput) -> str:
+    """Gemini tool flow.
 
     Args:
-        input: Currency exchange parameters.
-
-    Returns:
-        Conversion result.
+        input: The location input.
     """
     response = await ai.generate(
-        model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
-        prompt=f'Convert {input.amount} {input.from_curr} to {input.to_curr}',
-        tools=['convert_currency'],
+        model='vertexai/gemini-2.5-flash',
+        config={'temperature': 1},
+        tools=['get_weather', 'celsius_to_fahrenheit'],
+        prompt=f"What's the weather in {input.location}? Convert the temperature to Fahrenheit.",
+    )
+    return response.text
+
+
+@ai.flow(name='llama-3.2 - basic_flow')
+async def llama_model() -> str:
+    """Generate a greeting."""
+    try:
+        response = await ai.generate(
+            model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+            config={
+                'temperature': 1,
+            },
+            prompt='You are a helpful assistant named Walt. Say hello',
+        )
+        logger.info(f'Response received: {response.text[:100] if response.text else "None"}')
+        return response.text
+    except Exception as e:
+        logger.error(f'Error in llama 3.2 basic_flow: {e}', exc_info=True)
+        raise
+
+
+@ai.flow(name='claude-sonnet-4 - tool_calling_flow')
+async def anthropic_model(input: ToolFlowInput) -> str:
+    """Anthropic tool flow.
+
+    Args:
+        input: The location input.
+    """
+    response = await ai.generate(
+        model=model_garden_name('anthropic/claude-sonnet-4@20250514'),
+        config={'temperature': 1},
+        tools=['get_weather', 'celsius_to_fahrenheit'],
+        prompt=f"What's the weather in {input.location}? Convert the temperature to Fahrenheit.",
     )
     return response.text
 
 
 @ai.flow()
-async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-) -> RpgCharacter:
+async def generate_character(input: CharacterInput) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
 
     Returns:
         The generated RPG character.
     """
     result = await ai.generate(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
-        prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        prompt=f'generate an RPG character named {input.name}',
+        output=Output(schema=RpgCharacter),
     )
-    return cast(RpgCharacter, result.output)
-
-
-@ai.tool(name='getWeather')
-def get_weather(input_: WeatherInput) -> str:
-    """Used to get current weather for a location."""
-    return f'Weather in {input_.location}: Sunny, 21.5°C'
+    return result.output
 
 
 @ai.flow()
-async def jokes_flow(subject: Annotated[str, Field(default='banana')] = 'banana') -> str:
+async def jokes_flow(input: JokesInput) -> str:
     """Generate a joke about the given subject.
 
     Args:
-        subject: The subject of the joke.
+        input: Input with joke subject.
 
     Returns:
         The generated joke.
     """
     response = await ai.generate(
-        # Note: The model name usually includes the publisher prefix for Model Garden
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         config={'temperature': 1, 'max_output_tokens': 1024},
-        prompt=f'Tell a short joke about {subject}',
+        prompt=f'Tell a short joke about {input.subject}',
     )
 
     return response.text
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: The name of the person to greet.
+        input: Input with name to greet.
 
     Returns:
         The generated greeting response.
     """
     response = await ai.generate(
-        # model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
-        # Using Anthropic for Model Garden example as it is reliably available
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         config={'temperature': 1},
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
 
     return response.text
@@ -199,13 +283,13 @@ async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    input: StreamInput,
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Say hi to a name and stream the response.
 
     Args:
-        name: The name to say hi to.
+        input: Input with name for streaming.
         ctx: Action context for streaming.
 
     Returns:
@@ -214,37 +298,31 @@ async def say_hi_stream(
     stream, _ = ai.generate_stream(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         config={'temperature': 1},
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
     result = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
     return result
 
 
 @ai.flow()
-async def weather_flow(location: Annotated[str, Field(default='Paris, France')] = 'Paris, France') -> str:
+async def weather_flow(input: WeatherFlowInput) -> str:
     """Tool calling with Model Garden."""
     response = await ai.generate(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         tools=['getWeather'],
-        prompt=f"What's the weather in {location}?",
-        config={'temperature': 1},
+        prompt=f"What's the weather in {input.location}?",
     )
+
     return response.text
 
 
 async def main() -> None:
     """Main entry point for the Model Garden sample - keep alive for Dev UI."""
-    import asyncio
-
-    # For testing/demo purposes, you can uncomment these to run them on startup:
-    # await logger.ainfo(await say_hi('Alice'))
-    # await logger.ainfo(await jokes_flow('banana'))
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
-    # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 
 

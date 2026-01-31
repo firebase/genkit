@@ -30,11 +30,10 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import httpx
-import structlog
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import (
@@ -42,11 +41,15 @@ from opentelemetry.sdk.trace.export import (
     SpanExportResult,
 )
 
+from genkit.core._compat import override
+from genkit.core.logging import get_logger
+
 if TYPE_CHECKING:
     from opentelemetry.sdk.trace import SpanProcessor
+    from opentelemetry.trace import SpanContext
 
 ATTR_PREFIX = 'genkit'
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
@@ -56,8 +59,9 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
     a dictionary containing the span data.
     """
     # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
-    trace_id_hex = format(span.context.trace_id, '032x')
-    span_id_hex = format(span.context.span_id, '016x')
+    context = cast('SpanContext', span.context)
+    trace_id_hex = format(context.trace_id, '032x')
+    span_id_hex = format(context.span_id, '016x')
     parent_span_id_hex = format(span.parent.span_id, '016x') if span.parent else None
 
     span_data: dict[str, Any] = {'traceId': trace_id_hex, 'spans': {}}
@@ -69,7 +73,7 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
         'traceId': trace_id_hex,
         'startTime': start_time,
         'endTime': end_time,
-        'attributes': {**span.attributes},
+        'attributes': {**(span.attributes or {})},
         'displayName': span.name,
         # "links": span.links,
         'spanKind': trace_api.SpanKind(span.kind).name,
@@ -115,12 +119,13 @@ class TelemetryServerSpanExporter(SpanExporter):
             telemetry_server_url: The URL of the telemetry server.
             telemetry_server_endpoint (optional): The telemetry server's trace endpoint.
         """
-        self.telemetry_server_url = telemetry_server_url
+        self.telemetry_server_url: str = telemetry_server_url
         if telemetry_server_endpoint is None:
-            self.telemetry_server_endpoint = '/api/traces'
+            self.telemetry_server_endpoint: str = '/api/traces'
         else:
             self.telemetry_server_endpoint = telemetry_server_endpoint
 
+    @override
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Exports a sequence of ReadableSpans to the configured telemetry server.
 
@@ -137,7 +142,7 @@ class TelemetryServerSpanExporter(SpanExporter):
         """
         with httpx.Client() as client:
             for span in spans:
-                client.post(
+                _ = client.post(
                     urljoin(self.telemetry_server_url, self.telemetry_server_endpoint),
                     json=extract_span_data(span),
                     headers={
@@ -146,10 +151,11 @@ class TelemetryServerSpanExporter(SpanExporter):
                     },
                 )
 
-        sys.stdout.flush()
+        _ = sys.stdout.flush()
 
         return SpanExportResult.SUCCESS
 
+    @override
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Forces the exporter to flush any buffered spans.
 

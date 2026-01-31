@@ -22,7 +22,7 @@ model.
 """
 
 from collections.abc import Callable, Coroutine
-from typing import Any, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -46,7 +46,7 @@ BatchEvaluatorFn = Callable[[EvalRequest, T], Coroutine[Any, Any, list[EvalFnRes
 class EvaluatorRef(BaseModel):
     """Reference to an evaluator."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     name: str
     config_schema: dict[str, object] | None = None

@@ -33,15 +33,17 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, cast  # noqa: F401
-
-if TYPE_CHECKING:
-    from genkit.blocks.prompt import ExecutablePrompt
+from typing import Any, TypeVar, cast, overload  # noqa: F401
 
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit.aio import Channel, ensure_async
+from genkit.aio._util import ensure_async
+from genkit.aio.channel import Channel
+from genkit.blocks.background_model import (
+    check_operation as check_operation_impl,
+    lookup_background_action,
+)
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderRef
 from genkit.blocks.evaluator import EvaluatorRef
@@ -49,6 +51,7 @@ from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
 )
+from genkit.blocks.interfaces import Input as _Input, Output, OutputConfigDict
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -64,13 +67,11 @@ from genkit.core.typing import (
     BaseDataPoint,
     Embedding,
     EmbedRequest,
-    EmbedResponse,
     EvalRequest,
     EvalResponse,
     Operation,
     SpanMetadata,
 )
-from genkit.session import Chat, ChatOptions, InMemorySessionStore, Session, SessionStore
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -86,16 +87,11 @@ from ._base_async import GenkitBase
 from ._server import ServerSpec
 
 T = TypeVar('T')
+Input = _Input
 
 
-class OutputConfigDict(TypedDict, total=False):
-    """TypedDict for output configuration when passed as a dict."""
-
-    format: str | None
-    content_type: str | None
-    instructions: bool | str | None
-    schema: type | dict[str, object] | None
-    constrained: bool | None
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
 
 
 class Genkit(GenkitBase):
@@ -148,170 +144,54 @@ class Genkit(GenkitBase):
         else:
             raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
 
-    def create_session(
+    @overload
+    async def generate(
         self,
-        store: SessionStore | None = None,
-        initial_state: dict[str, Any] | None = None,
-    ) -> Session:
-        """Creates a new session for multi-turn conversations.
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        *,
+        output: Output[OutputT],
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+    ) -> GenerateResponseWrapper[OutputT]: ...
 
-        **Overview:**
-
-        Initializes a new `Session` instance, which manages conversation history
-        and state. By default, it uses an ephemeral `InMemorySessionStore`, but
-        you should provide a persistent store (e.g. Firestore, Redis) for
-        production use.
-
-        **Args:**
-            store: The `SessionStore` implementation to use. Defaults to `InMemorySessionStore`.
-            initial_state: A dictionary of initial state to populate the session with.
-
-        **Returns:**
-            A new `Session` object bound to this Genkit instance.
-
-        **Examples:**
-
-        ```python
-        # ephemeral session
-        session = ai.create_session()
-
-        # persistent session with initial state
-        session = ai.create_session(store=my_firestore_store, initial_state={'username': 'jdoe'})
-        await session.chat('Hello')
-        ```
-        """
-        if store is None:
-            store = InMemorySessionStore()
-
-        session = Session(ai=self, store=store)
-        if initial_state:
-            session.update_state(initial_state)
-        return session
-
-    async def load_session(
+    @overload
+    async def generate(
         self,
-        session_id: str,
-        store: SessionStore,
-    ) -> Session | None:
-        """Loads an existing session from a store.
-
-        **Overview:**
-
-        Retrieves session data (history and state) from the provided `SessionStore`
-        and reconstructs a `Session` object. If the session ID is not found,
-        returns `None`.
-
-        **Args:**
-            session_id: The unique identifier of the session to load.
-            store: The `SessionStore` to query.
-
-        **Returns:**
-            The loaded `Session` object, or `None` if not found.
-
-        **Examples:**
-
-        ```python
-        session = await ai.load_session('sess_12345', store=my_store)
-        if session:
-            await session.chat('Continue our conversation')
-        else:
-            print('Session not found')
-        ```
-        """
-        data = await store.get(session_id)
-        if not data:
-            return None
-        return Session(ai=self, store=store, data=data)
-
-    def chat(
-        self,
-        preamble_or_options: ExecutablePrompt | ChatOptions | None = None,
-        options: ChatOptions | None = None,
-    ) -> Chat:
-        r"""Creates a chat session for multi-turn conversations (matches JS API).
-
-        This method creates a Session and returns a Chat object for
-        conversational AI. It matches the JavaScript `ai.chat()` API exactly.
-
-        Args:
-            preamble_or_options: Either an ExecutablePrompt to use as the
-                conversation preamble, or a ChatOptions dict with system
-                prompt, model, config, etc.
-            options: Additional ChatOptions (only used when first arg is
-                an ExecutablePrompt).
-
-        Returns:
-            A Chat instance ready for multi-turn conversation.
-
-        Example:
-            Basic chat with system prompt:
-
-            ```python
-            chat = ai.chat({'system': 'You are a helpful pirate.'})
-            response = await chat.send('Hello!')
-            print(response.text)  # "Ahoy, matey!"
-            ```
-
-            Using an ExecutablePrompt:
-
-            ```python
-            support_agent = ai.define_prompt(
-                name='support',
-                system='You are a customer support agent.',
-            )
-            chat = ai.chat(support_agent)
-            response = await chat.send('My order is late')
-            ```
-
-            Streaming responses:
-
-            ```python
-            chat = ai.chat({'system': 'Be verbose.'})
-            result = chat.send_stream('Explain quantum physics')
-
-            async for chunk in result.stream:
-                print(chunk.text, end='', flush=True)
-
-            final = await result.response
-            ```
-
-            Multiple threads (use session.chat for thread names):
-
-            ```python
-            session = ai.create_session()
-            lawyer = session.chat('lawyer', {'system': 'Talk like a lawyer'})
-            pirate = session.chat('pirate', {'system': 'Talk like a pirate'})
-            await lawyer.send('Tell me a joke')
-            await pirate.send('Tell me a joke')
-            ```
-
-        See Also:
-            - session.chat(): For named threads within a session
-            - JavaScript ai.chat(): js/genkit/src/genkit-beta.ts
-        """
-        from genkit.blocks.prompt import ExecutablePrompt
-
-        # Resolve preamble and options (matching JS pattern exactly)
-        preamble: ExecutablePrompt | None = None
-        chat_options: ChatOptions | None = None
-
-        if preamble_or_options is not None:
-            if isinstance(preamble_or_options, ExecutablePrompt):
-                preamble = preamble_or_options
-                chat_options = options
-            else:
-                chat_options = preamble_or_options
-
-        # Create session and use session.chat() (matches JS)
-        store = chat_options.get('store') if chat_options else None
-        session = self.create_session(store=store)
-
-        if preamble is not None:
-            return session.chat(preamble, chat_options)
-        elif chat_options:
-            return session.chat(chat_options)
-        else:
-            return session.chat()
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+    ) -> GenerateResponseWrapper[Any]: ...
 
     async def generate(
         self,
@@ -330,12 +210,11 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
-    ) -> GenerateResponseWrapper:
+    ) -> GenerateResponseWrapper[Any]:
         """Generates text or structured data using a language model.
 
         This function provides a flexible interface for interacting with various
@@ -379,12 +258,10 @@ class Genkit(GenkitBase):
             output_content_type: Optional. The content type of the output.
             output_instructions: Optional. Instructions for formatting the
                 output.
-            output_schema: Optional. Schema defining the structure of the
-                output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            output: Optional. An `OutputConfig` object or dictionary containing
-                output configuration. This groups output-related parameters.
+            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
+                Can also be an `OutputConfig` object or dictionary.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -402,9 +279,24 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
+        # Initialize output_schema - extracted from output parameter
+        output_schema: type | dict[str, object] | None = None
+
         # Unpack output config if provided
         if output:
-            if isinstance(output, dict):
+            if isinstance(output, Output):
+                # Handle typed Output[T] - extract values from the typed wrapper
+                if output_format is None:
+                    output_format = output.format
+                if output_content_type is None:
+                    output_content_type = output.content_type
+                if output_instructions is None:
+                    output_instructions = output.instructions
+                if output_schema is None:
+                    output_schema = output.schema
+                if output_constrained is None:
+                    output_constrained = output.constrained
+            elif isinstance(output, dict):
                 # Handle dict input - extract values directly
                 if output_format is None:
                     output_format = output.get('format')
@@ -419,9 +311,6 @@ class Genkit(GenkitBase):
             else:
                 # Handle OutputConfig object - use getattr for safety since
                 # OutputConfig is auto-generated and may not have all fields.
-                # Note: schema_ is the Python attribute name in OutputConfig because
-                # 'schema' is a reserved attribute in Pydantic BaseModel. The field
-                # uses Field(alias='schema') for JSON serialization.
                 if output_format is None:
                     output_format = getattr(output, 'format', None)
                 if output_content_type is None:
@@ -429,7 +318,7 @@ class Genkit(GenkitBase):
                 if output_instructions is None:
                     output_instructions = getattr(output, 'instructions', None)
                 if output_schema is None:
-                    output_schema = getattr(output, 'schema_', None)
+                    output_schema = getattr(output, 'schema', None)
                 if output_constrained is None:
                     output_constrained = getattr(output, 'constrained', None)
 
@@ -458,8 +347,61 @@ class Genkit(GenkitBase):
             ),
             on_chunk=on_chunk,
             middleware=use,
-            context=context if context else ActionRunContext._current_context(),
+            context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
+
+    @overload
+    def generate_stream(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        *,
+        output: Output[OutputT],
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[
+        AsyncIterator[GenerateResponseChunkWrapper],
+        asyncio.Future[GenerateResponseWrapper[OutputT]],
+    ]: ...
+
+    @overload
+    def generate_stream(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        timeout: float | None = None,
+    ) -> tuple[
+        AsyncIterator[GenerateResponseChunkWrapper],
+        asyncio.Future[GenerateResponseWrapper[Any]],
+    ]: ...
 
     def generate_stream(
         self,
@@ -476,15 +418,14 @@ class Genkit(GenkitBase):
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
-        output_schema: type | dict[str, object] | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
         timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
-        asyncio.Future[GenerateResponseWrapper],
+        asyncio.Future[GenerateResponseWrapper[Any]],
     ]:
         """Streams generated text or structured data using a language model.
 
@@ -521,12 +462,10 @@ class Genkit(GenkitBase):
             output_content_type: Optional. The content type of the output.
             output_instructions: Optional. Instructions for formatting the
                 output.
-            output_schema: Optional. Schema defining the structure of the
-                output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            output: Optional. An `OutputConfig` object or dictionary containing
-                output configuration. This groups output-related parameters.
+            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
+                Can also be an `OutputConfig` object or dictionary.
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
@@ -544,7 +483,7 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        stream = Channel(timeout=timeout)
+        stream: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel(timeout=timeout)
 
         resp = self.generate(
             model=model,
@@ -560,7 +499,6 @@ class Genkit(GenkitBase):
             output_format=output_format,
             output_content_type=output_content_type,
             output_instructions=output_instructions,
-            output_schema=output_schema,
             output_constrained=output_constrained,
             output=output,
             docs=docs,
@@ -605,7 +543,7 @@ class Genkit(GenkitBase):
 
         request_options = {**(retriever_config or {}), **(options or {})}
 
-        retrieve_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.RETRIEVER), retriever_name)
+        retrieve_action = await self.registry.resolve_retriever(retriever_name)
         if retrieve_action is None:
             raise ValueError(f'Retriever "{retriever_name}" not found')
 
@@ -656,11 +594,11 @@ class Genkit(GenkitBase):
         if documents is None:
             raise ValueError('Documents must be specified for indexing.')
 
-        await index_action.arun(
+        _ = await index_action.arun(
             IndexerRequest(
                 # Document subclasses DocumentData, so this is type-safe at runtime.
-                # The type checker doesn't recognize the subclass relationship here.
-                documents=documents,  # type: ignore[arg-type]
+                # list is invariant so list[Document] isn't assignable to list[DocumentData]
+                documents=cast(list[DocumentData], documents),
                 options=req_options if req_options else None,
             )
         )
@@ -731,7 +669,7 @@ class Genkit(GenkitBase):
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}
 
-        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
+        embed_action = await self.registry.resolve_embedder(embedder_name)
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
@@ -744,9 +682,14 @@ class Genkit(GenkitBase):
             documents = [content]
 
         # Document subclasses DocumentData, so this is type-safe at runtime.
-        # The type checker doesn't recognize the subclass relationship here.
-        response: EmbedResponse = (
-            await embed_action.arun(EmbedRequest(input=documents, options=final_options))
+        # list is invariant so list[Document] isn't assignable to list[DocumentData]
+        response = (
+            await embed_action.arun(
+                EmbedRequest(
+                    input=documents,  # pyright: ignore[reportArgumentType]
+                    options=final_options,
+                )
+            )
         ).response
         return response.embeddings
 
@@ -815,11 +758,11 @@ class Genkit(GenkitBase):
         # Resolve embedder name (JS embedMany does not extract config/version from ref)
         embedder_name = self._resolve_embedder_name(embedder)
 
-        embed_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EMBEDDER), embedder_name)
+        embed_action = await self.registry.resolve_embedder(embedder_name)
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
-        response: EmbedResponse = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
+        response = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
         return response.embeddings
 
     async def evaluate(
@@ -853,7 +796,7 @@ class Genkit(GenkitBase):
 
         final_options = {**(evaluator_config or {}), **(options or {})}
 
-        eval_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.EVALUATOR), evaluator_name)
+        eval_action = await self.registry.resolve_evaluator(evaluator_name)
         if eval_action is None:
             raise ValueError(f'Evaluator "{evaluator_name}" not found')
 
@@ -884,7 +827,7 @@ class Genkit(GenkitBase):
         Returns:
             The current context dictionary, or None if not running in an action.
         """
-        return ActionRunContext._current_context()
+        return ActionRunContext._current_context()  # pyright: ignore[reportPrivateUsage]
 
     def dynamic_tool(
         self,
@@ -908,7 +851,7 @@ class Genkit(GenkitBase):
         Returns:
             An Action instance of kind TOOL, configured for dynamic execution.
         """
-        tool_meta = metadata.copy() if metadata else {}
+        tool_meta: dict[str, object] = metadata.copy() if metadata else {}
         tool_meta['type'] = 'tool'
         tool_meta['dynamic'] = True
         return Action(
@@ -989,26 +932,240 @@ class Genkit(GenkitBase):
                 raise
 
     async def check_operation(self, operation: Operation) -> Operation:
-        """Checks the status of a long-running operation.
+        """Checks the status of a long-running background operation.
 
-        This method resolves the action associated with the operation and executes
-        it to get an updated status.
+        This method matches JS checkOperation from js/ai/src/check-operation.ts.
+
+        It looks up the background action by the operation's action key and
+        calls its check method to get updated status.
 
         Args:
-            operation: The Operation object to check.
+            operation: The Operation object to check. Must have an action
+                field specifying which background model created it.
 
         Returns:
-            An updated Operation object.
+            An updated Operation object with the current status.
 
         Raises:
-            ValueError: If the operation doesn't specify an action or if the
-                action cannot be resolved.
+            ValueError: If the operation is missing original request information
+                or if the background action cannot be resolved.
+
+        Example:
+            >>> # Start a background operation
+            >>> response = await ai.generate(model=veo_model, prompt='A cat')
+            >>> operation = response.operation
+            >>> # Poll until done
+            >>> while not operation.done:
+            ...     await asyncio.sleep(5)
+            ...     operation = await ai.check_operation(operation)
+            >>> # Use the result
+            >>> print(operation.output)
+        """
+        return await check_operation_impl(self.registry, operation)
+
+    async def cancel_operation(self, operation: Operation) -> Operation:
+        """Cancels a long-running background operation.
+
+        This method attempts to cancel an in-progress operation. Not all
+        background models support cancellation.
+
+        If cancellation is not supported, returns the operation unchanged
+        (matching JS behavior).
+
+        Args:
+            operation: The Operation object to cancel. Must have an action
+                field specifying which background model created it.
+
+        Returns:
+            An updated Operation object reflecting the cancellation attempt.
+
+        Raises:
+            ValueError: If the operation is missing original request information
+                or if the background action cannot be resolved.
+
+        Example:
+            >>> # Start a background operation
+            >>> response = await ai.generate(model=veo_model, prompt='A cat')
+            >>> operation = response.operation
+            >>> # Cancel it
+            >>> operation = await ai.cancel_operation(operation)
         """
         if not operation.action:
-            raise ValueError('Operation must have an action specified to be checked.')
+            raise ValueError('Provided operation is missing original request information')
 
-        action = await self.registry.resolve_action_by_key(operation.action)
-        if not action:
-            raise ValueError(f'Action "{operation.action}" not found.')
+        background_action = await lookup_background_action(self.registry, operation.action)
+        if background_action is None:
+            raise ValueError(f'Failed to resolve background action from original request: {operation.action}')
 
-        return (await action.arun(operation)).response
+        return await background_action.cancel(operation)
+
+    async def generate_operation(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: GenerationCommonConfig | dict[str, object] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+    ) -> Operation:
+        """Generate content using a long-running model and return an Operation.
+
+        This method is for models that support long-running operations (like
+        video generation with Veo). It returns an Operation that can be polled
+        with check_operation() until completion.
+
+        Note: This is a beta feature. Only models that support long-running
+        operations (model.supports.long_running = True) can be used with this
+        method.
+
+        The Operation Flow
+        ==================
+
+        ┌─────────────────────────────────────────────────────────────────┐
+        │                    generate_operation() Flow                     │
+        ├─────────────────────────────────────────────────────────────────┤
+        │                                                                  │
+        │   ┌──────────────────┐                                          │
+        │   │ Resolve Model    │                                          │
+        │   │ Check supports   │                                          │
+        │   │ long_running     │                                          │
+        │   └────────┬─────────┘                                          │
+        │            │                                                     │
+        │      ┌─────┴─────┐                                              │
+        │      │           │                                              │
+        │      ▼           ▼                                              │
+        │   ┌───────┐   ┌───────────────┐                                │
+        │   │ Error │   │ Call generate │                                │
+        │   │ (no   │   │ Get operation │                                │
+        │   │ LRO)  │   └───────┬───────┘                                │
+        │   └───────┘           │                                         │
+        │                       ▼                                         │
+        │              ┌──────────────┐                                   │
+        │              │  Operation   │                                   │
+        │              │  done=False  │ ──► poll with check_operation()  │
+        │              │  id=...      │                                   │
+        │              └──────────────┘                                   │
+        │                                                                  │
+        └─────────────────────────────────────────────────────────────────┘
+
+        Args:
+            model: The model to use for generation (must support long_running).
+            prompt: The prompt text or parts.
+            system: System message for the model.
+            messages: Conversation history.
+            tools: Tool names available to the model.
+            return_tool_requests: Whether to return tool requests.
+            tool_choice: How the model should choose tools.
+            config: Generation configuration.
+            max_turns: Maximum conversation turns.
+            context: Additional context data.
+            output_format: Output format (e.g., 'json').
+            output_content_type: Output content type.
+            output_instructions: Output formatting instructions.
+            output_constrained: Whether to constrain output to schema.
+            output: Typed output configuration.
+            use: Middleware to apply.
+            docs: Documents for grounding.
+            on_chunk: Callback for streaming chunks.
+
+        Returns:
+            An Operation object for tracking the long-running generation.
+
+        Raises:
+            GenkitError: If the model doesn't support long-running operations.
+            GenkitError: If the model didn't return an operation.
+
+        Example:
+            >>> # Generate video with Veo (long-running operation)
+            >>> operation = await ai.generate_operation(
+            ...     model='googleai/veo-2.0-generate-001',
+            ...     prompt='A banana riding a bicycle.',
+            ... )
+            >>> # Poll until done
+            >>> while not operation.done:
+            ...     await asyncio.sleep(5)
+            ...     operation = await ai.check_operation(operation)
+            >>> # Access result
+            >>> print(operation.output)
+        """
+        from genkit.core.error import GenkitError
+
+        # Resolve the model and check for long_running support
+        resolved_model = model or self.registry.default_model
+        if not resolved_model:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message='No model specified for generate_operation.',
+            )
+
+        model_action = await self.registry.resolve_action(ActionKind.MODEL, resolved_model)
+        if not model_action:
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f"Model '{resolved_model}' not found.",
+            )
+
+        # Check if model supports long-running operations
+        model_info = model_action.metadata.get('model') if model_action.metadata else None
+        supports_long_running = False
+        if model_info:
+            # model_info can be ModelInfo or dict
+            if hasattr(model_info, 'supports'):
+                supports_attr = getattr(model_info, 'supports', None)
+                if supports_attr:
+                    supports_long_running = getattr(supports_attr, 'long_running', False)
+            elif isinstance(model_info, dict):
+                # Cast to dict[str, Any] for type checker
+                model_info_dict: dict[str, Any] = model_info  # type: ignore[assignment]
+                supports = model_info_dict.get('supports')
+                if isinstance(supports, dict):
+                    supports_long_running = bool(supports.get('longRunning', False))
+
+        if not supports_long_running:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f"Model '{model_action.name}' does not support long running operations.",
+            )
+
+        # Call generate
+        response = await self.generate(
+            model=model,
+            prompt=prompt,
+            system=system,
+            messages=messages,
+            tools=tools,
+            return_tool_requests=return_tool_requests,
+            tool_choice=tool_choice,
+            config=config,
+            max_turns=max_turns,
+            context=context,
+            output_format=output_format,
+            output_content_type=output_content_type,
+            output_instructions=output_instructions,
+            output_constrained=output_constrained,
+            output=output,
+            use=use,
+            docs=docs,
+            on_chunk=on_chunk,
+        )
+
+        # Extract operation from response
+        if not hasattr(response, 'operation') or not response.operation:
+            raise GenkitError(
+                status='FAILED_PRECONDITION',
+                message=f"Model '{model_action.name}' did not return an operation.",
+            )
+
+        return response.operation

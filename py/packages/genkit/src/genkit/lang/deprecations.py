@@ -39,6 +39,8 @@ import enum
 import warnings
 from dataclasses import dataclass
 
+from genkit.core._compat import override
+
 
 class DeprecationStatus(enum.Enum):
     """Defines the deprecation status of an enum member."""
@@ -69,6 +71,7 @@ def deprecated_enum_metafactory(
     """
 
     class DeprecatedEnumMeta(enum.EnumMeta):
+        @override
         def __getattribute__(cls, name: str) -> object:
             """Get an attribute of the enum class.
 

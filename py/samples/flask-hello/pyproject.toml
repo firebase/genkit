@@ -33,6 +33,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "rich>=13.0.0",
   "flask",
   "genkit",
   "genkit-plugin-flask",

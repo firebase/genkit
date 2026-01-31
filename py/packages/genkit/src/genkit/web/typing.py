@@ -35,40 +35,36 @@ from asgiref import typing as atyping
 try:
     import litestar  # type: ignore[misc]
     import litestar.types  # type: ignore[misc]
-
-    HAVE_LITESTAR = True
 except ImportError:
-    HAVE_LITESTAR = False
-
+    litestar = None
 
 try:
     import starlette.types  # Explicit import for ty type checker
 
     # Import the actual application class
     from starlette.applications import Starlette as StarletteApp
-
-    HAVE_STARLETTE = True
 except ImportError:
-    HAVE_STARLETTE = False
+    starlette = None  # type: ignore[assignment]
+    StarletteApp = None  # type: ignore[assignment,misc]
 
 
 # NOTE: Please ask these frameworks to standardize on asgiref.
-if HAVE_LITESTAR and HAVE_STARLETTE:
-    Application = atyping.ASGIApplication | litestar.Litestar | StarletteApp
+if litestar is not None and starlette is not None:
+    Application = atyping.ASGIApplication | litestar.Litestar | StarletteApp  # pyright: ignore[reportOperatorIssue]
     HTTPScope = atyping.HTTPScope | litestar.types.HTTPScope | starlette.types.Scope
     LifespanScope = atyping.LifespanScope | litestar.types.LifeSpanScope | starlette.types.Scope
     Receive = atyping.ASGIReceiveCallable | litestar.types.Receive | starlette.types.Scope
     Scope = atyping.Scope | litestar.types.Scope | starlette.types.Scope
     Send = atyping.ASGISendCallable | litestar.types.Send | starlette.types.Send
-elif HAVE_LITESTAR:
+elif litestar is not None:
     Application = atyping.ASGIApplication | litestar.Litestar
     HTTPScope = atyping.HTTPScope | litestar.types.HTTPScope
     LifespanScope = atyping.LifespanScope | litestar.types.LifeSpanScope
     Receive = atyping.ASGIReceiveCallable | litestar.types.Receive
     Scope = atyping.Scope | litestar.types.Scope
     Send = atyping.ASGISendCallable | litestar.types.Send
-elif HAVE_STARLETTE:
-    Application = StarletteApp | atyping.ASGIApplication
+elif starlette is not None:
+    Application = StarletteApp | atyping.ASGIApplication  # pyright: ignore[reportOptionalOperand]
     HTTPScope = atyping.HTTPScope | starlette.types.Scope
     LifespanScope = atyping.LifespanScope | starlette.types.Scope
     Receive = atyping.ASGIReceiveCallable | starlette.types.Receive

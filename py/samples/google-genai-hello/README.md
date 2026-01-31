@@ -84,11 +84,15 @@ To test Google Cloud Platform telemetry (tracing and metrics), you need a GCP pr
 
 5. **Test advanced features**:
    - [ ] `embed_docs` - Document embedding
-   - [ ] `generate_images` - Image generation (if model supports)
+   - [ ] `describe_image` - Multimodal input (image description)
    - [ ] `thinking_level_pro` / `thinking_level_flash` - Chain of thought
    - [ ] `search_grounding` - Web search grounding
    - [ ] `url_context` - URL context injection
+   - [ ] `file_search` - File search (RAG)
    - [ ] `youtube_videos` - Video input processing
+   - [ ] `tool_calling` - Basic tool calling chain
+   - [ ] `currency_exchange` - Tool calling with mocking
+   - [ ] `demo_dynamic_tools` - Dynamic tools and sub-spans
 
 6. **Expected behavior**:
    - All flows should complete without errors

@@ -66,7 +66,6 @@ import json
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
-import structlog
 from sse_starlette.sse import EventSourceResponse
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -79,6 +78,7 @@ from genkit.codec import dump_dict
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.web.requests import (
     is_streaming_requested,
@@ -88,10 +88,10 @@ from genkit.web.typing import (
     StartupHandler,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
-# TODO: This is a work in progress and may change. Do not use.
+# TODO(#4351): This is a work in progress and may change. Do not use.
 def create_flows_asgi_app(
     registry: Registry,
     context_providers: list[Callable[..., Any]] | None = None,
@@ -116,13 +116,13 @@ def create_flows_asgi_app(
         An ASGI application.
     """
     routes = []
-    logger = structlog.get_logger(__name__)
+    logger = get_logger(__name__)
 
-    async def health_check(request: Request) -> JSONResponse:
+    async def health_check(_request: Request) -> JSONResponse:
         """Handle health check requests.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             A JSON response with status code 200.
@@ -175,7 +175,7 @@ def create_flows_asgi_app(
                     payload = await request.json()
                     input_data = payload.get('data', {})
             except json.JSONDecodeError as e:
-                await logger.eerror(
+                await logger.aerror(
                     'Invalid JSON',
                     error=f'Invalid JSON: {str(e)}',
                 )
@@ -222,8 +222,8 @@ def create_flows_asgi_app(
 
     async def handle_streaming_flow(
         action: Action,
-        input_data: dict,
-        context: dict,
+        input_data: dict[str, Any],
+        context: dict[str, Any],
         version: str,
     ) -> EventSourceResponse:
         """Handle streaming flow execution.
@@ -367,4 +367,4 @@ def create_flows_asgi_app(
 
     app.state.context = {}
 
-    return app
+    return app  # pyright: ignore[reportReturnType]

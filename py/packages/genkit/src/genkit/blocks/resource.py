@@ -126,7 +126,7 @@ async def resolve_resources(registry: Registry, resources: list[ResourceArgument
     for ref in resources:
         if isinstance(ref, str):
             resolved_actions.append(await lookup_resource_by_name(registry, ref))
-        elif isinstance(ref, Action):
+        elif isinstance(ref, Action):  # pyright: ignore[reportUnnecessaryIsInstance]
             resolved_actions.append(ref)
         else:
             raise ValueError('Resources must be strings or actions')
@@ -175,7 +175,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResou
     """
     action = dynamic_resource(opts, fn)
 
-    cast(MatchableAction, action).matches = create_matcher(opts.get('uri'), opts.get('template'))
+    cast(MatchableAction, cast(object, action)).matches = create_matcher(opts.get('uri'), opts.get('template'))
 
     # Mark as not dynamic since it's being registered
     action.metadata['dynamic'] = False
@@ -226,7 +226,7 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
 
     matcher = create_matcher(opts.get('uri'), opts.get('template'))
 
-    async def wrapped_fn(input_data: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+    async def wrapped_fn(input_data: ResourceInput, ctx: ActionRunContext) -> ResourcePayload:
         if isinstance(input_data, dict):
             input_data = ResourceInput(**input_data)
 
@@ -254,23 +254,29 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
                     p = p.root
 
                 if hasattr(p, 'metadata'):
-                    if p.metadata is None or isinstance(p.metadata, dict):
-                        p.metadata = Metadata(root=p.metadata or {})
-
+                    if p.metadata is None:
+                        # Different Part types have different metadata types (Metadata or dict)
+                        # dict works for both types at runtime
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
                     if isinstance(p.metadata, Metadata):
                         p_metadata = p.metadata.root
+                    elif isinstance(p.metadata, dict):
+                        p_metadata = p.metadata
                     else:
+                        # dict works for both Part types at runtime
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
                         p_metadata = p.metadata
 
+                    template = opts.get('template')
                     if 'resource' in p_metadata:
                         if 'parent' not in p_metadata['resource']:
                             p_metadata['resource']['parent'] = {'uri': input_data.uri}
-                            if opts.get('template'):
-                                p_metadata['resource']['parent']['template'] = opts.get('template')
+                            if template:
+                                p_metadata['resource']['parent']['template'] = template
                     else:
                         p_metadata['resource'] = {'uri': input_data.uri}
-                        if opts.get('template'):
-                            p_metadata['resource']['template'] = opts.get('template')
+                        if template:
+                            p_metadata['resource']['template'] = template
                 elif isinstance(p, dict):
                     if 'metadata' not in p or p['metadata'] is None:
                         p['metadata'] = {}
@@ -404,7 +410,7 @@ async def find_matching_resource(
             if (
                 hasattr(action, 'matches')
                 and callable(action.matches)
-                and cast(MatchableAction, action).matches(input_data)
+                and cast(MatchableAction, cast(object, action)).matches(input_data)
             ):
                 return action
 
@@ -422,13 +428,13 @@ async def find_matching_resource(
     )
     if not resources and hasattr(registry, '_entries'):
         # Fallback for compatibility if registry instance is old (unlikely in this context)
-        resources = registry._entries.get(cast(ActionKind, ActionKind.RESOURCE), {})
+        resources = registry._entries.get(cast(ActionKind, ActionKind.RESOURCE), {})  # pyright: ignore[reportPrivateUsage]
 
     for action in resources.values():
         if (
             hasattr(action, 'matches')
             and callable(action.matches)
-            and cast(MatchableAction, action).matches(input_data)
+            and cast(MatchableAction, cast(object, action)).matches(input_data)
         ):
             return action
 

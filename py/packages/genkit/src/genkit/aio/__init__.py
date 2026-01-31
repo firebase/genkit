@@ -14,12 +14,71 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Asynchronous utilities."""
+"""Asynchronous utilities for the Genkit framework.
+
+This module provides async utilities used internally by Genkit for handling
+concurrent operations, streaming responses, and async/sync interoperability.
+
+Overview:
+    Genkit is async-first, leveraging Python's asyncio for concurrent operations.
+    This module provides utilities that simplify async patterns used throughout
+    the framework, particularly for streaming model responses.
+
+Key Components:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Component         │ Description                                         │
+    ├───────────────────┼─────────────────────────────────────────────────────┤
+    │ Channel           │ AsyncIterator for streaming chunks with a final     │
+    │                   │ value (used for streaming model responses)          │
+    │ ensure_async()    │ Wrap sync/async functions to ensure async callable  │
+    └───────────────────┴─────────────────────────────────────────────────────┘
+
+Example:
+    Using Channel for streaming:
+
+    ```python
+    from genkit.aio import Channel
+
+    # Create a channel for streaming chunks with a final result
+    channel: Channel[str, int] = Channel()
+
+
+    async def producer():
+        for chunk in ['Hello', ' ', 'World']:
+            channel.send(chunk)
+        channel.close(final_value=len('Hello World'))
+
+
+    # Consume chunks
+    async for chunk in channel:
+        print(chunk, end='')
+
+    # Get final value
+    result = await channel.result()
+    ```
+
+    Using ensure_async:
+
+    ```python
+    from genkit.aio import ensure_async
+
+
+    def sync_fn(x: int) -> int:
+        return x * 2
+
+
+    async_fn = ensure_async(sync_fn)
+    result = await async_fn(5)  # Returns 10
+    ```
+
+See Also:
+    - asyncio documentation: https://docs.python.org/3/library/asyncio.html
+"""
 
 from ._util import ensure_async
 from .channel import Channel
 
 __all__ = [
-    Channel.__name__,
-    ensure_async.__name__,
+    'Channel',
+    'ensure_async',
 ]

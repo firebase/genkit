@@ -32,10 +32,11 @@ Key Features
 """
 
 import os
-from typing import Annotated
+from typing import cast
 
 from flask import Flask
-from pydantic import Field
+from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
 from genkit.blocks.model import GenerateResponseWrapper
@@ -44,6 +45,8 @@ from genkit.core.context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
@@ -56,20 +59,30 @@ ai = Genkit(
 app = Flask(__name__)
 
 
-async def my_context_provider(request: RequestData) -> dict:
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+async def my_context_provider(request: RequestData[dict[str, object]]) -> dict[str, object]:
     """Provide a context for the flow."""
-    return {'username': request.request.headers.get('authorization')}
+    headers_raw = request.request.get('headers') if isinstance(request.request, dict) else None
+    headers = cast(dict[str, str], headers_raw) if isinstance(headers_raw, dict) else {}
+    auth_header = headers.get('authorization')
+    return {'username': auth_header}
 
 
 @app.post('/chat')
 @genkit_flask_handler(ai, context_provider=my_context_provider)
 @ai.flow()
 async def say_hi(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    input: SayHiInput,
+    ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Say hi to the user."""
+    username = ctx.context.get('username') if ctx is not None else 'unknown'
     return await ai.generate(
-        on_chunk=ctx.send_chunk,
-        prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username")}',
+        on_chunk=ctx.send_chunk if ctx is not None else None,
+        prompt=f'tell a medium sized joke about {input.name} for user {username}',
     )

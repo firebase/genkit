@@ -20,11 +20,13 @@ import asyncio
 import threading
 from asyncio import AbstractEventLoop
 from collections.abc import AsyncIterable, Callable, Coroutine, Iterable
-from typing import Any
+from typing import TypeVar
 
-import structlog
+from genkit.core.logging import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
+
+T = TypeVar('T')
 
 
 def create_loop() -> AbstractEventLoop:
@@ -42,7 +44,7 @@ def create_loop() -> AbstractEventLoop:
         return asyncio.new_event_loop()
 
 
-def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | None:  # noqa: ANN401
+def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[[], Coroutine[object, object, T]]) -> T | None:
     """Runs an async callable on the given event loop and blocks until completion.
 
     If the loop is already running (e.g., called from within an async context),
@@ -62,12 +64,12 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
         Any exception raised by the callable `fn`.
     """
     if loop.is_running():
-        output: Any = None
+        output: T | None = None
         error: Exception | None = None
         lock = threading.Lock()
-        lock.acquire()
+        _ = lock.acquire()
 
-        async def run_fn() -> Any:  # noqa: ANN401
+        async def run_fn() -> T | None:
             nonlocal lock
             nonlocal output
             nonlocal error
@@ -78,26 +80,27 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | 
                 error = e
             finally:
                 lock.release()
+            return None
 
-        asyncio.run_coroutine_threadsafe(run_fn(), loop=loop)
+        _ = asyncio.run_coroutine_threadsafe(run_fn(), loop=loop)
 
         def wait_for_done() -> None:
             nonlocal lock
-            lock.acquire()
+            _ = lock.acquire()
 
         thread = threading.Thread(target=wait_for_done)
         thread.start()
         thread.join()
 
         if error:
-            raise error
+            raise error  # pyright: ignore[reportUnreachable]
 
         return output
     else:
         return loop.run_until_complete(fn())
 
 
-def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) -> Iterable[Any]:  # noqa: ANN401
+def iter_over_async(ait: AsyncIterable[T], loop: asyncio.AbstractEventLoop) -> Iterable[T]:
     """Synchronously iterates over an AsyncIterable using a specified event loop.
 
     This function bridges asynchronous iteration with synchronous code by
@@ -111,11 +114,11 @@ def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) ->
     Yields:
         Items from the asynchronous iterable.
     """
-    ait = ait.__aiter__()
+    ait_iter = ait.__aiter__()
 
-    async def get_next() -> tuple[bool, Any]:  # noqa: ANN401
+    async def get_next() -> tuple[bool, T | None]:
         try:
-            obj = await ait.__anext__()
+            obj = await ait_iter.__anext__()
             return False, obj
         except StopAsyncIteration:
             return True, None
@@ -124,10 +127,11 @@ def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) ->
         done, obj = loop.run_until_complete(get_next())
         if done:
             break
+        assert obj is not None  # Type narrowing: obj is T when done=False
         yield obj
 
 
-def run_loop(coro: Coroutine[Any, Any, Any], *, debug: bool | None = None) -> Any:  # noqa: ANN401
+def run_loop(coro: Coroutine[object, object, T], *, debug: bool | None = None) -> T:
     """Runs a coroutine using uvloop if available.
 
     Otherwise uses plain `asyncio.run`.

@@ -14,7 +14,52 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Encoding/decoding functions."""
+"""Encoding and decoding utilities for the Genkit framework.
+
+This module provides functions for serializing Genkit objects to dictionaries
+and JSON strings, with special handling for Pydantic models and binary data.
+
+Overview:
+    Genkit uses Pydantic models extensively for type safety. This module
+    provides utilities to convert these models to dictionaries and JSON
+    strings for serialization, API responses, and debugging.
+
+Key Functions:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Function          │ Purpose                                             │
+    ├───────────────────┼─────────────────────────────────────────────────────┤
+    │ dump_dict()       │ Convert Pydantic model to dict (exclude_none=True)  │
+    │ dump_json()       │ Convert object to JSON string with alias support    │
+    │ default_serializer│ Fallback serializer for non-standard types (bytes)  │
+    └───────────────────┴─────────────────────────────────────────────────────┘
+
+Example:
+    Converting Pydantic models:
+
+    ```python
+    from genkit.codec import dump_dict, dump_json
+    from genkit.types import Message, Part, TextPart
+
+    msg = Message(role='user', content=[Part(root=TextPart(text='Hello'))])
+
+    # Convert to dict (excludes None values, uses aliases)
+    msg_dict = dump_dict(msg)
+    # {'role': 'user', 'content': [{'text': 'Hello'}]}
+
+    # Convert to JSON string
+    msg_json = dump_json(msg, indent=2)
+    # '{"role": "user", "content": [{"text": "Hello"}]}'
+    ```
+
+Caveats:
+    - Pydantic models use by_alias=True for JSON Schema compatibility
+    - None values are excluded from output (exclude_none=True)
+    - Binary data (bytes) is base64-encoded when serializing
+
+See Also:
+    - Pydantic documentation: https://docs.pydantic.dev/
+    - genkit.core.typing: Core type definitions using Pydantic
+"""
 
 import base64
 import json

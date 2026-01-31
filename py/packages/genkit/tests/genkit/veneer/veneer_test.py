@@ -6,12 +6,12 @@
 """Tests for the action module."""
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.blocks.document import Document
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import MessageWrapper, ModelMiddlewareNext, text_from_message
@@ -859,10 +859,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output_constrained=True,
-        output_format='json',
-        output_content_type='application/json',
-        output_schema=TestSchema,
+        output=Output(schema=TestSchema, format='json', content_type='application/json', constrained=True),
         output_instructions=False,
     )
 
@@ -871,10 +868,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output_constrained=True,
-        output_format='json',
-        output_content_type='application/json',
-        output_schema=TestSchema,
+        output=Output(schema=TestSchema, format='json', content_type='application/json', constrained=True),
         output_instructions=False,
     )
 
@@ -885,7 +879,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
 async def test_generate_defaults_to_json_format(
     setup_test: SetupFixture,
 ) -> None:
-    """When output_schema is provided, format will default to json."""
+    """When Output is provided, format will default to json."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
@@ -927,7 +921,7 @@ async def test_generate_defaults_to_json_format(
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output_schema=TestSchema,
+        output=Output(schema=TestSchema),
     )
 
     assert response.request == want
@@ -935,7 +929,7 @@ async def test_generate_defaults_to_json_format(
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output_schema=TestSchema,
+        output=Output(schema=TestSchema),
     )
 
     assert (await response).request == want
@@ -945,7 +939,7 @@ async def test_generate_defaults_to_json_format(
 async def test_generate_json_format_unconstrained(
     setup_test: SetupFixture,
 ) -> None:
-    """When output_schema is provided, format will default to json."""
+    """When Output is provided, format will default to json."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
@@ -986,8 +980,7 @@ async def test_generate_json_format_unconstrained(
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output_schema=TestSchema,
-        output_constrained=False,
+        output=Output(schema=TestSchema, constrained=False),
     )
 
     assert response.request == want
@@ -995,8 +988,7 @@ async def test_generate_json_format_unconstrained(
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output_schema=TestSchema,
-        output_constrained=False,
+        output=Output(schema=TestSchema, constrained=False),
     )
 
     assert (await response).request == want
@@ -1113,7 +1105,7 @@ async def test_generate_uses_explicitly_passed_in_context(
 async def test_generate_json_format_unconstrained_with_instructions(
     setup_test: SetupFixture,
 ) -> None:
-    """When output_schema is provided, format will default to json."""
+    """When Output is provided, format will default to json."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
@@ -1178,9 +1170,8 @@ async def test_generate_json_format_unconstrained_with_instructions(
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output_schema=TestSchema,
+        output=Output(schema=TestSchema, constrained=False),
         output_instructions=True,
-        output_constrained=False,
     )
 
     assert response.request == want
@@ -1188,9 +1179,8 @@ async def test_generate_json_format_unconstrained_with_instructions(
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output_schema=TestSchema,
+        output=Output(schema=TestSchema, constrained=False),
         output_instructions=True,
-        output_constrained=False,
     )
 
     assert (await response).request == want
@@ -1273,7 +1263,7 @@ class MockBananaFormat(FormatDef):
             parts = [p.root.text or '' for p in chunk.content if hasattr(p.root, 'text') and p.root.text]
             return f'banana chunk {"".join(parts)}'  # type: ignore[arg-type]
 
-        instructions: str | None
+        instructions: str | None = None
 
         if schema:
             instructions = f'schema: {json.dumps(schema)}'
@@ -1317,8 +1307,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     stream, aresponse = ai.generate_stream(
         model='programmableModel',
         prompt='hi',
-        output_format='banana',
-        output_schema=TestSchema,
+        output=Output(schema=TestSchema, format='banana'),
     )
 
     async for chunk in stream:
@@ -1625,11 +1614,12 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
     """Test defining a synchronous flow."""
     ai, _, _, *_ = setup_test
 
-    @ai.flow()
-    def my_flow(input: str, ctx: ActionRunContext) -> str:
-        ctx.send_chunk(1)
-        ctx.send_chunk(2)
-        ctx.send_chunk(3)
+    @cast(Any, ai.flow())
+    def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
+        if ctx:
+            ctx.send_chunk(1)
+            ctx.send_chunk(2)
+            ctx.send_chunk(3)
         return input
 
     assert my_flow('banana') == 'banana'
@@ -1641,7 +1631,7 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
         chunks.append(chunk)
 
     assert chunks == [1, 2, 3]
-    assert (await response) == 'banana2'
+    assert (await response).response == 'banana2'
 
 
 @pytest.mark.asyncio
@@ -1650,10 +1640,11 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
     ai, _, _, *_ = setup_test
 
     @ai.flow()
-    async def my_flow(input: str, ctx: ActionRunContext) -> str:
-        ctx.send_chunk(1)
-        ctx.send_chunk(2)
-        ctx.send_chunk(3)
+    async def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
+        if ctx:
+            ctx.send_chunk(1)
+            ctx.send_chunk(2)
+            ctx.send_chunk(3)
         return input
 
     assert (await my_flow('banana')) == 'banana'
@@ -1665,7 +1656,7 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
         chunks.append(chunk)
 
     assert chunks == [1, 2, 3]
-    assert (await response) == 'banana2'
+    assert (await response).response == 'banana2'
 
 
 @pytest.mark.asyncio

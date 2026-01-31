@@ -34,6 +34,10 @@ Key Features
 # Import all of the example prompts and flows to ensure they are registered
 import asyncio
 
+from rich.traceback import install as install_rich_traceback
+
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+
 # Import case modules to register flows and prompts with the ai instance
 from .case_01 import prompts as case_01_prompts  # noqa: F401
 from .case_02 import (

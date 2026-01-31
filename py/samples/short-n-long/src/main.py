@@ -51,16 +51,16 @@ See README.md for testing instructions.
 import argparse
 import asyncio
 import os
-from typing import Annotated, cast
 
-import structlog
 import uvicorn
 from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
-from genkit.ai import Genkit, ToolRunContext, tool_response
+from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
 from genkit.core.flows import create_flows_asgi_app
+from genkit.core.logging import get_logger
 from genkit.core.typing import Part
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
@@ -77,7 +77,9 @@ from genkit.types import (
     TextPart,
 )
 
-logger = structlog.get_logger(__name__)
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+
+logger = get_logger(__name__)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
@@ -94,6 +96,48 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
+class ToolsFlowInput(BaseModel):
+    """Input for tools flow."""
+
+    value: int = Field(default=42, description='Value for gablorken calculation')
+
+
+class SayHiInput(BaseModel):
+    """Input for say_hi flow."""
+
+    name: str = Field(default='Mittens', description='Name to greet')
+
+
+class TemperatureInput(BaseModel):
+    """Input for temperature config flow."""
+
+    data: str = Field(default='Mittens', description='Name to greet')
+
+
+class StreamInput(BaseModel):
+    """Input for streaming flow."""
+
+    name: str = Field(default='Shadow', description='Name for streaming greeting')
+
+
+class StreamGreetingInput(BaseModel):
+    """Input for stream greeting flow."""
+
+    name: str = Field(default='Whiskers', description='Name for greeting')
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Whiskers', description='Character name')
+
+
+class GenerateImagesInput(BaseModel):
+    """Input for image generation flow."""
+
+    name: str = Field(default='a fluffy cat', description='Subject to generate images about')
+
+
 @ai.tool(name='gablorkenTool')
 def gablorken_tool(input_: GablorkenInput) -> int:
     """Calculate a gablorken.
@@ -108,11 +152,11 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42)] = 42) -> str:
+async def simple_generate_with_tools_flow(input: ToolsFlowInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        value: the integer to send to test function
+        input: Input with value for gablorken calculation.
 
     Returns:
         The generated response with a function.
@@ -122,7 +166,7 @@ async def simple_generate_with_tools_flow(value: Annotated[int, Field(default=42
         messages=[
             Message(
                 role=Role.USER,
-                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
+                content=[Part(root=TextPart(text=f'what is a gablorken of {input.value}'))],
             ),
         ],
         tools=['gablorkenTool'],
@@ -145,11 +189,11 @@ def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext) -> None:
 
 
 @ai.flow()
-async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42)] = 42) -> str:
+async def simple_generate_with_interrupts(input: ToolsFlowInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        value: the integer to send to test function
+        input: Input with value for gablorken calculation.
 
     Returns:
         The generated response with a function.
@@ -159,7 +203,7 @@ async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42
         messages=[
             Message(
                 role=Role.USER,
-                content=[Part(root=TextPart(text=f'what is a gablorken of {value}'))],
+                content=[Part(root=TextPart(text=f'what is a gablorken of {input.value}'))],
             ),
         ],
         tools=['interruptingTool'],
@@ -179,17 +223,17 @@ async def simple_generate_with_interrupts(value: Annotated[int, Field(default=42
 
 
 @ai.flow()
-async def say_hi(name: Annotated[str, Field(default='Alice')] = 'Alice') -> str:
+async def say_hi(input: SayHiInput) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name to greet.
 
     Returns:
         The generated response with a function.
     """
     resp = await ai.generate(
-        prompt=f'hi {name}',
+        prompt=f'hi {input.name}',
     )
     return resp.text
 
@@ -215,41 +259,40 @@ async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
 
 
 @ai.flow()
-async def say_hi_with_configured_temperature(
-    data: Annotated[str, Field(default='Alice')] = 'Alice',
-) -> GenerateResponseWrapper:
+async def say_hi_with_configured_temperature(input: TemperatureInput) -> GenerateResponseWrapper:
     """Generate a greeting for the given name.
 
     Args:
-        data: the name to send to test function
+        input: Input with name to greet.
 
     Returns:
         The generated response with a function.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {data}'))])],
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'hi {input.data}'))])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
 
 @ai.flow()
 async def say_hi_stream(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    input: StreamInput,
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name for streaming.
         ctx: the context of the tool
 
     Returns:
         The generated response with a function.
     """
-    stream, _ = ai.generate_stream(prompt=f'hi {name}')
+    stream, _ = ai.generate_stream(prompt=f'hi {input.name}')
     result: str = ''
     async for data in stream:
-        ctx.send_chunk(data.text)
+        if ctx is not None:
+            ctx.send_chunk(data.text)
         result += data.text
 
     return result
@@ -257,13 +300,13 @@ async def say_hi_stream(
 
 @ai.flow()
 async def stream_greeting(
-    name: Annotated[str, Field(default='Alice')] = 'Alice',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    input: StreamGreetingInput,
+    ctx: ActionRunContext | None = None,
 ) -> str:
     """Stream a greeting for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with name for greeting.
         ctx: the context of the tool
 
     Returns:
@@ -271,12 +314,13 @@ async def stream_greeting(
     """
     chunks = [
         'hello',
-        name,
+        input.name,
         'how are you?',
     ]
     for data in chunks:
         await asyncio.sleep(1)
-        ctx.send_chunk(data)
+        if ctx is not None:
+            ctx.send_chunk(data)
 
     return 'test streaming response'
 
@@ -300,67 +344,67 @@ class RpgCharacter(BaseModel):
 
 @ai.flow()
 async def generate_character(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    input: CharacterInput,
+    ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an RPG character.
 
     Args:
-        name: the name of the character
+        input: Input with character name.
         ctx: the context of the tool
 
     Returns:
         The generated RPG character.
     """
-    if ctx.is_streaming:
+    if ctx is not None and ctx.is_streaming:
         stream, result = ai.generate_stream(
-            prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            prompt=f'generate an RPG character named {input.name}',
+            output=Output(schema=RpgCharacter),
         )
         async for data in stream:
             ctx.send_chunk(data.output)
 
-        return cast(RpgCharacter, (await result).output)
+        return (await result).output
     else:
         result = await ai.generate(
-            prompt=f'generate an RPG character named {name}',
-            output_schema=RpgCharacter,
+            prompt=f'generate an RPG character named {input.name}',
+            output=Output(schema=RpgCharacter),
         )
-        return cast(RpgCharacter, result.output)
+        return result.output
 
 
 @ai.flow()
 async def generate_character_unconstrained(
-    name: Annotated[str, Field(default='Bartholomew')] = 'Bartholomew',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    input: CharacterInput,
+    _ctx: ActionRunContext | None = None,
 ) -> RpgCharacter:
     """Generate an unconstrained RPG character.
 
     Args:
-        name: the name of the character
-        ctx: the context of the tool
+        input: Input with character name.
+        _ctx: the context of the tool (unused)
 
     Returns:
         The generated RPG character.
     """
     result = await ai.generate(
-        prompt=f'generate an RPG character named {name}',
-        output_schema=RpgCharacter,
+        prompt=f'generate an RPG character named {input.name}',
+        output=Output(schema=RpgCharacter),
         output_constrained=False,
         output_instructions=True,
     )
-    return cast(RpgCharacter, result.output)
+    return result.output
 
 
 @ai.flow()
 async def generate_images(
-    name: Annotated[str, Field(default='Eiffel Tower')] = 'Eiffel Tower',
-    ctx: ActionRunContext = None,  # type: ignore[assignment]
+    input: GenerateImagesInput,
+    ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Generate images for the given name.
 
     Args:
-        name: the name to send to test function
+        input: Input with subject for image generation.
         ctx: the context of the tool
 
     Returns:
@@ -368,7 +412,9 @@ async def generate_images(
     """
     return await ai.generate(
         prompt='tell me a about the Eifel Tower with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image']).model_dump(),
+        config=GeminiConfigSchema.model_validate({
+            'response_modalities': ['text', 'image'],
+        }).model_dump(),
     )
 
 
@@ -401,6 +447,7 @@ async def server_main(ai: Genkit) -> None:
         on_app_startup=on_app_startup,
         on_app_shutdown=on_app_shutdown,
     )
+    # pyrefly: ignore[bad-argument-type] - app type is compatible with uvicorn
     config = uvicorn.Config(app, host='localhost', port=3400)
     server = uvicorn.Server(config)
     await server.serve()
@@ -408,7 +455,7 @@ async def server_main(ai: Genkit) -> None:
 
 async def main(ai: Genkit) -> None:
     """Main function."""
-    await logger.ainfo(await say_hi(', tell me a joke'))
+    await logger.ainfo(await say_hi(SayHiInput(name='tell me a joke')))
 
 
 if __name__ == '__main__':

@@ -15,9 +15,88 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Google AI and Vertex AI plugin implementations."""
+"""Google AI and Vertex AI plugin implementations for Genkit.
+
+This module provides the GoogleAI and VertexAI plugins that enable Genkit to use
+Google's generative AI models. Both plugins use **dynamic model discovery** to
+automatically detect and register available models from the Google GenAI SDK.
+
+Architecture:
+    ```
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        Dynamic Model Discovery                          │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │                                                                         │
+    │   Plugin Init                                                           │
+    │   ┌─────────┐     ┌──────────────┐     ┌─────────────────────────────┐ │
+    │   │ GoogleAI│────►│client.models │────►│ Filter & Categorize         │ │
+    │   │ VertexAI│     │   .list()    │     │ ┌─────────┬───────────────┐ │ │
+    │   └─────────┘     └──────────────┘     │ │ Action  │ Model Type    │ │ │
+    │                                        │ ├─────────┼───────────────┤ │ │
+    │                                        │ │generate │ gemini, gemma │ │ │
+    │                                        │ │Content  │               │ │ │
+    │                                        │ ├─────────┼───────────────┤ │ │
+    │                                        │ │embed    │ text-embedding│ │ │
+    │                                        │ │Content  │               │ │ │
+    │                                        │ ├─────────┼───────────────┤ │ │
+    │                                        │ │predict  │ imagen        │ │ │
+    │                                        │ ├─────────┼───────────────┤ │ │
+    │                                        │ │generate │ veo           │ │ │
+    │                                        │ │Videos   │               │ │ │
+    │                                        │ └─────────┴───────────────┘ │ │
+    │                                        └─────────────────────────────┘ │
+    │                                                                         │
+    └─────────────────────────────────────────────────────────────────────────┘
+    ```
+
+Key Concepts:
+    +--------------------+-------------------------------------------------------+
+    | Concept            | Description                                           |
+    +--------------------+-------------------------------------------------------+
+    | Dynamic Discovery  | Models are discovered at runtime via the API, not     |
+    |                    | hardcoded. This ensures new models are automatically  |
+    |                    | available without SDK updates.                        |
+    +--------------------+-------------------------------------------------------+
+    | Background Models  | Long-running operations (e.g., Veo video generation)  |
+    |                    | use start/check pattern instead of blocking generate. |
+    +--------------------+-------------------------------------------------------+
+    | Action Resolution  | On-demand model instantiation when a model is first   |
+    |                    | used, avoiding upfront initialization overhead.       |
+    +--------------------+-------------------------------------------------------+
+    | Namespacing        | Models are prefixed with plugin name (e.g.,           |
+    |                    | 'googleai/gemini-2.0-flash-001').                     |
+    +--------------------+-------------------------------------------------------+
+
+Supported Model Types:
+    - **Gemini/Gemma**: Text generation with generateContent action
+    - **Embedders**: Text embeddings with embedContent action
+    - **Imagen**: Image generation with predict action (Vertex AI)
+    - **Veo**: Video generation with generateVideos action
+
+Example:
+    >>> from genkit import Genkit
+    >>> from genkit.plugins.google_genai import GoogleAI
+    >>>
+    >>> # Models are discovered automatically
+    >>> ai = Genkit(plugins=[GoogleAI()])
+    >>>
+    >>> # Use any available model - no pre-registration needed
+    >>> response = await ai.generate(
+    ...     model='googleai/gemini-2.0-flash-001',
+    ...     prompt='Hello, world!',
+    ... )
+
+See Also:
+    - https://ai.google.dev/gemini-api/docs
+    - https://cloud.google.com/vertex-ai/generative-ai/docs
+    - JS implementation: js/plugins/google-genai/src/
+"""
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from genkit.blocks.background_model import BackgroundAction
 
 from google import genai
 from google.auth.credentials import Credentials
@@ -32,21 +111,120 @@ from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
-    GeminiEmbeddingModels,
-    VertexEmbeddingModels,
     default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
-    GeminiConfigSchema,
     GeminiModel,
+    get_model_config_schema,
     google_model_info,
 )
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
+    ImagenConfigSchema,
     ImagenModel,
     vertexai_image_model_info,
 )
+from genkit.plugins.google_genai.models.veo import (
+    VeoConfigSchema,
+    VeoModel,
+    is_veo_model,
+    veo_model_info,
+)
+
+
+class GenaiModels:
+    """Container for models discovered dynamically from the Google GenAI API.
+
+    This class categorizes models by their capabilities based on the
+    supported_actions field returned by the API.
+
+    Attributes:
+        gemini: List of Gemini/Gemma model names (generateContent action).
+        imagen: List of Imagen model names (predict action, Vertex AI only).
+        embedders: List of embedding model names (embedContent action).
+        veo: List of Veo video generation model names (generateVideos action).
+    """
+
+    gemini: list[str]
+    imagen: list[str]
+    embedders: list[str]
+    veo: list[str]
+
+    def __init__(self) -> None:
+        """Initialize empty model lists."""
+        self.gemini = []
+        self.imagen = []
+        self.embedders = []
+        self.veo = []
+
+
+def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
+    """Discover and categorize available models from the Google GenAI API.
+
+    This function queries the API for all available models and categorizes them
+    based on their supported_actions field. Models marked as deprecated are
+    excluded.
+
+    The categorization logic:
+        - 'embedContent' action → embedders
+        - 'predict' + 'imagen' in name → imagen (Vertex AI)
+        - 'generateVideos' or 'veo' in name → veo
+        - 'generateContent' + 'gemini'/'gemma' in name → gemini
+
+    Args:
+        client: The Google GenAI client instance.
+        is_vertex: True if using Vertex AI, False for Google AI.
+
+    Returns:
+        GenaiModels containing categorized model names.
+
+    Note:
+        Model name prefixes are stripped for consistency:
+        - Vertex AI: 'publishers/google/models/' prefix removed
+        - Google AI: 'models/' prefix removed
+    """
+    models = GenaiModels()
+
+    for m in client.models.list():
+        name = m.name
+        if not name:
+            continue
+
+        # Cleanup prefix
+        if is_vertex:
+            if name.startswith('publishers/google/models/'):
+                name = name[25:]
+        elif name.startswith('models/'):
+            name = name[7:]
+
+        description = (m.description or '').lower()
+        if 'deprecated' in description:
+            continue
+
+        if not m.supported_actions:
+            continue
+
+        # Embedders
+        if 'embedContent' in m.supported_actions:
+            models.embedders.append(name)
+
+        # Imagen (Vertex mostly)
+        if 'predict' in m.supported_actions and 'imagen' in name.lower():
+            models.imagen.append(name)
+
+        # Veo
+        if 'generateVideos' in m.supported_actions or 'veo' in name.lower():
+            models.veo.append(name)
+
+        # Gemini / Gemma
+        if 'generateContent' in m.supported_actions:
+            lower_name = name.lower()
+            if 'gemini' in lower_name or 'gemma' in lower_name:
+                models.gemini.append(name)
+
+    return models
+
 
 GOOGLEAI_PLUGIN_NAME = 'googleai'
 VERTEXAI_PLUGIN_NAME = 'vertexai'
@@ -77,12 +255,49 @@ def vertexai_name(name: str) -> str:
 
 
 class GoogleAI(Plugin):
-    """GoogleAI plugin for Genkit.
+    """GoogleAI plugin for Genkit with dynamic model discovery.
+
+    This plugin provides access to Google AI models (Gemini, embedders, Veo)
+    through the Google AI Studio API. Models are discovered dynamically at
+    initialization time, ensuring new models are available without SDK updates.
+
+    Model Types:
+        +------------------+-------------------+--------------------------------+
+        | Type             | Action Kind       | Example                        |
+        +------------------+-------------------+--------------------------------+
+        | Gemini/Gemma     | MODEL             | googleai/gemini-2.0-flash-001  |
+        | Embedders        | EMBEDDER          | googleai/text-embedding-004    |
+        | Veo (video)      | BACKGROUND_MODEL  | googleai/veo-2.0-generate-001  |
+        +------------------+-------------------+--------------------------------+
+
+    Example:
+        >>> from genkit import Genkit
+        >>> from genkit.plugins.google_genai import GoogleAI
+        >>>
+        >>> ai = Genkit(plugins=[GoogleAI()])
+        >>>
+        >>> # Text generation
+        >>> response = await ai.generate(
+        ...     model='googleai/gemini-2.0-flash-001',
+        ...     prompt='Explain quantum computing',
+        ... )
+        >>>
+        >>> # Video generation (background model)
+        >>> op = await ai.generate(
+        ...     model='googleai/veo-2.0-generate-001',
+        ...     prompt='A sunset over mountains',
+        ... )
+        >>> while not op.done:
+        ...     await asyncio.sleep(5)
+        ...     op = await ai.check_operation(op)
 
     Attributes:
-        name (str): The name of the plugin, typically `GOOGLEAI_PLUGIN_NAME`.
-        _vertexai (bool): Internal flag indicating if Vertex AI is being used.
-            Defaults to False.
+        name: The plugin name ('googleai').
+        _vertexai: Internal flag, always False for GoogleAI.
+
+    See Also:
+        - https://ai.google.dev/gemini-api/docs
+        - https://aistudio.google.com/
     """
 
     name = GOOGLEAI_PLUGIN_NAME
@@ -136,44 +351,60 @@ class GoogleAI(Plugin):
         Returns:
             List of Action objects for known/supported models.
         """
-        return [
-            *self._list_known_models(),
-            *self._list_known_embedders(),
-        ]
+        genai_models = _list_genai_models(self._client, is_vertex=False)
+
+        actions: list[Action] = []
+        # Gemini Models
+        for name in genai_models.gemini:
+            actions.append(self._resolve_model(googleai_name(name)))
+
+        # Veo Models (background models)
+        for name in genai_models.veo:
+            bg_action = self._resolve_veo_model(googleai_name(name))
+            actions.append(bg_action.start_action)
+            actions.append(bg_action.check_action)
+
+        # Embedders
+        for name in genai_models.embedders:
+            actions.append(self._resolve_embedder(googleai_name(name)))
+
+        return actions
 
     def _list_known_models(self) -> list[Action]:
         """List known models as Action objects.
 
-        Returns:
-            List of Action objects for known Gemini models.
+        Deprecated: Used only for internal testing if needed, but 'init' should be source of truth.
+        Keeping for compatibility but redirecting to dynamic list logic if accessed directly?
+        The interface defines init(), this helper was internal.
         """
-        known_model_names = [
-            'gemini-3-flash-preview',
-            'gemini-3-pro-preview',
-            'gemini-2.5-pro',
-            'gemini-2.5-flash',
-            'gemini-2.5-flash-lite',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite',
-        ]
+        # Re-use init logic synchronously? init is async.
+        # Let's implementation just mimic init logic but sync call to client.models.list is fine (it is iterator)
+        genai_models = _list_genai_models(self._client, is_vertex=False)
         actions = []
-        for model_name in known_model_names:
-            actions.append(self._resolve_model(googleai_name(model_name)))
+        for name in genai_models.gemini:
+            actions.append(self._resolve_model(googleai_name(name)))
+        return actions
+
+    def _list_known_veo_models(self) -> list[Action]:
+        """List known Veo models as background model Action objects.
+
+        Returns:
+            List of Action objects for known Veo video generation models.
+        """
+        genai_models = _list_genai_models(self._client, is_vertex=False)
+        actions = []
+        for name in genai_models.veo:
+            bg_action = self._resolve_veo_model(googleai_name(name))
+            actions.append(bg_action.start_action)
+            actions.append(bg_action.check_action)
         return actions
 
     def _list_known_embedders(self) -> list[Action]:
-        """List known embedders as Action objects.
-
-        Returns:
-            List of Action objects for known embedders.
-        """
-        known_embedders = [
-            GeminiEmbeddingModels.TEXT_EMBEDDING_004,
-            GeminiEmbeddingModels.GEMINI_EMBEDDING_001,
-        ]
+        """List known embedders as Action objects."""
+        genai_models = _list_genai_models(self._client, is_vertex=False)
         actions = []
-        for embedder_name in known_embedders:
-            actions.append(self._resolve_embedder(googleai_name(embedder_name.value)))
+        for name in genai_models.embedders:
+            actions.append(self._resolve_embedder(googleai_name(name)))
         return actions
 
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
@@ -188,9 +419,67 @@ class GoogleAI(Plugin):
         """
         if action_type == ActionKind.MODEL:
             return self._resolve_model(name)
+        elif action_type == ActionKind.BACKGROUND_MODEL:
+            # For Veo models, return the start action
+            prefix = GOOGLEAI_PLUGIN_NAME + '/'
+            _clean_name = name.replace(prefix, '') if name.startswith(prefix) else name
+            if is_veo_model(_clean_name):
+                bg_action = self._resolve_veo_model(name)
+                return bg_action.start_action
+            return None
+        elif action_type == ActionKind.CHECK_OPERATION:
+            # Check action names are in format {model_name}/check
+            # Extract the model name and resolve if it's a Veo model
+            if name.endswith('/check'):
+                model_name = name[:-6]  # Remove '/check' suffix
+                prefix = GOOGLEAI_PLUGIN_NAME + '/'
+                _clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
+                if is_veo_model(_clean_name):
+                    bg_action = self._resolve_veo_model(model_name)
+                    return bg_action.check_action
+            return None
         elif action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
         return None
+
+    def _resolve_veo_model(self, name: str) -> 'BackgroundAction':
+        """Create a BackgroundAction for a Veo video generation model.
+
+        Args:
+            name: The namespaced name of the model.
+
+        Returns:
+            BackgroundAction for the Veo model.
+        """
+        from genkit.blocks.background_model import BackgroundAction
+
+        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+
+        veo = VeoModel(_clean_name, self._client)
+
+        # Create actions manually since we don't have registry access here
+        start_action = Action(
+            kind=ActionKind.BACKGROUND_MODEL,
+            name=name,
+            fn=veo.start,
+            metadata={
+                'model': veo_model_info(_clean_name).model_dump(),
+                'type': 'background-model',
+            },
+        )
+
+        check_action = Action(
+            kind=ActionKind.CHECK_OPERATION,
+            name=f'{name}/check',
+            fn=lambda op, ctx: veo.check(op),
+            metadata={'type': 'check-operation'},
+        )
+
+        return BackgroundAction(
+            start_action=start_action,
+            check_action=check_action,
+            cancel_action=None,
+        )
 
     def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Google AI model.
@@ -209,6 +498,9 @@ class GoogleAI(Plugin):
 
         gemini_model = GeminiModel(_clean_name, self._client)
 
+        # Determine appropriate config schema based on model type
+        config_schema = get_model_config_schema(_clean_name)
+
         return Action(
             kind=ActionKind.MODEL,
             name=name,
@@ -216,7 +508,7 @@ class GoogleAI(Plugin):
             metadata=model_action_metadata(
                 name=name,
                 info=gemini_model.metadata['model']['supports'],
-                config_schema=GeminiConfigSchema,
+                config_schema=config_schema,
             ).metadata,
         )
 
@@ -259,43 +551,92 @@ class GoogleAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
-        actions_list = list()
-        for m in self._client.models.list():
-            model_name = m.name
-            if not model_name:
-                continue
-            name = model_name.replace('models/', '')
-            if m.supported_actions and 'generateContent' in m.supported_actions:
-                actions_list.append(
-                    model_action_metadata(
-                        name=googleai_name(name),
-                        info=google_model_info(name).model_dump(),
+        genai_models = _list_genai_models(self._client, is_vertex=False)
+        actions_list = []
+
+        for name in genai_models.gemini:
+            actions_list.append(
+                model_action_metadata(
+                    name=googleai_name(name),
+                    info=google_model_info(name).model_dump(by_alias=True),
+                    config_schema=get_model_config_schema(name),
+                )
+            )
+
+        for name in genai_models.veo:
+            actions_list.append(
+                model_action_metadata(
+                    name=googleai_name(name),
+                    info=veo_model_info(name).model_dump(),
+                    config_schema=VeoConfigSchema,
+                )
+            )
+
+        for name in genai_models.embedders:
+            embed_info = default_embedder_info(name)
+            actions_list.append(
+                embedder_action_metadata(
+                    name=googleai_name(name),
+                    options=EmbedderOptions(
+                        label=embed_info.get('label'),
+                        supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                        dimensions=embed_info.get('dimensions'),
                     ),
                 )
-
-            if m.supported_actions and 'embedContent' in m.supported_actions:
-                embed_info = default_embedder_info(name)
-                actions_list.append(
-                    embedder_action_metadata(
-                        name=googleai_name(name),
-                        options=EmbedderOptions(
-                            label=embed_info.get('label'),
-                            supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
-                            dimensions=embed_info.get('dimensions'),
-                        ),
-                    )
-                )
+            )
 
         return actions_list
 
 
 class VertexAI(Plugin):
-    """Vertex AI plugin for Genkit.
+    """Vertex AI plugin for Genkit with dynamic model discovery.
 
-    This plugin provides integration with Google Cloud's Vertex AI platform,
-    enabling the use of Vertex AI models and services within the Genkit
-    framework. It handles initialization of the Vertex AI client and
-    registration of model actions.
+    This plugin provides access to Google Cloud Vertex AI models including
+    Gemini, Imagen, Veo, and embedders. Models are discovered dynamically,
+    ensuring new models are available without SDK updates.
+
+    Vertex AI vs Google AI:
+        Vertex AI provides enterprise features including:
+        - VPC Service Controls
+        - Customer-managed encryption keys (CMEK)
+        - Data residency controls
+        - IAM-based access control
+        - Imagen image generation models
+
+    Model Types:
+        +------------------+-------------------+--------------------------------+
+        | Type             | Action Kind       | Example                        |
+        +------------------+-------------------+--------------------------------+
+        | Gemini/Gemma     | MODEL             | vertexai/gemini-2.0-flash-001  |
+        | Imagen           | MODEL             | vertexai/imagen-3.0-generate   |
+        | Veo (video)      | MODEL             | vertexai/veo-2.0-generate-001  |
+        | Embedders        | EMBEDDER          | vertexai/text-embedding-005    |
+        +------------------+-------------------+--------------------------------+
+
+    Example:
+        >>> from genkit import Genkit
+        >>> from genkit.plugins.google_genai import VertexAI
+        >>>
+        >>> ai = Genkit(plugins=[VertexAI(project='my-project')])
+        >>>
+        >>> # Text generation
+        >>> response = await ai.generate(
+        ...     model='vertexai/gemini-2.0-flash-001',
+        ...     prompt='Explain quantum computing',
+        ... )
+        >>>
+        >>> # Image generation (Vertex AI only)
+        >>> response = await ai.generate(
+        ...     model='vertexai/imagen-3.0-generate-002',
+        ...     prompt='A serene mountain landscape',
+        ... )
+
+    Attributes:
+        name: The plugin name ('vertexai').
+        _vertexai: Internal flag, always True for VertexAI.
+
+    See Also:
+        - https://cloud.google.com/vertex-ai/generative-ai/docs
     """
 
     _vertexai = True
@@ -349,47 +690,41 @@ class VertexAI(Plugin):
         Returns:
             List of Action objects for known/supported models.
         """
-        return [
-            *self._list_known_models(),
-            *self._list_known_embedders(),
-        ]
+        genai_models = _list_genai_models(self._client, is_vertex=True)
+        actions: list[Action] = []
+
+        for name in genai_models.gemini:
+            actions.append(self._resolve_model(vertexai_name(name)))
+
+        for name in genai_models.imagen:
+            actions.append(self._resolve_model(vertexai_name(name)))
+
+        for name in genai_models.veo:
+            actions.append(self._resolve_model(vertexai_name(name)))
+
+        for name in genai_models.embedders:
+            actions.append(self._resolve_embedder(vertexai_name(name)))
+
+        return actions
 
     def _list_known_models(self) -> list[Action]:
-        """List known models as Action objects.
-
-        Returns:
-            List of Action objects for known Gemini and Imagen models.
-        """
-        known_model_names = [
-            'gemini-2.5-flash-lite',
-            'gemini-2.5-pro',
-            'gemini-2.5-flash',
-            'gemini-2.0-flash-001',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite',
-            'gemini-2.0-flash-lite-001',
-            'imagen-4.0-generate-001',
-        ]
+        """List known models as Action objects."""
+        genai_models = _list_genai_models(self._client, is_vertex=True)
         actions = []
-        for model_name in known_model_names:
-            actions.append(self._resolve_model(vertexai_name(model_name)))
+        for name in genai_models.gemini:
+            actions.append(self._resolve_model(vertexai_name(name)))
+        for name in genai_models.imagen:
+            actions.append(self._resolve_model(vertexai_name(name)))
+        for name in genai_models.veo:
+            actions.append(self._resolve_model(vertexai_name(name)))
         return actions
 
     def _list_known_embedders(self) -> list[Action]:
-        """List known embedders as Action objects.
-
-        Returns:
-            List of Action objects for known embedders.
-        """
-        known_embedders = [
-            VertexEmbeddingModels.TEXT_EMBEDDING_005_ENG,
-            VertexEmbeddingModels.TEXT_EMBEDDING_002_MULTILINGUAL,
-            # Note: multimodalembedding@001 requires different API structure (not yet implemented)
-            VertexEmbeddingModels.GEMINI_EMBEDDING_001,
-        ]
+        """List known embedders as Action objects."""
+        genai_models = _list_genai_models(self._client, is_vertex=True)
         actions = []
-        for embedder_name in known_embedders:
-            actions.append(self._resolve_embedder(vertexai_name(embedder_name.value)))
+        for name in genai_models.embedders:
+            actions.append(self._resolve_embedder(vertexai_name(name)))
         return actions
 
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
@@ -420,14 +755,21 @@ class VertexAI(Plugin):
         # Extract local name (remove plugin prefix)
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
+        # Determine model type and create appropriate model instance
         if _clean_name.lower().startswith('image'):
             model_ref = vertexai_image_model_info(_clean_name)
             model = ImagenModel(_clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = ImagenConfigSchema
+        elif is_veo_model(_clean_name):
+            model_ref = veo_model_info(_clean_name)
+            model = VeoModel(_clean_name, self._client)
+            config_schema = VeoConfigSchema
         else:
             model_ref = google_model_info(_clean_name)
             model = GeminiModel(_clean_name, self._client)
             SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = get_model_config_schema(_clean_name)
 
         return Action(
             kind=ActionKind.MODEL,
@@ -436,9 +778,7 @@ class VertexAI(Plugin):
             metadata=model_action_metadata(
                 name=name,
                 info=model.metadata['model']['supports'],
-                config_schema=GeminiConfigSchema
-                if not _clean_name.lower().startswith('image')
-                else None,  # TODO: Add ImagenConfigSchema if available
+                config_schema=config_schema,
             ).metadata,
         )
 
@@ -481,31 +821,47 @@ class VertexAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
-        actions_list = list()
-        for m in self._client.models.list():
-            model_name = m.name
-            if not model_name:
-                continue
-            name = model_name.replace('publishers/google/models/', '')
-            if 'embed' in name.lower():
-                embed_info = default_embedder_info(name)
-                actions_list.append(
-                    embedder_action_metadata(
-                        name=vertexai_name(name),
-                        options=EmbedderOptions(
-                            label=embed_info.get('label'),
-                            supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
-                            dimensions=embed_info.get('dimensions'),
-                        ),
-                    )
-                )
-            # List all the vertexai models for generate actions
+        genai_models = _list_genai_models(self._client, is_vertex=True)
+        actions_list = []
+
+        for name in genai_models.gemini:
             actions_list.append(
                 model_action_metadata(
                     name=vertexai_name(name),
-                    info=google_model_info(name).model_dump(),
-                    config_schema=GeminiConfigSchema,
-                ),
+                    info=google_model_info(name).model_dump(by_alias=True),
+                    config_schema=get_model_config_schema(name),
+                )
+            )
+
+        for name in genai_models.imagen:
+            actions_list.append(
+                model_action_metadata(
+                    name=vertexai_name(name),
+                    info=vertexai_image_model_info(name).model_dump(by_alias=True),
+                    config_schema=ImagenConfigSchema,
+                )
+            )
+
+        for name in genai_models.veo:
+            actions_list.append(
+                model_action_metadata(
+                    name=vertexai_name(name),
+                    info=veo_model_info(name).model_dump(),
+                    config_schema=VeoConfigSchema,
+                )
+            )
+
+        for name in genai_models.embedders:
+            embed_info = default_embedder_info(name)
+            actions_list.append(
+                embedder_action_metadata(
+                    name=vertexai_name(name),
+                    options=EmbedderOptions(
+                        label=embed_info.get('label'),
+                        supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                        dimensions=embed_info.get('dimensions'),
+                    ),
+                )
             )
 
         return actions_list
@@ -517,19 +873,15 @@ def _inject_attribution_headers(
     api_version: str | None = None,
 ) -> HttpOptions:
     """Adds genkit client info to the appropriate http headers."""
-    # Normalize to HttpOptions instance
-    opts: HttpOptions
-    if http_options is None:
+    if not http_options:
         opts = HttpOptions()
     elif isinstance(http_options, HttpOptions):
         opts = http_options
     else:
-        # HttpOptionsDict or other dict-like - use model_validate for proper type conversion
         opts = HttpOptions.model_validate(http_options)
 
     if base_url:
         opts.base_url = base_url
-
     if api_version:
         opts.api_version = api_version
 

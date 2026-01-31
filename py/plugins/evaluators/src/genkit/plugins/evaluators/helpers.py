@@ -25,7 +25,7 @@ from typing import Any, cast
 
 import jsonata
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.typing import BaseDataPoint, EvalFnResponse, EvalStatusEnum, Score
 from genkit.plugins.evaluators.constant import (
     AnswerRelevancyResponseSchema,
@@ -99,9 +99,9 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     model=param.judge.name,
                     prompt=prompt,
                     config=param.judge_config,
-                    output_schema=AnswerRelevancyResponseSchema,
+                    output=Output(schema=AnswerRelevancyResponseSchema),
                 )
-                # TODO: embedding comparison between the input and the result of the llm
+                # TODO(#4358): embedding comparison between the input and the result of the llm
                 answered = False
                 if response.output and hasattr(response.output, 'answered'):
                     answered = bool(response.output.answered)
@@ -142,13 +142,13 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     model=param.judge.name,
                     prompt=prompt,
                     config=param.judge_config,
-                    output_schema=LongFormResponseSchema,
+                    output=Output(schema=LongFormResponseSchema),
                 )
                 statements: list[str] = []
                 if isinstance(longform_response.output, dict):
-                    statements = longform_response.output.get('statements', [])  # type: ignore[assignment]
+                    statements = longform_response.output.get('statements', [])
                 elif longform_response.output and hasattr(longform_response.output, 'statements'):
-                    statements = longform_response.output.statements  # type: ignore[union-attr]
+                    statements = longform_response.output.statements
                 if not statements:
                     raise ValueError('No statements returned')
 
@@ -162,7 +162,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     model=param.judge.name,
                     prompt=prompt,
                     config=param.judge_config,
-                    output_schema=NliResponse,
+                    output=Output(schema=NliResponse),
                 )
 
                 nli_output = nli_response.output
@@ -172,7 +172,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     raw_resp = nli_dict.get('responses')
                     responses = raw_resp if isinstance(raw_resp, list) else []
                 elif nli_output and hasattr(nli_output, 'responses'):
-                    responses = nli_output.responses  # type: ignore[union-attr]
+                    responses = nli_output.responses
 
                 if not responses:
                     raise ValueError('Evaluator response empty')
@@ -224,7 +224,7 @@ def _configure_evaluator(ai: Genkit, param: MetricConfig) -> None:
                     model=param.judge.name,
                     prompt=prompt,
                     config=param.judge_config,
-                    output_schema=MaliciousnessResponseSchema,
+                    output=Output(schema=MaliciousnessResponseSchema),
                 )
                 is_malicious = bool(
                     response.output.malicious if response.output and hasattr(response.output, 'malicious') else False

@@ -18,16 +18,86 @@
 """Core foundations for the Genkit framework.
 
 This package provides the fundamental building blocks and abstractions used
-throughout the Genkit framework. It includes:
+throughout the Genkit framework. It includes the action system, plugin
+architecture, registry, tracing, and schema types.
 
-    - Action system for defining and managing callable functions
-    - Plugin architecture for extending framework functionality
-    - Registry for managing resources and actions
-    - Tracing and telemetry for monitoring and debugging
-    - Schema types for data validation and serialization
+Architecture Overview:
+    The core package forms the foundation layer upon which all Genkit
+    functionality is built. It provides primitives that are used by both
+    the framework internals and user-facing APIs.
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                           User Application                              │
+    │                    (flows, prompts, tools, chat)                        │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                      │
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                           genkit.ai Layer                               │
+    │                      (Genkit class, GenkitRegistry)                     │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                      │
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                          genkit.core Layer                              │
+    │    ┌────────────┬────────────┬────────────┬────────────┬────────────┐   │
+    │    │  Action    │   Plugin   │  Registry  │   Trace    │   Schema   │   │
+    │    └────────────┴────────────┴────────────┴────────────┴────────────┘   │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Key Modules:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Module                │ Description                                     │
+    ├───────────────────────┼─────────────────────────────────────────────────┤
+    │ action                │ Action class and execution context              │
+    │ plugin                │ Plugin base class for extending Genkit          │
+    │ registry              │ Central repository for actions and resources    │
+    │ tracing               │ OpenTelemetry-based tracing infrastructure      │
+    │ typing                │ Core type definitions (Part, Message, etc.)     │
+    │ schema                │ JSON Schema generation and validation           │
+    │ error                 │ GenkitError and error handling utilities        │
+    │ logging               │ Structured logging via structlog                │
+    └───────────────────────┴─────────────────────────────────────────────────┘
+
+Key Concepts:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Concept             │ Description                                       │
+    ├─────────────────────┼───────────────────────────────────────────────────┤
+    │ Action              │ Strongly-typed, traceable, callable function.     │
+    │                     │ All models, tools, flows, embedders are actions.  │
+    │ ActionKind          │ Type of action: MODEL, TOOL, FLOW, EMBEDDER, etc. │
+    │ ActionRunContext    │ Execution context with streaming and user context │
+    │ Plugin              │ Extension mechanism for adding capabilities       │
+    │ Registry            │ Central storage for actions, schemas, and plugins │
+    │ Trace               │ OpenTelemetry span for observability              │
+    └─────────────────────┴───────────────────────────────────────────────────┘
+
+Usage:
+    Most users interact with the core layer indirectly through the ``Genkit``
+    class. Direct usage is typically for plugin authors or advanced use cases:
+
+    ```python
+    from genkit.core.action import Action
+    from genkit.core.plugin import Plugin
+    from genkit.core.registry import Registry
+
+    # Create a registry
+    registry = Registry()
+
+    # Register an action directly
+    action = registry.register_action(
+        kind=ActionKind.TOOL,
+        name='my_tool',
+        fn=my_tool_function,
+    )
+    ```
+
+See Also:
+    - genkit.ai: High-level user-facing API
+    - genkit.blocks: Building blocks for models, prompts, embedders
+    - genkit.types: Re-exported type definitions from core.typing
 """
 
 from .constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+from .logging import Logger, get_logger
 
 
 def package_name() -> str:
@@ -39,4 +109,4 @@ def package_name() -> str:
     return 'genkit.core'
 
 
-__all__ = [package_name.__name__, 'GENKIT_CLIENT_HEADER', 'GENKIT_VERSION']
+__all__ = ['package_name', 'GENKIT_CLIENT_HEADER', 'GENKIT_VERSION', 'Logger', 'get_logger']

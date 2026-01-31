@@ -675,6 +675,14 @@ func GenerateDataStream[Out any](ctx context.Context, r api.Registry, opts ...Ge
 			return
 		}
 
+		// If there's no text content to parse (e.g., the response contains tool
+		// requests or interrupts), return zero-value output. The caller should check
+		// resp.Interrupts() or resp.ToolRequests() to handle these cases.
+		if resp.Text() == "" {
+			yield(&StreamValue[Out, Out]{Done: true, Response: resp}, nil)
+			return
+		}
+
 		output, err := extractTypedOutput[Out](resp)
 		if err != nil {
 			yield(nil, err)

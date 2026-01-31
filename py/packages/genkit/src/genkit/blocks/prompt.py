@@ -123,7 +123,7 @@ Caveats:
 
 See Also:
     - JavaScript implementation: js/ai/src/prompt.ts
-    - Dotprompt documentation: https://firebase.google.com/docs/genkit/dotprompt
+    - Dotprompt documentation: https://genkit.dev/docs/dotprompt
 """
 
 import asyncio
@@ -131,9 +131,8 @@ import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast, overload
 
-import structlog
 from dotpromptz.typing import (
     DataArgument,
     PromptFunction,
@@ -148,6 +147,7 @@ from genkit.blocks.generate import (
     generate_action,
     to_tool_definition,
 )
+from genkit.blocks.interfaces import Input, Output
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -156,6 +156,7 @@ from genkit.blocks.model import (
 from genkit.core.action import Action, ActionRunContext, create_action_key
 from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
@@ -175,7 +176,11 @@ from genkit.core.typing import (
     ToolResponsePart,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
+
+# TypeVars for generic input/output typing
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
 
 
 class OutputOptions(TypedDict, total=False):
@@ -293,7 +298,7 @@ class ResumeOptions(TypedDict, total=False):
         ```
 
     See Also:
-        - Interrupts documentation: https://firebase.google.com/docs/genkit/interrupts
+        - Interrupts documentation: https://genkit.dev/docs/tool-calling#pause-agentic-loops-with-interrupts
     """
 
     respond: ToolResponsePart | list[ToolResponsePart] | None
@@ -406,12 +411,15 @@ class PromptGenerateOptions(TypedDict, total=False):
     metadata: dict[str, Any] | None
 
 
-class GenerateStreamResponse:
+class GenerateStreamResponse(Generic[OutputT]):
     r"""Response from a streaming prompt execution.
 
     This class provides a consistent interface matching the JavaScript
     GenerateStreamResponse, with both stream and response properties
     accessible simultaneously.
+
+    When the prompt has a typed output schema, `response` returns
+    `GenerateResponseWrapper[OutputT]` with typed `.output` property.
 
     Overview:
         When you call `prompt.stream()`, you get a GenerateStreamResponse
@@ -488,8 +496,8 @@ class GenerateStreamResponse:
 
     def __init__(
         self,
-        channel: Channel,
-        response_future: asyncio.Future[GenerateResponseWrapper],
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[OutputT]],
+        response_future: asyncio.Future[GenerateResponseWrapper[OutputT]],
     ) -> None:
         """Initialize the stream response.
 
@@ -499,8 +507,8 @@ class GenerateStreamResponse:
             response_future: Future that resolves to the complete response
                 when streaming is finished.
         """
-        self._channel = channel
-        self._response_future = response_future
+        self._channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[OutputT]] = channel
+        self._response_future: asyncio.Future[GenerateResponseWrapper[OutputT]] = response_future
 
     @property
     def stream(self) -> AsyncIterable[GenerateResponseChunkWrapper]:
@@ -516,12 +524,13 @@ class GenerateStreamResponse:
         return self._channel
 
     @property
-    def response(self) -> Awaitable[GenerateResponseWrapper]:
+    def response(self) -> Awaitable[GenerateResponseWrapper[OutputT]]:
         """Get the awaitable for the complete response.
 
         Returns:
             An awaitable that resolves to a GenerateResponseWrapper containing:
             - text: The complete generated text
+            - output: The typed output (when using Output[T])
             - messages: The full message history
             - usage: Token usage statistics
             - finish_reason: Why generation stopped (e.g., 'stop', 'length')
@@ -533,24 +542,24 @@ class GenerateStreamResponse:
 class PromptCache:
     """Model for a prompt cache."""
 
-    user_prompt: PromptFunction | None = None
-    system: PromptFunction | None = None
-    messages: PromptFunction | None = None
+    user_prompt: PromptFunction[Any] | None = None
+    system: PromptFunction[Any] | None = None
+    messages: PromptFunction[Any] | None = None
 
 
 class PromptConfig(BaseModel):
     """Model for a prompt action."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     variant: str | None = None
     model: str | None = None
     config: GenerationCommonConfig | dict[str, Any] | None = None
     description: str | None = None
     input_schema: type | dict[str, Any] | str | None = None
-    system: str | Part | list[Part] | Callable | None = None
-    prompt: str | Part | list[Part] | Callable | None = None
-    messages: str | list[Message] | Callable | None = None
+    system: str | Part | list[Part] | Callable[..., Any] | None = None
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None
+    messages: str | list[Message] | Callable[..., Any] | None = None
     output_format: str | None = None
     output_content_type: str | None = None
     output_instructions: bool | str | None = None
@@ -562,16 +571,21 @@ class PromptConfig(BaseModel):
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
-    docs: list[DocumentData] | Callable | None = None
+    docs: list[DocumentData] | Callable[..., Any] | None = None
     tool_responses: list[Part] | None = None
     resources: list[str] | None = None
 
 
-class ExecutablePrompt:
+class ExecutablePrompt(Generic[InputT, OutputT]):
     r"""A prompt that can be executed with a given input and configuration.
 
     This class matches the JavaScript ExecutablePrompt interface, providing
     a callable object that generates AI responses from a prompt template.
+
+    When defined with input/output schemas via `Input[I]` and `Output[O]`,
+    the prompt is typed as `ExecutablePrompt[I, O]`:
+    - Input is type-checked when calling the prompt
+    - Output is typed on `response.output`
 
     Overview:
         ExecutablePrompt is the main way to work with prompts in Genkit. It
@@ -655,7 +669,7 @@ class ExecutablePrompt:
 
     See Also:
         - JavaScript ExecutablePrompt: js/ai/src/prompt.ts
-        - Dotprompt: https://firebase.google.com/docs/genkit/dotprompt
+        - Dotprompt: https://genkit.dev/docs/dotprompt
     """
 
     def __init__(
@@ -666,9 +680,9 @@ class ExecutablePrompt:
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         description: str | None = None,
         input_schema: type | dict[str, Any] | str | None = None,
-        system: str | Part | list[Part] | Callable | None = None,
-        prompt: str | Part | list[Part] | Callable | None = None,
-        messages: str | list[Message] | Callable | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
@@ -680,12 +694,12 @@ class ExecutablePrompt:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
         resources: list[str] | None = None,
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
         _prompt_action: Action | None = None,  # reference to PROMPT action
-        # TODO:
+        # TODO(#4344):
         #  docs: list[Document]):
     ) -> None:
         """Initializes an ExecutablePrompt instance.
@@ -714,32 +728,32 @@ class ExecutablePrompt:
             docs: A list of documents to be used for grounding.
             resources: A list of resource URIs to be used for grounding.
         """
-        self._registry = registry
-        self._variant = variant
-        self._model = model
-        self._config = config
-        self._description = description
-        self._input_schema = input_schema
-        self._system = system
-        self._prompt = prompt
-        self._messages = messages
-        self._output_format = output_format
-        self._output_content_type = output_content_type
-        self._output_instructions = output_instructions
-        self._output_schema = output_schema
-        self._output_constrained = output_constrained
-        self._max_turns = max_turns
-        self._return_tool_requests = return_tool_requests
-        self._metadata = metadata
-        self._tools = tools
-        self._tool_choice = tool_choice
-        self._use = use
-        self._docs = docs
-        self._resources = resources
-        self._cache_prompt = PromptCache()
-        self._name = _name  # Store name/ns for action lookup (used by as_tool())
-        self._ns = _ns
-        self._prompt_action = _prompt_action
+        self._registry: Registry = registry
+        self._variant: str | None = variant
+        self._model: str | None = model
+        self._config: GenerationCommonConfig | dict[str, Any] | None = config
+        self._description: str | None = description
+        self._input_schema: type | dict[str, Any] | str | None = input_schema
+        self._system: str | Part | list[Part] | Callable[..., Any] | None = system
+        self._prompt: str | Part | list[Part] | Callable[..., Any] | None = prompt
+        self._messages: str | list[Message] | Callable[..., Any] | None = messages
+        self._output_format: str | None = output_format
+        self._output_content_type: str | None = output_content_type
+        self._output_instructions: bool | str | None = output_instructions
+        self._output_schema: type | dict[str, Any] | str | None = output_schema
+        self._output_constrained: bool | None = output_constrained
+        self._max_turns: int | None = max_turns
+        self._return_tool_requests: bool | None = return_tool_requests
+        self._metadata: dict[str, Any] | None = metadata
+        self._tools: list[str] | None = tools
+        self._tool_choice: ToolChoice | None = tool_choice
+        self._use: list[ModelMiddleware] | None = use
+        self._docs: list[DocumentData] | Callable[..., Any] | None = docs
+        self._resources: list[str] | None = resources
+        self._cache_prompt: PromptCache = PromptCache()
+        self._name: str | None = _name  # Store name/ns for action lookup (used by as_tool())
+        self._ns: str | None = _ns
+        self._prompt_action: Action | None = _prompt_action
 
     @property
     def ref(self) -> dict[str, Any]:
@@ -782,9 +796,9 @@ class ExecutablePrompt:
 
     async def __call__(
         self,
-        input: Any | None = None,  # noqa: ANN401
+        input: InputT | None = None,
         opts: PromptGenerateOptions | None = None,
-    ) -> GenerateResponseWrapper:
+    ) -> GenerateResponseWrapper[OutputT]:
         """Executes the prompt with the given input and configuration.
 
         This method matches the JavaScript ExecutablePrompt callable interface,
@@ -792,29 +806,32 @@ class ExecutablePrompt:
         default configuration.
 
         Args:
-            input: The input to the prompt template.
+            input: The input to the prompt template. When the prompt is defined
+                with `input=Input(schema=T)`, this should be an instance of T.
             opts: Optional generation options to override prompt defaults.
                 Can include: model, config, messages, docs, tools, output,
                 tool_choice, return_tool_requests, max_turns, on_chunk,
                 use (middleware), context, resume, and metadata.
 
         Returns:
-            The generated response.
+            The generated response with typed output.
 
         Example:
             ```python
-            prompt = ai.prompt('recipe')
-            # Basic usage
-            response = await prompt({'food': 'pizza'})
+            # With typed input/output
+            class RecipeInput(BaseModel):
+                dish: str
 
-            # With options override
-            response = await prompt(
-                {'food': 'pizza'},
-                opts={
-                    'config': {'temperature': 0.9},
-                    'on_chunk': lambda c: print(c.text, end=''),
-                },
+
+            prompt = ai.define_prompt(
+                name='recipe',
+                input=Input(schema=RecipeInput),
+                output=Output(schema=Recipe),
+                prompt='Create a recipe for {dish}',
             )
+
+            response = await prompt(RecipeInput(dish='pizza'))
+            response.output.name  # Typed!
             ```
         """
         await self._ensure_resolved()
@@ -825,28 +842,31 @@ class ExecutablePrompt:
         middleware = effective_opts.get('use') or self._use
         context = effective_opts.get('context')
 
-        return await generate_action(
+        result = await generate_action(
             self._registry,
             await self.render(input=input, opts=effective_opts),
             on_chunk=on_chunk,
             middleware=middleware,
-            context=context if context else ActionRunContext._current_context(),
+            context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
+        # Cast to preserve the generic type parameter
+        return cast(GenerateResponseWrapper[OutputT], result)
 
     def stream(
         self,
-        input: Any | None = None,  # noqa: ANN401
+        input: InputT | None = None,
         opts: PromptGenerateOptions | None = None,
         *,
         timeout: float | None = None,
-    ) -> GenerateStreamResponse:
+    ) -> GenerateStreamResponse[OutputT]:
         r"""Streams the prompt execution with the given input and configuration.
 
         This method matches the JavaScript ExecutablePrompt.stream() interface,
         returning a GenerateStreamResponse with both stream and response properties.
 
         Args:
-            input: The input to the prompt template.
+            input: The input to the prompt template. When the prompt is defined
+                with `input=Input(schema=T)`, this should be an instance of T.
             opts: Optional generation options to override prompt defaults.
                 Can include: model, config, messages, docs, tools, output,
                 tool_choice, return_tool_requests, max_turns, use (middleware),
@@ -856,37 +876,42 @@ class ExecutablePrompt:
         Returns:
             A GenerateStreamResponse with:
             - stream: AsyncIterable of response chunks
-            - response: Awaitable that resolves to the complete response
+            - response: Awaitable that resolves to the typed complete response
 
         Example:
             ```python
-            prompt = ai.prompt('story')
+            prompt = ai.define_prompt(
+                name='story',
+                input=Input(schema=StoryInput),
+                output=Output(schema=Story),
+                prompt='Write a story about {topic}',
+            )
 
             # Stream the response
-            result = prompt.stream({'topic': 'adventure'})
+            result = prompt.stream(StoryInput(topic='adventure'))
             async for chunk in result.stream:
                 print(chunk.text, end='')
 
-            # Get the final response
+            # Get the final typed response
             final = await result.response
-            print(f'\\nFinish reason: {final.finish_reason}')
+            print(f'Title: {final.output.title}')
             ```
         """
         effective_opts: PromptGenerateOptions = opts if opts else {}
-        channel: Channel = Channel(timeout=timeout)
+        channel: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[OutputT]] = Channel(timeout=timeout)
 
         # Create a copy of opts with the streaming callback
         stream_opts: PromptGenerateOptions = {**effective_opts, 'on_chunk': lambda c: channel.send(c)}
 
         resp = self.__call__(input=input, opts=stream_opts)
-        response_future = asyncio.create_task(resp)
+        response_future: asyncio.Future[GenerateResponseWrapper[OutputT]] = asyncio.create_task(resp)
         channel.set_close_future(response_future)
 
-        return GenerateStreamResponse(channel=channel, response_future=response_future)
+        return GenerateStreamResponse[OutputT](channel=channel, response_future=response_future)
 
     async def render(
         self,
-        input: dict[str, Any] | None = None,
+        input: InputT | dict[str, Any] | None = None,
         opts: PromptGenerateOptions | None = None,
     ) -> GenerateActionOptions:
         """Renders the prompt template with the given input and options.
@@ -896,7 +921,8 @@ class ExecutablePrompt:
         default configuration.
 
         Args:
-            input: The input to the prompt template.
+            input: The input to the prompt template. Can be a typed input model
+                or a dict with template variables.
             opts: Optional generation options to override prompt defaults.
                 Can include: model, config, messages, docs, tools, output,
                 tool_choice, return_tool_requests, max_turns, context,
@@ -908,10 +934,14 @@ class ExecutablePrompt:
 
         Example:
             ```python
-            prompt = ai.prompt('recipe')
+            prompt = ai.define_prompt(
+                name='recipe',
+                input=Input(schema=RecipeInput),
+                prompt='Create a recipe for {dish}',
+            )
 
             # Render without executing
-            options = await prompt.render({'food': 'pizza'}, opts={'config': {'temperature': 0.5}})
+            options = await prompt.render(RecipeInput(dish='pizza'))
 
             # Then generate manually
             response = await ai.generate(options)
@@ -933,11 +963,18 @@ class ExecutablePrompt:
             prompt_config = self._config or {}
             opts_config = opts_config_value or {}
             # Convert Pydantic models to dicts for merging
-            if hasattr(prompt_config, 'model_dump'):
-                prompt_config = prompt_config.model_dump(exclude_none=True)  # type: ignore[union-attr]
-            if hasattr(opts_config, 'model_dump'):
-                opts_config = opts_config.model_dump(exclude_none=True)  # type: ignore[union-attr]
-            merged_config = {**prompt_config, **opts_config} if prompt_config or opts_config else None
+            if isinstance(prompt_config, BaseModel):
+                prompt_config = prompt_config.model_dump(exclude_none=True)
+            if isinstance(opts_config, BaseModel):
+                opts_config = opts_config.model_dump(exclude_none=True)
+            merged_config = (
+                {
+                    **(prompt_config if isinstance(prompt_config, dict) else {}),
+                    **(opts_config if isinstance(opts_config, dict) else {}),
+                }
+                if prompt_config or opts_config
+                else None
+            )
         else:
             merged_config = self._config
 
@@ -1003,8 +1040,24 @@ class ExecutablePrompt:
             raise GenkitError(status='INVALID_ARGUMENT', message='No model configured.')
 
         resolved_msgs: list[Message] = []
-        # Use input or {} to convert None to empty dict for render functions
-        render_input = input or {}
+        # Convert input to dict for render functions
+        # If input is a Pydantic model, convert to dict; otherwise use as-is
+        render_input: dict[str, Any]
+        if input is None:
+            render_input = {}
+        elif isinstance(input, dict):
+            # Type narrow: input is dict here, assign to dict[str, Any] typed variable
+            render_input = {str(k): v for k, v in input.items()}
+        elif isinstance(input, BaseModel):
+            # Pydantic v2 model
+            render_input = input.model_dump()
+        elif hasattr(input, 'dict'):
+            # Pydantic v1 model
+            dict_func = getattr(input, 'dict', None)
+            render_input = cast(Callable[[], dict[str, Any]], dict_func)()
+        else:
+            # Fallback: cast to dict (should not happen with proper typing)
+            render_input = cast(dict[str, Any], input)
         # Get opts.messages for history (matching JS behavior)
         opts_messages = effective_opts.get('messages')
 
@@ -1123,6 +1176,8 @@ class ExecutablePrompt:
         return action
 
 
+# Overload 1: Both input and output typed -> ExecutablePrompt[InputT, OutputT]
+@overload
 def define_prompt(
     registry: Registry,
     name: str | None = None,
@@ -1131,9 +1186,9 @@ def define_prompt(
     config: GenerationCommonConfig | dict[str, Any] | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | str | None = None,
-    system: str | Part | list[Part] | Callable | None = None,
-    prompt: str | Part | list[Part] | Callable | None = None,
-    messages: str | list[Message] | Callable | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
     output_format: str | None = None,
     output_content_type: str | None = None,
     output_instructions: bool | str | None = None,
@@ -1145,8 +1200,132 @@ def define_prompt(
     tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    docs: list[DocumentData] | Callable | None = None,
-) -> ExecutablePrompt:
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    *,
+    input: 'Input[InputT]',
+    output: 'Output[OutputT]',
+) -> 'ExecutablePrompt[InputT, OutputT]': ...
+
+
+# Overload 2: Only input typed -> ExecutablePrompt[InputT, Any]
+@overload
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    *,
+    input: 'Input[InputT]',
+    output: None = None,
+) -> 'ExecutablePrompt[InputT, Any]': ...
+
+
+# Overload 3: Only output typed -> ExecutablePrompt[Any, OutputT]
+@overload
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    input: None = None,
+    *,
+    output: 'Output[OutputT]',
+) -> 'ExecutablePrompt[Any, OutputT]': ...
+
+
+# Overload 4: Neither typed -> ExecutablePrompt[Any, Any]
+@overload
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    input: None = None,
+    output: None = None,
+) -> 'ExecutablePrompt[Any, Any]': ...
+
+
+# Implementation
+def define_prompt(
+    registry: Registry,
+    name: str | None = None,
+    variant: str | None = None,
+    model: str | None = None,
+    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    description: str | None = None,
+    input_schema: type | dict[str, Any] | str | None = None,
+    system: str | Part | list[Part] | Callable[..., Any] | None = None,
+    prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+    messages: str | list[Message] | Callable[..., Any] | None = None,
+    output_format: str | None = None,
+    output_content_type: str | None = None,
+    output_instructions: bool | str | None = None,
+    output_schema: type | dict[str, Any] | str | None = None,
+    output_constrained: bool | None = None,
+    max_turns: int | None = None,
+    return_tool_requests: bool | None = None,
+    metadata: dict[str, Any] | None = None,
+    tools: list[str] | None = None,
+    tool_choice: ToolChoice | None = None,
+    use: list[ModelMiddleware] | None = None,
+    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    input: 'Input[Any] | None' = None,
+    output: 'Output[Any] | None' = None,
+) -> 'ExecutablePrompt[Any, Any]':
     """Defines an executable prompt.
 
     Args:
@@ -1163,7 +1342,7 @@ def define_prompt(
         output_format: The output format.
         output_content_type: The output content type.
         output_instructions: Instructions for formatting the output.
-        output_schema: The output schema.
+        output_schema: The output schema (use `output` parameter for typed outputs).
         output_constrained: Whether the output should be constrained to the output schema.
         max_turns: The maximum number of turns in a conversation.
         return_tool_requests: Whether to return tool requests.
@@ -1172,25 +1351,82 @@ def define_prompt(
         tool_choice: The tool choice strategy.
         use: A list of model middlewares to apply.
         docs: A list of documents to be used for grounding.
+        input: Typed input configuration using Input[T]. When provided, the
+            prompt's input parameter is type-checked.
+        output: Typed output configuration using Output[T]. When provided, the
+            response output is typed.
 
     Returns:
-        An ExecutablePrompt instance.
+        An ExecutablePrompt instance. When both `input=Input(schema=I)` and
+        `output=Output(schema=O)` are provided, returns `ExecutablePrompt[I, O]`
+        with typed input and output.
+
+    Example:
+        ```python
+        from genkit import Input, Output
+        from pydantic import BaseModel
+
+
+        class RecipeInput(BaseModel):
+            dish: str
+
+
+        class Recipe(BaseModel):
+            name: str
+            ingredients: list[str]
+
+
+        # With typed input AND output
+        recipe_prompt = define_prompt(
+            registry,
+            name='recipe',
+            prompt='Create a recipe for {dish}',
+            input=Input(schema=RecipeInput),
+            output=Output(schema=Recipe),
+        )
+
+        # Input is type-checked!
+        response = await recipe_prompt(RecipeInput(dish='pizza'))
+        response.output.name  # ✓ Typed as str
+        ```
     """
-    executable_prompt = ExecutablePrompt(
+    # If Input[T] is provided, extract its schema
+    effective_input_schema = input_schema
+    if input is not None:
+        effective_input_schema = input.schema
+
+    # If Output[T] is provided, extract its configuration
+    effective_output_schema = output_schema
+    effective_output_format = output_format
+    effective_output_content_type = output_content_type
+    effective_output_instructions = output_instructions
+    effective_output_constrained = output_constrained
+
+    if output is not None:
+        effective_output_schema = output.schema
+        effective_output_format = output.format if output.format else output_format
+        if output.content_type is not None:
+            effective_output_content_type = output.content_type
+        if output.instructions is not None:
+            effective_output_instructions = output.instructions
+        if output.constrained is not None:
+            effective_output_constrained = output.constrained
+
+    executable_prompt: ExecutablePrompt[Any, Any] = ExecutablePrompt(
         registry,
         variant=variant,
         model=model,
         config=config,
         description=description,
-        input_schema=input_schema,
+        input_schema=effective_input_schema,
         system=system,
         prompt=prompt,
         messages=messages,
-        output_format=output_format,
-        output_content_type=output_content_type,
-        output_instructions=output_instructions,
-        output_schema=output_schema,
-        output_constrained=output_constrained,
+        output_format=effective_output_format,
+        output_content_type=effective_output_content_type,
+        output_instructions=effective_output_instructions,
+        output_schema=effective_output_schema,
+        output_constrained=effective_output_constrained,
         max_turns=max_turns,
         return_tool_requests=return_tool_requests,
         metadata=metadata,
@@ -1203,7 +1439,7 @@ def define_prompt(
 
     if name:
         # Register actions for this prompt
-        action_metadata = {
+        action_metadata: dict[str, object] = {
             'type': 'prompt',
             'source': 'programmatic',
             'prompt': {
@@ -1237,10 +1473,10 @@ def define_prompt(
         )
 
         # Link them
-        executable_prompt._prompt_action = prompt_action
-        # Dynamic attributes set at runtime - type: ignore for Action objects
-        prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
-        executable_prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
+        executable_prompt._prompt_action = prompt_action  # pyright: ignore[reportPrivateUsage]
+        # Dynamic attributes set at runtime - these are custom attrs added to Action objects
+        setattr(prompt_action, '_executable_prompt', weakref.ref(executable_prompt))  # noqa: B010
+        setattr(executable_prompt_action, '_executable_prompt', weakref.ref(executable_prompt))  # noqa: B010
 
     return executable_prompt
 
@@ -1398,10 +1634,10 @@ def _normalize_prompt_arg(
         return [Part(root=TextPart(text=prompt))]
     elif isinstance(prompt, list):
         return prompt
-    elif isinstance(prompt, Part):
+    elif isinstance(prompt, Part):  # pyright: ignore[reportUnnecessaryIsInstance]
         return [prompt]
     else:
-        return []
+        return []  # pyright: ignore[reportUnreachable] - defensive fallback
 
 
 async def render_system_prompt(
@@ -1435,19 +1671,21 @@ async def render_system_prompt(
         if options.metadata:
             context = {**(context or {}), 'state': options.metadata.get('state')}
 
-        return Message(
-            role=Role.SYSTEM,
-            content=await render_dotprompt_to_parts(
+        # Cast to list[Part] - Pydantic coerces dicts to Part objects at runtime
+        rendered_parts = cast(
+            list[Part],
+            await render_dotprompt_to_parts(
                 context or {},
                 prompt_cache.system,
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
         )
+        return Message(role=Role.SYSTEM, content=rendered_parts)
 
     if callable(options.system):
         resolved = await ensure_async(options.system)(input, context)
@@ -1458,10 +1696,10 @@ async def render_system_prompt(
 
 async def render_dotprompt_to_parts(
     context: dict[str, Any],
-    prompt_function: PromptFunction,
+    prompt_function: PromptFunction[Any],
     input_: dict[str, Any],
-    options: PromptMetadata | None = None,
-) -> list[Part]:
+    options: PromptMetadata[Any] | None = None,
+) -> list[dict[str, Any]]:
     """Renders a prompt template into a list of content parts using dotprompt.
 
     Args:
@@ -1471,7 +1709,7 @@ async def render_dotprompt_to_parts(
         options: Optional prompt metadata configuration.
 
     Returns:
-        A list of Part objects containing the rendered content.
+        A list of dictionaries representing Part objects for Pydantic re-validation.
 
     Raises:
         Exception: If the template produces more than one message.
@@ -1489,7 +1727,8 @@ async def render_dotprompt_to_parts(
     if len(rendered.messages) > 1:
         raise Exception('parts template must produce only one message')
 
-    part_rendered = []
+    # Convert parts to dicts for Pydantic re-validation when creating new Message
+    part_rendered: list[dict[str, Any]] = []
     for message in rendered.messages:
         for part in message.content:
             part_rendered.append(part.model_dump())
@@ -1545,18 +1784,18 @@ async def render_message_prompt(
             data=DataArgument[dict[str, Any]](
                 input=flattened_data,
                 context=context,
-                messages=messages_,
+                messages=messages_,  # pyright: ignore[reportArgumentType]
             ),
             options=PromptMetadata(
                 input=PromptInputConfig(
-                    schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                    schema=to_json_schema(options.input_schema) if options.input_schema else None,
                 )
             ),
         )
         return [Message.model_validate(e.model_dump()) for e in rendered.messages]
 
     elif isinstance(options.messages, list):
-        return cast(list[Message], options.messages)
+        return [m if isinstance(m, Message) else Message.model_validate(m) for m in options.messages]
 
     elif callable(options.messages):
         # Pass history to resolver function (matching JS MessagesResolver signature)
@@ -1597,19 +1836,21 @@ async def render_user_prompt(
         if options.metadata:
             context = {**(context or {}), 'state': options.metadata.get('state')}
 
-        return Message(
-            role=Role.USER,
-            content=await render_dotprompt_to_parts(
+        # Cast to list[Part] - Pydantic coerces dicts to Part objects at runtime
+        rendered_parts = cast(
+            list[Part],
+            await render_dotprompt_to_parts(
                 context or {},
                 prompt_cache.user_prompt,
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
-                        schema=to_json_schema(options.input_schema) if options.input_schema else None,  # type: ignore[call-arg]
+                        schema=to_json_schema(options.input_schema) if options.input_schema else None,
                     )
                 ),
             ),
         )
+        return Message(role=Role.USER, content=rendered_parts)
 
     if callable(options.prompt):
         resolved = await ensure_async(options.prompt)(input, context)
@@ -1689,11 +1930,11 @@ def define_partial(registry: Registry, name: str, source: str) -> None:
         name: The name of the partial.
         source: The template source code.
     """
-    registry.dotprompt.define_partial(name, source)
+    _ = registry.dotprompt.define_partial(name, source)
     logger.debug(f'Registered Dotprompt partial "{name}"')
 
 
-def define_helper(registry: Registry, name: str, fn: Callable) -> None:
+def define_helper(registry: Registry, name: str, fn: Callable[..., Any]) -> None:
     """Define a Handlebars helper function in the registry.
 
     Args:
@@ -1701,7 +1942,7 @@ def define_helper(registry: Registry, name: str, fn: Callable) -> None:
         name: The name of the helper function.
         fn: The helper function to register.
     """
-    registry.dotprompt.define_helper(name, fn)
+    _ = registry.dotprompt.define_helper(name, fn)
     logger.debug(f'Registered Dotprompt helper "{name}"')
 
 
@@ -1794,13 +2035,16 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         prompt_metadata = await registry.dotprompt.render_metadata(parsed_prompt)
 
         # Convert Pydantic model to dict if needed
+        prompt_metadata_dict: dict[str, Any]
         if hasattr(prompt_metadata, 'model_dump'):
             prompt_metadata_dict = prompt_metadata.model_dump(by_alias=True)
         elif hasattr(prompt_metadata, 'dict'):
-            prompt_metadata_dict = prompt_metadata.dict(by_alias=True)
+            # Fallback for older Pydantic versions
+            # pyrefly: ignore[deprecated] - Intentional for Pydantic v1 compatibility
+            prompt_metadata_dict = prompt_metadata.dict(by_alias=True)  # pyright: ignore[reportDeprecated]
         else:
-            # Already a dict
-            prompt_metadata_dict = prompt_metadata
+            # Already a dict - cast through object to satisfy type checker
+            prompt_metadata_dict = cast(dict[str, Any], cast(object, prompt_metadata))
 
         # Ensure raw metadata is available (critical for lazy schema resolution)
         if hasattr(prompt_metadata, 'raw'):
@@ -1841,13 +2085,15 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             if schema and isinstance(schema, dict) and schema.get('description') is None:
                 schema.pop('description', None)
 
-        # Build metadata structure
+        # Build metadata structure (prompt_metadata_dict is always dict[str, Any] at this point)
+        metadata_inner = prompt_metadata_dict.get('metadata', {})
+        base_dict = prompt_metadata_dict
         metadata = {
-            **prompt_metadata_dict,
-            **prompt_metadata_dict.get('metadata', {}),
+            **base_dict,
+            **(metadata_inner if isinstance(metadata_inner, dict) else {}),
             'type': 'prompt',
             'prompt': {
-                **prompt_metadata_dict,
+                **base_dict,
                 'template': parsed_prompt.template,
             },
         }
@@ -1882,7 +2128,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Create a factory function that will create the ExecutablePrompt when accessed
     # Store metadata in a closure to avoid global state
-    async def create_prompt_from_file() -> ExecutablePrompt:
+    async def create_prompt_from_file() -> ExecutablePrompt[Any, Any]:
         """Factory function to create ExecutablePrompt from file metadata."""
         metadata = await load_prompt_metadata()
 
@@ -1913,16 +2159,16 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         lookup_key = registry_lookup_key(name, variant, ns)
         prompt_action = await registry.resolve_action_by_key(lookup_key)
         if prompt_action and prompt_action.kind == ActionKind.PROMPT:
-            executable_prompt._prompt_action = prompt_action
+            executable_prompt._prompt_action = prompt_action  # pyright: ignore[reportPrivateUsage]
             # Also store ExecutablePrompt reference on the action
             # prompt_action._executable_prompt = executable_prompt
-            prompt_action._executable_prompt = weakref.ref(executable_prompt)  # type: ignore[attr-defined]
+            setattr(prompt_action, '_executable_prompt', weakref.ref(executable_prompt))  # noqa: B010
 
         return executable_prompt
 
     # Store the async factory in a way that can be accessed later
     # We'll store it in the action metadata
-    action_metadata = {
+    action_metadata: dict[str, object] = {
         'type': 'prompt',
         'lazy': True,
         'source': 'file',
@@ -1976,8 +2222,8 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     )
 
     # Store the factory function on both actions for easy access
-    prompt_action._async_factory = create_prompt_from_file  # type: ignore[attr-defined]
-    executable_prompt_action._async_factory = create_prompt_from_file  # type: ignore[attr-defined]
+    setattr(prompt_action, '_async_factory', create_prompt_from_file)  # noqa: B010
+    setattr(executable_prompt_action, '_async_factory', create_prompt_from_file)  # noqa: B010
 
     # Store ExecutablePrompt reference on actions
     # This will be set when the prompt is first accessed (lazy loading)
@@ -2029,7 +2275,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
-        logger.error(f'Error loading prompts from {full_path}: {e}')
+        logger.exception(f'Error loading prompts from {full_path}', exc_info=e)
 
 
 def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '') -> None:
@@ -2057,7 +2303,7 @@ def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', n
     logger.info(f'Loaded prompts from directory: {path}')
 
 
-async def lookup_prompt(registry: Registry, name: str, variant: str | None = None) -> ExecutablePrompt:
+async def lookup_prompt(registry: Registry, name: str, variant: str | None = None) -> ExecutablePrompt[Any, Any]:
     """Look up a prompt from the registry.
 
     Args:
@@ -2086,34 +2332,36 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
 
     if action:
         # First check if we've stored the ExecutablePrompt directly
-        if hasattr(action, '_executable_prompt') and action._executable_prompt is not None:
-            ref = action._executable_prompt
-            # If it's a weakref, dereference it
-            if callable(ref):
-                return ref()  # type: ignore[no-any-return]
-            return ref  # type: ignore[no-any-return]
-        elif hasattr(action, '_async_factory'):
-            # Otherwise, create it from the factory (lazy loading)
-            # This will also set _executable_prompt on the action for future lookups
-            executable_prompt = await action._async_factory()  # type: ignore[attr-defined]
-            # Store it on the action for future lookups (if not already stored)
-            if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:
-                action._executable_prompt = executable_prompt  # type: ignore[attr-defined]
+        prompt_ref = getattr(action, '_executable_prompt', None)
+        if prompt_ref is not None:
+            if isinstance(prompt_ref, weakref.ReferenceType):
+                resolved = prompt_ref()
+                if resolved is not None:
+                    return resolved
+            if isinstance(prompt_ref, ExecutablePrompt):
+                return prompt_ref
+        # Otherwise, create it from the factory (lazy loading)
+        async_factory = getattr(action, '_async_factory', None)
+        if callable(async_factory):
+            # Cast to async callable - getattr returns object but we've verified it's callable
+            async_factory_fn = cast(Callable[[], Awaitable[ExecutablePrompt]], async_factory)
+            executable_prompt = await async_factory_fn()
+            if getattr(action, '_executable_prompt', None) is None:
+                setattr(action, '_executable_prompt', executable_prompt)  # noqa: B010
             return executable_prompt
-        else:
-            # Fallback: try to get from metadata
-            factory = action.metadata.get('_async_factory')
-            if factory:
-                executable_prompt = await factory()
-                # Store it on the action for future lookups
-                if not hasattr(action, '_executable_prompt') or action._executable_prompt is None:
-                    action._executable_prompt = executable_prompt  # type: ignore[attr-defined]
-                return executable_prompt
-            # Last resort: this shouldn't happen if prompts are loaded correctly
-            raise GenkitError(
-                status='INTERNAL',
-                message=f'Prompt action found but no ExecutablePrompt available for {name}',
-            )
+        # Fallback: try to get from metadata
+        factory = action.metadata.get('_async_factory')
+        if callable(factory):
+            factory_async = ensure_async(cast(Callable[..., Any], factory))
+            executable_prompt = await factory_async()
+            if getattr(action, '_executable_prompt', None) is None:
+                setattr(action, '_executable_prompt', executable_prompt)  # noqa: B010
+            return executable_prompt
+        # Last resort: this shouldn't happen if prompts are loaded correctly
+        raise GenkitError(
+            status='INTERNAL',
+            message=f'Prompt action found but no ExecutablePrompt available for {name}',
+        )
 
     variant_str = f' (variant {variant})' if variant else ''
     raise GenkitError(
@@ -2126,8 +2374,8 @@ async def prompt(
     registry: Registry,
     name: str,
     variant: str | None = None,
-    dir: str | Path | None = None,  # Accepted but not used
-) -> ExecutablePrompt:
+    _dir: str | Path | None = None,  # Accepted but not used
+) -> ExecutablePrompt[Any, Any]:
     """Look up a prompt by name and optional variant.
 
     Can look up prompts that were:

@@ -73,13 +73,17 @@ import asyncio
 import os
 import sys
 
-import structlog
+from pydantic import BaseModel, Field
+from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.core.trace import is_realtime_telemetry_enabled
 from genkit.plugins.google_genai import GoogleAI
 
-logger = structlog.get_logger(__name__)
+install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+
+logger = get_logger(__name__)
 
 
 def _ensure_api_key() -> None:
@@ -107,19 +111,38 @@ ai = Genkit(
 )
 
 
-# =============================================================================
-# FLOWS FOR DEMONSTRATING REALTIME TRACING
-# =============================================================================
+class MultiStepInput(BaseModel):
+    """Input for multi-step flow."""
+
+    topic: str = Field(default='Python programming', description='Topic to process')
+
+
+class NestedInput(BaseModel):
+    """Input for nested operations flow."""
+
+    depth: int = Field(default=3, description='Depth of nesting')
+
+
+class ParallelInput(BaseModel):
+    """Input for parallel tasks flow."""
+
+    num_tasks: int = Field(default=3, description='Number of parallel tasks')
+
+
+class LlmChainInput(BaseModel):
+    """Input for LLM chain flow."""
+
+    initial_prompt: str = Field(default='Tell me a fun fact', description='Initial prompt for the chain')
 
 
 @ai.flow(name='slow_multi_step')
-async def slow_multi_step_flow(topic: str = 'Python programming') -> dict:
+async def slow_multi_step_flow(input: MultiStepInput) -> dict[str, object]:
     """A multi-step flow with delays to demonstrate realtime tracing.
 
     Watch the DevUI as each step appears immediately when it starts!
 
     Args:
-        topic: The topic to process.
+        input: Input with topic to process.
 
     Returns:
         A dict with results from each step.
@@ -127,10 +150,10 @@ async def slow_multi_step_flow(topic: str = 'Python programming') -> dict:
     results = {}
 
     # Step 1: Research (appears immediately in DevUI)
-    logger.info('Starting Step 1: Research', topic=topic)
+    logger.info('Starting Step 1: Research', topic=input.topic)
     research = await ai.run(
         'research',
-        lambda: slow_operation(f'Researching {topic}', delay=2.0),
+        lambda: slow_operation(f'Researching {input.topic}', delay=2.0),
     )
     results['research'] = research
 
@@ -145,7 +168,7 @@ async def slow_multi_step_flow(topic: str = 'Python programming') -> dict:
     # Step 3: Generate Summary (uses actual LLM)
     logger.info('Starting Step 3: Generate Summary with LLM')
     response = await ai.generate(
-        prompt=f'Write a one-sentence summary about {topic}.',
+        prompt=f'Write a one-sentence summary about {input.topic}.',
         config={'temperature': 0.7},
     )
     results['summary'] = response.text
@@ -154,13 +177,13 @@ async def slow_multi_step_flow(topic: str = 'Python programming') -> dict:
 
 
 @ai.flow(name='nested_operations')
-async def nested_operations_flow(depth: int = 3) -> str:
+async def nested_operations_flow(input: NestedInput) -> str:
     """A flow with nested operations to show parent/child relationships.
 
     In the DevUI, you'll see the hierarchy of spans as they execute.
 
     Args:
-        depth: How deep to nest operations.
+        input: Input with depth of nesting.
 
     Returns:
         A completion message.
@@ -176,26 +199,26 @@ async def nested_operations_flow(depth: int = 3) -> str:
             lambda: nested_step(level - 1),
         )
 
-    result = await nested_step(depth)
-    return f'Completed {depth} levels: {result}'
+    result = await nested_step(input.depth)
+    return f'Completed {input.depth} levels: {result}'
 
 
 @ai.flow(name='parallel_tasks')
-async def parallel_tasks_flow(num_tasks: int = 3) -> list[str]:
+async def parallel_tasks_flow(input: ParallelInput) -> list[str]:
     """Run multiple tasks in parallel to see concurrent spans.
 
     In the DevUI with realtime tracing, you'll see all tasks
     start simultaneously and complete at different times.
 
     Args:
-        num_tasks: Number of parallel tasks to run.
+        input: Input with number of parallel tasks.
 
     Returns:
         List of results from each task.
     """
     tasks = []
 
-    for i in range(num_tasks):
+    for i in range(input.num_tasks):
         delay = 1.0 + (i * 0.5)  # Staggered completion times
 
         async def task_fn(task_id: int = i, task_delay: float = delay) -> str:
@@ -209,22 +232,22 @@ async def parallel_tasks_flow(num_tasks: int = 3) -> list[str]:
 
 
 @ai.flow(name='llm_chain')
-async def llm_chain_flow(initial_prompt: str = 'Tell me a fun fact') -> dict:
+async def llm_chain_flow(input: LlmChainInput) -> dict[str, object]:
     """Chain multiple LLM calls to see sequential model invocations.
 
     Each model call will appear as a separate span in the DevUI.
 
     Args:
-        initial_prompt: The starting prompt.
+        input: Input with initial prompt.
 
     Returns:
         Dict with responses from each step.
     """
-    results = {}
+    results: dict[str, object] = {}
 
     # Step 1: Initial generation
     response1 = await ai.generate(
-        prompt=initial_prompt,
+        prompt=input.initial_prompt,
         config={'maxOutputTokens': 100},
     )
     results['fact'] = response1.text
@@ -247,7 +270,7 @@ async def llm_chain_flow(initial_prompt: str = 'Tell me a fun fact') -> dict:
 
 
 @ai.flow(name='check_realtime_status')
-async def check_realtime_status() -> dict:
+async def check_realtime_status() -> dict[str, object]:
     """Check if realtime tracing is enabled.
 
     Returns:

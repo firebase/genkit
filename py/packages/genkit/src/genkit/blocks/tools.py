@@ -18,7 +18,107 @@
 
 Genkit tools are actions that can be called by models during a generation
 process. This module provides context and error types for tool execution,
-allowing for controlled interruptions and specific response formatting.
+including support for controlled interruptions and specific response formatting.
+
+Overview:
+    Tools extend the capabilities of AI models by allowing them to call
+    external functions during generation. The model decides when to use
+    a tool based on the conversation context and tool descriptions.
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                      Tool Execution Flow                                │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │                                                                         │
+    │  ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐    │
+    │  │  Model   │ ───► │   Tool   │ ───► │ Execute  │ ───► │  Model   │    │
+    │  │ Request  │      │ Request  │      │ Function │      │ Continue │    │
+    │  └──────────┘      └──────────┘      └──────────┘      └──────────┘    │
+    │                          │                                             │
+    │                          ▼ (if interrupt=True)                         │
+    │                    ┌──────────┐                                        │
+    │                    │  Pause   │ ────► User confirms ────► Resume       │
+    │                    └──────────┘                                        │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Terminology:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Term                │ Description                                       │
+    ├─────────────────────┼───────────────────────────────────────────────────┤
+    │ Tool                │ A function that models can call during generation │
+    │ ToolRunContext      │ Execution context with interrupt capability       │
+    │ ToolInterruptError  │ Exception for controlled tool execution pause     │
+    │ Interrupt           │ A tool marked to pause for user confirmation      │
+    │ tool_response()     │ Helper to construct response for interrupted tool │
+    └─────────────────────┴───────────────────────────────────────────────────┘
+
+Key Components:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Component           │ Purpose                                           │
+    ├─────────────────────┼───────────────────────────────────────────────────┤
+    │ ToolRunContext      │ Context for tool execution, extends ActionContext │
+    │ ToolInterruptError  │ Exception to pause execution for user input       │
+    │ tool_response()     │ Constructs tool response Part for interrupts      │
+    └─────────────────────┴───────────────────────────────────────────────────┘
+
+Example:
+    Basic tool definition:
+
+    ```python
+    from genkit import Genkit
+
+    ai = Genkit()
+
+
+    @ai.tool()
+    def get_weather(city: str) -> str:
+        '''Get current weather for a city.'''
+        # Fetch weather data...
+        return f'Weather in {city}: Sunny, 72°F'
+
+
+    # Use in generation
+    response = await ai.generate(
+        prompt='What is the weather in Paris?',
+        tools=['get_weather'],
+    )
+    ```
+
+    Interrupt tool (human-in-the-loop):
+
+    ```python
+    @ai.tool(interrupt=True)
+    def book_flight(destination: str, date: str) -> str:
+        '''Book a flight - requires user confirmation.'''
+        return f'Booked flight to {destination} on {date}'
+
+
+    # First generate - tool call is returned, not executed
+    response = await ai.generate(
+        prompt='Book me a flight to Paris next Friday',
+        tools=['book_flight'],
+    )
+
+    # Check for interrupts
+    if response.interrupts:
+        interrupt = response.interrupts[0]
+        # Show user: "Confirm booking to Paris on Friday?"
+        # Resume after confirmation
+        response = await ai.generate(
+            prompt='Book me a flight to Paris next Friday',
+            tools=['book_flight'],
+            messages=response.messages,
+            resume={'respond': tool_response(interrupt, 'Confirmed')},
+        )
+    ```
+
+Caveats:
+    - Tools receive a ToolRunContext, which extends ActionRunContext
+    - Interrupt tools must be explicitly resumed to continue generation
+    - The tool_response() helper is used to respond to interrupted tools
+
+See Also:
+    - Interrupts documentation: https://genkit.dev/docs/tool-calling#pause-agentic-loops-with-interrupts
+    - genkit.core.action: Base action types
 """
 
 from typing import Any, NoReturn, Protocol, cast
@@ -68,7 +168,7 @@ class ToolRunContext(ActionRunContext):
         raise ToolInterruptError(metadata=metadata)
 
 
-# TODO: make this extend GenkitError once it has INTERRUPTED status
+# TODO(#4346): make this extend GenkitError once it has INTERRUPTED status
 class ToolInterruptError(Exception):
     """Exception raised to signal a controlled interruption of tool execution.
 
@@ -84,7 +184,8 @@ class ToolInterruptError(Exception):
         Args:
             metadata: Metadata associated with the interruption.
         """
-        self.metadata = metadata or {}
+        super().__init__()
+        self.metadata: dict[str, Any] = metadata or {}
 
 
 def tool_response(
@@ -108,7 +209,7 @@ def tool_response(
     Returns:
         A Part object containing the constructed ToolResponse.
     """
-    # TODO: validate against tool schema
+    # TODO(#4347): validate against tool schema
     tool_request = interrupt.root.tool_request if isinstance(interrupt, Part) else interrupt.tool_request
 
     interrupt_metadata = True

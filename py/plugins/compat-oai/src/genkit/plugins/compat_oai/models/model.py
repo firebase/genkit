@@ -33,6 +33,7 @@ from genkit.types import (
     GenerationCommonConfig,
     Message,
     OutputConfig,
+    Part,
     Role,
     ToolDefinition,
 )
@@ -116,12 +117,15 @@ class OpenAIModel:
             - 'type': 'text' as the default fallback.
         """
         if output.format == 'json':
-            if output.schema_:
+            # Special handling for DeepSeek models: always use 'json_object' for structured output
+            if self._model.startswith('deepseek'):
+                return {'type': 'json_object'}
+            if output.schema:
                 return {
                     'type': 'json_schema',
                     'json_schema': {
-                        'name': output.schema_.get('title', 'Response'),
-                        'schema': _ensure_strict_json_schema(output.schema_, path=(), root=output.schema_),
+                        'name': output.schema.get('title', 'Response'),
+                        'schema': _ensure_strict_json_schema(output.schema, path=(), root=output.schema),
                         'strict': True,
                     },
                 }
@@ -153,7 +157,10 @@ class OpenAIModel:
         elif request.tool_choice:
             openai_config['tool_choice'] = request.tool_choice
         if request.output:
-            openai_config['response_format'] = self._get_response_format(request.output)
+            response_format = self._get_response_format(request.output)
+            if response_format:
+                # pyrefly: ignore[bad-typed-dict-key] - response_format dict is valid for OpenAI API
+                openai_config['response_format'] = response_format
         if request.config:
             openai_config.update(**request.config.model_dump(exclude_none=True))
         return openai_config
@@ -192,8 +199,8 @@ class OpenAIModel:
 
         stream = self._openai_client.chat.completions.create(**openai_config)
 
-        tool_calls = {}
-        accumulated_content = []
+        tool_calls: dict[int, Any] = {}
+        accumulated_content: list[Part] = []
         for chunk in stream:
             delta = chunk.choices[0].delta
 
@@ -212,10 +219,16 @@ class OpenAIModel:
             elif delta.tool_calls:
                 for tool_call in delta.tool_calls:
                     # Accumulate fragmented tool call arguments
-                    tool_calls.setdefault(tool_call.index, tool_call).function.arguments += tool_call.function.arguments
+                    if tool_call.index not in tool_calls:
+                        tool_calls[tool_call.index] = tool_call
+                    else:
+                        existing = tool_calls[tool_call.index]
+                        if hasattr(existing, 'function') and existing.function and tool_call.function:
+                            existing.function.arguments += tool_call.function.arguments
                 content = [
                     MessageConverter.tool_call_to_genkit(
-                        tool_calls[tool_call.index], args_segment=tool_call.function.arguments
+                        tool_calls[tool_call.index],
+                        args_segment=tool_call.function.arguments if tool_call.function else None,
                     )
                     for tool_call in delta.tool_calls
                 ]

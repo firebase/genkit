@@ -17,6 +17,7 @@
 [project]
 authors = [{ name = "Google" }]
 dependencies = [
+  "rich>=13.0.0",
   "genkit",
   "genkit-plugin-google-genai",
   "pydantic",

@@ -27,12 +27,24 @@ uv run --directory "${PY_DIR}" ruff check --fix --preview --unsafe-fixes .
 uv run --directory "${PY_DIR}" ruff format --preview .
 # Ensure Python test files follow the *_test.py naming convention.
 if find "${PY_DIR}" -name "test_*.py" -not -path "*/.*" | grep -q .; then
-    echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
-    find "${PY_DIR}" -name "test_*.py" -not -path "*/.*"
-    exit 1
+  echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
+  find "${PY_DIR}" -name "test_*.py" -not -path "*/.*"
+  exit 1
 fi
 
+# Fast type checkers first (blocking)
+# Note: ty reads its config (environment.root) from py/pyproject.toml
+echo "--- 🔍 Running Ty Type Check ---"
 uv run --directory "${PY_DIR}" ty check .
+
+# Pyrefly checks the full workspace (config in pyproject.toml handles PEP 420 namespace packages)
+echo "--- 🔍 Running Pyrefly Type Check ---"
+uv run --directory "${PY_DIR}" pyrefly check .
+
+# Pyright runs on packages/ only (blocking)
+echo "--- 🔍 Running Pyright Type Check ---"
+uv run --directory "${PY_DIR}" pyright packages/
+
 "${PY_DIR}/bin/run_python_security_checks"
 
 # Disabled because there are many lint errors.

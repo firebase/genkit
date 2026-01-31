@@ -14,17 +14,55 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""AI foundations for the Genkit framework.
+"""Building blocks for the Genkit framework.
 
-This package provides the artificial intelligence and machine learning
-capabilities of the Genkit framework. It includes:
+This package provides the core building blocks for AI applications, including
+models, prompts, embeddings, retrievers, and tools. These blocks are composed
+to create intelligent applications.
 
-    - Model interfaces for various AI models
-    - Prompt management and templating
-    - AI-specific utilities and helpers
+Overview:
+    The blocks package contains the fundamental components used to build
+    Genkit applications. Each block type represents a specific AI capability
+    that can be composed together.
 
-The AI package enables seamless integration of AI models and capabilities
-into applications built with Genkit.
+Key Modules:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Module            │ Description                                         │
+    ├───────────────────┼─────────────────────────────────────────────────────┤
+    │ model             │ Model registration and invocation (ai.generate)     │
+    │ prompt            │ Prompt templates and ExecutablePrompt               │
+    │ embedding         │ Text embeddings (ai.embed)                          │
+    │ retriever         │ Document retrieval for RAG (ai.retrieve)            │
+    │ document          │ Document model for content + metadata               │
+    │ tools             │ Tool context and interrupt handling                 │
+    │ evaluator         │ Evaluation functions for quality assessment         │
+    │ reranker          │ Document reranking for improved retrieval           │
+    └───────────────────┴─────────────────────────────────────────────────────┘
+
+Usage:
+    Most users interact with blocks via the ``Genkit`` class methods:
+
+    ```python
+    from genkit import Genkit
+
+    ai = Genkit(...)
+
+    # Model block (via ai.generate)
+    response = await ai.generate(prompt='Hello!')
+
+    # Prompt block (via ai.prompt)
+    prompt = ai.prompt('greet', source='...', model='...')
+
+    # Embedding block (via ai.embed)
+    embeddings = await ai.embed(content='text')
+
+    # Retriever block (via ai.retrieve)
+    docs = await ai.retrieve(retriever='my_retriever', query='...')
+    ```
+
+See Also:
+    - genkit.ai: Main Genkit class
+    - genkit.types: Type definitions
 """
 
 
@@ -37,4 +75,4 @@ def package_name() -> str:
     return 'genkit.blocks'
 
 
-__all__ = [package_name.__name__]
+__all__ = ['package_name']
