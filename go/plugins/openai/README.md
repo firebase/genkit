@@ -2,6 +2,9 @@
 
 The OpenAI plugin for Genkit provides integration with the [OpenAI API](https://platform.openai.com/docs/api-reference), allowing you to use models like GPT-4o, GPT-4 Turbo, and embeddings within your Genkit applications.
 
+> [!NOTE]
+> This plugin uses the modern OpenAI **Responses API**. For applications requiring the legacy **Chat Completions API**, please use the [`compat_oai`](../compat_oai) plugin.
+
 This plugin uses the official [openai-go](https://github.com/openai/openai-go) SDK.
 
 ## Setup
@@ -70,7 +73,19 @@ g := genkit.Init(ctx, genkit.WithPlugins(&openai.OpenAI{
  Provider: "xai",
 }))
 
-model := openai.Model(g, "grok-2-1212")
+model := openai.Model(g, "grok-4-1-fast-reasoning")
+```
+
+### OpenRouter
+
+```go
+g := genkit.Init(ctx, genkit.WithPlugins(&openai.OpenAI{
+ BaseURL:  "https://openrouter.ai/api/v1",
+ APIKey:   os.Getenv("OPENROUTER_API_KEY"),
+ Provider: "openrouter",
+}))
+
+model := openai.Model(g, "deepseek/deepseek-r1")
 ```
 
 ## Usage
