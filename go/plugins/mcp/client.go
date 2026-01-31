@@ -4,30 +4,31 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Package mcp provides a client for integration with the Model Context Protocol.
+//
+// SPDX-License-Identifier: Apache-2.0
 package mcp
 
 import (
 	"context"
 	"fmt"
 	"net/http"
+	"os/exec"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/client/transport"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// StdioConfig holds configuration for a stdio-based MCP server process.
+const DefaultHTTPClientTimeout = 30
+
+// StdioConfig holds configuration for a stdio-based MCP server process
 type StdioConfig struct {
 	Command string
 	Env     []string
@@ -41,7 +42,7 @@ type SSEConfig struct {
 	HTTPClient *http.Client // Optional custom HTTP client
 }
 
-// StreamableHTTPConfig contains options for the Streamable HTTP transport
+// StreamableHTTPConfig contains optons for the Streamable HTTP transport
 type StreamableHTTPConfig struct {
 	BaseURL    string
 	Headers    map[string]string
@@ -49,17 +50,17 @@ type StreamableHTTPConfig struct {
 	Timeout    time.Duration // HTTP request timeout
 }
 
-// MCPClientOptions holds configuration for the MCPClient.
+// MCPClientOptions contains options for the Streamable HTTP transport
 type MCPClientOptions struct {
-	// Name for this client instance - ideally a nickname for the server
+	// Name for this client instance
 	Name string
-	// Version number for this client (defaults to "1.0.0" if empty)
+	// Version number for this client (defaults to "1.0.0")
 	Version string
 
 	// Disabled flag to temporarily disable this client
 	Disabled bool
 
-	// Transport options - only one should be provided
+	// Transport options -- only should be provided
 
 	// Stdio contains config for starting a local server process using stdio transport
 	Stdio *StdioConfig
@@ -73,147 +74,157 @@ type MCPClientOptions struct {
 
 // ServerRef represents an active connection to an MCP server
 type ServerRef struct {
-	Client    *client.Client
-	Transport transport.Interface
-	Error     string
+	Session *mcp.ClientSession
+	Error   error
 }
 
-// GenkitMCPClient represents a client for interacting with MCP servers.
+// GenkitMCPClient represents a client for interacting with MCP servers
 type GenkitMCPClient struct {
 	options MCPClientOptions
+	client  *mcp.Client
 	server  *ServerRef
 }
 
-// NewGenkitMCPClient creates a new GenkitMCPClient with the given options.
-// Returns an error if the initial connection fails.
-func NewGenkitMCPClient(options MCPClientOptions) (*GenkitMCPClient, error) {
-	// Set default values
-	if options.Name == "" {
-		options.Name = "unnamed"
+// NewGenkitMCPClient creates a new [GenkitMCPClient] with the given options.
+func NewGenkitMCPClient(opts MCPClientOptions) (*GenkitMCPClient, error) {
+	if opts.Name == "" {
+		opts.Name = "unnamed"
 	}
-	if options.Version == "" {
-		options.Version = "1.0.0"
+	if opts.Version == "" {
+		opts.Version = "1.0.0"
 	}
 
-	client := &GenkitMCPClient{
-		options: options,
+	c := &GenkitMCPClient{
+		options: opts,
+		client: mcp.NewClient(&mcp.Implementation{
+			Name:    opts.Name,
+			Version: opts.Version,
+		}, nil),
 	}
 
-	if err := client.connect(options); err != nil {
+	if err := c.connect(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
 	}
+	if c.server.Error != nil {
+		return nil, c.server.Error
+	}
 
-	return client, nil
+	return c, nil
 }
 
 // connect establishes a connection to an MCP server
-func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
-	// Close existing connection if any
-	if c.server != nil {
-		if err := c.server.Client.Close(); err != nil {
-			ctx := context.Background()
-			logger.FromContext(ctx).Warn("Error closing previous MCP transport", "client", c.options.Name, "error", err)
+func (c *GenkitMCPClient) connect(ctx context.Context) error {
+	if c.server != nil && c.server.Session != nil {
+		if err := c.server.Session.Close(); err != nil {
+			logger.FromContext(ctx).Warn("Error closing previous MCP session", "client", c.options.Name, "error", err)
 		}
 	}
 
-	// Create and configure transport
-	transport, err := c.createTransport(options)
+	// if disabled, return without establishing a session
+	// TODO: wouldn't this wipe the whole server from the client?
+	if c.options.Disabled {
+		c.server = nil
+		return nil
+	}
+
+	transport, err := c.createTransport()
 	if err != nil {
+		// no transport means no ability to create a server
+		c.server = &ServerRef{Error: err}
 		return err
 	}
 
-	// Start the transport
-	ctx := context.Background()
-	if err := transport.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start transport: %w", err)
-	}
-
-	// Create MCP client
-	mcpClient := client.NewClient(transport)
-
-	// Initialize the client if not disabled
-	var serverError string
-	if !options.Disabled {
-		serverError = c.initializeClient(ctx, mcpClient, options.Version)
+	session, err := c.client.Connect(ctx, transport, nil)
+	if err != nil {
+		c.server = &ServerRef{
+			Error: err,
+		}
+		return fmt.Errorf("failed to connect to MCP server: %w", err)
 	}
 
 	c.server = &ServerRef{
-		Client:    mcpClient,
-		Transport: transport,
-		Error:     serverError,
+		Session: session,
 	}
 
 	return nil
 }
 
+// headerTransport is a [http.RoundTripper] that adds custom headers to every request
+type headerTransport struct {
+	rt      http.RoundTripper
+	headers map[string]string
+}
+
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	for k, v := range t.headers {
+		req.Header.Set(k, v)
+	}
+	return t.rt.RoundTrip(req)
+}
+
+// wrapHTTPClient wraps an existing client with custom headers
+func wrapHTTPClient(client *http.Client, headers map[string]string) *http.Client {
+	if len(headers) == 0 {
+		if client == nil {
+			return http.DefaultClient
+		}
+		return client
+	}
+
+	newClient := &http.Client{}
+	if client != nil {
+		*newClient = *client
+	} else {
+		newClient.Timeout = DefaultHTTPClientTimeout * time.Second
+	}
+
+	transport := newClient.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+
+	newClient.Transport = &headerTransport{
+		rt:      transport,
+		headers: headers,
+	}
+	return newClient
+}
+
 // createTransport creates the appropriate transport based on client options
-func (c *GenkitMCPClient) createTransport(options MCPClientOptions) (transport.Interface, error) {
-	if options.Stdio != nil {
-		return transport.NewStdio(options.Stdio.Command, options.Stdio.Env, options.Stdio.Args...), nil
+func (c *GenkitMCPClient) createTransport() (mcp.Transport, error) {
+	if c.options.Stdio != nil {
+		cmd := exec.Command(c.options.Stdio.Command, c.options.Stdio.Args...)
+		cmd.Env = c.options.Stdio.Env
+		return &mcp.CommandTransport{
+			Command: cmd,
+		}, nil
 	}
 
-	if options.SSE != nil {
-		var sseOptions []transport.ClientOption
-		if options.SSE.Headers != nil {
-			sseOptions = append(sseOptions, transport.WithHeaders(options.SSE.Headers))
-		}
-		if options.SSE.HTTPClient != nil {
-			sseOptions = append(sseOptions, transport.WithHTTPClient(options.SSE.HTTPClient))
-		}
-
-		return transport.NewSSE(options.SSE.BaseURL, sseOptions...)
+	if c.options.SSE != nil {
+		httpClient := wrapHTTPClient(c.options.SSE.HTTPClient, c.options.SSE.Headers)
+		return &mcp.SSEClientTransport{
+			Endpoint:   c.options.SSE.BaseURL,
+			HTTPClient: httpClient,
+		}, nil
 	}
 
-	if options.StreamableHTTP != nil {
-		var streamableHTTPOptions []transport.StreamableHTTPCOption
-		if options.StreamableHTTP.Headers != nil {
-			streamableHTTPOptions = append(streamableHTTPOptions, transport.WithHTTPHeaders(options.StreamableHTTP.Headers))
-		}
-		if options.StreamableHTTP.Timeout > 0 {
-			streamableHTTPOptions = append(streamableHTTPOptions, transport.WithHTTPTimeout(options.StreamableHTTP.Timeout))
-		}
-
-		transportImpl, err := transport.NewStreamableHTTP(options.StreamableHTTP.BaseURL, streamableHTTPOptions...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create streamable HTTP transport: %w", err)
-		}
-		return transportImpl, nil
+	if c.options.StreamableHTTP != nil {
+		httpClient := wrapHTTPClient(c.options.StreamableHTTP.HTTPClient, c.options.StreamableHTTP.Headers)
+		return &mcp.StreamableClientTransport{
+			Endpoint:   c.options.StreamableHTTP.BaseURL,
+			HTTPClient: httpClient,
+		}, nil
 	}
 
-	return nil, fmt.Errorf("no valid transport configuration provided: must specify Stdio, SSE, or StreamableHTTP")
+	return nil, fmt.Errorf("no valid transport configuration provided: must specify Stdio, SSE or StreamableHTTP")
 }
 
-// initializeClient initializes the MCP client connection
-func (c *GenkitMCPClient) initializeClient(ctx context.Context, mcpClient *client.Client, version string) string {
-	initReq := mcp.InitializeRequest{
-		Params: struct {
-			ProtocolVersion string                 `json:"protocolVersion"`
-			Capabilities    mcp.ClientCapabilities `json:"capabilities"`
-			ClientInfo      mcp.Implementation     `json:"clientInfo"`
-		}{
-			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
-			ClientInfo: mcp.Implementation{
-				Name:    "genkit-mcp-client",
-				Version: version,
-			},
-			Capabilities: mcp.ClientCapabilities{},
-		},
-	}
-
-	_, err := mcpClient.Initialize(ctx, initReq)
-	if err != nil {
-		return err.Error()
-	}
-
-	return ""
-}
-
-// Name returns the client name
+// Name returns the name of the client
 func (c *GenkitMCPClient) Name() string {
 	return c.options.Name
 }
 
-// IsEnabled returns whether the client is enabled
+// IsEnabled return whether the client is enabled
 func (c *GenkitMCPClient) IsEnabled() bool {
 	return !c.options.Disabled
 }
@@ -226,26 +237,26 @@ func (c *GenkitMCPClient) Disable() {
 	}
 }
 
-// Reenable re-enables a previously disabled client by reconnecting
+// Reenable re-enables a previously disabled client by reconnecting it
 func (c *GenkitMCPClient) Reenable() {
 	if c.options.Disabled {
 		c.options.Disabled = false
-		c.connect(c.options)
+		c.connect(context.Background())
 	}
 }
 
 // Restart restarts the transport connection
 func (c *GenkitMCPClient) Restart(ctx context.Context) error {
 	if err := c.Disconnect(); err != nil {
-		logger.FromContext(ctx).Warn("Error closing MCP transport during restart", "client", c.options.Name, "error", err)
+		logger.FromContext(ctx).Warn("Error closing MCP session during restart", "client", c.options.Name, "error", err)
 	}
-	return c.connect(c.options)
+	return c.connect(ctx)
 }
 
-// Disconnect closes the connection to the MCP server
+// Disconnect closes the session with the MCP server
 func (c *GenkitMCPClient) Disconnect() error {
-	if c.server != nil {
-		err := c.server.Client.Close()
+	if c.server != nil && c.server.Session != nil {
+		err := c.server.Session.Close()
 		c.server = nil
 		return err
 	}

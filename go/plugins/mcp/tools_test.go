@@ -15,149 +15,87 @@
 package mcp
 
 import (
-	"encoding/json"
+	"reflect"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func asMap(t *testing.T, v any, label string) map[string]any {
-	t.Helper()
-	m, ok := v.(map[string]any)
-	if !ok {
-		t.Fatalf("%s: want map[string]any, got %T", label, v)
-	}
-	return m
-}
+func TestParseInputSchema(t *testing.T) {
+	client := &GenkitMCPClient{}
 
-func eqStr(t *testing.T, got any, want string, label string) {
-	t.Helper()
-	s, ok := got.(string)
-	if !ok || s != want {
-		t.Fatalf("%s: got %v", label, got)
-	}
-}
-
-func eqNum(t *testing.T, got any, want int, label string) {
-	t.Helper()
-	f, ok := got.(float64)
-	if !ok || int(f) != want {
-		t.Fatalf("%s: got %v", label, got)
-	}
-}
-
-func reqContains(t *testing.T, v any, want string) {
-	t.Helper()
-	switch arr := v.(type) {
-	case []any:
-		for _, x := range arr {
-			if s, ok := x.(string); ok && s == want {
-				return
-			}
+	t.Run("valid schema", func(t *testing.T) {
+		input := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"location": map[string]any{"type": "string"},
+			},
 		}
-	case []string:
-		for _, s := range arr {
-			if s == want {
-				return
-			}
+
+		got, err := client.parseInputSchema(input)
+		if err != nil {
+			t.Fatalf("parseInputSchema() error = %v, want nil", err)
 		}
-	default:
-		t.Fatalf("required: unexpected type %T", v)
-	}
-	t.Fatalf("required does not contain %q: %v", want, v)
+
+		if !reflect.DeepEqual(got, input) {
+			t.Errorf("parseInputSchema() got = %v, want %v", got, input)
+		}
+	})
+
+	t.Run("nil schema returns empty object", func(t *testing.T) {
+		got, err := client.parseInputSchema(nil)
+		if err != nil {
+			t.Fatalf("parseInputSchema() error = %v, want nil", err)
+		}
+
+		want := map[string]any{"type": "object"}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("parseInputSchema() got = %v, want %v", got, want)
+		}
+	})
 }
 
-// TestCreateTool tests the createTool function.
 func TestCreateTool(t *testing.T) {
-	client := &GenkitMCPClient{options: MCPClientOptions{Name: "srv"}}
-	client.server = &ServerRef{} // avoid nil deref in createToolFunction
-
-	var m mcp.Tool
-	toolJSON := `{
-        "name": "echo",
-        "description": "Echo",
-        "inputSchema": {
-            "type": "object",
-            "required": ["q"],
-            "properties": {
-                "q": {"type": "string", "description": "query"},
-                "n": {"type": "number", "minimum": 1, "maximum": 10},
-                "arr": {"type": "array", "minItems": 2, "maxItems": 4}
-            }
-        }
-    }`
-	if err := json.Unmarshal([]byte(toolJSON), &m); err != nil {
-		t.Fatalf("failed to unmarshal tool JSON: %v", err)
+	client := &GenkitMCPClient{
+		options: MCPClientOptions{Name: "test-srv"},
 	}
 
-	tool, err := client.createTool(m)
+	mcpTool := &mcp.Tool{
+		Name:        "get_weather",
+		Description: "Fetches weather data",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"city": map[string]any{"type": "string"},
+			},
+		},
+	}
+
+	tool, err := client.createTool(mcpTool)
 	if err != nil {
-		t.Fatalf("createTool error: %v", err)
+		t.Fatalf("createTool() error = %v, want nil", err)
 	}
 
-	// Validate that the tool is namespaced
+	// Test Namespacing
+	wantName := "test-srv_get_weather"
+	if got := tool.Name(); got != wantName {
+		t.Errorf("tool.Name() got = %q, want %q", got, wantName)
+	}
+
+	// Test Description
 	def := tool.Definition()
-	if def.Name != "srv_echo" {
-		t.Fatalf("namespacing failed: got %q", def.Name)
+	if got := def.Description; got != mcpTool.Description {
+		t.Errorf("tool.Description got = %q, want %q", got, mcpTool.Description)
 	}
-	if def.Description != "Echo" {
-		t.Fatalf("description mismatch: %q", def.Description)
-	}
+
+	// Test Schema presence
 	if def.InputSchema == nil {
-		t.Fatalf("input schema missing")
+		t.Error("tool.InputSchema is nil, want valid schema")
 	}
 
-	// Validate that the schema is propagated correctly.
-	eqStr(t, def.InputSchema["type"], "object", "schema.type")
-	props := asMap(t, def.InputSchema["properties"], "schema.properties")
-
-	q := asMap(t, props["q"], "properties.q")
-	eqStr(t, q["type"], "string", "q.type")
-	eqStr(t, q["description"], "query", "q.description")
-
-	n := asMap(t, props["n"], "properties.n")
-	eqStr(t, n["type"], "number", "n.type")
-	eqNum(t, n["minimum"], 1, "n.minimum")
-	eqNum(t, n["maximum"], 10, "n.maximum")
-
-	arr := asMap(t, props["arr"], "properties.arr")
-	eqStr(t, arr["type"], "array", "arr.type")
-	eqNum(t, arr["minItems"], 2, "arr.minItems")
-	eqNum(t, arr["maxItems"], 4, "arr.maxItems")
-
-	reqContains(t, def.InputSchema["required"], "q")
-}
-
-// TestPrepareToolArguments tests the prepareToolArguments function.
-// Ensures that required fields are validated.
-func TestPrepareToolArguments(t *testing.T) {
-	var tool mcp.Tool
-	toolJSON := `{
-        "name": "echo",
-        "inputSchema": {
-            "type": "object",
-            "required": ["q"]
-        }
-    }`
-	if err := json.Unmarshal([]byte(toolJSON), &tool); err != nil {
-		t.Fatalf("failed to unmarshal tool JSON: %v", err)
-	}
-
-	okArgs := map[string]any{"q": "hi"}
-	got, err := prepareToolArguments(tool, okArgs)
-	if err != nil {
-		t.Fatalf("unexpected error for valid args: %v", err)
-	}
-	if got["q"] != "hi" {
-		t.Fatalf("args not preserved: %v", got)
-	}
-
-	_, err = prepareToolArguments(tool, map[string]any{})
-	if err == nil {
-		t.Fatalf("expected error for missing required field")
-	}
-	_, err = prepareToolArguments(tool, nil)
-	if err == nil {
-		t.Fatalf("expected error for nil args with required field")
+	// Test Schema content
+	gotCityType := def.InputSchema["properties"].(map[string]any)["city"].(map[string]any)["type"]
+	if gotCityType != "string" {
+		t.Errorf("schema city type got = %v, want %q", gotCityType, "string")
 	}
 }

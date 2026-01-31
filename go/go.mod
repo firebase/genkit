@@ -27,7 +27,8 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
-	github.com/mark3labs/mcp-go v0.29.0
+	github.com/mark3labs/mcp-go v0.43.2
+	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/pgvector/pgvector-go v0.3.0
 	github.com/stretchr/testify v1.10.0
 	github.com/weaviate/weaviate v1.30.0
@@ -60,6 +61,7 @@ require (
 
 require (
 	cloud.google.com/go/alloydb v1.16.1 // indirect
+	github.com/google/jsonschema-go v0.3.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
