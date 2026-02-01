@@ -403,7 +403,12 @@ project_includes = [
 # - plugins/mcp/tests: has a local `fakes` module for test mocks
 # - samples/evaluator-demo: has `evaluator_demo` package with internal imports
 # - samples/menu/src: has internal imports (menu_ai, menu_schemas)
-search-path = [".", "plugins/mcp/tests", "samples/evaluator-demo", "samples/menu/src"]
+search-path = [
+  ".",
+  "plugins/mcp/tests",
+  "samples/evaluator-demo",
+  "samples/menu/src",
+]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime
 ignore-missing-imports = ["genkit.plugins.*"]
