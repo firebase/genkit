@@ -50,6 +50,38 @@ check_env_var() {
     local var_name="$1"
     local get_url="$2"
     
+    local current_val="${!var_name:-}"
+
+    # Prompt if running interactively
+    # We check -t 0 (stdin is TTY) and also explicit check for /dev/tty availability
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        local display_val="${current_val}"
+        
+        # Simple masking for keys
+        if [[ "$var_name" == *"API_KEY"* || "$var_name" == *"SECRET"* ]]; then
+            if [[ -n "$current_val" ]]; then
+               display_val="******"
+            fi
+        fi
+        
+        echo -en "${BLUE}Enter ${var_name}${NC}"
+        if [[ -n "$display_val" ]]; then
+            echo -en " [${YELLOW}${display_val}${NC}]: "
+        else
+            echo -n ": "
+        fi
+        
+        local input_val
+        # Safely read from TTY
+        if read -r input_val < /dev/tty; then
+            if [[ -n "$input_val" ]]; then
+                export "$var_name"="$input_val"
+            fi
+        fi
+        # Only print newline if we actually prompted
+        echo "" 
+    fi
+
     if [[ -z "${!var_name:-}" ]]; then
         echo -e "${YELLOW}Warning: ${var_name} not set${NC}"
         if [[ -n "$get_url" ]]; then

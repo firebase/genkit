@@ -10,7 +10,7 @@
 # Prerequisites:
 #   - AWS credentials configured (env vars, credentials file, or IAM role)
 #   - AWS_REGION environment variable set
-#   - GOOGLE_GENAI_API_KEY for the model provider
+#   - GEMINI_API_KEY for the model provider
 #
 # Usage:
 #   ./run.sh          # Start the demo with Dev UI
@@ -33,7 +33,7 @@ print_help() {
     echo "  AWS_ACCESS_KEY_ID       AWS access key ID (or use credentials file)"
     echo "  AWS_SECRET_ACCESS_KEY   AWS secret access key (or use credentials file)"
     echo "  AWS_PROFILE             AWS profile name from credentials file"
-    echo "  GOOGLE_GENAI_API_KEY    Required. Google AI API key for the model"
+    echo "  GEMINI_API_KEY          Required. Gemini API key for the model"
     echo ""
     echo "Setup Guides:"
     echo "  AWS X-Ray:     https://docs.aws.amazon.com/xray/"
@@ -50,8 +50,11 @@ esac
 
 print_banner "AWS Telemetry Hello World" "📊"
 
-check_env_var "AWS_REGION" "https://docs.aws.amazon.com/xray/" || true
-check_env_var "GOOGLE_GENAI_API_KEY" "https://aistudio.google.com/app/apikey"
+# Set default region if not provided
+export AWS_REGION="${AWS_REGION:-us-west-2}"
+
+check_env_var "AWS_REGION" "https://docs.aws.amazon.com/xray/"
+check_env_var "GEMINI_API_KEY" "https://aistudio.google.com/app/apikey"
 
 install_deps
 

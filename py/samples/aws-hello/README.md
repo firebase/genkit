@@ -8,14 +8,14 @@ using the AWS plugin.
 1. **AWS Credentials**: Configure via environment variables, credentials file, or IAM role
 2. **AWS Region**: Set `AWS_REGION` environment variable
 3. **IAM Permissions**: Attach `AWSXrayWriteOnlyPolicy` to your role/user
-4. **Google AI API Key**: Set `GOOGLE_GENAI_API_KEY` (or use any other model provider)
+4. **Gemini API Key**: Set `GEMINI_API_KEY` (or use any other model provider)
 
 ## Quick Start
 
 ```bash
 # Set required environment variables
 export AWS_REGION=us-west-2
-export GOOGLE_GENAI_API_KEY=your-api-key
+export GEMINI_API_KEY=your-api-key
 
 # Run the demo
 ./run.sh
@@ -49,7 +49,7 @@ appear as child spans in X-Ray.
 | `AWS_ACCESS_KEY_ID` | No* | AWS access key |
 | `AWS_SECRET_ACCESS_KEY` | No* | AWS secret key |
 | `AWS_PROFILE` | No* | AWS profile from credentials file |
-| `GOOGLE_GENAI_API_KEY` | Yes | Google AI API key |
+| `GEMINI_API_KEY` | Yes | Gemini API key |
 
 *At least one form of AWS credentials is required.
 

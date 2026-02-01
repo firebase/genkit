@@ -290,7 +290,7 @@ async def photo_move_veo(_: object, context: ActionRunContext | None = None) -> 
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
         )
 
-    api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_GENAI_API_KEY')
+    api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
         raise ValueError('GEMINI_API_KEY not set')
 
