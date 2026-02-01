@@ -107,7 +107,7 @@ if 'GEMINI_API_KEY' not in os.environ:
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model='googleai/gemini-3-flash-preview',
+    model='googleai/gemini-3-pro-preview',
 )
 
 
@@ -432,7 +432,8 @@ async def generate_images(
         The generated response with a function.
     """
     return await ai.generate(
-        prompt='tell me a about the Eifel Tower with photos',
+        model='googleai/gemini-3-pro-image-preview',
+        prompt=f'Tell me about {input.name} with photos.',
         config=GeminiConfigSchema.model_validate({
             'response_modalities': ['text', 'image'],
         }).model_dump(),

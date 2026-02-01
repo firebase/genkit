@@ -86,6 +86,10 @@ def dump_dict(obj: object, fallback: Callable[[object], object] | None = None) -
     """
     if isinstance(obj, BaseModel):
         return obj.model_dump(exclude_none=True, by_alias=True, fallback=fallback)
+    elif isinstance(obj, list):
+        return [dump_dict(i, fallback) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: dump_dict(v, fallback) for k, v in obj.items()}
     else:
         return obj
 
