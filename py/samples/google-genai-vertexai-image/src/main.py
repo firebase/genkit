@@ -49,10 +49,7 @@ if 'GCLOUD_PROJECT' not in os.environ:
     if 'GOOGLE_CLOUD_PROJECT' in os.environ:
         os.environ['GCLOUD_PROJECT'] = os.environ['GOOGLE_CLOUD_PROJECT']
     else:
-        raise ValueError(
-            'GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT environment variable must be set. '
-            'Run: export GOOGLE_CLOUD_PROJECT=your-project-id'
-        )
+        os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT_ID: ')
 
 ai = Genkit(plugins=[VertexAI()])
 
