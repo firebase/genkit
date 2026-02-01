@@ -14,207 +14,355 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the reflection API server.
+"""Tests for the Reflection API v2 module.
 
-This module contains unit tests for the ASGI-based reflection API server
-which provides endpoints for inspecting and interacting with Genkit during
-development.
+This module contains unit tests for the WebSocket-based Reflection API v2
+client which connects to a runtime manager server.
 
 Test coverage includes:
-- Health check endpoint (/api/__health)
-- Listing registered actions (/api/actions)
-- Notification endpoint (/api/notify)
-- Action execution with various scenarios (/api/runAction):
-  - Standard action execution
-  - Streaming action execution
-  - Error handling when action not found
-  - Context passing to actions
-
-The tests use an ASGI client with mocked Registry to isolate and verify
-each endpoint's behavior.
+- JSON-RPC message structures (request, response, error)
+- Helper functions (is_reflection_v2_enabled, get_reflection_v2_url)
+- Active actions map operations
+- Action descriptor generation
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Any, cast
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+import os
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 
-from genkit.core.reflection import create_reflection_asgi_app
-from genkit.core.registry import Registry
-
-
-@pytest.fixture
-def mock_registry() -> MagicMock:
-    """Create a mock Registry for testing."""
-    return MagicMock(spec=Registry)
-
-
-@pytest_asyncio.fixture
-async def asgi_client(mock_registry: MagicMock) -> AsyncIterator[AsyncClient]:
-    """Create an ASGI test client with a mock registry.
-
-    Args:
-        mock_registry: A mock Registry object.
-
-    Returns:
-        An AsyncClient configured to make requests to the test ASGI app.
-    """
-    app = create_reflection_asgi_app(mock_registry)
-    transport = ASGITransport(app=app)  # type: ignore[arg-type]
-    client = AsyncClient(transport=transport, base_url='http://test')
-    try:
-        yield client
-    finally:
-        await client.aclose()
+from genkit.core.reflection import (
+    ActiveAction,
+    ActiveActionsMap,
+    JsonRpcError,
+    JsonRpcRequest,
+    JsonRpcResponse,
+    ReflectionClientV2,
+    get_reflection_v2_url,
+    is_reflection_v2_enabled,
+)
 
 
-@pytest.mark.asyncio
-async def test_health_check(asgi_client: AsyncClient) -> None:
-    """Test that the health check endpoint returns 200 OK."""
-    response = await asgi_client.get('/api/__health')
-    assert response.status_code == 200
+class TestJsonRpcRequest:
+    """Tests for JsonRpcRequest class."""
+
+    def test_notification_to_dict(self) -> None:
+        """Test that a notification (no ID) serializes correctly."""
+        request = JsonRpcRequest(method='notify', params={'data': 'test'})
+        result = request.to_dict()
+
+        assert result == {
+            'jsonrpc': '2.0',
+            'method': 'notify',
+            'params': {'data': 'test'},
+        }
+
+    def test_request_with_id_to_dict(self) -> None:
+        """Test that a request with ID serializes correctly."""
+        request = JsonRpcRequest(method='call', params=['arg1'], id=42)
+        result = request.to_dict()
+
+        assert result == {
+            'jsonrpc': '2.0',
+            'method': 'call',
+            'params': ['arg1'],
+            'id': 42,
+        }
+
+    def test_request_minimal_to_dict(self) -> None:
+        """Test that a minimal request (no params, no ID) serializes correctly."""
+        request = JsonRpcRequest(method='ping')
+        result = request.to_dict()
+
+        assert result == {
+            'jsonrpc': '2.0',
+            'method': 'ping',
+        }
 
 
-@pytest.mark.asyncio
-async def test_list_actions(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
-    """Test that the actions list endpoint returns registered actions."""
-    from genkit.core.action import ActionMetadata
-    from genkit.core.action.types import ActionKind
+class TestJsonRpcResponse:
+    """Tests for JsonRpcResponse class."""
 
-    # Mock the async list_actions method to return a list of ActionMetadata
-    async def mock_list_actions_async(allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
-        return [
-            ActionMetadata(
-                kind=ActionKind.CUSTOM,
-                name='action1',
-            )
-        ]
+    def test_success_response_to_dict(self) -> None:
+        """Test that a success response serializes correctly."""
+        response = JsonRpcResponse(result={'status': 'ok'}, id=1)
+        result = response.to_dict()
 
-    mock_registry.list_actions = mock_list_actions_async
-    response = await asgi_client.get('/api/actions')
-    assert response.status_code == 200
-    result = response.json()
-    assert '/custom/action1' in result
-    assert result['/custom/action1']['name'] == 'action1'
-    assert result['/custom/action1']['type'] == 'custom'
+        assert result == {
+            'jsonrpc': '2.0',
+            'result': {'status': 'ok'},
+            'id': 1,
+        }
 
+    def test_error_response_to_dict(self) -> None:
+        """Test that an error response serializes correctly."""
+        error = JsonRpcError(code=-32600, message='Invalid Request')
+        response = JsonRpcResponse(error=error, id=2)
+        result = response.to_dict()
 
-@pytest.mark.asyncio
-async def test_notify_endpoint(asgi_client: AsyncClient) -> None:
-    """Test that the notify endpoint returns 200 OK."""
-    response = await asgi_client.post('/api/notify')
-    assert response.status_code == 200
+        assert result == {
+            'jsonrpc': '2.0',
+            'error': {'code': -32600, 'message': 'Invalid Request'},
+            'id': 2,
+        }
 
+    def test_error_with_data_to_dict(self) -> None:
+        """Test that an error with additional data serializes correctly."""
+        error = JsonRpcError(code=-32000, message='Custom Error', data={'detail': 'extra info'})
+        response = JsonRpcResponse(error=error, id=3)
+        result = response.to_dict()
 
-@pytest.mark.asyncio
-async def test_run_action_not_found(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
-    """Test that requesting a non-existent action returns a 404 error."""
-
-    async def mock_resolve_action_by_key(key: str) -> None:
-        return None
-
-    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
-    response = await asgi_client.post(
-        '/api/runAction',
-        json={'key': 'non_existent_action', 'input': {'data': 'test'}},
-    )
-    assert response.status_code == 404
-    assert 'error' in response.json()
+        assert result == {
+            'jsonrpc': '2.0',
+            'error': {
+                'code': -32000,
+                'message': 'Custom Error',
+                'data': {'detail': 'extra info'},
+            },
+            'id': 3,
+        }
 
 
-@pytest.mark.asyncio
-async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
-    """Test that a standard (non-streaming) action works correctly."""
-    mock_action = AsyncMock()
-    mock_output = MagicMock()
-    mock_output.response = {'result': 'success'}
-    mock_output.trace_id = 'test_trace_id'
-    mock_action.arun_raw.return_value = mock_output
+class TestJsonRpcError:
+    """Tests for JsonRpcError class."""
 
-    async def mock_resolve_action_by_key(key: str) -> AsyncMock:
-        return mock_action
+    def test_basic_error_to_dict(self) -> None:
+        """Test that a basic error serializes correctly."""
+        error = JsonRpcError(code=-32601, message='Method not found')
+        result = error.to_dict()
 
-    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
+        assert result == {
+            'code': -32601,
+            'message': 'Method not found',
+        }
 
-    response = await asgi_client.post('/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}})
+    def test_error_with_data_to_dict(self) -> None:
+        """Test that an error with data serializes correctly."""
+        error = JsonRpcError(code=-32000, message='Server Error', data={'stack': 'trace'})
+        result = error.to_dict()
 
-    assert response.status_code == 200
-    response_data = response.json()
-    assert 'result' in response_data
-    assert 'telemetry' in response_data
-    assert response_data['telemetry']['traceId'] == 'test_trace_id'
-    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={}, on_trace_start=ANY)
-
-
-@pytest.mark.asyncio
-async def test_run_action_with_context(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
-    """Test that an action with context works correctly."""
-    mock_action = AsyncMock()
-    mock_output = MagicMock()
-    mock_output.response = {'result': 'success'}
-    mock_output.trace_id = 'test_trace_id'
-    mock_action.arun_raw.return_value = mock_output
-
-    async def mock_resolve_action_by_key(key: str) -> AsyncMock:
-        return mock_action
-
-    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
-
-    response = await asgi_client.post(
-        '/api/runAction',
-        json={
-            'key': 'test_action',
-            'input': {'data': 'test'},
-            'context': {'user': 'test_user'},
-        },
-    )
-
-    assert response.status_code == 200
-    mock_action.arun_raw.assert_called_once_with(
-        raw_input={'data': 'test'},
-        context={'user': 'test_user'},
-        on_trace_start=ANY,
-    )
+        assert result == {
+            'code': -32000,
+            'message': 'Server Error',
+            'data': {'stack': 'trace'},
+        }
 
 
-@pytest.mark.asyncio
-@patch('genkit.core.reflection.is_streaming_requested')
-async def test_run_action_streaming(
-    mock_is_streaming: MagicMock,
-    asgi_client: AsyncClient,
-    mock_registry: MagicMock,
-) -> None:
-    """Test that streaming actions work correctly."""
-    mock_is_streaming.return_value = True
-    mock_action = AsyncMock()
+class TestActiveActionsMap:
+    """Tests for ActiveActionsMap class."""
 
-    async def mock_streaming(
-        raw_input: object,
-        on_chunk: object | None = None,
-        context: object | None = None,
-        **kwargs: Any,  # noqa: ANN401
-    ) -> MagicMock:
-        if on_chunk:
-            on_chunk_fn = cast(Callable[[object], Awaitable[None]], on_chunk)
-            await on_chunk_fn({'chunk': 1})
-            await on_chunk_fn({'chunk': 2})
-        mock_output = MagicMock()
-        mock_output.response = {'final': 'result'}
-        mock_output.trace_id = 'stream_trace_id'
-        return mock_output
+    @pytest.mark.asyncio
+    async def test_set_and_get(self) -> None:
+        """Test that actions can be set and retrieved."""
+        actions_map = ActiveActionsMap()
+        action = ActiveAction(
+            cancel=lambda: None,
+            start_time=1000.0,
+            trace_id='trace-123',
+        )
 
-    mock_action.arun_raw.side_effect = mock_streaming
-    mock_registry.resolve_action_by_key.return_value = mock_action
+        await actions_map.set('trace-123', action)
+        result = await actions_map.get('trace-123')
 
-    response = await asgi_client.post(
-        '/api/runAction?stream=true',
-        json={'key': 'test_action', 'input': {'data': 'test'}},
-    )
+        assert result is not None
+        assert result is action
+        assert result.trace_id == 'trace-123'
 
-    assert response.status_code == 200
-    assert mock_is_streaming.called
+    @pytest.mark.asyncio
+    async def test_get_nonexistent(self) -> None:
+        """Test that getting a nonexistent action returns None."""
+        actions_map = ActiveActionsMap()
+        result = await actions_map.get('nonexistent')
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete(self) -> None:
+        """Test that actions can be deleted."""
+        actions_map = ActiveActionsMap()
+        action = ActiveAction(
+            cancel=lambda: None,
+            start_time=1000.0,
+            trace_id='trace-456',
+        )
+
+        await actions_map.set('trace-456', action)
+        await actions_map.delete('trace-456')
+        result = await actions_map.get('trace-456')
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent(self) -> None:
+        """Test that deleting a nonexistent action doesn't raise an error."""
+        actions_map = ActiveActionsMap()
+        # Should not raise
+        await actions_map.delete('nonexistent')
+
+
+class TestHelperFunctions:
+    """Tests for helper functions."""
+
+    def test_is_reflection_v2_enabled_false(self) -> None:
+        """Test that v2 is disabled when env var is not set."""
+        with patch.dict(os.environ, {}, clear=True):
+            # Remove the env var if it exists
+            os.environ.pop('GENKIT_REFLECTION_V2_SERVER', None)
+            result = is_reflection_v2_enabled()
+            assert result is False
+
+    def test_is_reflection_v2_enabled_true(self) -> None:
+        """Test that v2 is enabled when env var is set."""
+        with patch.dict(os.environ, {'GENKIT_REFLECTION_V2_SERVER': 'ws://localhost:4100'}):
+            result = is_reflection_v2_enabled()
+            assert result is True
+
+    def test_get_reflection_v2_url_not_set(self) -> None:
+        """Test that URL is None when env var is not set."""
+        with patch.dict(os.environ, {}, clear=True):
+            os.environ.pop('GENKIT_REFLECTION_V2_SERVER', None)
+            result = get_reflection_v2_url()
+            assert result is None
+
+    def test_get_reflection_v2_url_set(self) -> None:
+        """Test that URL is returned when env var is set."""
+        with patch.dict(os.environ, {'GENKIT_REFLECTION_V2_SERVER': 'ws://localhost:4100'}):
+            result = get_reflection_v2_url()
+            assert result == 'ws://localhost:4100'
+
+
+class TestReflectionClientV2:
+    """Tests for ReflectionClientV2 class."""
+
+    def test_runtime_id(self) -> None:
+        """Test that runtime_id is based on process ID."""
+        mock_registry = MagicMock()
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+
+        # runtime_id should be the process ID as a string
+        assert client.runtime_id == str(os.getpid())
+
+    def test_default_configured_envs(self) -> None:
+        """Test that default configured_envs is ['dev']."""
+        mock_registry = MagicMock()
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+
+        assert client._configured_envs == ['dev']
+
+    def test_custom_configured_envs(self) -> None:
+        """Test that custom configured_envs can be set."""
+        mock_registry = MagicMock()
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100', configured_envs=['prod', 'staging'])
+
+        assert client._configured_envs == ['prod', 'staging']
+
+    @pytest.mark.asyncio
+    async def test_stop(self) -> None:
+        """Test that stop() sets running to False and closes WebSocket."""
+        mock_registry = MagicMock()
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+        client._running = True
+        client._ws = AsyncMock()
+
+        await client.stop()
+
+        assert client._running is False
+        client._ws.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_list_actions(self) -> None:
+        """Test that _handle_list_actions returns action descriptors."""
+        from genkit.core.action import Action
+        from genkit.core.action.types import ActionKind
+
+        mock_registry = MagicMock()
+
+        # Mock action
+        mock_action = MagicMock(spec=Action)
+        mock_action.name = 'test_action'
+        mock_action.kind = ActionKind.TOOL
+        mock_action.description = 'A test tool'
+        mock_action.input_schema = {'type': 'object'}
+        mock_action.output_schema = {'type': 'string'}
+        mock_action.metadata = {'key': 'value'}
+
+        # Mock registry methods
+        mock_registry.get_actions_by_kind.return_value = {'test_action': mock_action}
+        mock_registry.list_actions = AsyncMock(return_value=[])
+
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+        result = await client._handle_list_actions()
+
+        # Should have the action keyed by /{kind}/{name}
+        assert '/tool/test_action' in result
+        assert result['/tool/test_action']['name'] == 'test_action'
+        assert result['/tool/test_action']['type'] == 'tool'
+        assert result['/tool/test_action']['description'] == 'A test tool'
+
+    @pytest.mark.asyncio
+    async def test_handle_list_values(self) -> None:
+        """Test that _handle_list_values returns value list."""
+        mock_registry = MagicMock()
+        mock_registry.list_values.return_value = ['model1', 'model2']
+
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+        result = await client._handle_list_values({'type': 'defaultModel'})
+
+        assert result == ['model1', 'model2']
+        mock_registry.list_values.assert_called_once_with('defaultModel')
+
+    @pytest.mark.asyncio
+    async def test_handle_cancel_action_missing_trace_id(self) -> None:
+        """Test that cancel action returns error when traceId is missing."""
+        mock_registry = MagicMock()
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+
+        result, error = await client._handle_cancel_action({})
+
+        assert result is None
+        assert error is not None
+        assert error.code == -32602
+        assert 'traceId' in error.message
+
+    @pytest.mark.asyncio
+    async def test_handle_cancel_action_not_found(self) -> None:
+        """Test that cancel action returns error when action not found."""
+        mock_registry = MagicMock()
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+
+        result, error = await client._handle_cancel_action({'traceId': 'nonexistent'})
+
+        assert result is None
+        assert error is not None
+        assert error.code == -32004  # JSON-RPC implementation-defined server error
+
+    @pytest.mark.asyncio
+    async def test_handle_cancel_action_success(self) -> None:
+        """Test that cancel action works correctly."""
+        mock_registry = MagicMock()
+        client = ReflectionClientV2(mock_registry, 'ws://localhost:4100')
+
+        # Add an active action
+        cancel_called = []
+
+        def cancel_fn() -> None:
+            cancel_called.append(True)
+
+        action = ActiveAction(
+            cancel=cancel_fn,
+            start_time=1000.0,
+            trace_id='trace-to-cancel',
+        )
+        await client._active_actions.set('trace-to-cancel', action)
+
+        result, error = await client._handle_cancel_action({'traceId': 'trace-to-cancel'})
+
+        assert error is None
+        assert result is not None
+        assert 'message' in result
+        assert cancel_called == [True]
+
+        # Action should be removed from active actions
+        remaining = await client._active_actions.get('trace-to-cancel')
+        assert remaining is None

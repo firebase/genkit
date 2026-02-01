@@ -84,7 +84,7 @@ from starlette.applications import Starlette
 from genkit.aio.loop import run_loop
 from genkit.core.environment import is_dev_environment
 from genkit.core.logging import get_logger
-from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.reflection_v1 import create_reflection_asgi_app
 from genkit.core.registry import Registry
 from genkit.web.manager import (
     AbstractBaseServer,
