@@ -20,13 +20,14 @@
 import base64
 import os
 
-from ..constants import DEFAULT_MENU_QUESTION
-from ..menu_ai import ai
-from ..menu_schemas import (
+from constants import DEFAULT_MENU_QUESTION
+from menu_ai import ai
+from menu_schemas import (
     AnswerOutputSchema,
     MenuQuestionInputSchema,
     TextMenuQuestionInputSchema,
 )
+
 from .prompts import s05_read_menu_prompt, s05_text_menu_prompt
 
 

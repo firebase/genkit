@@ -337,6 +337,7 @@ root = [
   # Samples
   ".",                      # For samples.shared imports
   "samples/evaluator-demo", # For evaluator_demo package imports
+  "samples/menu/src",       # For menu sample imports
   "plugins/mcp/tests",      # For fakes module imports in tests
 ]
 
@@ -396,11 +397,13 @@ project_includes = [
   "samples/*/src/**/*.py",
   "samples/evaluator-demo/evaluator_demo/**/*.py",
 ]
+
 # Search path for first-party code import resolution.
 # The project root "." covers all packages. Additional paths are needed for:
 # - plugins/mcp/tests: has a local `fakes` module for test mocks
 # - samples/evaluator-demo: has `evaluator_demo` package with internal imports
-search-path = [".", "plugins/mcp/tests", "samples/evaluator-demo"]
+# - samples/menu/src: has internal imports (menu_ai, menu_schemas)
+search-path = [".", "plugins/mcp/tests", "samples/evaluator-demo", "samples/menu/src"]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime
 ignore-missing-imports = ["genkit.plugins.*"]

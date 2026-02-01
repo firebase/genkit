@@ -20,8 +20,8 @@
 import json
 import os
 
-from ..menu_ai import ai
-from ..menu_schemas import MenuToolOutputSchema
+from menu_ai import ai
+from menu_schemas import MenuToolOutputSchema
 
 menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
 with open(menu_json_path) as f:
