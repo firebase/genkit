@@ -16,10 +16,10 @@
 
 """Prompts for case 03."""
 
-from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
+from menu_ai import ai
+from menu_schemas import DataMenuQuestionInputSchema
 
-from ..menu_ai import ai
-from ..menu_schemas import DataMenuQuestionInputSchema
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 s03_chat_preamble_prompt = ai.define_prompt(
     variant='s03_chatPreamble',

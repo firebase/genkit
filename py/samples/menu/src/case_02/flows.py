@@ -17,8 +17,9 @@
 
 """Flows for case 02."""
 
-from ..menu_ai import ai
-from ..menu_schemas import AnswerOutputSchema, MenuQuestionInputSchema
+from menu_ai import ai
+from menu_schemas import AnswerOutputSchema, MenuQuestionInputSchema
+
 from .prompts import s02_data_menu_prompt
 
 

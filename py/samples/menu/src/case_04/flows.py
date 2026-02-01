@@ -20,12 +20,12 @@
 import json
 import os
 
+from menu_ai import ai
+from menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
 from pydantic import BaseModel, Field
 
 from genkit.blocks.document import Document
 
-from ..menu_ai import ai
-from ..menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
 from .prompts import s04_rag_data_menu_prompt
 
 
@@ -96,5 +96,8 @@ async def s04_rag_menu_question_flow(
     menu_data = [MenuItemSchema(**doc.metadata) for doc in docs.documents if doc.metadata]
 
     # Generate the response
-    response = await s04_rag_data_menu_prompt({'menuData': menu_data, 'question': my_input.question})
+    response = await s04_rag_data_menu_prompt({
+        'menuData': [item.model_dump() for item in menu_data],
+        'question': my_input.question,
+    })
     return AnswerOutputSchema(answer=response.text)
