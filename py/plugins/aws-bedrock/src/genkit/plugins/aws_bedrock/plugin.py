@@ -59,6 +59,7 @@ Trademark Notice:
     Amazon.com, Inc. or its affiliates.
 """
 
+import json
 import os
 from typing import Any
 
@@ -394,8 +395,6 @@ class AWSBedrock(Plugin):
 
         async def embed_fn(request: EmbedRequest) -> EmbedResponse:
             """Generate embeddings using AWS Bedrock."""
-            import json
-
             # Extract text from document content
             texts: list[str] = []
             for doc in request.input:

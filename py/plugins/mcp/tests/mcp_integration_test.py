@@ -42,6 +42,7 @@ from mcp.types import (
 )
 
 from genkit.blocks.resource import ResourceInput
+from genkit.core.error import GenkitError
 
 # Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
 Genkit: Any = None
@@ -65,12 +66,14 @@ def setup_mocks() -> None:
         sys.path.insert(0, src_path)
 
     try:
-        from fakes import mock_mcp_modules
+        # Deferred import: mock_mcp_modules must be called before importing genkit.plugins.mcp
+        from fakes import mock_mcp_modules  # noqa: PLC0415
 
         mock_mcp_modules()
 
-        from genkit.ai import Genkit as _Genkit
-        from genkit.plugins.mcp import (
+        # Deferred import: these imports must happen after mock_mcp_modules() is called
+        from genkit.ai import Genkit as _Genkit  # noqa: PLC0415
+        from genkit.plugins.mcp import (  # noqa: PLC0415
             McpClient as _McpClient,
             McpServerConfig as _McpServerConfig,
             create_mcp_host as _create_mcp_host,
@@ -267,7 +270,8 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         )
 
         # 2. Create MCP server
-        from genkit.plugins.mcp import McpServerOptions
+        # Deferred import: must happen after setup_mocks() is called earlier in this test
+        from genkit.plugins.mcp import McpServerOptions  # noqa: PLC0415
 
         server = create_mcp_server(server_ai, McpServerOptions(name='test-server'))
         await server.setup()
@@ -296,7 +300,8 @@ class TestResourceIntegration(unittest.IsolatedAsyncioTestCase):
         server_ai.define_resource(name='file', template='file://{+path}', fn=file_resource)
 
         # Create server
-        from genkit.plugins.mcp import McpServerOptions
+        # Deferred import: must happen after setup_mocks() is called earlier in this test
+        from genkit.plugins.mcp import McpServerOptions  # noqa: PLC0415
 
         server = create_mcp_server(server_ai, McpServerOptions(name='test-server'))
         await server.setup()
@@ -334,7 +339,8 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
         def existing_tool(x: int) -> int:
             return x
 
-        from genkit.plugins.mcp import McpServerOptions
+        # Deferred import: must happen after setup_mocks() is called earlier in this test
+        from genkit.plugins.mcp import McpServerOptions  # noqa: PLC0415
 
         server = create_mcp_server(server_ai, McpServerOptions(name='test-server'))
         await server.setup()
@@ -344,8 +350,6 @@ class TestErrorHandling(unittest.IsolatedAsyncioTestCase):
             method='tools/call',
             params=CallToolRequestParams(name='nonexistent_tool', arguments={}),
         )
-
-        from genkit.core.error import GenkitError
 
         with self.assertRaises(GenkitError) as context:
             await server.call_tool(request)

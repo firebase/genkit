@@ -451,7 +451,7 @@ class GoogleAI(Plugin):
         Returns:
             BackgroundAction for the Veo model.
         """
-        from genkit.blocks.background_model import BackgroundAction
+        from genkit.blocks.background_model import BackgroundAction  # noqa: PLC0415
 
         _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
 

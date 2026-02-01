@@ -79,7 +79,7 @@ def convert_mcp_prompt_messages(prompt_result: GetPromptResult) -> list[dict[str
     Returns:
         List of Genkit-formatted messages
     """
-    from .message import from_mcp_prompt_message
+    from .message import from_mcp_prompt_message  # noqa: PLC0415
 
     if not hasattr(prompt_result, 'messages') or not prompt_result.messages:
         return []

@@ -45,12 +45,17 @@ def setup_mocks() -> None:
         sys.path.insert(0, src_path)
 
     try:
-        from fakes import mock_mcp_modules
+        # Deferred import: mock_mcp_modules must be called before importing genkit.plugins.mcp
+        from fakes import mock_mcp_modules  # noqa: PLC0415
 
         mock_mcp_modules()
 
-        from genkit.ai import Genkit as _Genkit
-        from genkit.plugins.mcp import McpServerConfig as _McpServerConfig, create_mcp_host as _create_mcp_host
+        # Deferred import: these imports must happen after mock_mcp_modules() is called
+        from genkit.ai import Genkit as _Genkit  # noqa: PLC0415
+        from genkit.plugins.mcp import (  # noqa: PLC0415
+            McpServerConfig as _McpServerConfig,
+            create_mcp_host as _create_mcp_host,
+        )
 
         Genkit = _Genkit
         McpServerConfig = _McpServerConfig

@@ -203,7 +203,9 @@ select = [
   "F401", # unused imports
   "F403", # wildcard imports
   "F841", # unused variables
-  # TODO(https://github.com/firebase/genkit/issues/XXXX): Add PLC0415 after cleaning up remaining in-function imports
+  # TODO(https://github.com/firebase/genkit/issues/4398): Enable PLC0415 after
+  # completing cleanup of remaining in-function imports in core framework.
+  # "PLC0415",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -214,6 +216,7 @@ select = [
 "samples/*/*.py"     = ["E402"]
 "samples/*/**/*.py"  = ["E402"]
 "samples/*/src/*.py" = ["E402"]
+
 
 [tool.ruff.lint.isort]
 combine-as-imports = true

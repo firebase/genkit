@@ -24,6 +24,8 @@ This module tests the AWS Bedrock plugin functionality including:
 - Model info registry
 """
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from genkit.plugins.aws_bedrock import (
@@ -46,6 +48,7 @@ from genkit.plugins.aws_bedrock import (
     mistral_large_3,
     nova_pro,
 )
+from genkit.plugins.aws_bedrock.models.model import BedrockModel
 from genkit.plugins.aws_bedrock.models.model_info import (
     SUPPORTED_BEDROCK_MODELS,
     SUPPORTED_EMBEDDING_MODELS,
@@ -492,8 +495,6 @@ class TestAutoInferenceProfileConversion:
     @pytest.fixture
     def mock_client(self) -> object:
         """Create a mock boto3 client."""
-        from unittest.mock import MagicMock
-
         return MagicMock()
 
     @pytest.fixture
@@ -507,8 +508,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test IAM auth (no API key) returns direct model ID unchanged."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         # No AWS_BEARER_TOKEN_BEDROCK set = IAM auth
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
         assert model._get_effective_model_id() == 'anthropic.claude-sonnet-4-5-20250929-v1:0'
@@ -517,8 +516,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth with US region adds 'us.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-east-1')
 
@@ -529,8 +526,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth with us-west region adds 'us.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-west-2')
 
@@ -541,8 +536,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth with EU region adds 'eu.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'eu-west-1')
 
@@ -553,8 +546,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth with eu-central region adds 'eu.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'eu-central-1')
 
@@ -565,8 +556,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth with APAC region adds 'apac.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'ap-northeast-1')
 
@@ -577,8 +566,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth with ap-southeast region adds 'apac.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'ap-southeast-1')
 
@@ -589,8 +576,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth falls back to AWS_DEFAULT_REGION."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_DEFAULT_REGION', 'eu-west-2')
 
@@ -601,8 +586,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test AWS_REGION takes precedence over AWS_DEFAULT_REGION."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-east-1')
         monkeypatch.setenv('AWS_DEFAULT_REGION', 'eu-west-1')
@@ -615,8 +598,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test model with existing 'us.' prefix is unchanged."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'eu-west-1')  # Different region
 
@@ -628,8 +609,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test model with existing 'eu.' prefix is unchanged."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-east-1')  # Different region
 
@@ -641,8 +620,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test model with existing 'apac.' prefix is unchanged."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-east-1')  # Different region
 
@@ -654,8 +631,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test API key auth without region returns direct model ID with warning."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         # No AWS_REGION or AWS_DEFAULT_REGION set
 
@@ -667,8 +642,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test unknown region prefix defaults to 'us.'."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'unknown-region-1')  # Unrecognized
 
@@ -679,8 +652,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test Canada region uses 'us.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'ca-central-1')
 
@@ -692,8 +663,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test South America region uses 'us.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'sa-east-1')
 
@@ -705,8 +674,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test Middle East region uses 'apac.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'me-south-1')
 
@@ -718,8 +685,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test Africa region uses 'apac.' prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'af-south-1')
 
@@ -731,8 +696,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test DeepSeek model auto-converts with API key auth."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-west-2')
 
@@ -743,8 +706,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test Nova model auto-converts with API key auth."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'ap-south-1')
 
@@ -755,8 +716,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test Cohere model auto-converts with API key auth."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'eu-north-1')
 
@@ -767,8 +726,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test AI21 models do NOT get inference profile prefix (not supported)."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-east-1')
 
@@ -780,8 +737,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test AI21 Jamba Mini model does NOT get inference profile prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'eu-west-1')
 
@@ -793,8 +748,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test Stability AI models do NOT get inference profile prefix (not supported)."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-west-2')
 
@@ -806,8 +759,6 @@ class TestAutoInferenceProfileConversion:
         self, mock_client: object, clear_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test unknown/unsupported providers do NOT get inference profile prefix."""
-        from genkit.plugins.aws_bedrock.models.model import BedrockModel
-
         monkeypatch.setenv('AWS_BEARER_TOKEN_BEDROCK', 'test-token')
         monkeypatch.setenv('AWS_REGION', 'us-east-1')
 

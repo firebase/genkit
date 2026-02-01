@@ -43,6 +43,7 @@ Transformations applied:
 from __future__ import annotations
 
 import ast
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -425,8 +426,6 @@ def fix_field_defaults(content: str) -> str:
     Pyright doesn't recognize Field(None) as providing a default value,
     but it does recognize Field(default=None).
     """
-    import re
-
     # Replace Field(None) with Field(default=None)
     content = content.replace('Field(None)', 'Field(default=None)')
     # Replace Field(None, other_args) with Field(default=None, other_args)
@@ -441,8 +440,6 @@ def add_schema_field_suppression(content: str) -> str:
     While protected_namespaces=() allows this in Pydantic, pyrefly still
     reports it as a bad-override. We add a suppression comment.
     """
-    import re
-
     # Find lines that define a 'schema' field and add the suppression comment
     # Pattern: "    schema: ... = Field(...)"
     pattern = r'^(    schema: .+= Field\(.+\))$'

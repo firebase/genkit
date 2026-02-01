@@ -41,6 +41,7 @@ from genkit.plugins.msfoundry import (
     msfoundry_model,
 )
 from genkit.plugins.msfoundry.models.model import MSFoundryModel
+from genkit.plugins.msfoundry.models.model_info import get_model_info
 from genkit.types import (
     GenerateRequest,
     Message,
@@ -295,8 +296,6 @@ class TestMSFoundryModelInfo:
 
     def test_get_model_info_known_model(self) -> None:
         """Test getting info for a known model."""
-        from genkit.plugins.msfoundry.models.model_info import get_model_info
-
         info = get_model_info('gpt-4o')
         assert info is not None
         assert info.label is not None
@@ -304,8 +303,6 @@ class TestMSFoundryModelInfo:
 
     def test_get_model_info_unknown_model(self) -> None:
         """Test getting info for an unknown model returns default."""
-        from genkit.plugins.msfoundry.models.model_info import get_model_info
-
         info = get_model_info('unknown-model-xyz')
         assert info is not None
         assert info.label is not None

@@ -20,6 +20,7 @@ This module contains helper functions for creating and managing
 MCP transport connections (stdio, SSE, custom).
 """
 
+import importlib.util
 from typing import cast
 
 import structlog
@@ -67,8 +68,6 @@ async def transport_from(config: dict[str, object], session_id: str | None = Non
     # Handle SSE/HTTP config
     if 'url' in config and config['url']:
         # Check if SSE client is available
-        import importlib.util
-
         if importlib.util.find_spec('mcp.client.sse') is None:
             logger.warning('SSE client not available')
             return (None, 'http')
