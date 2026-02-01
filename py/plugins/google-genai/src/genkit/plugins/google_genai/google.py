@@ -507,7 +507,7 @@ class GoogleAI(Plugin):
             fn=gemini_model.generate,
             metadata=model_action_metadata(
                 name=name,
-                info=gemini_model.metadata['model']['supports'],
+                info=gemini_model.metadata['model'],
                 config_schema=config_schema,
             ).metadata,
         )
@@ -777,7 +777,7 @@ class VertexAI(Plugin):
             fn=model.generate,
             metadata=model_action_metadata(
                 name=name,
-                info=model.metadata['model']['supports'],
+                info=model.metadata['model'],
                 config_schema=config_schema,
             ).metadata,
         )

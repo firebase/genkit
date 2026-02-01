@@ -1382,9 +1382,14 @@ class GeminiModel:
         Returns:
             model metadata.
         """
-        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
+        if self._version in SUPPORTED_MODELS:
+            supports = SUPPORTED_MODELS[self._version].supports.model_dump(by_alias=True, exclude_none=True)
+        else:
+            # Fallback to default supports for models not explicitly listed
+            supports = DEFAULT_SUPPORTS_MODEL.model_dump(by_alias=True, exclude_none=True)
         return {
             'model': {
+                'label': f'Google AI - {self._version}',
                 'supports': supports,
             }
         }

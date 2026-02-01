@@ -337,6 +337,7 @@ root = [
   # Samples
   ".",                      # For samples.shared imports
   "samples/evaluator-demo", # For evaluator_demo package imports
+  "plugins/mcp/tests",      # For fakes module imports in tests
 ]
 
 # Pyright type checking configuration.
