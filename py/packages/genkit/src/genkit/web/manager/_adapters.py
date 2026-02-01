@@ -174,7 +174,8 @@ class UvicornAdapter(ASGIServerAdapter):
             port: The port to bind to
             log_level: The logging level to use
         """
-        import uvicorn
+        # Lazy import: uvicorn is only imported when this adapter is used
+        import uvicorn  # noqa: PLC0415
 
         # Configure Uvicorn
         config = uvicorn.Config(
@@ -234,7 +235,8 @@ class GranianAdapter(ASGIServerAdapter):
             ImportError: If Granian is not available
             Exception: If the server fails to start or encounters an error
         """
-        import granian  # type: ignore[import-not-found]
+        # Lazy import: granian is optional and only imported when this adapter is used
+        import granian  # type: ignore[import-not-found]  # noqa: PLC0415
 
         # Granian accepts the log level as a string
         # Valid values are: 'trace', 'debug', 'info', 'warn', 'error', or 'off'
