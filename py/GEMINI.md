@@ -621,14 +621,242 @@ After updating dependencies, regenerate the lock file:
 cd py && uv lock
 ```
 
-## Git commit message guidelines
+## Git Commit Message Guidelines
 
-* Please draft a plain-text commit message after you're done with changes.
-* Please do not include absolute file paths as links in commit messages.
-* Since lines starting with `#` are treated as comments, please use a simpler
-  format for headings.
-* Add a rationale paragraph explaining the why and the what before listing
-  all the changes.
-* Please use conventional commits for the format.
-* For scope, please refer to release-please configuration if available.
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for
+all commit messages. This enables automated changelog generation and semantic
+versioning via release-please.
+
+### Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Commit Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `feat` | New feature | `feat(py/plugins/aws): add X-Ray telemetry` |
+| `fix` | Bug fix | `fix(py): resolve import order issue` |
+| `docs` | Documentation only | `docs(py): update plugin README` |
+| `style` | Code style (formatting) | `style(py): run ruff format` |
+| `refactor` | Code refactoring | `refactor(py): extract helper function` |
+| `perf` | Performance improvement | `perf(py): optimize model streaming` |
+| `test` | Adding/updating tests | `test(py): add bedrock model tests` |
+| `chore` | Maintenance tasks | `chore(py): update dependencies` |
+
+### Scopes
+
+For Python code, use these scopes:
+
+| Scope | When to use |
+|-------|-------------|
+| `py` | General Python SDK changes |
+| `py/plugins/<name>` | Specific plugin changes |
+| `py/samples` | Sample application changes |
+| `py/core` | Core framework changes |
+
+### Breaking Changes
+
+**IMPORTANT**: Use `!` after the type/scope to indicate breaking changes:
+
+```
+feat(py)!: rename generate() to invoke()
+
+BREAKING CHANGE: The `generate()` method has been renamed to `invoke()`.
+Existing code using `ai.generate()` must be updated to `ai.invoke()`.
+```
+
+Or in the footer:
+
+```
+refactor(py): restructure plugin API
+
+BREAKING CHANGE: Plugin initialization now requires explicit configuration.
+```
+
+### Guidelines
+
+* Draft a plain-text commit message after you're done with changes.
+* Do not include absolute file paths as links in commit messages.
+* Since lines starting with `#` are treated as comments, use a simpler format.
+* Add a rationale paragraph explaining the **why** and the **what** before
+  listing all the changes.
+* For scope, refer to release-please configuration if available.
 * Keep it short and simple.
+
+## Pull Request Description Guidelines
+
+All Python PRs must include comprehensive descriptions following these standards.
+Well-documented PRs enable faster reviews and better knowledge transfer.
+
+### Required Sections
+
+Every PR description MUST include:
+
+1. **Summary** - One-paragraph overview of what the PR does and why
+2. **Changes** - Bullet list of specific modifications
+3. **Test Plan** - How the changes were verified
+
+### Architecture Diagrams
+
+For PRs that add new plugins or modify system architecture, include ASCII diagrams:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PLUGIN ARCHITECTURE                                  │
+│                                                                         │
+│    Your Genkit App                                                      │
+│         │                                                               │
+│         │  (1) Initialize Plugin                                        │
+│         ▼                                                               │
+│    ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐  │
+│    │  PluginClass    │────▶│  Provider       │────▶│  SpanProcessor  │  │
+│    │  (Manager)      │     │  (Config)       │     │  (Export)       │  │
+│    └─────────────────┘     └─────────────────┘     └────────┬────────┘  │
+│                                                              │          │
+│                            (2) Process data                  │          │
+│                                                              ▼          │
+│    ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐  │
+│    │  Logger         │────▶│  Trace ID       │────▶│  HTTP/OTLP      │  │
+│    │  (Structured)   │     │  Injection      │     │  (Auth)         │  │
+│    └─────────────────┘     └─────────────────┘     └────────┬────────┘  │
+│                                                              │          │
+│                            (3) Export to backend             │          │
+│                                                              ▼          │
+│                                                    ┌─────────────────┐  │
+│                                                    │   Cloud Service │  │
+│                                                    │   (X-Ray, etc.) │  │
+│                                                    └─────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Diagrams
+
+For PRs involving data processing or multi-step operations:
+
+```
+Data Flow::
+
+    User Request
+         │
+         ▼
+    ┌─────────┐     ┌─────────┐     ┌─────────┐
+    │ Flow    │ ──▶ │ Model   │ ──▶ │ Tool    │
+    │ (span)  │     │ (span)  │     │ (span)  │
+    └─────────┘     └─────────┘     └─────────┘
+         │               │               │
+         └───────────────┼───────────────┘
+                         ▼
+                  ┌─────────────┐
+                  │  Exporter   │  ──▶  Cloud Backend
+                  └─────────────┘
+```
+
+### PR Template Examples
+
+**Feature PR (New Plugin)**:
+
+```markdown
+## Summary
+
+This PR introduces the **AWS Telemetry Plugin** (`py/plugins/aws/`) for exporting
+Genkit telemetry to AWS X-Ray and CloudWatch.
+
+### Plugin Features
+
+- **AWS X-Ray Integration**: Distributed tracing with automatic trace ID generation
+- **CloudWatch Logs**: Structured logging with X-Ray trace correlation
+- **SigV4 Authentication**: Secure OTLP export using AWS credentials
+
+[Architecture diagram here]
+
+## Changes
+
+### New Files
+- `py/plugins/aws/` - Complete AWS telemetry plugin with tests
+- `py/samples/aws-hello/` - Sample demonstrating AWS telemetry
+
+### Updated Files
+- `py/GEMINI.md` - Documentation requirements
+- All plugin `__init__.py` files - Added ELI5 concepts tables
+
+## Test Plan
+
+- [x] All existing tests pass (`bin/lint`)
+- [x] New plugin tests pass (`py/plugins/aws/tests/aws_telemetry_test.py`)
+- [ ] Manual testing with AWS credentials
+```
+
+**Fix/Refactor PR**:
+
+```markdown
+## Summary
+
+Clean up in-function imports to follow PEP 8 conventions. Moves all imports
+to the top of files for better code quality and tooling support.
+
+## Rationale
+
+Python's PEP 8 style guide recommends placing all imports at the top of the
+module. In-function imports can:
+- Make dependencies harder to discover
+- Cause subtle performance issues from repeated import lookups
+- Reduce code readability and tooling support
+
+## Changes
+
+### Plugins
+- **aws-bedrock**: Cleaned up `plugin.py` imports
+- **google-cloud**: Cleaned up `telemetry/metrics.py` imports
+
+### Samples
+Moved in-function imports to top of file:
+- **anthropic-hello**: `random`, `genkit.types` imports
+- **aws-bedrock-hello**: `asyncio`, `random`, `genkit.types` imports
+- [additional samples...]
+
+## Test Plan
+
+- [x] `bin/lint` passes locally
+- [x] No functional behavior changes (import reorganization only)
+```
+
+### Documentation PR
+
+```markdown
+## Summary
+
+This PR adds comprehensive planning documentation for [Topic] and updates
+plugin categorization guides.
+
+## Changes
+
+### New Planning Documents (engdoc/planning/)
+- **FILE_NAME.md** - Description of integration plan
+- **ROADMAP.md** - Status and effort metrics
+
+### Updated Documentation
+- **py/plugins/README.md** - Updated categorization guide
+
+## Test Plan
+
+- [x] Documentation integrity check
+- [x] All relative links verified
+- [x] Markdown linting passes
+```
+
+### Checklist Requirements
+
+Every PR should address:
+
+- [ ] **Code Quality**: `bin/lint` passes with zero errors
+- [ ] **Type Safety**: All type checkers pass (ty, pyrefly, pyright)
+- [ ] **Tests**: Unit tests added/updated as needed
+- [ ] **Documentation**: Docstrings and README files updated
+- [ ] **Samples**: Demo code updated if applicable
