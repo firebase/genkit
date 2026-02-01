@@ -65,7 +65,9 @@ Key Features
 | Multimodal (Image Input)                | `describe_image`                    |
 """
 
+import asyncio
 import os
+import random
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -74,7 +76,7 @@ from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.anthropic import Anthropic, anthropic_name
-from genkit.types import GenerationCommonConfig
+from genkit.types import GenerationCommonConfig, Media, MediaPart, Part, TextPart
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
@@ -213,8 +215,6 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 @ai.flow()
 async def describe_image(input: ImageDescribeInput) -> str:
     """Describe an image using Anthropic."""
-    from genkit.types import Media, MediaPart, Part, TextPart
-
     response = await ai.generate(
         prompt=[
             Part(root=TextPart(text='Describe this image')),
@@ -251,8 +251,6 @@ def get_weather(input: WeatherInput) -> str:
     Returns:
         Weather information with temperature in degree Celsius.
     """
-    import random
-
     weather_options = [
         '32° C sunny',
         '17° C cloudy',
@@ -355,8 +353,6 @@ async def weather_flow(input: WeatherFlowInput) -> str:
 
 async def main() -> None:
     """Main entry point for the Anthropic sample - keep alive for Dev UI."""
-    import asyncio
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()

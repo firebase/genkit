@@ -58,6 +58,7 @@ Key Features
 See README.md for testing instructions.
 """
 
+import asyncio
 import os
 from decimal import Decimal
 
@@ -443,8 +444,6 @@ async def sum_two_numbers2(my_input: MyInput) -> int:
 
 async def main() -> None:
     """Main entry point for the OpenAI sample - keep alive for Dev UI."""
-    import asyncio
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     _ = await asyncio.Event().wait()

@@ -557,8 +557,6 @@ def get_inference_profile_prefix(region: str | None = None) -> str:
         >>> get_inference_profile_prefix('ap-northeast-1')
         'apac'
     """
-    import os
-
     if region is None:
         region = os.environ.get('AWS_REGION') or os.environ.get('AWS_DEFAULT_REGION')
 

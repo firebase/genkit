@@ -371,8 +371,6 @@ async def slow_operation(description: str, delay: float = 1.0) -> str:
 
 async def main() -> None:
     """Main entry point - keeps the server running for DevUI."""
-    import asyncio
-
     enabled = is_realtime_telemetry_enabled()
     if enabled:
         await logger.ainfo('Realtime tracing ENABLED. Spans appear in DevUI immediately.')

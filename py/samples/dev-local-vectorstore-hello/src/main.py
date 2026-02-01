@@ -93,6 +93,7 @@ Key Features
 See README.md for testing instructions.
 """
 
+import asyncio
 import os
 
 from rich.traceback import install as install_rich_traceback
@@ -157,8 +158,6 @@ async def retreive_documents() -> RetrieverResponse:
 
 async def main() -> None:
     """Main entry point for the sample - keep alive for Dev UI."""
-    import asyncio
-
     print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()

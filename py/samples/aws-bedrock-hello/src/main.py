@@ -68,7 +68,9 @@ Supported Models
 - And many more...
 """
 
+import asyncio
 import os
+import random
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -86,7 +88,7 @@ from genkit.plugins.aws_bedrock import (
     inference_profile,
     nova_pro,
 )
-from genkit.types import GenerationCommonConfig
+from genkit.types import GenerationCommonConfig, Media, MediaPart, Part, TextPart
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
@@ -231,8 +233,6 @@ def get_weather(input: WeatherInput) -> str:
     Returns:
         Weather information with temperature in degree Celsius.
     """
-    import random
-
     weather_options = [
         '32° C sunny',
         '17° C cloudy',
@@ -389,8 +389,6 @@ async def describe_image(input: ImageDescribeInput) -> str:
     Returns:
         Image description.
     """
-    from genkit.types import Media, MediaPart, Part, TextPart
-
     response = await ai.generate(
         prompt=[
             Part(root=TextPart(text='Describe this image in detail')),
@@ -413,8 +411,6 @@ async def describe_image_nova(input: ImageDescribeInput) -> str:
     Returns:
         Image description.
     """
-    from genkit.types import Media, MediaPart, Part, TextPart
-
     response = await ai.generate(
         model=_nova_model,
         prompt=[
@@ -476,8 +472,6 @@ async def reasoning_demo(input: ReasoningInput) -> str:
 
 async def main() -> None:
     """Main entry point for the AWS Bedrock sample - keep alive for Dev UI."""
-    import asyncio
-
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()

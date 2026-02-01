@@ -86,6 +86,7 @@ import asyncio
 import base64
 import os
 import sys
+import tempfile
 
 from google import genai as google_genai_sdk
 from rich.traceback import install as install_rich_traceback
@@ -622,9 +623,6 @@ async def upload_blob_to_file_search_store(client: google_genai_sdk.Client, file
         'it was the spark of her imagination that had transformed her ordinary world into a realm of endless '
         'adventures. She smiled, knowing her journey was just beginning'
     )
-
-    # Create a temporary file to upload
-    import tempfile
 
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as tmp:
         tmp.write(text_content)
