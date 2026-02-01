@@ -203,6 +203,7 @@ select = [
   "F401", # unused imports
   "F403", # wildcard imports
   "F841", # unused variables
+  # TODO(https://github.com/firebase/genkit/issues/XXXX): Add PLC0415 after cleaning up remaining in-function imports
 ]
 
 [tool.ruff.lint.per-file-ignores]
