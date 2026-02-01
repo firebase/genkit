@@ -538,7 +538,7 @@ class GcpAdjustingTraceExporter(AdjustingTraceExporter):
                 state = attrs.get('genkit:state')
                 if state:
                     # Import here to avoid circular imports
-                    from genkit.core.trace.adjusting_exporter import RedactedSpan
+                    from genkit.core.trace.adjusting_exporter import RedactedSpan  # noqa: PLC0415
 
                     new_attrs = dict(attrs)
                     new_attrs['genkit:rootState'] = state

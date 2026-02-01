@@ -16,6 +16,7 @@
 
 """Tests for MCP conversion utilities."""
 
+import json
 import os
 import sys
 import unittest
@@ -46,11 +47,13 @@ def setup_mocks() -> None:
         sys.path.insert(0, src_path)
 
     try:
-        from fakes import mock_mcp_modules
+        # Deferred import: mock_mcp_modules must be called before importing genkit.plugins.mcp
+        from fakes import mock_mcp_modules  # noqa: PLC0415
 
         mock_mcp_modules()
 
-        from genkit.plugins.mcp.util import (
+        # Deferred import: these imports must happen after mock_mcp_modules() is called
+        from genkit.plugins.mcp.util import (  # noqa: PLC0415
             to_mcp_prompt_arguments as _to_mcp_prompt_arguments,
             to_mcp_prompt_message as _to_mcp_prompt_message,
             to_mcp_resource_contents as _to_mcp_resource_contents,
@@ -256,8 +259,6 @@ class TestToolResultConversion(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].type, 'text')
         # Should be JSON serialized
-        import json
-
         assert isinstance(result[0], TextContent)
         parsed = json.loads(result[0].text)
         self.assertEqual(parsed['key'], 'value')

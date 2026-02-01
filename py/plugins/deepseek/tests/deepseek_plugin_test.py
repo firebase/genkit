@@ -20,10 +20,12 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from openai import OpenAI
 
 from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
 from genkit.plugins.deepseek import DeepSeek, deepseek_name
+from genkit.plugins.deepseek.client import DEFAULT_DEEPSEEK_API_URL, DeepSeekClient
 
 
 def test_deepseek_name() -> None:
@@ -147,8 +149,6 @@ async def test_plugin_resolve_action_without_prefix(mock_client: MagicMock) -> N
 @patch('genkit.plugins.deepseek.client.DeepSeekClient.__new__')
 def test_deepseek_client_initialization(mock_new: MagicMock) -> None:
     """Test DeepSeekClient creates OpenAI client with correct params."""
-    from genkit.plugins.deepseek.client import DeepSeekClient
-
     # Set up mock to return a fake client
     mock_client_instance = MagicMock()
     mock_new.return_value = mock_client_instance
@@ -162,10 +162,6 @@ def test_deepseek_client_initialization(mock_new: MagicMock) -> None:
 
 def test_deepseek_client_with_custom_base_url() -> None:
     """Test DeepSeekClient accepts custom base_url."""
-    from openai import OpenAI
-
-    from genkit.plugins.deepseek.client import DeepSeekClient
-
     with patch.object(OpenAI, '__init__', return_value=None) as mock_init:
         DeepSeekClient(api_key='test-key', base_url='https://custom.api.deepseek.com')
         mock_init.assert_called_once_with(
@@ -176,10 +172,6 @@ def test_deepseek_client_with_custom_base_url() -> None:
 
 def test_deepseek_client_default_base_url() -> None:
     """Test DeepSeekClient uses default base_url when not provided."""
-    from openai import OpenAI
-
-    from genkit.plugins.deepseek.client import DEFAULT_DEEPSEEK_API_URL, DeepSeekClient
-
     with patch.object(OpenAI, '__init__', return_value=None) as mock_init:
         DeepSeekClient(api_key='test-key')
         mock_init.assert_called_once_with(

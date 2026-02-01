@@ -35,6 +35,7 @@ from genkit.plugins.google_genai.google import googleai_name, vertexai_name
 from genkit.plugins.google_genai.google import _inject_attribution_headers
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
+    GeminiModel,
     SUPPORTED_MODELS,
     GeminiConfigSchema,
 )
@@ -50,6 +51,7 @@ from genkit.types import (
     Role,
     TextPart,
 )
+from google import genai
 
 
 @pytest.fixture
@@ -724,10 +726,6 @@ def test_config_schema_extra_fields() -> None:
 
 def test_system_prompt_handling() -> None:
     """Test that system prompts are correctly extracted to config."""
-    from google import genai
-
-    from genkit.plugins.google_genai.models.gemini import GeminiModel
-
     mock_client = MagicMock(spec=genai.Client)
     model = GeminiModel(version='gemini-1.5-flash', client=mock_client)
 

@@ -32,6 +32,8 @@ from mcp.types import (
     TextResourceContents,
 )
 
+from genkit.core.error import GenkitError
+
 # Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
 Genkit: Any = None
 McpServerOptions: Any = None
@@ -52,12 +54,17 @@ def setup_mocks() -> None:
         sys.path.insert(0, src_path)
 
     try:
-        from fakes import mock_mcp_modules
+        # Deferred import: mock_mcp_modules must be called before importing genkit.plugins.mcp
+        from fakes import mock_mcp_modules  # noqa: PLC0415
 
         mock_mcp_modules()
 
-        from genkit.ai import Genkit as _Genkit
-        from genkit.plugins.mcp import McpServerOptions as _McpServerOptions, create_mcp_server as _create_mcp_server
+        # Deferred import: these imports must happen after mock_mcp_modules() is called
+        from genkit.ai import Genkit as _Genkit  # noqa: PLC0415
+        from genkit.plugins.mcp import (  # noqa: PLC0415
+            McpServerOptions as _McpServerOptions,
+            create_mcp_server as _create_mcp_server,
+        )
 
         Genkit = _Genkit
         McpServerOptions = _McpServerOptions
@@ -233,8 +240,6 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         # Try to read non-existent resource
         request = MagicMock()
         request.params.uri = 'app://nonexistent'
-
-        from genkit.core.error import GenkitError
 
         with self.assertRaises(GenkitError) as context:
             await server.read_resource(request)

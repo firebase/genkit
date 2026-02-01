@@ -115,7 +115,7 @@ class ModelGardenPlugin(Plugin):
         )
 
         if clean_name.startswith('anthropic/'):
-            from .anthropic import AnthropicModelGarden as AnthropicWorker
+            from .anthropic import AnthropicModelGarden as AnthropicWorker  # noqa: PLC0415
 
             location = self.model_locations.get(clean_name, self.location)
             if not self.project_id:

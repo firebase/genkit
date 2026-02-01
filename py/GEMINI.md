@@ -688,7 +688,7 @@ BREAKING CHANGE: Plugin initialization now requires explicit configuration.
 * Add a rationale paragraph explaining the **why** and the **what** before
   listing all the changes.
 * For scope, refer to release-please configuration if available.
-* Keep it short and simple.
+* Keep the subject line short and simple.
 
 ## Pull Request Description Guidelines
 
@@ -702,6 +702,16 @@ Every PR description MUST include:
 1. **Summary** - One-paragraph overview of what the PR does and why
 2. **Changes** - Bullet list of specific modifications
 3. **Test Plan** - How the changes were verified
+
+### Prefer Tables for Information
+
+Use markdown tables whenever presenting structured information such as:
+- Configuration options and their defaults
+- API parameter lists
+- Comparison of before/after behavior
+- File changes summary
+
+Tables are easier to scan and review than prose or bullet lists.
 
 ### Architecture Diagrams
 
