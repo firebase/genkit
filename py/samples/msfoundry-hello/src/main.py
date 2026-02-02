@@ -161,14 +161,6 @@ DEPLOYMENT = os.environ.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o')
 logger = get_logger(__name__)
 
 # Log configuration for debugging (mask API key for security)
-print('=' * 60)
-print('Microsoft Foundry Plugin Configuration')
-print('=' * 60)
-print(f'  AZURE_OPENAI_ENDPOINT:    {ENDPOINT}')
-print(f'  AZURE_OPENAI_API_VERSION: {API_VERSION}')
-print(f'  AZURE_OPENAI_DEPLOYMENT:  {DEPLOYMENT}')
-print(f'  AZURE_OPENAI_API_KEY:     {"*" * 8 + API_KEY[-4:] if API_KEY and len(API_KEY) > 4 else "(not set)"}')
-print('=' * 60)
 
 if not API_KEY or not ENDPOINT:
     logger.warning(

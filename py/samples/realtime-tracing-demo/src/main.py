@@ -141,16 +141,13 @@ logger = get_logger(__name__)
 def _ensure_api_key() -> None:
     """Prompt for GEMINI_API_KEY if not set."""
     if not os.environ.get('GEMINI_API_KEY'):
-        print('GEMINI_API_KEY is not set.')
         try:
             api_key = input('Enter your Gemini API key: ').strip()
             if api_key:
                 os.environ['GEMINI_API_KEY'] = api_key
             else:
-                print('Error: API key cannot be empty.')
                 sys.exit(1)
         except (EOFError, KeyboardInterrupt):
-            print('\nError: GEMINI_API_KEY is required.')
             sys.exit(1)
 
 

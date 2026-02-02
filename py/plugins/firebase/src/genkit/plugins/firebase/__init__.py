@@ -199,7 +199,7 @@ def add_firebase_telemetry() -> None:
 
 
 __all__ = [
-    'package_name',
     'add_firebase_telemetry',
     'define_firestore_vector_store',
+    'package_name',
 ]

@@ -264,10 +264,11 @@ class BigQueryRetriever(DocRetriever):
         if not ids:
             return []
 
+        # dataset_id and table_id are from trusted config, ids are parameterized
         query = f"""
             SELECT * FROM `{self.dataset_id}.{self.table_id}`
             WHERE id IN UNNEST(@ids)
-        """
+        """  # noqa: S608 - parameterized query, table names from trusted config
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[bigquery.ArrayQueryParameter('ids', 'STRING', ids)],

@@ -194,7 +194,7 @@ class ClassTransformer(ast.NodeTransformer):
                     return True
         return False
 
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:  # noqa: N802
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         """Visit and transform annotated assignment.
 
         - Transform Role type to Role | str for flexibility
@@ -237,7 +237,7 @@ class ClassTransformer(ast.NodeTransformer):
 
         return node
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> object:  # noqa: N802
+    def visit_ClassDef(self, node: ast.ClassDef) -> object:
         """Visit and transform a class definition node.
 
         Args:
@@ -317,11 +317,10 @@ class ClassTransformer(ast.NodeTransformer):
             for stmt in node.body[body_start_index:]:
                 # Check for model_config (both Assign and AnnAssign)
                 is_model_config = False
-                if isinstance(stmt, ast.Assign) and any(
-                    isinstance(target, ast.Name) and target.id == 'model_config' for target in stmt.targets
-                ):
-                    is_model_config = True
-                elif (
+                if (
+                    isinstance(stmt, ast.Assign)
+                    and any(isinstance(target, ast.Name) and target.id == 'model_config' for target in stmt.targets)
+                ) or (
                     isinstance(stmt, ast.AnnAssign)
                     and isinstance(stmt.target, ast.Name)
                     and stmt.target.id == 'model_config'
@@ -517,11 +516,10 @@ def process_file(filename: str) -> None:
     """
     path = Path(filename)
     if not path.is_file():
-        print(f'Error: File not found: {filename}')
         sys.exit(1)
 
     try:
-        with open(path, encoding='utf-8') as f:
+        with Path(path).open(encoding='utf-8') as f:
             source = f.read()
 
         tree = ast.parse(source)
@@ -543,14 +541,10 @@ def process_file(filename: str) -> None:
 
         # Write back only if content has changed (header or AST)
         if final_source != source:
-            with open(path, 'w', encoding='utf-8') as f:
+            with Path(path).open('w', encoding='utf-8') as f:
                 f.write(final_source)
-            print(f'Successfully processed and updated {filename}')
-        else:
-            print(f'No changes needed for {filename}')
 
-    except SyntaxError as e:
-        print(f'Error: Invalid Python syntax in {filename}: {e}')
+    except SyntaxError:
         sys.exit(1)
 
 
@@ -564,7 +558,6 @@ def main() -> None:
         python script.py <filename>
     """
     if len(sys.argv) != 2:
-        print('Usage: python script.py <filename>')
         sys.exit(1)
 
     process_file(sys.argv[1])

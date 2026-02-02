@@ -153,10 +153,10 @@ class CfEmbedder:
             return embeddings
 
         # Single embedding case - wrap in list
-        if embeddings and isinstance(embeddings[0], (int, float)):
+        if embeddings and isinstance(embeddings[0], int | float):
             return [embeddings]
 
         return embeddings
 
 
-__all__ = ['CfEmbedder', 'CF_API_BASE_URL']
+__all__ = ['CF_API_BASE_URL', 'CfEmbedder']

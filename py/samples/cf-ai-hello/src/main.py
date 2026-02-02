@@ -413,8 +413,6 @@ async def say_hi_with_config(input: ConfigDemoInput) -> str:
 
 async def main() -> None:
     """Main entry point for the sample application."""
-    print('CF AI Hello sample started.')
-    print('Open http://localhost:4000 to access the DevUI.')
     await asyncio.Event().wait()
 
 

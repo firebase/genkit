@@ -16,20 +16,21 @@
 
 import json
 import os
+import pathlib
 
 from evaluator_demo.genkit_demo import ai
 from genkit.core.typing import EvalResponse
 
 # Load dataset
-DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'dogfacts.json')
-if os.path.exists(DATA_PATH):
-    with open(DATA_PATH) as f:
+DATA_PATH = os.path.join(pathlib.Path(__file__).parent, '..', 'data', 'dogfacts.json')
+if pathlib.Path(DATA_PATH).exists():
+    with pathlib.Path(DATA_PATH).open() as f:
         DOG_DATASET = json.load(f)
 else:
     DOG_DATASET = []
 
 
-# Run this flow to programatically execute the evaluator on the dog dataset.
+# Run this flow to programmatically execute the evaluator on the dog dataset.
 @ai.flow(name='dog_facts_eval')
 async def dog_facts_eval_flow() -> EvalResponse:
     """Run dog facts evaluation.

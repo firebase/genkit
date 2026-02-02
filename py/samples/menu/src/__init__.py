@@ -28,5 +28,3 @@
 # from case_04.flows import s04_indexMenuItemsFlow, s04_ragMenuQuestionFlow
 # from case_04.prompts import s04_ragDataMenuPrompt
 # 05
-
-print('All prompts and flows loaded, use the Developer UI to test them out')

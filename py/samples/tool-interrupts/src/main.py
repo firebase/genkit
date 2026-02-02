@@ -132,7 +132,6 @@ async def main() -> None:
         + 'tell them if they were right or wrong. Be dramatic (but terse)! It is a '
         + 'show!\n\n[user joined the game]',
     )
-    print(response.text)
     messages = response.messages
     while True:
         response = await ai.generate(
@@ -145,10 +144,8 @@ async def main() -> None:
             request = response.interrupts[0]
             input_data = request.tool_request.input
             if input_data:
-                print(input_data.get('question'))
                 i = 1
-                for question in input_data.get('answers', []):
-                    print(f'   ({i}) {question}')
+                for _question in input_data.get('answers', []):
                     i += 1
 
             tr = tool_response(request, input('Your answer (number): '))
@@ -157,10 +154,7 @@ async def main() -> None:
                 tool_responses=[tr],
                 tools=['present_questions'],
             )
-            print(response.text)
             messages = response.messages
-        else:
-            print(response.text)
 
 
 if __name__ == '__main__':

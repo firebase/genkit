@@ -98,6 +98,8 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
+import pathlib
+
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, Output, ToolRunContext, tool_response
@@ -353,10 +355,10 @@ async def demo_dynamic_tools(input: DynamicToolsInput) -> dict[str, object]:
 async def describe_image() -> str:
     """Describe an image (reads from photo.jpg)."""
     # Read the photo.jpg file and encode to base64
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    current_dir = pathlib.Path(pathlib.Path(__file__).resolve()).parent
     photo_path = os.path.join(current_dir, '..', 'photo.jpg')
 
-    with open(photo_path, 'rb') as photo_file:
+    with pathlib.Path(photo_path).open('rb') as photo_file:
         photo_base64 = base64.b64encode(photo_file.read()).decode('utf-8')
 
     response = await ai.generate(
@@ -630,7 +632,6 @@ async def upload_blob_to_file_search_store(client: google_genai_sdk.Client, file
 
     try:
         # Use the high-level helper to upload directly to the store with metadata
-        print(f'Uploading file to store {file_search_store_name}...')
         op = await client.aio.file_search_stores.upload_to_file_search_store(
             file_search_store_name=file_search_store_name,
             file=tmp_path,
@@ -642,12 +643,9 @@ async def upload_blob_to_file_search_store(client: google_genai_sdk.Client, file
             await asyncio.sleep(2)
             # Fetch the updated operation status
             op = await client.aio.operations.get(operation=op)
-            print(f'Operation status: {op.metadata.get("state") if op.metadata else "processing"}')
-
-        print('Upload complete.')
 
     finally:
-        os.unlink(tmp_path)
+        pathlib.Path(tmp_path).unlink()
     return
 
 
@@ -665,7 +663,6 @@ async def file_search() -> str:
 
     # 1. Create Store
     store_name = await create_file_search_store(client)
-    print(f'Created store: {store_name}')
 
     try:
         # 2. Upload Blob (Story)
@@ -686,7 +683,6 @@ async def file_search() -> str:
     finally:
         # 4. Cleanup
         await delete_file_search_store(client, store_name)
-        print(f'Deleted store: {store_name}')
 
 
 @ai.flow()
@@ -738,8 +734,7 @@ class ScreenshotInput(BaseModel):
 def take_screenshot(input_: ScreenshotInput) -> dict:
     """Take a screenshot of a given URL."""
     # Implement your screenshot logic here
-    print(f'Taking screenshot of {input_.url}')
-    return {'url': input_.url, 'screenshot_path': '/tmp/screenshot.png'}
+    return {'url': input_.url, 'screenshot_path': '/tmp/screenshot.png'}  # noqa: S108 - sample code
 
 
 @ai.tool(name='getWeather')

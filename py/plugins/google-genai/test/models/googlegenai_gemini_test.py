@@ -18,8 +18,9 @@
 """Tests for the Gemini model implementation."""
 
 import sys
-import urllib.request
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum
@@ -209,8 +210,10 @@ async def test_generate_media_response(mocker: MockerFixture, version: str) -> N
 
     assert content.root.media.content_type == response_mimetype
 
-    with urllib.request.urlopen(content.root.media.url) as response:
-        assert response.read() == response_byte_string
+    # Use httpx async client to avoid blocking the event loop
+    async with httpx.AsyncClient() as client:
+        http_response = await client.get(content.root.media.url)
+        assert http_response.content == response_byte_string
 
 
 def test_convert_schema_property(mocker: MockerFixture) -> None:
@@ -292,7 +295,7 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
     """Test Generate using system instructions."""
     response_text = 'request answer'
     request_text = 'response question'
-    system_instruction = 'system instruciton text'
+    system_instruction = 'system instruction text'
     version = GoogleAIGeminiVersion.GEMINI_2_0_FLASH
 
     request = GenerateRequest(

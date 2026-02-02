@@ -176,10 +176,10 @@ def package_name() -> str:
 
 
 __all__ = [
-    'package_name',
-    'define_genkit_evaluators',
-    'evaluators_name',
     'GenkitMetricType',
     'MetricConfig',
     'PluginOptions',
+    'define_genkit_evaluators',
+    'evaluators_name',
+    'package_name',
 ]

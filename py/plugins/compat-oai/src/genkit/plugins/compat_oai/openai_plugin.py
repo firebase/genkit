@@ -88,11 +88,11 @@ class OpenAI(Plugin):
         actions = []
 
         # Add known models
-        for name in SUPPORTED_OPENAI_MODELS.keys():
+        for name in SUPPORTED_OPENAI_MODELS:
             actions.append(self._create_model_action(open_ai_name(name)))
 
         # Add known embedders
-        for name in SUPPORTED_EMBEDDING_MODELS.keys():
+        for name in SUPPORTED_EMBEDDING_MODELS:
             actions.append(self._create_embedder_action(open_ai_name(name)))
 
         return actions
@@ -250,14 +250,14 @@ class OpenAI(Plugin):
         models: list[Model] = models_.data
         # Print each model
         for model in models:
-            _name = model.id
-            if 'embed' in _name:
+            name = model.id
+            if 'embed' in name:
                 # Default embedder metadata for OpenAI embedding models
                 actions.append(
                     embedder_action_metadata(
-                        name=open_ai_name(_name),
+                        name=open_ai_name(name),
                         options=EmbedderOptions(
-                            label=f'OpenAI Embedding - {_name}',
+                            label=f'OpenAI Embedding - {name}',
                             supports=EmbedderSupports(input=['text']),
                         ),
                     )
@@ -265,10 +265,10 @@ class OpenAI(Plugin):
             else:
                 actions.append(
                     model_action_metadata(
-                        name=open_ai_name(_name),
+                        name=open_ai_name(name),
                         config_schema=GenerationCommonConfig,
                         info={
-                            'label': f'OpenAI - {_name}',
+                            'label': f'OpenAI - {name}',
                             'multiturn': True,
                             'system_role': True,
                             'tools': False,

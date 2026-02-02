@@ -39,10 +39,17 @@ dependencies = [
 ]
 description = "Model Garden sample"
 license = "Apache-2.0"
-name = "model-garden-example"
+name = "model-garden"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
 
 [project.optional-dependencies]
 dev = ["watchdog>=6.0.0"]
+
+[build-system]
+build-backend = "hatchling.build"
+requires      = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

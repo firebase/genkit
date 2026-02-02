@@ -47,6 +47,14 @@ uv run --directory "${PY_DIR}" pyright packages/
 
 "${PY_DIR}/bin/run_python_security_checks"
 
+# License checks
+echo "--- 📜 Running License Check ---"
+"${TOP_DIR}/bin/check_license"
+
+# Consistency checks (Python versions, plugin versions, naming, workspace completeness)
+echo "--- 🔍 Running Consistency Checks ---"
+"${PY_DIR}/bin/check_consistency"
+
 # Disabled because there are many lint errors.
 #pushd "${GO_DIR}" &>/dev/null
 #golangci-lint run ./...

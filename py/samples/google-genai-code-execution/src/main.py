@@ -110,30 +110,23 @@ async def execute_code(input: CodeExecutionInput) -> MessageWrapper:
 
 def display_code_execution(message: Message) -> None:
     """Display the code execution results from a message."""
-    print('\n=== INTERNAL CODE EXECUTION ===')
     for part in message.content:
         if isinstance(part.root, CustomPart):
             if PartConverter.EXECUTABLE_CODE in part.root.custom:
                 code_data = part.root.custom[PartConverter.EXECUTABLE_CODE]
-                lang = code_data.get(PartConverter.LANGUAGE, 'unknown')
-                code = code_data.get(PartConverter.CODE, '')
-                print(f'Language: {lang}')
-                print(f'```{lang}\n{code}\n```')
+                code_data.get(PartConverter.LANGUAGE, 'unknown')
+                code_data.get(PartConverter.CODE, '')
             elif PartConverter.CODE_EXECUTION_RESULT in part.root.custom:
                 result_data = part.root.custom[PartConverter.CODE_EXECUTION_RESULT]
-                outcome = result_data.get(PartConverter.OUTCOME, 'unknown')
+                result_data.get(PartConverter.OUTCOME, 'unknown')
                 output = result_data.get(PartConverter.OUTPUT, '')
-                print('\nExecution result:')
-                print(f'Status: {outcome}')
-                print('Output:')
                 if not output.strip():
-                    print('  <no output>')
+                    pass
                 else:
-                    for line in output.splitlines():
-                        print(f'  {line}')
+                    for _line in output.splitlines():
+                        pass
         elif isinstance(part.root, TextPart) and part.root.text.strip():
-            print(f'\nExplanation:\n{part.root.text}')
-    print('\n=== COMPLETE INTERNAL CODE EXECUTION ===')
+            pass
 
 
 async def main() -> None:

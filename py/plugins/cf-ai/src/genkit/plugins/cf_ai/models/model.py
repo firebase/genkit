@@ -597,10 +597,7 @@ class CfModel:
                     # Tool responses
                     tool_resp = root.tool_response
                     output = tool_resp.output
-                    if isinstance(output, dict):
-                        output_str = json.dumps(output)
-                    else:
-                        output_str = str(output)
+                    output_str = json.dumps(output) if isinstance(output, dict) else str(output)
 
                     cloudflare_msgs.append({
                         'role': 'tool',
@@ -712,4 +709,4 @@ class CfModel:
             raise ValueError(f'Failed to fetch image from URL {url}: {e}') from e
 
 
-__all__ = ['CfModel', 'CF_API_BASE_URL']
+__all__ = ['CF_API_BASE_URL', 'CfModel']

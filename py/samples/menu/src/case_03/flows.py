@@ -19,6 +19,7 @@
 
 import json
 import os
+import pathlib
 
 from menu_ai import ai
 
@@ -31,8 +32,8 @@ from .chats import (
     ChatSessionOutputSchema,
 )
 
-menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
-with open(menu_json_path) as f:
+menu_json_path = os.path.join(pathlib.Path(__file__).parent, '..', '..', 'data', 'menu.json')
+with pathlib.Path(menu_json_path).open() as f:
     menu_data = json.load(f)
 
 formatted_menu_data = '\n'.join([f'- {r["title"]} ${r["price"]}\n{r["description"]}' for r in menu_data])

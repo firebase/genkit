@@ -146,23 +146,21 @@ class AnthropicModel:
         # Remove known genkit keys that don't map directly or are handled
         params.pop('version', None)  # If version was passed through config
 
-        if thinking:
-            if isinstance(thinking, dict):
-                anthropic_thinking: dict[str, str | int] = {}
-                # Handle boolean enabled -> type="enabled"
-                if thinking.get('enabled') is True or thinking.get('type') == 'enabled':
-                    anthropic_thinking['type'] = 'enabled'
+        if thinking and isinstance(thinking, dict):
+            anthropic_thinking: dict[str, str | int] = {}
+            # Handle boolean enabled -> type="enabled"
+            if thinking.get('enabled') is True or thinking.get('type') == 'enabled':
+                anthropic_thinking['type'] = 'enabled'
 
-                # Handle camelCase -> snake_case for budget tokens
-                tokens = thinking.get('budgetTokens', thinking.get('budget_tokens'))
-                if tokens:
-                    anthropic_thinking['budget_tokens'] = int(tokens)
+            # Handle camelCase -> snake_case for budget tokens
+            tokens = thinking.get('budgetTokens', thinking.get('budget_tokens'))
+            if tokens:
+                anthropic_thinking['budget_tokens'] = int(tokens)
 
-                if anthropic_thinking.get('type') == 'enabled':
-                    params['thinking'] = anthropic_thinking
-                    # Anthropic requires temperature to be None/excluded if thinking is enabled?
-                    # Actually standard behavior is: if thinking, extended thinking model rules apply.
-                    # We pass it if valid.
+            if anthropic_thinking.get('type') == 'enabled':
+                params['thinking'] = anthropic_thinking
+                # Note: Anthropic may require temperature to be None/excluded if thinking is
+                # enabled. Standard behavior is: if thinking, extended thinking model rules apply.
 
         if metadata:
             params['metadata'] = metadata

@@ -304,8 +304,8 @@ class CfAI(Plugin):
 
 
 __all__ = [
-    'CfAI',
     'CF_AI_PLUGIN_NAME',
-    'cf_name',
+    'CfAI',
     'cf_model',
+    'cf_name',
 ]

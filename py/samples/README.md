@@ -1,0 +1,281 @@
+# Genkit Samples
+
+This directory contains sample applications demonstrating various Genkit features and integrations.
+
+## Sample Categories
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           GENKIT SAMPLE APPLICATIONS                            │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   MODEL PROVIDERS                    TELEMETRY                                  │
+│   ───────────────                    ─────────                                  │
+│   ┌─────────────────────────┐        ┌─────────────────────────┐               │
+│   │ google-genai-hello      │        │ aws-hello               │               │
+│   │ anthropic-hello         │        │ azure-hello             │               │
+│   │ aws-bedrock-hello       │        │ cf-hello                │               │
+│   │ msfoundry-hello         │        │ observability-hello     │               │
+│   │ ollama-hello            │        │ realtime-tracing-demo   │               │
+│   │ compat-oai-hello        │        └─────────────────────────┘               │
+│   │ deepseek-hello          │                                                  │
+│   │ xai-hello               │        ADVANCED FEATURES                         │
+│   │ cf-ai-hello             │        ─────────────────                         │
+│   └─────────────────────────┘        ┌─────────────────────────┐               │
+│                                      │ tool-interrupts         │               │
+│   VECTOR STORES                      │ menu (tool examples)    │               │
+│   ─────────────                      │ prompt-demo             │               │
+│   ┌─────────────────────────┐        │ format-demo             │               │
+│   │ dev-local-vectorstore   │        │ multi-server            │               │
+│   │ vertex-ai-vector-search │        │ evaluator-demo          │               │
+│   │ firestore-retriever     │        │ flask-hello             │               │
+│   └─────────────────────────┘        └─────────────────────────┘               │
+│                                                                                 │
+│   MULTIMODAL                         GOOGLE AI FEATURES                        │
+│   ──────────                         ──────────────────                        │
+│   ┌─────────────────────────┐        ┌─────────────────────────┐               │
+│   │ media-models-demo       │        │ google-genai-image      │               │
+│   │ google-genai-image      │        │ google-genai-code-exec  │               │
+│   └─────────────────────────┘        │ google-genai-context    │               │
+│                                      └─────────────────────────┘               │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+Each sample follows the same pattern:
+
+```bash
+# Navigate to any sample
+cd py/samples/<sample-name>
+
+# Run the sample (starts DevUI at http://localhost:4000)
+./run.sh
+```
+
+## Sample List
+
+### Model Provider Samples
+
+| Sample | Plugin | Description |
+|--------|--------|-------------|
+| **google-genai-hello** | google-genai | Gemini models with Google AI |
+| **anthropic-hello** | anthropic | Claude models directly |
+| **aws-bedrock-hello** | aws-bedrock | Claude, Llama, Nova via Bedrock |
+| **msfoundry-hello** | msfoundry | Azure AI Foundry models |
+| **ollama-hello** | ollama | Local models with Ollama |
+| **compat-oai-hello** | compat-oai | OpenAI-compatible APIs |
+| **deepseek-hello** | deepseek | DeepSeek V3 and R1 |
+| **xai-hello** | xai | Grok models |
+| **cf-ai-hello** | cf-ai | Cloudflare Workers AI |
+
+### Telemetry Samples
+
+| Sample | Plugin | Description |
+|--------|--------|-------------|
+| **aws-hello** | aws | AWS X-Ray and CloudWatch integration |
+| **azure-hello** | azure | Azure Application Insights |
+| **cf-hello** | cf | Generic OTLP export (any backend) |
+| **observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
+| **realtime-tracing-demo** | google-cloud | Real-time tracing visualization |
+
+### Vector Store Samples
+
+| Sample | Plugin | Description |
+|--------|--------|-------------|
+| **dev-local-vectorstore-hello** | dev-local-vectorstore | Local development vector store |
+| **vertex-ai-vector-search-firestore** | vertex-ai | Firestore with Vertex AI vectors |
+| **vertex-ai-vector-search-bigquery** | vertex-ai | BigQuery with Vertex AI vectors |
+| **firestore-retriever** | firebase | Firestore vector search |
+
+### Advanced Feature Samples
+
+| Sample | Features | Description |
+|--------|----------|-------------|
+| **tool-interrupts** | Tools | Human-in-the-loop tool approval |
+| **menu** | Tools | Restaurant menu ordering with tools |
+| **prompt-demo** | Prompts | Dotprompt templates and partials |
+| **format-demo** | Formats | Output formatting and schemas |
+| **multi-server** | Architecture | Multiple Genkit servers |
+| **evaluator-demo** | Evaluation | Custom evaluators and RAGAS |
+| **flask-hello** | Integrations | Flask HTTP endpoints |
+
+### Multimodal Samples
+
+| Sample | Features | Description |
+|--------|----------|-------------|
+| **google-genai-image** | Imagen | Image generation with Imagen |
+| **media-models-demo** | Vision | Image understanding demos |
+| **google-genai-code-execution** | Code | Gemini code execution |
+| **google-genai-context-caching** | Performance | Context caching for long prompts |
+
+## Environment Setup
+
+Most samples require environment variables for API keys. Configure these before running samples.
+
+### Model Provider API Keys
+
+| Variable | Sample | Required | Description | Get Credentials |
+|----------|--------|----------|-------------|-----------------|
+| `GOOGLE_GENAI_API_KEY` | google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `ANTHROPIC_API_KEY` | anthropic-hello | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
+| `AWS_REGION` | aws-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
+| `AWS_ACCESS_KEY_ID` | aws-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AWS_SECRET_ACCESS_KEY` | aws-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AZURE_AI_FOUNDRY_ENDPOINT` | msfoundry-hello | Yes | Azure AI Foundry endpoint | [Azure AI Foundry](https://ai.azure.com/) |
+| `AZURE_AI_FOUNDRY_API_KEY` | msfoundry-hello | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
+| `OPENAI_API_KEY` | compat-oai-hello | Yes | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| `DEEPSEEK_API_KEY` | deepseek-hello | Yes | DeepSeek API key | [DeepSeek Platform](https://platform.deepseek.com/) |
+| `XAI_API_KEY` | xai-hello | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
+| `CLOUDFLARE_ACCOUNT_ID` | cf-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
+| `CLOUDFLARE_API_TOKEN` | cf-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+
+*Can use IAM roles, managed identity, or other credential providers instead.
+
+### Telemetry Configuration
+
+| Variable | Sample | Required | Description | Get Credentials |
+|----------|--------|----------|-------------|-----------------|
+| `GOOGLE_CLOUD_PROJECT` | realtime-tracing-demo | Yes | GCP project ID | [GCP Console](https://console.cloud.google.com/) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | realtime-tracing-demo | Yes* | Service account JSON path | [GCP IAM](https://cloud.google.com/docs/authentication/application-default-credentials) |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | azure-hello | Yes | Azure App Insights connection string | [Azure Portal](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource) |
+| `CF_OTLP_ENDPOINT` | cf-hello | Yes | OTLP endpoint URL | Your OTLP backend |
+| `CF_API_TOKEN` | cf-hello | Yes | Bearer token for OTLP auth | Your OTLP backend |
+
+*Not required when running on GCP with default credentials.
+
+### Observability Plugin (Third-Party Backends)
+
+The `observability-hello` sample supports multiple backends. Configure based on your choice:
+
+#### Sentry
+
+| Variable | Required | Description | Get Credentials |
+|----------|----------|-------------|-----------------|
+| `SENTRY_DSN` | Yes | Sentry DSN (Data Source Name) | [Sentry Settings](https://docs.sentry.io/concepts/otlp/) > Projects > Client Keys |
+| `SENTRY_ENVIRONMENT` | No | Environment name | - |
+
+#### Honeycomb
+
+| Variable | Required | Description | Get Credentials |
+|----------|----------|-------------|-----------------|
+| `HONEYCOMB_API_KEY` | Yes | Honeycomb API key | [Honeycomb Settings](https://docs.honeycomb.io/configure/environments/manage-api-keys/) |
+| `HONEYCOMB_DATASET` | No | Dataset name (Classic only) | - |
+| `HONEYCOMB_API_ENDPOINT` | No | API endpoint (US default) | - |
+
+Endpoints: `https://api.honeycomb.io` (US), `https://api.eu1.honeycomb.io` (EU)
+
+#### Datadog
+
+| Variable | Required | Description | Get Credentials |
+|----------|----------|-------------|-----------------|
+| `DD_API_KEY` | Yes | Datadog API key | [Datadog Settings](https://app.datadoghq.com/organization-settings/api-keys) |
+| `DD_SITE` | No | Site (default: `datadoghq.com`) | - |
+
+Sites: `datadoghq.com`, `datadoghq.eu`, `us3.datadoghq.com`, `us5.datadoghq.com`, `ap1.datadoghq.com`
+
+#### Grafana Cloud
+
+| Variable | Required | Description | Get Credentials |
+|----------|----------|-------------|-----------------|
+| `GRAFANA_OTLP_ENDPOINT` | Yes | OTLP endpoint URL | [Grafana Cloud](https://grafana.com/) > My Account > Stack > OpenTelemetry |
+| `GRAFANA_USER_ID` | Yes | Instance ID (numeric) | Same as above |
+| `GRAFANA_API_KEY` | Yes | API key/token | Same as above |
+
+#### Axiom
+
+| Variable | Required | Description | Get Credentials |
+|----------|----------|-------------|-----------------|
+| `AXIOM_TOKEN` | Yes | Axiom API token | [Axiom Settings](https://app.axiom.co/settings/tokens) |
+| `AXIOM_DATASET` | No | Dataset name (default: `genkit`) | - |
+
+### Quick Setup Examples
+
+```bash
+# Google AI (google-genai-hello)
+export GOOGLE_GENAI_API_KEY="AIza..."
+
+# Anthropic (anthropic-hello)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# AWS Bedrock (aws-bedrock-hello)
+export AWS_REGION="us-east-1"
+export AWS_ACCESS_KEY_ID="AKIA..."
+export AWS_SECRET_ACCESS_KEY="..."
+
+# Azure AI Foundry (msfoundry-hello)
+export AZURE_AI_FOUNDRY_ENDPOINT="https://your-resource.services.ai.azure.com/"
+export AZURE_AI_FOUNDRY_API_KEY="..."
+
+# Azure Telemetry (azure-hello)
+export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
+
+# Cloudflare AI (cf-ai-hello)
+export CLOUDFLARE_ACCOUNT_ID="abc123..."
+export CLOUDFLARE_API_TOKEN="..."
+
+# Sentry (observability-hello)
+export SENTRY_DSN="https://abc123@o123456.ingest.us.sentry.io/4507654321"
+
+# Honeycomb (observability-hello)
+export HONEYCOMB_API_KEY="..."
+
+# Datadog (observability-hello)
+export DD_API_KEY="..."
+
+# Grafana Cloud (observability-hello)
+export GRAFANA_OTLP_ENDPOINT="https://otlp-gateway-prod-us-central-0.grafana.net/otlp"
+export GRAFANA_USER_ID="123456"
+export GRAFANA_API_KEY="glc_..."
+
+# Axiom (observability-hello)
+export AXIOM_TOKEN="xaat-..."
+```
+
+Each sample's README.md contains specific environment requirements.
+
+## Creating New Samples
+
+When creating new samples, follow these guidelines:
+
+1. **Directory structure**:
+   ```
+   samples/<name>/
+   ├── pyproject.toml
+   ├── README.md
+   ├── run.sh
+   └── src/
+       └── main.py
+   ```
+
+2. **Entry point**: Always use `ai.run_main(main())`:
+   ```python
+   import asyncio
+
+   async def main():
+       # Keep the server alive to handle requests.
+       await asyncio.Event().wait()
+
+   if __name__ == '__main__':
+       ai.run_main(main())
+   ```
+
+3. **run.sh**: Use the standard pattern with watchdog:
+   ```bash
+   genkit start -- \
+     uv tool run --from watchdog watchmedo auto-restart \
+       -d src \
+       -d ../../packages \
+       -d ../../plugins \
+       -p '*.py;*.prompt;*.json' \
+       -R \
+       -- uv run src/main.py "$@"
+   ```
+
+4. **Flow inputs**: Use Pydantic BaseModel with defaults for DevUI:
+   ```python
+   class HelloInput(BaseModel):
+       name: str = Field(default='World', description='Name to greet')
+   ```
+
+See `py/GEMINI.md` for complete guidelines.

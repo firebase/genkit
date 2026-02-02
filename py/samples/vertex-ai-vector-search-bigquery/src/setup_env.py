@@ -199,7 +199,7 @@ def get_data_from_bigquery(
         representing the document content.
     """
     table_ref = bigquery.TableReference.from_string(f'{project_id}.{dataset_id}.{table_id}')
-    query = f'SELECT id, content FROM `{table_ref}`'
+    query = f'SELECT id, content FROM `{table_ref}`'  # noqa: S608 - table ref from trusted config
     query_job = bq_client.query(query)
     rows = query_job.result()
 

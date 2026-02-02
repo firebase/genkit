@@ -28,9 +28,9 @@ from .model_info import (
 )
 
 __all__ = [
-    'MSFoundryModel',
-    'SUPPORTED_MSFOUNDRY_MODELS',
-    'SUPPORTED_EMBEDDING_MODELS',
     'MODELS_SUPPORTING_RESPONSE_FORMAT',
+    'SUPPORTED_EMBEDDING_MODELS',
+    'SUPPORTED_MSFOUNDRY_MODELS',
+    'MSFoundryModel',
     'get_model_info',
 ]

@@ -165,11 +165,11 @@ def package_name() -> str:
 
 
 __all__ = [
-    'package_name',
-    'ModelGardenPlugin',
     'BigQueryRetriever',
     'FirestoreRetriever',
+    'ModelGardenPlugin',
     'RetrieverOptionsSchema',
     'define_vertex_vector_search_big_query',
     'define_vertex_vector_search_firestore',
+    'package_name',
 ]

@@ -61,6 +61,45 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
+## M8: Additional Model Provider Plugins (2026-02-01)
+
+> [!NOTE]
+> New model provider plugins to expand Genkit's ecosystem.
+
+### Completed Plugins
+
+| Plugin | Description | Status | Notes |
+|--------|-------------|--------|-------|
+| **Mistral AI** | Native Mistral API integration | ✅ Complete | mistral-large, mistral-small, codestral, pixtral |
+| **Hugging Face** | HF Inference API integration | ✅ Complete | Access to 1M+ models, inference providers |
+
+### Plugin Details
+
+#### Mistral AI Plugin (`genkit-plugin-mistral`)
+
+- **Environment Variable**: `MISTRAL_API_KEY`
+- **Supported Models**: mistral-large-latest, mistral-small-latest, codestral-latest, pixtral-large-latest, ministral-8b/3b
+- **Features**: Chat completion, streaming, code generation
+- **Sample**: `samples/mistral-hello`
+
+#### Hugging Face Plugin (`genkit-plugin-huggingface`)
+
+- **Environment Variable**: `HF_TOKEN`
+- **Supported Models**: Any model on huggingface.co (1M+ models)
+- **Popular Models**: meta-llama/Llama-3.3-70B-Instruct, Qwen/Qwen2.5-72B-Instruct, google/gemma-2-27b-it
+- **Features**: Chat completion, streaming, inference providers (Cerebras, Groq, Together)
+- **Sample**: `samples/huggingface-hello`
+
+### Future Plugins (Planned)
+
+| Plugin | Priority | Rationale |
+|--------|----------|-----------|
+| **OpenRouter** | P3 | Multi-provider routing, already usable via `compat-oai` |
+| **Cohere** | P3 | Enterprise NLP, RAG-focused models |
+| **AI21** | P3 | Specialized language models |
+
+---
+
 ## Background Actions/Operations Audit (2026-01-30)
 
 > [!NOTE]
@@ -935,7 +974,147 @@ After completing each milestone:
 
 ---
 
-## M8: Automated Testing (Future - Low Priority)
+## M8: Additional Model Provider Plugins (Future)
+
+> **Goal:** Expand model provider coverage with additional popular platforms
+
+### Hugging Face Plugin
+
+Hugging Face offers multiple inference options that would benefit Genkit users:
+
+| Service | Description | Use Case |
+|---------|-------------|----------|
+| **Serverless Inference API** | Free tier with rate limits, access to 1000s of models | Quick prototyping, testing |
+| **Inference Providers** | 17+ AI infrastructure partners (Cerebras, Groq, Together, etc.) | Production with provider choice |
+| **Inference Endpoints** | Dedicated managed infrastructure | High-volume production |
+
+**Why a Hugging Face Plugin?**
+
+1. **Massive Model Selection**: Access to 1,000,000+ models on Hugging Face Hub
+2. **Provider Flexibility**: Single API to access Cerebras, Groq, Together AI, Replicate, etc.
+3. **No Vendor Lock-in**: Switch between providers without code changes
+4. **Cost Optimization**: Choose providers based on cost/performance tradeoffs
+5. **Open Source Models**: Easy access to Llama, Mistral, Falcon, and other open models
+
+**Implementation Plan:**
+
+| Task | Effort | Priority | Description |
+|------|--------|----------|-------------|
+| HF-1: Core plugin structure | M | P2 | `genkit-plugin-huggingface` package |
+| HF-2: InferenceClient integration | M | P2 | Use `huggingface_hub.InferenceClient` |
+| HF-3: Text generation models | M | P2 | Chat completion, text generation |
+| HF-4: Embedding models | S | P2 | Feature extraction / embeddings |
+| HF-5: Image generation | S | P3 | Stable Diffusion, FLUX, etc. |
+| HF-6: Speech models | S | P3 | Whisper (STT), Bark (TTS) |
+| HF-7: Provider selection | M | P2 | Allow choosing inference provider |
+
+**Environment Variables:**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `HF_TOKEN` | Yes | Hugging Face API token |
+| `HF_INFERENCE_PROVIDER` | No | Preferred provider (e.g., `cerebras`, `groq`) |
+
+**Example Usage (Proposed):**
+
+```python
+from genkit import Genkit
+from genkit.plugins.huggingface import HuggingFace
+
+ai = Genkit(
+    plugins=[HuggingFace()],
+    model='huggingface/meta-llama/Llama-3.3-70B-Instruct',
+)
+
+# Use default provider (HF Inference)
+response = await ai.generate(prompt='Hello!')
+
+# Or specify a provider for better performance
+response = await ai.generate(
+    model='huggingface/meta-llama/Llama-3.3-70B-Instruct',
+    config={'provider': 'groq'},  # Use Groq for fast inference
+    prompt='Hello!',
+)
+```
+
+**Dependencies:**
+
+```toml
+[project]
+dependencies = [
+    "huggingface_hub>=0.25.0",
+]
+```
+
+### OpenRouter Plugin
+
+OpenRouter is a **unified API gateway** providing access to 500+ models from 60+ providers
+(OpenAI, Anthropic, Google, Meta, xAI, DeepSeek, etc.) through a single API.
+
+**Current Status:** OpenRouter is **already usable** via the `compat-oai` plugin since it's
+OpenAI-compatible:
+
+```python
+from genkit import Genkit
+from genkit.plugins.compat_oai import OpenAI
+
+ai = Genkit(
+    plugins=[OpenAI(
+        api_key=os.getenv('OPENROUTER_API_KEY'),
+        base_url='https://openrouter.ai/api/v1',
+    )],
+    model='openai/anthropic/claude-3.5-sonnet',
+)
+```
+
+**Why a Dedicated Plugin?** A native OpenRouter plugin would add:
+
+| Feature | `compat-oai` | Dedicated Plugin |
+|---------|--------------|------------------|
+| Basic chat | ✅ | ✅ |
+| Auto model discovery | ❌ | ✅ 500+ models |
+| Provider routing | ❌ Manual headers | ✅ Native config |
+| Cost optimization | ❌ | ✅ Built-in |
+| Usage analytics | ❌ | ✅ Exposed |
+
+**Implementation (P3 Priority):**
+
+| Task | Effort | Description |
+|------|--------|-------------|
+| OR-1: Core plugin | S | Use OpenRouter Python SDK |
+| OR-2: Model registry | M | Fetch models from `/api/v1/models` |
+| OR-3: Provider routing | S | Expose `provider` config option |
+| OR-4: Usage stats | S | Expose generation stats |
+
+**Environment Variables:**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENROUTER_API_KEY` | Yes | OpenRouter API key |
+
+### Other Potential Plugins
+
+| Plugin | Provider | Priority | Notes |
+|--------|----------|----------|-------|
+| **Mistral AI** | mistral.ai | P2 | Direct Mistral API access |
+| **Together AI** | together.ai | P3 | Fast open model inference |
+| **Groq** | groq.com | P3 | Ultra-fast LPU inference |
+| **Replicate** | replicate.com | P3 | Run any model via API |
+| **Fireworks** | fireworks.ai | P3 | Fast inference platform |
+| **Cohere** | cohere.com | P3 | Enterprise NLP models |
+
+> [!NOTE]
+> Many of these providers are accessible via:
+> - **OpenRouter** (unified gateway to 60+ providers)
+> - **Hugging Face Inference Providers** (17+ providers)
+> - **compat-oai** (any OpenAI-compatible API)
+>
+> Dedicated plugins are only needed when provider-specific features aren't available
+> through these unified interfaces.
+
+---
+
+## M9: Automated Testing (Future - Low Priority)
 
 > **Goal:** Automate sample validation and DevUI E2E testing
 

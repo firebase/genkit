@@ -143,8 +143,6 @@ async def index_documents() -> None:
         documents=genkit_documents,
     )
 
-    print('10 film documents indexed successfully')
-
 
 @ai.flow()
 async def retreive_documents() -> RetrieverResponse:
@@ -158,7 +156,6 @@ async def retreive_documents() -> RetrieverResponse:
 
 async def main() -> None:
     """Main entry point for the sample - keep alive for Dev UI."""
-    print('Genkit server running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 

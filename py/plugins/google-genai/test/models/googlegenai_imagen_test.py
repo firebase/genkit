@@ -17,8 +17,7 @@
 
 """Tests for the Imagen model implementation."""
 
-import urllib.request
-
+import httpx
 import pytest
 from google import genai
 from pytest_mock import MockerFixture
@@ -81,5 +80,7 @@ async def test_generate_media_response(mocker: MockerFixture, version: ImagenVer
 
     assert content.root.media.content_type == response_mimetype
 
-    with urllib.request.urlopen(content.root.media.url) as response:
-        assert response.read() == response_byte_string
+    # Use httpx async client to avoid blocking the event loop
+    async with httpx.AsyncClient() as client:
+        http_response = await client.get(content.root.media.url)
+        assert http_response.content == response_byte_string

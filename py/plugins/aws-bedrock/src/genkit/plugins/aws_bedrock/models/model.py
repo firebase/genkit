@@ -676,10 +676,7 @@ class BedrockModel:
                     # Tool result from user
                     tool_resp = root.tool_response
                     output = tool_resp.output
-                    if isinstance(output, str):
-                        result_content = [{'text': output}]
-                    else:
-                        result_content = [{'json': output}]
+                    result_content = [{'text': output}] if isinstance(output, str) else [{'json': output}]
 
                     content.append({
                         'toolResult': {
