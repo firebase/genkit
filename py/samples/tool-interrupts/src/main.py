@@ -86,7 +86,7 @@ Key Features
 | Interactive CLI Loop                    | `while True: ... input()`           |
 """
 
-import asyncio
+import os
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -116,12 +116,42 @@ class TriviaQuestions(BaseModel):
 
 @ai.tool()
 def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
-    """Can present questions to the user, responds with the user' selected answer."""
+    """Presents questions to the user and responds with the selected answer."""
     ctx.interrupt(questions.model_dump())
+
+
+@ai.flow()
+async def play_trivia(theme: str) -> str:
+    """Plays a trivia game with the user."""
+    response = await ai.generate(
+        prompt='You a trivia game host. Cheerfully greet the user when they '
+        + f'first join. The user has selected the theme: "{theme}". '
+        + 'Call `present_questions` tool with questions and the tools will present '
+        + 'the questions in a nice UI. The user will pick an answer and then you '
+        + 'tell them if they were right or wrong. Be dramatic (but terse)! It is a '
+        + 'show!\n\n[user joined the game]',
+        tools=['present_questions'],
+    )
+
+    # Check for interrupts and return the question to the user
+    if len(response.interrupts) > 0:
+        request = response.interrupts[0]
+        question_data = request.tool_request.input
+        if question_data:
+            return f'INTERRUPTED: {question_data.get("question")}\nAnswers: {question_data.get("answers")}'
+        return 'INTERRUPTED: (No input data)'
+
+    return response.text
 
 
 async def main() -> None:
     """Main function."""
+    # In Dev mode (genkit start), we must skip the blocking input() loop
+    # so the reflection server can handle requests (like play_trivia)
+    if os.environ.get('GENKIT_ENV') == 'dev':
+        print('Running in dev mode. Use the Dev UI to test the flow.')
+        return
+
     response = await ai.generate(
         prompt='You a trivia game host. Cheerfully greet the user when they '
         + 'first join and ank them to for the theme of the trivia game, suggest '
@@ -158,4 +188,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    ai.run_main(main())
