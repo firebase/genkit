@@ -124,7 +124,7 @@ def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
 async def play_trivia(theme: str) -> str:
     """Plays a trivia game with the user."""
     response = await ai.generate(
-        prompt='You a trivia game host. Cheerfully greet the user when they '
+        prompt='You are a trivia game host. Cheerfully greet the user when they '
         + f'first join. The user has selected the theme: "{theme}". '
         + 'Call `present_questions` tool with questions and the tools will present '
         + 'the questions in a nice UI. The user will pick an answer and then you '
@@ -134,7 +134,7 @@ async def play_trivia(theme: str) -> str:
     )
 
     # Check for interrupts and return the question to the user
-    if len(response.interrupts) > 0:
+    if len(response.interrupts):
         request = response.interrupts[0]
         question_data = request.tool_request.input
         if question_data:
@@ -153,7 +153,7 @@ async def main() -> None:
         return
 
     response = await ai.generate(
-        prompt='You a trivia game host. Cheerfully greet the user when they '
+        prompt='You are a trivia game host. Cheerfully greet the user when they '
         + 'first join and ank them to for the theme of the trivia game, suggest '
         + "a few theme options, they don't have to use your suggestion, feel free "
         + 'to be silly. When they user us ready, call '
