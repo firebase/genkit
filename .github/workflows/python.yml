@@ -23,65 +23,31 @@ on:
       - "genkit-tools/**"
       - ".github/workflows/python.yml"
 
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  python-checks:
+  # =============================================================================
+  # Fast checks that run quickly and catch common issues early
+  # =============================================================================
+  lint-and-format:
     name: Lint and Format
     runs-on: ubuntu-latest
-    env:
-      PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/share/pnpm:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev cmake curl ripgrep libjpeg-dev zlib1g-dev
-
-      - name: Set up Go
-        uses: actions/setup-go@main
-        with:
-          go-version: stable
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - uses: pnpm/action-setup@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20.x
-          cache: "pnpm"
-
-      - name: Install uv and setup Python version
+      - name: Install uv and setup Python
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           python-version: "3.12"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           cd py
-          uv pip install -e .[dev,test,docs]
-          uv pip install --group dev
-
-      - name: Install type checkers
-        run: |
-          cd py
-          uv pip install pyright pyrefly
-
-      - name: Install NPM packages
-        run: |
-          npm install -g license-checker
-
-      - name: Install Go tools
-        run: |
-          go install github.com/google/go-licenses@latest
-
-      - name: Generate schema typing
-        run: ./py/bin/generate_schema_typing --ci
+          uv sync --group lint
 
       - name: Check lockfile is up to date
         run: uv lock --check --directory py
@@ -92,7 +58,7 @@ jobs:
       - name: Lint with ruff
         run: uv run --directory py ruff check .
 
-      - name: Ensure Python test files follow the *_test.py naming convention
+      - name: Check test file naming convention
         run: |
           if find py -name "test_*.py" -not -path "*/.*" | grep -q .; then
               echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
@@ -100,8 +66,35 @@ jobs:
               exit 1
           fi
 
+  # =============================================================================
+  # Type checking (runs in parallel with lint)
+  # =============================================================================
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libffi-dev cmake libjpeg-dev zlib1g-dev
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd py
+          uv sync --group lint
+
+      - name: Generate schema typing
+        run: ./py/bin/generate_schema_typing --ci
+
       - name: Type check with Ty
-        # ty reads environment.root config from py/pyproject.toml
         run: uv run --directory py ty check .
 
       - name: Type check with Pyrefly
@@ -110,27 +103,99 @@ jobs:
       - name: Type check with Pyright
         run: uv run --directory py pyright packages/
 
-      - name: Run security scan
-        run: ./py/bin/run_python_security_checks
+  # =============================================================================
+  # Security and compliance checks
+  # =============================================================================
+  security-and-compliance:
+    name: Security and Compliance
+    runs-on: ubuntu-latest
+    env:
+      PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
+    steps:
+      - uses: actions/checkout@v5
 
-      - name: Check licenses
+      - name: Set up Go
+        uses: actions/setup-go@main
+        with:
+          go-version: stable
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.x
+          cache: "pnpm"
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd py
+          uv sync --group lint
+
+      - name: Install license tools
+        run: |
+          npm install -g license-checker
+          go install github.com/google/go-licenses@latest
+
+      - name: Check source file license headers
         run: ./bin/check_license
 
-  python-tests:
-    name: Tests (${{ matrix.test-type }} - ${{ matrix.python-version }})
+      - name: Check dependency licenses
+        run: uv run --directory py liccheck -s pyproject.toml
+
+      - name: Run security scan (bandit)
+        run: ./py/bin/run_python_security_checks
+
+      - name: Check for hardcoded secrets
+        run: |
+          cd py
+          # Check for common API key patterns
+          if grep -rE "(sk-[a-zA-Z0-9]{20,}|AIza[a-zA-Z0-9_-]{35}|AKIA[0-9A-Z]{16})" \
+              packages/ plugins/ --include="*.py" | grep -vE "test|mock|fake|example|#"; then
+            echo "Error: Potential hardcoded secrets found"
+            exit 1
+          fi
+          echo "No hardcoded secrets detected"
+
+  # =============================================================================
+  # Consistency checks (package metadata, workspace, naming)
+  # =============================================================================
+  consistency-check:
+    name: Consistency Check
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd py
+          uv sync --group lint
+
+      - name: Run consistency checks
+        run: ./py/bin/check_consistency
+
+  # =============================================================================
+  # Unit tests across multiple Python versions
+  # =============================================================================
+  tests:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: [lint-and-format]  # Don't waste CI time if lint fails
     strategy:
       matrix:
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-        test-type:
-          - "serial"
-          - "tox"
-          - "nox"
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
       fail-fast: false
     steps:
       - uses: actions/checkout@v5
@@ -138,41 +203,34 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev cmake curl ripgrep libjpeg-dev zlib1g-dev
+          sudo apt-get install -y build-essential libffi-dev cmake libjpeg-dev zlib1g-dev
 
-      - name: Install uv and setup Python version
+      - name: Install uv and setup Python
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           cd py
-          uv pip install -e .[dev,test,docs]
+          uv sync
 
       - name: Generate schema typing
         run: ./py/bin/generate_schema_typing --ci
 
-      - name: Run serial tests
-        if: matrix.test-type == 'serial'
-        run: uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
-
-      - name: Run tox tests
-        if: matrix.test-type == 'tox'
+      - name: Run tests
         run: |
-          clean_version=$(echo "${{ matrix.python-version }}" | tr -d '.')
-          uv run --directory py tox -e "py$clean_version"
+          uv run --python ${{ matrix.python-version }} --active --isolated --directory py \
+            pytest -xvs --log-level=DEBUG .
 
-      - name: Run nox tests
-        if: matrix.test-type == 'nox'
-        run: |
-          uv run --directory py nox -s "tests-${{ matrix.python-version }}"
-
-  python-build:
+  # =============================================================================
+  # Build verification (runs after tests pass)
+  # =============================================================================
+  build:
     name: Build Distributions
     runs-on: ubuntu-latest
-    needs: [python-checks, python-tests]
+    needs: [lint-and-format, type-check, security-and-compliance, consistency-check, tests]
     steps:
       - uses: actions/checkout@v5
 
@@ -182,5 +240,33 @@ jobs:
           enable-cache: true
           python-version: "3.12"
 
-      - name: Build distributions
+      - name: Build and verify distributions
         run: ./py/bin/build_dists
+
+      - name: Verify wheel contents
+        run: |
+          cd py
+          for wheel in dist/*.whl; do
+            if [[ -f "$wheel" ]]; then
+              wheel_name=$(basename "$wheel" | sed 's/-[0-9].*//')
+              # Only check publishable packages
+              if [[ "$wheel_name" == "genkit" ]] || [[ "$wheel_name" == genkit_plugin_* ]]; then
+                echo "Checking $wheel_name..."
+                # Check for py.typed
+                if ! unzip -l "$wheel" 2>/dev/null | grep -qE "py\.typed$"; then
+                  echo "Warning: $wheel_name missing py.typed"
+                fi
+                # Check for LICENSE
+                if ! unzip -l "$wheel" 2>/dev/null | grep -qE "(LICENSE|licenses/LICENSE)"; then
+                  echo "Warning: $wheel_name missing LICENSE"
+                fi
+              fi
+            fi
+          done
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: py/dist/
+          retention-days: 7

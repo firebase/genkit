@@ -42,6 +42,8 @@ cd "$PY_DIR"
 # Parse arguments
 VERBOSE=false
 FIX_MODE=false
+CI_MODE=false
+SKIP_TESTS=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -v|--verbose)
@@ -52,12 +54,22 @@ while [[ $# -gt 0 ]]; do
       FIX_MODE=true
       shift
       ;;
+    --ci)
+      CI_MODE=true
+      shift
+      ;;
+    --skip-tests)
+      SKIP_TESTS=true
+      shift
+      ;;
     -h|--help)
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  -v, --verbose    Show detailed output"
       echo "  --fix            Attempt to fix issues automatically"
+      echo "  --ci             CI mode (optimized for CI pipelines)"
+      echo "  --skip-tests     Skip running unit tests (use when tests run separately)"
       echo "  -h, --help       Show this help message"
       exit 0
       ;;
@@ -373,12 +385,16 @@ echo ""
 # =============================================================================
 echo -e "${BLUE}━━━ Section 4: Tests ━━━${NC}"
 
-echo -e "\n${CYAN}Running unit tests...${NC}"
-if uv run pytest . -x --tb=no -q > /dev/null 2>&1; then
-  echo -e "  ${GREEN}✓${NC} All tests passed"
+if $SKIP_TESTS; then
+  echo -e "\n${YELLOW}Skipping unit tests (--skip-tests flag set)${NC}"
 else
-  echo -e "  ${RED}ERROR${NC}: Some tests failed. Run 'uv run pytest .' for details."
-  ERRORS=$((ERRORS + 1))
+  echo -e "\n${CYAN}Running unit tests...${NC}"
+  if uv run pytest . -x --tb=no -q > /dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${NC} All tests passed"
+  else
+    echo -e "  ${RED}ERROR${NC}: Some tests failed. Run 'uv run pytest .' for details."
+    ERRORS=$((ERRORS + 1))
+  fi
 fi
 
 echo ""
