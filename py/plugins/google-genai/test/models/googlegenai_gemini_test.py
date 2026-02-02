@@ -17,10 +17,9 @@
 
 """Tests for the Gemini model implementation."""
 
+import base64
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import httpx
 
 if sys.version_info < (3, 11):
     from strenum import StrEnum
@@ -210,10 +209,12 @@ async def test_generate_media_response(mocker: MockerFixture, version: str) -> N
 
     assert content.root.media.content_type == response_mimetype
 
-    # Use httpx async client to avoid blocking the event loop
-    async with httpx.AsyncClient() as client:
-        http_response = await client.get(content.root.media.url)
-        assert http_response.content == response_byte_string
+    # Verify the data URL contains the correct base64-encoded content
+    # Data URLs have format: data:<mimetype>;base64,<data>
+    data_url = content.root.media.url
+    assert data_url.startswith(f'data:{response_mimetype};base64,')
+    encoded_data = data_url.split(',', 1)[1]
+    assert base64.b64decode(encoded_data) == response_byte_string
 
 
 def test_convert_schema_property(mocker: MockerFixture) -> None:
