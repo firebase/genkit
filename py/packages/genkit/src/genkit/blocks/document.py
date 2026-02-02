@@ -234,11 +234,11 @@ def check_unique_documents(documents: list[Document]) -> bool:
     seen = set()
     for doc in documents:
         if doc.model_dump_json() in seen:
-            print(
-                """
-                Warning: embedding documents are not unique.
-                Are you missing embed metadata?
-                """
+            import warnings
+
+            warnings.warn(
+                'Embedding documents are not unique. Are you missing embed metadata?',
+                stacklevel=2,
             )
             return False
         seen.add(doc.model_dump_json())

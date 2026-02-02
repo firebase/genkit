@@ -1117,19 +1117,13 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         if resume_opts:
             respond = resume_opts.get('respond')
             if respond:
-                if isinstance(respond, list):
-                    resume = Resume(respond=respond)
-                else:
-                    resume = Resume(respond=[respond])
+                resume = Resume(respond=respond) if isinstance(respond, list) else Resume(respond=[respond])
 
         # Merge docs: opts.docs extends prompt docs
         merged_docs = await render_docs(render_input, prompt_options, context)
         opts_docs = effective_opts.get('docs')
         if opts_docs:
-            if merged_docs:
-                merged_docs = [*merged_docs, *opts_docs]
-            else:
-                merged_docs = list(opts_docs)
+            merged_docs = [*merged_docs, *opts_docs] if merged_docs else list(opts_docs)
 
         return GenerateActionOptions(
             model=model,
@@ -1510,10 +1504,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     # If is schema is set but format is not explicitly set, default to
     # `json` format.
-    if options.output_schema and not options.output_format:
-        output_format = 'json'
-    else:
-        output_format = options.output_format
+    output_format = 'json' if options.output_schema and not options.output_format else options.output_format
 
     output = GenerateActionOutputConfig()
     if output_format:
@@ -1997,10 +1988,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     base_name = filename.removesuffix('.prompt')
 
-    if prefix:
-        name = f'{prefix}{base_name}'
-    else:
-        name = base_name
+    name = f'{prefix}{base_name}' if prefix else base_name
     variant: str | None = None
 
     # Extract variant (only takes parts[1], not all remaining parts)
@@ -2019,7 +2007,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         file_path = path / filename
 
     # Read the prompt file
-    with open(file_path, encoding='utf-8') as f:
+    with Path(file_path).open(encoding='utf-8') as f:
         source = f.read()
 
     # Parse the prompt
@@ -2030,7 +2018,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Create a lazy-loaded prompt definition
     # The prompt will only be fully loaded when first accessed
-    async def load_prompt_metadata() -> dict[str, Any]:  # noqa: ANN401
+    async def load_prompt_metadata() -> dict[str, Any]:
         """Lazy loader for prompt metadata."""
         prompt_metadata = await registry.dotprompt.render_metadata(parsed_prompt)
 
@@ -2253,7 +2241,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                 if entry.name.startswith('_'):
                     # This is a partial
                     partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-                    with open(entry.path, encoding='utf-8') as f:
+                    with Path(entry.path).open(encoding='utf-8') as f:
                         source = f.read()
 
                     # Strip frontmatter if present

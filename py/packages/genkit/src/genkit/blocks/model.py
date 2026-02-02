@@ -523,9 +523,6 @@ def model_ref(
         A ModelReference instance.
     """
     # Logic: if (options.namespace && !name.startsWith(options.namespace + '/'))
-    if namespace and not name.startswith(f'{namespace}/'):
-        final_name = f'{namespace}/{name}'
-    else:
-        final_name = name
+    final_name = f'{namespace}/{name}' if namespace and not name.startswith(f'{namespace}/') else name
 
     return ModelReference(name=final_name, info=info, version=version, config=config)

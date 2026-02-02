@@ -33,7 +33,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import Any, TypeVar, cast, overload  # noqa: F401
+from typing import Any, TypeVar, cast, overload
 
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
@@ -676,10 +676,7 @@ class Genkit(GenkitBase):
         if content is None:
             raise ValueError('Content must be specified for embedding.')
 
-        if isinstance(content, str):
-            documents = [Document.from_text(content, metadata)]
-        else:
-            documents = [content]
+        documents = [Document.from_text(content, metadata)] if isinstance(content, str) else [content]
 
         # Document subclasses DocumentData, so this is type-safe at runtime.
         # list is invariant so list[Document] isn't assignable to list[DocumentData]
