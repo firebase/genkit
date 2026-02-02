@@ -158,7 +158,6 @@ async def main() -> None:
     # In Dev mode (genkit start), we must skip the blocking input() loop
     # so the reflection server can handle requests (like play_trivia)
     if os.environ.get('GENKIT_ENV') == 'dev':
-        print('Running in dev mode. Use the Dev UI to test the flow.')
         return
 
     response = await ai.generate(
