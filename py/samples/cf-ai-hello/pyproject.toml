@@ -19,7 +19,7 @@ dependencies    = ["genkit", "genkit-plugin-cf-ai", "rich>=13.0.0"]
 description     = "CF AI Hello World Sample for Genkit (Cloudflare Workers AI)"
 name            = "cf-ai-hello"
 readme          = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 version         = "0.1.0"
 
 [tool.uv.sources]

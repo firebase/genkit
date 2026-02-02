@@ -224,8 +224,10 @@ async def chat_flow() -> str:
 
     # Second turn - Ask question requiring context from first turn
     response2 = await ai.generate(
-        messages=history
-        + [Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))])],
+        messages=[
+            *history,
+            Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))]),
+        ],
         system='You are a helpful travel assistant.',
     )
     history.append(Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))]))
@@ -235,12 +237,12 @@ async def chat_flow() -> str:
 
     # Third turn - Ask question requiring context from both previous turns
     response3 = await ai.generate(
-        messages=history
-        + [
+        messages=[
+            *history,
             Message(
                 role=Role.USER,
                 content=[Part(root=TextPart(text='Based on our conversation, suggest one restaurant I should visit.'))],
-            )
+            ),
         ],
         system='You are a helpful travel assistant.',
     )

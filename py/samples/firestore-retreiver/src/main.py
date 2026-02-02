@@ -152,17 +152,13 @@ async def index_documents() -> None:
 
         doc_ref = firestore_client.collection(collection_name).document(doc_id)
         try:
-            result = doc_ref.set({
+            doc_ref.set({
                 'text': film_text,
                 'embedding': Vector(embedding),
                 'metadata': f'metadata for doc {i + 1}',
             })
-            print(f'Indexed document {i + 1} with text: {film_text} (WriteResult: {result})')
-        except Exception as e:
-            print(f'Failed to index document {i + 1}: {e}')
+        except Exception:
             return
-
-    print('10 film documents indexed successfully')
 
 
 @ai.flow()
@@ -182,7 +178,6 @@ async def main() -> None:
     Genkit framework.
     """
     await index_documents()
-    print(await retreive_documents())
 
 
 if __name__ == '__main__':

@@ -28,11 +28,11 @@ from .model_info import (
 )
 
 __all__ = [
-    'OpenAIModel',
-    'PluginSource',
-    'SUPPORTED_OPENAI_MODELS',
     'SUPPORTED_EMBEDDING_MODELS',
     'SUPPORTED_OPENAI_COMPAT_MODELS',
+    'SUPPORTED_OPENAI_MODELS',
+    'OpenAIModel',
     'OpenAIModelHandler',
+    'PluginSource',
     'get_default_model_info',
 ]

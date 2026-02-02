@@ -368,28 +368,32 @@ class TestAddAwsTelemetry:
 
     def test_skips_in_dev_without_force(self) -> None:
         """Should skip telemetry in dev environment without force_dev_export."""
-        with mock.patch.dict(os.environ, {'AWS_REGION': 'us-west-2'}):
-            with mock.patch(
+        with (
+            mock.patch.dict(os.environ, {'AWS_REGION': 'us-west-2'}),
+            mock.patch(
                 'genkit.plugins.aws.telemetry.tracing.is_dev_environment',
                 return_value=True,
-            ):
-                with mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add:
-                    add_aws_telemetry(force_dev_export=False)
-                    mock_add.assert_not_called()
+            ),
+            mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add,
+        ):
+            add_aws_telemetry(force_dev_export=False)
+            mock_add.assert_not_called()
 
     def test_exports_in_dev_with_force(self) -> None:
         """Should export telemetry in dev environment with force_dev_export=True."""
-        with mock.patch.dict(os.environ, {'AWS_REGION': 'us-west-2'}):
-            with mock.patch(
+        with (
+            mock.patch.dict(os.environ, {'AWS_REGION': 'us-west-2'}),
+            mock.patch(
                 'genkit.plugins.aws.telemetry.tracing.is_dev_environment',
                 return_value=True,
-            ):
-                with mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add:
-                    with mock.patch('genkit.plugins.aws.telemetry.tracing.propagate'):
-                        with mock.patch('genkit.plugins.aws.telemetry.tracing.trace'):
-                            with mock.patch('genkit.plugins.aws.telemetry.tracing.structlog'):
-                                add_aws_telemetry(force_dev_export=True)
-                                mock_add.assert_called_once()
+            ),
+            mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add,
+        ):
+            with mock.patch('genkit.plugins.aws.telemetry.tracing.propagate'):
+                with mock.patch('genkit.plugins.aws.telemetry.tracing.trace'):
+                    with mock.patch('genkit.plugins.aws.telemetry.tracing.structlog'):
+                        add_aws_telemetry(force_dev_export=True)
+                        mock_add.assert_called_once()
 
     def test_disable_traces(self) -> None:
         """Should not add exporter when disable_traces=True."""

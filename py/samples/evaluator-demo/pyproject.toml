@@ -28,7 +28,7 @@ dependencies = [
   "uvloop>=0.22.1",
 ]
 description = "Genkit Python Evaluation Demo"
-name = "eval-demo"
+name = "evaluator-demo"
 requires-python = ">=3.10"
 version = "0.0.1"
 

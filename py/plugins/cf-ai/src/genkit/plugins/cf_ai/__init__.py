@@ -222,7 +222,7 @@ llama_3_3_70b = cf_name('@cf/meta/llama-3.3-70b-instruct-fp8-fast')
 llama_3_1_8b = cf_name('@cf/meta/llama-3.1-8b-instruct')
 llama_3_1_8b_fast = cf_name('@cf/meta/llama-3.1-8b-instruct-fast')
 llama_4_scout = cf_name('@cf/meta/llama-4-scout-17b-16e-instruct')
-mistral_7b = cf_name('@cf/mistral/mistral-7b-instruct-v0.2')
+mistral_7b = cf_name('@hf/mistral/mistral-7b-instruct-v0.2')
 qwen_14b = cf_name('@cf/qwen/qwen1.5-14b-chat-awq')
 
 # Embedding Models
@@ -231,25 +231,25 @@ bge_large_en = cf_name('@cf/baai/bge-large-en-v1.5')
 bge_small_en = cf_name('@cf/baai/bge-small-en-v1.5')
 
 __all__ = [
-    # Plugin
-    'CfAI',
     'CF_AI_PLUGIN_NAME',
-    # Helpers
-    'cf_name',
-    'cf_model',
-    # Config
-    'CfConfig',
     # Model registries
     'SUPPORTED_CF_MODELS',
     'SUPPORTED_EMBEDDING_MODELS',
-    # Pre-defined model references
-    'llama_3_3_70b',
-    'llama_3_1_8b',
-    'llama_3_1_8b_fast',
-    'llama_4_scout',
-    'mistral_7b',
-    'qwen_14b',
+    # Plugin
+    'CfAI',
+    # Config
+    'CfConfig',
     'bge_base_en',
     'bge_large_en',
     'bge_small_en',
+    'cf_model',
+    # Helpers
+    'cf_name',
+    'llama_3_1_8b',
+    'llama_3_1_8b_fast',
+    # Pre-defined model references
+    'llama_3_3_70b',
+    'llama_4_scout',
+    'mistral_7b',
+    'qwen_14b',
 ]

@@ -18,7 +18,7 @@
 """Base API for dev-local-vectorstore."""
 
 import json
-import os
+import pathlib
 from functools import cached_property
 
 from .constant import DbValue
@@ -43,14 +43,14 @@ class LocalVectorStoreAPI:
 
     def _load_filestore(self) -> dict[str, DbValue]:
         data: dict[str, object] = {}
-        if os.path.exists(self.index_file_name):
-            with open(self.index_file_name, encoding='utf-8') as f:
+        if pathlib.Path(self.index_file_name).exists():
+            with pathlib.Path(self.index_file_name).open(encoding='utf-8') as f:
                 data = json.load(f)
         return self._deserialize_data(data)
 
     def _dump_filestore(self, data: dict[str, DbValue]) -> None:
         serialized_data = self._serialize_data(data)
-        with open(self.index_file_name, 'w', encoding='utf-8') as f:
+        with pathlib.Path(self.index_file_name).open('w', encoding='utf-8') as f:
             json.dump(serialized_data, f, indent=2)
 
     @staticmethod

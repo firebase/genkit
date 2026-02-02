@@ -152,4 +152,4 @@ def package_name() -> str:
     return 'genkit.plugins.google_cloud'
 
 
-__all__ = ['package_name', 'add_gcp_telemetry']
+__all__ = ['add_gcp_telemetry', 'package_name']

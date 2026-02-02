@@ -19,6 +19,7 @@
 
 import json
 import os
+import pathlib
 
 from menu_ai import ai
 from menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
@@ -53,8 +54,8 @@ async def s04_index_menu_items_flow(
     """
     # If empty list provided (e.g., from Dev UI default), load from example file
     if not menu_items:
-        example_file = os.path.join(os.path.dirname(__file__), 'example.indexMenuItems.json')
-        with open(example_file) as f:
+        example_file = os.path.join(pathlib.Path(__file__).parent, 'example.indexMenuItems.json')
+        with pathlib.Path(example_file).open() as f:
             menu_data = json.load(f)
         menu_items = [MenuItemSchema(**item) for item in menu_data]
 

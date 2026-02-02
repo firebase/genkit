@@ -17,6 +17,7 @@
 """xAI model implementations."""
 
 import asyncio
+import contextlib
 import json
 from typing import Any, cast
 
@@ -125,7 +126,7 @@ class XAIModel:
             chat = self.client.chat.create(**cast(dict[str, Any], params))
             return chat.sample()
 
-        response: Any = await asyncio.to_thread(_sample)  # noqa: ANN401
+        response: Any = await asyncio.to_thread(_sample)
         content = self._to_genkit_content(response)
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -211,10 +212,8 @@ class XAIModel:
                             if tool_call.function:
                                 tool_input = tool_call.function.arguments
                                 if isinstance(tool_input, str):
-                                    try:
+                                    with contextlib.suppress(json.JSONDecodeError, TypeError):
                                         tool_input = json.loads(tool_input)
-                                    except (json.JSONDecodeError, TypeError):
-                                        pass
 
                                 accumulated_content.append(
                                     Part(
@@ -307,10 +306,8 @@ class XAIModel:
             for tool_call in response.tool_calls:
                 tool_input = tool_call.function.arguments
                 if isinstance(tool_input, str):
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError, TypeError):
                         tool_input = json.loads(tool_input)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
 
                 content.append(
                     Part(

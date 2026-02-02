@@ -162,4 +162,4 @@ def package_name() -> str:
     return 'genkit.plugins.aws'
 
 
-__all__ = ['package_name', 'add_aws_telemetry']
+__all__ = ['add_aws_telemetry', 'package_name']

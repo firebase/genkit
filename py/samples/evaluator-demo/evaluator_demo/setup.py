@@ -15,6 +15,7 @@
 """Setup for evaluator demo."""
 
 import os
+import pathlib
 
 from pydantic import BaseModel
 
@@ -22,7 +23,7 @@ from evaluator_demo.genkit_demo import ai
 from evaluator_demo.pdf_rag import index_pdf
 
 # Default document to index
-CAT_FACTS = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs', 'cat-handbook.pdf'))]
+CAT_FACTS = [str(pathlib.Path(os.path.join(pathlib.Path(__file__).parent, '..', 'docs', 'cat-handbook.pdf')).resolve())]
 
 
 class SetupInput(BaseModel):
@@ -48,5 +49,4 @@ async def setup(options: SetupInput | None = None) -> None:
         docs_to_index = options.documents
 
     for doc in docs_to_index:
-        print(f'Indexed {doc}')
         await index_pdf(doc)

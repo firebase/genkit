@@ -18,9 +18,11 @@
 """Indexer for dev-local-vectorstore."""
 
 import asyncio
+import hashlib
 import json
-from hashlib import md5
 from typing import Any
+
+import aiofiles
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
@@ -82,9 +84,10 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         await asyncio.gather(*tasks)
 
         # pyrefly: ignore[missing-attribute] - index_file_name inherited from LocalVectorStoreAPI
-        with open(self.index_file_name, 'w', encoding='utf-8') as f:
+        # Use aiofiles for async file I/O to avoid blocking the event loop
+        async with aiofiles.open(self.index_file_name, 'w', encoding='utf-8') as f:
             # pyrefly: ignore[missing-attribute] - _serialize_data inherited from LocalVectorStoreAPI
-            f.write(dump_json(self._serialize_data(data=data), indent=2))
+            await f.write(dump_json(self._serialize_data(data=data), indent=2))
 
     async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
         """Process a single document and add its embedding to the store."""
@@ -99,9 +102,10 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
     ) -> None:
         # pyrefly: ignore[missing-attribute] - _serialize_data inherited from LocalVectorStoreAPI
         data_str = json.dumps(self._serialize_data(data=data), ensure_ascii=False)
-        _idx = md5(data_str.encode('utf-8')).hexdigest()
-        if _idx not in data:
-            data[_idx] = DbValue(
+        # MD5 used for content-based ID generation, not security
+        idx = hashlib.md5(data_str.encode('utf-8'), usedforsecurity=False).hexdigest()
+        if idx not in data:
+            data[idx] = DbValue(
                 doc=doc,
                 embedding=embedding,
             )

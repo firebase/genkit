@@ -141,9 +141,9 @@ async def describe_image_with_gemini(data: str = '') -> str:
     """
     if not data:
         try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
+            current_dir = pathlib.Path(pathlib.Path(__file__).resolve()).parent
             image_path = os.path.join(current_dir, '..', 'image.jpg')
-            with open(image_path, 'rb') as image_file:
+            with pathlib.Path(image_path).open('rb') as image_file:
                 buffer = image_file.read()
                 img_base64 = base64.b64encode(buffer).decode('utf-8')
                 data = f'data:image/jpeg;base64,{img_base64}'
@@ -196,7 +196,7 @@ async def generate_images(
 def screenshot() -> dict:
     """Takes a screenshot."""
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
-    with open(room_path, 'rb') as f:
+    with pathlib.Path(room_path).open('rb') as f:
         room_b64 = base64.b64encode(f.read()).decode('utf-8')
 
     return {
@@ -223,9 +223,9 @@ async def gemini_image_editing() -> Media | None:
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
 
-    with open(plant_path, 'rb') as f:
+    with pathlib.Path(plant_path).open('rb') as f:
         plant_b64 = base64.b64encode(f.read()).decode('utf-8')
-    with open(room_path, 'rb') as f:
+    with pathlib.Path(room_path).open('rb') as f:
         room_b64 = base64.b64encode(f.read()).decode('utf-8')
 
     response = await ai.generate(
@@ -282,7 +282,7 @@ async def photo_move_veo(_: object, context: ActionRunContext | None = None) -> 
 
     encoded_image = ''
     if room_path.exists():
-        with open(room_path, 'rb') as f:
+        with pathlib.Path(room_path).open('rb') as f:
             encoded_image = base64.b64encode(f.read()).decode('utf-8')
     else:
         # Fallback dummy
@@ -351,7 +351,7 @@ async def gemini_media_resolution() -> str:
     """Media resolution."""
     # Placeholder base64 for sample
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
-    with open(plant_path, 'rb') as f:
+    with pathlib.Path(plant_path).open('rb') as f:
         plant_b64 = base64.b64encode(f.read()).decode('utf-8')
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
@@ -373,7 +373,7 @@ async def gemini_media_resolution() -> str:
 async def multimodal_input() -> str:
     """Multimodal input."""
     photo_path = pathlib.Path(__file__).parent.parent / 'photo.jpg'
-    with open(photo_path, 'rb') as f:
+    with pathlib.Path(photo_path).open('rb') as f:
         photo_b64 = base64.b64encode(f.read()).decode('utf-8')
 
     response = await ai.generate(

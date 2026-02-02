@@ -422,8 +422,8 @@ class GoogleAI(Plugin):
         elif action_type == ActionKind.BACKGROUND_MODEL:
             # For Veo models, return the start action
             prefix = GOOGLEAI_PLUGIN_NAME + '/'
-            _clean_name = name.replace(prefix, '') if name.startswith(prefix) else name
-            if is_veo_model(_clean_name):
+            clean_name = name.replace(prefix, '') if name.startswith(prefix) else name
+            if is_veo_model(clean_name):
                 bg_action = self._resolve_veo_model(name)
                 return bg_action.start_action
             return None
@@ -433,8 +433,8 @@ class GoogleAI(Plugin):
             if name.endswith('/check'):
                 model_name = name[:-6]  # Remove '/check' suffix
                 prefix = GOOGLEAI_PLUGIN_NAME + '/'
-                _clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
-                if is_veo_model(_clean_name):
+                clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
+                if is_veo_model(clean_name):
                     bg_action = self._resolve_veo_model(model_name)
                     return bg_action.check_action
             return None
@@ -451,11 +451,11 @@ class GoogleAI(Plugin):
         Returns:
             BackgroundAction for the Veo model.
         """
-        from genkit.blocks.background_model import BackgroundAction  # noqa: PLC0415
+        from genkit.blocks.background_model import BackgroundAction
 
-        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
 
-        veo = VeoModel(_clean_name, self._client)
+        veo = VeoModel(clean_name, self._client)
 
         # Create actions manually since we don't have registry access here
         start_action = Action(
@@ -463,7 +463,7 @@ class GoogleAI(Plugin):
             name=name,
             fn=veo.start,
             metadata={
-                'model': veo_model_info(_clean_name).model_dump(),
+                'model': veo_model_info(clean_name).model_dump(),
                 'type': 'background-model',
             },
         )
@@ -491,15 +491,15 @@ class GoogleAI(Plugin):
             Action object for the model.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        model_ref = google_model_info(_clean_name)
+        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        model_ref = google_model_info(clean_name)
 
-        SUPPORTED_MODELS[_clean_name] = model_ref
+        SUPPORTED_MODELS[clean_name] = model_ref
 
-        gemini_model = GeminiModel(_clean_name, self._client)
+        gemini_model = GeminiModel(clean_name, self._client)
 
         # Determine appropriate config schema based on model type
-        config_schema = get_model_config_schema(_clean_name)
+        config_schema = get_model_config_schema(clean_name)
 
         return Action(
             kind=ActionKind.MODEL,
@@ -522,10 +522,10 @@ class GoogleAI(Plugin):
             Action object for the embedder.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=_clean_name, client=self._client)
+        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        embedder = Embedder(version=clean_name, client=self._client)
 
-        embedder_info = default_embedder_info(_clean_name)
+        embedder_info = default_embedder_info(clean_name)
 
         return Action(
             kind=ActionKind.EMBEDDER,
@@ -753,23 +753,23 @@ class VertexAI(Plugin):
             Action object for the model.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
         # Determine model type and create appropriate model instance
-        if _clean_name.lower().startswith('image'):
-            model_ref = vertexai_image_model_info(_clean_name)
-            model = ImagenModel(_clean_name, self._client)
-            IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
+        if clean_name.lower().startswith('image'):
+            model_ref = vertexai_image_model_info(clean_name)
+            model = ImagenModel(clean_name, self._client)
+            IMAGE_SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = ImagenConfigSchema
-        elif is_veo_model(_clean_name):
-            model_ref = veo_model_info(_clean_name)
-            model = VeoModel(_clean_name, self._client)
+        elif is_veo_model(clean_name):
+            model_ref = veo_model_info(clean_name)
+            model = VeoModel(clean_name, self._client)
             config_schema = VeoConfigSchema
         else:
-            model_ref = google_model_info(_clean_name)
-            model = GeminiModel(_clean_name, self._client)
-            SUPPORTED_MODELS[_clean_name] = model_ref
-            config_schema = get_model_config_schema(_clean_name)
+            model_ref = google_model_info(clean_name)
+            model = GeminiModel(clean_name, self._client)
+            SUPPORTED_MODELS[clean_name] = model_ref
+            config_schema = get_model_config_schema(clean_name)
 
         return Action(
             kind=ActionKind.MODEL,
@@ -792,10 +792,10 @@ class VertexAI(Plugin):
             Action object for the embedder.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=_clean_name, client=self._client)
+        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+        embedder = Embedder(version=clean_name, client=self._client)
 
-        embedder_info = default_embedder_info(_clean_name)
+        embedder_info = default_embedder_info(clean_name)
 
         return Action(
             kind=ActionKind.EMBEDDER,

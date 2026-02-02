@@ -24,8 +24,8 @@ from .model_info import (
 )
 
 __all__ = [
-    'BedrockModel',
     'SUPPORTED_BEDROCK_MODELS',
     'SUPPORTED_EMBEDDING_MODELS',
+    'BedrockModel',
     'get_model_info',
 ]

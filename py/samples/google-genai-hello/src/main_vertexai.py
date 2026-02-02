@@ -179,9 +179,9 @@ async def gemini_image_editing() -> Media | None:
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
 
-    with open(plant_path, 'rb') as f:
+    with pathlib.Path(plant_path).open('rb') as f:
         plant_b64 = base64.b64encode(f.read()).decode('utf-8')
-    with open(room_path, 'rb') as f:
+    with pathlib.Path(room_path).open('rb') as f:
         room_b64 = base64.b64encode(f.read()).decode('utf-8')
 
     response = await ai.generate(

@@ -101,18 +101,15 @@ async def main() -> None:
     # VertexAI API.
     result = await draw_image_with_imagen()
     if not result.message or not result.message.content:
-        print('No image generated.')
         return
     # pyrefly: ignore[missing-attribute] - MediaModel has url attribute
     media = result.message.content[0].root.media
     media_url = media.url if media and hasattr(media, 'url') else ''
     if not media_url:
-        print('No media URL found in response.')
         return
     # Extract base64 data after the comma in "data:image/png;base64,..."
     base64_data = media_url.split(',', 1)[1] if ',' in media_url else ''
     if not base64_data:
-        print('Invalid media URL.')
         return
     decoded_image = BytesIO(base64.b64decode(base64_data))
     image = Image.open(decoded_image)

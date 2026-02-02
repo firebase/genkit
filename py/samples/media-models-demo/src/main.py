@@ -128,15 +128,11 @@ if HAS_GEMINI_API_KEY:
     from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(plugins=[GoogleAI()])
-    print('[Media Demo] Google AI plugin loaded (GEMINI_API_KEY found)')
 else:
     ai = Genkit()
-    print('[Media Demo] No GEMINI_API_KEY - using simulated models')
-    print('[Media Demo] Set GEMINI_API_KEY to use real Google AI models')
 
 if HAS_GCP_PROJECT:
-    print(f'[Media Demo] GCP Project: {os.getenv("GOOGLE_CLOUD_PROJECT")}')
-    print('[Media Demo] Lyria (audio) available via Vertex AI')
+    pass
 
 
 class TtsInput(BaseModel):
@@ -243,8 +239,7 @@ async def simulated_tts_generate(
     ctx: ActionRunContext,
 ) -> GenerateResponse:
     """Simulate TTS audio generation."""
-    prompt = _extract_prompt(request)
-    print(f'[Simulated TTS] Generating speech for: "{prompt[:50]}..."')
+    _extract_prompt(request)
 
     await asyncio.sleep(1)  # Simulate processing
 
@@ -274,8 +269,7 @@ async def simulated_image_generate(
     ctx: ActionRunContext,
 ) -> GenerateResponse:
     """Simulate image generation."""
-    prompt = _extract_prompt(request)
-    print(f'[Simulated Image] Generating image for: "{prompt[:50]}..."')
+    _extract_prompt(request)
 
     await asyncio.sleep(2)  # Simulate processing
 
@@ -306,8 +300,7 @@ async def simulated_lyria_generate(
     ctx: ActionRunContext,
 ) -> GenerateResponse:
     """Simulate audio generation."""
-    prompt = _extract_prompt(request)
-    print(f'[Simulated Lyria] Generating audio for: "{prompt[:50]}..."')
+    _extract_prompt(request)
 
     await asyncio.sleep(3)  # Simulate processing
 
@@ -344,9 +337,6 @@ async def simulated_veo_start(
         'progress': 0,
     }
 
-    print(f'[Simulated Veo] Started operation: {op_id}')
-    print(f'[Simulated Veo] Prompt: "{prompt[:50]}..."')
-
     return Operation(id=op_id, done=False, metadata={'progress': 0})
 
 
@@ -358,8 +348,6 @@ async def simulated_veo_check(operation: Operation) -> Operation:
 
     elapsed = time.time() - op_data['start_time']
     progress = min(100, int(elapsed * 10))  # 10 second generation
-
-    print(f'[Simulated Veo] Progress: {progress}%')
 
     if progress >= 100:
         video_url = f'https://storage.example.com/{operation.id.split("/")[-1]}.mp4'
@@ -523,13 +511,6 @@ async def tts_speech_generator_flow(input: TtsInput) -> dict[str, Any]:
     text = input.text
     voice = input.voice
     model = get_tts_model()
-    print(f'\n{"=" * 60}')
-    print('TTS Speech Generation')
-    print(f'{"=" * 60}')
-    print(f'Model: {model}')
-    print(f'Voice: {voice}')
-    print(f'Text: {text[:80]}{"..." if len(text) > 80 else ""}')
-    print()
 
     config: dict[str, Any] = {}
     if HAS_GEMINI_API_KEY:
@@ -562,8 +543,6 @@ async def tts_speech_generator_flow(input: TtsInput) -> dict[str, Any]:
             if hasattr(part.root, 'media') and part.root.media:
                 audio_url = getattr(part.root.media, 'url', None)
                 break
-
-    print(f'Audio generated: {bool(audio_url)}')
 
     return {
         'model': model,
@@ -599,13 +578,6 @@ async def gemini_image_generator_flow(input: ImageInput) -> dict[str, Any]:
     prompt = input.prompt
     aspect_ratio = input.aspect_ratio
     model = get_image_model()
-    print(f'\n{"=" * 60}')
-    print('Gemini Image Generation')
-    print(f'{"=" * 60}')
-    print(f'Model: {model}')
-    print(f'Aspect Ratio: {aspect_ratio}')
-    print(f'Prompt: {prompt[:80]}{"..." if len(prompt) > 80 else ""}')
-    print()
 
     config: dict[str, Any] = {}
     if HAS_GEMINI_API_KEY:
@@ -639,8 +611,6 @@ async def gemini_image_generator_flow(input: ImageInput) -> dict[str, Any]:
             if hasattr(part.root, 'media') and part.root.media:
                 image_url = getattr(part.root.media, 'url', None)
                 break
-
-    print(f'Image generated: {bool(image_url)}')
 
     return {
         'model': model,
@@ -678,14 +648,8 @@ async def lyria_audio_generator_flow(input: AudioInput) -> dict[str, Any]:
     prompt = input.prompt
     negative_prompt = input.negative_prompt
     model = get_lyria_model()
-    print(f'\n{"=" * 60}')
-    print('Lyria Audio Generation')
-    print(f'{"=" * 60}')
-    print(f'Model: {model}')
-    print(f'Prompt: {prompt[:80]}{"..." if len(prompt) > 80 else ""}')
     if negative_prompt:
-        print(f'Negative Prompt: {negative_prompt[:80]}{"..." if len(negative_prompt) > 80 else ""}')
-    print()
+        pass
 
     config: dict[str, Any] = {}
     if negative_prompt:
@@ -717,8 +681,6 @@ async def lyria_audio_generator_flow(input: AudioInput) -> dict[str, Any]:
             if hasattr(part.root, 'media') and part.root.media:
                 audio_url = getattr(part.root.media, 'url', None)
                 break
-
-    print(f'Audio generated: {bool(audio_url)}')
 
     return {
         'model': model,
@@ -761,14 +723,6 @@ async def veo_video_generator_flow(input: VideoInput) -> dict[str, Any]:
     duration_seconds = input.duration_seconds
 
     model = get_veo_model()
-    print(f'\n{"=" * 60}')
-    print('Veo Video Generation (Background Model)')
-    print(f'{"=" * 60}')
-    print(f'Model: {model}')
-    print(f'Aspect Ratio: {aspect_ratio}')
-    print(f'Duration: {duration_seconds}s')
-    print(f'Prompt: {prompt[:80]}{"..." if len(prompt) > 80 else ""}')
-    print()
 
     # Get the background model using its action key
     action_key = f'/background-model/{model}'
@@ -790,9 +744,6 @@ async def veo_video_generator_flow(input: VideoInput) -> dict[str, Any]:
         )
     )
 
-    print(f'Operation started: {operation.id}')
-    print('Polling for completion...')
-
     # Poll until complete (with timeout)
     max_wait = 300  # 5 minutes
     start_time = time.time()
@@ -810,10 +761,7 @@ async def veo_video_generator_flow(input: VideoInput) -> dict[str, Any]:
         poll_count += 1
         operation = await video_model.check(operation)
 
-        progress = operation.metadata.get('progress', 0) if operation.metadata else 0
-        print(f'  Poll {poll_count}: {progress}% complete')
-
-    print()
+        operation.metadata.get('progress', 0) if operation.metadata else 0
 
     # Extract video URL
     video_url = None
@@ -832,9 +780,6 @@ async def veo_video_generator_flow(input: VideoInput) -> dict[str, Any]:
             'status': 'error',
             'error': operation.error,
         }
-
-    print('Video generation complete!')
-    print(f'Video URL: {video_url}')
 
     return {
         'operation_id': operation.id,

@@ -14,7 +14,7 @@
 
 """PDF RAG sample flows."""
 
-import os
+import pathlib
 from typing import Annotated
 
 from pydantic import Field
@@ -152,15 +152,15 @@ async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf')
     """
     if not file_path:
         file_path = 'samples/evaluator-demo/docs/cat-wiki.pdf'
-    file_path = os.path.abspath(file_path)
+    resolved_path = pathlib.Path(file_path).resolve()
 
     # Extract text from PDF
-    pdf_txt = extract_text(file_path)
+    pdf_txt = extract_text(str(resolved_path))
 
     # Chunk text
     chunks = chunk_text(pdf_txt, CHUNK_SIZE, OVERLAP)
 
-    documents = [Document.from_text(text, metadata={'filePath': file_path}) for text in chunks]
+    documents = [Document.from_text(text, metadata={'filePath': str(resolved_path)}) for text in chunks]
 
     await ai.index(
         indexer=pdf_chat_indexer,

@@ -95,6 +95,7 @@ See README.md for testing instructions.
 
 import asyncio
 import os
+import pathlib
 
 import httpx
 from pydantic import BaseModel, Field
@@ -150,13 +151,11 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             res = await client.get(_input.text_file_path)
             res.raise_for_status()
             content_part = Part(root=TextPart(text=res.text))
-            print(f'Fetched content from URL. Length: {len(res.text)} chars')
     else:
         # Fallback for local text files
-        with open(_input.text_file_path, encoding='utf-8') as text_file:
+        with pathlib.Path(_input.text_file_path).open(encoding='utf-8') as text_file:
             content_part = Part(root=TextPart(text=text_file.read()))
 
-    print('Generating first response (with cache)...')
     llm_response = await ai.generate(
         messages=[
             Message(
@@ -183,13 +182,9 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
         prompt=_input.query,
         return_tool_requests=False,
     )
-    print('First response received.')
 
     messages_history = llm_response.messages
 
-    print(f'First turn response: {llm_response.text}')
-
-    print('Generating second response (pirate)...')
     llm_response2 = await ai.generate(
         messages=messages_history,
         prompt=(
@@ -208,7 +203,6 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             stop_sequences=['END'],
         ),
     )
-    print('Second response received.')
 
     separator = '-' * 80
     return (

@@ -19,6 +19,7 @@
 
 import base64
 import os
+import pathlib
 
 from constants import DEFAULT_MENU_QUESTION
 from menu_ai import ai
@@ -102,8 +103,8 @@ async def s05_vision_menu_question_flow(
 
 def inline_data_url(image_filename: str, content_type: str) -> str:
     """Create a data URL for an inline image."""
-    file_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', image_filename)
-    with open(file_path, 'rb') as image_file:
+    file_path = os.path.join(pathlib.Path(__file__).parent, '..', '..', 'data', image_filename)
+    with pathlib.Path(file_path).open('rb') as image_file:
         image_data = image_file.read()
     base64_data = base64.b64encode(image_data).decode('utf-8')
     return f'data:{content_type};base64,{base64_data}'

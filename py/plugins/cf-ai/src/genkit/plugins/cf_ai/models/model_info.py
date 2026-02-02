@@ -132,15 +132,17 @@ SUPPORTED_CF_MODELS: dict[str, ModelInfo] = {
         versions=['@cf/qwen/qwen2.5-coder-32b-instruct'],
     ),
     # Google Gemma Models
+    # Note: Gemma 7B uses @hf/ prefix (Hugging Face hosted),
+    # while Gemma 3 uses @cf/ prefix
     '@cf/google/gemma-3-12b-it': ModelInfo(
         label='Google - Gemma 3 12B Instruct (Multimodal)',
         supports=_MULTIMODAL_SUPPORTS,  # Gemma 3 supports images
         versions=['@cf/google/gemma-3-12b-it'],
     ),
-    '@cf/google/gemma-7b-it': ModelInfo(
+    '@hf/google/gemma-7b-it': ModelInfo(
         label='Google - Gemma 7B Instruct',
         supports=_DEFAULT_TEXT_SUPPORTS,
-        versions=['@cf/google/gemma-7b-it'],
+        versions=['@hf/google/gemma-7b-it'],
     ),
     # Microsoft Phi Models
     '@cf/microsoft/phi-2': ModelInfo(

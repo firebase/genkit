@@ -675,9 +675,8 @@ class TimeAdjustedSpan(RedactedSpan):
         # X-Ray requires end_time > start_time.
         # If the span is unfinished (end_time is None) or has zero duration,
         # we provide a minimum 1 microsecond duration.
-        if start is not None:
-            if end is None or end <= start:
-                return start + 1000  # 1 microsecond in nanoseconds
+        if start is not None and (end is None or end <= start):
+            return start + 1000  # 1 microsecond in nanoseconds
 
         return end
 

@@ -224,7 +224,7 @@ def _from_veo_operation(api_op: dict[str, Any]) -> Operation:
     )
 
     # Handle error
-    if 'error' in api_op and api_op['error']:
+    if api_op.get('error'):
         op.error = Error(message=api_op['error'].get('message', 'Unknown error'))
         return op
 

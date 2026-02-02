@@ -21,12 +21,13 @@ Tests tools, prompts, and resources exposed via MCP server.
 """
 
 import os
+import pathlib
 import sys
 import unittest
 from typing import Any, cast
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+sys.path.insert(0, str(pathlib.Path(os.path.join(pathlib.Path(__file__).parent, '../src')).resolve()))
 
 
 import pytest
