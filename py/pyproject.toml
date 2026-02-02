@@ -273,9 +273,6 @@ ignore = [
 "samples/*/*.py"     = ["E402", "ASYNC"]
 "samples/*/**/*.py"  = ["E402", "ASYNC"]
 "samples/*/src/*.py" = ["E402", "ASYNC"]
-# Core framework: temporarily ignore security/async rules until core team approves fixes
-# These will be addressed in a separate PR with core framework changes
-"packages/genkit/**/*.py" = ["S110", "S112", "S310", "T201"]
 
 
 [tool.ruff.lint.isort]

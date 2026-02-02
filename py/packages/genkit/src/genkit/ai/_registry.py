@@ -901,10 +901,10 @@ class GenkitRegistry:
                                 span.set_output(test_case_output)
                                 eval_responses.append(test_case_output)
                             except Exception as e:
-                                logger.debug(f'eval_stepper_fn error: {str(e)}')
+                                logger.debug(f'eval_stepper_fn error: {e!s}')
                                 logger.debug(traceback.format_exc())
                                 evaluation = Score(
-                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{e!s}',
                                     status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                                 )
                                 eval_responses.append(
@@ -925,10 +925,10 @@ class GenkitRegistry:
                             test_case_output = await fn(datapoint, req.options)
                             eval_responses.append(test_case_output)
                         except Exception as e:
-                            logger.debug(f'eval_stepper_fn error: {str(e)}')
+                            logger.debug(f'eval_stepper_fn error: {e!s}')
                             logger.debug(traceback.format_exc())
                             evaluation = Score(
-                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{e!s}',
                                 status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                             )
                             eval_responses.append(
@@ -937,7 +937,7 @@ class GenkitRegistry:
                                     evaluation=evaluation,
                                 )
                             )
-                except Exception:
+                except Exception:  # noqa: S112 - intentionally continue processing other datapoints
                     # Continue to process other points
                     continue
             return EvalResponse(eval_responses)
@@ -1559,7 +1559,7 @@ class GenkitRegistry:
 
 
 class FlowWrapper(Generic[P, CallT, T, ChunkT]):
-    """A wapper for flow functions to add `stream` method.
+    """A wrapper for flow functions to add `stream` method.
 
     This class wraps a flow function and provides a `stream` method for
     asynchronous execution.

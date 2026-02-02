@@ -22,6 +22,7 @@ Genkit.
 
 from __future__ import annotations
 
+import warnings
 from copy import deepcopy
 from typing import Any
 
@@ -234,11 +235,9 @@ def check_unique_documents(documents: list[Document]) -> bool:
     seen = set()
     for doc in documents:
         if doc.model_dump_json() in seen:
-            print(
-                """
-                Warning: embedding documents are not unique.
-                Are you missing embed metadata?
-                """
+            warnings.warn(
+                'Embedding documents are not unique. Are you missing embed metadata?',
+                stacklevel=2,
             )
             return False
         seen.add(doc.model_dump_json())
