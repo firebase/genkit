@@ -1,0 +1,705 @@
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatRippleModule } from '@angular/material/core';
+import { ThemeService } from './core/services/theme.service';
+import { AuthService } from './core/services/auth.service';
+import { ChatService } from './core/services/chat.service';
+
+@Component({
+  selector: 'app-root',
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    MatSidenavModule,
+    MatToolbarModule,
+    MatIconModule,
+    MatButtonModule,
+    MatListModule,
+    MatTooltipModule,
+    MatMenuModule,
+    MatDividerModule,
+    MatRippleModule,
+  ],
+  template: `
+    <mat-sidenav-container class="app-container">
+      <!-- Sidebar -->
+      <mat-sidenav #sidenav mode="side" opened [class.collapsed]="!sidenavOpened()">
+        <div class="sidenav-content">
+          <!-- Logo & Brand -->
+          <div class="sidenav-header">
+            <button mat-icon-button (click)="toggleSidenav()" class="menu-btn" [matTooltip]="sidenavOpened() ? 'Collapse menu' : 'Expand menu'">
+              <mat-icon>menu</mat-icon>
+            </button>
+            @if (sidenavOpened()) {
+              <a routerLink="/" class="logo-link">
+                <img src="genkit-logo.png" alt="Genkit" class="logo-img">
+                <span class="app-name">Genkit Chat</span>
+              </a>
+            }
+          </div>
+
+          <!-- New Chat Button -->
+          <button mat-stroked-button class="new-chat-btn" routerLink="/" (click)="startNewChat()" matRipple [matTooltip]="sidenavOpened() ? '' : 'New chat'" matTooltipPosition="right">
+            <mat-icon>add</mat-icon>
+            @if (sidenavOpened()) {
+              <span>New chat</span>
+            }
+          </button>
+
+          <!-- Main Navigation -->
+          <mat-nav-list class="main-nav">
+            <a mat-list-item routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" [matTooltip]="sidenavOpened() ? '' : 'Chat'" matTooltipPosition="right">
+              <mat-icon matListItemIcon>chat_bubble_outline</mat-icon>
+              @if (sidenavOpened()) {
+                <span matListItemTitle>Chat</span>
+              }
+            </a>
+            <a mat-list-item routerLink="/compare" routerLinkActive="active" [matTooltip]="sidenavOpened() ? '' : 'Compare'" matTooltipPosition="right">
+              <mat-icon matListItemIcon>compare_arrows</mat-icon>
+              @if (sidenavOpened()) {
+                <span matListItemTitle>Compare</span>
+              }
+            </a>
+          </mat-nav-list>
+
+          <!-- Spacer -->
+          <div class="spacer"></div>
+
+          <!-- Footer Navigation -->
+          <mat-nav-list class="footer-nav">
+            <!-- Demo Mode Toggle -->
+            <button mat-list-item (click)="authService.toggleDemoMode()" 
+                    [matTooltip]="sidenavOpened() ? '' : (authService.demoMode() ? 'Demo mode ON' : 'Demo mode OFF')" 
+                    matTooltipPosition="right"
+                    [class.demo-active]="authService.demoMode()">
+              <mat-icon matListItemIcon>{{ authService.demoMode() ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+              @if (sidenavOpened()) {
+                <span matListItemTitle>Demo Mode</span>
+              }
+            </button>
+            <a mat-list-item routerLink="/settings" routerLinkActive="active" [matTooltip]="sidenavOpened() ? '' : 'Settings'" matTooltipPosition="right">
+              <mat-icon matListItemIcon>settings</mat-icon>
+              @if (sidenavOpened()) {
+                <span matListItemTitle>Settings</span>
+              }
+            </a>
+            <button mat-list-item [matMenuTriggerFor]="themeMenu" [matTooltip]="sidenavOpened() ? '' : themeService.getThemeLabel()" matTooltipPosition="right">
+              <mat-icon matListItemIcon>{{ themeService.getThemeIcon() }}</mat-icon>
+              @if (sidenavOpened()) {
+                <span matListItemTitle>Theme: {{ themeService.getThemeLabel() }}</span>
+              }
+            </button>
+            <mat-menu #themeMenu="matMenu">
+              <button mat-menu-item (click)="themeService.setTheme('system')">
+                <mat-icon>brightness_auto</mat-icon>
+                <span>System</span>
+              </button>
+              <button mat-menu-item (click)="themeService.setTheme('light')">
+                <mat-icon>light_mode</mat-icon>
+                <span>Light</span>
+              </button>
+              <button mat-menu-item (click)="themeService.setTheme('dark')">
+                <mat-icon>dark_mode</mat-icon>
+                <span>Dark</span>
+              </button>
+            </mat-menu>
+          </mat-nav-list>
+        </div>
+      </mat-sidenav>
+
+      <!-- Main Content Area -->
+      <mat-sidenav-content [class.sidebar-collapsed]="!sidenavOpened()">
+        <!-- Top Header Bar -->
+        <header class="top-bar">
+          <div class="top-bar-left">
+            <a routerLink="/" class="brand-link">
+              <img src="genkit-logo.png" alt="Genkit" class="logo-img small">
+            </a>
+          </div>
+          
+          <div class="top-bar-center">
+            <span class="app-title">Genkit Chat</span>
+            <span class="version-badge">Preview</span>
+          </div>
+          
+          <div class="top-bar-right">
+            <button mat-icon-button [matMenuTriggerFor]="helpMenu" matTooltip="Help & resources">
+              <mat-icon>help_outline</mat-icon>
+            </button>
+            <mat-menu #helpMenu="matMenu" xPosition="before">
+              <a mat-menu-item href="https://firebase.google.com/docs/genkit" target="_blank">
+                <mat-icon>menu_book</mat-icon>
+                <span>Documentation</span>
+              </a>
+              <a mat-menu-item href="https://github.com/firebase/genkit" target="_blank">
+                <mat-icon>code</mat-icon>
+                <span>GitHub</span>
+              </a>
+              <mat-divider></mat-divider>
+              <button mat-menu-item disabled>
+                <mat-icon>info</mat-icon>
+                <span>Version 0.1.0</span>
+              </button>
+            </mat-menu>
+            
+            <!-- Always show user profile / sign-in in header -->
+            @if (authService.user()) {
+              <button mat-icon-button [matMenuTriggerFor]="userMenu" matTooltip="Account" class="profile-btn">
+                <div class="header-avatar">
+                  @if (authService.user()!.picture) {
+                    <img [src]="authService.user()!.picture" alt="Profile">
+                  } @else {
+                    <span>{{ authService.getInitials() }}</span>
+                  }
+                </div>
+              </button>
+            } @else {
+              <button mat-flat-button color="primary" class="header-signin" (click)="authService.signIn()">
+                <mat-icon>login</mat-icon>
+                Sign in
+              </button>
+            }
+          </div>
+        </header>
+
+        <!-- User Menu (shared) -->
+        <mat-menu #userMenu="matMenu" xPosition="before">
+          <div class="user-menu-header" (click)="$event.stopPropagation()">
+            <div class="user-menu-avatar">
+              @if (authService.user()?.picture) {
+                <img [src]="authService.user()!.picture" alt="Profile">
+              } @else {
+                <span>{{ authService.getInitials() }}</span>
+              }
+            </div>
+            <div class="user-menu-info">
+              @if (editingName()) {
+                <input class="name-input" 
+                       type="text" 
+                       [value]="authService.user()?.given_name || ''"
+                       (keydown.enter)="saveName($event)"
+                       (keydown.escape)="cancelNameEdit()"
+                       (blur)="saveName($event)"
+                       #nameInput
+                       autofocus>
+              } @else {
+                <span class="name">{{ authService.user()?.given_name || authService.user()?.name }}</span>
+              }
+              <span class="email">{{ authService.user()?.email }}</span>
+            </div>
+            <button mat-icon-button class="edit-name-btn" (click)="toggleNameEdit($event)">
+              <mat-icon>{{ editingName() ? 'check' : 'edit' }}</mat-icon>
+            </button>
+          </div>
+          <mat-divider></mat-divider>
+          <button mat-menu-item disabled>
+            <mat-icon>cloud</mat-icon>
+            <span>Connect Google Drive</span>
+          </button>
+          <mat-divider></mat-divider>
+          <button mat-menu-item (click)="authService.signOut()">
+            <mat-icon>logout</mat-icon>
+            <span>Sign out</span>
+          </button>
+        </mat-menu>
+
+        <!-- Page Content -->
+        <main class="main-content">
+          <router-outlet />
+        </main>
+      </mat-sidenav-content>
+    </mat-sidenav-container>
+  `,
+  styles: [`
+    .app-container {
+      height: 100vh;
+    }
+
+    /* Sidenav */
+    mat-sidenav {
+      width: 280px;
+      border-right: none !important;
+      background: var(--sidebar-bg) !important;
+      transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-x: hidden;
+      
+      &.collapsed {
+        width: 72px;
+        
+        .sidenav-header {
+          justify-content: center;
+        }
+        
+        .new-chat-btn {
+          width: 48px;
+          min-width: 48px;
+          padding: 0 !important;
+          justify-content: center;
+          
+          mat-icon {
+            margin: 0;
+          }
+        }
+        
+        .mat-mdc-nav-list {
+          padding: 4px;
+        }
+        
+        .mat-mdc-list-item {
+          padding: 0 !important;
+          justify-content: center;
+          min-height: 48px;
+          width: 48px;
+          margin: 2px auto;
+          border-radius: 50% !important;
+          
+          .mdc-list-item__content {
+            justify-content: center;
+            padding: 0;
+          }
+          
+          mat-icon {
+            margin: 0 !important;
+          }
+        }
+      }
+    }
+    
+    mat-sidenav-content {
+      transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      background: #ffffff;
+      
+      &.sidebar-collapsed {
+        margin-left: 72px !important;
+      }
+    }
+
+    .sidenav-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 12px;
+      background: var(--surface-dim);
+    }
+
+    .sidenav-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px;
+      margin-bottom: 12px;
+    }
+
+    .menu-btn {
+      flex-shrink: 0;
+      
+      &:hover {
+        background: transparent !important;
+        
+        mat-icon {
+          color: var(--gemini-blue);
+        }
+      }
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .logo-img {
+      height: 36px;
+      width: auto;
+      opacity: 0.7;
+      
+      &.dark {
+        filter: invert(1);
+      }
+      
+      &.small {
+        height: 24px;
+      }
+    }
+
+    .app-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--on-surface);
+      letter-spacing: -0.3px;
+    }
+
+    .new-chat-btn {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 12px;
+      width: 100%;
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      border-radius: var(--radius-full) !important;
+      border-color: var(--surface-variant) !important;
+      font-weight: 500;
+      
+      mat-icon {
+        margin: 0;
+      }
+      
+      &:hover {
+        background: var(--surface-container);
+      }
+    }
+
+    .main-nav,
+    .footer-nav {
+      mat-nav-list,
+      .mat-mdc-nav-list {
+        padding: 0 !important;
+      }
+      
+      a[mat-list-item], 
+      button[mat-list-item] {
+        border-radius: var(--radius-full) !important;
+        margin: 2px 0;
+        height: 40px !important;
+        border: none !important;
+        background: transparent !important;
+        
+        // Proper icon/label alignment
+        .mdc-list-item__content {
+          display: flex !important;
+          align-items: center !important;
+        }
+        
+        mat-icon {
+          margin-right: 16px !important;
+          color: var(--on-surface-variant);
+          flex-shrink: 0;
+        }
+        
+        span[matListItemTitle] {
+          font-size: 14px;
+          font-weight: 400;
+        }
+        
+        &:hover {
+          background: var(--surface-container) !important;
+        }
+        
+        &.active {
+          background: var(--user-bubble-bg) !important;
+          color: var(--gemini-blue-dark) !important;
+          
+          mat-icon {
+            color: var(--gemini-blue-dark) !important;
+          }
+        }
+        
+        &.demo-active {
+          mat-icon {
+            color: #34a853 !important;
+          }
+        }
+      }
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    /* User Item in Sidebar */
+    .user-item,
+    .sign-in-item {
+      height: auto !important;
+      padding: 8px 16px !important;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--gemini-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      
+      .avatar-initials {
+        color: white;
+        font-size: 12px;
+        font-weight: 500;
+      }
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--on-surface);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-email {
+      font-size: 12px;
+      color: var(--on-surface-variant);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--surface-variant);
+      background: var(--surface);
+    }
+
+    .top-bar-left,
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 120px;
+    }
+
+    .top-bar-right {
+      justify-content: flex-end;
+    }
+
+    .mobile-logo {
+      display: flex;
+      align-items: center;
+    }
+
+    .top-bar-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--on-surface);
+    }
+
+    .version-badge {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      background: var(--surface-container);
+      color: var(--on-surface-variant);
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .header-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--gemini-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      
+      span {
+        color: white;
+        font-size: 12px;
+        font-weight: 500;
+      }
+    }
+
+    .header-signin {
+      border-radius: var(--radius-full) !important;
+      font-size: 14px;
+      padding: 0 16px !important;
+      height: 36px;
+      
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-right: 6px;
+      }
+    }
+
+    .profile-btn {
+      margin-left: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 !important;
+      width: 40px;
+      height: 40px;
+    }
+
+    /* User Menu */
+    .user-menu-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .user-menu-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--gemini-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      
+      span {
+        color: white;
+        font-size: 18px;
+        font-weight: 500;
+      }
+    }
+
+    .user-menu-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex: 1;
+      
+      .name {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--on-surface);
+      }
+      
+      .name-input {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--on-surface);
+        border: none;
+        border-bottom: 2px solid var(--gemini-blue);
+        background: transparent;
+        padding: 2px 0;
+        outline: none;
+        width: 100%;
+      }
+      
+      .email {
+        font-size: 13px;
+        color: var(--on-surface-variant);
+      }
+    }
+    
+    .edit-name-btn {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    /* Main Content */
+    .main-content {
+      height: calc(100vh - 56px);
+      overflow: auto;
+      background: var(--surface-dim);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      mat-sidenav {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+  `],
+})
+export class AppComponent implements OnInit {
+  themeService = inject(ThemeService);
+  authService = inject(AuthService);
+  private chatService = inject(ChatService);
+  sidenavOpened = signal(true);
+  editingName = signal(false);
+
+  ngOnInit(): void {
+    this.authService.restoreSession();
+  }
+
+  toggleSidenav(): void {
+    this.sidenavOpened.update(v => !v);
+  }
+
+  toggleNameEdit(event: Event): void {
+    event.stopPropagation();
+    if (this.editingName()) {
+      // Save was clicked, no-op (handled by blur/enter)
+    }
+    this.editingName.update(v => !v);
+  }
+
+  saveName(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const newName = input.value.trim();
+    if (newName) {
+      this.authService.updateName(newName);
+    }
+    this.editingName.set(false);
+  }
+
+  cancelNameEdit(): void {
+    this.editingName.set(false);
+  }
+
+  startNewChat(): void {
+    this.chatService.clearHistory();
+  }
+}

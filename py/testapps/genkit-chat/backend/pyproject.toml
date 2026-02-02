@@ -1,0 +1,25 @@
+[project]
+name = "genkit-chat-backend"
+version = "0.1.0"
+description = "Genkit Chat Backend - Multi-model AI chat server"
+readme = "../README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "genkit",
+    "genkit-plugin-google-genai",
+    "genkit-plugin-anthropic",
+    "genkit-plugin-openai",
+    "genkit-plugin-ollama",
+    "genkit-plugin-chroma",
+    "robyn>=0.68.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.28.0",
+]
+
+[tool.uv.sources]
+genkit = { workspace = true }
+genkit-plugin-google-genai = { workspace = true }
+genkit-plugin-anthropic = { workspace = true }
+genkit-plugin-openai = { workspace = true }
+genkit-plugin-ollama = { workspace = true }
+genkit-plugin-chroma = { workspace = true }

@@ -1,0 +1,50 @@
+# Docker Compose for local development
+# Works with both `docker compose` and `podman-compose`
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/src:/app/src:ro
+      - ./backend/prompts:/app/prompts:ro
+    environment:
+      - GOOGLE_GENAI_API_KEY=${GOOGLE_GENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OLLAMA_HOST=http://ollama:11434
+      - DEBUG=1
+    depends_on:
+      - ollama
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend/src:/app/src:ro
+    environment:
+      - API_URL=http://backend:8080
+    depends_on:
+      - backend
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Uncomment to use GPU
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]
+
+volumes:
+  ollama_data:
