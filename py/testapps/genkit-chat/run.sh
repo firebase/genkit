@@ -218,24 +218,16 @@ setup_ollama_models() {
 setup_backend() {
     log_info "Setting up backend..."
     
-    cd "$SCRIPT_DIR"
+    cd "$BACKEND_DIR"
     
-    # Create standalone venv (not using main workspace to avoid watchdog conflict)
+    # Create venv and sync dependencies using uv
     if [ ! -d ".venv" ]; then
         uv venv
         log_success "Created virtual environment"
     fi
     
-    source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate 2>/dev/null
-    
-    # Install local genkit packages via path references
-    PY_DIR="$SCRIPT_DIR/../.."
-    uv pip install \
-        -e "$PY_DIR/packages/genkit" \
-        -e "$PY_DIR/plugins/google-genai" \
-        -e "$PY_DIR/plugins/ollama" \
-        -e "$PY_DIR/plugins/dev-local-vectorstore" \
-        robyn pydantic python-dotenv rich structlog aiosqlite
+    # Sync dependencies from pyproject.toml
+    uv sync
     
     log_success "Backend dependencies installed"
 }
@@ -271,7 +263,7 @@ run_dev() {
     log_info "API will be available at http://localhost:8080"
     
     cd "$BACKEND_DIR"
-    source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/.venv/Scripts/activate" 2>/dev/null
+    source "$BACKEND_DIR/.venv/bin/activate" 2>/dev/null || source "$BACKEND_DIR/.venv/Scripts/activate" 2>/dev/null
     genkit start -- python src/main.py --framework "$framework"
 }
 
@@ -326,7 +318,7 @@ run_start() {
     
     # Start backend with DevUI in background
     cd "$BACKEND_DIR"
-    source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/.venv/Scripts/activate" 2>/dev/null
+    source "$BACKEND_DIR/.venv/bin/activate" 2>/dev/null || source "$BACKEND_DIR/.venv/Scripts/activate" 2>/dev/null
     genkit start -- python src/main.py --framework "$framework" &
     BACKEND_PID=$!
     
@@ -365,7 +357,7 @@ run_backend() {
     fi
     
     cd "$BACKEND_DIR"
-    source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/.venv/Scripts/activate" 2>/dev/null
+    source "$BACKEND_DIR/.venv/bin/activate" 2>/dev/null || source "$BACKEND_DIR/.venv/Scripts/activate" 2>/dev/null
     
     python src/main.py --framework "$framework"
 }

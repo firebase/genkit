@@ -135,6 +135,7 @@ from pydantic import BaseModel, Field
 from robyn import Request, Response, Robyn
 from robyn.robyn import Headers
 
+import httpx
 import uvicorn
 
 from genkit import Genkit
@@ -182,14 +183,14 @@ def load_plugins() -> list[Any]:
     except ImportError:
         logger.debug("Ollama plugin not installed")
 
-    # ChromaDB (local vector store)
+    # Dev Local VectorStore
     try:
-        from genkit.plugins.chroma import Chroma
+        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
 
-        plugins.append(Chroma())
-        logger.info("✓ Loaded ChromaDB plugin")
+        plugins.append(DevLocalVectorStore())
+        logger.info("✓ Loaded DevLocalVectorStore plugin")
     except ImportError:
-        logger.debug("ChromaDB plugin not installed")
+        logger.debug("DevLocalVectorStore plugin not installed")
 
     # Anthropic
     if os.getenv("ANTHROPIC_API_KEY"):
@@ -201,18 +202,140 @@ def load_plugins() -> list[Any]:
         except ImportError:
             pass
 
-    # OpenAI
+    # OpenAI (via compat-oai)
     if os.getenv("OPENAI_API_KEY"):
         try:
-            from genkit.plugins.openai import OpenAI
+            from genkit.plugins.compat_oai import OpenAICompat
 
-            plugins.append(OpenAI())
-            logger.info("✓ Loaded OpenAI plugin")
+            plugins.append(OpenAICompat())
+            logger.info("✓ Loaded OpenAI-compatible plugin")
         except ImportError:
             pass
 
     return plugins
 
+
+
+async def get_available_models() -> list[dict[str, Any]]:
+    """Get available models grouped by provider.
+
+    Returns:
+        List of provider info with their available models.
+    """
+    providers = []
+
+    # Google AI models
+    if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY"):
+        providers.append({
+            "id": "google-genai",
+            "name": "Google AI",
+            "available": True,
+            "models": [
+                {
+                    "id": "googleai/gemini-3-flash-preview",
+                    "name": "Gemini 3 Flash Preview",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 1000000,
+                },
+                {
+                    "id": "googleai/gemini-3-pro-preview",
+                    "name": "Gemini 3 Pro Preview",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 2000000,
+                },
+                {
+                    "id": "googleai/gemini-3-flash-preview",
+                    "name": "Gemini 2.0 Flash",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 1000000,
+                },
+            ],
+        })
+
+    # Anthropic models
+    if os.getenv("ANTHROPIC_API_KEY"):
+        providers.append({
+            "id": "anthropic",
+            "name": "Anthropic",
+            "available": True,
+            "models": [
+                {
+                    "id": "anthropic/claude-sonnet-4-20250514",
+                    "name": "Claude Sonnet 4",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 200000,
+                },
+                {
+                    "id": "anthropic/claude-opus-4-20250514",
+                    "name": "Claude Opus 4",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 200000,
+                },
+                {
+                    "id": "anthropic/claude-3-7-sonnet",
+                    "name": "Claude 3.7 Sonnet",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 200000,
+                },
+            ],
+        })
+
+    # OpenAI models
+    if os.getenv("OPENAI_API_KEY"):
+        providers.append({
+            "id": "openai",
+            "name": "OpenAI",
+            "available": True,
+            "models": [
+                {
+                    "id": "openai/gpt-4.1",
+                    "name": "GPT-4.1",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 128000,
+                },
+                {
+                    "id": "openai/gpt-4o",
+                    "name": "GPT-4o",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 128000,
+                },
+                {
+                    "id": "openai/gpt-4o-mini",
+                    "name": "GPT-4o Mini",
+                    "capabilities": ["text", "streaming"],
+                    "context_window": 128000,
+                },
+            ],
+        })
+
+    # Ollama models (try to detect running server)
+    ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{ollama_host}/api/tags", timeout=2.0)
+            if response.status_code == 200:
+                data = response.json()
+                ollama_models = [
+                    {
+                        "id": f"ollama/{model['name']}",
+                        "name": model["name"].title(),
+                        "capabilities": ["text", "streaming"],
+                        "context_window": 4096,  # Default, varies by model
+                    }
+                    for model in data.get("models", [])
+                ]
+                if ollama_models:
+                    providers.append({
+                        "id": "ollama",
+                        "name": "Ollama (Local)",
+                        "available": True,
+                        "models": ollama_models,
+                    })
+    except Exception:
+        # Ollama not running, that's fine
+        pass
+
+    return providers
 
 
 g = Genkit(plugins=load_plugins())
@@ -227,7 +350,7 @@ class ChatInput(BaseModel):
 
     message: str = Field(..., description="User's message")
     model: str = Field(
-        "googleai/gemini-2.0-flash", description="Model to use for generation"
+        "googleai/gemini-3-flash-preview", description="Model to use for generation"
     )
     history: list[dict[str, str]] = Field(
         default_factory=list, description="Conversation history"
@@ -248,7 +371,7 @@ class CompareInput(BaseModel):
     prompt: str = Field(..., description="Prompt to send to all models")
     models: list[str] = Field(
         default_factory=lambda: [
-            "googleai/gemini-2.0-flash",
+            "googleai/gemini-3-flash-preview",
             "ollama/llama3.2",
         ],
         description="Models to compare",
@@ -270,7 +393,7 @@ class ImageDescribeInput(BaseModel):
         "Describe this image in detail.", description="Question about the image"
     )
     model: str = Field(
-        "googleai/gemini-2.0-flash", description="Vision model to use"
+        "googleai/gemini-3-flash-preview", description="Vision model to use"
     )
 
 
@@ -363,7 +486,7 @@ async def chat_flow(input: ChatInput) -> ChatOutput:
     3. Supports tool calling if model requests it
 
     Test in DevUI with:
-        {"message": "Hello, how are you?", "model": "googleai/gemini-2.0-flash"}
+        {"message": "Hello, how are you?", "model": "googleai/gemini-3-flash-preview"}
     """
     start_time = time.time()
 
@@ -407,7 +530,7 @@ async def compare_flow(input: CompareInput) -> CompareOutput:
 
     Test in DevUI with:
         {"prompt": "Explain quantum computing in one sentence",
-         "models": ["googleai/gemini-2.0-flash", "ollama/llama3.2"]}
+         "models": ["googleai/gemini-3-flash-preview", "ollama/llama3.2"]}
     """
     async def generate_for_model(model_id: str) -> dict[str, Any]:
         try:
@@ -464,59 +587,46 @@ async def describe_image_flow(input: ImageDescribeInput) -> ImageDescribeOutput:
 async def rag_flow(input: RAGInput) -> RAGOutput:
     """RAG flow - Answer questions using retrieved documents.
 
-    This flow demonstrates:
-    1. Embedding the query
-    2. Retrieving relevant documents from ChromaDB
-    3. Generating answer with context
+    This flow demonstrates a simple RAG pattern with in-memory documents.
+    For production, integrate with a real vector store.
 
     Test in DevUI with:
         {"query": "What is Genkit?", "collection": "documents"}
     """
-    try:
-        import chromadb
+    # Sample knowledge base (in production, use a real vector store)
+    knowledge_base = [
+        "Genkit is an AI orchestration framework by Google.",
+        "Genkit supports multiple model providers including Google AI, OpenAI, and Anthropic.",
+        "Genkit provides a DevUI for testing flows and prompts.",
+        "Genkit flows are the main unit of work, representing a function that can be called.",
+        "Genkit tools allow models to call external functions to retrieve information.",
+    ]
 
-        client = chromadb.PersistentClient(path=str(BASE_DIR / "chroma_data"))
+    # Simple keyword-based retrieval (in production, use embeddings)
+    query_lower = input.query.lower()
+    relevant_docs = [
+        doc for doc in knowledge_base
+        if any(word in doc.lower() for word in query_lower.split())
+    ]
 
-        try:
-            collection = client.get_collection(input.collection)
-        except ValueError:
-            # Collection doesn't exist, create with sample data
-            collection = client.create_collection(input.collection)
-            collection.add(
-                documents=[
-                    "Genkit is an AI orchestration framework by Google.",
-                    "Genkit supports multiple model providers including Google AI, OpenAI, and Anthropic.",
-                    "Genkit provides a DevUI for testing flows and prompts.",
-                ],
-                ids=["doc1", "doc2", "doc3"],
-            )
+    # If no matches, return all docs as context
+    sources = relevant_docs if relevant_docs else knowledge_base[:3]
 
-        # Query the collection
-        results = collection.query(query_texts=[input.query], n_results=3)
+    # Generate answer with context
+    context = "\n".join(sources)
+    response = await g.generate(
+        model="googleai/gemini-3-flash-preview",
+        prompt=f"""Answer the question based on the following context.
 
-        sources = results["documents"][0] if results["documents"] else []
-
-        # Generate answer with context
-        context = "\n".join(sources)
-        response = await g.generate(
-            model="googleai/gemini-2.0-flash",
-            prompt=f"""Answer the question based on the following context.
-            
 Context:
 {context}
 
 Question: {input.query}
 
 Answer:""",
-        )
+    )
 
-        return RAGOutput(answer=response.text, sources=sources)
-
-    except ImportError:
-        return RAGOutput(
-            answer="ChromaDB not installed. Install with: pip install chromadb",
-            sources=[],
-        )
+    return RAGOutput(answer=response.text, sources=sources)
 
 
 
@@ -529,7 +639,8 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
     Note: In the DevUI, streaming shows the final result.
 
     For real-time streaming, use the HTTP SSE endpoint.
-    \"\"\"\n    start_time = time.time()
+    """
+    start_time = time.time()
     full_response = ""
 
     async for chunk in g.generate_stream(
@@ -611,7 +722,6 @@ def create_fastapi_server() -> FastAPI:
     @app.get("/api/models")
     async def list_models():
         """Return available models grouped by provider."""
-        from genkit_setup import get_available_models
         return await get_available_models()
 
     @app.post("/api/chat")
@@ -718,10 +828,14 @@ def create_http_server() -> Robyn:
     @app.get("/api/models")
     async def list_models(request: Request):
         """Return available models grouped by provider."""
-        from genkit_setup import get_available_models
-
         # Return providers array directly (frontend expects this format)
-        return await get_available_models()
+        # Use Response with explicit JSON for list serialization in Robyn
+        providers = await get_available_models()
+        return Response(
+            status_code=200,
+            headers=Headers({"Content-Type": "application/json"}),
+            description=json.dumps(providers),
+        )
 
     @app.post("/api/chat")
     async def api_chat(request: Request):

@@ -121,14 +121,14 @@ def _load_plugins() -> list[Any]:
     except ImportError:
         logger.warning("Ollama plugin not installed")
 
-    # ChromaDB for RAG (always load if available)
+    # DevLocalVectorStore for RAG (always load if available)
     try:
-        from genkit.plugins.chroma import Chroma
+        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
 
-        plugins.append(Chroma())
-        logger.info("Loaded ChromaDB plugin")
+        plugins.append(DevLocalVectorStore())
+        logger.info("Loaded DevLocalVectorStore plugin")
     except ImportError:
-        logger.debug("ChromaDB plugin not installed (optional)")
+        logger.debug("DevLocalVectorStore plugin not installed (optional)")
 
     if not plugins:
         logger.warning(

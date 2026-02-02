@@ -81,7 +81,8 @@ testpaths = ["tests"]
 
 # Use local workspace packages during development
 [tool.uv.sources]
-genkit = { workspace = true }
-genkit-plugin-google-genai = { workspace = true }
-genkit-plugin-ollama = { workspace = true }
-genkit-plugin-dev-local-vectorstore = { workspace = true }
+genkit = { path = "../../packages/genkit", editable = true }
+genkit-plugin-google-genai = { path = "../../plugins/google-genai", editable = true }
+genkit-plugin-ollama = { path = "../../plugins/ollama", editable = true }
+genkit-plugin-dev-local-vectorstore = { path = "../../plugins/dev-local-vectorstore", editable = true }
+
