@@ -97,9 +97,7 @@ def dump_dict(obj: object, fallback: Callable[[object], object] | None = None) -
 
         try:
             if isinstance(o, BaseModel):
-                return o.model_dump(
-                    exclude_none=True, by_alias=True, fallback=fallback
-                )
+                return o.model_dump(exclude_none=True, by_alias=True, fallback=fallback)
             elif isinstance(o, list):
                 return [_dump(i, seen) for i in o]
             elif isinstance(o, dict):

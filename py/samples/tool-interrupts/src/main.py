@@ -86,7 +86,7 @@ Key Features
 | Interactive CLI Loop                    | `while True: ... input()`           |
 """
 
-import asyncio
+import os
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -116,14 +116,52 @@ class TriviaQuestions(BaseModel):
 
 @ai.tool()
 def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
-    """Can present questions to the user, responds with the user' selected answer."""
+    """Presents questions to the user and responds with the selected answer."""
     ctx.interrupt(questions.model_dump())
+
+
+@ai.flow()
+async def play_trivia(theme: str) -> str:
+    """Plays a trivia game with the user."""
+    response = await ai.generate(
+        prompt='You are a trivia game host. Cheerfully greet the user when they '
+        + f'first join. The user has selected the theme: "{theme}". '
+        + 'Call `present_questions` tool with questions and the tools will present '
+        + 'the questions in a nice UI. The user will pick an answer and then you '
+        + 'tell them if they were right or wrong. Be dramatic (but terse)! It is a '
+        + 'show!\n\n[user joined the game]',
+        tools=['present_questions'],
+    )
+
+    # Check for interrupts and return the question to the user
+    if len(response.interrupts):
+        request = response.interrupts[0]
+        question_data = request.tool_request.input
+        if question_data:
+            # For a full interactive flow, you would typically:
+            # 1. Prompt the user for their answer here (e.g., using input()).
+            # 2. Call tool_response(request, user_answer) to resume the AI conversation.
+            # 3. Regenerate with the tool_response.
+
+            # Prepend the greeting/text response if available
+            text_response = (response.text + '\n\n') if response.text else ''
+            question = question_data.get('question')
+            answers = question_data.get('answers')
+            return f'{text_response}INTERRUPTED: {question}\nAnswers: {answers}'
+        return 'INTERRUPTED: (No input data)'
+
+    return response.text
 
 
 async def main() -> None:
     """Main function."""
+    # In Dev mode (genkit start), we must skip the blocking input() loop
+    # so the reflection server can handle requests (like play_trivia)
+    if os.environ.get('GENKIT_ENV') == 'dev':
+        return
+
     response = await ai.generate(
-        prompt='You a trivia game host. Cheerfully greet the user when they '
+        prompt='You are a trivia game host. Cheerfully greet the user when they '
         + 'first join and ank them to for the theme of the trivia game, suggest '
         + "a few theme options, they don't have to use your suggestion, feel free "
         + 'to be silly. When they user us ready, call '
@@ -158,4 +196,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    ai.run_main(main())
