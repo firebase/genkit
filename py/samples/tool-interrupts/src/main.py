@@ -138,7 +138,16 @@ async def play_trivia(theme: str) -> str:
         request = response.interrupts[0]
         question_data = request.tool_request.input
         if question_data:
-            return f'INTERRUPTED: {question_data.get("question")}\nAnswers: {question_data.get("answers")}'
+            # For a full interactive flow, you would typically:
+            # 1. Prompt the user for their answer here (e.g., using input()).
+            # 2. Call tool_response(request, user_answer) to resume the AI conversation.
+            # 3. Regenerate with the tool_response.
+
+            # Prepend the greeting/text response if available
+            text_response = (response.text + '\n\n') if response.text else ''
+            question = question_data.get('question')
+            answers = question_data.get('answers')
+            return f'{text_response}INTERRUPTED: {question}\nAnswers: {answers}'
         return 'INTERRUPTED: (No input data)'
 
     return response.text
