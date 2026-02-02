@@ -1728,15 +1728,24 @@ Before releasing, run the release check script:
 
 # With verbose output
 ./py/bin/release_check --verbose
+
+# CI mode (optimized for CI pipelines)
+./py/bin/release_check --ci
+
+# Skip tests (when tests are run separately in CI)
+./py/bin/release_check --skip-tests
 ```
 
 The release check validates:
 1. **Package Metadata**: All packages have required fields (name, version, description, license, authors, classifiers)
 2. **Build Verification**: Lock file is current, dependencies resolve, packages build successfully
 3. **Code Quality**: Type checking, formatting, linting all pass
-4. **Tests**: All unit tests pass
+4. **Tests**: All unit tests pass (can be skipped with `--skip-tests`)
 5. **Security & Compliance**: No vulnerabilities, licenses are approved
 6. **Documentation**: README files exist, CHANGELOG has current version entry
+
+> **Note**: The CI workflow runs release checks on every PR to ensure every commit
+> is release-worthy. This catches issues early and ensures consistent quality.
 
 ### Version Bumping
 
