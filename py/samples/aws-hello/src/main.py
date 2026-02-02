@@ -63,13 +63,13 @@ Architecture Overview::
 Prerequisites:
     1. AWS credentials configured (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, or IAM role)
     2. AWS_REGION environment variable set
-    3. GOOGLE_GENAI_API_KEY environment variable set
+    3. GEMINI_API_KEY environment variable set
     4. IAM policy: AWSXrayWriteOnlyPolicy attached to your role/user
 
 Running the Demo:
     1. Set environment variables:
        export AWS_REGION=us-west-2
-       export GOOGLE_GENAI_API_KEY=your-api-key
+       export GEMINI_API_KEY=your-api-key
 
     2. Run the sample:
        ./run.sh
@@ -97,6 +97,7 @@ from rich.traceback import install as install_rich_traceback
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
 import asyncio
+import os
 
 import structlog
 from pydantic import BaseModel, Field
@@ -119,13 +120,13 @@ class HelloInput(BaseModel):
 
 # Enable AWS X-Ray telemetry
 # Traces will be exported to the AWS region specified in AWS_REGION
-add_aws_telemetry()
+add_aws_telemetry(region=os.environ.get('AWS_REGION'))
 
 # Configure the model provider
 # You can use any model provider - we use Google GenAI here for simplicity
 ai = Genkit(
     plugins=[GoogleAI()],
-    model='googleai/gemini-2.0-flash',
+    model='googleai/gemini-3-flash-preview',
 )
 
 

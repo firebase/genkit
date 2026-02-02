@@ -46,7 +46,10 @@ esac
 
 print_banner "AWS Bedrock Hello World" "☁️"
 
-check_env_var "AWS_REGION" "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html" || true
+# Set default region if not provided
+export AWS_REGION="${AWS_REGION:-us-east-1}"
+
+check_env_var "AWS_REGION" "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html"
 
 install_deps
 

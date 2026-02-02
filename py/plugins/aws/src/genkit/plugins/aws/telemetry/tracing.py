@@ -224,8 +224,9 @@ AWS Documentation References:
 import os
 import uuid
 from collections.abc import Callable, Mapping, MutableMapping, Sequence
-from typing import Any
+from typing import Any, cast
 
+import requests
 import structlog
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
@@ -238,6 +239,8 @@ from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID, SERVICE_NAME, Resou
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.sampling import Sampler
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from genkit.core.environment import is_dev_environment
 from genkit.core.trace.adjusting_exporter import AdjustingTraceExporter, RedactedSpan
@@ -446,11 +449,124 @@ class AwsTelemetry:
         return event_dict
 
 
+class SigV4SigningAdapter(HTTPAdapter):
+    """HTTP adapter that signs requests with AWS SigV4 authentication.
+
+    This adapter intercepts all HTTP requests and signs them with AWS SigV4
+    before sending. This enables the OTLP exporter to authenticate with
+    AWS services like X-Ray that require SigV4.
+
+    Example:
+        ```python
+        session = requests.Session()
+        adapter = SigV4SigningAdapter(
+            credentials=botocore_session.get_credentials(),
+            region='us-west-2',
+            service='xray',
+        )
+        session.mount('https://', adapter)
+        ```
+    """
+
+    def __init__(
+        self,
+        credentials: Any,  # noqa: ANN401 - botocore credentials type
+        region: str,
+        service: str = 'xray',
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Initialize the SigV4 signing adapter.
+
+        Args:
+            credentials: Botocore credentials object.
+            region: AWS region for signing.
+            service: AWS service name for signing (default: 'xray').
+            **kwargs: Additional arguments passed to HTTPAdapter.
+        """
+        super().__init__(**kwargs)
+        self._credentials = credentials
+        self._region = region
+        self._service = service
+
+    def send(  # type: ignore[override]
+        self,
+        request: requests.PreparedRequest,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> requests.Response:
+        """Send the request after signing it with SigV4.
+
+        Args:
+            request: The prepared request to send.
+            **kwargs: Additional arguments passed to the parent send method.
+
+        Returns:
+            The response from the server.
+        """
+        if self._credentials is not None:
+            # Sign the request
+            aws_request = AWSRequest(
+                method=request.method or 'POST',
+                url=request.url or '',
+                headers=dict(request.headers) if request.headers else {},
+                data=request.body or b'',
+            )
+            SigV4Auth(self._credentials, self._service, self._region).add_auth(aws_request)
+
+            # Update the original request with signed headers
+            if request.headers is None:
+                request.headers = cast(Any, {})
+            request.headers.update(dict(aws_request.headers))
+
+        return super().send(request, **kwargs)
+
+
+def _create_sigv4_session(
+    credentials: Any,  # noqa: ANN401 - botocore credentials type
+    region: str,
+    service: str = 'xray',
+) -> requests.Session:
+    """Create a requests Session that signs all requests with SigV4.
+
+    Args:
+        credentials: Botocore credentials object.
+        region: AWS region for signing.
+        service: AWS service name for signing.
+
+    Returns:
+        A configured requests Session with SigV4 signing.
+    """
+    session = requests.Session()
+
+    # Configure retry logic
+    retry = Retry(
+        total=3,
+        backoff_factor=0.5,
+        status_forcelist=[500, 502, 503, 504],
+    )
+
+    # Create signing adapter with retry
+    adapter = SigV4SigningAdapter(
+        credentials=credentials,
+        region=region,
+        service=service,
+        max_retries=retry,
+    )
+
+    # Mount the signing adapter for HTTPS requests
+    session.mount('https://', adapter)
+
+    return session
+
+
 class AwsXRayOtlpExporter(SpanExporter):
     """OTLP/HTTP exporter with AWS SigV4 authentication for X-Ray.
 
     This exporter sends spans via OTLP/HTTP to the AWS X-Ray endpoint,
     signing each request with AWS SigV4 authentication using botocore.
+
+    The SigV4 signing is implemented via a custom requests Session adapter
+    that intercepts all outgoing HTTP requests and adds the required
+    Authorization, X-Amz-Date, and X-Amz-Security-Token headers.
 
     Args:
         region: AWS region for the X-Ray endpoint.
@@ -485,47 +601,29 @@ class AwsXRayOtlpExporter(SpanExporter):
         self._botocore_session = BotocoreSession()
         self._credentials = self._botocore_session.get_credentials()
 
-        # Create the underlying OTLP exporter
+        if self._credentials is None:
+            logger.warning(
+                'No AWS credentials found for SigV4 signing. X-Ray export will fail without valid credentials.'
+            )
+
+        # Create a session with SigV4 signing adapter
+        signing_session = _create_sigv4_session(
+            credentials=self._credentials,
+            region=region,
+            service='xray',
+        )
+
+        # Create the underlying OTLP exporter with signing session
         self._otlp_exporter = OTLPSpanExporter(
             endpoint=self._endpoint,
+            session=signing_session,
         )
-
-    def _sign_request(self, headers: dict[str, str], body: bytes) -> dict[str, str]:
-        """Sign the request with AWS SigV4.
-
-        Args:
-            headers: Request headers.
-            body: Request body bytes.
-
-        Returns:
-            Updated headers with SigV4 signature.
-        """
-        if self._credentials is None:
-            logger.warning('No AWS credentials found for SigV4 signing')
-            return headers
-
-        # Create an AWS request for signing
-        aws_request = AWSRequest(
-            method='POST',
-            url=self._endpoint,
-            headers=headers,
-            data=body,
-        )
-
-        # Sign the request
-        SigV4Auth(self._credentials, 'xray', self._region).add_auth(aws_request)
-
-        # Return the signed headers
-        return dict(aws_request.headers)
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        """Export spans to AWS X-Ray via OTLP/HTTP.
+        """Export spans to AWS X-Ray via OTLP/HTTP with SigV4 authentication.
 
-        Note:
-            The current implementation delegates to the underlying OTLP exporter
-            which may not include SigV4 headers. For production use with
-            collector-less export, consider using ADOT auto-instrumentation
-            or the ADOT collector.
+        All requests are automatically signed with AWS SigV4 using the
+        credentials from the botocore session.
 
         Args:
             spans: A sequence of OpenTelemetry ReadableSpan objects to export.
