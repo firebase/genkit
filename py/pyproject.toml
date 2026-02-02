@@ -20,6 +20,7 @@ dependencies = [
   "dotpromptz==0.1.5",
   "genkit",
   "genkit-plugin-anthropic",
+  "genkit-plugin-cf-ai",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
@@ -122,11 +123,13 @@ default-groups = ["dev", "lint"]
 [tool.uv.sources]
 aws-bedrock-hello                   = { workspace = true }
 aws-hello                           = { workspace = true }
+cf-ai-hello                         = { workspace = true }
 evaluator-demo                      = { workspace = true }
 genkit                              = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-aws                   = { workspace = true }
 genkit-plugin-aws-bedrock           = { workspace = true }
+genkit-plugin-cf-ai                 = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
