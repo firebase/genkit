@@ -40,7 +40,7 @@ show_help() {
     cat << EOF
 Genkit Chat - Multi-model AI Chat Application
 
-Usage: ./run.sh [command]
+Usage: ./run.sh [command] [options]
 
 Commands:
     start       Run backend (DevUI) and frontend concurrently
@@ -52,6 +52,10 @@ Commands:
     container   Build container image with Podman/Docker
     deploy      Deploy to Cloud Run
     help        Show this help message
+
+Backend Options:
+    --framework robyn|fastapi   Web framework to use (default: robyn)
+    --port PORT                 Server port (default: 8080)
 
 Environment Variables:
     GEMINI_API_KEY          Gemini API key (recommended for Google AI)
@@ -70,11 +74,12 @@ Ollama Models:
       - qwen2.5-coder  Code-focused model (~4.7GB)
 
 Examples:
-    ./run.sh start         # Start everything (DevUI + frontend)
-    ./run.sh dev           # Start with DevUI at localhost:4000
-    ./run.sh backend       # Start backend only at localhost:8080
-    ./run.sh stop          # Stop all running services
-    ./run.sh container     # Build container image
+    ./run.sh start                        # Start with Robyn (default)
+    ./run.sh dev --framework fastapi      # Start with FastAPI + DevUI
+    ./run.sh backend --framework robyn    # Backend only with Robyn
+    ./run.sh backend --framework fastapi  # Backend only with FastAPI
+    ./run.sh stop                         # Stop all running services
+    ./run.sh container                    # Build container image
 EOF
 }
 
@@ -118,10 +123,40 @@ check_uv() {
 }
 
 check_node() {
+    local required_major=24
+    
+    # Try to use fnm if available
+    if command -v fnm &> /dev/null; then
+        log_info "Using fnm for Node.js version management"
+        # Set up fnm environment (required for fnm use to work)
+        eval "$(fnm env --shell bash 2>/dev/null)" || eval "$(fnm env)"
+        
+        # Check if Node 24 is installed via fnm
+        if ! fnm list 2>/dev/null | grep -q "v${required_major}"; then
+            log_info "Installing Node.js ${required_major} via fnm..."
+            fnm install ${required_major}
+        fi
+        fnm use ${required_major} --silent-if-unchanged 2>/dev/null || fnm use ${required_major}
+        log_success "Node.js (via fnm): $(node --version)"
+        return 0
+    fi
+    
+    # Fall back to system node
     if ! command -v node &> /dev/null; then
-        log_error "Node.js is required for frontend. Install from https://nodejs.org"
+        log_error "Node.js ${required_major}+ is required for frontend."
+        log_info "Install via fnm: curl -fsSL https://fnm.vercel.app/install | bash && fnm install ${required_major}"
+        log_info "Or from: https://nodejs.org"
         exit 1
     fi
+    
+    # Check version
+    local node_version
+    node_version=$(node --version | sed 's/v//' | cut -d. -f1)
+    if [ "$node_version" -lt "$required_major" ]; then
+        log_warning "Node.js ${required_major}+ recommended (found v${node_version})"
+        log_info "Update via fnm: fnm install ${required_major} && fnm use ${required_major}"
+    fi
+    
     log_success "Node.js found: $(node --version)"
 }
 
@@ -206,7 +241,22 @@ setup_backend() {
 }
 
 run_dev() {
-    log_info "Starting Genkit Chat with DevUI..."
+    local framework="robyn"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --framework)
+                framework="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    log_info "Starting Genkit Chat with DevUI (${framework})..."
     check_python
     check_uv
     check_genkit_cli
@@ -222,11 +272,26 @@ run_dev() {
     
     cd "$BACKEND_DIR"
     source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/.venv/Scripts/activate" 2>/dev/null
-    genkit start -- python src/main.py
+    genkit start -- python src/main.py --framework "$framework"
 }
 
 run_start() {
-    log_info "Starting Genkit Chat (Backend + Frontend)..."
+    local framework="robyn"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --framework)
+                framework="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    log_info "Starting Genkit Chat (Backend + Frontend) with ${framework}..."
     check_python
     check_uv
     check_node
@@ -250,7 +315,7 @@ run_start() {
     log_info ""
     log_info "Starting services:"
     log_info "  DevUI:    http://localhost:4000"
-    log_info "  API:      http://localhost:8080"
+    log_info "  API:      http://localhost:8080 (${framework})"
     log_info "  Frontend: http://localhost:4200"
     log_info ""
     log_info "Press Ctrl+C to stop all services"
@@ -262,7 +327,7 @@ run_start() {
     # Start backend with DevUI in background
     cd "$BACKEND_DIR"
     source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/.venv/Scripts/activate" 2>/dev/null
-    genkit start -- python src/main.py &
+    genkit start -- python src/main.py --framework "$framework" &
     BACKEND_PID=$!
     
     # Wait a bit for backend to start
@@ -274,7 +339,22 @@ run_start() {
 }
 
 run_backend() {
-    log_info "Starting backend server..."
+    local framework="robyn"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --framework)
+                framework="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    log_info "Starting backend server (${framework})..."
     check_python
     check_uv
     setup_backend
@@ -287,7 +367,7 @@ run_backend() {
     cd "$BACKEND_DIR"
     source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/.venv/Scripts/activate" 2>/dev/null
     
-    python src/main.py
+    python src/main.py --framework "$framework"
 }
 
 run_frontend() {
@@ -366,15 +446,18 @@ deploy_cloudrun() {
 }
 
 # Main entry point
-case "${1:-help}" in
+cmd="${1:-help}"
+shift 2>/dev/null || true  # Remove the command, keep remaining args
+
+case "$cmd" in
     start)
-        run_start
+        run_start "$@"
         ;;
     dev)
-        run_dev
+        run_dev "$@"
         ;;
     backend)
-        run_backend
+        run_backend "$@"
         ;;
     frontend)
         run_frontend
@@ -395,7 +478,7 @@ case "${1:-help}" in
         show_help
         ;;
     *)
-        log_error "Unknown command: $1"
+        log_error "Unknown command: $cmd"
         show_help
         exit 1
         ;;

@@ -73,7 +73,7 @@ Architecture::
     └───────────────────────────────┬─────────────────────────────────────┘
                                     │
     ┌───────────────────────────────▼─────────────────────────────────────┐
-    │                        Robyn HTTP Server                            │
+    │              HTTP Server (--framework robyn|fastapi)                │
     │                        (API at localhost:8080)                      │
     ├─────────────────────────────────────────────────────────────────────┤
     │  Flows (registered with Genkit)                                     │
@@ -116,15 +116,26 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import asyncio
+from datetime import datetime
 import json
 import logging
 import os
 from pathlib import Path
+import time
 from typing import Any
 
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from robyn import Request, Response, Robyn
+from robyn.robyn import Headers
+
+import uvicorn
 
 from genkit import Genkit
 
@@ -144,9 +155,6 @@ PROMPTS_DIR = BASE_DIR / "prompts"
 STATIC_DIR = BASE_DIR / "static"
 
 
-# =============================================================================
-# Plugin Loading
-# =============================================================================
 
 
 def load_plugins() -> list[Any]:
@@ -206,18 +214,12 @@ def load_plugins() -> list[Any]:
     return plugins
 
 
-# =============================================================================
-# Initialize Genkit
-# =============================================================================
 
 g = Genkit(plugins=load_plugins())
 
 # Note: Prompts in backend/prompts/ are automatically discovered by Genkit
 
 
-# =============================================================================
-# Input/Output Schemas
-# =============================================================================
 
 
 class ChatInput(BaseModel):
@@ -293,9 +295,6 @@ class RAGOutput(BaseModel):
     sources: list[str] = Field(..., description="Source documents used")
 
 
-# =============================================================================
-# Tool Input Models
-# =============================================================================
 
 
 class WebSearchInput(BaseModel):
@@ -316,9 +315,6 @@ class CalculateInput(BaseModel):
     expression: str = Field(description="Mathematical expression to evaluate")
 
 
-# =============================================================================
-# Tools (Callable by Models)
-# =============================================================================
 
 
 @g.tool(description="Search the web for current information")
@@ -352,14 +348,9 @@ async def calculate(input: CalculateInput) -> str:
 @g.tool(description="Get the current date and time")
 async def get_current_time() -> str:
     """Return the current date and time."""
-    from datetime import datetime
-
     return datetime.now().isoformat()
 
 
-# =============================================================================
-# Flows (Testable in DevUI)
-# =============================================================================
 
 
 @g.flow()
@@ -374,8 +365,6 @@ async def chat_flow(input: ChatInput) -> ChatOutput:
     Test in DevUI with:
         {"message": "Hello, how are you?", "model": "googleai/gemini-2.0-flash"}
     """
-    import time
-
     start_time = time.time()
 
     # Build messages from history
@@ -420,8 +409,6 @@ async def compare_flow(input: CompareInput) -> CompareOutput:
         {"prompt": "Explain quantum computing in one sentence",
          "models": ["googleai/gemini-2.0-flash", "ollama/llama3.2"]}
     """
-    import time
-
     async def generate_for_model(model_id: str) -> dict[str, Any]:
         try:
             start_time = time.time()
@@ -532,9 +519,6 @@ Answer:""",
         )
 
 
-# =============================================================================
-# Streaming Flow
-# =============================================================================
 
 
 @g.flow()
@@ -545,10 +529,7 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
     Note: In the DevUI, streaming shows the final result.
 
     For real-time streaming, use the HTTP SSE endpoint.
-    """
-    import time
-
-    start_time = time.time()
+    \"\"\"\n    start_time = time.time()
     full_response = ""
 
     async for chunk in g.generate_stream(
@@ -567,16 +548,112 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
     )
 
 
-# =============================================================================
-# Robyn HTTP Server (for Angular frontend)
-# =============================================================================
 
 
-def create_http_server():
+def create_fastapi_server() -> FastAPI:
+    """Create the FastAPI HTTP server for the Angular frontend.
+    
+    This is an alternative to Robyn, demonstrating how Genkit flows
+    work equally well with FastAPI.
+    """
+    app = FastAPI(
+        title="Genkit Chat API",
+        description="Multi-model AI chat server powered by Genkit",
+        version="1.0.0",
+    )
+
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.get("/")
+    async def health():
+        return {"status": "healthy", "service": "genkit-chat", "framework": "fastapi"}
+
+    @app.get("/api/config")
+    async def get_config():
+        """Return configuration status (which API keys are set)."""
+
+        def mask_key(key: str | None) -> dict:
+            """Return masked key info."""
+            if not key:
+                return {"configured": False, "preview": None}
+            if len(key) > 12:
+                preview = f"{key[:4]}...{key[-4:]}"
+            else:
+                preview = "****"
+            return {"configured": True, "preview": preview}
+
+        gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
+        
+        return {
+            "api_keys": {
+                "GEMINI_API_KEY": mask_key(gemini_key),
+                "ANTHROPIC_API_KEY": mask_key(os.getenv("ANTHROPIC_API_KEY")),
+                "OPENAI_API_KEY": mask_key(os.getenv("OPENAI_API_KEY")),
+                "OLLAMA_HOST": {
+                    "configured": True,
+                    "preview": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
+                },
+            },
+            "features": {
+                "rag_enabled": True,
+                "streaming_enabled": True,
+                "tools_enabled": True,
+            },
+        }
+
+    @app.get("/api/models")
+    async def list_models():
+        """Return available models grouped by provider."""
+        from genkit_setup import get_available_models
+        return await get_available_models()
+
+    @app.post("/api/chat")
+    async def api_chat(input: ChatInput):
+        """Call the chat flow via HTTP."""
+        try:
+            logger.info(f"Chat request: model={input.model}, message_len={len(input.message)}")
+            result = await chat_flow(input)
+            return result.model_dump()
+        except Exception as e:
+            logger.exception(f"Chat error: {e}")
+            raise HTTPException(status_code=500, detail={"error": str(e), "type": type(e).__name__})
+
+    @app.post("/api/compare")
+    async def api_compare(input: CompareInput):
+        """Call the compare flow via HTTP."""
+        result = await compare_flow(input)
+        return result.model_dump()
+
+    @app.post("/api/images/describe")
+    async def api_describe(input: ImageDescribeInput):
+        """Call the describe image flow via HTTP."""
+        result = await describe_image_flow(input)
+        return result.model_dump()
+
+    @app.post("/api/rag")
+    async def api_rag(input: RAGInput):
+        """Call the RAG flow via HTTP."""
+        result = await rag_flow(input)
+        return result.model_dump()
+
+    # Serve static files if they exist
+    if STATIC_DIR.exists():
+        app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
+
+    return app
+
+
+
+
+def create_http_server() -> Robyn:
     """Create the Robyn HTTP server for the Angular frontend."""
-    from robyn import Request, Response, Robyn
-    from robyn.robyn import Headers
-
     # Disable OpenAPI by passing None to avoid schema generation issues
     app = Robyn(__file__, openapi=None)
 
@@ -694,17 +771,32 @@ def create_http_server():
     return app
 
 
-# =============================================================================
-# Main Entry Point
-# =============================================================================
 
 
-def main():
-    """Run the Genkit chat server."""
-    port = int(os.getenv("PORT", "8080"))
+def main() -> None:
+    """Run the Genkit chat server.
+    
+    Supports both Robyn (default) and FastAPI frameworks via --framework flag.
+    """
+    parser = argparse.ArgumentParser(description="Genkit Chat Server")
+    parser.add_argument(
+        "--framework",
+        choices=["robyn", "fastapi"],
+        default="robyn",
+        help="Web framework to use (default: robyn)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("PORT", "8080")),
+        help="Port to run on (default: 8080 or PORT env var)",
+    )
+    args = parser.parse_args()
+
+    port = args.port
 
     logger.info("=" * 60)
-    logger.info("Genkit Chat Server")
+    logger.info(f"Genkit Chat Server ({args.framework.upper()})")
     logger.info("=" * 60)
     logger.info("")
     logger.info("Available Flows (test in DevUI at http://localhost:4000):")
@@ -716,12 +808,16 @@ def main():
     logger.info("")
     logger.info(f"HTTP API: http://localhost:{port}")
     logger.info("")
-    logger.info("Run with: genkit start -- python src/main.py")
+    logger.info("Run with: genkit start -- python src/main.py [--framework robyn|fastapi]")
     logger.info("=" * 60)
 
-    # Create and start HTTP server (blocking)
-    app = create_http_server()
-    app.start(port=port)
+    if args.framework == "fastapi":
+        app = create_fastapi_server()
+        uvicorn.run(app, host="0.0.0.0", port=port, loop="uvloop")
+    else:
+        # Default: Robyn
+        app = create_http_server()
+        app.start(port=port)
 
 
 if __name__ == "__main__":

@@ -50,7 +50,7 @@ This sample exercises all major Python Genkit capabilities:
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
 │   │                    Python Backend (Port 8000)                       │   │
 │   │  ┌──────────────────────────────────────────────────────────────┐   │   │
-│   │  │                    Robyn HTTP Server                          │   │   │
+│   │  │                    HTTP Server (--framework robyn|fastapi)        │   │   │
 │   │  │  POST /api/chat       →  chat_flow                            │   │   │
 │   │  │  POST /api/compare    →  compare_flow                         │   │   │
 │   │  │  GET  /api/models     →  get_available_models()               │   │   │
@@ -191,7 +191,7 @@ This sample exercises all major Python Genkit capabilities:
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 18+
+- Node.js 24+ (use [fnm](https://github.com/Schniz/fnm) for version management)
 - `GEMINI_API_KEY` (or other model provider API key)
 
 ### Run with DevUI (Recommended)
@@ -211,8 +211,26 @@ This starts:
 ### Run Backend Only
 
 ```bash
+# Default: Robyn (fast Rust-based server)
 ./run.sh backend
+
+# Or use FastAPI
+./run.sh backend --framework fastapi
 ```
+
+### Run with Different Frameworks
+
+The backend supports two web frameworks:
+
+| Framework | Command | Description |
+|-----------|---------|-------------|
+| **Robyn** (default) | `./run.sh start` | Fast Rust-based async server |
+| **FastAPI** | `./run.sh start --framework fastapi` | Industry-standard Python framework |
+
+You can use `--framework` with any backend command:
+- `./run.sh start --framework fastapi` - Full stack with FastAPI
+- `./run.sh dev --framework fastapi` - DevUI mode with FastAPI
+- `./run.sh backend --framework fastapi` - Backend only with FastAPI
 
 ### Run Frontend Only
 
@@ -228,7 +246,7 @@ Frontend runs at http://localhost:4200
 genkit-chat/
 ├── backend/
 │   ├── src/
-│   │   └── main.py          # Genkit flows, tools, and Robyn server
+│   │   └── main.py          # Genkit flows, tools, Robyn/FastAPI server
 │   ├── prompts/             # Dotprompt files
 │   │   ├── chat.prompt
 │   │   ├── describe_image.prompt

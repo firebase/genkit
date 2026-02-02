@@ -1161,6 +1161,7 @@ export class ChatComponent implements OnDestroy {
   private snackBar = inject(MatSnackBar);
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
+  @ViewChild('chatTextarea') chatTextarea!: ElementRef<HTMLTextAreaElement>;
 
   userMessage = '';
   inputFocused = false;
@@ -1399,10 +1400,19 @@ export class ChatComponent implements OnDestroy {
     const message = this.userMessage;
     this.userMessage = '';
 
+    // Keep focus on the input after sending
+    setTimeout(() => {
+      this.chatTextarea?.nativeElement?.focus();
+    }, 0);
+
     this.chatService.sendMessage(message, this.modelsService.selectedModel())
       .subscribe({
         next: response => {
           this.chatService.addAssistantMessage(response);
+          // Refocus after response
+          setTimeout(() => {
+            this.chatTextarea?.nativeElement?.focus();
+          }, 0);
         },
         error: err => {
           this.snackBar.open('Failed to send message. Please try again.', 'Dismiss', {
@@ -1410,6 +1420,10 @@ export class ChatComponent implements OnDestroy {
             panelClass: 'error-snackbar',
           });
           console.error('Chat error:', err);
+          // Refocus on error too
+          setTimeout(() => {
+            this.chatTextarea?.nativeElement?.focus();
+          }, 0);
         }
       });
   }
