@@ -15,16 +15,15 @@
 """Evaluation in code sample."""
 
 import json
-import os
 import pathlib
 
 from evaluator_demo.genkit_demo import ai
 from genkit.core.typing import EvalResponse
 
 # Load dataset
-DATA_PATH = os.path.join(pathlib.Path(__file__).parent, '..', 'data', 'dogfacts.json')
-if pathlib.Path(DATA_PATH).exists():
-    with pathlib.Path(DATA_PATH).open() as f:
+DATA_PATH = pathlib.Path(__file__).parent.parent / 'data' / 'dogfacts.json'
+if DATA_PATH.exists():
+    with DATA_PATH.open() as f:
         DOG_DATASET = json.load(f)
 else:
     DOG_DATASET = []
