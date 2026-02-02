@@ -109,24 +109,35 @@ async def execute_code(input: CodeExecutionInput) -> MessageWrapper:
 
 
 def display_code_execution(message: Message) -> None:
-    """Display the code execution results from a message."""
+    """Display the code execution results from a message.
+
+    This function parses the message content and prints details about
+    any code execution that occurred, including the code itself and
+    the execution results.
+    """
+    print('\n=== CODE EXECUTION DETAILS ===')  # noqa: T201
     for part in message.content:
         if isinstance(part.root, CustomPart):
             if PartConverter.EXECUTABLE_CODE in part.root.custom:
                 code_data = part.root.custom[PartConverter.EXECUTABLE_CODE]
-                code_data.get(PartConverter.LANGUAGE, 'unknown')
-                code_data.get(PartConverter.CODE, '')
+                lang = code_data.get(PartConverter.LANGUAGE, 'unknown')
+                code = code_data.get(PartConverter.CODE, '')
+                print(f'Language: {lang}')  # noqa: T201
+                print(f'```{lang}\n{code}\n```')  # noqa: T201
             elif PartConverter.CODE_EXECUTION_RESULT in part.root.custom:
                 result_data = part.root.custom[PartConverter.CODE_EXECUTION_RESULT]
-                result_data.get(PartConverter.OUTCOME, 'unknown')
+                outcome = result_data.get(PartConverter.OUTCOME, 'unknown')
                 output = result_data.get(PartConverter.OUTPUT, '')
-                if not output.strip():
-                    pass
+                print(f'\nExecution Status: {outcome}')  # noqa: T201
+                print('Output:')  # noqa: T201
+                if output.strip():
+                    for line in output.splitlines():
+                        print(f'  {line}')  # noqa: T201
                 else:
-                    for _line in output.splitlines():
-                        pass
+                    print('  <no output>')  # noqa: T201
         elif isinstance(part.root, TextPart) and part.root.text.strip():
-            pass
+            print(f'\nExplanation:\n{part.root.text}')  # noqa: T201
+    print('=== END CODE EXECUTION ===\n')  # noqa: T201
 
 
 async def main() -> None:

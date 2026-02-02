@@ -220,11 +220,9 @@ from .typing import (
 )
 
 __all__ = [
-    'MSFOUNDRY_PLUGIN_NAME',
-    # Model-Specific Configs (Top 30)
+    # Sorted alphabetically for maintainability
     'AI21JambaConfig',
     'AnthropicConfig',
-    # Enums
     'AnthropicServiceTier',
     'ArcticConfig',
     'BaichuanConfig',
@@ -236,7 +234,6 @@ __all__ = [
     'DeepSeekThinkingType',
     'FalconConfig',
     'GemmaConfig',
-    # Mixins
     'GenkitCommonConfigMixin',
     'GlmConfig',
     'GraniteConfig',
@@ -245,10 +242,9 @@ __all__ = [
     'InternLMConfig',
     'JaisConfig',
     'LlamaConfig',
-    # Plugin
     'MSFoundry',
-    # Base/OpenAI Configs
     'MSFoundryConfig',
+    'MSFOUNDRY_PLUGIN_NAME',
     'MiniCPMConfig',
     'MistralConfig',
     'MptConfig',
@@ -267,13 +263,11 @@ __all__ = [
     'WriterConfig',
     'XGenConfig',
     'YiConfig',
-    # Helper functions
     'get_config_schema_for_model',
+    'gpt35_turbo',
     'gpt4',
-    # Pre-defined model references
     'gpt4o',
     'gpt4o_mini',
-    'gpt35_turbo',
     'msfoundry_model',
     'msfoundry_name',
     'o1',
