@@ -67,8 +67,8 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "Options:"
       echo "  -v, --verbose    Show detailed output"
-      echo "  --fix            Attempt to fix issues automatically"
-      echo "  --ci             CI mode (optimized for CI pipelines)"
+      echo "  --fix            Attempt to fix issues automatically (reserved for future use)"
+      echo "  --ci             CI mode (implies --skip-tests, optimized for CI pipelines)"
       echo "  --skip-tests     Skip running unit tests (use when tests run separately)"
       echo "  -h, --help       Show this help message"
       exit 0
@@ -80,10 +80,20 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# CI mode implies skip-tests (tests run separately in CI)
+if [ "$CI_MODE" = true ]; then
+  SKIP_TESTS=true
+fi
+
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║          Genkit Python Release Readiness Check                 ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
+
+# Show mode indicators
+if [ "$CI_MODE" = true ]; then
+  echo -e "Mode: ${CYAN}CI${NC} (tests skipped - run separately)"
+fi
 
 # Get core version
 CORE_VERSION=$(grep '^version' packages/genkit/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
@@ -108,7 +118,7 @@ check_package_metadata() {
   
   pkg_name=$(grep '^name' "$pkg_path/pyproject.toml" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
   
-  if $VERBOSE; then
+  if [ "$VERBOSE" = true ]; then
     echo -e "  Checking ${CYAN}$pkg_name${NC}..."
   fi
   
@@ -178,7 +188,7 @@ for d in plugins/*/; do
   if [ -d "$d" ]; then
     if ! check_package_metadata "$d" "plugin"; then
       ERRORS=$((ERRORS + 1))
-    elif $VERBOSE; then
+    elif [ "$VERBOSE" = true ]; then
       echo -e "  ${GREEN}✓${NC} $d metadata OK"
     fi
   fi
@@ -216,7 +226,7 @@ deptry_errors=0
 for pkg in plugins/*/; do
   if [ -d "$pkg" ] && [ -f "$pkg/pyproject.toml" ]; then
     pkg_name=$(grep '^name' "$pkg/pyproject.toml" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
-    if $VERBOSE; then
+    if [ "$VERBOSE" = true ]; then
       echo -e "  Checking $pkg_name..."
     fi
     # DEP002: unused deps (may be false positives for optional features)
@@ -228,7 +238,7 @@ for pkg in plugins/*/; do
       # Only report if there are actual errors (DEP001: missing deps)
       if echo "$deptry_output" | grep -qE "DEP001"; then
         echo -e "  ${RED}DEPTRY${NC}: $pkg_name has missing dependencies"
-        if $VERBOSE; then
+        if [ "$VERBOSE" = true ]; then
           echo "$deptry_output" | grep "DEP001" | head -5
         fi
         deptry_errors=$((deptry_errors + 1))
@@ -385,7 +395,7 @@ echo ""
 # =============================================================================
 echo -e "${BLUE}━━━ Section 4: Tests ━━━${NC}"
 
-if $SKIP_TESTS; then
+if [ "$SKIP_TESTS" = true ]; then
   echo -e "\n${YELLOW}Skipping unit tests (--skip-tests flag set)${NC}"
 else
   echo -e "\n${CYAN}Running unit tests...${NC}"
