@@ -72,7 +72,7 @@ class EvalStatusEnum(StrEnum):
     """EvalStatusEnum data type class."""
 
     UNKNOWN = 'UNKNOWN'
-    PASS_ = 'PASS'  # noqa: S105 - enum value, not a password
+    PASS_ = 'PASS'
     FAIL = 'FAIL'
 
 

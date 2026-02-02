@@ -108,6 +108,10 @@ __all__ = [
     # Version info
     'GENKIT_CLIENT_HEADER',
     'GENKIT_VERSION',
+    # Main class
+    'Genkit',
+    'Input',
+    'Output',
     # Actions
     'ActionKind',
     'ActionRunContext',
@@ -115,23 +119,19 @@ __all__ = [
     'Document',
     # Prompts
     'ExecutablePrompt',
+    'OutputOptions',
+    'PromptGenerateOptions',
+    'ResumeOptions',
+    # Registry and flow
     'FlowWrapper',
+    'GenkitRegistry',
+    'SimpleRetrieverOptions',
     # Response types
     'GenerateResponseWrapper',
     'GenerateStreamResponse',
-    # Main class
-    'Genkit',
-    # Registry and flow
-    'GenkitRegistry',
-    'Input',
-    'Output',
-    'OutputOptions',
-    # Plugin
-    'Plugin',
-    'PromptGenerateOptions',
-    'ResumeOptions',
-    'SimpleRetrieverOptions',
     # Tools
     'ToolRunContext',
     'tool_response',
+    # Plugin
+    'Plugin',
 ]

@@ -77,37 +77,38 @@ from genkit.core.typing import (
 extend_plugin_namespace()
 
 __all__ = [
-    'GENKIT_CLIENT_HEADER',
-    'GENKIT_VERSION',
-    # From genkit.ai
-    'ActionKind',
-    'ActionRunContext',
-    # Core types (convenience)
-    'Document',
-    'ExecutablePrompt',
-    'FlowWrapper',
+    # Main class
+    'Genkit',
+    'Output',
     # Response types
     'GenerateResponseWrapper',
     'GenerateStreamResponse',
-    # Main class
-    'Genkit',
     # Errors
     'GenkitError',
-    'GenkitRegistry',
+    'UserFacingError',
+    # Core types (convenience)
+    'Document',
     'Media',
     'MediaPart',
     'Message',
-    'Output',
-    'OutputOptions',
     'Part',
+    'Role',
+    'TextPart',
     # Plugin interface
     'Plugin',
+    # From genkit.ai
+    'ActionKind',
+    'ActionRunContext',
+    'ExecutablePrompt',
+    'FlowWrapper',
+    'GenkitRegistry',
+    'OutputOptions',
     'PromptGenerateOptions',
     'ResumeOptions',
-    'Role',
     'SimpleRetrieverOptions',
-    'TextPart',
     'ToolRunContext',
-    'UserFacingError',
     'tool_response',
+    # Version info
+    'GENKIT_CLIENT_HEADER',
+    'GENKIT_VERSION',
 ]
