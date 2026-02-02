@@ -44,6 +44,8 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
+from genkit.core.action import ActionMetadata
+from genkit.core.action.types import ActionKind
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
 
@@ -83,8 +85,6 @@ async def test_health_check(asgi_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_list_actions(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
     """Test that the actions list endpoint returns registered actions."""
-    from genkit.core.action import ActionMetadata
-    from genkit.core.action.types import ActionKind
 
     # Mock the async list_actions method to return a list of ActionMetadata
     async def mock_list_actions_async(allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:

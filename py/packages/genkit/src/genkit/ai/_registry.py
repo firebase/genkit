@@ -62,6 +62,7 @@ from genkit.blocks.dap import (
     DynamicActionProvider,
     define_dynamic_action_provider as define_dap_block,
 )
+from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
@@ -82,7 +83,11 @@ from genkit.blocks.reranker import (
     define_reranker as define_reranker_block,
     rerank as rerank_block,
 )
-from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
+from genkit.blocks.resource import (
+    FlexibleResourceFn,
+    ResourceOptions,
+    define_resource as define_resource_block,
+)
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -166,8 +171,6 @@ class SimpleRetrieverOptions(BaseModel, Generic[R]):
 
 def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentData:
     """Internal helper to convert a raw item to a Genkit DocumentData."""
-    from genkit.blocks.document import Document
-
     if isinstance(item, (Document, DocumentData)):
         return item
 
@@ -661,8 +664,6 @@ class GenkitRegistry:
         """
         if isinstance(options, str):
             options = SimpleRetrieverOptions(name=options)
-
-        from genkit.blocks.document import Document
 
         async def retriever_fn(query: Document, options_obj: Any) -> RetrieverResponse:  # noqa: ANN401
 
@@ -1508,8 +1509,6 @@ class GenkitRegistry:
         Returns:
             An ExecutablePrompt instance.
         """
-        from genkit.blocks.prompt import ExecutablePrompt
-
         return ExecutablePrompt(
             registry=self.registry,
             _name=name,
@@ -1541,10 +1540,6 @@ class GenkitRegistry:
         Returns:
             The registered Action for the resource.
         """
-        from genkit.blocks.resource import (
-            define_resource as define_resource_block,
-        )
-
         if fn is None:
             raise ValueError('A function `fn` must be provided to define a resource.')
         if opts is None:

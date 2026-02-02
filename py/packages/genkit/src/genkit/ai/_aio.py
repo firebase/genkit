@@ -61,6 +61,7 @@ from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_a
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
+from genkit.core.error import GenkitError
 from genkit.core.plugin import Plugin
 from genkit.core.tracing import run_in_new_span
 from genkit.core.typing import (
@@ -1100,8 +1101,6 @@ class Genkit(GenkitBase):
             >>> # Access result
             >>> print(operation.output)
         """
-        from genkit.core.error import GenkitError
-
         # Resolve the model and check for long_running support
         resolved_model = model or self.registry.default_model
         if not resolved_model:
