@@ -27,14 +27,14 @@ Prerequisites:
 - Vertex AI API enabled (for evaluators)
 """
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
-from genkit.core.typing import BaseDataPoint
+from genkit.core.typing import BaseDataPoint, DocumentData, Score
 from genkit.plugins.google_genai import VertexAI
 
 logger = structlog.get_logger(__name__)
@@ -69,7 +69,7 @@ async def rerank_documents(query: str = 'How do neural networks learn?') -> Rera
     RAG (Retrieval-Augmented Generation) quality.
     """
     # Sample documents to rerank (in a real app, these would come from a retriever)
-    documents = [
+    documents: list[Document] = [
         Document.from_text('Neural networks learn through backpropagation, adjusting weights based on errors.'),
         Document.from_text('Python is a popular programming language for machine learning.'),
         Document.from_text('The gradient descent algorithm minimizes the loss function during training.'),
@@ -80,15 +80,16 @@ async def rerank_documents(query: str = 'How do neural networks learn?') -> Rera
     ]
 
     # Rerank documents using Vertex AI semantic reranker
+    # Document extends DocumentData, so we can cast and pass documents directly
     ranked_docs = await ai.rerank(
         reranker='vertexai/semantic-ranker-default@latest',
         query=query,
-        documents=[doc.to_document_data() for doc in documents],
+        documents=cast(list[DocumentData], documents),
         options={'top_n': 5},
     )
 
     # Format results
-    results = []
+    results: list[dict[str, Any]] = []
     for doc in ranked_docs:
         results.append({
             'text': doc.text(),
@@ -108,7 +109,7 @@ async def rag_with_reranking(question: str = 'What is machine learning?') -> str
     3. Generation using top-k results
     """
     # Simulated retrieval results (in production, use a real retriever)
-    retrieved_docs = [
+    retrieved_docs: list[Document] = [
         Document.from_text('Machine learning is a subset of artificial intelligence.'),
         Document.from_text('Supervised learning uses labeled data to train models.'),
         Document.from_text('The stock market closed higher today.'),
@@ -120,10 +121,11 @@ async def rag_with_reranking(question: str = 'What is machine learning?') -> str
     ]
 
     # Stage 2: Rerank for quality
+    # Document extends DocumentData, so we can cast and pass documents directly
     ranked_docs = await ai.rerank(
         reranker='vertexai/semantic-ranker-default@latest',
         query=question,
-        documents=[doc.to_document_data() for doc in retrieved_docs],
+        documents=cast(list[DocumentData], retrieved_docs),
         options={'top_n': 3},
     )
 
@@ -156,6 +158,28 @@ class EvalResult(BaseModel):
 
     metric: str
     scores: list[dict[str, Any]]
+
+
+def _extract_score(evaluation: Score | list[Score] | None) -> float | str | bool | None:
+    """Extract score from evaluation result."""
+    if evaluation is None:
+        return None
+    if isinstance(evaluation, list):
+        return evaluation[0].score if evaluation else None
+    return evaluation.score
+
+
+def _extract_reasoning(evaluation: Score | list[Score] | None) -> str | None:
+    """Extract reasoning from evaluation result."""
+    if evaluation is None:
+        return None
+    if isinstance(evaluation, list):
+        if evaluation and evaluation[0].details:
+            return evaluation[0].details.reasoning
+        return None
+    if evaluation.details:
+        return evaluation.details.reasoning
+    return None
 
 
 @ai.flow()
@@ -192,16 +216,13 @@ async def evaluate_fluency() -> EvalResult:
         dataset=dataset,
     )
 
-    scores = []
-    for result in results.results:
-        reasoning = None
-        if result.evaluation and result.evaluation.details:
-            reasoning = result.evaluation.details.get('reasoning')
+    scores: list[dict[str, Any]] = []
+    for i, result in enumerate(results.root):
         scores.append({
-            'input': result.input,
-            'output': result.output,
-            'score': result.evaluation.score if result.evaluation else None,
-            'reasoning': reasoning,
+            'sample_index': i,
+            'test_case_id': result.test_case_id,
+            'score': _extract_score(result.evaluation),
+            'reasoning': _extract_reasoning(result.evaluation),
         })
 
     return EvalResult(metric='fluency', scores=scores)
@@ -235,12 +256,12 @@ async def evaluate_safety() -> EvalResult:
         dataset=dataset,
     )
 
-    scores = []
-    for result in results.results:
+    scores: list[dict[str, Any]] = []
+    for i, result in enumerate(results.root):
         scores.append({
-            'input': result.input,
-            'output': result.output,
-            'score': result.evaluation.score if result.evaluation else None,
+            'sample_index': i,
+            'test_case_id': result.test_case_id,
+            'score': _extract_score(result.evaluation),
         })
 
     return EvalResult(metric='safety', scores=scores)
@@ -282,17 +303,13 @@ async def evaluate_groundedness() -> EvalResult:
         dataset=dataset,
     )
 
-    scores = []
-    for result in results.results:
-        reasoning = None
-        if result.evaluation and result.evaluation.details:
-            reasoning = result.evaluation.details.get('reasoning')
+    scores: list[dict[str, Any]] = []
+    for i, result in enumerate(results.root):
         scores.append({
-            'input': result.input,
-            'output': result.output,
-            'context': result.context,
-            'score': result.evaluation.score if result.evaluation else None,
-            'reasoning': reasoning,
+            'sample_index': i,
+            'test_case_id': result.test_case_id,
+            'score': _extract_score(result.evaluation),
+            'reasoning': _extract_reasoning(result.evaluation),
         })
 
     return EvalResult(metric='groundedness', scores=scores)
@@ -324,13 +341,12 @@ async def evaluate_bleu() -> EvalResult:
         dataset=dataset,
     )
 
-    scores = []
-    for result in results.results:
+    scores: list[dict[str, Any]] = []
+    for i, result in enumerate(results.root):
         scores.append({
-            'input': result.input,
-            'output': result.output,
-            'reference': result.reference,
-            'score': result.evaluation.score if result.evaluation else None,
+            'sample_index': i,
+            'test_case_id': result.test_case_id,
+            'score': _extract_score(result.evaluation),
         })
 
     return EvalResult(metric='bleu', scores=scores)
@@ -362,16 +378,13 @@ async def evaluate_summarization() -> EvalResult:
         dataset=dataset,
     )
 
-    scores = []
-    for result in results.results:
-        reasoning = None
-        if result.evaluation and result.evaluation.details:
-            reasoning = result.evaluation.details.get('reasoning')
+    scores: list[dict[str, Any]] = []
+    for i, result in enumerate(results.root):
         scores.append({
-            'input': result.input,
-            'output': result.output,
-            'score': result.evaluation.score if result.evaluation else None,
-            'reasoning': reasoning,
+            'sample_index': i,
+            'test_case_id': result.test_case_id,
+            'score': _extract_score(result.evaluation),
+            'reasoning': _extract_reasoning(result.evaluation),
         })
 
     return EvalResult(metric='summarization_quality', scores=scores)

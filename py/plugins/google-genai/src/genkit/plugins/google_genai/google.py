@@ -896,7 +896,7 @@ class VertexAI(Plugin):
             # Convert to RerankerResponse format - ranked_docs are RankedDocument instances
             response_docs: list[RankedDocumentData] = []
             for doc in ranked_docs:
-                metadata = RankedDocumentMetadata(score=doc.score)
+                metadata = RankedDocumentMetadata(score=doc.score if doc.score is not None else 0.0)
                 response_docs.append(RankedDocumentData(content=doc.content, metadata=metadata))
 
             return RerankerResponse(documents=response_docs)
