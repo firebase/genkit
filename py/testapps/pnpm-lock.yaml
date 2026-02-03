@@ -11,6 +11,9 @@ importers:
       '@biomejs/biome':
         specifier: ^2.3.13
         version: 2.3.13
+      license-checker:
+        specifier: ^25.0.1
+        version: 25.0.1
 
   genkit-chat/frontend:
     dependencies:

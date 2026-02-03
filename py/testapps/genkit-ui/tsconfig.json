@@ -6,7 +6,8 @@
         "moduleResolution": "bundler",
         "lib": [
             "ES2022",
-            "dom"
+            "dom",
+            "dom.iterable"
         ],
         "strict": true,
         "esModuleInterop": true,
@@ -40,12 +41,12 @@
         "strictTemplates": true
     },
     "include": [
-        "src/**/*.ts"
+        "src/**/*.ts",
+        ".storybook/**/*.ts"
     ],
     "exclude": [
         "node_modules",
         "dist",
-        "**/*.stories.ts",
         "**/*.spec.ts"
     ]
 }

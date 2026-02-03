@@ -28,5 +28,9 @@
  * @packageDocumentation
  */
 
-export { LanguageSelectorComponent, Language, DEFAULT_LANGUAGES } from './language-selector/language-selector.component';
-export { ThemeSelectorComponent, ThemeMode, ThemeOption, THEME_OPTIONS } from './theme-selector/theme-selector.component';
+export { LanguageSelectorComponent, DEFAULT_LANGUAGES } from './language-selector/language-selector.component';
+export type { Language } from './language-selector/language-selector.component';
+
+export { ThemeSelectorComponent, THEME_OPTIONS } from './theme-selector/theme-selector.component';
+export type { ThemeMode, ThemeOption } from './theme-selector/theme-selector.component';
+

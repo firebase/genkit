@@ -35,11 +35,22 @@
  */
 
 // Main container component
-export { ChatBoxComponent, ChatSettings, DEFAULT_GREETINGS, DEFAULT_QUICK_ACTIONS } from './chat-box/chat-box.component';
+export { ChatBoxComponent, DEFAULT_GREETINGS, DEFAULT_QUICK_ACTIONS } from './chat-box/chat-box.component';
+export type { ChatSettings } from './chat-box/chat-box.component';
 
 // Individual components
-export { MessageListComponent, Message } from './message-list/message-list.component';
-export { WelcomeScreenComponent, Greeting, QuickAction } from './welcome-screen/welcome-screen.component';
-export { PromptQueueComponent, QueueItem } from './prompt-queue/prompt-queue.component';
-export { ChatInputComponent, SendEvent, AttachedFile } from './chat-input/chat-input.component';
-export { ModelSelectorComponent, Model, Provider } from './model-selector/model-selector.component';
+export { MessageListComponent } from './message-list/message-list.component';
+export type { Message } from './message-list/message-list.component';
+
+export { WelcomeScreenComponent } from './welcome-screen/welcome-screen.component';
+export type { Greeting, QuickAction } from './welcome-screen/welcome-screen.component';
+
+export { PromptQueueComponent } from './prompt-queue/prompt-queue.component';
+export type { QueueItem } from './prompt-queue/prompt-queue.component';
+
+export { ChatInputComponent } from './chat-input/chat-input.component';
+export type { SendEvent, AttachedFile } from './chat-input/chat-input.component';
+
+export { ModelSelectorComponent } from './model-selector/model-selector.component';
+export type { Model, Provider } from './model-selector/model-selector.component';
+

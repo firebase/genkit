@@ -103,30 +103,70 @@ export interface ChatSettings {
  * Default greetings for the welcome screen.
  */
 export const DEFAULT_GREETINGS: Greeting[] = [
-    { text: 'Hello', language: 'en' },
-    { text: 'Bonjour', language: 'fr' },
-    { text: 'Hola', language: 'es' },
-    { text: 'こんにちは', language: 'ja' },
-    { text: 'नमस्ते', language: 'hi' },
+    { text: 'Hello', lang: 'en', dir: 'ltr', anim: 'type' },
+    { text: 'Bonjour', lang: 'fr', dir: 'ltr', anim: 'type' },
+    { text: 'Hola', lang: 'es', dir: 'ltr', anim: 'type' },
+    { text: 'こんにちは', lang: 'ja', dir: 'ltr', anim: 'slide' },
+    { text: 'नमस्ते', lang: 'hi', dir: 'ltr', anim: 'slide' },
+    { text: 'مرحبا', lang: 'ar', dir: 'rtl', anim: 'slide' },
 ];
 
 /**
  * Default quick actions for the welcome screen.
  */
 export const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
-    { icon: 'lightbulb', label: 'Explain a concept', prompt: 'Explain the concept of ' },
-    { icon: 'code', label: 'Write code', prompt: 'Write code that ' },
-    { icon: 'edit', label: 'Help me write', prompt: 'Help me write ' },
-    { icon: 'psychology', label: 'Brainstorm ideas', prompt: 'Brainstorm ideas for ' },
+    { icon: 'lightbulb', labelKey: 'chat.actions.explain', prompt: 'Explain the concept of ', color: 'primary' },
+    { icon: 'code', labelKey: 'chat.actions.write_code', prompt: 'Write code that ', color: 'accent' },
+    { icon: 'edit', labelKey: 'chat.actions.help_write', prompt: 'Help me write ', color: 'warn' },
+    { icon: 'psychology', labelKey: 'chat.actions.brainstorm', prompt: 'Brainstorm ideas for ', color: 'primary' },
 ];
 
 /**
- * Type declarations for Web Speech API (not in all TypeScript libs)
+ * Type declarations for Web Speech API (not in all TypeScript libs).
+ * These types provide structural compatibility for browser speech recognition.
  */
+interface SpeechRecognitionResult {
+    readonly length: number;
+    item(index: number): SpeechRecognitionAlternative;
+    [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+    readonly transcript: string;
+    readonly confidence: number;
+}
+
+interface SpeechRecognitionResultList {
+    readonly length: number;
+    item(index: number): SpeechRecognitionResult;
+    [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionEvent extends Event {
+    readonly results: SpeechRecognitionResultList;
+    readonly resultIndex: number;
+}
+
+interface SpeechRecognitionInterface {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start(): void;
+    stop(): void;
+    abort(): void;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: Event) => void) | null;
+    onend: (() => void) | null;
+}
+
+interface SpeechRecognitionConstructor {
+    new(): SpeechRecognitionInterface;
+}
+
 declare global {
     interface Window {
-        SpeechRecognition: typeof SpeechRecognition;
-        webkitSpeechRecognition: typeof SpeechRecognition;
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
     }
 }
 
@@ -393,7 +433,7 @@ export class ChatBoxComponent implements OnDestroy {
     private _internalVoiceSupported = signal(false);
 
     /** Speech recognition instance */
-    private recognition: SpeechRecognition | null = null;
+    private recognition: SpeechRecognitionInterface | null = null;
 
     /** Speech synthesis for speaking messages */
     private synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null;

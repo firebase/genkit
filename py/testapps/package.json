@@ -6,15 +6,18 @@
   "scripts": {
     "test": "pnpm -r run test",
     "test:coverage": "pnpm --filter genkit-chat-ui run test:coverage",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
-    "check": "biome check .",
-    "check:fix": "biome check --write .",
+    "lint": "pnpm -r run lint",
+    "lint:root": "biome lint .",
+    "lint:fix": "pnpm -r run lint:fix",
+    "format": "pnpm -r run format",
+    "format:check": "pnpm -r run format:check",
+    "check": "pnpm -r run check",
+    "check:fix": "pnpm -r run check:fix",
     "build": "pnpm -r run build",
     "storybook": "pnpm --filter @aspect/genkit-ui run storybook",
-    "storybook:chat": "pnpm --filter genkit-chat-ui run storybook"
+    "storybook:chat": "pnpm --filter genkit-chat-ui run storybook",
+    "license:check": "license-checker --production --onlyAllow 'MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense;Python-2.0;WTFPL' --excludePrivatePackages",
+    "license:summary": "license-checker --production --summary"
   },
   "keywords": [
     "genkit",
@@ -26,6 +29,7 @@
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
-    "@biomejs/biome": "^2.3.13"
+    "@biomejs/biome": "^2.3.13",
+    "license-checker": "^25.0.1"
   }
 }

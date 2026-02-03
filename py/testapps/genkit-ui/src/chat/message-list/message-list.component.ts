@@ -43,7 +43,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { TranslateModule } from '@ngx-translate/core';
-import { SafeMarkdownPipe } from '../../../../shared/pipes/safe-markdown.pipe';
+import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 
 /** 
  * Message interface - defined locally for portability.
