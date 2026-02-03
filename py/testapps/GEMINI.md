@@ -236,6 +236,81 @@ async checkContent(text: string) {
 }
 ```
 
+### Backend API Documentation
+
+Every Python backend module with HTTP endpoints MUST include:
+
+1. **Endpoint Table in Module Docstring** - List all endpoints with method, path, parameters, and description
+
+2. **Data Flow Diagram in Each Handler** - ASCII diagram showing request processing
+
+**Example - Module Docstring with Endpoint Table:**
+
+```python
+"""Chat API Backend Server.
+
+This module provides the HTTP API for the Genkit Chat application.
+
+API Endpoints::
+
+    ┌─────────┬──────────────────────┬────────────────────────────────────────┐
+    │ Method  │ Path                 │ Description                            │
+    ├─────────┼──────────────────────┼────────────────────────────────────────┤
+    │ GET     │ /                    │ Health check, returns server status    │
+    │ GET     │ /api/models          │ List available AI models by provider   │
+    │ GET     │ /api/stream          │ SSE stream for chat responses          │
+    │         │   ?message=<str>     │   - User message (required)            │
+    │         │   &model=<str>       │   - Model ID (required)                │
+    │         │   &history=<json>    │   - Conversation history (optional)    │
+    │ POST    │ /api/chat            │ Non-streaming chat completion          │
+    │ GET     │ /api/health          │ Detailed health check with uptime      │
+    └─────────┴──────────────────────┴────────────────────────────────────────┘
+"""
+```
+
+**Example - Handler with Data Flow Diagram:**
+
+```python
+@app.get("/api/stream")
+async def stream_endpoint(message: str, model: str) -> StreamingResponse:
+    """Stream AI responses via Server-Sent Events.
+
+    Data Flow::
+
+        Client Request
+             │
+             ▼
+        ┌─────────────────┐
+        │ Parse Parameters│  → Validate message & model
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Get Model Client│  → Look up model from registry
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Generate Stream │  → Call Genkit g.generate_stream()
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Format as SSE   │  → Yield "data: {...}\\n\\n" chunks
+        └────────┬────────┘
+                 │
+                 ▼
+        StreamingResponse ──► Client
+
+    Args:
+        message: The user's chat message.
+        model: The model ID (e.g., "googleai/gemini-2.0-flash").
+
+    Returns:
+        SSE stream with JSON chunks containing response text.
+    """
+```
+
 ### TypeScript
 
 **Strict Typing is Required.** All code MUST pass strict TypeScript checks with zero errors.
