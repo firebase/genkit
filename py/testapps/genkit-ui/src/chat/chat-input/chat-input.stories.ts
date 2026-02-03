@@ -189,8 +189,10 @@ export const DarkMode: Story = {
     args: {
         ...Default.args,
     },
-    parameters: {
-        backgrounds: { default: 'dark' },
+    globals: {
+        backgrounds: {
+            value: "dark"
+        }
     },
 };
 

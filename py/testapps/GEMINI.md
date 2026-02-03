@@ -112,6 +112,18 @@ When creating a new package or testapp:
 
 The project includes [Storybook](https://storybook.js.org/) for component development and testing in isolation.
 
+### Telemetry
+
+**Disable telemetry by default.** Storybook and other tools may collect anonymous usage data. For privacy and compliance, disable telemetry:
+
+```bash
+# Disable Storybook telemetry
+npx storybook telemetry --disable
+
+# Or set environment variable
+export STORYBOOK_DISABLE_TELEMETRY=1
+```
+
 ### Running Storybook
 
 ```bash
@@ -568,6 +580,55 @@ cd backend && uv run pytest
 # Run specific test file
 pnpm test -- --include="**/content-safety.service.spec.ts"
 ```
+
+### Testing Strategy: Logic-First Testing
+
+The genkit-chat frontend uses a **logic-first testing pattern** that extracts pure logic from Angular components and tests it independently. This approach works around Angular's injection context requirements while maximizing test coverage.
+
+**Why Logic-First?**
+
+Angular services using `effect()`, `signal()`, and `inject()` require the Angular injection context, making direct instantiation in Vitest impossible. Instead, we:
+
+1. **Test pure logic** - Extract algorithms, transformations, and business logic into testable functions
+2. **Test data structures** - Verify interfaces and type contracts
+3. **Test configuration** - Validate constants and settings
+4. **Later: Component tests** - Use Angular TestBed for full component integration
+
+**Example - Logic-First Testing:**
+
+```typescript
+// Instead of testing the service directly (which needs Angular):
+// const service = new ThemeService();  // ❌ NG0203 error
+
+// Test the pure logic:
+const isDarkTheme = (theme: Theme, prefersDark: boolean): boolean => {
+    if (theme === 'system') return prefersDark;
+    return theme === 'dark';
+};
+
+it('should return true when theme is dark', () => {
+    expect(isDarkTheme('dark', false)).toBe(true);  // ✓
+});
+```
+
+### Coverage Improvement Plan
+
+Current coverage is ~5.6%. Target is 80%. Here's the phased approach:
+
+| Phase | Coverage Target | Focus |
+|-------|-----------------|-------|
+| Phase 1 (Done) | 5% | Pure logic tests, config, data structures |
+| Phase 2 | 30% | Extract and test utility functions from components |
+| Phase 3 | 50% | Add Angular TestBed integration for services |
+| Phase 4 | 80% | Component tests with mocked dependencies |
+
+**Files with 100% coverage already:**
+- `app/core/config/chat.config.ts` - MIME type icons, config constants
+
+**High-impact files to test next:**
+- `app/core/services/chat.service.ts` - Extract queue logic
+- `app/core/services/model.service.ts` - Extract filtering logic
+- `app/shared/pipes/safe-markdown.pipe.ts` - Extract math substitutions
 
 ### Writing Unit Tests
 

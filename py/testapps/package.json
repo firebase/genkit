@@ -1,0 +1,31 @@
+{
+  "name": "testapps",
+  "version": "1.0.0",
+  "description": "Genkit test applications and UI component library",
+  "private": true,
+  "scripts": {
+    "test": "pnpm -r run test",
+    "test:coverage": "pnpm --filter genkit-chat-ui run test:coverage",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "build": "pnpm -r run build",
+    "storybook": "pnpm --filter @aspect/genkit-ui run storybook",
+    "storybook:chat": "pnpm --filter genkit-chat-ui run storybook"
+  },
+  "keywords": [
+    "genkit",
+    "ai",
+    "chat",
+    "angular"
+  ],
+  "author": "Google LLC",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.28.0",
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.13"
+  }
+}

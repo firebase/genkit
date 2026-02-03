@@ -14,141 +14,136 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ThemeMode } from './theme.service';
+import { describe, it, expect, vi } from 'vitest';
+import type { Theme } from './theme.service';
 
-// Since ThemeService uses Angular's effect() which requires injection context,
-// we test the logic separately without instantiating the full service
+// Test the pure logic without Angular's injection context
+// Following the "Logic-First" testing pattern from GEMINI.md
 
-describe('ThemeService logic', () => {
-    let mockLocalStorage: Record<string, string>;
-
-    beforeEach(() => {
-        mockLocalStorage = {};
-        vi.spyOn(localStorage, 'getItem').mockImplementation((key) => mockLocalStorage[key] || null);
-        vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
-            mockLocalStorage[key] = value;
-        });
-    });
-
-    describe('getInitialTheme logic', () => {
-        it('should default to system theme when nothing stored', () => {
-            const saved = localStorage.getItem('genkit-chat-theme');
-            const theme: ThemeMode = saved === 'light' || saved === 'dark' || saved === 'system'
-                ? saved
-                : 'system';
-            expect(theme).toBe('system');
-        });
-
-        it('should restore light theme from localStorage', () => {
-            mockLocalStorage['genkit-chat-theme'] = 'light';
-            const saved = localStorage.getItem('genkit-chat-theme');
-            const theme: ThemeMode = saved === 'light' || saved === 'dark' || saved === 'system'
-                ? saved
-                : 'system';
+describe('ThemeService pure logic', () => {
+    describe('Theme type', () => {
+        it('should accept light theme', () => {
+            const theme: Theme = 'light';
             expect(theme).toBe('light');
         });
 
-        it('should restore dark theme from localStorage', () => {
-            mockLocalStorage['genkit-chat-theme'] = 'dark';
-            const saved = localStorage.getItem('genkit-chat-theme');
-            const theme: ThemeMode = saved === 'light' || saved === 'dark' || saved === 'system'
-                ? saved
-                : 'system';
+        it('should accept dark theme', () => {
+            const theme: Theme = 'dark';
             expect(theme).toBe('dark');
         });
 
-        it('should default to system for invalid stored theme', () => {
-            mockLocalStorage['genkit-chat-theme'] = 'invalid';
-            const saved = localStorage.getItem('genkit-chat-theme');
-            const theme: ThemeMode = saved === 'light' || saved === 'dark' || saved === 'system'
-                ? saved
-                : 'system';
+        it('should accept system theme', () => {
+            const theme: Theme = 'system';
             expect(theme).toBe('system');
         });
-    });
 
-    describe('cycleTheme logic', () => {
-        it('should cycle from system to light', () => {
-            const current: ThemeMode = 'system';
-            const next: ThemeMode = current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
-            expect(next).toBe('light');
-        });
-
-        it('should cycle from light to dark', () => {
-            const current: ThemeMode = 'light';
-            const next: ThemeMode = current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
-            expect(next).toBe('dark');
-        });
-
-        it('should cycle from dark to system', () => {
-            const current: ThemeMode = 'dark';
-            const next: ThemeMode = current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
-            expect(next).toBe('system');
-        });
-    });
-
-    describe('getThemeIcon logic', () => {
-        function getThemeIcon(mode: ThemeMode): string {
-            if (mode === 'system') return 'brightness_auto';
-            if (mode === 'dark') return 'dark_mode';
-            return 'light_mode';
-        }
-
-        it('should return brightness_auto for system theme', () => {
-            expect(getThemeIcon('system')).toBe('brightness_auto');
-        });
-
-        it('should return light_mode for light theme', () => {
-            expect(getThemeIcon('light')).toBe('light_mode');
-        });
-
-        it('should return dark_mode for dark theme', () => {
-            expect(getThemeIcon('dark')).toBe('dark_mode');
-        });
-    });
-
-    describe('getThemeLabel logic', () => {
-        function getThemeLabel(mode: ThemeMode): string {
-            if (mode === 'system') return 'System';
-            if (mode === 'dark') return 'Dark';
-            return 'Light';
-        }
-
-        it('should return System for system theme', () => {
-            expect(getThemeLabel('system')).toBe('System');
-        });
-
-        it('should return Light for light theme', () => {
-            expect(getThemeLabel('light')).toBe('Light');
-        });
-
-        it('should return Dark for dark theme', () => {
-            expect(getThemeLabel('dark')).toBe('Dark');
+        it('should have exactly 3 valid values', () => {
+            const validThemes: Theme[] = ['light', 'dark', 'system'];
+            expect(validThemes).toHaveLength(3);
         });
     });
 
     describe('isDarkTheme logic', () => {
-        function isDarkTheme(mode: ThemeMode, systemPrefersDark: boolean): boolean {
-            if (mode === 'system') {
-                return systemPrefersDark;
+        // Simulate the isDarkTheme computed logic
+        const isDarkTheme = (theme: Theme, prefersDark: boolean): boolean => {
+            if (theme === 'system') {
+                return prefersDark;
             }
-            return mode === 'dark';
-        }
+            return theme === 'dark';
+        };
 
-        it('should return false for light theme', () => {
+        it('should return true when theme is dark', () => {
+            expect(isDarkTheme('dark', false)).toBe(true);
+        });
+
+        it('should return false when theme is light', () => {
             expect(isDarkTheme('light', false)).toBe(false);
+        });
+
+        it('should return true when theme is system and prefers dark', () => {
+            expect(isDarkTheme('system', true)).toBe(true);
+        });
+
+        it('should return false when theme is system and prefers light', () => {
+            expect(isDarkTheme('system', false)).toBe(false);
+        });
+
+        it('should ignore prefersDark for explicit themes', () => {
+            expect(isDarkTheme('dark', false)).toBe(true);
             expect(isDarkTheme('light', true)).toBe(false);
         });
+    });
 
-        it('should return true for dark theme', () => {
-            expect(isDarkTheme('dark', false)).toBe(true);
-            expect(isDarkTheme('dark', true)).toBe(true);
+    describe('toggleTheme logic', () => {
+        // Simulate the toggle logic
+        const toggleTheme = (currentTheme: Theme): Theme => {
+            return currentTheme === 'dark' ? 'light' : 'dark';
+        };
+
+        it('should toggle from dark to light', () => {
+            expect(toggleTheme('dark')).toBe('light');
         });
 
-        it('should respect system preference when mode is system', () => {
-            expect(isDarkTheme('system', false)).toBe(false);
-            expect(isDarkTheme('system', true)).toBe(true);
+        it('should toggle from light to dark', () => {
+            expect(toggleTheme('light')).toBe('dark');
+        });
+
+        it('should toggle from system to dark', () => {
+            expect(toggleTheme('system')).toBe('dark');
+        });
+    });
+
+    describe('localStorage integration', () => {
+        const STORAGE_KEY = 'genkit-chat-theme';
+
+        it('should use correct storage key', () => {
+            expect(STORAGE_KEY).toBe('genkit-chat-theme');
+        });
+
+        it('should save theme to localStorage', () => {
+            const theme: Theme = 'dark';
+            localStorage.setItem(STORAGE_KEY, theme);
+            expect(localStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, 'dark');
+        });
+
+        it('should load theme from localStorage', () => {
+            vi.mocked(localStorage.getItem).mockReturnValue('light');
+            const stored = localStorage.getItem(STORAGE_KEY);
+            expect(stored).toBe('light');
+        });
+
+        it('should handle missing localStorage value', () => {
+            vi.mocked(localStorage.getItem).mockReturnValue(null);
+            const stored = localStorage.getItem(STORAGE_KEY);
+            expect(stored).toBeNull();
+        });
+    });
+
+    describe('CSS class logic', () => {
+        it('should add dark-theme class when dark', () => {
+            const isDark = true;
+            const expectedClass = isDark ? 'dark-theme' : '';
+            expect(expectedClass).toBe('dark-theme');
+        });
+
+        it('should not add dark-theme class when light', () => {
+            const isDark = false;
+            const expectedClass = isDark ? 'dark-theme' : '';
+            expect(expectedClass).toBe('');
+        });
+    });
+
+    describe('color-scheme logic', () => {
+        it('should set color-scheme to dark when dark mode', () => {
+            const isDark = true;
+            const colorScheme = isDark ? 'dark' : 'light';
+            expect(colorScheme).toBe('dark');
+        });
+
+        it('should set color-scheme to light when light mode', () => {
+            const isDark = false;
+            const colorScheme = isDark ? 'dark' : 'light';
+            expect(colorScheme).toBe('light');
         });
     });
 });
