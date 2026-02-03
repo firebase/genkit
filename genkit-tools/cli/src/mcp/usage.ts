@@ -19,24 +19,29 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { ContentBlock } from '@modelcontextprotocol/sdk/types';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
+import { enrichToolDescription } from './utils.js';
 
 import { GENKIT_CONTEXT as GoContext } from '../commands/init-ai-tools/context/go.js';
 import { GENKIT_CONTEXT as JsContext } from '../commands/init-ai-tools/context/nodejs.js';
 
 export async function defineUsageGuideTool(server: McpServer) {
+  const inputSchema = {
+    language: z
+      .enum(['js', 'go'])
+      .describe('which language this usage guide is for')
+      .default('js')
+      .optional(),
+  };
+
   server.registerTool(
     'get_usage_guide',
     {
       title: 'Genkit Instructions',
-      description:
+      description: enrichToolDescription(
         'Use this tool to look up the Genkit usage guide before implementing any AI feature',
-      inputSchema: {
-        language: z
-          .enum(['js', 'go'])
-          .describe('which language this usage guide is for')
-          .default('js')
-          .optional(),
-      },
+        inputSchema
+      ),
+      inputSchema,
     },
     async ({ language }) => {
       await record(new McpRunToolEvent('get_usage_guide'));

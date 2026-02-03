@@ -21,29 +21,35 @@ import { z } from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
   McpToolOptions,
+  enrichToolDescription,
   getCommonSchema,
   resolveProjectRoot,
 } from './utils.js';
 
 export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
+  const startRuntimeSchema = getCommonSchema(options.explicitProjectRoot, {
+    command: z.string().describe('The command to run'),
+    args: z
+      .array(z.string())
+      .describe(
+        'The array of string args for the command to run. Eg: `["run", "dev"]`.'
+      ),
+  });
+
   server.registerTool(
     'start_runtime',
     {
       title: 'Starts a Genkit runtime process',
-      description: `Use this to start a Genkit runtime process (This is typically the entry point to the users app). Once started, the runtime will be picked up by the \`genkit start\` command to power the Dev UI features like model and flow playgrounds. The inputSchema for this tool matches the function prototype for \`NodeJS.child_process.spawn\`.
+      description: enrichToolDescription(
+        `Use this to start a Genkit runtime process (This is typically the entry point to the users app). Once started, the runtime will be picked up by the \`genkit start\` command to power the Dev UI features like model and flow playgrounds. The inputSchema for this tool matches the function prototype for \`NodeJS.child_process.spawn\`.
         
       Examples: 
         {command: "go", args: ["run", "main.go"]}
         {command: "npm", args: ["run", "dev"]}
         {command: "npm", args: ["run", "dev"], projectRoot: "path/to/project"}`,
-      inputSchema: getCommonSchema(options.explicitProjectRoot, {
-        command: z.string().describe('The command to run'),
-        args: z
-          .array(z.string())
-          .describe(
-            'The array of string args for the command to run. Eg: `["run", "dev"]`.'
-          ),
-      }),
+        startRuntimeSchema
+      ),
+      inputSchema: startRuntimeSchema,
     },
     async (opts) => {
       await record(new McpRunToolEvent('start_runtime'));
@@ -94,12 +100,16 @@ export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
     title: string,
     action: 'kill' | 'restart'
   ) => {
+    const inputSchema = getCommonSchema(options.explicitProjectRoot);
     server.registerTool(
       name,
       {
         title,
-        description: `Use this to ${action} an existing runtime that was started using the \`start_runtime\` tool`,
-        inputSchema: getCommonSchema(options.explicitProjectRoot),
+        description: enrichToolDescription(
+          `Use this to ${action} an existing runtime that was started using the \`start_runtime\` tool`,
+          inputSchema
+        ),
+        inputSchema,
       },
       async (opts) => {
         await record(new McpRunToolEvent(name));

@@ -21,18 +21,22 @@ import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
   McpToolOptions,
+  enrichToolDescription,
   getCommonSchema,
   resolveProjectRoot,
 } from './utils.js';
 
 export function defineFlowTools(server: McpServer, options: McpToolOptions) {
+  const listFlowsSchema = getCommonSchema(options.explicitProjectRoot);
   server.registerTool(
     'list_flows',
     {
       title: 'List Genkit Flows',
-      description:
+      description: enrichToolDescription(
         'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
-      inputSchema: getCommonSchema(options.explicitProjectRoot),
+        listFlowsSchema
+      ),
+      inputSchema: listFlowsSchema,
     },
     async (opts) => {
       await record(new McpRunToolEvent('list_flows'));
@@ -64,20 +68,24 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
     }
   );
 
+  const runFlowSchema = getCommonSchema(options.explicitProjectRoot, {
+    flowName: z.string().describe('name of the flow'),
+    input: z
+      .string()
+      .describe(
+        'Flow input as JSON object encoded as string (it will be passed through `JSON.parse`). Must conform to the schema.'
+      )
+      .optional(),
+  });
   server.registerTool(
     'run_flow',
     {
       title: 'Run Flow',
-      description: 'Runs the flow with the provided input',
-      inputSchema: getCommonSchema(options.explicitProjectRoot, {
-        flowName: z.string().describe('name of the flow'),
-        input: z
-          .string()
-          .describe(
-            'Flow input as JSON object encoded as string (it will be passed through `JSON.parse`). Must conform to the schema.'
-          )
-          .optional(),
-      }),
+      description: enrichToolDescription(
+        'Runs the flow with the provided input',
+        runFlowSchema
+      ),
+      inputSchema: runFlowSchema,
     },
     async (opts) => {
       await record(new McpRunToolEvent('run_flow'));

@@ -25,6 +25,7 @@ import path from 'path';
 import z from 'zod';
 import { version } from '../utils/version';
 import { McpRunToolEvent } from './analytics.js';
+import { enrichToolDescription } from './utils.js';
 
 const DOCS_URL =
   process.env.GENKIT_DOCS_BUNDLE_URL ??
@@ -71,24 +72,28 @@ export async function defineDocsTool(server: McpServer) {
     readFileSync(DOCS_BUNDLE_FILE_PATH, { encoding: 'utf8' })
   ) as Record<string, Doc>;
 
+  const inputSchema = {
+    language: z
+      .enum(['js', 'go', 'python'])
+      .describe('which language these docs are for (default js).')
+      .default('js'),
+    files: z
+      .array(z.string())
+      .describe(
+        'Specific docs files to look up. If empty or not specified an index will be returned. Always lookup index first for exact file names.'
+      )
+      .optional(),
+  };
+
   server.registerTool(
     'lookup_genkit_docs',
     {
       title: 'Genkit Docs',
-      description:
+      description: enrichToolDescription(
         'Use this to look up documentation for the Genkit AI framework.',
-      inputSchema: {
-        language: z
-          .enum(['js', 'go', 'python'])
-          .describe('which language these docs are for (default js).')
-          .default('js'),
-        files: z
-          .array(z.string())
-          .describe(
-            'Specific docs files to look up. If empty or not specified an index will be returned. Always lookup index first for exact file names.'
-          )
-          .optional(),
-      },
+        inputSchema
+      ),
+      inputSchema,
     },
     async ({ language, files }) => {
       await record(new McpRunToolEvent('lookup_genkit_docs'));
