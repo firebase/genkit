@@ -620,7 +620,7 @@ import { CodeCopyService } from './core/services/code-copy.service';
       background: var(--surface-container);
       color: var(--on-surface-variant);
       border-radius: 4px;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.02em;
     }
 
     .header-avatar {

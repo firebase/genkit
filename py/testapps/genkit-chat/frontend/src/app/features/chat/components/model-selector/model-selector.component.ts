@@ -206,6 +206,7 @@ export interface Provider {
       .provider-name {
         font-size: 11px;
         color: var(--_on-surface-variant);
+        letter-spacing: -0.01em;
       }
     }
 
@@ -272,7 +273,7 @@ export interface Provider {
       font-weight: 600;
       color: var(--_on-surface-variant);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.02em;
     }
 
     .model-item {

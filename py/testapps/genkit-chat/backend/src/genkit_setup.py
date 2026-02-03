@@ -75,15 +75,28 @@ def _load_plugins() -> list[Any]:
         except ImportError:
             logger.warning("Google AI plugin not installed")
 
-    # Vertex AI Model Garden (for third-party models like Claude on Vertex)
+    # Vertex AI (Gemini + Imagen + Veo)
+    # VertexAI plugin dynamically discovers all available models including:
+    # - Gemini text models (gemini-2.0-flash, gemini-2.5-pro, etc.)
+    # - Imagen image generation models (imagen-3.0-generate-002, etc.)
+    # - Veo video generation models (veo-2.0-generate-001, etc.)
     if os.getenv("GOOGLE_CLOUD_PROJECT"):
+        try:
+            from genkit.plugins.google_genai import VertexAI  # type: ignore[import-not-found]
+
+            plugins.append(VertexAI())
+            logger.info("✓ Loaded Vertex AI plugin (Gemini, Imagen, Veo)")
+        except ImportError:
+            logger.warning("Vertex AI plugin not installed")
+
+        # Model Garden (third-party models on Vertex: Claude, Llama, etc.)
         try:
             from genkit.plugins.vertex_ai import ModelGardenPlugin  # type: ignore[import-not-found]
 
             plugins.append(ModelGardenPlugin())
-            logger.info("Loaded Vertex AI Model Garden plugin")
+            logger.info("✓ Loaded Vertex AI Model Garden plugin")
         except ImportError:
-            logger.warning("Vertex AI plugin not installed")
+            pass  # Model Garden is optional
 
     # Anthropic
     if os.getenv("ANTHROPIC_API_KEY"):

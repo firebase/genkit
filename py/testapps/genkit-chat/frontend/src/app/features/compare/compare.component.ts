@@ -186,7 +186,7 @@ import { ModelsService, ModelInfo } from '../../core/services/models.service';
       color: var(--on-surface-variant);
       margin: 0 0 16px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.02em;
     }
 
     /* Model Grid */
@@ -214,7 +214,7 @@ import { ModelsService, ModelInfo } from '../../core/services/models.service';
       font-weight: 600;
       color: var(--gemini-blue);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.02em;
     }
 
     .model-list {

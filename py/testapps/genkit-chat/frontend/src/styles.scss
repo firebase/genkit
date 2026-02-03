@@ -655,7 +655,7 @@ button {
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.02em;
       color: var(--on-surface-muted);
       padding: 4px 16px 6px;
     }
@@ -1046,5 +1046,205 @@ body.dark-theme {
 
   .hljs-meta {
     color: #d2a8ff;
+  }
+}
+
+/* Table Wrapper Styles */
+.table-wrapper {
+  position: relative;
+  margin: 16px 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-container);
+  border: 1px solid var(--surface-variant);
+
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface-container-high);
+    border-bottom: 1px solid var(--surface-variant);
+
+    .table-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--on-surface-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+  }
+
+  .table-container {
+    overflow-x: auto;
+    padding: 0;
+  }
+
+  .copy-table-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--on-surface-variant);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: var(--surface-variant);
+      color: var(--gemini-blue);
+    }
+
+    &.copied {
+      color: #34a853;
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+}
+
+/* Markdown Table Styles */
+.markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th,
+  td {
+    padding: 10px 14px;
+    border: 1px solid var(--surface-variant);
+    text-align: left;
+  }
+
+  th {
+    background: var(--surface-container-high);
+    font-weight: 600;
+    color: var(--on-surface);
+  }
+
+  td {
+    background: var(--surface);
+    color: var(--on-surface);
+  }
+
+  tr:nth-child(even) td {
+    background: var(--surface-container-low);
+  }
+
+  tr:hover td {
+    background: var(--surface-container);
+  }
+}
+
+/* Math Styles */
+.math-inline {
+  font-family: 'Cambria Math', 'Times New Roman', serif;
+  font-style: italic;
+  padding: 0 2px;
+}
+
+.math-display {
+  display: block;
+  text-align: center;
+  font-family: 'Cambria Math', 'Times New Roman', serif;
+  font-size: 1.2em;
+  padding: 16px;
+  margin: 12px 0;
+  background: var(--surface-container);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.math-frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 4px;
+
+  .math-num {
+    border-bottom: 1px solid currentColor;
+    padding: 0 4px 2px;
+  }
+
+  .math-denom {
+    padding: 2px 4px 0;
+  }
+}
+
+/* Mermaid Diagram Styles */
+.mermaid-diagram {
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-variant);
+  overflow-x: auto;
+
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.mermaid-error {
+  padding: 12px 16px;
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  border-radius: var(--radius-md);
+  color: #d32f2f;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* Dark theme table overrides */
+body.dark-theme {
+  .table-wrapper {
+    background: #0d1117;
+    border-color: #30363d;
+
+    .table-header {
+      background: #161b22;
+      border-color: #30363d;
+    }
+  }
+
+  .markdown-table {
+
+    th,
+    td {
+      border-color: #30363d;
+    }
+
+    th {
+      background: #161b22;
+    }
+
+    td {
+      background: #0d1117;
+    }
+
+    tr:nth-child(even) td {
+      background: #161b22;
+    }
+
+    tr:hover td {
+      background: #21262d;
+    }
+  }
+
+  .math-display {
+    background: #161b22;
+  }
+
+  .mermaid-diagram {
+    background: #0d1117;
+    border-color: #30363d;
   }
 }

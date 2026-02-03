@@ -293,6 +293,16 @@ export interface Message {
         :deep(p:last-child) {
           margin-bottom: 0;
         }
+        
+        :deep(img) {
+          max-width: 100%;
+          height: auto;
+          border-radius: 12px;
+          margin: 0.75em 0;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          max-height: 500px;
+          object-fit: contain;
+        }
       }
     }
 

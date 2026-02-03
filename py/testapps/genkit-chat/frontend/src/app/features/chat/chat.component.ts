@@ -946,7 +946,19 @@ import { TranslateModule } from '@ngx-translate/core';
       img {
         max-width: 100%;
         height: auto;
-        border-radius: 8px;
+        border-radius: 12px;
+        margin: 0.75em 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        cursor: zoom-in;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        
+        &:hover {
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Limit max height for very tall images */
+        max-height: 500px;
+        object-fit: contain;
       }
       
       /* Mermaid diagram styling */
@@ -2099,6 +2111,7 @@ import { TranslateModule } from '@ngx-translate/core';
       gap: 6px;
       border-radius: 20px !important;
       font-size: 14px;
+      letter-spacing: -0.01em;
       padding: 8px 14px !important;
       background: var(--surface) !important;
       border: 1px solid var(--surface-variant) !important;

@@ -136,7 +136,8 @@ from pydantic import BaseModel, Field
 from robyn import Request, Response, Robyn, SSEMessage, SSEResponse
 from robyn.robyn import Headers
 
-from genkit import Genkit
+from genkit import GenerateResponseWrapper, Genkit
+from genkit.types import MediaPart
 
 # Load environment variables
 load_dotenv()
@@ -167,6 +168,46 @@ from genkit_setup import get_available_models  # noqa: E402
 g = Genkit(plugins=load_plugins())
 
 # Note: Prompts in backend/prompts/ are automatically discovered by Genkit
+
+
+def format_response_content(response: GenerateResponseWrapper[object]) -> str:
+    """Format response content including text and images.
+
+    This function extracts all parts from a model response and formats them
+    appropriately for the frontend:
+    - Text parts are included as-is
+    - Media parts (images) are converted to markdown image syntax
+
+    Args:
+        response: The GenerateResponseWrapper from g.generate()
+
+    Returns:
+        Formatted string with text and markdown image syntax
+    """
+    parts = []
+
+    # First try to get text - this works for text-only responses
+    if response.text:
+        parts.append(response.text)
+
+    # Check for media parts in the message content
+    if response.message and response.message.content:
+        for part in response.message.content:
+            if isinstance(part.root, MediaPart):
+                media = part.root.media
+                if media and media.url:
+                    # Format as markdown image
+                    alt_text = "Generated image"
+                    parts.append(f"\n\n![{alt_text}]({media.url})\n")
+
+    # If we only have text from response.text, use that
+    # Otherwise join all parts
+    if len(parts) == 1:
+        return parts[0]
+    elif parts:
+        return "".join(parts)
+    else:
+        return response.text or ""
 
 
 class ChatInput(BaseModel):
@@ -358,7 +399,7 @@ async def chat_flow(input: ChatInput) -> ChatOutput:
     latency_ms = int((time.time() - start_time) * 1000)
 
     return ChatOutput(
-        response=response.text,
+        response=format_response_content(response),
         model=input.model,
         latency_ms=latency_ms,
     )
@@ -383,7 +424,7 @@ async def compare_flow(input: CompareInput) -> CompareOutput:
             latency_ms = int((time.time() - start_time) * 1000)
             return {
                 "model": model_id,
-                "response": response.text,
+                "response": format_response_content(response),
                 "latency_ms": latency_ms,
                 "error": None,
             }

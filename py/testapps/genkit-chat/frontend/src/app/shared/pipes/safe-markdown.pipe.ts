@@ -160,7 +160,7 @@ export class SafeMarkdownPipe implements PipeTransform {
       'orient',
       'style',
     ],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
     ADD_ATTR: ['target'],
     ALLOW_DATA_ATTR: true, // Enable data-* attributes for copy functionality
     RETURN_DOM: false as const,
@@ -173,10 +173,13 @@ export class SafeMarkdownPipe implements PipeTransform {
   }
 
   /**
-   * Configure marked with a custom renderer for code blocks.
+   * Configure marked with a custom renderer for code blocks and tables.
    */
   private configureMarked(): void {
     const renderer = new Renderer();
+
+    // Counter for unique table IDs
+    let tableCounter = 0;
 
     // Override code block rendering to add syntax highlighting and copy button
     renderer.code = ({ text, lang }: { text: string; lang?: string }): string => {
@@ -203,6 +206,69 @@ export class SafeMarkdownPipe implements PipeTransform {
             </button>
           </div>
           <pre id="${blockId}"><code class="hljs language-${language}">${highlighted}</code></pre>
+        </div>
+      `;
+    };
+
+    // Override table rendering to wrap in container with copy button
+    renderer.table = (token: {
+      header: Array<{ text: string }>;
+      rows: Array<Array<{ text: string }>>;
+      align: Array<'center' | 'left' | 'right' | null>;
+    }): string => {
+      const tableId = `table-${++tableCounter}`;
+
+      // Build header row
+      const headerCells = token.header
+        .map((cell: { text: string }, i: number) => {
+          const align = token.align[i] ? ` style="text-align: ${token.align[i]}"` : '';
+          return `<th${align}>${cell.text}</th>`;
+        })
+        .join('');
+
+      // Build body rows
+      const bodyRows = token.rows
+        .map((row: Array<{ text: string }>) => {
+          const cells = row
+            .map((cell: { text: string }, i: number) => {
+              const align = token.align[i] ? ` style="text-align: ${token.align[i]}"` : '';
+              return `<td${align}>${cell.text}</td>`;
+            })
+            .join('');
+          return `<tr>${cells}</tr>`;
+        })
+        .join('');
+
+      // Build the table HTML
+      const tableHtml = `<table id="${tableId}" class="markdown-table">
+        <thead><tr>${headerCells}</tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`;
+
+      // Wrap in container with header and copy button
+      return `
+        <div class="table-wrapper">
+          <div class="table-header">
+            <span class="table-label">Table</span>
+            <button
+              class="copy-table-button"
+              data-table-id="${tableId}"
+              aria-label="Copy table to clipboard"
+              title="Copy as spreadsheet format"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+              <span class="copy-text">Copy</span>
+            </button>
+          </div>
+          <div class="table-container">
+            ${tableHtml}
+          </div>
         </div>
       `;
     };

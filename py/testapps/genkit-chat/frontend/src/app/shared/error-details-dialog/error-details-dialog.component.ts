@@ -129,7 +129,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         font-weight: 500;
         color: var(--on-surface-muted);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.02em;
       }
       
       .copy-btn {

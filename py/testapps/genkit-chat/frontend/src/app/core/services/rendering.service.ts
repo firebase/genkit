@@ -28,6 +28,8 @@ import { Injectable, signal } from '@angular/core';
 export class RenderingService {
   private mermaidModule: typeof import('mermaid') | null = null;
   private mermaidInitialized = false;
+  private mathjaxInitialized = false;
+  private mathjaxDocument: unknown = null;
 
   /** Whether Mermaid is ready */
   mermaidReady = signal(false);
@@ -69,6 +71,40 @@ export class RenderingService {
   }
 
   /**
+   * Initialize MathJax for equation rendering.
+   */
+  async initMathJax(): Promise<void> {
+    if (this.mathjaxInitialized) return;
+
+    try {
+      // Dynamic import of MathJax
+      const { mathjax } = await import('mathjax-full/js/mathjax.js');
+      const { TeX } = await import('mathjax-full/js/input/tex.js');
+      const { SVG } = await import('mathjax-full/js/output/svg.js');
+      const { liteAdaptor } = await import('mathjax-full/js/adaptors/liteAdaptor.js');
+      const { RegisterHTMLHandler } = await import('mathjax-full/js/handlers/html.js');
+      const { AllPackages } = await import('mathjax-full/js/input/tex/AllPackages.js');
+
+      // Create adaptor and register handler
+      const adaptor = liteAdaptor();
+      RegisterHTMLHandler(adaptor);
+
+      // Create MathJax document
+      this.mathjaxDocument = mathjax.document('', {
+        InputJax: new TeX({ packages: AllPackages }),
+        OutputJax: new SVG({ fontCache: 'local' }),
+      });
+
+      this.mathjaxInitialized = true;
+      this.mathjaxReady.set(true);
+      console.log('MathJax initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize MathJax:', error);
+      // Fall back to basic rendering
+    }
+  }
+
+  /**
    * Render a Mermaid diagram from definition.
    * Returns SVG string or error message.
    */
@@ -96,10 +132,80 @@ export class RenderingService {
    * Supports both inline ($...$) and display ($$...$$) math.
    */
   async renderMath(content: string): Promise<string> {
-    // Simple regex-based math rendering
-    // For inline: $...$
-    // For display: $$...$$
+    // Try to use full MathJax if available
+    if (!this.mathjaxInitialized) {
+      await this.initMathJax();
+    }
 
+    // If MathJax failed to load, use basic rendering
+    if (!this.mathjaxDocument) {
+      return this.renderMathBasic(content);
+    }
+
+    try {
+      return await this.renderMathWithMathJax(content);
+    } catch {
+      // Fall back to basic rendering on error
+      return this.renderMathBasic(content);
+    }
+  }
+
+  /**
+   * Render math using full MathJax.
+   */
+  private async renderMathWithMathJax(content: string): Promise<string> {
+    let result = content;
+
+    // Find and replace display math ($$...$$)
+    const displayMathRegex = /\$\$([^$]+)\$\$/g;
+    const displayMatches = [...content.matchAll(displayMathRegex)];
+
+    for (const match of displayMatches) {
+      const latex = match[1].trim();
+      const svg = await this.texToSvg(latex, true);
+      result = result.replace(match[0], svg);
+    }
+
+    // Find and replace inline math ($...$)
+    const inlineMathRegex = /\$([^$\n]+)\$/g;
+    const inlineMatches = [...result.matchAll(inlineMathRegex)];
+
+    for (const match of inlineMatches) {
+      const latex = match[1].trim();
+      const svg = await this.texToSvg(latex, false);
+      result = result.replace(match[0], svg);
+    }
+
+    return result;
+  }
+
+  /**
+   * Convert TeX to SVG using MathJax.
+   */
+  private async texToSvg(latex: string, display: boolean): Promise<string> {
+    try {
+      const doc = this.mathjaxDocument as {
+        convert: (tex: string, options: { display: boolean }) => unknown;
+        adaptor: { outerHTML: (node: unknown) => string };
+      };
+
+      const node = doc.convert(latex, { display });
+      const svg = doc.adaptor.outerHTML(node);
+
+      const className = display ? 'math-display' : 'math-inline';
+      return `<span class="${className}">${svg}</span>`;
+    } catch (error) {
+      console.error('MathJax render error:', error);
+      // Return the original LaTeX on error
+      return display ? `$$${latex}$$` : `$${latex}$`;
+    }
+  }
+
+  /**
+   * Basic math rendering using Unicode substitutions.
+   * Fallback when MathJax is not available.
+   */
+  private renderMathBasic(content: string): string {
     // Replace display math first (greedy)
     let result = content.replace(/\$\$([^$]+)\$\$/g, (_, math) => {
       return this.renderMathToHtml(math.trim(), true);

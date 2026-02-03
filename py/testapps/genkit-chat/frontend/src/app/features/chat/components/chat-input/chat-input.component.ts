@@ -473,6 +473,7 @@ export interface SendEvent {
 
     .tools-btn {
       font-size: 13px;
+      letter-spacing: -0.01em;
       
       mat-icon {
         font-size: 18px;

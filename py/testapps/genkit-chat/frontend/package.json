@@ -45,6 +45,7 @@
     "highlight.js": "^11.11.1",
     "jwt-decode": "^4.0.0",
     "marked": "^17.0.1",
+    "mathjax": "^4.1.0",
     "mathjax-full": "^3.2.2",
     "mermaid": "^11.12.2",
     "rxjs": "~7.8.2",

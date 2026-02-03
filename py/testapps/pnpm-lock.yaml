@@ -74,6 +74,9 @@ importers:
       marked:
         specifier: ^17.0.1
         version: 17.0.1
+      mathjax:
+        specifier: ^4.1.0
+        version: 4.1.0
       mathjax-full:
         specifier: ^3.2.2
         version: 3.2.2
@@ -1738,6 +1741,9 @@ packages:
     resolution: {integrity: sha512-KRzfocJzB/mgoTCqnMawuLSKheHRVTqWfSmouIgYpFs6Hx4zvZSvsZKSCEb5gHmICy7qsx9l06jk3MFTtiFVAQ==}
     cpu: [x64]
     os: [win32]
+
+  '@mathjax/mathjax-newcm-font@4.1.0':
+    resolution: {integrity: sha512-n10AwYubUa2hyOzxSRzkwRrgCVns083zkentryXICMPKaWT/watfvK2sUk5D9Bow9mpDfoqb5EWApuUvqnlzaw==}
 
   '@mdx-js/react@3.1.1':
     resolution: {integrity: sha512-f++rKLQgUVYDAtECQ6fn/is15GkEH9+nZPM3MS0RcxVqoTfawHvDlSCH7JbMhAM6uJ32v3eXLvLmLvjGu7PTQw==}
@@ -4704,6 +4710,9 @@ packages:
   mathjax-full@3.2.2:
     resolution: {integrity: sha512-+LfG9Fik+OuI8SLwsiR02IVdjcnRCy5MufYLi0C3TdMT56L/pjB0alMVGgoWJF8pN9Rc7FESycZB9BMNWIid5w==}
     deprecated: Version 4 replaces this package with the scoped package @mathjax/src
+
+  mathjax@4.1.0:
+    resolution: {integrity: sha512-53eDXzxk40pS2sdI6KDCPoreY95ADaGygbi41ExKmn3FYQ+QIdpquIU90eppecelzQjf74kpScyeplVPccnIJw==}
 
   mdn-data@2.12.2:
     resolution: {integrity: sha512-IEn+pegP1aManZuckezWCO+XZQDplx1366JoVhTpMpBB1sPey/SbveZQUosKiKiGYjg1wH4pMlNgXbCiYgihQA==}
@@ -8824,6 +8833,8 @@ snapshots:
   '@lmdb/lmdb-win32-x64@3.4.4':
     optional: true
 
+  '@mathjax/mathjax-newcm-font@4.1.0': {}
+
   '@mdx-js/react@3.1.1(@types/react@18.3.27)(react@19.2.4)':
     dependencies:
       '@types/mdx': 2.0.13
@@ -11999,6 +12010,10 @@ snapshots:
       mhchemparser: 4.2.1
       mj-context-menu: 0.6.1
       speech-rule-engine: 4.1.2
+
+  mathjax@4.1.0:
+    dependencies:
+      '@mathjax/mathjax-newcm-font': 4.1.0
 
   mdn-data@2.12.2: {}
 

@@ -184,6 +184,7 @@ export interface QuickAction {
       background: transparent;
       color: var(--_on-surface);
       font-size: 14px;
+      letter-spacing: -0.01em;
       transition: all 0.2s ease;
       
       &:hover {
