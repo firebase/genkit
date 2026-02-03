@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect, ElementRef, ViewChild, OnDestroy } from '@angular/core';
+import { Component, inject, signal, effect, ElementRef, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -370,6 +370,17 @@ import { AuthService } from '../../core/services/auth.service';
       margin: 0 auto;
       padding: 0 24px;
       position: relative;
+      overflow: hidden;
+    }
+    
+    /* When in welcome mode (no messages), center content */
+    .chat-container.welcome-mode {
+      justify-content: center;
+    }
+    
+    /* When has messages, use flex layout for scroll */
+    .chat-container.has-messages {
+      justify-content: flex-start;
     }
 
     /* Drop Zone */
@@ -507,8 +518,10 @@ import { AuthService } from '../../core/services/auth.service';
     /* Messages */
     .messages-container {
       flex: 1;
+      min-height: 0; /* Critical for flexbox scrolling */
       overflow-y: auto;
       padding: 24px 0;
+      padding-bottom: 16px; /* Space before input section */
     }
 
     .message-row {
@@ -697,6 +710,7 @@ import { AuthService } from '../../core/services/auth.service';
 
     /* Input Section */
     .input-section {
+      flex-shrink: 0; /* Don't shrink - stay at bottom */
       padding: 16px 24px 24px;
       width: 100%;
       max-width: 820px;
@@ -705,6 +719,7 @@ import { AuthService } from '../../core/services/auth.service';
       flex-direction: column;
       align-items: center;
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      background: var(--surface-dim);
     }
     
     /* Welcome header above chatbox */
@@ -1152,7 +1167,7 @@ import { AuthService } from '../../core/services/auth.service';
     }
   `],
 })
-export class ChatComponent implements OnDestroy {
+export class ChatComponent implements OnDestroy, AfterViewInit {
   chatService = inject(ChatService);
   modelsService = inject(ModelsService);
   speechService = inject(SpeechService);
@@ -1245,8 +1260,18 @@ export class ChatComponent implements OnDestroy {
     // Start greeting carousel
     this.startGreetingCarousel();
 
+    // Track previous message count to detect when chat is cleared
+    let prevMessageCount = 0;
+
     effect(() => {
       const messages = this.chatService.messages();
+
+      // When messages are cleared (new chat), focus the input
+      if (prevMessageCount > 0 && messages.length === 0) {
+        this.focusChatInput();
+      }
+      prevMessageCount = messages.length;
+
       if (messages.length > 0 && this.messagesContainer) {
         setTimeout(() => {
           this.messagesContainer.nativeElement.scrollTop =
@@ -1272,6 +1297,21 @@ export class ChatComponent implements OnDestroy {
     if (this.cursorInterval) {
       clearInterval(this.cursorInterval);
     }
+  }
+
+  ngAfterViewInit(): void {
+    // Focus chat input when welcome screen is shown (initial load)
+    this.focusChatInput();
+  }
+
+  /** Focus the chat textarea input */
+  focusChatInput(): void {
+    // Use setTimeout to ensure the element is ready
+    setTimeout(() => {
+      if (this.chatTextarea?.nativeElement) {
+        this.chatTextarea.nativeElement.focus();
+      }
+    }, 100);
   }
 
   private startGreetingCarousel(): void {
