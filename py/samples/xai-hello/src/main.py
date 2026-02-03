@@ -64,6 +64,7 @@ from rich.traceback import install as install_rich_traceback
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
+from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.xai import XAI, xai_name
 from samples.shared import (
     CalculatorInput,
@@ -88,6 +89,12 @@ if 'XAI_API_KEY' not in os.environ:
     os.environ['XAI_API_KEY'] = input('Please enter your XAI_API_KEY: ')
 
 logger = get_logger(__name__)
+
+# Enable GCP telemetry
+add_gcp_telemetry(
+    project_id=os.environ.get('GCP_PROJECT_ID'),
+    log_input_and_output=False,
+)
 
 ai = Genkit(
     plugins=[XAI()],
