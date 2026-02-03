@@ -20,7 +20,7 @@ SessionFlow is an AI concept and belongs in `go/ai/x/` (experimental):
 go/ai/x/
 ├── session_flow.go          # SessionFlow, SessionFlowFunc, SessionFlowParams, Responder
 ├── session_flow_options.go  # SessionFlowOption, StreamBidiOption
-├── session_flow_state.go    # SessionFlowState, SessionFlowSnapshot, SessionFlowArtifact, SessionFlowInit, SessionFlowResponse, SessionFlowStreamChunk
+├── session_flow_state.go    # SessionState, SessionSnapshot, SessionFlowArtifact, SessionFlowInit, SessionFlowResponse, SessionFlowStreamChunk
 ├── session_flow_store.go    # SnapshotStore interface, InMemorySnapshotStore, SnapshotCallback, SnapshotContext
 ├── session_flow_test.go     # Tests
 ```
@@ -33,13 +33,13 @@ Import as `aix "github.com/firebase/genkit/go/ai/x"`.
 
 ### 1.1 State and Snapshot Types
 
-**SessionFlowState** is the portable state that flows between client and server. It contains only the data needed for conversation continuity.
+**SessionState** is the portable state that flows between client and server. It contains only the data needed for conversation continuity.
 
-**SessionFlowSnapshot** is a persisted point-in-time capture with metadata. It wraps SessionFlowState with additional fields for storage, debugging, and restoration.
+**SessionSnapshot** is a persisted point-in-time capture with metadata. It wraps SessionState with additional fields for storage, debugging, and restoration.
 
 ```go
-// SessionFlowState is the portable conversation state.
-type SessionFlowState[State any] struct {
+// SessionState is the portable conversation state.
+type SessionState[State any] struct {
     // Messages is the conversation history.
     Messages []*ai.Message `json:"messages,omitempty"`
     // Custom is the user-defined state associated with this conversation.
@@ -48,8 +48,8 @@ type SessionFlowState[State any] struct {
     Artifacts []*SessionFlowArtifact `json:"artifacts,omitempty"`
 }
 
-// SessionFlowSnapshot is a persisted point-in-time capture of session state.
-type SessionFlowSnapshot[State any] struct {
+// SessionSnapshot is a persisted point-in-time capture of session state.
+type SessionSnapshot[State any] struct {
     // SnapshotID is the unique identifier for this snapshot (UUID).
     SnapshotID string `json:"snapshotId"`
     // ParentID is the ID of the previous snapshot in this timeline.
@@ -59,7 +59,7 @@ type SessionFlowSnapshot[State any] struct {
     // TurnIndex is the turn number when this snapshot was created (0-indexed).
     TurnIndex int `json:"turnIndex"`
     // State is the actual conversation state.
-    State SessionFlowState[State] `json:"state"`
+    State SessionState[State] `json:"state"`
 }
 
 // SessionFlowArtifact represents a named collection of parts produced during a session.
@@ -92,13 +92,13 @@ type SessionFlowInit[State any] struct {
     SnapshotID string `json:"snapshotId,omitempty"`
     // State provides direct state for the invocation.
     // Mutually exclusive with SnapshotID.
-    State *SessionFlowState[State] `json:"state,omitempty"`
+    State *SessionState[State] `json:"state,omitempty"`
 }
 
 // SessionFlowResponse is the output when a session flow invocation completes.
 type SessionFlowResponse[State any] struct {
     // State contains the final conversation state.
-    State *SessionFlowState[State] `json:"state"`
+    State *SessionState[State] `json:"state"`
     // SnapshotID is the ID of the snapshot created at the end of this invocation.
     // Empty if no snapshot was created (callback returned false or no store configured).
     SnapshotID string `json:"snapshotId,omitempty"`
@@ -135,7 +135,7 @@ The Session provides mutable working state during a session flow invocation. It 
 // It is propagated through context and provides read/write access to state.
 type Session[State any] struct {
     mu    sync.RWMutex
-    state SessionFlowState[State]
+    state SessionState[State]
     store SnapshotStore[State]
 
     // Internal references set by the framework
@@ -143,7 +143,7 @@ type Session[State any] struct {
     inCh      <-chan *SessionFlowInput
 
     // Snapshot tracking
-    lastSnapshot *SessionFlowSnapshot[State]
+    lastSnapshot *SessionSnapshot[State]
     turnIndex    int
 }
 
@@ -157,7 +157,7 @@ func (s *Session[State]) Run(
 ) error
 
 // State returns a copy of the current session flow state.
-func (s *Session[State]) State() *SessionFlowState[State]
+func (s *Session[State]) State() *SessionState[State]
 
 // Messages returns the current conversation history.
 func (s *Session[State]) Messages() []*ai.Message
@@ -261,9 +261,9 @@ type SessionFlow[Stream, State any] struct {
 // SnapshotStore persists and retrieves snapshots.
 type SnapshotStore[State any] interface {
     // GetSnapshot retrieves a snapshot by ID. Returns nil if not found.
-    GetSnapshot(ctx context.Context, snapshotID string) (*SessionFlowSnapshot[State], error)
+    GetSnapshot(ctx context.Context, snapshotID string) (*SessionSnapshot[State], error)
     // SaveSnapshot persists a snapshot.
-    SaveSnapshot(ctx context.Context, snapshot *SessionFlowSnapshot[State]) error
+    SaveSnapshot(ctx context.Context, snapshot *SessionSnapshot[State]) error
 }
 ```
 
@@ -272,7 +272,7 @@ type SnapshotStore[State any] interface {
 ```go
 // InMemorySnapshotStore provides a thread-safe in-memory snapshot store.
 type InMemorySnapshotStore[State any] struct {
-    snapshots map[string]*SessionFlowSnapshot[State]
+    snapshots map[string]*SessionSnapshot[State]
     mu        sync.RWMutex
 }
 
@@ -287,9 +287,9 @@ func NewInMemorySnapshotStore[State any]() *InMemorySnapshotStore[State]
 // SnapshotContext provides context for snapshot decision callbacks.
 type SnapshotContext[State any] struct {
     // State is the current state that will be snapshotted if the callback returns true.
-    State *SessionFlowState[State]
+    State *SessionState[State]
     // PrevState is the state at the last snapshot, or nil if none exists.
-    PrevState *SessionFlowState[State]
+    PrevState *SessionState[State]
     // TurnIndex is the current turn number.
     TurnIndex int
 }
@@ -337,7 +337,7 @@ type StreamBidiOption[State any] interface {
 
 // WithState sets the initial state for the invocation.
 // Use this for client-managed state where the client sends state directly.
-func WithState[State any](state *SessionFlowState[State]) StreamBidiOption[State]
+func WithState[State any](state *SessionState[State]) StreamBidiOption[State]
 
 // WithSnapshotID loads state from a persisted snapshot by ID.
 // Use this for server-managed state where snapshots are stored.
@@ -422,14 +422,14 @@ At each point:
 When `WithSnapshotID` is provided to `StreamBidi`:
 
 1. Load the snapshot from the store
-2. Extract the `SessionFlowState` from the snapshot
+2. Extract the `SessionState` from the snapshot
 3. Initialize the session with that state (messages, custom state, artifacts)
 4. New snapshots will reference this as the parent
 5. Conversation continues from the restored state
 
 When `WithState` is provided to `StreamBidi`:
 
-1. Use the provided `SessionFlowState` directly
+1. Use the provided `SessionState` directly
 2. Initialize the session with that state
 3. No parent snapshot reference (client-managed mode)
 
@@ -638,7 +638,7 @@ for chunk, err := range conn.Receive() {
 For clients that manage their own state (e.g., web apps with local storage):
 
 ```go
-clientState := &aix.SessionFlowState[ChatState]{
+clientState := &aix.SessionState[ChatState]{
     Messages: previousMessages,
     Custom:    ChatState{UserPreferences: prefs},
 }
@@ -728,7 +728,7 @@ When `DefineSessionFlow` is called with `WithSnapshotStore`, actions are registe
 
 | Action | Key | Input | Returns |
 |--------|-----|-------|---------|
-| getSnapshot | `/snapshot-store/{flow}/getSnapshot` | `{snapshotId: string}` | `SessionFlowSnapshot[State]` |
+| getSnapshot | `/snapshot-store/{flow}/getSnapshot` | `{snapshotId: string}` | `SessionSnapshot[State]` |
 
 ### 9.2 Action Type
 
@@ -753,7 +753,7 @@ This allows developers to inspect the exact session flow state at any traced poi
 | File | Description |
 |------|-------------|
 | `go/ai/x/session_flow.go` | SessionFlow, SessionFlowFunc, SessionFlowParams, Responder, Session |
-| `go/ai/x/session_flow_state.go` | SessionFlowState, SessionFlowSnapshot, SessionFlowArtifact, SessionFlowInit, SessionFlowResponse, SessionFlowStreamChunk |
+| `go/ai/x/session_flow_state.go` | SessionState, SessionSnapshot, SessionFlowArtifact, SessionFlowInit, SessionFlowResponse, SessionFlowStreamChunk |
 | `go/ai/x/session_flow_options.go` | SessionFlowOption, StreamBidiOption, SnapshotCallback, SnapshotContext |
 | `go/ai/x/session_flow_store.go` | SnapshotStore interface, InMemorySnapshotStore |
 | `go/ai/x/session_flow_test.go` | Tests |
@@ -769,15 +769,15 @@ This allows developers to inspect the exact session flow state at any traced poi
 
 ## 11. Design Decisions
 
-### Why Separate SessionFlowState from SessionFlowSnapshot?
+### Why Separate SessionState from SessionSnapshot?
 
-**SessionFlowState** is the portable state that flows between client and server:
+**SessionState** is the portable state that flows between client and server:
 - Just the data: Messages, Custom, Artifacts
 - No IDs, timestamps, or metadata
 - Time is implicit: it's either input or output
 - Clients manage it however they want
 
-**SessionFlowSnapshot** is a persisted point-in-time capture:
+**SessionSnapshot** is a persisted point-in-time capture:
 - Has a UUID-based ID
 - Has timestamps and metadata (ParentID, TurnIndex)
 - Used for storage, debugging, branching/restoration
@@ -815,6 +815,90 @@ Rather than always snapshotting or never snapshotting:
 ### Why Does SendArtifact Add to Session?
 
 `SendArtifact()` both streams the artifact to the client and adds it to the session state (replacing by name if a duplicate exists). This prevents a common class of bugs where the developer streams an artifact but forgets to add it to session state, resulting in artifacts being lost across snapshots.
+
+### SessionFlow Function Signature Options
+
+Three options were considered for how the session flow function receives and processes inputs:
+
+**Option A: Manual loop over channel**
+
+The function receives the input channel directly and manually loops over it, calling `RunTurn` for each input:
+
+```go
+genkit.DefineSessionFlow(g, "chatFlow",
+    func(ctx context.Context, inCh <-chan *aix.SessionFlowInput, resp *aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatState]) error {
+        // ... setup
+        for input := range inCh {
+            err := params.Session.RunTurn(ctx, input, func(ctx context.Context) error {
+                // ...turn logic
+                return nil
+            })
+            if err != nil {
+                return err
+            }
+        }
+        // ... teardown
+        return nil
+    },
+)
+```
+
+*Pros:* Maximum flexibility for custom loop control. *Cons:* Boilerplate in every session flow; easy to forget `RunTurn` or mess up error handling.
+
+**Option B: Session.Run pulls from channel**
+
+The function receives the input channel but passes it to `Session.Run`, which handles the loop:
+
+```go
+genkit.DefineSessionFlow(g, "chatFlow",
+    func(ctx context.Context, inCh <-chan *aix.SessionFlowInput, resp *aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatState]) error {
+        // ... setup
+        err := params.Session.Run(ctx, inCh, func(ctx context.Context, input *aix.SessionFlowInput) error {
+            // ... turn logic
+            return nil
+        })
+        // ... teardown
+        if err != nil {
+            return err
+        }
+        return nil
+    },
+)
+```
+
+*Pros:* Explicit channel visibility. *Cons:* Redundant parameter (channel appears in signature but is always passed to `Run`); awkward if user wants to do something with the channel other than pass it to `Run`.
+
+**Option C: Session owns the loop (chosen)**
+
+The function does not receive the input channel. The session holds the channel internally, and `Session.Run` handles the loop:
+
+```go
+genkit.DefineSessionFlow(g, "chatFlow",
+    func(ctx context.Context, resp *aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatState]) error {
+        // ... setup
+        err := params.Session.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
+            // ... turn logic
+            return nil
+        })
+        // ... teardown
+        if err != nil {
+            return err
+        }
+        return nil
+    },
+)
+```
+
+*Pros:* Cleanest API; impossible to misuse the channel; framework handles all loop mechanics. *Cons:* Less flexibility for advanced use cases that need direct channel access.
+
+**Why Option C?**
+
+Option C was chosen because:
+- It provides the simplest API for the common case
+- It eliminates a class of bugs (forgetting to call `RunTurn`, incorrect loop handling)
+- The channel is an implementation detail that users rarely need to interact with directly
+- Setup and teardown remain possible before/after `Session.Run`
+- Advanced users can request an escape hatch if needed, but the default should guide toward correct usage
 
 ---
 
