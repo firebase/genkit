@@ -2024,4 +2024,4 @@ async def test_api_call(mock_get_client):
 
 #### Related Issue
 
-- GitHub Issue: [#4420](https://github.com/firebase/genkit/issues/4420)
+* GitHub Issue: [#4420](https://github.com/firebase/genkit/issues/4420)
