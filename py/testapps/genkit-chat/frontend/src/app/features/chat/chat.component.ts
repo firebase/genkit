@@ -66,17 +66,8 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
          (dragleave)="onDragLeave($event)"
          (drop)="onDrop($event)">
       
-      <!-- Drop Zone Overlay -->
-      @if (isDragging()) {
-        <div class="drop-zone-overlay">
-          <div class="drop-zone-content">
-            <mat-icon class="drop-icon">upload_file</mat-icon>
-            <p class="drop-title">Drop files here</p>
-            <span class="drop-hint">Images, PDFs, or text files</span>
-          </div>
-        </div>
-      }
-
+      <!-- Drag zone covers entire container to detect drags, but overlay shows in input box -->
+      
       <!-- Messages -->
       <div class="messages-container" #messagesContainer>
         @for (message of chatService.messages(); track message.timestamp; let i = $index) {
@@ -256,10 +247,17 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                 }
               </div>
             }
-          </div>
-        }
+        </div>
         
-        <div class="input-box" [class.focused]="inputFocused" [class.pulse-send]="isPulsing" (click)="focusInput($event)">
+        <div class="input-box" [class.focused]="inputFocused" [class.pulse-send]="isPulsing" [class.is-dragging]="isDragging()" (click)="focusInput($event)">
+          <!-- Drop Zone Overlay (inside input box) -->
+          @if (isDragging()) {
+            <div class="drop-zone-overlay">
+              <mat-icon class="drop-icon">cloud_upload</mat-icon>
+              <span class="drop-caption">Drop files to attach</span>
+            </div>
+          }
+          
           <!-- Text Area at top -->
           <textarea class="chat-input" 
                     [(ngModel)]="userMessage" 
@@ -506,47 +504,59 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       justify-content: flex-start;
     }
 
-    /* Drop Zone */
+    /* Drop Zone - contained within input-box */
+    .input-box {
+      position: relative;
+    }
+    
+    .input-box.is-dragging {
+      border-style: dashed;
+      border-color: var(--gemini-blue);
+      background: rgba(66, 133, 244, 0.05);
+    }
+    
+    body.dark-theme .input-box.is-dragging {
+      background: rgba(138, 180, 248, 0.08);
+    }
+    
     .drop-zone-overlay {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(255, 255, 255, 0.98);
+      background: rgba(255, 255, 255, 0.95);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
-      backdrop-filter: blur(4px);
+      gap: 8px;
+      z-index: 10;
+      border-radius: inherit;
+      pointer-events: none;
     }
 
     body.dark-theme .drop-zone-overlay {
-      background: rgba(31, 31, 31, 0.98);
-    }
-
-    .drop-zone-content {
-      text-align: center;
+      background: rgba(31, 31, 31, 0.95);
     }
 
     .drop-icon {
-      font-size: 56px;
-      width: 56px;
-      height: 56px;
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
       color: var(--gemini-blue);
-      margin-bottom: 16px;
+      animation: dropBounce 0.8s ease infinite;
+    }
+    
+    @keyframes dropBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
     }
 
-    .drop-title {
-      font-size: 20px;
-      font-weight: 500;
-      margin: 0 0 4px;
-      color: var(--on-surface);
-    }
-
-    .drop-hint {
+    .drop-caption {
       font-size: 14px;
-      color: var(--on-surface-variant);
+      font-weight: 500;
+      color: var(--gemini-blue);
     }
 
     /* Welcome Section */
@@ -1412,6 +1422,57 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       &.pulse-send {
         animation: sendPulse 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       }
+      
+      &.is-dragging {
+        border: 2px dashed var(--gemini-blue);
+        background: rgba(66, 133, 244, 0.05);
+        box-shadow: 0 4px 16px rgba(66, 133, 244, 0.2), 0 8px 32px rgba(66, 133, 244, 0.15);
+      }
+    }
+    
+    body.dark-theme .input-box.is-dragging {
+      background: rgba(138, 180, 248, 0.08);
+    }
+    
+    /* Drop Zone Overlay - absolutely positioned within input-box */
+    .drop-zone-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 10;
+      border-radius: 28px;
+      pointer-events: none;
+    }
+
+    body.dark-theme .drop-zone-overlay {
+      background: rgba(31, 31, 31, 0.95);
+    }
+
+    .drop-icon {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+      color: var(--gemini-blue);
+      animation: dropBounce 0.8s ease infinite;
+    }
+    
+    @keyframes dropBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .drop-caption {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gemini-blue);
     }
     
     @keyframes sendPulse {
