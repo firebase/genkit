@@ -847,8 +847,9 @@ class VertexAI(Plugin):
         clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
         # Get project and location from client config
-        project = self._client._project
-        location = self._client._location or const.DEFAULT_REGION
+        # Access private attributes of the google-genai Client
+        project = self._client._project  # type: ignore[union-attr]
+        location = self._client._location or const.DEFAULT_REGION  # type: ignore[union-attr]
 
         client_options = VertexRerankerClientOptions(
             project_id=project,
@@ -880,7 +881,7 @@ class VertexAI(Plugin):
 
             request = RerankRequest(
                 model=clean_name,
-                query=query.text,
+                query=query.text(),
                 records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
                 top_n=config.top_n,
                 ignore_record_details_in_response=config.ignore_record_details_in_response,
@@ -896,6 +897,7 @@ class VertexAI(Plugin):
             name=name,
             fn=reranker_fn,
             metadata=ActionMetadata(
+                kind=ActionKind.RERANKER,
                 name=name,
                 description=f'Vertex AI Reranker: {clean_name}',
                 metadata={

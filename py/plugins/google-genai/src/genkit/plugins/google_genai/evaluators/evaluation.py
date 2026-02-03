@@ -73,7 +73,7 @@ from genkit.ai import GENKIT_CLIENT_HEADER
 from genkit.blocks.evaluator import EvalFnResponse
 from genkit.core.action import Action
 from genkit.core.error import GenkitError
-from genkit.core.typing import BaseDataPoint, Score
+from genkit.core.typing import BaseDataPoint, Details, Score
 
 if TYPE_CHECKING:
     from genkit.ai._registry import GenkitRegistry
@@ -249,7 +249,7 @@ class EvaluatorFactory:
 
             return EvalFnResponse(
                 evaluation=score,
-                test_case_id=datapoint.test_case_id,
+                test_case_id=datapoint.test_case_id or '',
             )
 
         return evaluator_fn
@@ -276,10 +276,9 @@ def create_vertex_evaluators(
     actions = []
 
     for metric in metrics:
-        if _is_config(metric):
-            metric_config = metric
-            metric_type = metric_config.type
-            metric_spec = metric_config.metric_spec
+        if isinstance(metric, VertexAIEvaluationMetricConfig):
+            metric_type: VertexAIEvaluationMetricType = metric.type
+            metric_spec: dict[str, Any] | None = metric.metric_spec
         else:
             metric_type = metric
             metric_spec = None
@@ -356,7 +355,7 @@ def _create_evaluator_for_metric(
             },
             'response_handler': lambda r: Score(
                 score=r.get('fluencyResult', {}).get('score'),
-                details={'reasoning': r.get('fluencyResult', {}).get('explanation')},
+                details=Details(reasoning=r.get('fluencyResult', {}).get('explanation')),
             ),
         },
         VertexAIEvaluationMetricType.SAFETY: {
@@ -372,7 +371,7 @@ def _create_evaluator_for_metric(
             },
             'response_handler': lambda r: Score(
                 score=r.get('safetyResult', {}).get('score'),
-                details={'reasoning': r.get('safetyResult', {}).get('explanation')},
+                details=Details(reasoning=r.get('safetyResult', {}).get('explanation')),
             ),
         },
         VertexAIEvaluationMetricType.GROUNDEDNESS: {
@@ -389,7 +388,7 @@ def _create_evaluator_for_metric(
             },
             'response_handler': lambda r: Score(
                 score=r.get('groundednessResult', {}).get('score'),
-                details={'reasoning': r.get('groundednessResult', {}).get('explanation')},
+                details=Details(reasoning=r.get('groundednessResult', {}).get('explanation')),
             ),
         },
         VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY: {
@@ -407,7 +406,7 @@ def _create_evaluator_for_metric(
             },
             'response_handler': lambda r: Score(
                 score=r.get('summarizationQualityResult', {}).get('score'),
-                details={'reasoning': r.get('summarizationQualityResult', {}).get('explanation')},
+                details=Details(reasoning=r.get('summarizationQualityResult', {}).get('explanation')),
             ),
         },
         VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS: {
@@ -425,7 +424,7 @@ def _create_evaluator_for_metric(
             },
             'response_handler': lambda r: Score(
                 score=r.get('summarizationHelpfulnessResult', {}).get('score'),
-                details={'reasoning': r.get('summarizationHelpfulnessResult', {}).get('explanation')},
+                details=Details(reasoning=r.get('summarizationHelpfulnessResult', {}).get('explanation')),
             ),
         },
         VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY: {
@@ -443,7 +442,7 @@ def _create_evaluator_for_metric(
             },
             'response_handler': lambda r: Score(
                 score=r.get('summarizationVerbosityResult', {}).get('score'),
-                details={'reasoning': r.get('summarizationVerbosityResult', {}).get('explanation')},
+                details=Details(reasoning=r.get('summarizationVerbosityResult', {}).get('explanation')),
             ),
         },
     }
@@ -453,6 +452,8 @@ def _create_evaluator_for_metric(
         return None
 
     evaluator_name = f'vertexai/{metric_type.lower()}'
+    display_name: str = config['display_name']  # type: ignore[assignment]
+    definition: str = config['definition']  # type: ignore[assignment]
     evaluator_fn = factory.create_evaluator_fn(
         metric_type,
         metric_spec,
@@ -462,8 +463,8 @@ def _create_evaluator_for_metric(
 
     return registry.define_evaluator(
         name=evaluator_name,
-        display_name=config['display_name'],
-        definition=config['definition'],
+        display_name=display_name,
+        definition=definition,
         fn=evaluator_fn,
         is_billed=True,  # These use Vertex AI API which is billed
     )

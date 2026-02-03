@@ -399,7 +399,7 @@ def define_vertex_reranker(
 
         request = RerankRequest(
             model=model_name,
-            query=query.text,
+            query=query.text(),
             records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
             top_n=config.top_n,
             ignore_record_details_in_response=config.ignore_record_details_in_response,
@@ -412,9 +412,11 @@ def define_vertex_reranker(
 
     # Register the reranker action
     from genkit.core.action import ActionMetadata
+    from genkit.core.action.types import ActionKind
     from genkit.core.schema import to_json_schema
 
     metadata = ActionMetadata(
+        kind=ActionKind.RERANKER,
         name=reranker_name,
         description=f'Vertex AI Reranker: {model_name}',
         input_schema=to_json_schema(Document),

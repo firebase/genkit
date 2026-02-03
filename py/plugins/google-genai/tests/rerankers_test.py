@@ -84,7 +84,8 @@ def test_vertex_reranker_config_defaults() -> None:
 
 def test_vertex_reranker_config_with_aliases() -> None:
     """Test VertexRerankerConfig works with aliases."""
-    config = VertexRerankerConfig(topN=10, ignoreRecordDetailsInResponse=True)
+    # Use Python field names (populate_by_name=True allows both)
+    config = VertexRerankerConfig(top_n=10, ignore_record_details_in_response=True)
     assert config.top_n == 10
     assert config.ignore_record_details_in_response is True
 

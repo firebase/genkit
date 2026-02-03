@@ -68,12 +68,8 @@ packages = ["backend/src"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
-[tool.ruff]
-line-length    = 88
-target-version = "py310"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+# Ruff configuration is inherited from the workspace root (py/pyproject.toml)
+# to ensure consistent formatting across all packages.
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

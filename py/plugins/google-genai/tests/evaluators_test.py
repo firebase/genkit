@@ -232,7 +232,9 @@ def test_create_vertex_evaluators_names_format() -> None:
 
     def capture_name(*args: object, **kwargs: object) -> None:
         if 'name' in kwargs:
-            evaluator_names.append(kwargs['name'])
+            name = kwargs['name']
+            if isinstance(name, str):
+                evaluator_names.append(name)
 
     mock_registry.define_evaluator = capture_name
 
