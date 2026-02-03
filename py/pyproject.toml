@@ -25,7 +25,6 @@ dependencies = [
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-evaluators",
-  "genkit-plugin-fastapi",
   "genkit-plugin-firebase",
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
@@ -142,7 +141,6 @@ compat-oai-hello                    = { workspace = true }
 deepseek-hello                      = { workspace = true }
 dev-local-vectorstore-hello         = { workspace = true }
 evaluator-demo                      = { workspace = true }
-fastapi-hello                       = { workspace = true }
 firestore-retreiver                 = { workspace = true }
 flask-hello                         = { workspace = true }
 format-demo                         = { workspace = true }
@@ -182,7 +180,6 @@ genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-evaluators            = { workspace = true }
-genkit-plugin-fastapi               = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
