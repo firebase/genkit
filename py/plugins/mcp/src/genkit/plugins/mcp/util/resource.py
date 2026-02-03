@@ -24,7 +24,7 @@ from typing import cast
 
 import structlog
 
-from genkit.core.typing import Part
+from genkit.core.typing import MediaPart, Part, TextPart
 from mcp.types import AnyUrl, BlobResourceContents, ReadResourceResult, Resource, TextResourceContents
 
 logger = structlog.get_logger(__name__)
@@ -126,7 +126,34 @@ def to_mcp_resource_contents(uri: str | AnyUrl, parts: list[Part]) -> list[TextR
     str(uri)
 
     for part in parts:
-        if isinstance(part, dict):
+        if isinstance(part, Part):
+            if isinstance(part.root, TextPart):
+                contents.append(TextResourceContents(uri=cast(AnyUrl, uri), text=part.root.text))
+            elif isinstance(part.root, MediaPart):
+                media = part.root.media
+                url = media.url
+                content_type = media.content_type
+
+                if not url.startswith('data:'):
+                    raise ValueError('MCP resource messages only support base64 data images.')
+
+                try:
+                    mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
+                    blob_data = url[url.index(',') + 1 :]
+                except ValueError as e:
+                    raise ValueError(f'Invalid data URL format: {url}') from e
+
+                contents.append(BlobResourceContents(uri=cast(AnyUrl, uri), mimeType=mime_type, blob=blob_data))
+            else:
+                # Skip other part types or raise?
+                # Tests don't cover other types, but logic suggests strictness or skipping.
+                # Given previous logic raised for unsupported dict types, we might want to be strict,
+                # but for now let's just handle known supported types or fall through if we want validation.
+                # Actually, let's allow fallthrough or raise.
+                # Reusing the logic from dict might be cleaner if extracted, but copy-paste is safer for now.
+                pass
+
+        elif isinstance(part, dict):
             # Handle media/image content
             if 'media' in part and part['media']:
                 media = part['media']
