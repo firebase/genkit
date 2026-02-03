@@ -1,0 +1,52 @@
+---
+model: googleai/gemini-2.0-flash
+output:
+  format: json
+  schema:
+    type: object
+    properties:
+      issues:
+        type: array
+        items:
+          type: object
+          properties:
+            line:
+              type: integer
+              description: Line number where the issue occurs
+            title:
+              type: string
+              description: Brief title like "Null Pointer Exception"
+            severity:
+              type: string
+              enum: [critical, warning, info]
+            category:
+              type: string
+              enum: [security, bug, style]
+            explanation:
+              type: string
+              description: Why this is a problem
+            suggestion:
+              type: string
+              description: How to fix it
+          required: [line, title, severity, category, explanation, suggestion]
+    required: [issues]
+---
+Analyze this {{language}} code for BUGS and logical errors ONLY.
+
+```{{language}}
+{{code}}
+```
+
+Look for:
+- Null/undefined references
+- Off-by-one errors
+- Race conditions
+- Resource leaks
+- Unhandled exceptions
+- Logic errors
+
+IMPORTANT:
+- Only report BUG issues. Do not report security or style issues.
+- Include the exact line number where the issue occurs.
+- All issues must have category: "bug"
+- If no bugs found, return an empty issues list.

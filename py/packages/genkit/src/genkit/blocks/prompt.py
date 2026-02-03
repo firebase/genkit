@@ -771,6 +771,11 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         if self._prompt_action or not self._name:
             return
 
+        # Preserve Pydantic schema type if it was explicitly provided via ai.prompt(..., output=Output(schema=T))
+        # The resolved prompt from .prompt file will have a dict schema, but we want to keep the Pydantic type
+        # for runtime validation to get proper typed output.
+        original_output_schema = self._output_schema
+
         resolved = await lookup_prompt(self._registry, self._name, self._variant)
         self._model = resolved._model
         self._config = resolved._config
@@ -782,7 +787,11 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         self._output_format = resolved._output_format
         self._output_content_type = resolved._output_content_type
         self._output_instructions = resolved._output_instructions
-        self._output_schema = resolved._output_schema
+        # Keep original Pydantic type if provided, otherwise use resolved (dict) schema
+        if isinstance(original_output_schema, type) and issubclass(original_output_schema, BaseModel):
+            self._output_schema = original_output_schema
+        else:
+            self._output_schema = resolved._output_schema
         self._output_constrained = resolved._output_constrained
         self._max_turns = resolved._max_turns
         self._return_tool_requests = resolved._return_tool_requests
