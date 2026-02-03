@@ -291,7 +291,7 @@ class CfModel:
                     # Extract text response
                     if 'response' in chunk_data:
                         text = chunk_data['response']
-                        if text:  # Guard against None
+                        if text and isinstance(text, str):  # Guard against None and non-string types
                             accumulated_text += text
 
                             text_part = Part(root=TextPart(text=text))

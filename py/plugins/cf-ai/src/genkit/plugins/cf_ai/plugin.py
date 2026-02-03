@@ -136,23 +136,24 @@ class CfAI(Plugin):
 
         self._models = models or list(SUPPORTED_CF_MODELS.keys())
         self._embedders = embedders or list(SUPPORTED_EMBEDDING_MODELS.keys())
-        self._client: httpx.AsyncClient | None = None
 
     def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the httpx client with auth headers.
+        """Create a fresh httpx client with auth headers.
+
+        Note: We create a new client per request to avoid async event loop
+        binding issues. httpx.AsyncClient instances cannot be safely shared
+        across different event loops.
 
         Returns:
             Configured httpx.AsyncClient.
         """
-        if self._client is None:
-            self._client = httpx.AsyncClient(
-                headers={
-                    'Authorization': f'Bearer {self._api_token}',
-                    'Content-Type': 'application/json',
-                },
-                timeout=httpx.Timeout(60.0, connect=10.0),
-            )
-        return self._client
+        return httpx.AsyncClient(
+            headers={
+                'Authorization': f'Bearer {self._api_token}',
+                'Content-Type': 'application/json',
+            },
+            timeout=httpx.Timeout(60.0, connect=10.0),
+        )
 
     async def init(self) -> list[Action]:
         """Initialize plugin.
