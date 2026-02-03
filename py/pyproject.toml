@@ -105,8 +105,10 @@ addopts = [
   #"--cov-report=", # Disable terminal report generation by pytest-cov
   "-ra",
   "-vv",
+  "--ignore=testapps",
 ]
 asyncio_default_fixture_loop_scope = "session"
+norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
 testpaths = ["packages", "plugins", "samples", "tests"]
 #asyncio_mode = "auto"
@@ -131,44 +133,44 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
-anthropic-hello                     = { workspace = true }
-aws-bedrock-hello                   = { workspace = true }
-aws-hello                           = { workspace = true }
-azure-hello                         = { workspace = true }
-cf-ai-hello                         = { workspace = true }
-cf-hello                            = { workspace = true }
-compat-oai-hello                    = { workspace = true }
-deepseek-hello                      = { workspace = true }
-dev-local-vectorstore-hello         = { workspace = true }
-evaluator-demo                      = { workspace = true }
-firestore-retreiver                 = { workspace = true }
-flask-hello                         = { workspace = true }
-format-demo                         = { workspace = true }
-google-genai-code-execution         = { workspace = true }
-google-genai-context-caching        = { workspace = true }
-google-genai-hello                  = { workspace = true }
-google-genai-image                  = { workspace = true }
-google-genai-vertexai-hello         = { workspace = true }
-google-genai-vertexai-image         = { workspace = true }
-huggingface-hello                   = { workspace = true }
-media-models-demo                   = { workspace = true }
-menu                                = { workspace = true }
-mistral-hello                       = { workspace = true }
-model-garden                        = { workspace = true }
-msfoundry-hello                     = { workspace = true }
-multi-server                        = { workspace = true }
-observability-hello                 = { workspace = true }
-ollama-hello                        = { workspace = true }
-ollama-simple-embed                 = { workspace = true }
-prompt-demo                         = { workspace = true }
-realtime-tracing-demo               = { workspace = true }
-short-n-long                        = { workspace = true }
-tool-interrupts                     = { workspace = true }
-vertex-ai-vector-search-bigquery    = { workspace = true }
-vertex-ai-vector-search-firestore   = { workspace = true }
-xai-hello                           = { workspace = true }
+anthropic-hello                   = { workspace = true }
+aws-bedrock-hello                 = { workspace = true }
+aws-hello                         = { workspace = true }
+azure-hello                       = { workspace = true }
+cf-ai-hello                       = { workspace = true }
+cf-hello                          = { workspace = true }
+compat-oai-hello                  = { workspace = true }
+deepseek-hello                    = { workspace = true }
+dev-local-vectorstore-hello       = { workspace = true }
+evaluator-demo                    = { workspace = true }
+firestore-retreiver               = { workspace = true }
+flask-hello                       = { workspace = true }
+format-demo                       = { workspace = true }
+google-genai-code-execution       = { workspace = true }
+google-genai-context-caching      = { workspace = true }
+google-genai-hello                = { workspace = true }
+google-genai-image                = { workspace = true }
+google-genai-vertexai-hello       = { workspace = true }
+google-genai-vertexai-image       = { workspace = true }
+huggingface-hello                 = { workspace = true }
+media-models-demo                 = { workspace = true }
+menu                              = { workspace = true }
+mistral-hello                     = { workspace = true }
+model-garden                      = { workspace = true }
+msfoundry-hello                   = { workspace = true }
+multi-server                      = { workspace = true }
+observability-hello               = { workspace = true }
+ollama-hello                      = { workspace = true }
+ollama-simple-embed               = { workspace = true }
+prompt-demo                       = { workspace = true }
+realtime-tracing-demo             = { workspace = true }
+short-n-long                      = { workspace = true }
+tool-interrupts                   = { workspace = true }
+vertex-ai-vector-search-bigquery  = { workspace = true }
+vertex-ai-vector-search-firestore = { workspace = true }
+xai-hello                         = { workspace = true }
 # Core packages
-genkit                              = { workspace = true }
+genkit = { workspace = true }
 # Plugins (alphabetical)
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-aws                   = { workspace = true }
@@ -194,7 +196,7 @@ genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 
 [tool.uv.workspace]
-exclude = ["*/shared"]
+exclude = ["*/shared", "testapps/*"]
 members = ["packages/*", "plugins/*", "samples/*"]
 
 
@@ -238,31 +240,31 @@ unsafe-fixes = true
 
 [tool.ruff.lint]
 fixable = ["ALL"]
+ignore = [
+  "S101", # assert used - we use assert for type narrowing and tests
+  "S105", # hardcoded password string - false positives in tests
+  "S106", # hardcoded password func arg - false positives in tests
+  "S311", # random not for security - we don't use random for crypto
+]
 select = [
-  "E",    # pycodestyle (errors)
-  "W",    # pycodestyle (warnings)
-  "F",    # pyflakes
-  "I",    # isort (import sorting)
-  "UP",   # pyupgrade (Python version upgrades)
-  "B",    # flake8-bugbear (common bugs)
-  "N",    # pep8-naming (naming conventions)
-  "D",    # pydocstyle
-  "ANN",  # flake8-annotations (type hints)
-  "F401", # unused imports
-  "F403", # wildcard imports
-  "F841", # unused variables
-  "S",    # flake8-bandit (security)
-  "ASYNC",# flake8-async (async best practices)
-  "T20",  # flake8-print (no print statements)
+  "E",     # pycodestyle (errors)
+  "W",     # pycodestyle (warnings)
+  "F",     # pyflakes
+  "I",     # isort (import sorting)
+  "UP",    # pyupgrade (Python version upgrades)
+  "B",     # flake8-bugbear (common bugs)
+  "N",     # pep8-naming (naming conventions)
+  "D",     # pydocstyle
+  "ANN",   # flake8-annotations (type hints)
+  "F401",  # unused imports
+  "F403",  # wildcard imports
+  "F841",  # unused variables
+  "S",     # flake8-bandit (security)
+  "ASYNC", # flake8-async (async best practices)
+  "T20",   # flake8-print (no print statements)
   # TODO(https://github.com/firebase/genkit/issues/4398): Enable PLC0415 after
   # completing cleanup of remaining in-function imports in core framework.
   # "PLC0415",
-]
-ignore = [
-  "S101",   # assert used - we use assert for type narrowing and tests
-  "S105",   # hardcoded password string - false positives in tests
-  "S106",   # hardcoded password func arg - false positives in tests
-  "S311",   # random not for security - we don't use random for crypto
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -450,6 +452,7 @@ project_excludes = [
   ".venv",
   "build",
   "dist",
+  "testapps",
 ]
 project_includes = [
   # Core package (source and tests)

@@ -211,6 +211,72 @@
       async with aiofiles.open(path, encoding='utf-8') as f:
           return await f.read()
   ```
+
+  **CRITICAL: Async Client Event Loop Binding**:
+
+  `httpx.AsyncClient` (and libraries that wrap it, like `ollama.AsyncClient`) is
+  bound to the event loop where it is created. If you store a client instance at
+  initialization time and reuse it from a different event loop (common in web
+  frameworks like FastAPI/Robyn), you'll get this error:
+
+  ```
+  RuntimeError: <asyncio.locks.Event object at ...> is bound to a different event loop
+  ```
+
+  **WRONG - Storing client at init time**:
+  ```python
+  class MyModel:
+      def __init__(self, client_factory):
+          self.client = client_factory()  # ❌ Bound to init-time event loop!
+
+      async def generate(self, request):
+          return await self.client.chat(...)  # ❌ Fails if different event loop
+  ```
+
+  **CORRECT - Create fresh client per request**:
+  ```python
+  class MyModel:
+      def __init__(self, client_factory):
+          self._client_factory = client_factory  # ✓ Store factory, not instance
+
+      def _get_client(self):
+          """Creates fresh client bound to current event loop."""
+          return self._client_factory()
+
+      async def generate(self, request):
+          return await self._get_client().chat(...)  # ✓ Always correct event loop
+  ```
+
+  This pattern is especially important for Genkit plugins where the Model/Embedder
+  class may be instantiated at plugin load time but called from request handlers
+  running in different event loops.
+
+  **Defensive Type Checking for String Concatenation**:
+
+  When processing streaming API responses (SSE, WebSockets, etc.), always verify
+  the type before concatenating to strings. External APIs may return unexpected
+  types (e.g., `int` status codes, `None`, or `dict` objects) in fields that are
+  typically strings.
+
+  **WRONG - Assumes response field is always a string**:
+  ```python
+  async for chunk in stream:
+      if 'response' in chunk:
+          accumulated_text += chunk['response']  # ❌ TypeError if int/None!
+  ```
+
+  **CORRECT - Verify type before concatenating**:
+  ```python
+  async for chunk in stream:
+      if 'response' in chunk:
+          text = chunk['response']
+          if text and isinstance(text, str):  # ✓ Safe concatenation
+              accumulated_text += text
+  ```
+
+  This pattern prevents `TypeError: can only concatenate str (not "int") to str`
+  crashes in production when APIs return unexpected types in streaming responses.
+
 * **Error Suppression Policy**: Avoid ignoring warnings from the type checker
   (`# type: ignore`, `# pyrefly: ignore`, etc.) or linter (`# noqa`) unless there is
   a compelling, documented reason.
