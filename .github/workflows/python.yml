@@ -95,10 +95,10 @@ jobs:
         run: ./py/bin/generate_schema_typing --ci
 
       - name: Type check with Ty
-        run: uv run --directory py ty check packages plugins samples
+        run: uv run --directory py ty check .
 
       - name: Type check with Pyrefly
-        run: uv run --directory py pyrefly check packages plugins samples
+        run: uv run --directory py pyrefly check .
 
       - name: Type check with Pyright
         run: uv run --directory py pyright packages/
