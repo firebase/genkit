@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-HTTP MCP Server Example
+"""HTTP MCP Server Example.
 
 This demonstrates creating an HTTP-based MCP server using SSE transport
 with Starlette and the official MCP Python SDK.
@@ -27,6 +26,7 @@ import uvicorn
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
 
@@ -35,14 +35,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-async def main():
+async def main() -> None:
     """Start the HTTP MCP server."""
-
     # Create SSE transport logic
     # The endpoint '/mcp/' is where clients will POST messages
     sse = SseServerTransport('/mcp/')
 
-    async def handle_sse(request):
+    async def handle_sse(request: Request) -> Response:
         """Handle incoming SSE connections."""
         async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
             read_stream, write_stream = streams
@@ -84,10 +83,9 @@ async def main():
 
     app = Starlette(routes=routes)
 
-    config = uvicorn.Config(app, host='0.0.0.0', port=3334, log_level='info')
+    config = uvicorn.Config(app, host='0.0.0.0', port=3334, log_level='info')  # noqa: S104
     server = uvicorn.Server(config)
 
-    print('HTTP MCP server running on http://localhost:3334/mcp')
     await server.serve()
 
 

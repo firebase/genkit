@@ -14,8 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-MCP Server Example
+"""MCP Server Example.
 
 This demonstrates creating an MCP server that exposes Genkit tools, prompts,
 and resources through the Model Context Protocol.
@@ -37,12 +36,15 @@ ai = Genkit(plugins=[])
 
 # Define a tool
 class AddInput(BaseModel):
+    """Input for the add tool."""
+
     a: int = Field(..., description='First number')
     b: int = Field(..., description='Second number')
 
 
 @ai.tool(name='add', description='add two numbers together')
 def add(input: AddInput) -> int:
+    """Adds two numbers."""
     return input.a + input.b
 
 
@@ -56,6 +58,7 @@ happy_prompt = ai.define_prompt(
 
 # Define resources
 async def my_resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+    """Handle static resource request."""
     return ResourceOutput(content=[Part(root=TextPart(text='my resource'))])
 
 
@@ -63,6 +66,7 @@ ai.define_resource(name='my resources', uri='test://static/resource/1', fn=my_re
 
 
 async def file_resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+    """Handle file resource request."""
     uri = input.uri
     return ResourceOutput(content=[Part(root=TextPart(text=f'file contents for {uri}'))])
 
@@ -70,12 +74,11 @@ async def file_resource_handler(input: ResourceInput, ctx: ActionRunContext) -> 
 ai.define_resource(name='file', template='file://{path}', fn=file_resource_handler)
 
 
-async def main():
+async def main() -> None:
     """Start the MCP server."""
     # Create MCP server
     server = create_mcp_server(ai, McpServerOptions(name='example_server', version='0.0.1'))
 
-    print('Starting MCP server on stdio...')
     await server.start()
 
 

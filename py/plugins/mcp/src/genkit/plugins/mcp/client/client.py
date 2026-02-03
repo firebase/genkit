@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""MCP Client implementation."""
+
 import asyncio
 from contextlib import AsyncExitStack
 from typing import Any, cast
@@ -27,12 +29,14 @@ from genkit.core.action.types import ActionKind
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import AnyUrl, CallToolResult, Prompt, Resource, TextContent, Tool
+from mcp.types import CallToolResult, Prompt, Resource, TextContent, Tool
 
 logger = structlog.get_logger(__name__)
 
 
 class McpServerConfig(BaseModel):
+    """Configuration for an MCP server."""
+
     command: str | None = None
     args: list[str] | None = None
     env: dict[str, str] | None = None
@@ -43,7 +47,8 @@ class McpServerConfig(BaseModel):
 class McpClient:
     """Client for connecting to a single MCP server."""
 
-    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None):
+    def __init__(self, name: str, config: McpServerConfig, server_name: str | None = None) -> None:
+        """Initialize the client."""
         self.name = name
         self.config = config
         self.server_name = server_name or name
@@ -56,9 +61,11 @@ class McpClient:
         return self.name
 
     def initialize(self, ai: GenkitRegistry) -> None:
+        """Initialize the client with the registry."""
         self.ai = ai
 
     def resolve_action(self, ai: GenkitRegistry, kind: ActionKind, name: str) -> None:
+        """Resolves an action from the registry."""
         # MCP tools are dynamic and currently registered upon connection/Discovery.
         # This hook allows lazy resolution if we implement it.
         pass
@@ -95,15 +102,7 @@ class McpClient:
             else:
                 raise ValueError(f"MCP client {self.name} configuration requires either 'command' or 'url'.")
 
-<<<<<<< HEAD
-            assert self.session is not None
             await self.session.initialize()
-||||||| parent of dcd3d480a (fix(py): trivial fixes)
-            await self.session.initialize()
-=======
-            if self.session:
-                await self.session.initialize()
->>>>>>> dcd3d480a (fix(py): trivial fixes)
             logger.info(f'Connected to MCP server: {self.server_name}')
 
         except Exception as e:
@@ -118,21 +117,22 @@ class McpClient:
         if self._exit_stack:
             try:
                 await self._exit_stack.aclose()
-            except (Exception, asyncio.CancelledError):
+            except (Exception, asyncio.CancelledError) as e:
                 # Ignore errors during cleanup, especially cancellation from anyio
-                pass
+                logger.debug(f'Error closing session: {e}')
 
         # Reset exit stack for potential reuse (reconnect)
         self._exit_stack = AsyncExitStack()
         self.session = None
 
     async def list_tools(self) -> list[Tool]:
+        """Lists available tools."""
         if not self.session:
             return []
         result = await self.session.list_tools()
         return result.tools
 
-    async def call_tool(self, tool_name: str, arguments: dict) -> str:
+    async def call_tool(self, tool_name: str, arguments: dict) -> dict[str, Any]:
         """Calls a tool on the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
@@ -153,17 +153,20 @@ class McpClient:
             raise
 
     async def list_prompts(self) -> list[Prompt]:
+        """Lists available prompts."""
         if not self.session:
             return []
         result = await self.session.list_prompts()
         return result.prompts
 
-    async def get_prompt(self, name: str, arguments: dict | None = None) -> Any:
+    async def get_prompt(self, name: str, arguments: dict | None = None) -> Any:  # noqa: ANN401
+        """Gets a prompt by name."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
         return await self.session.get_prompt(name, arguments)
 
     async def list_resources(self) -> list[Resource]:
+        """Lists available resources."""
         if not self.session:
             return []
         result = await self.session.list_resources()
@@ -173,15 +176,9 @@ class McpClient:
         """Reads a resource from the MCP server."""
         if not self.session:
             raise RuntimeError('MCP client is not connected')
-<<<<<<< HEAD
         return await self.session.read_resource(AnyUrl(uri))
-||||||| parent of dcd3d480a (fix(py): trivial fixes)
-        return await self.session.read_resource(uri)
-=======
-        return await self.session.read_resource(cast(AnyUrl, uri))
->>>>>>> dcd3d480a (fix(py): trivial fixes)
 
-    async def register_tools(self, ai: Genkit | None = None):
+    async def register_tools(self, ai: Genkit | None = None) -> None:
         """Registers all tools from connected client to Genkit."""
         registry = ai.registry if ai else (self.ai.registry if self.ai else None)
         if not registry:
@@ -195,8 +192,8 @@ class McpClient:
             tools = await self.list_tools()
             for tool in tools:
                 # Create a wrapper function for the tool using a factory to capture tool name
-                def create_wrapper(tool_name: str):
-                    async def tool_wrapper(args: Any = None):
+                def create_wrapper(tool_name: str) -> Any:  # noqa: ANN401
+                    async def tool_wrapper(args: Any = None) -> Any:  # noqa: ANN401
                         # args might be Pydantic model or dict. Genkit passes dict usually?
                         # TODO: Validate args against schema if needed
                         arguments = args
@@ -206,7 +203,7 @@ class McpClient:
 
                     return tool_wrapper
 
-                tool_wrapper = create_wrapper(tool.name)
+                wrapped_tool = create_wrapper(tool.name)
 
                 # Use metadata to store MCP specific info
                 metadata: dict[str, object] = {'mcp': {'_meta': tool._meta}} if hasattr(tool, '_meta') else {}
@@ -215,7 +212,7 @@ class McpClient:
                 action = registry.register_action(
                     kind=cast(ActionKind, ActionKind.TOOL),
                     name=f'{self.server_name}_{tool.name}',
-                    fn=tool_wrapper,
+                    fn=wrapped_tool,
                     description=tool.description,
                     metadata=metadata,
                 )

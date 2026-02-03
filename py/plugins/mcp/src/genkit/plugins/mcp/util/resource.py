@@ -20,12 +20,11 @@ This module contains helper functions for handling MCP resources,
 including reading and converting resource content.
 """
 
-from typing import Any, cast
+from typing import cast
 
 import structlog
-from pydantic import AnyUrl
 
-from genkit.core.typing import MediaPart, Part, TextPart
+from genkit.core.typing import Part
 from mcp.types import AnyUrl, BlobResourceContents, ReadResourceResult, Resource, TextResourceContents
 
 logger = structlog.get_logger(__name__)
@@ -124,7 +123,7 @@ def to_mcp_resource_contents(uri: str | AnyUrl, parts: list[Part]) -> list[TextR
         ValueError: If part type is not supported.
     """
     contents: list[TextResourceContents | BlobResourceContents] = []
-    uri_str = str(uri)
+    str(uri)
 
     for part in parts:
         if isinstance(part, dict):

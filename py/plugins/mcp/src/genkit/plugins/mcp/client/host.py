@@ -14,12 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict, List, Optional
 """Host for managing multiple MCP server connections."""
+
+import structlog
 
 from genkit.ai import Genkit
 
 from .client import McpClient, McpServerConfig
+
+logger = structlog.get_logger(__name__)
 
 
 class McpHost:
@@ -65,10 +68,7 @@ class McpHost:
             client.config.disabled = True
             await client.close()
 
-
-def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
-    """Creates a new MCP host for managing multiple server connections."""
-    async def reconnect(self, name: str):
+    async def reconnect(self, name: str) -> None:
         """Reconnects a specific MCP client."""
         if name in self.clients:
             client_to_reconnect = self.clients[name]
@@ -86,9 +86,7 @@ def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
                     for tool in tools:
                         active_tools.append(f'{client.server_name}_{tool.name}')
                 except Exception as e:
-                    # Log error but continue with other clients
-                    # Use print or logger if available. Ideally structlog.
-                    pass
+                    logger.debug(f'Error getting tools from {client.server_name}: {e}')
         return active_tools
 
     async def get_active_resources(self, ai: Genkit) -> list[str]:
@@ -99,12 +97,12 @@ def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
                 try:
                     resources = await client.list_resources()
                     for resource in resources:
-                        active_resources.append(resource.uri)
-                except Exception:
-                    # Log error but continue with other clients
-                    pass
+                        active_resources.append(str(resource.uri))
+                except Exception as e:
+                    logger.debug(f'Error getting resources from {client.server_name}: {e}')
         return active_resources
 
 
 def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
+    """Creates an MCP host with the given configurations."""
     return McpHost(configs)

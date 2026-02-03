@@ -24,21 +24,13 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from mcp.types import (
-    ListPromptsRequest,
-    ListResourcesRequest,
-    ListResourceTemplatesRequest,
-    ListToolsRequest,
-    TextContent,
-    TextResourceContents,
-)
 
 from genkit.core.error import GenkitError
 
 # Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
-Genkit: Any = None
-McpServerOptions: Any = None
-create_mcp_server: Any = None
+# Genkit: Any = None
+# McpServerOptions: Any = None
+# create_mcp_server: Any = None
 
 
 def setup_mocks() -> None:
@@ -56,29 +48,25 @@ def setup_mocks() -> None:
 
     try:
         # Deferred import: mock_mcp_modules must be called before importing genkit.plugins.mcp
-        from fakes import mock_mcp_modules
+        from fakes import mock_mcp_modules  # noqa: F401
 
         mock_mcp_modules()
-
-        # Deferred import: these imports must happen after mock_mcp_modules() is called
-        from genkit.ai import Genkit as _Genkit
-        from genkit.plugins.mcp import (
-            McpServerOptions as _McpServerOptions,
-            create_mcp_server as _create_mcp_server,
-        )
-
-        Genkit = _Genkit
-        McpServerOptions = _McpServerOptions
-        create_mcp_server = _create_mcp_server
     except ImportError:
-        # Fallback if dependencies missing
         pass
 
 
-# Call setup at module level but wrapped? No, still E402 if statements are here.
-# But we can call it in setUpClass or invoke it.
-# However, for the classes to use these types, they need to be defined.
-# If I use lazy imports inside tests, E402 is solved.
+from mcp.types import (  # noqa: E402
+    ListPromptsRequest,
+    ListResourcesRequest,
+    ListResourceTemplatesRequest,
+    ListToolsRequest,
+)
+
+from genkit.ai import Genkit  # noqa: E402, F811
+from genkit.blocks.resource import ResourceInput, ResourceOutput  # noqa: E402
+from genkit.core.action import ActionRunContext  # noqa: E402
+from genkit.core.typing import Part, TextPart  # noqa: E402
+from genkit.plugins.mcp import McpServerOptions, create_mcp_server  # noqa: E402, F811
 
 
 @pytest.mark.asyncio
@@ -109,13 +97,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resources
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        result = await server.list_resources({})
-=======
-        result = await server.list_resources(ListResourcesRequest())
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resources(MagicMock(spec=ListResourcesRequest))
 
         # Verify
         self.assertEqual(len(result.resources), 2)
@@ -146,13 +128,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resource templates
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        result = await server.list_resource_templates({})
-=======
-        result = await server.list_resource_templates(ListResourceTemplatesRequest())
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resource_templates(MagicMock(spec=ListResourceTemplatesRequest))
 
         # Verify
         self.assertEqual(len(result.resourceTemplates), 2)
@@ -183,13 +159,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List resources (should only include fixed URI)
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        result = await server.list_resources({})
-=======
-        result = await server.list_resources(ListResourcesRequest())
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resources(MagicMock(spec=ListResourcesRequest))
 
         self.assertEqual(len(result.resources), 1)
         self.assertEqual(result.resources[0].name, 'fixed')
@@ -213,13 +183,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List templates (should only include template)
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        result = await server.list_resource_templates({})
-=======
-        result = await server.list_resource_templates(ListResourceTemplatesRequest())
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_resource_templates(MagicMock(spec=ListResourceTemplatesRequest))
 
         self.assertEqual(len(result.resourceTemplates), 1)
         self.assertEqual(result.resourceTemplates[0].name, 'template')
@@ -227,16 +191,8 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_fixed_uri(self) -> None:
         """Test reading a resource with fixed URI."""
 
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        def config_resource(req: object) -> dict[str, list[dict[str, str]]]:
+        def config_resource(req: Any) -> dict[str, list[dict[str, str]]]:  # noqa: ANN401
             return {'content': [{'text': 'Configuration data'}]}
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        def config_resource(req):
-            return {'content': [{'text': 'Configuration data'}]}
-=======
-        async def config_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-            return ResourceOutput(content=[Part(root=TextPart(text='Configuration data'))])
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         self.ai.define_resource(name='config', uri='app://config', fn=config_resource)
 
@@ -253,30 +209,13 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        assert isinstance(result.contents[0], TextResourceContents)
-        self.assertEqual(result.contents[0].text, 'Configuration data')
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        self.assertEqual(result.contents[0].text, 'Configuration data')
-=======
-        from mcp.types import TextResourceContents
-
-        self.assertEqual(cast(TextResourceContents, result.contents[0]).text, 'Configuration data')
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertEqual(result.contents[0].text, 'Configuration data')  # type: ignore
 
     async def test_read_resource_with_template(self) -> None:
         """Test reading a resource with URI template."""
 
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        def file_resource(req: object) -> dict[str, list[dict[str, str]]]:
-            uri = getattr(req, 'uri', '')
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        def file_resource(req):
+        def file_resource(req: Any) -> ResourceOutput:  # noqa: ANN401
             uri = req.uri
-=======
-        async def file_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-            uri = input.uri
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
             # Extract path from URI
             path = uri.replace('file://', '')
             return ResourceOutput(content=[Part(root=TextPart(text=f'Contents of {path}'))])
@@ -295,16 +234,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        assert isinstance(result.contents[0], TextResourceContents)
-        self.assertIn('/home/user/document.txt', result.contents[0].text)
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        self.assertIn('/home/user/document.txt', result.contents[0].text)
-=======
-        from mcp.types import TextResourceContents
-
-        self.assertIn('/home/user/document.txt', cast(TextResourceContents, result.contents[0]).text)
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertIn('/home/user/document.txt', result.contents[0].text)  # type: ignore
 
     async def test_read_resource_not_found(self) -> None:
         """Test reading a non-existent resource."""
@@ -330,36 +260,8 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_multiple_content_parts(self) -> None:
         """Test reading a resource that returns multiple content parts."""
 
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        def multi_part_resource(req: object) -> dict[str, list[dict[str, str]]]:
+        def multi_part_resource(req: Any) -> dict[str, list[dict[str, str]]]:  # noqa: ANN401
             return {'content': [{'text': 'Part 1'}, {'text': 'Part 2'}, {'text': 'Part 3'}]}
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        def multi_part_resource(req):
-            return {'content': [{'text': 'Part 1'}, {'text': 'Part 2'}, {'text': 'Part 3'}]}
-=======
-        async def multi_part_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-            return ResourceOutput(content=[
-                Part(root=TextPart(text='Part 1')),
-                Part(root=TextPart(text='Part 2')),
-                Part(root=TextPart(text='Part 3'))
-            ])
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-||||||| parent of a6fffc3c1 (fix(py): fixed nox and serial test):py/plugins/mcp/tests/test_mcp_server_resources.py
-            return ResourceOutput(content=[
-                Part(root=TextPart(text='Part 1')),
-                Part(root=TextPart(text='Part 2')),
-                Part(root=TextPart(text='Part 3'))
-            ])
-=======
-            return ResourceOutput(
-                content=[
-                    Part(root=TextPart(text='Part 1')),
-                    Part(root=TextPart(text='Part 2')),
-                    Part(root=TextPart(text='Part 3')),
-                ]
-            )
->>>>>>> a6fffc3c1 (fix(py): fixed nox and serial test):py/plugins/mcp/tests/test_mcp_server_resources.py
 
         self.ai.define_resource(name='multi', uri='app://multi', fn=multi_part_resource)
 
@@ -376,24 +278,9 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         # Verify
         # Verify result content
         self.assertEqual(len(result.contents), 3)
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        assert isinstance(result.contents[0], TextResourceContents)
-        self.assertEqual(result.contents[0].text, 'Part 1')
-        assert isinstance(result.contents[1], TextResourceContents)
-        self.assertEqual(result.contents[1].text, 'Part 2')
-        assert isinstance(result.contents[2], TextResourceContents)
-        self.assertEqual(result.contents[2].text, 'Part 3')
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        self.assertEqual(result.contents[0].text, 'Part 1')
-        self.assertEqual(result.contents[1].text, 'Part 2')
-        self.assertEqual(result.contents[2].text, 'Part 3')
-=======
-        from mcp.types import TextResourceContents
-
-        self.assertEqual(cast(TextResourceContents, result.contents[0]).text, 'Part 1')
-        self.assertEqual(cast(TextResourceContents, result.contents[1]).text, 'Part 2')
-        self.assertEqual(cast(TextResourceContents, result.contents[2]).text, 'Part 3')
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertEqual(result.contents[0].text, 'Part 1')  # type: ignore
+        self.assertEqual(result.contents[1].text, 'Part 2')  # type: ignore
+        self.assertEqual(result.contents[2].text, 'Part 3')  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -421,13 +308,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List tools
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        result = await server.list_tools(ListToolsRequest(method='tools/list'))
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        result = await server.list_tools({})
-=======
-        result = await server.list_tools(ListToolsRequest())
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_tools(MagicMock(spec=ListToolsRequest))
 
         # Verify
         self.assertEqual(len(result.tools), 2)
@@ -455,21 +336,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.content), 1)
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        assert isinstance(result.content[0], TextContent)
-        self.assertEqual(result.content[0].text, '8')
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        self.assertEqual(result.content[0].text, '8')
-=======
-        # Cast content to TextContent to access text attribute safely
-        from mcp.types import TextContent
-
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-||||||| parent of a6fffc3c1 (fix(py): fixed nox and serial test):py/plugins/mcp/tests/test_mcp_server_resources.py
-=======
-        self.assertEqual(cast(TextContent, result.content[0]).text, '8')
->>>>>>> a6fffc3c1 (fix(py): fixed nox and serial test):py/plugins/mcp/tests/test_mcp_server_resources.py
+        self.assertEqual(result.content[0].text, '8')  # type: ignore
 
     async def test_list_prompts(self) -> None:
         """Test listing prompts."""
@@ -482,13 +349,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List prompts
-<<<<<<< HEAD:py/plugins/mcp/tests/mcp_server_resources_test.py
-        result = await server.list_prompts(ListPromptsRequest(method='prompts/list'))
-||||||| parent of dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
-        result = await server.list_prompts({})
-=======
-        result = await server.list_prompts(ListPromptsRequest())
->>>>>>> dcd3d480a (fix(py): trivial fixes):py/plugins/mcp/tests/test_mcp_server_resources.py
+        result = await server.list_prompts(MagicMock(spec=ListPromptsRequest))
 
         # Verify
         self.assertGreaterEqual(len(result.prompts), 2)

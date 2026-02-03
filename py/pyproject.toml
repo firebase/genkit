@@ -29,7 +29,7 @@ dependencies = [
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
-  "genkit-plugins-mcp",
+
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
@@ -154,6 +154,7 @@ google-genai-image                  = { workspace = true }
 google-genai-vertexai-hello         = { workspace = true }
 google-genai-vertexai-image         = { workspace = true }
 huggingface-hello                   = { workspace = true }
+mcp-server                          = { workspace = true }
 media-models-demo                   = { workspace = true }
 menu                                = { workspace = true }
 mistral-hello                       = { workspace = true }
@@ -406,6 +407,7 @@ root = [
   ".",                      # For samples.shared imports
   "samples/evaluator-demo", # For evaluator_demo package imports
   "samples/menu/src",       # For menu sample imports
+  "samples/mcp-server/src", # For mcp-server sample imports
   "plugins/mcp/tests",      # For fakes module imports in tests
 ]
 

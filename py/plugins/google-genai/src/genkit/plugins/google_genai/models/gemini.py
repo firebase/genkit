@@ -1307,7 +1307,9 @@ class GeminiModel:
             )
             client = client or self._client
             response = await client.aio.models.generate_content(
-                model=model_name, contents=request_contents, config=request_cfg
+                model=model_name,
+                contents=request_contents,  # type: ignore[arg-type]
+                config=request_cfg,
             )
             span.set_attribute('genkit:output', dump_json(response))
 

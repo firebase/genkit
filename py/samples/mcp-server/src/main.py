@@ -12,32 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+#
 # SPDX-License-Identifier: Apache-2.0
 
+"""MCP Client Sample Application.
+
+This sample demonstrates how to use the Model Context Protocol (MCP) plugin
+with Genkit to connect to various MCP servers (git, filesystem, etc.).
+"""
 
 import asyncio
-from functools import wraps
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
-import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.core.action.types import ActionKind
+from genkit.core.logging import get_logger
 from genkit.core.typing import Part, Resource1, ResourcePart, TextPart
 from genkit.plugins.google_genai import GoogleAI
-from genkit.plugins.mcp import McpServerConfig, create_mcp_host
+from genkit.plugins.mcp import McpHost, McpServerConfig, create_mcp_host
 
 try:
     from mcp import McpError
+    from mcp.types import ReadResourceResult
 except ImportError:
 
     class McpError(Exception):
+        """Mock McpError for when mcp package is missing."""
+
         pass
 
+    class ReadResourceResult:
+        """Mock result."""
 
-logger = structlog.get_logger(__name__)
+        contents: list[Any] = []
+
+
+logger = get_logger(__name__)
 
 # Get the current directory
 current_dir = Path(__file__).parent
@@ -46,29 +59,17 @@ workspace_dir = current_dir.parent / 'test-workspace'
 repo_root = current_dir.parent.parent.parent.parent
 
 # Initialize Genkit with GoogleAI
-ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
+ai = Genkit(plugins=[GoogleAI()], model='gemini-3-pro-preview')
 
 # Create MCP host with multiple servers
 mcp_host = create_mcp_host({
     'git-client': McpServerConfig(command='uvx', args=['mcp-server-git']),
-    'fs': McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-filesystem', str(workspace_dir)]),
-    'everything': McpServerConfig(command='npx', args=['-y', '@modelcontextprotocol/server-everything']),
+    'fs': McpServerConfig(command='pnpm', args=['dlx', '@modelcontextprotocol/server-filesystem', str(workspace_dir)]),
+    'everything': McpServerConfig(command='pnpm', args=['dlx', '@modelcontextprotocol/server-everything']),
 })
 
 
-def with_mcp_host(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        await mcp_host.start()
-        try:
-            return await func(*args, **kwargs)
-        finally:
-            await mcp_host.close()
-
-    return wrapper
-
-
-async def read_resource_from_host(host, uri: str) -> str:
+async def read_resource_from_host(host: McpHost, uri: str) -> str:
     """Try to read a resource from any connected MCP client."""
     errors = []
     for client in host.clients.values():
@@ -76,13 +77,13 @@ async def read_resource_from_host(host, uri: str) -> str:
             continue
         try:
             # client.read_resource returns ReadResourceResult
-            res = await client.read_resource(uri)
+            res = cast(ReadResourceResult, await client.read_resource(uri))
             # Combine text content
             text = ''
             if hasattr(res, 'contents'):
                 for c in res.contents:
                     if hasattr(c, 'text') and c.text:
-                        text += c.text + '\n'
+                        text += str(c.text) + '\n'
                     elif hasattr(c, 'blob'):
                         text += f'[Blob data type={getattr(c, "mimeType", "?")}]\n'
             return text
@@ -94,7 +95,7 @@ async def read_resource_from_host(host, uri: str) -> str:
     raise RuntimeError(f'Could not read resource {uri}. Errors: {errors}')
 
 
-async def resolve_prompt_resources(prompt: list[Part], host) -> list[Part]:
+async def resolve_prompt_resources(prompt: list[Part], host: McpHost) -> list[Part]:
     """Manually resolve ResourceParts in the prompt to TextParts."""
     new_prompt = []
     for part in prompt:
@@ -111,8 +112,7 @@ async def resolve_prompt_resources(prompt: list[Part], host) -> list[Part]:
 
 
 @ai.flow(name='git-commits')
-@with_mcp_host
-async def git_commits(query: str = ''):
+async def git_commits(query: str = '') -> str:
     """Summarize recent git commits using MCP git client."""
     # Register tools to registry directly
     await mcp_host.register_tools(ai)
@@ -125,8 +125,7 @@ async def git_commits(query: str = ''):
 
 
 @ai.flow(name='dynamic-git-commits')
-@with_mcp_host
-async def dynamic_git_commits(query: str = ''):
+async def dynamic_git_commits(query: str = '') -> str:
     """Summarize recent git commits using wildcard tool selection."""
     await mcp_host.register_tools(ai)
 
@@ -139,15 +138,17 @@ async def dynamic_git_commits(query: str = ''):
     tools = [t for t in all_tools if t.startswith('git-client_')]
 
     result = await ai.generate(
-        prompt=f"summarize last 5 commits. You must use the argument key 'repo_path' set to '{repo_root}'. Do not use 'path'.",
+        prompt=(
+            f"summarize last 5 commits. You must use the argument key 'repo_path' set to '{repo_root}'. "
+            "Do not use 'path'."
+        ),
         tools=tools,
     )
     return result.text
 
 
 @ai.flow(name='get-file')
-@with_mcp_host
-async def get_file(query: str = ''):
+async def get_file(query: str = '') -> str:
     """Read and summarize a file using MCP filesystem client."""
     await mcp_host.register_tools(ai)
     tools = await mcp_host.get_active_tools(ai)
@@ -157,8 +158,7 @@ async def get_file(query: str = ''):
 
 
 @ai.flow(name='dynamic-get-file')
-@with_mcp_host
-async def dynamic_get_file(query: str = ''):
+async def dynamic_get_file(query: str = '') -> str:
     """Read file using specific tool selection."""
     await mcp_host.register_tools(ai)
 
@@ -171,8 +171,7 @@ async def dynamic_get_file(query: str = ''):
 
 
 @ai.flow(name='dynamic-prefix-tool')
-@with_mcp_host
-async def dynamic_prefix_tool(query: str = ''):
+async def dynamic_prefix_tool(query: str = '') -> str:
     """Read file using prefix tool selection."""
     await mcp_host.register_tools(ai)
 
@@ -272,8 +271,7 @@ async def dynamic_prefix_tool(query: str = ''):
 
 
 @ai.flow(name='dynamic-test-one-resource')
-@with_mcp_host
-async def dynamic_test_one_resource(query: str = ''):
+async def dynamic_test_one_resource(query: str = '') -> str:
     """Test reading one specific resource."""
     resources = ['test://static/resource/1']
 
@@ -293,26 +291,30 @@ async def dynamic_test_one_resource(query: str = ''):
 
 
 @ai.flow(name='update-file')
-@with_mcp_host
-async def update_file(query: str = ''):
+async def update_file(query: str = '') -> str:
     """Update a file using MCP filesystem client."""
     await mcp_host.register_tools(ai)
     tools = await mcp_host.get_active_tools(ai)
 
     result = await ai.generate(
-        prompt=f"Improve hello-world.txt (in '{workspace_dir}') by rewriting the text, making it longer, use your imagination.",
+        prompt=(
+            f"Improve hello-world.txt (in '{workspace_dir}') by rewriting the text, "
+            'making it longer, use your imagination.'
+        ),
         tools=tools,
     )
     return result.text
 
 
 class ControlMcpInput(BaseModel):
+    """Input for controlling MCP client connections."""
+
     action: str  # 'RECONNECT', 'ENABLE', 'DISABLE', 'DISCONNECT'
     client_id: str | None = 'git-client'
 
 
 @ai.flow(name='control_mcp')
-async def control_mcp(input: ControlMcpInput):
+async def control_mcp(input: ControlMcpInput) -> str:
     """Control MCP client connections (enable/disable/reconnect)."""
     client_id = input.client_id
     action = input.action.upper()
@@ -337,38 +339,49 @@ async def control_mcp(input: ControlMcpInput):
     return f'Action {action} completed for {client_id}'
 
 
-async def main():
+async def main() -> None:
     """Run sample flows."""
     import os
 
-    # Only run test flows if not in dev mode (Dev UI)
-    if os.getenv('GENKIT_ENV') == 'dev':
-        logger.info('Running in dev mode - flows available in Dev UI')
-        logger.info('Genkit server running. Press Ctrl+C to stop.')
-        # Keep the process alive for Dev UI
+    # Keep the process alive
+
+    await mcp_host.start()
+    try:
+        # Only run test flows if not in dev mode (Dev UI)
+        if os.getenv('GENKIT_ENV') == 'dev':
+            logger.info('Running in dev mode - flows available in Dev UI')
+            logger.info('Genkit server running. Press Ctrl+C to stop.')
+            # Keep the process alive for Dev UI
+            await asyncio.Event().wait()
+            return
+
+        logger.info('Starting MCP sample application')
+
+        flows = ai.registry.get_actions_by_kind(cast(ActionKind, ActionKind.FLOW))
+        logger.info(f'DEBUG: Registered flows: {list(flows.keys())}')
+
+        # Test git commits flow
+        logger.info('Testing git-commits flow...')
+        try:
+            result = await git_commits()
+            logger.info('git-commits result', result=result[:200])
+        except Exception as e:
+            logger.error('git-commits failed', error=str(e), exc_info=True)
+
+        # Test get-file flow
+        logger.info('Testing get-file flow...')
+        try:
+            result = await get_file()
+            logger.info('get-file result', result=result[:200])
+        except Exception as e:
+            logger.error('get-file failed', error=str(e), exc_info=True)
+
+        logger.info('Sample flows completed. Keeping process alive for Dev UI. Press Ctrl+C to exit.')
+        logger.info('Sample flows completed. Keeping process alive for Dev UI. Press Ctrl+C to exit.')
         await asyncio.Event().wait()
-        return
-
-    logger.info('Starting MCP sample application')
-
-    flows = ai.registry.get_actions_by_kind(cast(ActionKind, ActionKind.FLOW))
-    logger.info(f'DEBUG: Registered flows: {list(flows.keys())}')
-
-    # Test git commits flow
-    logger.info('Testing git-commits flow...')
-    try:
-        result = await git_commits()
-        logger.info('git-commits result', result=result[:200])
-    except Exception as e:
-        logger.error('git-commits failed', error=str(e), exc_info=True)
-
-    # Test get-file flow
-    logger.info('Testing get-file flow...')
-    try:
-        result = await get_file()
-        logger.info('get-file result', result=result[:200])
-    except Exception as e:
-        logger.error('get-file failed', error=str(e), exc_info=True)
+    finally:
+        logger.info('Shutting down MCP host...')
+        await mcp_host.close()
 
 
 if __name__ == '__main__':
