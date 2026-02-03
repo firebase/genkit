@@ -162,7 +162,7 @@ async def get_available_models() -> list[dict[str, Any]]:
     """
     providers = []
 
-    # Google AI models
+    # Google AI models (current as of Feb 2026 - 2.5+ only)
     if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY"):
         providers.append({
             "id": "google-genai",
@@ -172,19 +172,25 @@ async def get_available_models() -> list[dict[str, Any]]:
                 {
                     "id": "googleai/gemini-3-flash-preview",
                     "name": "Gemini 3 Flash Preview",
-                    "capabilities": ["text", "vision", "streaming"],
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
                     "context_window": 1000000,
                 },
                 {
                     "id": "googleai/gemini-3-pro-preview",
                     "name": "Gemini 3 Pro Preview",
-                    "capabilities": ["text", "vision", "streaming"],
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
                     "context_window": 2000000,
                 },
                 {
-                    "id": "googleai/gemini-2.0-flash",
-                    "name": "Gemini 2.0 Flash",
-                    "capabilities": ["text", "vision", "streaming"],
+                    "id": "googleai/gemini-2.5-flash",
+                    "name": "Gemini 2.5 Flash",
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
+                    "context_window": 1000000,
+                },
+                {
+                    "id": "googleai/gemini-2.5-pro",
+                    "name": "Gemini 2.5 Pro",
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
                     "context_window": 1000000,
                 },
             ],

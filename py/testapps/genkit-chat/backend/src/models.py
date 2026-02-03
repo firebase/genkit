@@ -46,7 +46,7 @@ class ChatConfig(BaseModel):
 class ChatRequest(BaseModel):
     """Request body for chat endpoint."""
 
-    model: str = Field(..., description="Model ID (e.g., 'googleai/gemini-2.0-flash')")
+    model: str = Field(..., description="Model ID (e.g., 'googleai/gemini-3-flash-preview')")
     messages: list[Message] = Field(..., description="Conversation messages")
     config: ChatConfig | None = Field(None, description="Generation config")
     conversation_id: str | None = Field(None, description="Optional conversation ID")
@@ -82,7 +82,7 @@ class ModelCapabilities(BaseModel):
 class ModelInfo(BaseModel):
     """Information about a single model."""
 
-    id: str = Field(..., description="Model ID (e.g., 'googleai/gemini-2.0-flash')")
+    id: str = Field(..., description="Model ID (e.g., 'googleai/gemini-3-flash-preview')")
     name: str = Field(..., description="Display name")
     capabilities: list[str] = Field(
         default_factory=list, description="Supported capabilities"

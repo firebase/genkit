@@ -61,7 +61,8 @@ export class ModelService {
             models: [
                 { id: 'googleai/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', capabilities: ['text', 'vision', 'streaming'] },
                 { id: 'googleai/gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', capabilities: ['text', 'vision', 'streaming'] },
-                { id: 'googleai/gemini-2.0-flash', name: 'Gemini 2.0 Flash', capabilities: ['text', 'vision', 'streaming'] },
+                { id: 'googleai/gemini-2.5-flash', name: 'Gemini 2.5 Flash', capabilities: ['text', 'vision', 'streaming'] },
+                { id: 'googleai/gemini-2.5-pro', name: 'Gemini 2.5 Pro', capabilities: ['text', 'vision', 'streaming'] },
             ],
         },
         {
@@ -69,8 +70,9 @@ export class ModelService {
             name: 'Anthropic',
             available: true,
             models: [
-                { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', capabilities: ['text', 'vision', 'streaming'] },
-                { id: 'anthropic/claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', capabilities: ['text', 'vision', 'streaming'] },
+                { id: 'anthropic/claude-opus-4-5', name: 'Claude Opus 4.5', capabilities: ['text', 'vision', 'streaming'] },
+                { id: 'anthropic/claude-sonnet-4-5', name: 'Claude Sonnet 4.5', capabilities: ['text', 'vision', 'streaming'] },
+                { id: 'anthropic/claude-haiku-4-5', name: 'Claude Haiku 4.5', capabilities: ['text', 'vision', 'streaming'] },
             ],
         },
         {

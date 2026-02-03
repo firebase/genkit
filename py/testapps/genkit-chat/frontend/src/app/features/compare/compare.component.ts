@@ -381,7 +381,7 @@ export class CompareComponent {
   modelsService = inject(ModelsService);
 
   prompt = '';
-  selectedModels = signal<string[]>(['googleai/gemini-2.0-flash']);
+  selectedModels = signal<string[]>(['googleai/gemini-3-flash-preview']);
   isLoading = signal(false);
   results = signal<CompareResponse | null>(null);
 

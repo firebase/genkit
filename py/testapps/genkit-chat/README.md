@@ -281,14 +281,14 @@ All flows are registered with Genkit and testable in the DevUI:
 
 ### chat_flow
 ```json
-{"message": "Hello!", "model": "googleai/gemini-2.0-flash"}
+{"message": "Hello!", "model": "googleai/gemini-3-flash-preview"}
 ```
 
 ### compare_flow
 ```json
 {
   "prompt": "Explain quantum computing",
-  "models": ["googleai/gemini-2.0-flash", "ollama/llama3.2"]
+  "models": ["googleai/gemini-3-flash-preview", "ollama/llama3.2"]
 }
 ```
 

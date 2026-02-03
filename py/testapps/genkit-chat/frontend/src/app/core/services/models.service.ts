@@ -29,7 +29,8 @@ const DEFAULT_PROVIDERS: ProviderInfo[] = [
         models: [
             { id: 'googleai/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', capabilities: ['text', 'vision'], context_window: 1048576 },
             { id: 'googleai/gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', capabilities: ['text', 'vision'], context_window: 2097152 },
-            { id: 'googleai/gemini-2.0-flash', name: 'Gemini 2.0 Flash', capabilities: ['text', 'vision'], context_window: 1048576 },
+            { id: 'googleai/gemini-2.5-flash', name: 'Gemini 2.5 Flash', capabilities: ['text', 'vision'], context_window: 1048576 },
+            { id: 'googleai/gemini-2.5-pro', name: 'Gemini 2.5 Pro', capabilities: ['text', 'vision'], context_window: 1048576 },
         ],
     },
     {
@@ -46,8 +47,9 @@ const DEFAULT_PROVIDERS: ProviderInfo[] = [
         name: 'Anthropic',
         available: true,
         models: [
-            { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', capabilities: ['text', 'vision'], context_window: 200000 },
-            { id: 'anthropic/claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', capabilities: ['text', 'vision'], context_window: 200000 },
+            { id: 'anthropic/claude-opus-4-5', name: 'Claude Opus 4.5', capabilities: ['text', 'vision'], context_window: 200000 },
+            { id: 'anthropic/claude-sonnet-4-5', name: 'Claude Sonnet 4.5', capabilities: ['text', 'vision'], context_window: 200000 },
+            { id: 'anthropic/claude-haiku-4-5', name: 'Claude Haiku 4.5', capabilities: ['text', 'vision'], context_window: 200000 },
         ],
     },
     {
