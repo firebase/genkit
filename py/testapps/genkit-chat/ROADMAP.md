@@ -53,17 +53,20 @@ testing ground for Genkit features.
 | Feature | Status | Description |
 |---------|--------|-------------|
 | run.sh | ✅ Done | Unix/macOS runner script |
+| run.bat | ✅ Done | Windows runner script |
+| Lint/Test Commands | ✅ Done | `./run.sh lint` and `./run.sh test` |
 | Podman Support | ✅ Done | Container build support |
 | Cloud Run Deploy | ✅ Done | GCP deployment |
 | Genkit DevUI | ✅ Done | Development UI integration |
 
-### In Progress
+### Recently Completed
 
-| Feature | Priority | Description |
-|---------|----------|-------------|
-| run.bat | 🔴 High | Windows runner script |
-| Auto-Focus Chat Input | 🔴 High | Focus on new chat/welcome |
-| Lint Checks in run.sh | 🔴 High | Pre-start validation |
+| Feature | Description |
+|---------|-------------|
+| Auto-Focus Chat Input | Focus on welcome screen and after new chat |
+| run.bat | Windows equivalent of run.sh |
+| Lint Commands | `./run.sh lint` runs ruff + pyright |
+| Test Commands | `./run.sh test` runs pytest |
 
 ### Planned Features
 

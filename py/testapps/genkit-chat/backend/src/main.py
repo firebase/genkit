@@ -222,75 +222,126 @@ async def get_available_models() -> list[dict[str, Any]]:
     """
     providers = []
 
-    # Google AI models
+    # Google AI models (current as of Feb 2026)
+    # Note: Gemini 1.5 was retired Apr 2025, Gemini 2.0 shutting down Mar 2026
     if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY"):
         providers.append({
             "id": "google-genai",
             "name": "Google AI",
             "available": True,
             "models": [
+                # Gemini 3.0 models (latest - Dec 2025)
                 {
                     "id": "googleai/gemini-3-flash-preview",
                     "name": "Gemini 3 Flash Preview",
-                    "capabilities": ["text", "vision", "streaming"],
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
                     "context_window": 1000000,
                 },
                 {
                     "id": "googleai/gemini-3-pro-preview",
                     "name": "Gemini 3 Pro Preview",
-                    "capabilities": ["text", "vision", "streaming"],
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
                     "context_window": 2000000,
                 },
+                # Gemini 2.5 models (GA - stable through Jun 2026)
                 {
-                    "id": "googleai/gemini-3-flash-preview",
-                    "name": "Gemini 2.0 Flash",
+                    "id": "googleai/gemini-2.5-flash",
+                    "name": "Gemini 2.5 Flash",
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
+                    "context_window": 1000000,
+                },
+                {
+                    "id": "googleai/gemini-2.5-pro",
+                    "name": "Gemini 2.5 Pro",
+                    "capabilities": ["text", "vision", "streaming", "thinking"],
+                    "context_window": 1000000,
+                },
+                {
+                    "id": "googleai/gemini-2.5-flash-lite",
+                    "name": "Gemini 2.5 Flash Lite",
                     "capabilities": ["text", "vision", "streaming"],
                     "context_window": 1000000,
                 },
             ],
         })
 
-    # Anthropic models
+    # Anthropic models (current as of Feb 2026)
     if os.getenv("ANTHROPIC_API_KEY"):
         providers.append({
             "id": "anthropic",
             "name": "Anthropic",
             "available": True,
             "models": [
+                # Claude 4.5 series (latest - late 2025)
                 {
-                    "id": "anthropic/claude-sonnet-4-20250514",
-                    "name": "Claude Sonnet 4",
+                    "id": "anthropic/claude-opus-4-5",
+                    "name": "Claude Opus 4.5",
                     "capabilities": ["text", "vision", "streaming"],
                     "context_window": 200000,
                 },
                 {
-                    "id": "anthropic/claude-opus-4-20250514",
+                    "id": "anthropic/claude-sonnet-4-5",
+                    "name": "Claude Sonnet 4.5",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 200000,
+                },
+                {
+                    "id": "anthropic/claude-haiku-4-5",
+                    "name": "Claude Haiku 4.5",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 200000,
+                },
+                # Claude 4 series
+                {
+                    "id": "anthropic/claude-opus-4",
                     "name": "Claude Opus 4",
                     "capabilities": ["text", "vision", "streaming"],
                     "context_window": 200000,
                 },
                 {
-                    "id": "anthropic/claude-3-7-sonnet",
-                    "name": "Claude 3.7 Sonnet",
+                    "id": "anthropic/claude-sonnet-4",
+                    "name": "Claude Sonnet 4",
                     "capabilities": ["text", "vision", "streaming"],
                     "context_window": 200000,
                 },
             ],
         })
 
-    # OpenAI models
+    # OpenAI models (current as of Feb 2026)
+    # Note: GPT-4 deprecated Apr 2025
     if os.getenv("OPENAI_API_KEY"):
         providers.append({
             "id": "openai",
             "name": "OpenAI",
             "available": True,
             "models": [
+                # GPT-5 series (latest)
+                {
+                    "id": "openai/gpt-5",
+                    "name": "GPT-5",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 256000,
+                },
+                {
+                    "id": "openai/gpt-5-mini",
+                    "name": "GPT-5 Mini",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 128000,
+                },
+                # GPT-4.1 series (stable)
                 {
                     "id": "openai/gpt-4.1",
                     "name": "GPT-4.1",
                     "capabilities": ["text", "vision", "streaming"],
                     "context_window": 128000,
                 },
+                {
+                    "id": "openai/gpt-4.1-mini",
+                    "name": "GPT-4.1 Mini",
+                    "capabilities": ["text", "vision", "streaming"],
+                    "context_window": 128000,
+                },
+                # GPT-4o (multimodal)
                 {
                     "id": "openai/gpt-4o",
                     "name": "GPT-4o",
@@ -300,7 +351,7 @@ async def get_available_models() -> list[dict[str, Any]]:
                 {
                     "id": "openai/gpt-4o-mini",
                     "name": "GPT-4o Mini",
-                    "capabilities": ["text", "streaming"],
+                    "capabilities": ["text", "vision", "streaming"],
                     "context_window": 128000,
                 },
             ],
