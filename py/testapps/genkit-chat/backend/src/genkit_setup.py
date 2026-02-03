@@ -61,13 +61,14 @@ def _load_plugins() -> list[Any]:
     """
     plugins = []
 
-    # Google AI (Gemini)
-    if os.getenv("GOOGLE_GENAI_API_KEY"):
+    # Google AI (Gemini) - check GEMINI_API_KEY first, then legacy GOOGLE_GENAI_API_KEY
+    gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
+    if gemini_api_key:
         try:
             from genkit.plugins.google_genai import GoogleAI  # type: ignore[import-not-found]
 
             plugins.append(GoogleAI())
-            logger.info("Loaded Google AI plugin")
+            logger.info("✓ Loaded Google AI plugin")
         except ImportError:
             logger.warning("Google AI plugin not installed")
 
@@ -159,6 +160,17 @@ async def get_available_models() -> list[dict[str, Any]]:
 
     Returns:
         List of provider info with their available models.
+    
+    Note:
+        Model lists for cloud providers (Google AI, Anthropic, OpenAI) are hardcoded
+        because these providers do not offer public APIs for model discovery, or their
+        discovery APIs require authentication and may have rate limits.
+        
+        Ollama is the exception - its /api/tags endpoint provides dynamic model discovery.
+        
+        Future improvement: When providers offer stable model listing APIs, this function
+        should be refactored to query them dynamically. For now, update the hardcoded
+        lists when new models are released or deprecated.
     """
     providers = []
 

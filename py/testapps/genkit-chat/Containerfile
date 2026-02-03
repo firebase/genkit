@@ -1,6 +1,22 @@
 # Containerfile for Genkit Chat
 # Compatible with both Podman and Docker
 # Multi-stage build for minimal image size
+#
+# IMPORTANT: Production Build Requirements
+# ----------------------------------------
+# The backend/pyproject.toml references local workspace packages with relative paths
+# (e.g., path = "../../../packages/genkit"). These paths are OUTSIDE the Docker build
+# context and will cause the build to fail.
+#
+# For production deployment, you must either:
+# 1. Publish packages to PyPI and update pyproject.toml to use version constraints
+# 2. Use a two-stage build that copies the entire workspace
+# 3. Vendor the dependencies into the build context
+#
+# For local development, run directly with:
+#   cd backend && uv run python src/main.py
+#
+# For containerized development, consider using docker-compose with volume mounts.
 
 # =============================================================================
 # Stage 1: Build Angular Frontend
@@ -33,6 +49,7 @@ RUN pip install uv
 WORKDIR /app
 
 # Install Python dependencies
+# NOTE: For production, pyproject.toml must use published packages, not local paths
 COPY backend/pyproject.toml ./
 RUN uv pip install --system -e .
 

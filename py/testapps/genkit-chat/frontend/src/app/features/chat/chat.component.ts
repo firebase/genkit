@@ -29,6 +29,26 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
 import { TranslateModule } from '@ngx-translate/core';
 
 
+/**
+ * Main chat interface component for Genkit Chat.
+ * 
+ * This component currently handles multiple responsibilities:
+ * - Message display and markdown rendering
+ * - Input bar with attachments and voice input
+ * - Prompt queue management with drag-and-drop reordering
+ * - Welcome screen with quick action chips
+ * - Model selection dropdown
+ * 
+ * Future Refactoring Roadmap:
+ * To improve maintainability and testability, this should be split into:
+ * - ChatInputComponent: Text area, attachments, voice input, send button
+ * - MessageListComponent: Message display with markdown rendering
+ * - PromptQueueComponent: Queue management with drag-and-drop
+ * - WelcomeScreenComponent: Greeting animation and quick actions
+ * - ModelSelectorComponent: Model selection dropdown with search
+ * 
+ * See: https://github.com/firebase/genkit/issues (search for "chat component refactoring")
+ */
 @Component({
   selector: 'app-chat',
   imports: [

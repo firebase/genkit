@@ -39,6 +39,7 @@
     "@tensorflow/tfjs": "^4.22.0",
     "@types/dompurify": "^3.2.0",
     "dompurify": "^3.3.1",
+    "jwt-decode": "^4.0.0",
     "marked": "^17.0.1",
     "mathjax-full": "^3.2.2",
     "mermaid": "^11.12.2",

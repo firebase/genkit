@@ -215,8 +215,8 @@ When modifying the UI:
 | zh | Chinese (Simplified) | LTR | ✅ Complete |
 | hi | Hindi | LTR | ✅ Complete |
 | ja | Japanese | LTR | ✅ Complete |
-| ar | Arabic | RTL | 🔄 Planned |
-| ko | Korean | LTR | 🔄 Planned |
+| ar | Arabic | RTL | ✅ Complete |
+| ko | Korean | LTR | ✅ Complete |
 
 ### Adding a New Language
 

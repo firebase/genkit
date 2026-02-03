@@ -1,5 +1,6 @@
 import { Injectable, signal, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { jwtDecode, JwtPayload } from 'jwt-decode';
 
 declare const google: any;
 
@@ -9,6 +10,27 @@ export interface GoogleUser {
     name: string;
     picture: string;
     given_name?: string;
+    family_name?: string;
+}
+
+/**
+ * JWT payload structure for Google Identity Services tokens.
+ * Extends standard JWT claims with Google-specific user info.
+ * 
+ * @see https://developers.google.com/identity/gsi/web/reference/js-reference#credential
+ */
+export interface GoogleJwtPayload extends JwtPayload {
+    /** User's email address */
+    email: string;
+    /** Whether the email is verified */
+    email_verified: boolean;
+    /** User's full name */
+    name: string;
+    /** URL to user's profile picture */
+    picture: string;
+    /** User's given (first) name */
+    given_name?: string;
+    /** User's family (last) name */
     family_name?: string;
 }
 
@@ -187,7 +209,7 @@ export class AuthService {
             const payload = this.decodeJwt(response.credential);
 
             const user: GoogleUser = {
-                id: payload.sub,
+                id: payload.sub ?? payload.email,  // sub is the unique user ID
                 email: payload.email,
                 name: payload.name,
                 picture: payload.picture,
@@ -206,16 +228,51 @@ export class AuthService {
         this.isLoading.set(false);
     }
 
-    private decodeJwt(token: string): any {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-            atob(base64)
-                .split('')
-                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-        );
-        return JSON.parse(jsonPayload);
+    /**
+     * Decode a JWT token to extract the payload using jwt-decode library.
+     * 
+     * Uses the well-vetted jwt-decode library which properly handles:
+     * - Base64URL padding normalization
+     * - Safe JSON parsing with error handling  
+     * - Unicode character encoding
+     * - Malformed token detection
+     * 
+     * JWT Authentication Flow::
+     * 
+     *     User clicks "Sign in with Google"
+     *                    │
+     *                    ▼
+     *     ┌─────────────────────────────┐
+     *     │ Google Identity Services    │
+     *     │ (OAuth 2.0 / OpenID Connect)│
+     *     └─────────────┬───────────────┘
+     *                   │ Returns signed JWT
+     *                   ▼
+     *     ┌─────────────────────────────┐
+     *     │ jwt-decode (this method)    │
+     *     │ - Validates structure       │
+     *     │ - Decodes Base64URL payload │
+     *     │ - Parses JSON safely        │
+     *     └─────────────┬───────────────┘
+     *                   │ GoogleJwtPayload
+     *                   ▼
+     *     ┌─────────────────────────────┐
+     *     │ handleCredentialResponse    │
+     *     │ - Creates GoogleUser        │
+     *     │ - Updates UI state          │
+     *     │ - Persists to localStorage  │
+     *     └─────────────────────────────┘
+     * 
+     * SECURITY NOTE: The token's cryptographic signature is validated by Google's
+     * servers during the OAuth flow. This decode is only for extracting user info
+     * for UI display, not for making security decisions.
+     * 
+     * @param token - The JWT token string from Google Identity Services
+     * @returns The decoded payload with Google user claims
+     * @throws Error if the token is malformed or cannot be decoded
+     */
+    private decodeJwt(token: string): GoogleJwtPayload {
+        return jwtDecode<GoogleJwtPayload>(token);
     }
 
     /**

@@ -134,7 +134,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from robyn import Request, Response, Robyn
+from robyn import Request, Response, Robyn, SSEResponse, SSEMessage
 from robyn.robyn import Headers
 
 from genkit import Genkit
@@ -156,237 +156,14 @@ STATIC_DIR = BASE_DIR / "static"
 
 
 
-
-def load_plugins() -> list[Any]:
-    """Load plugins based on available API keys."""
-    plugins = []
-
-    # Google AI (check both GEMINI_API_KEY and legacy GOOGLE_GENAI_API_KEY)
-    gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
-    if gemini_api_key:
-        try:
-            from genkit.plugins.google_genai import GoogleAI  # type: ignore[import-not-found]
-
-            plugins.append(GoogleAI())
-            logger.info("✓ Loaded Google AI plugin")
-        except ImportError:
-            logger.warning("Google AI plugin not installed")
-
-    # Ollama (local models)
-    ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    try:
-        from genkit.plugins.ollama import Ollama  # type: ignore[import-not-found]
-
-        plugins.append(Ollama(server_address=ollama_host))
-        logger.info(f"✓ Loaded Ollama plugin ({ollama_host})")
-    except ImportError:
-        logger.debug("Ollama plugin not installed")
-
-    # Dev Local VectorStore
-    try:
-        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore  # type: ignore[import-not-found]
-
-        plugins.append(DevLocalVectorStore())
-        logger.info("✓ Loaded DevLocalVectorStore plugin")
-    except ImportError:
-        logger.debug("DevLocalVectorStore plugin not installed")
-
-    # Anthropic
-    if os.getenv("ANTHROPIC_API_KEY"):
-        try:
-            from genkit.plugins.anthropic import Anthropic  # type: ignore[import-not-found]
-
-            plugins.append(Anthropic())
-            logger.info("✓ Loaded Anthropic plugin")
-        except ImportError:
-            pass
-
-    # OpenAI (via compat-oai)
-    if os.getenv("OPENAI_API_KEY"):
-        try:
-            from genkit.plugins.compat_oai import OpenAICompat  # type: ignore[import-not-found]
-
-            plugins.append(OpenAICompat())
-            logger.info("✓ Loaded OpenAI-compatible plugin")
-        except ImportError:
-            pass
-
-    return plugins
-
-
-
-async def get_available_models() -> list[dict[str, Any]]:
-    """Get available models grouped by provider.
-
-    Returns:
-        List of provider info with their available models.
-    """
-    providers = []
-
-    # Google AI models (current as of Feb 2026)
-    # Note: Gemini 1.5 was retired Apr 2025, Gemini 2.0 shutting down Mar 2026
-    if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY"):
-        providers.append({
-            "id": "google-genai",
-            "name": "Google AI",
-            "available": True,
-            "models": [
-                # Gemini 3.0 models (latest - Dec 2025)
-                {
-                    "id": "googleai/gemini-3-flash-preview",
-                    "name": "Gemini 3 Flash Preview",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 1000000,
-                },
-                {
-                    "id": "googleai/gemini-3-pro-preview",
-                    "name": "Gemini 3 Pro Preview",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 2000000,
-                },
-                # Gemini 2.5 models (GA - stable through Jun 2026)
-                {
-                    "id": "googleai/gemini-2.5-flash",
-                    "name": "Gemini 2.5 Flash",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 1000000,
-                },
-                {
-                    "id": "googleai/gemini-2.5-pro",
-                    "name": "Gemini 2.5 Pro",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 1000000,
-                },
-                {
-                    "id": "googleai/gemini-2.5-flash-lite",
-                    "name": "Gemini 2.5 Flash Lite",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 1000000,
-                },
-            ],
-        })
-
-    # Anthropic models (current as of Feb 2026)
-    if os.getenv("ANTHROPIC_API_KEY"):
-        providers.append({
-            "id": "anthropic",
-            "name": "Anthropic",
-            "available": True,
-            "models": [
-                # Claude 4.5 series (latest - late 2025)
-                {
-                    "id": "anthropic/claude-opus-4-5",
-                    "name": "Claude Opus 4.5",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-                {
-                    "id": "anthropic/claude-sonnet-4-5",
-                    "name": "Claude Sonnet 4.5",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-                {
-                    "id": "anthropic/claude-haiku-4-5",
-                    "name": "Claude Haiku 4.5",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-                # Claude 4 series
-                {
-                    "id": "anthropic/claude-opus-4",
-                    "name": "Claude Opus 4",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-                {
-                    "id": "anthropic/claude-sonnet-4",
-                    "name": "Claude Sonnet 4",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-            ],
-        })
-
-    # OpenAI models (current as of Feb 2026)
-    # Note: GPT-4 deprecated Apr 2025
-    if os.getenv("OPENAI_API_KEY"):
-        providers.append({
-            "id": "openai",
-            "name": "OpenAI",
-            "available": True,
-            "models": [
-                # GPT-5 series (latest)
-                {
-                    "id": "openai/gpt-5",
-                    "name": "GPT-5",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 256000,
-                },
-                {
-                    "id": "openai/gpt-5-mini",
-                    "name": "GPT-5 Mini",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 128000,
-                },
-                # GPT-4.1 series (stable)
-                {
-                    "id": "openai/gpt-4.1",
-                    "name": "GPT-4.1",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 128000,
-                },
-                {
-                    "id": "openai/gpt-4.1-mini",
-                    "name": "GPT-4.1 Mini",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 128000,
-                },
-                # GPT-4o (multimodal)
-                {
-                    "id": "openai/gpt-4o",
-                    "name": "GPT-4o",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 128000,
-                },
-                {
-                    "id": "openai/gpt-4o-mini",
-                    "name": "GPT-4o Mini",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 128000,
-                },
-            ],
-        })
-
-    # Ollama models (try to detect running server)
-    ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{ollama_host}/api/tags", timeout=2.0)
-            if response.status_code == 200:
-                data = response.json()
-                ollama_models = [
-                    {
-                        "id": f"ollama/{model['name']}",
-                        "name": model["name"].title(),
-                        "capabilities": ["text", "streaming"],
-                        "context_window": 4096,  # Default, varies by model
-                    }
-                    for model in data.get("models", [])
-                ]
-                if ollama_models:
-                    providers.append({
-                        "id": "ollama",
-                        "name": "Ollama (Local)",
-                        "available": True,
-                        "models": ollama_models,
-                    })
-    except Exception:
-        # Ollama not running, that's fine
-        pass
-
-    return providers
-
+# Import shared functions from genkit_setup to avoid duplication
+# Add src directory to path for when running from backend directory
+import sys
+SRC_DIR = BASE_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+from genkit_setup import get_available_models
+from genkit_setup import _load_plugins as load_plugins
 
 g = Genkit(plugins=load_plugins())
 
@@ -982,8 +759,32 @@ def create_http_server() -> Robyn:
     async def api_stream_chat(request: Request):
         """Stream chat response using Server-Sent Events (SSE).
         
-        Note: Robyn's SSE support requires returning an async generator.
-        For full SSE support, consider using FastAPI with --framework fastapi.
+        Uses Robyn's native SSEResponse with async generators for real-time
+        token-by-token streaming. Each chunk from the model is sent immediately
+        as it's generated.
+        
+        SSE Data Flow::
+        
+            Frontend Request
+                 │
+                 ▼
+            ┌─────────────────┐
+            │  GET /api/stream│ (with message, model params)
+            └────────┬────────┘
+                     │
+                     ▼
+            ┌─────────────────┐     ┌─────────────────┐
+            │  Robyn SSE      │────▶│  Genkit         │
+            │  Endpoint       │     │  generate_stream│
+            └────────┬────────┘     └────────┬────────┘
+                     │                       │
+                     │◀──────────────────────┘
+                     │  (async generator yields chunks)
+                     ▼
+            ┌─────────────────┐
+            │  SSEResponse    │
+            │  yields SSEMsg  │──────▶ Frontend EventSource
+            └─────────────────┘         (receives data: {...})
         """
         # Parse query parameters
         query_params = request.query_params
@@ -991,46 +792,49 @@ def create_http_server() -> Robyn:
         model = query_params.get("model", "ollama/llama3.2")
         history = query_params.get("history", "[]")
         
-        # Robyn doesn't natively support SSE streaming like FastAPI
-        # Fall back to regular response with full content
-        try:
-            # Handle empty or invalid history
-            parsed_history = []
-            if history and history.strip() and history.strip() != "[]":
-                try:
-                    parsed_history = json.loads(history)
-                except json.JSONDecodeError:
-                    parsed_history = []
-            
-            # URL-decode parameters (e.g., ollama%2Fllama3.2 -> ollama/llama3.2)
-            from urllib.parse import unquote
-            decoded_message = unquote(message)
-            decoded_model = unquote(model)
-            logger.info(f"Stream request (Robyn): model={decoded_model}, message_len={len(decoded_message)}")
-            
-            full_response = ""
-            # generate_stream returns (stream, future) tuple
-            stream, _ = g.generate_stream(
-                model=decoded_model,
-                prompt=decoded_message,
-            )
-            async for chunk in stream:
-                if chunk.text:
-                    full_response += chunk.text
-            
-            return Response(
-                status_code=200,
-                headers=Headers({"Content-Type": "text/event-stream", "Cache-Control": "no-cache"}),
-                description=f"data: {json.dumps({'chunk': full_response})}\n\ndata: [DONE]\n\n",
-            )
-        except Exception as e:
-            logger.exception(f"Stream error: {e}")
-            error_data = json.dumps({"error": str(e), "type": type(e).__name__})
-            return Response(
-                status_code=500,
-                headers=Headers({"Content-Type": "text/event-stream"}),
-                description=f"data: {error_data}\n\ndata: [DONE]\n\n",
-            )
+        async def sse_generator():
+            """Async generator that yields SSE messages for each token chunk."""
+            try:
+                # Handle empty or invalid history
+                parsed_history = []
+                if history and history.strip() and history.strip() != "[]":
+                    try:
+                        parsed_history = json.loads(history)
+                    except json.JSONDecodeError:
+                        parsed_history = []
+                
+                # URL-decode parameters (e.g., ollama%2Fllama3.2 -> ollama/llama3.2)
+                from urllib.parse import unquote
+                decoded_message = unquote(message)
+                decoded_model = unquote(model)
+                logger.info(f"Stream request (Robyn SSE): model={decoded_model}, message_len={len(decoded_message)}")
+                
+                # generate_stream returns (stream, future) tuple
+                stream, _ = g.generate_stream(
+                    model=decoded_model,
+                    prompt=decoded_message,
+                )
+                
+                # Yield each chunk as it arrives from the model
+                async for chunk in stream:
+                    if chunk.text:
+                        yield SSEMessage(
+                            data=json.dumps({"chunk": chunk.text}),
+                            event="message",
+                        )
+                
+                # Signal completion
+                yield SSEMessage(data="[DONE]", event="done")
+                
+            except Exception as e:
+                logger.exception(f"Stream error: {e}")
+                yield SSEMessage(
+                    data=json.dumps({"error": str(e), "type": type(e).__name__}),
+                    event="error",
+                )
+                yield SSEMessage(data="[DONE]", event="done")
+        
+        return SSEResponse(sse_generator())
 
     # Serve static files if they exist
     if STATIC_DIR.exists():
