@@ -23,23 +23,32 @@ Vertex AI evaluators assess model outputs using various quality metrics:
 * **`evaluate_bleu`** - BLEU score for translation quality
 * **`evaluate_summarization`** - Summarization quality assessment
 
-## Prerequisites
-
-### 1. Google Cloud Project
-
-Set your project ID:
+## Quick Start
 
 ```bash
 export GOOGLE_CLOUD_PROJECT=your-project-id
+./run.sh
 ```
 
-### 2. Authentication
+That's it! The script will:
+
+1. ✓ Prompt for your project ID if not set
+2. ✓ Check gcloud authentication (and help you authenticate if needed)
+3. ✓ Enable required APIs (with your permission)
+4. ✓ Install dependencies
+5. ✓ Start the demo and open your browser
+
+## Manual Setup (if needed)
+
+If you prefer manual setup or the automatic setup fails:
+
+### 1. Authentication
 
 ```bash
 gcloud auth application-default login
 ```
 
-### 3. Enable Required APIs
+### 2. Enable Required APIs
 
 ```bash
 # Vertex AI API (for models and evaluators)
@@ -49,7 +58,7 @@ gcloud services enable aiplatform.googleapis.com
 gcloud services enable discoveryengine.googleapis.com
 ```
 
-## Run the Sample
+### 3. Run the Demo
 
 ```bash
 ./run.sh
@@ -125,6 +134,8 @@ Then open the Dev UI at http://localhost:4000
 
 ### "Discovery Engine API not enabled"
 
+The script should enable this automatically, but if it fails:
+
 ```bash
 gcloud services enable discoveryengine.googleapis.com
 ```
@@ -143,3 +154,8 @@ Verify `GOOGLE_CLOUD_PROJECT` is set correctly:
 ```bash
 echo $GOOGLE_CLOUD_PROJECT
 ```
+
+### "gcloud not found"
+
+Install the Google Cloud SDK from:
+https://cloud.google.com/sdk/docs/install
