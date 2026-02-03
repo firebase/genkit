@@ -195,7 +195,7 @@ class McpClient:
                 def create_wrapper(tool_name: str) -> Any:  # noqa: ANN401
                     async def tool_wrapper(args: Any = None) -> Any:  # noqa: ANN401
                         # args might be Pydantic model or dict. Genkit passes dict usually?
-                        # TODO: Validate args against schema if needed
+
                         arguments = args
                         if hasattr(args, 'model_dump'):
                             arguments = args.model_dump()
