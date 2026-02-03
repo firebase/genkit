@@ -118,25 +118,23 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from datetime import datetime
 import json
 import logging
 import os
-from pathlib import Path
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
+import httpx
+import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from robyn import Request, Response, Robyn
 from robyn.robyn import Headers
-
-import httpx
-import uvicorn
 
 from genkit import Genkit
 
@@ -166,7 +164,7 @@ def load_plugins() -> list[Any]:
     gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
     if gemini_api_key:
         try:
-            from genkit.plugins.google_genai import GoogleAI
+            from genkit.plugins.google_genai import GoogleAI  # type: ignore[import-not-found]
 
             plugins.append(GoogleAI())
             logger.info("✓ Loaded Google AI plugin")
@@ -176,7 +174,7 @@ def load_plugins() -> list[Any]:
     # Ollama (local models)
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     try:
-        from genkit.plugins.ollama import Ollama
+        from genkit.plugins.ollama import Ollama  # type: ignore[import-not-found]
 
         plugins.append(Ollama(server_address=ollama_host))
         logger.info(f"✓ Loaded Ollama plugin ({ollama_host})")
@@ -185,7 +183,7 @@ def load_plugins() -> list[Any]:
 
     # Dev Local VectorStore
     try:
-        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
+        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore  # type: ignore[import-not-found]
 
         plugins.append(DevLocalVectorStore())
         logger.info("✓ Loaded DevLocalVectorStore plugin")
@@ -195,7 +193,7 @@ def load_plugins() -> list[Any]:
     # Anthropic
     if os.getenv("ANTHROPIC_API_KEY"):
         try:
-            from genkit.plugins.anthropic import Anthropic
+            from genkit.plugins.anthropic import Anthropic  # type: ignore[import-not-found]
 
             plugins.append(Anthropic())
             logger.info("✓ Loaded Anthropic plugin")
@@ -205,7 +203,7 @@ def load_plugins() -> list[Any]:
     # OpenAI (via compat-oai)
     if os.getenv("OPENAI_API_KEY"):
         try:
-            from genkit.plugins.compat_oai import OpenAICompat
+            from genkit.plugins.compat_oai import OpenAICompat  # type: ignore[import-not-found]
 
             plugins.append(OpenAICompat())
             logger.info("✓ Loaded OpenAI-compatible plugin")
@@ -571,7 +569,7 @@ async def describe_image_flow(input: ImageDescribeInput) -> ImageDescribeOutput:
     """
     response = await g.generate(
         model=input.model,
-        prompt=[
+        prompt=[  # type: ignore[arg-type] - multimodal content list
             {"media": {"url": input.image_url}},
             {"text": input.question},
         ],
@@ -643,7 +641,7 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
     start_time = time.time()
     full_response = ""
 
-    async for chunk in g.generate_stream(
+    async for chunk in g.generate_stream(  # type: ignore[union-attr] - async iterator
         model=input.model,
         prompt=input.message,
     ):
@@ -733,7 +731,7 @@ def create_fastapi_server() -> FastAPI:
             return result.model_dump()
         except Exception as e:
             logger.exception(f"Chat error: {e}")
-            raise HTTPException(status_code=500, detail={"error": str(e), "type": type(e).__name__})
+            raise HTTPException(status_code=500, detail={"error": str(e), "type": type(e).__name__}) from e
 
     @app.post("/api/compare")
     async def api_compare(input: CompareInput):
@@ -783,7 +781,7 @@ def create_http_server() -> Robyn:
 
     @app.after_request()
     async def add_cors(response: Response):
-        response.headers.set("Access-Control-Allow-Origin", "*")
+        response.headers.set("Access-Control-Allow-Origin", "*")  # type: ignore[attr-defined] - Robyn Headers
         return response
 
     @app.get("/")

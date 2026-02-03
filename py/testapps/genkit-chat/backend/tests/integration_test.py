@@ -43,11 +43,9 @@ import asyncio
 import multiprocessing
 import os
 import time
-from typing import Any
 
 import httpx
 import pytest
-
 
 # Test configuration
 FASTAPI_PORT = 18080
@@ -68,7 +66,8 @@ def _run_fastapi_server(port: int) -> None:
         sys.path.insert(0, src_dir)
     
     import uvicorn
-    from main import create_fastapi_server
+
+    from main import create_fastapi_server  # type: ignore[import-not-found]
     
     app = create_fastapi_server()
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
@@ -86,7 +85,7 @@ def _run_robyn_server(port: int) -> None:
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
     
-    from main import create_http_server
+    from main import create_http_server  # type: ignore[import-not-found]
     
     app = create_http_server()
     app.start(port=port)

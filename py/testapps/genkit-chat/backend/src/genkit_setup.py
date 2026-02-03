@@ -64,7 +64,7 @@ def _load_plugins() -> list[Any]:
     # Google AI (Gemini)
     if os.getenv("GOOGLE_GENAI_API_KEY"):
         try:
-            from genkit.plugins.google_genai import GoogleAI
+            from genkit.plugins.google_genai import GoogleAI  # type: ignore[import-not-found]
 
             plugins.append(GoogleAI())
             logger.info("Loaded Google AI plugin")
@@ -74,7 +74,7 @@ def _load_plugins() -> list[Any]:
     # Vertex AI
     if os.getenv("GOOGLE_CLOUD_PROJECT"):
         try:
-            from genkit.plugins.vertex_ai import VertexAI
+            from genkit.plugins.vertex_ai import VertexAI  # type: ignore[import-not-found]
 
             plugins.append(VertexAI())
             logger.info("Loaded Vertex AI plugin")
@@ -84,7 +84,7 @@ def _load_plugins() -> list[Any]:
     # Anthropic
     if os.getenv("ANTHROPIC_API_KEY"):
         try:
-            from genkit.plugins.anthropic import Anthropic
+            from genkit.plugins.anthropic import Anthropic  # type: ignore[import-not-found]
 
             plugins.append(Anthropic())
             logger.info("Loaded Anthropic plugin")
@@ -94,7 +94,7 @@ def _load_plugins() -> list[Any]:
     # OpenAI
     if os.getenv("OPENAI_API_KEY"):
         try:
-            from genkit.plugins.openai import OpenAI
+            from genkit.plugins.openai import OpenAI  # type: ignore[import-not-found]
 
             plugins.append(OpenAI())
             logger.info("Loaded OpenAI plugin")
@@ -104,7 +104,7 @@ def _load_plugins() -> list[Any]:
     # Cloudflare AI
     if os.getenv("CLOUDFLARE_ACCOUNT_ID") and os.getenv("CLOUDFLARE_API_TOKEN"):
         try:
-            from genkit.plugins.cf_ai import CfAI
+            from genkit.plugins.cf_ai import CfAI  # type: ignore[import-not-found]
 
             plugins.append(CfAI())
             logger.info("Loaded Cloudflare AI plugin")
@@ -114,7 +114,7 @@ def _load_plugins() -> list[Any]:
     # Ollama (always try - it's for local development)
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     try:
-        from genkit.plugins.ollama import Ollama
+        from genkit.plugins.ollama import Ollama  # type: ignore[import-not-found]
 
         plugins.append(Ollama(server_address=ollama_host))
         logger.info(f"Loaded Ollama plugin (host: {ollama_host})")
@@ -123,7 +123,7 @@ def _load_plugins() -> list[Any]:
 
     # DevLocalVectorStore for RAG (always load if available)
     try:
-        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
+        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore  # type: ignore[import-not-found]
 
         plugins.append(DevLocalVectorStore())
         logger.info("Loaded DevLocalVectorStore plugin")

@@ -45,6 +45,8 @@ typeCheckingMode = "basic"
 reportMissingImports = true
 reportMissingTypeStubs = false
 include = ["src", "tests"]
+venv = ".venv"
+venvPath = "."
 
 [tool.ruff]
 line-length = 120
@@ -52,7 +54,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "N", "ANN"]
-ignore = ["ANN101", "ANN102"]  # self and cls don't need annotations
+ignore = ["ANN201", "ANN202"]  # Allow missing return types for nested/private functions
 
 [tool.ruff.lint.isort]
 known-first-party = ["genkit"]
