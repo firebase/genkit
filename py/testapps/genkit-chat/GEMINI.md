@@ -38,6 +38,88 @@ This document captures learnings, patterns, and best practices from developing t
 ```
 
 
+## Storybook
+
+The project includes [Storybook](https://storybook.js.org/) for component development and testing in isolation.
+
+### Running Storybook
+
+```bash
+cd frontend
+
+# Start Storybook development server
+npm run storybook
+
+# Build static Storybook
+npm run build-storybook
+```
+
+Storybook will be available at `http://localhost:6006`.
+
+### Available Component Stories
+
+| Component | Location | Stories |
+|-----------|----------|---------|
+| **MessageList** | `Chat/MessageList` | Default, Empty, Loading, Error, MarkdownDisabled, LongConversation |
+| **WelcomeScreen** | `Chat/WelcomeScreen` | Default, SingleGreeting, RTL, NoQuickActions, ManyQuickActions |
+| **PromptQueue** | `Chat/PromptQueue` | Default, Empty, SingleItem, LongQueue, LongContent, WithEmoji |
+| **ChatInput** | `Chat/ChatInput` | Default, VoiceRecording, ContentFlagged, Disabled, DarkMode, RTL |
+| **ModelSelector** | `Chat/ModelSelector` | Default, SingleProvider, LocalOnly, ManyModels, LongModelNames |
+
+### Writing New Stories
+
+Stories are located alongside components with `.stories.ts` extension:
+
+```
+components/
+├── message-list/
+│   ├── message-list.component.ts
+│   └── message-list.stories.ts    # Stories file
+└── chat-input/
+    ├── chat-input.component.ts
+    └── chat-input.stories.ts
+```
+
+**Story Template:**
+
+```typescript
+import type { Meta, StoryObj } from '@storybook/angular';
+import { MyComponent } from './my.component';
+
+const meta: Meta<MyComponent> = {
+  title: 'Category/MyComponent',
+  component: MyComponent,
+  tags: ['autodocs'],
+  argTypes: {
+    myInput: { description: 'Description', control: 'text' },
+    myOutput: { action: 'myOutput' },
+  },
+};
+
+export default meta;
+type Story = StoryObj<MyComponent>;
+
+export const Default: Story = {
+  args: {
+    myInput: 'Default value',
+  },
+};
+
+export const AnotherState: Story = {
+  args: {
+    myInput: 'Different value',
+  },
+};
+```
+
+### Addons
+
+- **@storybook/addon-a11y**: Accessibility testing
+- **@storybook/addon-docs**: Auto-generated documentation
+- **@storybook/addon-onboarding**: Getting started guide
+
+---
+
 ## Coding Standards
 
 ### Documentation

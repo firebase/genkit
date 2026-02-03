@@ -19,7 +19,9 @@
     "format:check": "biome format .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "license:check": "license-checker --production --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0'"
+    "license:check": "license-checker --production --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0'",
+    "storybook": "ng run genkit-chat-ui:storybook",
+    "build-storybook": "ng run genkit-chat-ui:build-storybook"
   },
   "private": true,
   "packageManager": "pnpm@10.4.1",
@@ -58,6 +60,16 @@
     "jsdom": "^28.0.0",
     "license-checker": "^25.0.1",
     "typescript": "~5.9.2",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "storybook": "^10.2.4",
+    "@storybook/angular": "^10.2.4",
+    "@storybook/addon-a11y": "^10.2.4",
+    "@storybook/addon-docs": "^10.2.4",
+    "@storybook/addon-onboarding": "^10.2.4",
+    "@angular-devkit/build-angular": "^21.1.0",
+    "@angular-devkit/architect": "^0.2101.0",
+    "@angular-devkit/core": "^21.1.0",
+    "@angular/platform-browser-dynamic": "^21.1.0",
+    "@compodoc/compodoc": "^1.2.1"
   }
 }
