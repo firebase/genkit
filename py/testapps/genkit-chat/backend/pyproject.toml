@@ -67,8 +67,18 @@ venv                   = ".venv"
 venvPath               = "."
 
 [tool.ruff]
+extend         = "../../../pyproject.toml"
 line-length    = 120
+preview        = true
 target-version = "py310"
+
+[tool.ruff.format]
+docstring-code-format      = true
+docstring-code-line-length = 120
+indent-style               = "space"
+line-ending                = "lf"
+quote-style                = "single"
+skip-magic-trailing-comma  = false
 
 [tool.ruff.lint]
 ignore = [

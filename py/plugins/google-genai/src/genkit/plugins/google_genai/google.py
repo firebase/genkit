@@ -93,7 +93,7 @@ See Also:
 """
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from genkit.blocks.background_model import BackgroundAction
@@ -105,11 +105,19 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
+from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.blocks.reranker import RankedDocument, reranker_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
+from genkit.core.typing import (
+    RankedDocumentData,
+    RankedDocumentMetadata,
+    RerankerRequest,
+    RerankerResponse,
+)
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     default_embedder_info,
@@ -841,8 +849,6 @@ class VertexAI(Plugin):
         Returns:
             Action object for the reranker.
         """
-        from genkit.blocks.document import Document
-
         # Extract local name (remove plugin prefix)
         clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
@@ -856,21 +862,18 @@ class VertexAI(Plugin):
             location=location,
         )
 
-        async def reranker_fn(
-            query: Document,
-            documents: list[Document],
-            options: dict | None = None,
-        ) -> dict:
-            """Rerank documents based on relevance to query.
+        async def wrapper(
+            request: RerankerRequest,
+            _ctx: Any,  # noqa: ANN401
+        ) -> RerankerResponse:
+            """Wrapper that takes RerankerRequest and returns RerankerResponse.
 
-            Args:
-                query: The query document.
-                documents: The documents to rerank.
-                options: Optional reranker configuration.
-
-            Returns:
-                A dict with 'documents' key containing ranked documents.
+            This matches the signature expected by the Action class (max 2 args).
             """
+            query_doc = Document.from_document_data(request.query)
+            documents = [Document.from_document_data(d) for d in request.documents]
+            options = request.options
+
             config = VertexRerankerConfig.model_validate(options or {})
 
             # Use location from config if provided, otherwise use client default
@@ -879,32 +882,33 @@ class VertexAI(Plugin):
                 location=config.location or client_options.location,
             )
 
-            request = RerankRequest(
+            rerank_request = RerankRequest(
                 model=clean_name,
-                query=query.text(),
+                query=query_doc.text(),
                 records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
                 top_n=config.top_n,
                 ignore_record_details_in_response=config.ignore_record_details_in_response,
             )
 
-            response = await reranker_rank(clean_name, request, effective_options)
+            response = await reranker_rank(clean_name, rerank_request, effective_options)
             ranked_docs = _from_rerank_response(response, documents)
 
-            return {'documents': ranked_docs}
+            # Convert to RerankerResponse format
+            response_docs: list[RankedDocumentData] = []
+            for doc in ranked_docs:
+                score = doc.score if isinstance(doc, RankedDocument) else None
+                metadata = RankedDocumentMetadata(score=score if score is not None else 0.0)
+                response_docs.append(RankedDocumentData(content=doc.content, metadata=metadata))
+
+            return RerankerResponse(documents=response_docs)
+
+        metadata = reranker_action_metadata(name)
 
         return Action(
             kind=ActionKind.RERANKER,
             name=name,
-            fn=reranker_fn,
-            metadata=ActionMetadata(
-                kind=ActionKind.RERANKER,
-                name=name,
-                description=f'Vertex AI Reranker: {clean_name}',
-                metadata={
-                    'type': 'reranker',
-                    'supports': {'media': False},
-                },
-            ).metadata,
+            fn=wrapper,
+            metadata=metadata.metadata,
         )
 
     async def list_actions(self) -> list[ActionMetadata]:

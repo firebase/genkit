@@ -68,8 +68,18 @@ packages = ["backend/src"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
-# Ruff configuration is inherited from the workspace root (py/pyproject.toml)
-# to ensure consistent formatting across all packages.
+# Ruff configuration extends from workspace root (py/pyproject.toml).
+# Format settings must be duplicated as ruff doesn't fully inherit [tool.ruff.format].
+[tool.ruff]
+extend = "../../pyproject.toml"
+
+[tool.ruff.format]
+docstring-code-format      = true
+docstring-code-line-length = 120
+indent-style               = "space"
+line-ending                = "lf"
+quote-style                = "single"
+skip-magic-trailing-comma  = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
