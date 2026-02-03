@@ -16,6 +16,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -84,10 +85,14 @@ func TestHTTPServerIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gablorken.RunRaw failed: %v", err)
 	}
+	bytes, err := json.Marshal(rawRes)
+	if err != nil {
+		t.Fatalf("failed to marshal result: %v", err)
+	}
 
-	res, ok := rawRes.(*mcp.CallToolResult)
-	if !ok {
-		t.Fatalf("gablorken.RunRaw result is not *mcp.CallToolResult, got: %T", rawRes)
+	var res mcp.CallToolResult
+	if err := json.Unmarshal(bytes, &res); err != nil {
+		t.Fatalf("failed to unmarshal into CallToolResult: %v", err)
 	}
 	if len(res.Content) == 0 {
 		t.Fatal("expected result content, got none")
