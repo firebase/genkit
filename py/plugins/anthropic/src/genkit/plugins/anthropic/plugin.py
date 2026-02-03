@@ -112,7 +112,9 @@ class Anthropic(Plugin):
             fn=model.generate,
             metadata={
                 'model': {
-                    'supports': model_info.supports.model_dump(by_alias=True) if model_info.supports else {},
+                    'supports': (
+                        model_info.supports.model_dump(by_alias=True, exclude_none=True) if model_info.supports else {}
+                    ),
                     'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
