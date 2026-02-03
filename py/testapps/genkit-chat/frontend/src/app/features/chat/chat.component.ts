@@ -24,6 +24,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ContentSafetyService } from '../../core/services/content-safety.service';
 import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/error-details-dialog.component';
 import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
+import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
 
 
 @Component({
@@ -55,6 +56,16 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       ]),
       transition(':leave', [
         animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' }))
+      ])
+    ]),
+    // Slide animation for mic/send button transition - slide left
+    trigger('slideButton', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateX(10px)' }),
+        animate('150ms ease-out', style({ opacity: 1, transform: 'translateX(0)' }))
+      ]),
+      transition(':leave', [
+        animate('100ms ease-in', style({ opacity: 0, transform: 'translateX(-10px)' }))
       ])
     ])
   ],
@@ -240,13 +251,50 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
             </div>
           }
           
-          <!-- Text Area at top -->
+          <!-- Attached Files Preview (inside input box) - macOS style -->
+          @if (attachedFiles().length > 0) {
+            <div class="attached-files-inline">
+              <div class="files-scroll-container">
+                @for (file of attachedFiles(); track file.name) {
+                  <div class="file-chip-macos" [matTooltip]="file.name + ' (' + formatFileSize(file.size) + ')'">
+                    <!-- Remove button (top-right corner) -->
+                    <button class="file-remove-btn" (click)="removeFile(file); $event.stopPropagation()" matTooltip="Remove">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                    
+                    <!-- Icon or Thumbnail -->
+                    <div class="file-preview">
+                      @if (file.type.startsWith('image/')) {
+                        <img [src]="file.preview" alt="preview" class="file-thumb">
+                      } @else {
+                        <mat-icon class="file-type-icon">{{ getFileIcon(file.type) }}</mat-icon>
+                      }
+                    </div>
+                    
+                    <!-- Name and Size (vertical stack) -->
+                    <div class="file-info">
+                      <span class="file-name">{{ file.name }}</span>
+                      <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+              <span class="files-count">{{ attachedFiles().length }}/{{ maxAttachments }}</span>
+            </div>
+          }
+          
+          <!-- Text Area with content safety highlighting -->
           <textarea class="chat-input" 
+                    [class.content-flagged]="contentFlagged()"
                     [(ngModel)]="userMessage" 
                     placeholder="Ask Genkit Chat"
+                    aria-label="Chat message input"
                     (keydown.enter)="onEnterKey($event)"
                     (focus)="inputFocused = true"
                     (blur)="inputFocused = false"
+                    (input)="onInputChange()"
+                    [matTooltip]="contentFlagged() ? 'Content flagged: ' + flaggedLabels().join(', ') : ''"
+                    [matTooltipClass]="'flagged-content-tooltip'"
                     rows="1"
                     #chatTextarea></textarea>
           
@@ -256,6 +304,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
               <!-- Add/Attach Button -->
               <button mat-icon-button 
                       class="toolbar-btn add-btn"
+                      aria-label="Add files"
                       matTooltip="Add files"
                       [matMenuTriggerFor]="attachMenu">
                 <mat-icon>add</mat-icon>
@@ -423,16 +472,29 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                 </div>
               </mat-menu>
               
-              <!-- Voice Input -->
-              @if (speechService.isSupported()) {
-                <button mat-icon-button 
-                        class="toolbar-btn mic-btn"
-                        [class.recording]="speechService.isListening()"
-                        matTooltip="{{ speechService.isListening() ? 'Stop' : 'Voice input' }}"
-                        (click)="toggleVoiceInput()">
-                  <mat-icon>{{ speechService.isListening() ? 'mic_off' : 'mic' }}</mat-icon>
-                </button>
-              }
+              <!-- Send Button (when text is entered) or Voice Input -->
+              <div class="action-btn-container">
+                @if (showSendButton()) {
+                  <button mat-icon-button 
+                          class="toolbar-btn send-btn"
+                          @slideButton
+                          aria-label="Send message"
+                          matTooltip="Send message"
+                          (click)="sendMessage()">
+                    <mat-icon>send</mat-icon>
+                  </button>
+                } @else if (speechService.isSupported()) {
+                  <button mat-icon-button 
+                          class="toolbar-btn mic-btn"
+                          @slideButton
+                          [class.recording]="speechService.isListening()"
+                          [attr.aria-label]="speechService.isListening() ? 'Stop voice input' : 'Start voice input'"
+                          matTooltip="{{ speechService.isListening() ? 'Stop' : 'Voice input' }}"
+                          (click)="toggleVoiceInput()">
+                    <mat-icon>{{ speechService.isListening() ? 'mic_off' : 'mic' }}</mat-icon>
+                  </button>
+                }
+              </div>
             </div>
           </div>
         </div>
@@ -1435,6 +1497,170 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       &:disabled {
         opacity: 0.7;
       }
+      
+      /* Squiggly red underline for flagged content */
+      &.content-flagged {
+        text-decoration: underline wavy var(--error);
+        text-decoration-skip-ink: none;
+        text-underline-offset: 3px;
+        color: var(--error);
+        
+        /* Fallback for browsers that don't support wavy */
+        @supports not (text-decoration-style: wavy) {
+          text-decoration: underline;
+          text-decoration-color: var(--error);
+        }
+      }
+    }
+    
+    /* Tooltip styling for flagged content */
+    ::ng-deep .flagged-content-tooltip {
+      background: var(--error) !important;
+      color: white !important;
+      font-weight: 500;
+    }
+    
+    /* Attached Files Inline (inside input box) */
+    .attached-files-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--outline-variant);
+    }
+    
+    /* Horizontal scroll container */
+    .files-scroll-container {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 0;
+      scrollbar-width: thin;
+      
+      &::-webkit-scrollbar {
+        height: 4px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: var(--outline-variant);
+        border-radius: 2px;
+      }
+    }
+    
+    .files-count {
+      font-size: 11px;
+      color: var(--on-surface-muted);
+      flex-shrink: 0;
+      padding: 4px 0;
+    }
+    
+    /* macOS-style file chip - vertical layout */
+    .file-chip-macos {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 72px;
+      padding: 8px 6px 6px;
+      background: var(--surface-container);
+      border-radius: 10px;
+      border: 1px solid var(--outline-variant);
+      transition: all var(--transition-fast);
+      flex-shrink: 0;
+      cursor: default;
+      
+      &:hover {
+        background: var(--surface-container-high);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        
+        .file-remove-btn {
+          opacity: 1;
+        }
+      }
+    }
+    
+    /* Remove button - top right corner */
+    .file-remove-btn {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--error);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+      z-index: 1;
+      
+      .mat-icon {
+        font-size: 12px;
+        width: 12px;
+        height: 12px;
+        color: white;
+      }
+      
+      &:hover {
+        background: var(--error-dark, #c62828);
+      }
+    }
+    
+    /* File preview (icon or thumbnail) */
+    .file-preview {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+    
+    .file-thumb {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    
+    .file-type-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+      color: var(--gemini-blue);
+    }
+    
+    /* File info - name and size */
+    .file-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      overflow: hidden;
+    }
+    
+    .file-name {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--on-surface);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      text-align: center;
+    }
+    
+    .file-size {
+      font-size: 9px;
+      color: var(--on-surface-muted);
     }
     
     .input-toolbar {
@@ -1612,6 +1838,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         flex-direction: column;
         align-items: flex-end;
         line-height: 1.2;
+        order: 0;
       }
       
       .model-name {
@@ -1633,6 +1860,8 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         width: 18px;
         height: 18px;
         color: var(--on-surface-muted);
+        order: 1;
+        margin-left: 2px;
       }
       
       &:hover {
@@ -1644,6 +1873,26 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       &.recording {
         color: #ea4335 !important;
         animation: pulse 1s infinite;
+      }
+    }
+    
+    /* Action button container for send/mic transition */
+    .action-btn-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      overflow: hidden;
+      position: relative;
+      margin-top: -4px;
+    }
+    
+    .send-btn {
+      color: var(--gemini-blue) !important;
+      
+      &:hover {
+        background: rgba(66, 133, 244, 0.1) !important;
       }
     }
     
@@ -1830,7 +2079,21 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   userMessage = '';
   inputFocused = false;
   isDragging = signal(false);
-  attachedFiles = signal<{ name: string; type: string; preview: string; data: string }[]>([]);
+  attachedFiles = signal<{ name: string; type: string; size: number; preview: string; data: string }[]>([]);
+
+  // Debounced send button visibility to smooth animation
+  showSendButton = signal(false);
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private safetyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Content safety - tracks flagged content for highlighting
+  contentFlagged = signal(false);
+  flaggedLabels = signal<string[]>([]);
+
+  // Attachment limits from config
+  maxAttachments = CHAT_CONFIG.maxAttachments;
+  maxFileSizeBytes = CHAT_CONFIG.maxFileSizeBytes;
+
 
   // Queue editing state
   queueExpanded = true;
@@ -2108,11 +2371,65 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     this.userMessage = prompt + ' ';
   }
 
+  /**
+   * Clear content flagging when user edits their message.
+   * Also debounce the send button visibility for smooth animation.
+   * Real-time content safety is debounced (500ms) to avoid excessive API calls.
+   */
+  onInputChange(): void {
+    // Clear content flagging when user edits
+    if (this.contentFlagged()) {
+      this.contentFlagged.set(false);
+      this.flaggedLabels.set([]);
+    }
+
+    // Debounce send button visibility (150ms)
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+
+    const hasText = !!this.userMessage.trim();
+
+    // If switching to send button, show immediately
+    // If switching to mic button, debounce to avoid flicker
+    if (hasText && !this.showSendButton()) {
+      this.showSendButton.set(true);
+    } else if (!hasText && this.showSendButton()) {
+      this.debounceTimer = setTimeout(() => {
+        if (!this.userMessage.trim()) {
+          this.showSendButton.set(false);
+        }
+      }, 150);
+    }
+
+    // Debounced real-time content safety check (500ms after user stops typing)
+    if (this.safetyDebounceTimer) {
+      clearTimeout(this.safetyDebounceTimer);
+    }
+
+    if (hasText && this.contentSafetyService.enabled()) {
+      this.safetyDebounceTimer = setTimeout(async () => {
+        const message = this.userMessage.trim();
+        if (message) {
+          const safetyResult = await this.contentSafetyService.checkContent(message);
+          // Only flag if user hasn't cleared the input
+          if (this.userMessage.trim() === message && !safetyResult.safe) {
+            this.contentFlagged.set(true);
+            this.flaggedLabels.set(safetyResult.labels);
+          }
+        }
+      }, 500);
+    }
+  }
+
   async sendMessage(): Promise<void> {
     if (!this.userMessage.trim()) return;
 
     const message = this.userMessage;
     this.userMessage = '';
+
+    // Reset send button state (will animate to mic)
+    this.showSendButton.set(false);
 
     // Always keep focus on the input
     this.chatTextarea?.nativeElement?.focus();
@@ -2121,6 +2438,10 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     if (this.contentSafetyService.enabled()) {
       const safetyResult = await this.contentSafetyService.checkContent(message);
       if (!safetyResult.safe) {
+        // Mark content as flagged for visual highlighting
+        this.contentFlagged.set(true);
+        this.flaggedLabels.set(safetyResult.labels);
+
         this.snackBar.open(
           `Message blocked: ${safetyResult.message || 'Potentially harmful content detected'}`,
           'Dismiss',
@@ -2129,6 +2450,10 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
         // Restore the message so user can edit it
         this.userMessage = message;
         return;
+      } else {
+        // Clear any previous flagging
+        this.contentFlagged.set(false);
+        this.flaggedLabels.set([]);
       }
     }
 
@@ -2290,11 +2615,25 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   }
 
   private processFiles(files: File[]): void {
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const currentCount = this.attachedFiles().length;
+    const remaining = this.maxAttachments - currentCount;
 
-    files.forEach(file => {
-      if (file.size > maxSize) {
-        this.snackBar.open(`File "${file.name}" is too large (max 10MB)`, 'Dismiss', { duration: 4000 });
+    if (remaining <= 0) {
+      this.snackBar.open(`Maximum ${this.maxAttachments} attachments allowed`, 'Dismiss', { duration: 4000 });
+      return;
+    }
+
+    // Only process up to the remaining slots
+    const filesToProcess = files.slice(0, remaining);
+
+    if (files.length > remaining) {
+      this.snackBar.open(`Only ${remaining} more file(s) can be attached`, 'Dismiss', { duration: 4000 });
+    }
+
+    filesToProcess.forEach(file => {
+      if (file.size > this.maxFileSizeBytes) {
+        const maxSizeMB = (this.maxFileSizeBytes / (1024 * 1024)).toFixed(0);
+        this.snackBar.open(`File "${file.name}" is too large (max ${maxSizeMB}MB)`, 'Dismiss', { duration: 4000 });
         return;
       }
 
@@ -2305,7 +2644,8 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
           ...current,
           {
             name: file.name,
-            type: file.type,
+            type: file.type || 'application/octet-stream',
+            size: file.size,
             preview: dataUrl,
             data: dataUrl,
           },
@@ -2319,5 +2659,29 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     this.attachedFiles.update(current =>
       current.filter(f => f.name !== file.name)
     );
+  }
+
+  /**
+   * Get Material Icon name for a MIME type.
+   */
+  getFileIcon(mimeType: string): string {
+    return getMimeTypeIcon(mimeType);
+  }
+
+  /**
+   * Format file size to human-readable string.
+   */
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const base = 1024;
+    const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(base)), units.length - 1);
+    const value = bytes / Math.pow(base, exponent);
+
+    // Show 1 decimal place for KB and above, none for bytes
+    return exponent === 0
+      ? `${value} ${units[exponent]}`
+      : `${value.toFixed(1)} ${units[exponent]}`;
   }
 }

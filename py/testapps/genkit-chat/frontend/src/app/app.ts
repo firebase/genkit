@@ -40,7 +40,11 @@ import { ChatService } from './core/services/chat.service';
         <div class="sidenav-content">
           <!-- Logo & Brand -->
           <div class="sidenav-header">
-            <button mat-icon-button (click)="toggleSidenav()" class="menu-btn" [matTooltip]="sidenavOpened() ? 'Collapse menu' : 'Expand menu'">
+            <button mat-icon-button 
+                    (click)="toggleSidenav()" 
+                    class="menu-btn" 
+                    [attr.aria-label]="sidenavOpened() ? 'Collapse menu' : 'Expand menu'"
+                    [matTooltip]="sidenavOpened() ? 'Collapse menu' : 'Expand menu'">
               <mat-icon>menu</mat-icon>
             </button>
             @if (sidenavOpened()) {
@@ -136,7 +140,10 @@ import { ChatService } from './core/services/chat.service';
           </div>
           
           <div class="top-bar-right">
-            <button mat-icon-button [matMenuTriggerFor]="helpMenu" matTooltip="Help & resources">
+            <button mat-icon-button 
+                    [matMenuTriggerFor]="helpMenu" 
+                    aria-label="Help and resources"
+                    matTooltip="Help & resources">
               <mat-icon>help_outline</mat-icon>
             </button>
             <mat-menu #helpMenu="matMenu" xPosition="before">
