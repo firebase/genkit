@@ -54,7 +54,6 @@
   | License headers | Apache 2.0 headers present | ✅ Automated |
   | Dependency licenses | liccheck passes | ✅ Automated |
   | CHANGELOG | Current version documented | ✅ Automated |
-
 * **Type Checkers**: Three type checkers are configured:
 
   * **ty** (Astral/Ruff) - Blocking, must pass with zero errors (full workspace)
@@ -84,18 +83,14 @@
   false positive import errors. At runtime, these imports work correctly because Python's
   import system handles PEP 420 namespace packages natively. This is the only acceptable
   import-related suppression.
-
 * **Pass All Tests**: Ensure all unit tests pass (`uv run pytest .`).
-
 * **Tests Required**: All new code MUST have accompanying tests. No exceptions.
   PRs without tests for new functionality will not be accepted.
-
 * **Workspace Completeness**: All plugins and samples MUST be included in
   `py/pyproject.toml` under `[tool.uv.sources]`. When adding a new plugin or
   sample, add it to the sources section to ensure it's properly installed in
   the workspace. **This is automatically checked by `py/bin/check_consistency`.**
   Verify with `uv sync` that all packages resolve correctly.
-
 * **Naming Consistency**: Package names MUST match their directory names.
   **This is automatically checked by `py/bin/check_consistency`.**
   * Plugins: `plugins/{name}/` → package name `genkit-plugin-{name}`
@@ -116,7 +111,6 @@
       [ "$pkg" != "$name" ] && echo "MISMATCH: $d -> $pkg"
     done
     ```
-
 * **Dependency Verification**: All dependencies must resolve correctly. Run these
   checks before submitting PRs:
   ```bash
@@ -135,7 +129,6 @@
   * Use version constraints (e.g., `>=1.0.0`) to allow flexibility
   * Pin exact versions only when necessary for compatibility
   * Remove unused dependencies to keep packages lean
-
 * **Python Version Consistency**: All packages MUST use the same `requires-python`
   version. Currently, all packages should specify `requires-python = ">=3.10"`.
   **This is automatically checked by `py/bin/check_consistency`.**
@@ -153,7 +146,6 @@
   **Note**: The `.python-version` file specifies `3.12` for local development, but
   CI tests against Python 3.10, 3.11, 3.12, 3.13, and 3.14. Scripts using `uv run`
   should use `--active` flag to respect the CI matrix Python version.
-
 * **Plugin Version Sync**: All plugin versions should stay in sync with the core
   framework version. When releasing, update all plugin versions together.
   **This is automatically checked by `py/bin/check_consistency`.**
@@ -177,14 +169,10 @@
   * Samples can have independent versions (typically `0.1.0`)
   * Use semantic versioning (MAJOR.MINOR.PATCH)
   * Bump versions together during releases
-
 * **Production Ready**: The objective is to produce production-grade code.
-
 * **Shift Left**: Employ a "shift left" strategy—catch errors early.
-
 * **Strict Typing**: Strict type checking is required. Do not use `Any` unless
   absolutely necessary and documented.
-
 * **Security & Async Best Practices**: Ruff is configured with security (S), async (ASYNC),
   and print (T20) rules. These catch common production issues:
 
@@ -229,75 +217,71 @@
           return await f.read()
   ```
 
-  **CRITICAL: Async Client Event Loop Binding**:
+  **CRITICAL: Per-Event-Loop HTTP Client Caching**:
 
-  `httpx.AsyncClient` (and libraries that wrap it, like `ollama.AsyncClient`) is
-  bound to the event loop where it is created. If you store a client instance at
-  initialization time and reuse it from a different event loop (common in web
-  frameworks like FastAPI/Robyn), you'll get this error:
+  When making multiple HTTP requests in async code, **do NOT create a new
+  `httpx.AsyncClient` for every request**. This has two problems:
 
-  ```
-  RuntimeError: <asyncio.locks.Event object at ...> is bound to a different event loop
-  ```
+  1. **Performance overhead**: Each new client requires connection setup, SSL
+     handshake, etc.
+  2. **Event loop binding**: `httpx.AsyncClient` instances are bound to the
+     event loop they were created in. Reusing a client across different event
+     loops causes "bound to different event loop" errors.
 
-  **WRONG - Storing client at init time**:
-
-  ```python
-  class MyModel:
-      def __init__(self, client_factory):
-          self.client = client_factory()  # ❌ Bound to init-time event loop!
-
-      async def generate(self, request):
-          return await self.client.chat(...)  # ❌ Fails if different event loop
-  ```
-
-  **CORRECT - Create fresh client per request**:
+  **Use the shared `get_cached_client()` utility** from `genkit.core.http_client`:
 
   ```python
-  class MyModel:
-      def __init__(self, client_factory):
-          self._client_factory = client_factory  # ✓ Store factory, not instance
+  from genkit.core.http_client import get_cached_client
 
-      def _get_client(self):
-          """Creates fresh client bound to current event loop."""
-          return self._client_factory()
+  # WRONG - creates new client per request (connection overhead)
+  async def call_api(url: str) -> dict:
+      async with httpx.AsyncClient() as client:
+          response = await client.get(url)
+          return response.json()
 
-      async def generate(self, request):
-          return await self._get_client().chat(...)  # ✓ Always correct event loop
+  # WRONG - stores client at init time (event loop binding issues)
+  class MyPlugin:
+      def __init__(self):
+          self._client = httpx.AsyncClient()  # ❌ Bound to current event loop!
+
+      async def call_api(self, url: str) -> dict:
+          response = await self._client.get(url)  # May fail in different loop
+          return response.json()
+
+  # CORRECT - uses per-event-loop cached client
+  async def call_api(url: str, token: str) -> dict:
+      # For APIs with expiring tokens, pass auth headers per-request
+      client = get_cached_client(
+          cache_key='my-api',
+          timeout=60.0,
+      )
+      response = await client.get(url, headers={'Authorization': f'Bearer {token}'})
+      return response.json()
+
+  # CORRECT - for static auth (API keys that don't expire)
+  async def call_api_static_auth(url: str) -> dict:
+      client = get_cached_client(
+          cache_key='my-plugin/api',
+          headers={
+              'Authorization': f'Bearer {API_KEY}',
+              'Content-Type': 'application/json',
+          },
+          timeout=60.0,
+      )
+      response = await client.get(url)
+      return response.json()
   ```
 
-  This pattern is especially important for Genkit plugins where the Model/Embedder
-  class may be instantiated at plugin load time but called from request handlers
-  running in different event loops.
+  **Key patterns**:
 
-  **Defensive Type Checking for String Concatenation**:
-
-  When processing streaming API responses (SSE, WebSockets, etc.), always verify
-  the type before concatenating to strings. External APIs may return unexpected
-  types (e.g., `int` status codes, `None`, or `dict` objects) in fields that are
-  typically strings.
-
-  **WRONG - Assumes response field is always a string**:
-
-  ```python
-  async for chunk in stream:
-      if 'response' in chunk:
-          accumulated_text += chunk['response']  # ❌ TypeError if int/None!
-  ```
-
-  **CORRECT - Verify type before concatenating**:
-
-  ```python
-  async for chunk in stream:
-      if 'response' in chunk:
-          text = chunk['response']
-          if text and isinstance(text, str):  # ✓ Safe concatenation
-              accumulated_text += text
-  ```
-
-  This pattern prevents `TypeError: can only concatenate str (not "int") to str`
-  crashes in production when APIs return unexpected types in streaming responses.
-
+  * **Use unique `cache_key`** for each distinct client configuration (e.g.,
+    `'vertex-ai-reranker'`, `'cf-ai/account123'`)
+  * **Pass expiring auth per-request**: For Google Cloud, Azure, etc. where
+    tokens expire, pass auth headers in the request, not in `get_cached_client()`
+  * **Static auth in client**: For Cloudflare, OpenAI, etc. where API keys
+    don't expire, include auth headers in `get_cached_client()`
+  * **WeakKeyDictionary cleanup**: The cache automatically cleans up clients
+    when their event loop is garbage collected
 * **Error Suppression Policy**: Avoid ignoring warnings from the type checker
   (`# type: ignore`, `# pyrefly: ignore`, etc.) or linter (`# noqa`) unless there is
   a compelling, documented reason.
@@ -331,7 +315,6 @@
     # Print in atexit handler where logger is unavailable
     print(f'Removing file: {path}')  # noqa: T201 - atexit handler, logger unavailable
     ```
-
 * **Import Placement**: All imports must be at the top of the file, outside any
   function definitions. This is a strict Python convention that ensures:
 
@@ -1426,6 +1409,75 @@ Every PR should address:
 * \[ ] **Documentation**: Docstrings and README files updated
 * \[ ] **Samples**: Demo code updated if applicable
 
+### Automated Code Review Workflow
+
+After addressing all CI checks and reviewer comments, trigger Gemini code review
+by posting a single-line comment on the PR:
+
+```
+/gemini review
+```
+
+**Iterative Review Process:**
+
+1. Address all existing review comments and fix CI failures
+2. Push changes to the PR branch
+3. Post `/gemini review` comment to trigger automated review
+4. Wait for Gemini's review comments (typically 1-3 minutes)
+5. Address any new comments raised by Gemini
+6. **Resolve addressed comments** - Reply to each comment explaining the fix, then resolve
+   the conversation (unless the discussion is open-ended and requires more thought)
+7. Repeat steps 2-6 up to 3 times until no new comments are received
+8. Once clean, request human reviewer approval
+
+**Best Practices:**
+
+| Practice | Description |
+|----------|-------------|
+| Fix before review | Always fix known issues before requesting review |
+| Batch fixes | Combine multiple fixes into one push to reduce review cycles |
+| Address all comments | Don't leave unresolved comments from previous reviews |
+| Resolve conversations | Reply with fix explanation and resolve unless discussion is ongoing |
+| Document decisions | If intentionally not addressing a comment, explain why |
+
+### Splitting Large Branches into Multiple PRs
+
+When splitting a feature branch with multiple commits into independent PRs:
+
+1. **Squash before splitting** - Use `git merge --squash` to consolidate commits into
+   a single commit before creating new branches. This avoids problems with:
+   - Commit ordering issues (commits appearing in wrong order across PRs)
+   - Interdependent changes that span multiple commits
+   - Cherry-pick conflicts when commits depend on earlier changes
+
+2. **Create independent branches** - For each logical unit of work:
+   ```bash
+   # From main, create a new branch
+   git checkout main && git checkout -b feature/part-1
+   
+   # Selectively checkout files from the squashed branch
+   git checkout squashed-branch -- path/to/files
+   
+   # Commit and push
+   git commit -m "feat: description of part 1"
+   git push -u origin HEAD
+   ```
+
+3. **Order PRs by dependency** - If PRs have dependencies:
+   - Create the base PR first (e.g., shared utilities)
+   - Stack dependent PRs on top, or wait for the base to merge
+   - Document dependencies in PR descriptions
+
+**Common Gemini Review Feedback:**
+
+| Category | Examples | How to Address |
+|----------|----------|----------------|
+| Type safety | Missing return types, `Any` usage | Add explicit type annotations |
+| Error handling | Unhandled exceptions, missing try/except | Add proper error handling with specific exceptions |
+| Code duplication | Similar logic in multiple places | Extract into helper functions |
+| Documentation | Missing docstrings, unclear comments | Add comprehensive docstrings |
+| Test coverage | Missing edge cases, untested paths | Add tests for identified gaps |
+
 ## Plugin Verification Against Provider Documentation
 
 When implementing or reviewing plugins, always cross-check against the provider's
@@ -1963,3 +2015,82 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format:
 ### Security
 - Security fixes
 ```
+
+### Session Learnings (2026-02-03): HTTP Client Event Loop Binding
+
+#### The Problem: `httpx.AsyncClient` Event Loop Binding
+
+`httpx.AsyncClient` instances are **bound to the event loop** they were created in.
+This causes issues in production when:
+
+1. **Different event loops**: The client was created in one event loop but is used
+   in another (common in test frameworks, async workers, or web servers)
+2. **Closed event loops**: The original event loop was closed but the client is
+   still being used
+
+**Error message**: `RuntimeError: Event loop is closed` or
+`RuntimeError: cannot schedule new futures after interpreter shutdown`
+
+#### The Solution: Per-Event-Loop Client Caching
+
+Created `genkit.core.http_client` module with a shared utility:
+
+```python
+from genkit.core.http_client import get_cached_client
+
+# Get or create cached client for current event loop
+client = get_cached_client(
+    cache_key='my-plugin',
+    headers={'Authorization': 'Bearer token'},
+    timeout=60.0,
+)
+```
+
+**Key design decisions**:
+
+| Decision | Rationale |
+|----------|-----------|
+| **WeakKeyDictionary** | Automatically cleanup when event loop is GC'd |
+| **Two-level cache** | `loop -> cache_key -> client` allows multiple configs per loop |
+| **Per-request auth** | For expiring tokens (GCP), pass headers in request not client |
+| **Static auth in client** | For static API keys (Cloudflare), include in cached client |
+
+#### Plugins Updated
+
+| Plugin | Change |
+|--------|--------|
+| **cf-ai** | Refactored `_get_client()` to use `get_cached_client()` |
+| **google-genai/rerankers** | Changed from `async with httpx.AsyncClient()` to cached client |
+| **google-genai/evaluators** | Changed from `async with httpx.AsyncClient()` to cached client |
+
+#### When to Use Which Pattern
+
+| Pattern | Use When |
+|---------|----------|
+| `async with httpx.AsyncClient()` | One-off requests, infrequent calls |
+| `get_cached_client()` | Frequent requests, performance-critical paths |
+| Client stored at init | **Never** - causes event loop binding issues |
+
+#### Testing Cached Clients
+
+When mocking HTTP clients in tests, mock `get_cached_client` instead of
+`httpx.AsyncClient`:
+
+```python
+from unittest.mock import AsyncMock, patch
+
+@patch('my_module.get_cached_client')
+async def test_api_call(mock_get_client):
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_client.is_closed = False
+    mock_get_client.return_value = mock_client
+
+    result = await my_api_call()
+
+    mock_client.post.assert_called_once()
+```
+
+#### Related Issue
+
+* GitHub Issue: [#4420](https://github.com/firebase/genkit/issues/4420)

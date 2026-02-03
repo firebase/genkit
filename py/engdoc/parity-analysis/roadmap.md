@@ -109,6 +109,293 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
+## M10: Plugin API Conformance & Feature Parity (2026-02-01)
+
+> [!IMPORTANT]
+> This section documents verification status of each Python plugin against official provider
+> documentation and identifies feature gaps requiring implementation.
+
+### Summary Table
+
+| Plugin | API Conformance | Missing Features | Security Issues | Test Coverage | Priority |
+|--------|----------------|------------------|-----------------|---------------|----------|
+| google-genai | ✅ Verified | Minor | None | Good | - |
+| anthropic | ⚠️ Gaps | Cache control, Citations, PDF/Document support | None | Good | Medium |
+| aws-bedrock | ✅ Verified | Guardrails | None | Good | Low |
+| ollama | ✅ Verified | Vision via chat API | None | Fair | Low |
+| mistral | ⚠️ Gaps | Agents API, Codestral FIM, Embeddings | None | Good | Medium |
+| xai | ⚠️ Gaps | Agent Tools API (server/client-side) | None | Fair | Medium |
+| deepseek | ⚠️ Gaps | reasoning_content handling | Param validation | Medium | **High** |
+| cf-ai | ✅ Verified | Async Batch API | None | Good | Low |
+| huggingface | ⚠️ Gaps | Inference Endpoints, TGI | None | Fair | Medium |
+| azure | ⚠️ Gaps | Azure AI Studio | None | Fair | Medium |
+
+### Priority Actions
+
+| Priority | Task | Plugin | Effort | Description |
+|----------|------|--------|--------|-------------|
+| **P0** | Fix `reasoning_content` extraction | deepseek | M | R1 CoT output not exposed - core feature broken |
+| **P0** | Add parameter validation warnings | deepseek | S | R1 silently ignores temp/top_p |
+| **P1** | Add cache control support | anthropic | M | `cache_control` with TTL for cost savings |
+| **P1** | Add PDF/Document support | anthropic | M | `DocumentBlockParam` for common use case |
+| **P1** | Add embeddings support | mistral | S | `mistral-embed` model |
+| **P2** | Add Agent Tools API | xai | M | Server/client-side tool calling (Jan 2026) |
+| **P2** | Add Agents API | mistral | L | Mistral Agents endpoint |
+| **P2** | Add Inference Endpoints | huggingface | M | Dedicated endpoints for production |
+| **P3** | Add Guardrails | aws-bedrock | M | Bedrock Guardrails integration |
+| **P3** | Add Azure AI Studio | azure | L | New unified API |
+
+### Detailed Gap Analysis
+
+#### 1. google-genai (Gemini/Vertex AI)
+
+**Status**: ✅ Mostly Conformant
+
+**Verified Features**:
+- Text generation (streaming/non-streaming) ✓
+- Embeddings ✓
+- Image generation (Imagen) ✓
+- Video generation (Veo) ✓
+- Function/tool calling ✓
+- Context caching ✓
+- Safety settings ✓
+- Evaluators (Vertex AI) ✓
+- Rerankers (Vertex AI Discovery Engine) ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Grounding with Google Search | Not implemented for Gemini API | Medium - useful for RAG | Medium |
+| Code execution tool | Built-in code execution not exposed | Low | Low |
+| Audio generation (Lyria) | Partial - helpers only, no full model | Low | Low |
+
+---
+
+#### 2. anthropic (Claude)
+
+**Status**: ⚠️ Has Gaps
+
+**Verified Features**:
+- Messages API ✓
+- Tool/function calling ✓
+- Streaming ✓
+- Vision (images) ✓
+- Thinking mode (extended thinking) ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Cache control (ephemeral) | `cache_control` with TTL not supported | High - cost savings | **P1** |
+| PDF/Document support | `DocumentBlockParam` not implemented | High - common use case | **P1** |
+| Citations | Citation extraction not supported | Medium | P2 |
+| Web search tool | Server-side `web_search` tool not supported | Medium | P2 |
+| Batch API | Message batches not supported | Low - async processing | P3 |
+| URL image source | Only base64 images, not URL references | Medium | P2 |
+
+**Implementation Notes**:
+```python
+# Cache control - add to _to_anthropic_messages():
+if hasattr(part, 'cache_control') and part.cache_control:
+    block['cache_control'] = {'type': 'ephemeral', 'ttl': part.cache_control.ttl}
+```
+
+---
+
+#### 3. aws-bedrock
+
+**Status**: ✅ Mostly Conformant
+
+**Verified Features**:
+- Converse API ✓
+- ConverseStream API ✓
+- Tool calling ✓
+- Multi-provider support (Claude, Nova, Llama, etc.) ✓
+- Inference profiles for cross-region ✓
+- Embeddings ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Guardrails | Bedrock Guardrails not integrated | Medium - content filtering | P3 |
+| Knowledge bases | RAG via Bedrock KB not supported | Medium | P3 |
+| Model invocation logging | CloudWatch logging config | Low | P4 |
+
+---
+
+#### 4. ollama
+
+**Status**: ✅ Conformant
+
+**Verified Features**:
+- Chat API (/api/chat) ✓
+- Generate API (/api/generate) ✓
+- Embeddings API (/api/embeddings) ✓
+- Tool calling ✓
+- Streaming ✓
+- Model discovery ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Vision in chat | Images via chat API need testing | Low - works via generate | P4 |
+| Pull models | Model download/management | Low - user manages | P4 |
+
+---
+
+#### 5. mistral
+
+**Status**: ⚠️ Has Gaps
+
+**Verified Features**:
+- Chat completions ✓
+- Streaming ✓
+- Tool/function calling ✓
+- JSON mode ✓
+- Vision models (Pixtral) ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Embeddings | `mistral-embed` model not supported | Medium - common use case | **P1** |
+| Agents API | Mistral Agents endpoint not supported | High - agentic workflows | P2 |
+| FIM (Fill-in-Middle) | Codestral FIM for code completion | Medium - code use cases | P2 |
+| Built-in tools | websearch, code_interpreter, image_generation | Medium | P3 |
+
+**Implementation Notes**:
+```python
+# Add embeddings - add to plugin.py:
+async def _create_embedder_action(self, name: str) -> Action:
+    # Implement embedder for mistral-embed model
+```
+
+---
+
+#### 6. xai (Grok)
+
+**Status**: ⚠️ Has Gaps
+
+**Verified Features**:
+- Chat completions ✓
+- Streaming ✓
+- Tool/function calling ✓
+- Vision (grok-2-vision) ✓
+- Reasoning effort parameter ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Agent Tools API | Server-side and client-side tool calling (Jan 2026) | High - new feature | P2 |
+| Web search options | Built-in web search configuration | Medium | P3 |
+| New models | grok-4-1-fast-reasoning, grok-4-1-fast-non-reasoning | Medium | P2 |
+
+---
+
+#### 7. deepseek
+
+**Status**: ⚠️ **Critical Gaps**
+
+**Verified Features**:
+- Chat completions (OpenAI-compatible) ✓
+- Streaming ✓
+- Uses compat-oai for implementation ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| `reasoning_content` | CoT output not extracted/exposed | **Critical** - core R1 feature | **P0** |
+| Parameter validation | R1 ignores temp/top_p but no warning | High - silent failures | **P0** |
+| Multi-round reasoning | Must strip reasoning_content from context | High - breaks multi-turn | P1 |
+| Tool calling in R1 | Not supported in reasoner mode | Medium - documented limitation | P2 |
+
+**Critical Implementation Required**:
+```python
+# DeepSeek R1 returns reasoning_content separately from content
+# Current implementation via compat-oai loses this
+
+class DeepSeekModel:
+    async def generate(self, request, ctx):
+        response = await self._client.chat.completions.create(...)
+        
+        # Extract reasoning content (CoT)
+        reasoning = getattr(response.choices[0].message, 'reasoning_content', None)
+        content = response.choices[0].message.content
+        
+        # Return both in Genkit response
+        # Need to extend GenerateResponse to support reasoning metadata
+```
+
+---
+
+#### 8. cf-ai (Cloudflare Workers AI)
+
+**Status**: ✅ Mostly Conformant
+
+**Verified Features**:
+- Text generation ✓
+- Streaming (SSE) ✓
+- Tool/function calling ✓
+- Embeddings ✓
+- Vision (Llama 4 Scout) ✓
+- JSON mode ✓
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Async Batch API | Batch processing endpoint | Low - async jobs | P4 |
+| Fine-tuning | Model fine-tuning API | Low | P4 |
+
+---
+
+#### 9. huggingface
+
+**Status**: ⚠️ Needs Review
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Inference Endpoints | Dedicated endpoints not supported | High - production use | P2 |
+| Text Generation Inference | TGI-specific features | Medium | P3 |
+| Streaming | May need verification | Medium | P2 |
+
+---
+
+#### 10. azure
+
+**Status**: ⚠️ Needs Review
+
+**Gaps**:
+| Gap | Description | Impact | Priority |
+|-----|-------------|--------|----------|
+| Azure AI Studio | New unified API | High - Microsoft direction | P2 |
+| Content filtering | Azure content safety | Medium | P3 |
+
+---
+
+### Security Audit Summary
+
+| Issue | Plugins Affected | Severity | Recommendation |
+|-------|-----------------|----------|----------------|
+| Silent parameter ignoring | deepseek (R1 mode) | **Medium** | Add warnings when params ignored |
+| SSRF via media URLs | cf-ai, aws-bedrock | Low | Validate URL schemes, add allowlist |
+| Long timeouts | aws-bedrock (Nova) | Low | Make timeouts configurable |
+| No PII sanitization | All plugins | Medium | Add optional PII scrubbing middleware |
+| Prompt injection | All plugins | Info | Document user responsibility |
+
+### Test Coverage Gaps
+
+| Plugin | Unit Tests | Integration Tests | E2E Tests | Recommendation |
+|--------|-----------|-------------------|-----------|----------------|
+| google-genai | ✅ Good | ⚠️ Partial | ❌ None | Add E2E with live API |
+| anthropic | ✅ Good | ⚠️ Partial | ❌ None | Add cache control tests |
+| aws-bedrock | ✅ Good | ⚠️ Partial | ❌ None | Add multi-provider tests |
+| ollama | ⚠️ Fair | ❌ None | ❌ None | Need integration tests |
+| mistral | ✅ Good | ⚠️ Partial | ❌ None | Add vision model tests |
+| xai | ⚠️ Fair | ❌ None | ❌ None | Need more coverage |
+| deepseek | ⚠️ Fair | ❌ None | ❌ None | **Critical**: Add R1 tests |
+| cf-ai | ✅ Good | ❌ None | ❌ None | Add streaming tests |
+
+---
+
 ## M8: Additional Model Provider Plugins (2026-02-01)
 
 > [!NOTE]
