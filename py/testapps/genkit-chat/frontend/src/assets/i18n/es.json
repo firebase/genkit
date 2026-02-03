@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit Chat",
+    "newChat": "Nuevo chat",
+    "version": "Vista previa"
+  },
+  "nav": {
+    "chat": "Chat",
+    "compare": "Comparar",
+    "settings": "Configuración",
+    "demoUser": "Usuario demo"
+  },
+  "chat": {
+    "placeholder": "Pregunta a Genkit Chat",
+    "sendMessage": "Enviar mensaje",
+    "voiceInput": "Entrada de voz",
+    "stopRecording": "Detener grabación",
+    "addFiles": "Agregar archivos",
+    "addMoreFiles": "Agregar más archivos",
+    "uploadFiles": "Subir archivos",
+    "googleDrive": "Agregar desde Drive",
+    "camera": "Cámara",
+    "removeFile": "Eliminar",
+    "disclaimer": "Genkit Chat puede mostrar información inexacta. Verifica las respuestas.",
+    "greeting": "Hola",
+    "greetingSubtitle": "¿En qué puedo ayudarte hoy?",
+    "clearInput": "Borrar"
+  },
+  "attach": {
+    "photos": "Fotos",
+    "audio": "Audio",
+    "video": "Video",
+    "pdf": "PDF",
+    "code": "Importar código"
+  },
+  "toolbar": {
+    "settings": "Configuración",
+    "tools": "Herramientas",
+    "stream": "Respuestas en streaming",
+    "markdown": "Renderizar Markdown",
+    "safe": "Seguridad del contenido",
+    "enabled": "Habilitado",
+    "disabled": "Deshabilitado"
+  },
+  "settings": {
+    "clearPreferences": "Borrar preferencias"
+  },
+  "actions": {
+    "copy": "Copiar al portapapeles",
+    "readAloud": "Leer en voz alta",
+    "goodResponse": "Buena respuesta",
+    "badResponse": "Mala respuesta",
+    "more": "Más",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "remove": "Quitar",
+    "clearAll": "Borrar todo"
+  },
+  "queue": {
+    "queued": "En cola",
+    "sendAll": "Enviar todo",
+    "clearAll": "Borrar todo",
+    "sendNow": "Enviar ahora"
+  },
+  "model": {
+    "selectModel": "Seleccionar modelo",
+    "searchModels": "Buscar modelos...",
+    "noModelsFound": "No se encontraron modelos",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "Otros"
+    }
+  },
+  "quickActions": {
+    "createImage": "Crear imagen",
+    "writeAnything": "Escribir un poema",
+    "helpMeLearn": "Ayúdame a aprender",
+    "createVideo": "Crear video",
+    "stayOrganized": "Mantenerme organizado"
+  },
+  "theme": {
+    "label": "Tema",
+    "system": "Sistema",
+    "light": "Claro",
+    "dark": "Oscuro"
+  },
+  "language": {
+    "label": "Idioma",
+    "select": "Seleccionar idioma",
+    "searchLanguages": "Buscar idiomas...",
+    "noLanguagesFound": "No se encontraron idiomas"
+  },
+  "help": {
+    "label": "Ayuda y recursos",
+    "documentation": "Documentación",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "account": "Cuenta",
+    "connectDrive": "Conectar Google Drive"
+  },
+  "safety": {
+    "flagged": "Contenido marcado",
+    "warning": "Este contenido puede ser dañino"
+  },
+  "errors": {
+    "fileTooLarge": "El archivo \"{name}\" es demasiado grande (máx. {size})",
+    "maxAttachments": "Máximo {count} archivos adjuntos permitidos",
+    "invalidFileType": "Tipo de archivo no soportado"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit चैट",
+    "newChat": "नई चैट",
+    "version": "पूर्वावलोकन"
+  },
+  "nav": {
+    "chat": "चैट",
+    "compare": "तुलना",
+    "settings": "सेटिंग्स",
+    "demoUser": "डेमो उपयोगकर्ता"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat से पूछें",
+    "sendMessage": "संदेश भेजें",
+    "voiceInput": "ध्वनि इनपुट",
+    "stopRecording": "रिकॉर्डिंग रोकें",
+    "addFiles": "फाइलें जोड़ें",
+    "addMoreFiles": "और फाइलें जोड़ें",
+    "uploadFiles": "फाइलें अपलोड करें",
+    "googleDrive": "Drive से जोड़ें",
+    "camera": "कैमरा",
+    "removeFile": "हटाएं",
+    "disclaimer": "Genkit Chat गलत जानकारी दिखा सकता है। कृपया उत्तरों की जांच करें।",
+    "greeting": "नमस्ते",
+    "greetingSubtitle": "आज मैं आपकी कैसे मदद कर सकता हूं?",
+    "clearInput": "साफ़ करें"
+  },
+  "attach": {
+    "photos": "फ़ोटो",
+    "audio": "ऑडियो",
+    "video": "वीडियो",
+    "pdf": "PDF",
+    "code": "कोड इम्पोर्ट करें"
+  },
+  "toolbar": {
+    "settings": "सेटिंग्स",
+    "tools": "टूल्स",
+    "stream": "स्ट्रीमिंग प्रतिक्रियाएं",
+    "markdown": "Markdown रेंडर करें",
+    "safe": "सामग्री सुरक्षा",
+    "enabled": "सक्षम",
+    "disabled": "अक्षम"
+  },
+  "settings": {
+    "clearPreferences": "प्राथमिकताएं साफ़ करें"
+  },
+  "actions": {
+    "copy": "क्लिपबोर्ड पर कॉपी करें",
+    "readAloud": "जोर से पढ़ें",
+    "goodResponse": "अच्छी प्रतिक्रिया",
+    "badResponse": "खराब प्रतिक्रिया",
+    "more": "अधिक",
+    "edit": "संपादित करें",
+    "delete": "हटाएं",
+    "remove": "हटाएं",
+    "clearAll": "सभी साफ़ करें"
+  },
+  "queue": {
+    "queued": "कतार में",
+    "sendAll": "सभी भेजें",
+    "clearAll": "सभी साफ़ करें",
+    "sendNow": "अभी भेजें"
+  },
+  "model": {
+    "selectModel": "मॉडल चुनें",
+    "searchModels": "मॉडल खोजें...",
+    "noModelsFound": "कोई मॉडल नहीं मिला",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "अन्य"
+    }
+  },
+  "quickActions": {
+    "createImage": "छवि बनाएं",
+    "writeAnything": "कविता लिखें",
+    "helpMeLearn": "सीखने में मदद करें",
+    "createVideo": "वीडियो बनाएं",
+    "stayOrganized": "व्यवस्थित रहें"
+  },
+  "theme": {
+    "label": "थीम",
+    "system": "सिस्टम",
+    "light": "लाइट",
+    "dark": "डार्क"
+  },
+  "language": {
+    "label": "भाषा",
+    "select": "भाषा चुनें",
+    "searchLanguages": "भाषाएं खोजें...",
+    "noLanguagesFound": "कोई भाषा नहीं मिली"
+  },
+  "help": {
+    "label": "सहायता और संसाधन",
+    "documentation": "दस्तावेज़",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "साइन इन करें",
+    "signOut": "साइन आउट करें",
+    "account": "खाता",
+    "connectDrive": "Google Drive जोड़ें"
+  },
+  "safety": {
+    "flagged": "सामग्री चिह्नित",
+    "warning": "यह सामग्री हानिकारक हो सकती है"
+  },
+  "errors": {
+    "fileTooLarge": "फाइल \"{name}\" बहुत बड़ी है (अधिकतम {size})",
+    "maxAttachments": "अधिकतम {count} अटैचमेंट की अनुमति है",
+    "invalidFileType": "फाइल प्रकार समर्थित नहीं है"
+  }
+}

@@ -5,6 +5,7 @@
 * **MANDATORY: Pass `bin/lint`**: Before submitting any PR, you MUST run `./bin/lint`
   from the repo root and ensure it passes with 0 errors. This is a hard requirement.
   PRs with lint failures will not be accepted. The lint script runs:
+
   * Ruff (formatting and linting)
   * Ty, Pyrefly, Pyright (type checking)
   * PySentry (security vulnerability scanning)
@@ -53,6 +54,7 @@
   | License headers | Apache 2.0 headers present | ✅ Automated |
   | Dependency licenses | liccheck passes | ✅ Automated |
   | CHANGELOG | Current version documented | ✅ Automated |
+
 * **Type Checkers**: Three type checkers are configured:
 
   * **ty** (Astral/Ruff) - Blocking, must pass with zero errors (full workspace)
@@ -82,14 +84,18 @@
   false positive import errors. At runtime, these imports work correctly because Python's
   import system handles PEP 420 namespace packages natively. This is the only acceptable
   import-related suppression.
+
 * **Pass All Tests**: Ensure all unit tests pass (`uv run pytest .`).
+
 * **Tests Required**: All new code MUST have accompanying tests. No exceptions.
   PRs without tests for new functionality will not be accepted.
+
 * **Workspace Completeness**: All plugins and samples MUST be included in
   `py/pyproject.toml` under `[tool.uv.sources]`. When adding a new plugin or
   sample, add it to the sources section to ensure it's properly installed in
   the workspace. **This is automatically checked by `py/bin/check_consistency`.**
   Verify with `uv sync` that all packages resolve correctly.
+
 * **Naming Consistency**: Package names MUST match their directory names.
   **This is automatically checked by `py/bin/check_consistency`.**
   * Plugins: `plugins/{name}/` → package name `genkit-plugin-{name}`
@@ -110,6 +116,7 @@
       [ "$pkg" != "$name" ] && echo "MISMATCH: $d -> $pkg"
     done
     ```
+
 * **Dependency Verification**: All dependencies must resolve correctly. Run these
   checks before submitting PRs:
   ```bash
@@ -128,6 +135,7 @@
   * Use version constraints (e.g., `>=1.0.0`) to allow flexibility
   * Pin exact versions only when necessary for compatibility
   * Remove unused dependencies to keep packages lean
+
 * **Python Version Consistency**: All packages MUST use the same `requires-python`
   version. Currently, all packages should specify `requires-python = ">=3.10"`.
   **This is automatically checked by `py/bin/check_consistency`.**
@@ -145,6 +153,7 @@
   **Note**: The `.python-version` file specifies `3.12` for local development, but
   CI tests against Python 3.10, 3.11, 3.12, 3.13, and 3.14. Scripts using `uv run`
   should use `--active` flag to respect the CI matrix Python version.
+
 * **Plugin Version Sync**: All plugin versions should stay in sync with the core
   framework version. When releasing, update all plugin versions together.
   **This is automatically checked by `py/bin/check_consistency`.**
@@ -168,24 +177,31 @@
   * Samples can have independent versions (typically `0.1.0`)
   * Use semantic versioning (MAJOR.MINOR.PATCH)
   * Bump versions together during releases
+
 * **Production Ready**: The objective is to produce production-grade code.
+
 * **Shift Left**: Employ a "shift left" strategy—catch errors early.
+
 * **Strict Typing**: Strict type checking is required. Do not use `Any` unless
   absolutely necessary and documented.
+
 * **Security & Async Best Practices**: Ruff is configured with security (S), async (ASYNC),
   and print (T20) rules. These catch common production issues:
+
   * **S rules (Bandit)**: SQL injection, hardcoded secrets, insecure hashing, etc.
   * **ASYNC rules**: Blocking calls in async functions (use `httpx.AsyncClient` not
     `urllib.request`, use `aiofiles` not `open()` in async code)
   * **T20 rules**: No `print()` statements in production code (use `logging` or `structlog`)
 
   **Async I/O Best Practices**:
+
   * Use `httpx.AsyncClient` for HTTP requests in async functions
   * Use `aiofiles` for file I/O in async functions
   * Never use blocking `urllib.request`, `requests`, or `open()` in async code
   * If you must use blocking I/O, run it in a thread with `anyio.to_thread.run_sync()`
 
   **Example - Async HTTP**:
+
   ```python
   # WRONG - blocks the event loop
   async def fetch_data(url: str) -> bytes:
@@ -200,6 +216,7 @@
   ```
 
   **Example - Async File I/O**:
+
   ```python
   # WRONG - blocks the event loop
   async def read_file(path: str) -> str:
@@ -224,6 +241,7 @@
   ```
 
   **WRONG - Storing client at init time**:
+
   ```python
   class MyModel:
       def __init__(self, client_factory):
@@ -234,6 +252,7 @@
   ```
 
   **CORRECT - Create fresh client per request**:
+
   ```python
   class MyModel:
       def __init__(self, client_factory):
@@ -259,6 +278,7 @@
   typically strings.
 
   **WRONG - Assumes response field is always a string**:
+
   ```python
   async for chunk in stream:
       if 'response' in chunk:
@@ -266,6 +286,7 @@
   ```
 
   **CORRECT - Verify type before concatenating**:
+
   ```python
   async for chunk in stream:
       if 'response' in chunk:
@@ -310,6 +331,7 @@
     # Print in atexit handler where logger is unavailable
     print(f'Removing file: {path}')  # noqa: T201 - atexit handler, logger unavailable
     ```
+
 * **Import Placement**: All imports must be at the top of the file, outside any
   function definitions. This is a strict Python convention that ensures:
 
@@ -1487,9 +1509,9 @@ curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 "https://docs.mistral.ai
 
 #### URLs That Don't Need Verification
 
-- Placeholder URLs: `https://your-endpoint.com`, `https://example.com`
-- Template URLs with variables: `https://{region}.api.com`
-- Test/mock URLs in test files
+* Placeholder URLs: `https://your-endpoint.com`, `https://example.com`
+* Template URLs with variables: `https://{region}.api.com`
+* Test/mock URLs in test files
 
 ### Telemetry Plugin Authentication Patterns
 
@@ -1803,6 +1825,7 @@ Before releasing, run the release check script:
 ```
 
 The release check validates:
+
 1. **Package Metadata**: All packages have required fields (name, version, description, license, authors, classifiers)
 2. **Build Verification**: Lock file is current, dependencies resolve, packages build successfully
 3. **Code Quality**: Type checking, formatting, linting all pass
@@ -1874,6 +1897,7 @@ Each publishable package directory MUST contain:
 | `src/.../py.typed` | Yes | PEP 561 type hint marker file |
 
 To copy LICENSE files to all packages:
+
 ```bash
 # Copy LICENSE to core package
 cp py/LICENSE py/packages/genkit/LICENSE

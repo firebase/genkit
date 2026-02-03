@@ -1,0 +1,22 @@
+---
+model: googleai/gemini-3-flash-preview
+input:
+  schema:
+    message: string
+    persona?: string
+  default:
+    message: "Hello! How can I help you today?"
+    persona: "helpful assistant"
+config:
+  temperature: 0.7
+  maxOutputTokens: 2048
+---
+{{#if persona}}
+You are a {{persona}}.
+{{else}}
+You are a helpful AI assistant.
+{{/if}}
+
+Respond to the user's message in a friendly and informative way.
+
+User: {{message}}

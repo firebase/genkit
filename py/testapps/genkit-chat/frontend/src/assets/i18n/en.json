@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit Chat",
+    "newChat": "New chat",
+    "version": "Preview"
+  },
+  "nav": {
+    "chat": "Chat",
+    "compare": "Compare",
+    "settings": "Settings",
+    "demoUser": "Demo User"
+  },
+  "chat": {
+    "placeholder": "Ask Genkit Chat",
+    "sendMessage": "Send message",
+    "voiceInput": "Voice input",
+    "stopRecording": "Stop recording",
+    "addFiles": "Add files",
+    "addMoreFiles": "Add more files",
+    "uploadFiles": "Upload files",
+    "googleDrive": "Add from Drive",
+    "camera": "Camera",
+    "removeFile": "Remove",
+    "disclaimer": "Genkit Chat may display inaccurate info. Double-check its responses.",
+    "greeting": "Hello",
+    "greetingSubtitle": "How can I help you today?",
+    "clearInput": "Clear"
+  },
+  "attach": {
+    "photos": "Photos",
+    "audio": "Audio",
+    "video": "Video",
+    "pdf": "PDF",
+    "code": "Import code"
+  },
+  "toolbar": {
+    "settings": "Settings",
+    "tools": "Tools",
+    "stream": "Streaming responses",
+    "markdown": "Render markdown",
+    "safe": "Content safety",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "settings": {
+    "clearPreferences": "Clear preferences"
+  },
+  "actions": {
+    "copy": "Copy to clipboard",
+    "readAloud": "Read aloud",
+    "goodResponse": "Good response",
+    "badResponse": "Bad response",
+    "more": "More",
+    "edit": "Edit",
+    "delete": "Delete",
+    "remove": "Remove",
+    "clearAll": "Clear all"
+  },
+  "queue": {
+    "queued": "Queued",
+    "sendAll": "Send all",
+    "clearAll": "Clear all",
+    "sendNow": "Send now"
+  },
+  "model": {
+    "selectModel": "Select model",
+    "searchModels": "Search models...",
+    "noModelsFound": "No models found",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "Other"
+    }
+  },
+  "quickActions": {
+    "createImage": "Create image",
+    "writeAnything": "Write a poem",
+    "helpMeLearn": "Help me learn",
+    "createVideo": "Create video",
+    "stayOrganized": "Stay organized"
+  },
+  "theme": {
+    "label": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "label": "Language",
+    "select": "Select language",
+    "searchLanguages": "Search languages...",
+    "noLanguagesFound": "No languages found"
+  },
+  "help": {
+    "label": "Help & resources",
+    "documentation": "Documentation",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "account": "Account",
+    "connectDrive": "Connect Google Drive"
+  },
+  "safety": {
+    "flagged": "Content flagged",
+    "warning": "This content may be harmful"
+  },
+  "errors": {
+    "fileTooLarge": "File \"{name}\" is too large (max {size})",
+    "maxAttachments": "Maximum {count} attachments allowed",
+    "invalidFileType": "File type not supported"
+  }
+}

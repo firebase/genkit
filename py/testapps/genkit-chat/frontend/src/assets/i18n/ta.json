@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit சாட்",
+    "newChat": "புதிய சாட்",
+    "version": "முன்னோட்டம்"
+  },
+  "nav": {
+    "chat": "சாட்",
+    "compare": "ஒப்பிடு",
+    "settings": "அமைப்புகள்",
+    "demoUser": "டெமோ பயனர்"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat இல் கேளுங்கள்",
+    "sendMessage": "செய்தி அனுப்பு",
+    "voiceInput": "குரல் உள்ளீடு",
+    "stopRecording": "பதிவை நிறுத்து",
+    "addFiles": "கோப்புகளைச் சேர்",
+    "addMoreFiles": "மேலும் கோப்புகளைச் சேர்",
+    "uploadFiles": "கோப்புகளைப் பதிவேற்று",
+    "googleDrive": "Drive இலிருந்து சேர்",
+    "camera": "கேமரா",
+    "removeFile": "அகற்று",
+    "disclaimer": "Genkit Chat தவறான தகவல்களைக் காட்டலாம். பதில்களை சரிபார்க்கவும்.",
+    "greeting": "வணக்கம்",
+    "greetingSubtitle": "இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்?",
+    "clearInput": "அழி"
+  },
+  "attach": {
+    "photos": "புகைப்படங்கள்",
+    "audio": "ஆடியோ",
+    "video": "வீடியோ",
+    "pdf": "PDF",
+    "code": "குறியீடு இறக்குமதி"
+  },
+  "toolbar": {
+    "settings": "அமைப்புகள்",
+    "tools": "கருவிகள்",
+    "stream": "ஸ்ட்ரீமிங் பதில்கள்",
+    "markdown": "Markdown ரெண்டர்",
+    "safe": "உள்ளடக்க பாதுகாப்பு",
+    "enabled": "இயக்கப்பட்டது",
+    "disabled": "முடக்கப்பட்டது"
+  },
+  "settings": {
+    "clearPreferences": "விருப்பங்களை அழி"
+  },
+  "actions": {
+    "copy": "கிளிப்போர்டுக்கு நகலெடு",
+    "readAloud": "சத்தமாக படி",
+    "goodResponse": "நல்ல பதில்",
+    "badResponse": "மோசமான பதில்",
+    "more": "மேலும்",
+    "edit": "திருத்து",
+    "delete": "நீக்கு",
+    "remove": "அகற்று",
+    "clearAll": "அனைத்தையும் அழி"
+  },
+  "queue": {
+    "queued": "வரிசையில்",
+    "sendAll": "அனைத்தையும் அனுப்பு",
+    "clearAll": "அனைத்தையும் அழி",
+    "sendNow": "இப்போது அனுப்பு"
+  },
+  "model": {
+    "selectModel": "மாதிரியைத் தேர்ந்தெடு",
+    "searchModels": "மாதிரிகளைத் தேடு...",
+    "noModelsFound": "மாதிரிகள் இல்லை",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "மற்றவை"
+    }
+  },
+  "quickActions": {
+    "createImage": "படத்தை உருவாக்கு",
+    "writeAnything": "கவிதை எழுது",
+    "helpMeLearn": "கற்க உதவு",
+    "createVideo": "வீடியோ உருவாக்கு",
+    "stayOrganized": "ஒழுங்காக இரு"
+  },
+  "theme": {
+    "label": "தீம்",
+    "system": "சிஸ்டம்",
+    "light": "லைட்",
+    "dark": "டார்க்"
+  },
+  "language": {
+    "label": "மொழி",
+    "select": "மொழியைத் தேர்ந்தெடு",
+    "searchLanguages": "மொழிகளைத் தேடு...",
+    "noLanguagesFound": "மொழிகள் இல்லை"
+  },
+  "help": {
+    "label": "உதவி & வளங்கள்",
+    "documentation": "ஆவணங்கள்",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "உள்நுழை",
+    "signOut": "வெளியேறு",
+    "account": "கணக்கு",
+    "connectDrive": "Google Drive இணை"
+  },
+  "safety": {
+    "flagged": "உள்ளடக்கம் குறிக்கப்பட்டது",
+    "warning": "இந்த உள்ளடக்கம் தீங்கு விளைவிக்கலாம்"
+  },
+  "errors": {
+    "fileTooLarge": "கோப்பு \"{name}\" மிகப் பெரியது (அதிகபட்சம் {size})",
+    "maxAttachments": "அதிகபட்சம் {count} இணைப்புகள் அனுமதிக்கப்படுகின்றன",
+    "invalidFileType": "கோப்பு வகை ஆதரிக்கப்படவில்லை"
+  }
+}

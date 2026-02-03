@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit チャット",
+    "newChat": "新しいチャット",
+    "version": "プレビュー"
+  },
+  "nav": {
+    "chat": "チャット",
+    "compare": "比較",
+    "settings": "設定",
+    "demoUser": "デモユーザー"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat に質問",
+    "sendMessage": "メッセージを送信",
+    "voiceInput": "音声入力",
+    "stopRecording": "録音を停止",
+    "addFiles": "ファイルを追加",
+    "addMoreFiles": "ファイルをさらに追加",
+    "uploadFiles": "ファイルをアップロード",
+    "googleDrive": "ドライブから追加",
+    "camera": "カメラ",
+    "removeFile": "削除",
+    "disclaimer": "Genkit Chat は不正確な情報を表示する場合があります。回答を確認してください。",
+    "greeting": "こんにちは",
+    "greetingSubtitle": "今日は何をお手伝いしましょうか？",
+    "clearInput": "クリア"
+  },
+  "attach": {
+    "photos": "写真",
+    "audio": "オーディオ",
+    "video": "ビデオ",
+    "pdf": "PDF",
+    "code": "コードをインポート"
+  },
+  "toolbar": {
+    "settings": "設定",
+    "tools": "ツール",
+    "stream": "ストリーミング応答",
+    "markdown": "Markdownを表示",
+    "safe": "コンテンツの安全性",
+    "enabled": "有効",
+    "disabled": "無効"
+  },
+  "settings": {
+    "clearPreferences": "設定をクリア"
+  },
+  "actions": {
+    "copy": "クリップボードにコピー",
+    "readAloud": "読み上げる",
+    "goodResponse": "良い回答",
+    "badResponse": "悪い回答",
+    "more": "その他",
+    "edit": "編集",
+    "delete": "削除",
+    "remove": "削除",
+    "clearAll": "すべてクリア"
+  },
+  "queue": {
+    "queued": "キュー中",
+    "sendAll": "すべて送信",
+    "clearAll": "すべてクリア",
+    "sendNow": "今すぐ送信"
+  },
+  "model": {
+    "selectModel": "モデルを選択",
+    "searchModels": "モデルを検索...",
+    "noModelsFound": "モデルが見つかりません",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "その他"
+    }
+  },
+  "quickActions": {
+    "createImage": "画像を作成",
+    "writeAnything": "詩を書く",
+    "helpMeLearn": "学習を手伝う",
+    "createVideo": "動画を作成",
+    "stayOrganized": "整理する"
+  },
+  "theme": {
+    "label": "テーマ",
+    "system": "システム",
+    "light": "ライト",
+    "dark": "ダーク"
+  },
+  "language": {
+    "label": "言語",
+    "select": "言語を選択",
+    "searchLanguages": "言語を検索...",
+    "noLanguagesFound": "言語が見つかりません"
+  },
+  "help": {
+    "label": "ヘルプとリソース",
+    "documentation": "ドキュメント",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "ログイン",
+    "signOut": "ログアウト",
+    "account": "アカウント",
+    "connectDrive": "Google ドライブに接続"
+  },
+  "safety": {
+    "flagged": "コンテンツにフラグ付き",
+    "warning": "このコンテンツは有害な可能性があります"
+  },
+  "errors": {
+    "fileTooLarge": "ファイル \"{name}\" が大きすぎます（最大 {size}）",
+    "maxAttachments": "最大 {count} 個の添付ファイルが許可されています",
+    "invalidFileType": "サポートされていないファイル形式"
+  }
+}

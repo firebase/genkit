@@ -1,0 +1,24 @@
+---
+model: googleai/gemini-3-flash-preview
+input:
+  schema:
+    image_url: string
+    question?: string
+  default:
+    question: "Describe this image in detail."
+config:
+  temperature: 0.3
+  maxOutputTokens: 1024
+---
+{{media url=image_url}}
+
+{{#if question}}
+{{question}}
+{{else}}
+Please describe this image in detail. Include:
+1. Main subjects and objects
+2. Colors and visual style
+3. Setting or background
+4. Any text visible
+5. Overall mood or atmosphere
+{{/if}}

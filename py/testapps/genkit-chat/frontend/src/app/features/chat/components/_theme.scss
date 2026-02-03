@@ -1,0 +1,118 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * Genkit Chat Component Theming
+ * 
+ * This file defines CSS custom properties that the chat components require.
+ * Import this file in your application's global styles to use the components.
+ * 
+ * Usage:
+ * 1. Import in your styles.scss: @import 'genkit-chat-theme';
+ * 2. Or copy these variables to your :root declaration
+ * 
+ * Components that depend on these variables:
+ * - ChatInputComponent
+ * - MessageListComponent
+ * - PromptQueueComponent
+ * - WelcomeScreenComponent
+ * - ModelSelectorComponent
+ */
+
+/* Light Theme - Default */
+:root {
+    /* Primary Colors */
+    --primary: #4285f4;
+    --on-primary: #ffffff;
+    --primary-container: #d3e3fd;
+    --on-primary-container: #041e49;
+
+    /* Surface Colors */
+    --surface: #ffffff;
+    --surface-container: #f0f4f9;
+    --surface-container-high: #e5eaf0;
+    --on-surface: #1a1c1e;
+    --on-surface-variant: #5f6368;
+
+    /* Outline */
+    --outline: #74777f;
+    --outline-variant: #c4c6d0;
+
+    /* Error Colors */
+    --error: #ba1a1a;
+    --error-container: #ffdad6;
+    --on-error: #ffffff;
+    --on-error-container: #410002;
+
+    /* Additional semantic colors for components */
+    --success: #34a853;
+    --warning: #fbbc05;
+}
+
+/* Dark Theme */
+[data-theme="dark"],
+.dark-theme,
+:root.dark {
+    --primary: #8ab4f8;
+    --on-primary: #062e6f;
+    --primary-container: #004a77;
+    --on-primary-container: #d3e3fd;
+
+    --surface: #1f1f1f;
+    --surface-container: #282828;
+    --surface-container-high: #3c3c3c;
+    --on-surface: #e3e3e3;
+    --on-surface-variant: #9aa0a6;
+
+    --outline: #c4c6d0;
+    --outline-variant: #444746;
+
+    --error: #ffb4ab;
+    --error-container: #93000a;
+    --on-error: #690005;
+    --on-error-container: #ffdad6;
+}
+
+/* Animations required by components */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease forwards;
+}

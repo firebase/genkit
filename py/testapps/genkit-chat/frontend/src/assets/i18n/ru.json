@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit Чат",
+    "newChat": "Новый чат",
+    "version": "Предпросмотр"
+  },
+  "nav": {
+    "chat": "Чат",
+    "compare": "Сравнить",
+    "settings": "Настройки",
+    "demoUser": "Демо пользователь"
+  },
+  "chat": {
+    "placeholder": "Спросите Genkit Chat",
+    "sendMessage": "Отправить сообщение",
+    "voiceInput": "Голосовой ввод",
+    "stopRecording": "Остановить запись",
+    "addFiles": "Добавить файлы",
+    "addMoreFiles": "Добавить ещё файлы",
+    "uploadFiles": "Загрузить файлы",
+    "googleDrive": "Добавить из Drive",
+    "camera": "Камера",
+    "removeFile": "Удалить",
+    "disclaimer": "Genkit Chat может показывать неточную информацию. Проверяйте ответы.",
+    "greeting": "Привет",
+    "greetingSubtitle": "Чем я могу помочь вам сегодня?",
+    "clearInput": "Очистить"
+  },
+  "attach": {
+    "photos": "Фото",
+    "audio": "Аудио",
+    "video": "Видео",
+    "pdf": "PDF",
+    "code": "Импорт кода"
+  },
+  "toolbar": {
+    "settings": "Настройки",
+    "tools": "Инструменты",
+    "stream": "Потоковые ответы",
+    "markdown": "Отобразить Markdown",
+    "safe": "Безопасность контента",
+    "enabled": "Включено",
+    "disabled": "Отключено"
+  },
+  "settings": {
+    "clearPreferences": "Сбросить настройки"
+  },
+  "actions": {
+    "copy": "Копировать в буфер обмена",
+    "readAloud": "Читать вслух",
+    "goodResponse": "Хороший ответ",
+    "badResponse": "Плохой ответ",
+    "more": "Ещё",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "remove": "Убрать",
+    "clearAll": "Очистить всё"
+  },
+  "queue": {
+    "queued": "В очереди",
+    "sendAll": "Отправить всё",
+    "clearAll": "Очистить всё",
+    "sendNow": "Отправить сейчас"
+  },
+  "model": {
+    "selectModel": "Выбрать модель",
+    "searchModels": "Поиск моделей...",
+    "noModelsFound": "Модели не найдены",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "Другие"
+    }
+  },
+  "quickActions": {
+    "createImage": "Создать изображение",
+    "writeAnything": "Написать стихотворение",
+    "helpMeLearn": "Помочь учиться",
+    "createVideo": "Создать видео",
+    "stayOrganized": "Организовать"
+  },
+  "theme": {
+    "label": "Тема",
+    "system": "Системная",
+    "light": "Светлая",
+    "dark": "Тёмная"
+  },
+  "language": {
+    "label": "Язык",
+    "select": "Выбрать язык",
+    "searchLanguages": "Поиск языков...",
+    "noLanguagesFound": "Языки не найдены"
+  },
+  "help": {
+    "label": "Помощь и ресурсы",
+    "documentation": "Документация",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "Войти",
+    "signOut": "Выйти",
+    "account": "Аккаунт",
+    "connectDrive": "Подключить Google Drive"
+  },
+  "safety": {
+    "flagged": "Контент помечен",
+    "warning": "Этот контент может быть вредным"
+  },
+  "errors": {
+    "fileTooLarge": "Файл \"{name}\" слишком большой (макс. {size})",
+    "maxAttachments": "Допускается максимум {count} вложений",
+    "invalidFileType": "Неподдерживаемый тип файла"
+  }
+}

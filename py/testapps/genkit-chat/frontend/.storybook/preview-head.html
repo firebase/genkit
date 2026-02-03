@@ -1,0 +1,111 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+
+ SPDX-License-Identifier: Apache-2.0
+-->
+
+<!-- Material Icons font -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<!-- Google Fonts for typography -->
+<link
+    href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+
+<!-- Angular Material Prebuilt Theme -->
+<link href="https://unpkg.com/@angular/material/prebuilt-themes/indigo-pink.css" rel="stylesheet">
+
+<style>
+    /**
+   * Genkit Chat Component Theme Variables
+   * Required for all chat components to render correctly
+   */
+    :root {
+        /* Primary Colors */
+        --primary: #4285f4;
+        --on-primary: #ffffff;
+        --primary-container: #d3e3fd;
+        --on-primary-container: #041e49;
+
+        /* Surface Colors */
+        --surface: #ffffff;
+        --surface-container: #f0f4f9;
+        --surface-container-high: #e5eaf0;
+        --on-surface: #1a1c1e;
+        --on-surface-variant: #5f6368;
+
+        /* Outline */
+        --outline: #74777f;
+        --outline-variant: #c4c6d0;
+
+        /* Error Colors */
+        --error: #ba1a1a;
+        --error-container: #ffdad6;
+        --on-error: #ffffff;
+        --on-error-container: #410002;
+
+        /* Additional colors */
+        --success: #34a853;
+        --warning: #fbbc05;
+
+        /* Typography */
+        font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Proper styling for Storybook preview */
+    body {
+        font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+        background: var(--surface);
+        color: var(--on-surface);
+    }
+
+    /* Ensure proper layout in Storybook docs */
+    .docs-story,
+    .sb-show-main {
+        background: var(--surface);
+        padding: 16px;
+    }
+
+    /* Animations required by components */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease forwards;
+    }
+</style>

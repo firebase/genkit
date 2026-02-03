@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit ચેટ",
+    "newChat": "નવી ચેટ",
+    "version": "પ્રીવ્યુ"
+  },
+  "nav": {
+    "chat": "ચેટ",
+    "compare": "સરખામણી",
+    "settings": "સેટિંગ્સ",
+    "demoUser": "ડેમો વપરાશકર્તા"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat ને પૂછો",
+    "sendMessage": "સંદેશ મોકલો",
+    "voiceInput": "વૉઇસ ઇનપુટ",
+    "stopRecording": "રેકોર્ડિંગ બંધ કરો",
+    "addFiles": "ફાઇલો ઉમેરો",
+    "addMoreFiles": "વધુ ફાઇલો ઉમેરો",
+    "uploadFiles": "ફાઇલો અપલોડ કરો",
+    "googleDrive": "Drive માથી ઉમેરો",
+    "camera": "કેમેરા",
+    "removeFile": "દૂર કરો",
+    "disclaimer": "Genkit Chat અચોક્કસ માહિતી બતાવી શકે છે. જવાબો ચકાસો.",
+    "greeting": "નમસ્તે",
+    "greetingSubtitle": "આજે હું તમને કેવી રીતે મદદ કરી શકું?",
+    "clearInput": "સાફ કરો"
+  },
+  "attach": {
+    "photos": "ફોટા",
+    "audio": "ઓડિયો",
+    "video": "વીડિયો",
+    "pdf": "PDF",
+    "code": "કોડ ઇમ્પોર્ટ કરો"
+  },
+  "toolbar": {
+    "settings": "સેટિંગ્સ",
+    "tools": "ટૂલ્સ",
+    "stream": "સ્ટ્રીમિંગ પ્રતિસાદો",
+    "markdown": "Markdown રેન્ડર કરો",
+    "safe": "કન્ટેન્ટ સુરક્ષા",
+    "enabled": "સક્ષમ",
+    "disabled": "અક્ષમ"
+  },
+  "settings": {
+    "clearPreferences": "પસંદગીઓ સાફ કરો"
+  },
+  "actions": {
+    "copy": "ક્લિપબોર્ડ પર કૉપિ કરો",
+    "readAloud": "મોટેથી વાંચો",
+    "goodResponse": "સારો પ્રતિસાદ",
+    "badResponse": "ખરાબ પ્રતિસાદ",
+    "more": "વધુ",
+    "edit": "સંપાદિત કરો",
+    "delete": "કાઢી નાખો",
+    "remove": "દૂર કરો",
+    "clearAll": "બધું સાફ કરો"
+  },
+  "queue": {
+    "queued": "કતારમાં",
+    "sendAll": "બધા મોકલો",
+    "clearAll": "બધું સાફ કરો",
+    "sendNow": "હમણાં મોકલો"
+  },
+  "model": {
+    "selectModel": "મોડેલ પસંદ કરો",
+    "searchModels": "મોડેલ્સ શોધો...",
+    "noModelsFound": "કોઈ મોડેલ મળ્યા નથી",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "અન્ય"
+    }
+  },
+  "quickActions": {
+    "createImage": "છબી બનાવો",
+    "writeAnything": "કવિતા લખો",
+    "helpMeLearn": "શીખવામાં મદદ કરો",
+    "createVideo": "વીડિયો બનાવો",
+    "stayOrganized": "વ્યવસ્થિત રહો"
+  },
+  "theme": {
+    "label": "થીમ",
+    "system": "સિસ્ટમ",
+    "light": "લાઇટ",
+    "dark": "ડાર્ક"
+  },
+  "language": {
+    "label": "ભાષા",
+    "select": "ભાષા પસંદ કરો",
+    "searchLanguages": "ભાષાઓ શોધો...",
+    "noLanguagesFound": "કોઈ ભાષા મળી નથી"
+  },
+  "help": {
+    "label": "મદદ અને સંસાધનો",
+    "documentation": "દસ્તાવેજીકરણ",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "સાઇન ઇન કરો",
+    "signOut": "સાઇન આઉટ કરો",
+    "account": "એકાઉન્ટ",
+    "connectDrive": "Google Drive કનેક્ટ કરો"
+  },
+  "safety": {
+    "flagged": "કન્ટેન્ટ ફ્લેગ થયું",
+    "warning": "આ કન્ટેન્ટ હાનિકારક હોઈ શકે છે"
+  },
+  "errors": {
+    "fileTooLarge": "ફાઇલ \"{name}\" ખૂબ મોટી છે (મહત્તમ {size})",
+    "maxAttachments": "મહત્તમ {count} જોડાણો માન્ય છે",
+    "invalidFileType": "ફાઇલ પ્રકાર સમર્થિત નથી"
+  }
+}

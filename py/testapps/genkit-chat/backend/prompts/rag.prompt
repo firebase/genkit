@@ -1,0 +1,23 @@
+---
+model: googleai/gemini-3-flash-preview
+input:
+  schema:
+    query: string
+    context: string
+  default:
+    query: "What is Genkit?"
+    context: "Genkit is an AI orchestration framework by Google."
+config:
+  temperature: 0.3
+  maxOutputTokens: 1024
+---
+You are a helpful assistant that answers questions based on provided context.
+If the context doesn't contain enough information to answer the question,
+say so honestly.
+
+Context:
+{{context}}
+
+Question: {{query}}
+
+Answer based only on the context provided above:

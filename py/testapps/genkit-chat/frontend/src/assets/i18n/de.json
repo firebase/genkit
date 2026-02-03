@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit Chat",
+    "newChat": "Neuer Chat",
+    "version": "Vorschau"
+  },
+  "nav": {
+    "chat": "Chat",
+    "compare": "Vergleichen",
+    "settings": "Einstellungen",
+    "demoUser": "Demo-Benutzer"
+  },
+  "chat": {
+    "placeholder": "Frag Genkit Chat",
+    "sendMessage": "Nachricht senden",
+    "voiceInput": "Spracheingabe",
+    "stopRecording": "Aufnahme stoppen",
+    "addFiles": "Dateien hinzufügen",
+    "addMoreFiles": "Weitere Dateien hinzufügen",
+    "uploadFiles": "Dateien hochladen",
+    "googleDrive": "Von Drive hinzufügen",
+    "camera": "Kamera",
+    "removeFile": "Entfernen",
+    "disclaimer": "Genkit Chat kann ungenaue Informationen anzeigen. Überprüfen Sie die Antworten.",
+    "greeting": "Hallo",
+    "greetingSubtitle": "Wie kann ich Ihnen heute helfen?",
+    "clearInput": "Löschen"
+  },
+  "attach": {
+    "photos": "Fotos",
+    "audio": "Audio",
+    "video": "Video",
+    "pdf": "PDF",
+    "code": "Code importieren"
+  },
+  "toolbar": {
+    "settings": "Einstellungen",
+    "tools": "Werkzeuge",
+    "stream": "Streaming-Antworten",
+    "markdown": "Markdown rendern",
+    "safe": "Inhaltssicherheit",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert"
+  },
+  "settings": {
+    "clearPreferences": "Einstellungen löschen"
+  },
+  "actions": {
+    "copy": "In Zwischenablage kopieren",
+    "readAloud": "Vorlesen",
+    "goodResponse": "Gute Antwort",
+    "badResponse": "Schlechte Antwort",
+    "more": "Mehr",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "remove": "Entfernen",
+    "clearAll": "Alle löschen"
+  },
+  "queue": {
+    "queued": "In Warteschlange",
+    "sendAll": "Alle senden",
+    "clearAll": "Alle löschen",
+    "sendNow": "Jetzt senden"
+  },
+  "model": {
+    "selectModel": "Modell auswählen",
+    "searchModels": "Modelle suchen...",
+    "noModelsFound": "Keine Modelle gefunden",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "Andere"
+    }
+  },
+  "quickActions": {
+    "createImage": "Bild erstellen",
+    "writeAnything": "Ein Gedicht schreiben",
+    "helpMeLearn": "Lernhilfe",
+    "createVideo": "Video erstellen",
+    "stayOrganized": "Organisiert bleiben"
+  },
+  "theme": {
+    "label": "Design",
+    "system": "System",
+    "light": "Hell",
+    "dark": "Dunkel"
+  },
+  "language": {
+    "label": "Sprache",
+    "select": "Sprache auswählen",
+    "searchLanguages": "Sprachen suchen...",
+    "noLanguagesFound": "Keine Sprachen gefunden"
+  },
+  "help": {
+    "label": "Hilfe & Ressourcen",
+    "documentation": "Dokumentation",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "account": "Konto",
+    "connectDrive": "Google Drive verbinden"
+  },
+  "safety": {
+    "flagged": "Inhalt markiert",
+    "warning": "Dieser Inhalt könnte schädlich sein"
+  },
+  "errors": {
+    "fileTooLarge": "Datei \"{name}\" ist zu groß (max. {size})",
+    "maxAttachments": "Maximal {count} Anhänge erlaubt",
+    "invalidFileType": "Dateityp nicht unterstützt"
+  }
+}
