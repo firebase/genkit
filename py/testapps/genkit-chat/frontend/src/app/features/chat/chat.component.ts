@@ -292,7 +292,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                 </button>
                 <button mat-menu-item (click)="openGoogleDrive()" 
                         [disabled]="authService.demoMode()"
-                        [matTooltip]="authService.demoMode() ? 'Not available in demo mode' : ''">
+                        [matTooltip]="authService.demoMode() ? 'Not available for Demo User' : ''">
                   <mat-icon>add_to_drive</mat-icon>
                   <span>Add from Drive</span>
                 </button>

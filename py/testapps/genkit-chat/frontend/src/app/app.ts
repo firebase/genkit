@@ -87,14 +87,14 @@ import { LanguageService } from './core/services/language.service';
 
           <!-- Footer Navigation -->
           <mat-nav-list class="footer-nav">
-            <!-- Demo Mode Toggle -->
+            <!-- Demo User Toggle -->
             <button mat-list-item (click)="authService.toggleDemoMode()" 
-                    [matTooltip]="sidenavOpened() ? '' : (authService.demoMode() ? 'Demo mode ON' : 'Demo mode OFF')" 
+                    [matTooltip]="sidenavOpened() ? '' : (authService.demoMode() ? 'Demo User ON' : 'Demo User OFF')" 
                     matTooltipPosition="right"
                     [class.demo-active]="authService.demoMode()">
               <mat-icon matListItemIcon>{{ authService.demoMode() ? 'toggle_on' : 'toggle_off' }}</mat-icon>
               @if (sidenavOpened()) {
-                <span matListItemTitle>Demo Mode</span>
+                <span matListItemTitle>Demo User</span>
               }
             </button>
             <a mat-list-item routerLink="/settings" routerLinkActive="active" [matTooltip]="sidenavOpened() ? '' : 'Settings'" matTooltipPosition="right">

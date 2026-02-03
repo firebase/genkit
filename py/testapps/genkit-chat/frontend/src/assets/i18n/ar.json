@@ -8,7 +8,7 @@
         "chat": "الدردشة",
         "compare": "المقارنة",
         "settings": "الإعدادات",
-        "demoMode": "وضع العرض"
+        "demoUser": "مستخدم تجريبي"
     },
     "chat": {
         "placeholder": "اسأل Genkit Chat",

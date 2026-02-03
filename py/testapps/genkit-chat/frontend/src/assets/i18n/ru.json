@@ -8,7 +8,7 @@
         "chat": "Чат",
         "compare": "Сравнить",
         "settings": "Настройки",
-        "demoMode": "Демо режим"
+        "demoUser": "Демо пользователь"
     },
     "chat": {
         "placeholder": "Спросите Genkit Chat",

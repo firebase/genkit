@@ -8,7 +8,7 @@
         "chat": "Chat",
         "compare": "Confronta",
         "settings": "Impostazioni",
-        "demoMode": "Modalità demo"
+        "demoUser": "Utente demo"
     },
     "chat": {
         "placeholder": "Chiedi a Genkit Chat",

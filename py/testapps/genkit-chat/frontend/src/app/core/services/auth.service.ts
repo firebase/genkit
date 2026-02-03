@@ -126,7 +126,7 @@ export class AuthService {
         if (!this.CLIENT_ID) {
             console.log(`
 ╔══════════════════════════════════════════════════════════════════════════╗
-║  Google Sign-In: Demo Mode                                                ║
+║  Google Sign-In: Demo User                                                ║
 ╠══════════════════════════════════════════════════════════════════════════╣
 ║  No CLIENT_ID configured. Using demo user for testing.                    ║
 ║                                                                           ║

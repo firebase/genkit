@@ -8,7 +8,7 @@
         "chat": "চ্যাট",
         "compare": "তুলনা করুন",
         "settings": "সেটিংস",
-        "demoMode": "ডেমো মোড"
+        "demoUser": "ডেমো ব্যবহারকারী"
     },
     "chat": {
         "placeholder": "Genkit Chat-কে জিজ্ঞাসা করুন",

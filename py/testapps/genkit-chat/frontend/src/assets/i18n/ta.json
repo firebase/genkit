@@ -8,7 +8,7 @@
         "chat": "அரட்டை",
         "compare": "ஒப்பிடு",
         "settings": "அமைப்புகள்",
-        "demoMode": "டெமோ பயன்முறை"
+        "demoUser": "டெமோ பயனர்"
     },
     "chat": {
         "placeholder": "Genkit Chat-ஐ கேளுங்கள்",

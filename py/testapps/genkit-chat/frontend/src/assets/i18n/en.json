@@ -8,7 +8,7 @@
         "chat": "Chat",
         "compare": "Compare",
         "settings": "Settings",
-        "demoMode": "Demo Mode"
+        "demoUser": "Demo User"
     },
     "chat": {
         "placeholder": "Ask Genkit Chat",

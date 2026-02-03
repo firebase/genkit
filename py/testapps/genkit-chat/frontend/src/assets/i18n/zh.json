@@ -8,7 +8,7 @@
         "chat": "聊天",
         "compare": "比较",
         "settings": "设置",
-        "demoMode": "演示模式"
+        "demoUser": "演示用户"
     },
     "chat": {
         "placeholder": "询问 Genkit Chat",

@@ -8,7 +8,7 @@
         "chat": "Chat",
         "compare": "Vergleichen",
         "settings": "Einstellungen",
-        "demoMode": "Demo-Modus"
+        "demoUser": "Demo-Benutzer"
     },
     "chat": {
         "placeholder": "Frag Genkit Chat",
