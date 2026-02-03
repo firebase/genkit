@@ -562,10 +562,12 @@ dependencies = [
     { name = "fastapi" },
     { name = "genkit" },
     { name = "genkit-plugin-anthropic" },
+    { name = "genkit-plugin-cf-ai" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-ollama" },
+    { name = "genkit-plugin-vertex-ai" },
     { name = "httpx" },
     { name = "python-dotenv" },
     { name = "robyn" },
@@ -584,10 +586,12 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "genkit", editable = "../../../packages/genkit" },
     { name = "genkit-plugin-anthropic", editable = "../../../plugins/anthropic" },
+    { name = "genkit-plugin-cf-ai", editable = "../../../plugins/cf-ai" },
     { name = "genkit-plugin-compat-oai", editable = "../../../plugins/compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "../../../plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-google-genai", editable = "../../../plugins/google-genai" },
     { name = "genkit-plugin-ollama", editable = "../../../plugins/ollama" },
+    { name = "genkit-plugin-vertex-ai", editable = "../../../plugins/vertex-ai" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "robyn", specifier = ">=0.68.0" },
@@ -614,6 +618,23 @@ dependencies = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40.0" },
     { name = "genkit", editable = "../../../packages/genkit" },
+]
+
+[[package]]
+name = "genkit-plugin-cf-ai"
+version = "0.4.0"
+source = { editable = "../../../plugins/cf-ai" }
+dependencies = [
+    { name = "genkit" },
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "../../../packages/genkit" },
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "pydantic", specifier = ">=2.0" },
 ]
 
 [[package]]
@@ -689,6 +710,35 @@ dependencies = [
 requires-dist = [
     { name = "genkit", editable = "../../../packages/genkit" },
     { name = "ollama", specifier = "~=0.4" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
+name = "genkit-plugin-vertex-ai"
+version = "0.4.0"
+source = { editable = "../../../plugins/vertex-ai" }
+dependencies = [
+    { name = "anthropic" },
+    { name = "genkit" },
+    { name = "genkit-plugin-compat-oai" },
+    { name = "google-cloud-aiplatform" },
+    { name = "google-cloud-bigquery" },
+    { name = "google-cloud-firestore" },
+    { name = "google-genai" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", specifier = ">=0.40.0" },
+    { name = "genkit", editable = "../../../packages/genkit" },
+    { name = "genkit-plugin-compat-oai", editable = "../../../plugins/compat-oai" },
+    { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
+    { name = "google-cloud-bigquery", specifier = ">=3.11.0" },
+    { name = "google-cloud-firestore", specifier = ">=2.14.0" },
+    { name = "google-genai", specifier = ">=1.7.0" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
 ]
 
@@ -785,6 +835,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a6/03/ef0bc99d0e0faf4fdbe67ac445e18cdaa74824fd93cd069e7bb6548cb52d/google_cloud_core-2.5.0.tar.gz", hash = "sha256:7c1b7ef5c92311717bd05301aa1a91ffbc565673d3b0b4163a52d8413a186963", size = 36027, upload-time = "2025-10-29T23:17:39.513Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/89/20/bfa472e327c8edee00f04beecc80baeddd2ab33ee0e86fd7654da49d45e9/google_cloud_core-2.5.0-py3-none-any.whl", hash = "sha256:67d977b41ae6c7211ee830c7912e41003ea8194bff15ae7d72fd6f51e57acabc", size = 29469, upload-time = "2025-10-29T23:17:38.548Z" },
+]
+
+[[package]]
+name = "google-cloud-firestore"
+version = "2.23.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "google-cloud-core" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7c/9c/ec28ca4ec88fa89e41366316cf92c037feaa2c4200aa5d9da69fe011d2f6/google_cloud_firestore-2.23.0.tar.gz", hash = "sha256:a9cffba7cdc6101111d6d54cde22d521c98f9e7d415e67486b137fa16f06aa03", size = 615238, upload-time = "2026-01-14T23:50:54.574Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6e/99/2a627c8ea7ae72a686dda8bf2b79747362b425c237d2729eb76bcee55a25/google_cloud_firestore-2.23.0-py3-none-any.whl", hash = "sha256:19f2326cb466b0d52aed9fabbd89758be431f6ce18c422966cfdb8326b424314", size = 411195, upload-time = "2026-01-14T23:50:52.825Z" },
 ]
 
 [[package]]

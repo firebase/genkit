@@ -18,9 +18,11 @@
 dependencies = [
   "genkit",
   "genkit-plugin-google-genai",
+  "genkit-plugin-vertex-ai",
   "genkit-plugin-anthropic",
   "genkit-plugin-compat-oai",
   "genkit-plugin-ollama",
+  "genkit-plugin-cf-ai",
   "genkit-plugin-dev-local-vectorstore",
   "robyn>=0.68.0",
   "fastapi>=0.115.0",
@@ -41,10 +43,12 @@ test = ["pytest>=8.0.0", "pytest-asyncio>=0.25.0"]
 [tool.uv.sources]
 genkit                              = { path = "../../../packages/genkit", editable = true }
 genkit-plugin-anthropic             = { path = "../../../plugins/anthropic", editable = true }
+genkit-plugin-cf-ai                 = { path = "../../../plugins/cf-ai", editable = true }
 genkit-plugin-compat-oai            = { path = "../../../plugins/compat-oai", editable = true }
 genkit-plugin-dev-local-vectorstore = { path = "../../../plugins/dev-local-vectorstore", editable = true }
 genkit-plugin-google-genai          = { path = "../../../plugins/google-genai", editable = true }
 genkit-plugin-ollama                = { path = "../../../plugins/ollama", editable = true }
+genkit-plugin-vertex-ai             = { path = "../../../plugins/vertex-ai", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"

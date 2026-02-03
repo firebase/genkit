@@ -95,13 +95,13 @@ def _load_plugins() -> list[Any]:
         except ImportError:
             logger.warning("Anthropic plugin not installed")
 
-    # OpenAI
+    # OpenAI (via compat-oai plugin which supports OpenAI and compatible APIs)
     if os.getenv("OPENAI_API_KEY"):
         try:
-            from genkit.plugins.openai import OpenAI  # type: ignore[import-not-found]
+            from genkit.plugins.compat_oai import OpenAI  # type: ignore[import-not-found]
 
             plugins.append(OpenAI())
-            logger.info("Loaded OpenAI plugin")
+            logger.info("Loaded OpenAI plugin (via compat-oai)")
         except ImportError:
             logger.warning("OpenAI plugin not installed")
 
