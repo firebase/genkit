@@ -132,6 +132,15 @@ from genkit.plugins.google_genai.models.veo import (
     is_veo_model,
     veo_model_info,
 )
+from genkit.plugins.google_genai.rerankers.reranker import (
+    KNOWN_MODELS as RERANKER_MODELS,
+    RerankRequest,
+    VertexRerankerClientOptions,
+    VertexRerankerConfig,
+    _from_rerank_response,
+    _to_reranker_doc,
+    reranker_rank,
+)
 
 
 class GenaiModels:
@@ -711,6 +720,10 @@ class VertexAI(Plugin):
         for name in genai_models.embedders:
             actions.append(self._resolve_embedder(vertexai_name(name)))
 
+        # Register Vertex AI rerankers
+        for name in RERANKER_MODELS:
+            actions.append(self._resolve_reranker(vertexai_name(name)))
+
         return actions
 
     def _list_known_models(self) -> list[Action]:
@@ -747,6 +760,8 @@ class VertexAI(Plugin):
             return self._resolve_model(name)
         elif action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
+        elif action_type == ActionKind.RERANKER:
+            return self._resolve_reranker(name)
         return None
 
     def _resolve_model(self, name: str) -> Action:
@@ -814,6 +829,79 @@ class VertexAI(Plugin):
                     supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
                     dimensions=embedder_info.get('dimensions'),
                 ),
+            ).metadata,
+        )
+
+    def _resolve_reranker(self, name: str) -> Action:
+        """Create an Action object for a Vertex AI reranker.
+
+        Args:
+            name: The namespaced name of the reranker.
+
+        Returns:
+            Action object for the reranker.
+        """
+        from genkit.blocks.document import Document
+
+        # Extract local name (remove plugin prefix)
+        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+
+        # Get project and location from client config
+        project = self._client._project
+        location = self._client._location or const.DEFAULT_REGION
+
+        client_options = VertexRerankerClientOptions(
+            project_id=project,
+            location=location,
+        )
+
+        async def reranker_fn(
+            query: Document,
+            documents: list[Document],
+            options: dict | None = None,
+        ) -> dict:
+            """Rerank documents based on relevance to query.
+
+            Args:
+                query: The query document.
+                documents: The documents to rerank.
+                options: Optional reranker configuration.
+
+            Returns:
+                A dict with 'documents' key containing ranked documents.
+            """
+            config = VertexRerankerConfig.model_validate(options or {})
+
+            # Use location from config if provided, otherwise use client default
+            effective_options = VertexRerankerClientOptions(
+                project_id=client_options.project_id,
+                location=config.location or client_options.location,
+            )
+
+            request = RerankRequest(
+                model=clean_name,
+                query=query.text,
+                records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
+                top_n=config.top_n,
+                ignore_record_details_in_response=config.ignore_record_details_in_response,
+            )
+
+            response = await reranker_rank(clean_name, request, effective_options)
+            ranked_docs = _from_rerank_response(response, documents)
+
+            return {'documents': ranked_docs}
+
+        return Action(
+            kind=ActionKind.RERANKER,
+            name=name,
+            fn=reranker_fn,
+            metadata=ActionMetadata(
+                name=name,
+                description=f'Vertex AI Reranker: {clean_name}',
+                metadata={
+                    'type': 'reranker',
+                    'supports': {'media': False},
+                },
             ).metadata,
         )
 
