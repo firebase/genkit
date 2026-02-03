@@ -17,7 +17,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/angular';
-import { ModelSelectorComponent, Provider, Model } from './model-selector.component';
+import { type Model, ModelSelectorComponent, type Provider } from './model-selector.component';
 
 /**
  * ModelSelectorComponent displays a searchable dropdown for selecting AI models,

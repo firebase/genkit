@@ -14,8 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect } from 'vitest';
-import type { Message, QueuedPrompt, ChatResponse } from './chat.service';
+import { describe, expect, it } from 'vitest';
+import type { ChatResponse, Message, QueuedPrompt } from './chat.service';
 
 // Test the data structures and logic without Angular's HttpClient dependency
 
@@ -121,7 +121,7 @@ describe('ChatService queue logic', () => {
     });
 
     it('should clear queue correctly', () => {
-      const queue: QueuedPrompt[] = [
+      const _queue: QueuedPrompt[] = [
         { id: 'prompt-1', content: 'First', model: 'model', timestamp: new Date() },
         { id: 'prompt-2', content: 'Second', model: 'model', timestamp: new Date() },
       ];

@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { CommonModule } from '@angular/common';
 /**
  * WelcomeScreenComponent - Greeting animation and quick action chips.
  *
@@ -44,8 +45,7 @@
  *     │  - actionSelected: EventEmitter<string>                         │
  *     └─────────────────────────────────────────────────────────────────┘
  */
-import { Component, input, output, signal, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, type OnDestroy, type OnInit, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
@@ -269,7 +269,7 @@ export class WelcomeScreenComponent implements OnInit, OnDestroy {
 	private typeGreeting(
 		greetingText: string,
 		anim: 'type' | 'slide' = 'type',
-		dir: 'ltr' | 'rtl' = 'ltr'
+		_dir: 'ltr' | 'rtl' = 'ltr'
 	): void {
 		this.showCursor.set(true);
 

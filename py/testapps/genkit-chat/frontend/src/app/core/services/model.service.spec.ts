@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Model, Provider } from './model.service';
 
 // Test the data structures and pure logic without Angular's HttpClient dependency

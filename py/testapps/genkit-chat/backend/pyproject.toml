@@ -38,6 +38,7 @@ requires-python = ">=3.10"
 version = "0.1.0"
 
 [dependency-groups]
+lint = ["ty>=0.0.1"]
 test = ["pytest>=8.0.0", "pytest-asyncio>=0.25.0"]
 
 [tool.uv.sources]
@@ -78,3 +79,6 @@ select = ["E", "F", "I", "UP", "B", "N", "ANN"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["genkit"]
+
+[tool.ty.environment]
+root = ["src", "../../../packages/genkit/src", "../../../plugins/google-genai/src", "../../../plugins/vertex-ai/src", "../../../plugins/anthropic/src", "../../../plugins/compat-oai/src", "../../../plugins/ollama/src", "../../../plugins/cf-ai/src", "../../../plugins/dev-local-vectorstore/src"]

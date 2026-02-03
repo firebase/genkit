@@ -16,11 +16,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Pipe, PipeTransform, inject } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { marked, Renderer } from 'marked';
+import { inject, Pipe, type PipeTransform } from '@angular/core';
+import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
+import { marked, Renderer } from 'marked';
 import { RenderingService } from '../../core/services/rendering.service';
 
 /**
@@ -322,7 +322,7 @@ export class SafeMarkdownPipe implements PipeTransform {
   private renderSync(content: string): SafeHtml {
     try {
       // Process math before markdown
-      let processed = this.processMathSync(content);
+      const processed = this.processMathSync(content);
 
       // Parse markdown to HTML (with syntax highlighting)
       const rawHtml = marked.parse(processed, {
@@ -350,7 +350,7 @@ export class SafeMarkdownPipe implements PipeTransform {
   private async renderAsync(content: string): Promise<void> {
     try {
       // Process math
-      let processed = await this.renderingService.renderMath(content);
+      const processed = await this.renderingService.renderMath(content);
 
       // Parse markdown (with syntax highlighting)
       const rawHtml = marked.parse(processed, {
@@ -371,9 +371,7 @@ export class SafeMarkdownPipe implements PipeTransform {
 
       // Cache the result
       this.cache.set(content, this.sanitizer.bypassSecurityTrustHtml(safeHtml));
-    } catch (error) {
-      console.error('Async markdown render failed:', error);
-    }
+    } catch (_error) {}
   }
 
   /**

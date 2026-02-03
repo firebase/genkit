@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { CommonModule } from '@angular/common';
 /**
  * ThemeSelectorComponent - Self-contained theme toggle/dropdown.
  *
@@ -43,8 +44,7 @@
  *     │  - themeChanged: EventEmitter<ThemeMode>                        │
  *     └─────────────────────────────────────────────────────────────────┘
  */
-import { Component, input, output, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';

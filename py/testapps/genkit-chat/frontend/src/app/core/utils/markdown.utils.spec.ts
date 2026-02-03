@@ -14,12 +14,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
+  addExternalLinkAttributes,
+  escapeHtml,
   MATH_SUBSTITUTIONS,
   processMathSync,
-  escapeHtml,
-  addExternalLinkAttributes,
   wrapInPre,
 } from './markdown.utils';
 

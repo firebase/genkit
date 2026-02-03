@@ -16,13 +16,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { provideHttpClient, withFetch } from '@angular/common/http';
+import { APP_INITIALIZER, importProvidersFrom } from '@angular/core';
+import { provideAnimations } from '@angular/platform-browser/animations';
+import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
 import type { Preview } from '@storybook/angular';
 import { applicationConfig } from '@storybook/angular';
-import { provideAnimations } from '@angular/platform-browser/animations';
-import { provideHttpClient, withFetch } from '@angular/common/http';
-import { importProvidersFrom, APP_INITIALIZER } from '@angular/core';
-import { TranslateModule, TranslateLoader, TranslateService } from '@ngx-translate/core';
-import { Observable, of } from 'rxjs';
+import { type Observable, of } from 'rxjs';
 
 // Complete mock translations for Storybook (copied from en.json)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +149,7 @@ const TRANSLATIONS: Record<string, any> = {
 class MockTranslateLoader extends TranslateLoader {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   override getTranslation(lang: string): Observable<any> {
-    return of(TRANSLATIONS[lang] || TRANSLATIONS['en']);
+    return of(TRANSLATIONS[lang] || TRANSLATIONS.en);
   }
 }
 

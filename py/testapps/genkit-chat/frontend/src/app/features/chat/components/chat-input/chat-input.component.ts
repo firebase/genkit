@@ -16,6 +16,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { animate, style, transition, trigger } from '@angular/animations';
+import { CommonModule } from '@angular/common';
 /**
  * ChatInputComponent - Text area, attachments, voice input, send button.
  *
@@ -63,26 +65,24 @@
  *     └─────────────────────────────────────────────────────────────┘
  */
 import {
+  type AfterViewInit,
   Component,
+  computed,
+  type ElementRef,
+  effect,
+  inject,
   input,
   output,
   signal,
-  computed,
-  effect,
-  ElementRef,
   ViewChild,
-  AfterViewInit,
-  inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 /** Default configuration - can be overridden via inputs */
@@ -865,6 +865,6 @@ export class ChatInputComponent implements AfterViewInit {
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
   }
 }

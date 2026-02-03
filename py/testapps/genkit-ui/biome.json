@@ -36,11 +36,11 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
-      "!**/.storybook/**",
-      "!**/.cache/**",
-      "!**/coverage/**",
-      "!**/dist/**",
-      "!**/node_modules/**"
+      "!**/.storybook",
+      "!**/.cache",
+      "!**/coverage",
+      "!**/dist",
+      "!**/node_modules"
     ]
   },
   "formatter": {

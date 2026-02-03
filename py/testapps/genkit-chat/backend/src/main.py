@@ -116,9 +116,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import asyncio
 import json
 import logging
+import operator
 import os
 import time
 from collections.abc import Callable
@@ -314,20 +316,17 @@ async def calculate(input: CalculateInput) -> str:
     This implementation avoids eval() by parsing the expression into an AST
     and evaluating only supported mathematical operations.
     """
-    import ast
-    import operator as op
-
     # Binary operators (two operands)
     binary_ops: dict[type, Callable[[Any, Any], Any]] = {
-        ast.Add: op.add,
-        ast.Sub: op.sub,
-        ast.Mult: op.mul,
-        ast.Div: op.truediv,
-        ast.Pow: op.pow,
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.Pow: operator.pow,
     }
     # Unary operators (one operand)
     unary_ops: dict[type, Callable[[Any], Any]] = {
-        ast.USub: op.neg,
+        ast.USub: operator.neg,
     }
 
     def eval_expr(node: ast.expr) -> float | int:
@@ -381,10 +380,12 @@ async def chat_flow(input: ChatInput) -> ChatOutput:
         if role == "assistant":
             role = "model"
 
-        messages.append({
-            "role": role,
-            "content": [{"text": msg.get("content", "")}],
-        })
+        messages.append(
+            {
+                "role": role,
+                "content": [{"text": msg.get("content", "")}],
+            }
+        )
 
     # Generate response
     # Note: Tools are disabled for now as some models (e.g., small Ollama models)
@@ -521,10 +522,24 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
     start_time = time.time()
     full_response = ""
 
+    # Build messages from history
+    messages = []
+    for msg in input.history:
+        role = msg.get("role", "user")
+        if role == "assistant":
+            role = "model"
+        messages.append(
+            {
+                "role": role,
+                "content": [{"text": msg.get("content", "")}],
+            }
+        )
+
     # generate_stream returns (stream, future) tuple
     stream, _ = g.generate_stream(
         model=input.model,
         prompt=input.message,
+        messages=messages,
     )
     async for chunk in stream:
         if chunk.text:
@@ -553,7 +568,7 @@ def create_fastapi_server() -> FastAPI:
 
     # CORS middleware
     app.add_middleware(
-        CORSMiddleware,
+        CORSMiddleware,  # type: ignore[arg-type] - FastAPI accepts class not factory
         allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
@@ -640,12 +655,23 @@ def create_fastapi_server() -> FastAPI:
 
         async def generate():
             try:
-                # Handle empty or invalid history
+                # Parse history and build messages
+                messages = []
                 if history and history.strip() and history.strip() != "[]":
                     try:
-                        json.loads(history)
+                        history_data = json.loads(history)
+                        for msg in history_data:
+                            role = msg.get("role", "user")
+                            if role == "assistant":
+                                role = "model"
+                            messages.append(
+                                {
+                                    "role": role,
+                                    "content": [{"text": msg.get("content", "")}],
+                                }
+                            )
                     except json.JSONDecodeError:
-                        pass
+                        logger.warning("Failed to parse history JSON")
 
                 # FastAPI automatically handles URL decoding for query parameters
                 logger.info(f"Stream request: model={model}, message_len={len(message)}")
@@ -654,6 +680,7 @@ def create_fastapi_server() -> FastAPI:
                 stream, _ = g.generate_stream(
                     model=model,
                     prompt=message,
+                    messages=messages,
                 )
                 async for chunk in stream:
                     if chunk.text:
@@ -697,11 +724,13 @@ def create_http_server() -> Robyn:
         if request.method == "OPTIONS":
             return Response(
                 status_code=204,
-                headers=Headers({
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type",
-                }),
+                headers=Headers(
+                    {
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                        "Access-Control-Allow-Headers": "Content-Type",
+                    }
+                ),
                 description="",
             )
         return request
@@ -839,24 +868,36 @@ def create_http_server() -> Robyn:
         async def sse_generator():
             """Async generator that yields SSE messages for each token chunk."""
             try:
-                # Handle empty or invalid history
+                # Parse history and build messages
+                messages = []
                 if history and history.strip() and history.strip() != "[]":
                     try:
-                        json.loads(history)
+                        history_data = json.loads(history)
+                        for msg in history_data:
+                            role = msg.get("role", "user")
+                            if role == "assistant":
+                                role = "model"
+                            messages.append(
+                                {
+                                    "role": role,
+                                    "content": [{"text": msg.get("content", "")}],
+                                }
+                            )
                     except json.JSONDecodeError:
-                        pass
+                        logger.warning("Failed to parse history JSON")
 
                 # URL-decode parameters (e.g., ollama%2Fllama3.2 -> ollama/llama3.2)
                 from urllib.parse import unquote
 
-                decoded_message = unquote(message)
-                decoded_model = unquote(model)
+                decoded_message = unquote(message) if message else ""
+                decoded_model = unquote(model) if model else "ollama/llama3.2"
                 logger.info(f"Stream request (Robyn SSE): model={decoded_model}, message_len={len(decoded_message)}")
 
                 # generate_stream returns (stream, future) tuple
                 stream, _ = g.generate_stream(
                     model=decoded_model,
                     prompt=decoded_message,
+                    messages=messages,
                 )
 
                 # Yield each chunk as it arrives from the model

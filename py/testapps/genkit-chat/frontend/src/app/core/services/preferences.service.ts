@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { Injectable, signal, effect } from '@angular/core';
+import { effect, Injectable, signal } from '@angular/core';
 
 /**
  * User preferences stored in localStorage.
@@ -74,9 +74,7 @@ export class PreferencesService {
       if (stored) {
         return JSON.parse(stored) as UserPreferences;
       }
-    } catch (e) {
-      console.warn('Failed to load preferences:', e);
-    }
+    } catch (_e) {}
     return this.getDefaults();
   }
 
@@ -86,9 +84,7 @@ export class PreferencesService {
   private save(prefs: UserPreferences): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-    } catch (e) {
-      console.warn('Failed to save preferences:', e);
-    }
+    } catch (_e) {}
   }
 
   /**

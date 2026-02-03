@@ -14,20 +14,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect } from 'vitest';
-import {
-  flattenModels,
-  findModelById,
-  getProviderName,
-  hasCapability,
-  filterByProvider,
-  filterByCapability,
-  searchModels,
-  groupByProvider,
-  getDefaultModelId,
-  type ModelWithProvider,
-} from './model.utils';
+import { describe, expect, it } from 'vitest';
 import type { Model, Provider } from '../services/model.service';
+import {
+  filterByCapability,
+  filterByProvider,
+  findModelById,
+  flattenModels,
+  getDefaultModelId,
+  getProviderName,
+  groupByProvider,
+  hasCapability,
+  searchModels,
+} from './model.utils';
 
 const mockProviders: Provider[] = [
   {

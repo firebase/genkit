@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { CommonModule } from '@angular/common';
 /**
  * ModelSelectorComponent - Model selection dropdown with search.
  *
@@ -46,13 +47,12 @@
  *     │      └── Models by Provider                 │
  *     └─────────────────────────────────────────────┘
  */
-import { Component, input, output, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatDividerModule } from '@angular/material/divider';
 
 export interface Model {
   id: string;

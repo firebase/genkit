@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 // Define the interface locally to avoid importing from service.ts
 // which would pull in @ngx-translate/core

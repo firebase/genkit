@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
  * Genkit Chat E2E Tests
@@ -199,7 +199,7 @@ test.describe('Message Display', () => {
       (el) => window.getComputedStyle(el).paddingBottom
     );
     // Should have generous padding (120px)
-    expect(parseInt(paddingBottom)).toBeGreaterThanOrEqual(100);
+    expect(Number.parseInt(paddingBottom, 10)).toBeGreaterThanOrEqual(100);
   });
 });
 

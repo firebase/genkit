@@ -68,7 +68,7 @@ def _load_plugins() -> list[Any]:
     gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
     if gemini_api_key:
         try:
-            from genkit.plugins.google_genai import GoogleAI  # type: ignore[import-not-found]
+            from genkit.plugins.google_genai import GoogleAI
 
             plugins.append(GoogleAI())
             logger.info("✓ Loaded Google AI plugin")
@@ -82,7 +82,7 @@ def _load_plugins() -> list[Any]:
     # - Veo video generation models (veo-2.0-generate-001, etc.)
     if os.getenv("GOOGLE_CLOUD_PROJECT"):
         try:
-            from genkit.plugins.google_genai import VertexAI  # type: ignore[import-not-found]
+            from genkit.plugins.google_genai import VertexAI
 
             plugins.append(VertexAI())
             logger.info("✓ Loaded Vertex AI plugin (Gemini, Imagen, Veo)")
@@ -91,7 +91,7 @@ def _load_plugins() -> list[Any]:
 
         # Model Garden (third-party models on Vertex: Claude, Llama, etc.)
         try:
-            from genkit.plugins.vertex_ai import ModelGardenPlugin  # type: ignore[import-not-found]
+            from genkit.plugins.vertex_ai import ModelGardenPlugin
 
             plugins.append(ModelGardenPlugin())
             logger.info("✓ Loaded Vertex AI Model Garden plugin")
@@ -101,7 +101,7 @@ def _load_plugins() -> list[Any]:
     # Anthropic
     if os.getenv("ANTHROPIC_API_KEY"):
         try:
-            from genkit.plugins.anthropic import Anthropic  # type: ignore[import-not-found]
+            from genkit.plugins.anthropic import Anthropic
 
             plugins.append(Anthropic())
             logger.info("Loaded Anthropic plugin")
@@ -111,7 +111,7 @@ def _load_plugins() -> list[Any]:
     # OpenAI (via compat-oai plugin which supports OpenAI and compatible APIs)
     if os.getenv("OPENAI_API_KEY"):
         try:
-            from genkit.plugins.compat_oai import OpenAI  # type: ignore[import-not-found]
+            from genkit.plugins.compat_oai import OpenAI
 
             plugins.append(OpenAI())
             logger.info("Loaded OpenAI plugin (via compat-oai)")
@@ -121,7 +121,7 @@ def _load_plugins() -> list[Any]:
     # Cloudflare AI
     if os.getenv("CLOUDFLARE_ACCOUNT_ID") and os.getenv("CLOUDFLARE_API_TOKEN"):
         try:
-            from genkit.plugins.cf_ai import CfAI  # type: ignore[import-not-found]
+            from genkit.plugins.cf_ai import CfAI
 
             plugins.append(CfAI())
             logger.info("Loaded Cloudflare AI plugin")
@@ -131,21 +131,15 @@ def _load_plugins() -> list[Any]:
     # Ollama (always try - it's for local development)
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     try:
-        from genkit.plugins.ollama import Ollama  # type: ignore[import-not-found]
+        from genkit.plugins.ollama import Ollama
 
         plugins.append(Ollama(server_address=ollama_host))
         logger.info(f"Loaded Ollama plugin (host: {ollama_host})")
     except ImportError:
         logger.warning("Ollama plugin not installed")
 
-    # DevLocalVectorStore for RAG (always load if available)
-    try:
-        from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore  # type: ignore[import-not-found]
-
-        plugins.append(DevLocalVectorStore())
-        logger.info("Loaded DevLocalVectorStore plugin")
-    except ImportError:
-        logger.debug("DevLocalVectorStore plugin not installed (optional)")
+    # Note: DevLocalVectorStore is not a plugin - it's a factory function
+    # use define_dev_local_vector_store() to create indexers/retrievers
 
     if not plugins:
         logger.warning("No model plugins loaded! Set at least one API key or start Ollama.")
@@ -190,93 +184,99 @@ async def get_available_models() -> list[dict[str, Any]]:
 
     # Google AI models (current as of Feb 2026 - 2.5+ only)
     if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY"):
-        providers.append({
-            "id": "google-genai",
-            "name": "Google AI",
-            "available": True,
-            "models": [
-                {
-                    "id": "googleai/gemini-3-flash-preview",
-                    "name": "Gemini 3 Flash Preview",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 1000000,
-                },
-                {
-                    "id": "googleai/gemini-3-pro-preview",
-                    "name": "Gemini 3 Pro Preview",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 2000000,
-                },
-                {
-                    "id": "googleai/gemini-2.5-flash",
-                    "name": "Gemini 2.5 Flash",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 1000000,
-                },
-                {
-                    "id": "googleai/gemini-2.5-pro",
-                    "name": "Gemini 2.5 Pro",
-                    "capabilities": ["text", "vision", "streaming", "thinking"],
-                    "context_window": 1000000,
-                },
-            ],
-        })
+        providers.append(
+            {
+                "id": "google-genai",
+                "name": "Google AI",
+                "available": True,
+                "models": [
+                    {
+                        "id": "googleai/gemini-3-flash-preview",
+                        "name": "Gemini 3 Flash Preview",
+                        "capabilities": ["text", "vision", "streaming", "thinking"],
+                        "context_window": 1000000,
+                    },
+                    {
+                        "id": "googleai/gemini-3-pro-preview",
+                        "name": "Gemini 3 Pro Preview",
+                        "capabilities": ["text", "vision", "streaming", "thinking"],
+                        "context_window": 2000000,
+                    },
+                    {
+                        "id": "googleai/gemini-2.5-flash",
+                        "name": "Gemini 2.5 Flash",
+                        "capabilities": ["text", "vision", "streaming", "thinking"],
+                        "context_window": 1000000,
+                    },
+                    {
+                        "id": "googleai/gemini-2.5-pro",
+                        "name": "Gemini 2.5 Pro",
+                        "capabilities": ["text", "vision", "streaming", "thinking"],
+                        "context_window": 1000000,
+                    },
+                ],
+            }
+        )
 
     # Anthropic models
     if os.getenv("ANTHROPIC_API_KEY"):
-        providers.append({
-            "id": "anthropic",
-            "name": "Anthropic",
-            "available": True,
-            "models": [
-                {
-                    "id": "anthropic/claude-sonnet-4-20250514",
-                    "name": "Claude Sonnet 4",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-                {
-                    "id": "anthropic/claude-opus-4-20250514",
-                    "name": "Claude Opus 4",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-                {
-                    "id": "anthropic/claude-3-7-sonnet",
-                    "name": "Claude 3.7 Sonnet",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 200000,
-                },
-            ],
-        })
+        providers.append(
+            {
+                "id": "anthropic",
+                "name": "Anthropic",
+                "available": True,
+                "models": [
+                    {
+                        "id": "anthropic/claude-sonnet-4-20250514",
+                        "name": "Claude Sonnet 4",
+                        "capabilities": ["text", "vision", "streaming"],
+                        "context_window": 200000,
+                    },
+                    {
+                        "id": "anthropic/claude-opus-4-20250514",
+                        "name": "Claude Opus 4",
+                        "capabilities": ["text", "vision", "streaming"],
+                        "context_window": 200000,
+                    },
+                    {
+                        "id": "anthropic/claude-3-7-sonnet",
+                        "name": "Claude 3.7 Sonnet",
+                        "capabilities": ["text", "vision", "streaming"],
+                        "context_window": 200000,
+                    },
+                ],
+            }
+        )
 
     # OpenAI models
     if os.getenv("OPENAI_API_KEY"):
-        providers.append({
-            "id": "openai",
-            "name": "OpenAI",
-            "available": True,
-            "models": [
-                {
-                    "id": "openai/gpt-4.1",
-                    "name": "GPT-4.1",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 128000,
-                },
-                {
-                    "id": "openai/gpt-4o",
-                    "name": "GPT-4o",
-                    "capabilities": ["text", "vision", "streaming"],
-                    "context_window": 128000,
-                },
-                {
-                    "id": "openai/gpt-4o-mini",
-                    "name": "GPT-4o Mini",
-                    "capabilities": ["text", "streaming"],
-                    "context_window": 128000,
-                },
-            ],
-        })
+        providers.append(
+            {
+                "id": "openai",
+                "name": "OpenAI",
+                "available": True,
+                "models": [
+                    {
+                        "id": "openai/gpt-4.1",
+                        "name": "GPT-4.1",
+                        "capabilities": ["text", "vision", "streaming"],
+                        "context_window": 128000,
+                    },
+                    {
+                        "id": "openai/gpt-4o",
+                        "name": "GPT-4o",
+                        "capabilities": ["text", "vision", "streaming"],
+                        "context_window": 128000,
+                    },
+                    {
+                        "id": "openai/gpt-4o-mini",
+                        "name": "GPT-4o Mini",
+                        "capabilities": ["text", "streaming"],
+                        "context_window": 128000,
+                    },
+                ],
+            }
+        )
 
     # Ollama models (try to detect running server)
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
@@ -295,12 +295,14 @@ async def get_available_models() -> list[dict[str, Any]]:
                     for model in data.get("models", [])
                 ]
                 if ollama_models:
-                    providers.append({
-                        "id": "ollama",
-                        "name": "Ollama (Local)",
-                        "available": True,
-                        "models": ollama_models,
-                    })
+                    providers.append(
+                        {
+                            "id": "ollama",
+                            "name": "Ollama (Local)",
+                            "available": True,
+                            "models": ollama_models,
+                        }
+                    )
     except (httpx.RequestError, json.JSONDecodeError) as e:
         # Ollama not running or response is malformed, that's fine
         logger.debug(f"Could not connect to Ollama or parse response: {e}")

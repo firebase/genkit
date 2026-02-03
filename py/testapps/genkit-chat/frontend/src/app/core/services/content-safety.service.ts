@@ -63,9 +63,7 @@ export class ContentSafetyService {
       this.toxicityModel = await toxicity.load(this.toxicityThreshold, []);
 
       this.modelReady.set(true);
-      console.log('Toxicity model loaded successfully');
-    } catch (error) {
-      console.error('Failed to load toxicity model:', error);
+    } catch (_error) {
       // Disable safety checks if model fails to load
       this.enabled.set(false);
     } finally {
@@ -118,8 +116,7 @@ export class ContentSafetyService {
       }
 
       return { safe: true, labels: [] };
-    } catch (error) {
-      console.error('Toxicity check failed:', error);
+    } catch (_error) {
       // On error, allow content to proceed
       return { safe: true, labels: [] };
     }

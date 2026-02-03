@@ -36,15 +36,15 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
-      "!**/.angular/**",
-      "!**/.cache/**",
-      "!**/.dist/**",
-      "!**/.next/**",
-      "!**/.output/**",
-      "!**/coverage/**",
-      "!**/dist/**",
-      "!**/node_modules/**",
-      "!.trunk/**"
+      "!**/.angular",
+      "!**/.cache",
+      "!**/.dist",
+      "!**/.next",
+      "!**/.output",
+      "!**/coverage",
+      "!**/dist",
+      "!**/node_modules",
+      "!.trunk"
     ]
   },
   "formatter": {

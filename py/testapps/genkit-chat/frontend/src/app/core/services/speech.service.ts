@@ -87,8 +87,7 @@ export class SpeechService {
         this.isListening.set(false);
       };
 
-      this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error:', event.error);
+      this.recognition.onerror = (_event: SpeechRecognitionErrorEvent) => {
         this.isListening.set(false);
       };
     }

@@ -64,10 +64,7 @@ export class RenderingService {
       });
       this.mermaidInitialized = true;
       this.mermaidReady.set(true);
-      console.log('Mermaid initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize Mermaid:', error);
-    }
+    } catch (_error) {}
   }
 
   /**
@@ -97,9 +94,7 @@ export class RenderingService {
 
       this.mathjaxInitialized = true;
       this.mathjaxReady.set(true);
-      console.log('MathJax initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize MathJax:', error);
+    } catch (_error) {
       // Fall back to basic rendering
     }
   }
@@ -194,8 +189,7 @@ export class RenderingService {
 
       const className = display ? 'math-display' : 'math-inline';
       return `<span class="${className}">${svg}</span>`;
-    } catch (error) {
-      console.error('MathJax render error:', error);
+    } catch (_error) {
       // Return the original LaTeX on error
       return display ? `$$${latex}$$` : `$${latex}$`;
     }

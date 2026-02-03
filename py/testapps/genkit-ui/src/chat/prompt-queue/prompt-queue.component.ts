@@ -16,6 +16,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { animate, style, transition, trigger } from '@angular/animations';
+import { type CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { CommonModule } from '@angular/common';
 /**
  * PromptQueueComponent - Queue management with drag-and-drop reordering.
  *
@@ -50,14 +53,11 @@
  *     └─────────────────────────────────────────────┘
  */
 import { Component, input, output, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
-import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
-import { trigger, transition, style, animate } from '@angular/animations';
 
 export interface QueueItem {
 	id: string;

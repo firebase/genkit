@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Injectable, NgZone, inject } from '@angular/core';
+import { Injectable, inject, NgZone } from '@angular/core';
 
 /**
  * Service to handle code block and table copy functionality.
@@ -62,7 +62,7 @@ export class CodeCopyService {
    * Handle code copy button click.
    */
   private async handleCopyClick(button: HTMLElement): Promise<void> {
-    const code = button.dataset['code'];
+    const code = button.dataset.code;
     if (!code) return;
 
     // Decode HTML entities
@@ -83,7 +83,7 @@ export class CodeCopyService {
    * Extracts table data as TSV (tab-separated values) for Google Sheets compatibility.
    */
   private async handleTableCopyClick(button: HTMLElement): Promise<void> {
-    const tableId = button.dataset['tableId'];
+    const tableId = button.dataset.tableId;
     if (!tableId) return;
 
     const table = document.getElementById(tableId) as HTMLTableElement | null;
@@ -118,7 +118,7 @@ export class CodeCopyService {
         let text = (cell.textContent || '').trim();
         // Escape quotes and wrap in quotes if contains special characters
         if (text.includes('\t') || text.includes('\n') || text.includes('"')) {
-          text = '"' + text.replace(/"/g, '""') + '"';
+          text = `"${text.replace(/"/g, '""')}"`;
         }
         cells.push(text);
       });
@@ -144,7 +144,7 @@ export class CodeCopyService {
   /**
    * Show visual feedback when content is copied.
    */
-  private showCopiedFeedback(button: HTMLElement, type: 'code' | 'table'): void {
+  private showCopiedFeedback(button: HTMLElement, _type: 'code' | 'table'): void {
     button.classList.add('copied');
 
     // Update button text

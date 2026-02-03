@@ -19,7 +19,7 @@
  * These functions have no Angular dependencies and are easily testable.
  */
 
-import type { QueuedPrompt, Message } from '../services/chat.service';
+import type { Message, QueuedPrompt } from '../services/chat.service';
 
 /**
  * Maximum number of items allowed in the prompt queue.

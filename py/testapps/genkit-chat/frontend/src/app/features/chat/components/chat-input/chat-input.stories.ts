@@ -17,7 +17,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/angular';
-import { ChatInputComponent, AttachedFile } from './chat-input.component';
+import { ChatInputComponent } from './chat-input.component';
 
 /**
  * ChatInputComponent is the main input area for composing messages.

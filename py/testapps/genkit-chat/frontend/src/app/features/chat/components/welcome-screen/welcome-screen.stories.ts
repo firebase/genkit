@@ -17,7 +17,11 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/angular';
-import { WelcomeScreenComponent, Greeting, QuickAction } from './welcome-screen.component';
+import {
+  type Greeting,
+  type QuickAction,
+  WelcomeScreenComponent,
+} from './welcome-screen.component';
 
 /**
  * WelcomeScreenComponent displays an animated greeting with a typewriter effect

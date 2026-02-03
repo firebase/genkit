@@ -19,7 +19,7 @@
  */
 
 export * from './chat.utils';
-export * from './model.utils';
-export * from './theme.utils';
-export * from './preferences.utils';
 export * from './markdown.utils';
+export * from './model.utils';
+export * from './preferences.utils';
+export * from './theme.utils';

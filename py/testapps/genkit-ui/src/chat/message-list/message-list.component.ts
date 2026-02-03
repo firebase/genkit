@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { CommonModule } from '@angular/common';
 /**
  * MessageListComponent - Displays chat messages with markdown rendering.
  *
@@ -54,21 +55,18 @@
  * - SpeechService replaced with isSpeaking input
  */
 import {
+	type AfterViewChecked,
 	Component,
+	type ElementRef,
 	input,
 	output,
-	ElementRef,
-	AfterViewChecked,
 	ViewChild,
-	Optional,
-	Inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 

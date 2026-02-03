@@ -46,11 +46,10 @@
  * @packageDocumentation
  */
 
-export {
-	LanguageSelectorComponent,
-	DEFAULT_LANGUAGES,
-} from './language-selector/language-selector.component';
 export type { Language } from './language-selector/language-selector.component';
-
-export { ThemeSelectorComponent, THEME_OPTIONS } from './theme-selector/theme-selector.component';
+export {
+	DEFAULT_LANGUAGES,
+	LanguageSelectorComponent,
+} from './language-selector/language-selector.component';
 export type { ThemeMode, ThemeOption } from './theme-selector/theme-selector.component';
+export { THEME_OPTIONS, ThemeSelectorComponent } from './theme-selector/theme-selector.component';

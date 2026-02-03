@@ -51,6 +51,31 @@ jobs:
       - name: Run Biome lint
         run: pnpm run check
 
+  python-lint:
+    name: Python Backend Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Install dependencies for backend
+        run: uv sync --group lint
+        working-directory: py/testapps/genkit-chat/backend
+      
+      - name: Format check with Ruff
+        run: uv run ruff check src
+        working-directory: py/testapps/genkit-chat/backend
+      
+      - name: Type check with Ty
+        run: uv run ty check src
+        working-directory: py/testapps/genkit-chat/backend
+
   test:
     name: Unit Tests
     runs-on: ubuntu-latest

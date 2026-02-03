@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { CommonModule } from '@angular/common';
 /**
  * ChatBoxComponent - Self-contained, shareable chat interface.
  *
@@ -96,31 +97,29 @@
  *       (send)="onSend($event)" />
  */
 import {
+	ChangeDetectionStrategy,
 	Component,
-	input,
-	output,
-	signal,
 	computed,
 	effect,
-	ChangeDetectionStrategy,
-	OnDestroy,
+	input,
+	type OnDestroy,
+	output,
+	signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
-
+import { ChatInputComponent, type SendEvent } from '../chat-input/chat-input.component';
 // Import sub-components
-import { MessageListComponent, Message } from '../message-list/message-list.component';
+import { type Message, MessageListComponent } from '../message-list/message-list.component';
 import {
-	WelcomeScreenComponent,
-	Greeting,
-	QuickAction,
-} from '../welcome-screen/welcome-screen.component';
-import { ChatInputComponent, SendEvent, AttachedFile } from '../chat-input/chat-input.component';
-import {
+	type Model,
 	ModelSelectorComponent,
-	Model,
-	Provider,
+	type Provider,
 } from '../model-selector/model-selector.component';
+import {
+	type Greeting,
+	type QuickAction,
+	WelcomeScreenComponent,
+} from '../welcome-screen/welcome-screen.component';
 
 /**
  * Chat settings that can be toggled by user.

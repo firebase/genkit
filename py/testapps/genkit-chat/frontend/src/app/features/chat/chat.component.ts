@@ -16,44 +16,44 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  Component,
-  inject,
-  signal,
-  effect,
-  ElementRef,
-  ViewChild,
-  OnDestroy,
-  AfterViewInit,
-} from '@angular/core';
-import { trigger, transition, style, animate } from '@angular/animations';
-import { FormsModule } from '@angular/forms';
+import { animate, style, transition, trigger } from '@angular/animations';
+import { type CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { MatCardModule } from '@angular/material/card';
-import { MatInputModule } from '@angular/material/input';
+import {
+  type AfterViewInit,
+  Component,
+  type ElementRef,
+  effect,
+  inject,
+  type OnDestroy,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatRippleModule } from '@angular/material/core';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { ChatService, Message } from '../../core/services/chat.service';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
+import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
+import { AuthService } from '../../core/services/auth.service';
+import { ChatService } from '../../core/services/chat.service';
+import { ContentSafetyService } from '../../core/services/content-safety.service';
 import { ModelsService } from '../../core/services/models.service';
+import { PreferencesService } from '../../core/services/preferences.service';
 import { SpeechService } from '../../core/services/speech.service';
 import { ThemeService } from '../../core/services/theme.service';
-import { AuthService } from '../../core/services/auth.service';
-import { ContentSafetyService } from '../../core/services/content-safety.service';
-import { PreferencesService } from '../../core/services/preferences.service';
 import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/error-details-dialog.component';
 import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
-import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
-import { TranslateModule } from '@ngx-translate/core';
 
 /**
  * Main chat interface component for Genkit Chat.
@@ -2624,7 +2624,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   }
 
   useQuickAction(prompt: string): void {
-    this.userMessage = prompt + ' ';
+    this.userMessage = `${prompt} `;
     // Focus the textarea and move cursor to end after Angular updates the DOM
     setTimeout(() => {
       const textarea = this.chatTextarea?.nativeElement;
@@ -2716,11 +2716,10 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
         // Restore the message so user can edit it
         this.userMessage = message;
         return;
-      } else {
-        // Clear any previous flagging
-        this.contentFlagged.set(false);
-        this.flaggedLabels.set([]);
       }
+      // Clear any previous flagging
+      this.contentFlagged.set(false);
+      this.flaggedLabels.set([]);
     }
 
     // If model is busy, queue the prompt
@@ -2741,12 +2740,11 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
       next: (response) => {
         this.chatService.addAssistantMessage(response);
       },
-      error: (err) => {
+      error: (_err) => {
         this.snackBar.open('Failed to send message. Please try again.', 'Dismiss', {
           duration: 5000,
           panelClass: 'error-snackbar',
         });
-        console.error('Chat error:', err);
       },
     });
   }
@@ -2798,9 +2796,8 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
         if (transcript) {
           this.userMessage = transcript;
         }
-      } catch (error) {
+      } catch (_error) {
         this.snackBar.open('Voice input not available', 'Dismiss', { duration: 3000 });
-        console.error('Voice input error:', error);
       }
     }
   }
@@ -2971,7 +2968,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     const units = ['B', 'KB', 'MB', 'GB'];
     const base = 1024;
     const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(base)), units.length - 1);
-    const value = bytes / Math.pow(base, exponent);
+    const value = bytes / base ** exponent;
 
     // Show 1 decimal place for KB and above, none for bytes
     return exponent === 0

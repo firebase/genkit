@@ -14,19 +14,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UserPreferences } from '../services/preferences.service';
 import {
-  PREFERENCES_STORAGE_KEY,
-  MAX_RECENT_MODELS,
-  getDefaultPreferences,
   addRecentModel,
-  updatePreferences,
+  clearPreferencesFromStorage,
+  getDefaultPreferences,
   getPreferenceWithDefault,
   loadPreferencesFromStorage,
+  MAX_RECENT_MODELS,
+  PREFERENCES_STORAGE_KEY,
   savePreferencesToStorage,
-  clearPreferencesFromStorage,
+  updatePreferences,
 } from './preferences.utils';
-import type { UserPreferences } from '../services/preferences.service';
 
 describe('preferences.utils', () => {
   describe('constants', () => {

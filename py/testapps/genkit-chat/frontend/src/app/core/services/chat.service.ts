@@ -16,9 +16,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Injectable, inject, signal, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of } from 'rxjs';
+import { effect, Injectable, inject, signal } from '@angular/core';
+import { catchError, type Observable, of } from 'rxjs';
 import { PreferencesService } from './preferences.service';
 
 export interface Message {
@@ -121,7 +121,6 @@ export class ChatService {
       })
       .pipe(
         catchError((error) => {
-          console.error('Chat error:', error);
           const errorMessage =
             error?.error?.detail || error?.error?.message || error?.message || 'Unknown error';
           const errorDetails = JSON.stringify(error, null, 2);
@@ -168,8 +167,7 @@ export class ChatService {
       } else {
         this.sendMessage(next.content, next.model).subscribe({
           next: (response) => this.addAssistantMessage(response),
-          error: (err) => {
-            console.error('Queue send error:', err);
+          error: (_err) => {
             this.isLoading.set(false);
             this.processNextInQueue();
           },
@@ -246,7 +244,6 @@ export class ChatService {
     };
 
     eventSource.onerror = (error) => {
-      console.error('Stream error:', error);
       eventSource.close();
       this.messages.update((msgs) => {
         const updated = [...msgs];
@@ -302,7 +299,7 @@ export class ChatService {
     this.removeFromQueue(id);
     this.sendMessage(item.content, item.model).subscribe({
       next: (response) => this.addAssistantMessage(response),
-      error: (err) => console.error('Queue send error:', err),
+      error: (_err) => {},
     });
   }
 

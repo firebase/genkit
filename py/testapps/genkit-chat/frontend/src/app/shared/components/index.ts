@@ -64,13 +64,12 @@
  * ```
  */
 
+export type { Language } from './language-selector/language-selector.component';
 // Language Selector
 export {
-  LanguageSelectorComponent,
   DEFAULT_LANGUAGES,
+  LanguageSelectorComponent,
 } from './language-selector/language-selector.component';
-export type { Language } from './language-selector/language-selector.component';
-
-// Theme Selector
-export { ThemeSelectorComponent, THEME_OPTIONS } from './theme-selector/theme-selector.component';
 export type { ThemeMode, ThemeOption } from './theme-selector/theme-selector.component';
+// Theme Selector
+export { THEME_OPTIONS, ThemeSelectorComponent } from './theme-selector/theme-selector.component';

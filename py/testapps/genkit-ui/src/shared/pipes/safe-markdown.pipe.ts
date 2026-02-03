@@ -25,15 +25,15 @@
  * - Escapes HTML entities by default
  * - Uses DOMPurify when available for XSS protection
  */
-import { Pipe, PipeTransform } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Pipe, type PipeTransform } from '@angular/core';
+import type { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 /**
  * Basic markdown to HTML converter.
  * Handles common patterns without external dependencies.
  */
 function basicMarkdownToHtml(content: string): string {
-	let html = content
+	const html = content
 		// Escape HTML first
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')

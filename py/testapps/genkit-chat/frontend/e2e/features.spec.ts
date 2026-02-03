@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 /**
  * Markdown rendering and Content Safety E2E Tests

@@ -16,9 +16,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Injectable, signal, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { jwtDecode, JwtPayload } from 'jwt-decode';
+import { Injectable, inject, PLATFORM_ID, signal } from '@angular/core';
+import { type JwtPayload, jwtDecode } from 'jwt-decode';
 
 declare const google: any;
 
@@ -146,7 +146,7 @@ export class AuthService {
   private initGoogleSignIn(): void {
     // Wait for Google Identity Services to load
     const checkGoogle = setInterval(() => {
-      if (typeof google !== 'undefined' && google.accounts) {
+      if (google?.accounts) {
         clearInterval(checkGoogle);
         this.setupGoogleSignIn();
       }
@@ -156,9 +156,6 @@ export class AuthService {
     setTimeout(() => {
       clearInterval(checkGoogle);
       if (!this.isInitialized()) {
-        console.log(
-          'Google Identity Services did not load. Check if the GSI script is included in index.html'
-        );
         this.isInitialized.set(true);
       }
     }, 5000);
@@ -166,19 +163,6 @@ export class AuthService {
 
   private setupGoogleSignIn(): void {
     if (!this.CLIENT_ID) {
-      console.log(`
-╔══════════════════════════════════════════════════════════════════════════╗
-║  Google Sign-In: Demo User                                                ║
-╠══════════════════════════════════════════════════════════════════════════╣
-║  No CLIENT_ID configured. Using demo user for testing.                    ║
-║                                                                           ║
-║  To enable real Google Sign-In:                                           ║
-║  1. Create OAuth Client ID at:                                            ║
-║     https://console.cloud.google.com/apis/credentials                     ║
-║  2. Add localhost origins (4200, 49230)                                   ║
-║  3. Set CLIENT_ID in auth.service.ts                                      ║
-╚══════════════════════════════════════════════════════════════════════════╝
-            `);
       this.isInitialized.set(true);
       return;
     }
@@ -195,14 +179,12 @@ export class AuthService {
       });
 
       this.isInitialized.set(true);
-      console.log('Google Sign-In initialized successfully');
 
       // Show One Tap prompt if user is not signed in
       if (!this.user()) {
         this.showOneTap();
       }
-    } catch (error) {
-      console.error('Failed to initialize Google Sign-In:', error);
+    } catch (_error) {
       this.isInitialized.set(true);
     }
   }
@@ -212,13 +194,9 @@ export class AuthService {
 
     google.accounts.id.prompt((notification: any) => {
       if (notification.isDisplayed()) {
-        console.log('One Tap prompt displayed');
       } else if (notification.isNotDisplayed()) {
-        console.log('One Tap not displayed:', notification.getNotDisplayedReason());
       } else if (notification.isSkippedMoment()) {
-        console.log('One Tap skipped:', notification.getSkippedReason());
       } else if (notification.isDismissedMoment()) {
-        console.log('One Tap dismissed:', notification.getDismissedReason());
       }
     });
   }
@@ -242,8 +220,6 @@ export class AuthService {
       // Store in localStorage for persistence
       localStorage.setItem('gauth_user', JSON.stringify(user));
       localStorage.setItem('gauth_token', response.credential);
-
-      console.log('User signed in:', payload.email);
     }
     this.isLoading.set(false);
   }
@@ -313,13 +289,12 @@ export class AuthService {
       return;
     }
 
-    if (typeof google !== 'undefined' && google.accounts) {
+    if (google?.accounts) {
       this.isLoading.set(true);
       google.accounts.id.prompt((notification: any) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
           // One Tap was blocked (e.g., by browser settings)
           this.isLoading.set(false);
-          console.log('One Tap blocked. Consider adding a fallback sign-in button.');
         }
       });
     }
@@ -329,21 +304,18 @@ export class AuthService {
    * Sign out the current user.
    */
   signOut(): void {
-    if (typeof google !== 'undefined' && google.accounts && this.CLIENT_ID) {
+    if (google?.accounts && this.CLIENT_ID) {
       google.accounts.id.disableAutoSelect();
       // Revoke the token
       const token = localStorage.getItem('gauth_token');
       if (token) {
-        google.accounts.id.revoke(this.user()?.email || '', () => {
-          console.log('Token revoked');
-        });
+        google.accounts.id.revoke(this.user()?.email || '', () => {});
       }
     }
 
     this.user.set(null);
     localStorage.removeItem('gauth_user');
     localStorage.removeItem('gauth_token');
-    console.log('User signed out');
   }
 
   /**
@@ -355,7 +327,6 @@ export class AuthService {
       try {
         const user = JSON.parse(stored);
         this.user.set(user);
-        console.log('Session restored for:', user.email);
       } catch {
         localStorage.removeItem('gauth_user');
         localStorage.removeItem('gauth_token');
@@ -405,7 +376,7 @@ export class AuthService {
       const updatedUser = {
         ...currentUser,
         given_name: givenName,
-        name: givenName + (currentUser.family_name ? ' ' + currentUser.family_name : ''),
+        name: givenName + (currentUser.family_name ? ` ${currentUser.family_name}` : ''),
       };
       this.user.set(updatedUser);
       localStorage.setItem('gauth_user', JSON.stringify(updatedUser));

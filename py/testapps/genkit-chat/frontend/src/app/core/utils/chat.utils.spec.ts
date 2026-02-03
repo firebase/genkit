@@ -14,24 +14,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { Message, QueuedPrompt } from '../services/chat.service';
 import {
-  MAX_QUEUE_SIZE,
   addToQueue,
+  buildHistory,
+  createAssistantMessage,
+  createUserMessage,
+  MAX_QUEUE_SIZE,
+  moveQueuedPromptDown,
+  moveQueuedPromptUp,
+  popFromQueue,
   removeFromQueue,
   updateQueuedPrompt,
-  moveQueuedPromptUp,
-  moveQueuedPromptDown,
-  popFromQueue,
-  buildHistory,
-  createUserMessage,
-  createAssistantMessage,
 } from './chat.utils';
-import type { QueuedPrompt, Message } from '../services/chat.service';
 
 // Mock crypto.randomUUID
 vi.stubGlobal('crypto', {
-  randomUUID: () => 'test-uuid-' + Math.random().toString(36).slice(2, 9),
+  randomUUID: () => `test-uuid-${Math.random().toString(36).slice(2, 9)}`,
 });
 
 describe('chat.utils', () => {

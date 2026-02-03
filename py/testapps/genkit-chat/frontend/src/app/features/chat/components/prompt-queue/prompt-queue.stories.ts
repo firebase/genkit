@@ -17,7 +17,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/angular';
-import { PromptQueueComponent, QueueItem } from './prompt-queue.component';
+import { PromptQueueComponent, type QueueItem } from './prompt-queue.component';
 
 /**
  * PromptQueueComponent displays queued prompts with drag-and-drop reordering,

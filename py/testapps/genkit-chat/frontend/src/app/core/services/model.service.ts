@@ -16,8 +16,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { computed, Injectable, inject, signal } from '@angular/core';
 import { catchError, of, tap } from 'rxjs';
 
 /**
@@ -151,10 +151,8 @@ export class ModelService {
         tap((providers) => {
           this.providers.set(providers);
           this.isLoading.set(false);
-          console.log('Loaded models from backend:', providers);
         }),
-        catchError((err) => {
-          console.warn('Backend unavailable, using demo models:', err.message);
+        catchError((_err) => {
           this.providers.set(this.DEMO_PROVIDERS);
           this.error.set('Using demo models (backend unavailable)');
           this.isLoading.set(false);

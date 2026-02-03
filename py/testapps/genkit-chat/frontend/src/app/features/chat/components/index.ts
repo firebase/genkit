@@ -127,15 +127,14 @@
  *     export class MyChatPage { }
  */
 
-// Component exports
-export * from './message-list/message-list.component';
-export * from './welcome-screen/welcome-screen.component';
-export * from './prompt-queue/prompt-queue.component';
-export * from './chat-input/chat-input.component';
-export * from './model-selector/model-selector.component';
-
 // Re-export types for convenience
 export type { AttachedFile, SendEvent } from './chat-input/chat-input.component';
-export type { Greeting, QuickAction } from './welcome-screen/welcome-screen.component';
+export * from './chat-input/chat-input.component';
+// Component exports
+export * from './message-list/message-list.component';
+export type { Model, Provider } from './model-selector/model-selector.component';
+export * from './model-selector/model-selector.component';
 export type { QueueItem } from './prompt-queue/prompt-queue.component';
-export type { Provider, Model } from './model-selector/model-selector.component';
+export * from './prompt-queue/prompt-queue.component';
+export type { Greeting, QuickAction } from './welcome-screen/welcome-screen.component';
+export * from './welcome-screen/welcome-screen.component';

@@ -16,9 +16,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of } from 'rxjs';
+import { Injectable, inject, signal } from '@angular/core';
+import { catchError, of } from 'rxjs';
 import { PreferencesService } from './preferences.service';
 
 export interface ModelInfo {
@@ -268,8 +268,7 @@ export class ModelsService {
     this.http
       .get<ModelsResponse>(`${this.apiUrl}/models`)
       .pipe(
-        catchError((error) => {
-          console.log('Backend unavailable, using default model list');
+        catchError((_error) => {
           this.isBackendConnected.set(false);
           return of({ providers: DEFAULT_PROVIDERS });
         })

@@ -16,19 +16,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
-import { ChatService, CompareResponse } from '../../core/services/chat.service';
-import { ModelsService, ModelInfo } from '../../core/services/models.service';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { ChatService, type CompareResponse } from '../../core/services/chat.service';
+import { ModelsService } from '../../core/services/models.service';
 
 @Component({
   selector: 'app-compare',
@@ -418,7 +418,8 @@ export class CompareComponent {
     this.selectedModels.update((current) => {
       if (current.includes(modelId)) {
         return current.filter((id) => id !== modelId);
-      } else if (current.length < 4) {
+      }
+      if (current.length < 4) {
         return [...current, modelId];
       }
       return current;
@@ -441,8 +442,7 @@ export class CompareComponent {
         this.results.set(response);
         this.isLoading.set(false);
       },
-      error: (error) => {
-        console.error('Compare error:', error);
+      error: (_error) => {
         this.isLoading.set(false);
       },
     });

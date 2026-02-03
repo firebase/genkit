@@ -16,12 +16,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Component, Inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import { Component, Inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MAT_DIALOG_DATA, MatDialogModule, type MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-error-details-dialog',
@@ -244,7 +244,7 @@ export class ErrorDetailsDialogComponent {
         // Match null
         .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>')
         // Match brackets
-        .replace(/([{}\[\]])/g, '<span class="json-bracket">$1</span>')
+        .replace(/([{}[\]])/g, '<span class="json-bracket">$1</span>')
     );
   }
 

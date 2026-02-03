@@ -95,7 +95,7 @@ jobs:
         run: ./py/bin/generate_schema_typing --ci
 
       - name: Type check with Ty
-        run: uv run --directory py ty check .
+        run: uv run --directory py ty check packages plugins samples
 
       - name: Type check with Pyrefly
         run: uv run --directory py pyrefly check .
