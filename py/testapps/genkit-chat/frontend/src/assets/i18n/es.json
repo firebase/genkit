@@ -1,6 +1,6 @@
 {
     "app": {
-        "title": "Chat de Genkit",
+        "title": "Genkit Chat",
         "newChat": "Nuevo chat",
         "version": "Vista previa"
     },
@@ -16,13 +16,15 @@
         "voiceInput": "Entrada de voz",
         "stopRecording": "Detener grabación",
         "addFiles": "Agregar archivos",
+        "addMoreFiles": "Agregar más archivos",
         "uploadFiles": "Subir archivos",
         "googleDrive": "Agregar desde Drive",
         "camera": "Cámara",
         "removeFile": "Eliminar",
-        "disclaimer": "Genkit Chat puede mostrar información inexacta. Verifica sus respuestas.",
+        "disclaimer": "Genkit Chat puede mostrar información inexacta. Verifica las respuestas.",
         "greeting": "Hola",
-        "greetingSubtitle": "¿Cómo puedo ayudarte hoy?"
+        "greetingSubtitle": "¿En qué puedo ayudarte hoy?",
+        "clearInput": "Borrar"
     },
     "attach": {
         "photos": "Fotos",
@@ -34,14 +36,31 @@
     "toolbar": {
         "settings": "Configuración",
         "tools": "Herramientas",
-        "stream": "Respuestas en tiempo real",
-        "markdown": "Renderizar markdown",
-        "safe": "Seguridad de contenido",
-        "enabled": "Activado",
-        "disabled": "Desactivado"
+        "stream": "Respuestas en streaming",
+        "markdown": "Renderizar Markdown",
+        "safe": "Seguridad del contenido",
+        "enabled": "Habilitado",
+        "disabled": "Deshabilitado"
     },
     "settings": {
         "clearPreferences": "Borrar preferencias"
+    },
+    "actions": {
+        "copy": "Copiar al portapapeles",
+        "readAloud": "Leer en voz alta",
+        "goodResponse": "Buena respuesta",
+        "badResponse": "Mala respuesta",
+        "more": "Más",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "remove": "Quitar",
+        "clearAll": "Borrar todo"
+    },
+    "queue": {
+        "queued": "En cola",
+        "sendAll": "Enviar todo",
+        "clearAll": "Borrar todo",
+        "sendNow": "Enviar ahora"
     },
     "model": {
         "selectModel": "Seleccionar modelo",
@@ -57,7 +76,7 @@
     },
     "quickActions": {
         "createImage": "Crear imagen",
-        "writeAnything": "Escribir algo",
+        "writeAnything": "Escribir un poema",
         "helpMeLearn": "Ayúdame a aprender",
         "createVideo": "Crear video",
         "stayOrganized": "Mantenerme organizado"

@@ -102,10 +102,10 @@ import { LanguageService } from './core/services/language.service';
                 <span matListItemTitle>{{ 'nav.settings' | translate }}</span>
               }
             </a>
-            <button mat-list-item [matMenuTriggerFor]="themeMenu" [matTooltip]="sidenavOpened() ? '' : themeService.getThemeLabel()" matTooltipPosition="right">
+            <button mat-list-item [matMenuTriggerFor]="themeMenu" [matTooltip]="sidenavOpened() ? '' : (('theme.' + themeService.themeMode()) | translate)" matTooltipPosition="right">
               <mat-icon matListItemIcon>{{ themeService.getThemeIcon() }}</mat-icon>
               @if (sidenavOpened()) {
-                <span matListItemTitle>Theme: {{ themeService.getThemeLabel() }}</span>
+                <span matListItemTitle>{{ 'theme.label' | translate }}: {{ ('theme.' + themeService.themeMode()) | translate }}</span>
               }
             </button>
             <mat-menu #themeMenu="matMenu">

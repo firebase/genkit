@@ -16,13 +16,15 @@
         "voiceInput": "Entrada de voz",
         "stopRecording": "Parar gravação",
         "addFiles": "Adicionar arquivos",
+        "addMoreFiles": "Adicionar mais arquivos",
         "uploadFiles": "Carregar arquivos",
         "googleDrive": "Adicionar do Drive",
         "camera": "Câmera",
         "removeFile": "Remover",
         "disclaimer": "O Genkit Chat pode exibir informações imprecisas. Verifique as respostas.",
         "greeting": "Olá",
-        "greetingSubtitle": "Como posso ajudá-lo hoje?"
+        "greetingSubtitle": "Como posso ajudá-lo hoje?",
+        "clearInput": "Limpar"
     },
     "attach": {
         "photos": "Fotos",
@@ -43,6 +45,23 @@
     "settings": {
         "clearPreferences": "Limpar preferências"
     },
+    "actions": {
+        "copy": "Copiar para área de transferência",
+        "readAloud": "Ler em voz alta",
+        "goodResponse": "Boa resposta",
+        "badResponse": "Má resposta",
+        "more": "Mais",
+        "edit": "Editar",
+        "delete": "Excluir",
+        "remove": "Remover",
+        "clearAll": "Limpar tudo"
+    },
+    "queue": {
+        "queued": "Na fila",
+        "sendAll": "Enviar tudo",
+        "clearAll": "Limpar tudo",
+        "sendNow": "Enviar agora"
+    },
     "model": {
         "selectModel": "Selecionar modelo",
         "searchModels": "Pesquisar modelos...",
@@ -57,7 +76,7 @@
     },
     "quickActions": {
         "createImage": "Criar imagem",
-        "writeAnything": "Escrever algo",
+        "writeAnything": "Escrever um poema",
         "helpMeLearn": "Me ajude a aprender",
         "createVideo": "Criar vídeo",
         "stayOrganized": "Manter organizado"

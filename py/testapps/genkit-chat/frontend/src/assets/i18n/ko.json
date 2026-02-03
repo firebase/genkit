@@ -16,13 +16,15 @@
         "voiceInput": "음성 입력",
         "stopRecording": "녹음 중지",
         "addFiles": "파일 추가",
+        "addMoreFiles": "파일 더 추가",
         "uploadFiles": "파일 업로드",
         "googleDrive": "드라이브에서 추가",
         "camera": "카메라",
         "removeFile": "삭제",
         "disclaimer": "Genkit Chat은 부정확한 정보를 표시할 수 있습니다. 응답을 확인하세요.",
         "greeting": "안녕하세요",
-        "greetingSubtitle": "오늘 무엇을 도와드릴까요?"
+        "greetingSubtitle": "오늘 무엇을 도와드릴까요?",
+        "clearInput": "지우기"
     },
     "attach": {
         "photos": "사진",
@@ -43,6 +45,23 @@
     "settings": {
         "clearPreferences": "설정 초기화"
     },
+    "actions": {
+        "copy": "클립보드에 복사",
+        "readAloud": "소리내어 읽기",
+        "goodResponse": "좋은 응답",
+        "badResponse": "나쁜 응답",
+        "more": "더 보기",
+        "edit": "편집",
+        "delete": "삭제",
+        "remove": "제거",
+        "clearAll": "모두 지우기"
+    },
+    "queue": {
+        "queued": "대기 중",
+        "sendAll": "모두 보내기",
+        "clearAll": "모두 지우기",
+        "sendNow": "지금 보내기"
+    },
     "model": {
         "selectModel": "모델 선택",
         "searchModels": "모델 검색...",
@@ -57,7 +76,7 @@
     },
     "quickActions": {
         "createImage": "이미지 만들기",
-        "writeAnything": "글쓰기",
+        "writeAnything": "시 쓰기",
         "helpMeLearn": "학습 도움",
         "createVideo": "동영상 만들기",
         "stayOrganized": "정리하기"

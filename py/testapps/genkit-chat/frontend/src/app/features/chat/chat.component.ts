@@ -113,19 +113,19 @@ import { TranslateModule } from '@ngx-translate/core';
               
               @if (message.role === 'assistant') {
                 <div class="message-actions">
-                  <button mat-icon-button matTooltip="Copy to clipboard" (click)="copyMessage(message.content)">
+                  <button mat-icon-button [matTooltip]="'actions.copy' | translate" (click)="copyMessage(message.content)">
                     <mat-icon>content_copy</mat-icon>
                   </button>
-                  <button mat-icon-button matTooltip="Read aloud" (click)="speakMessage(message.content)">
+                  <button mat-icon-button [matTooltip]="'actions.readAloud' | translate" (click)="speakMessage(message.content)">
                     <mat-icon>{{ speechService.isSpeaking() ? 'stop' : 'volume_up' }}</mat-icon>
                   </button>
-                  <button mat-icon-button matTooltip="Good response">
+                  <button mat-icon-button [matTooltip]="'actions.goodResponse' | translate">
                     <mat-icon>thumb_up</mat-icon>
                   </button>
-                  <button mat-icon-button matTooltip="Bad response">
+                  <button mat-icon-button [matTooltip]="'actions.badResponse' | translate">
                     <mat-icon>thumb_down</mat-icon>
                   </button>
-                  <button mat-icon-button [matMenuTriggerFor]="moreMenu" matTooltip="More">
+                  <button mat-icon-button [matMenuTriggerFor]="moreMenu" [matTooltip]="'actions.more' | translate">
                     <mat-icon>more_vert</mat-icon>
                   </button>
                   <mat-menu #moreMenu="matMenu">
@@ -195,12 +195,12 @@ import { TranslateModule } from '@ngx-translate/core';
           
           <!-- Quick Action Chips (between greeting and chatbox) -->
           <div class="quick-chips">
-            @for (action of quickActions; track action.label) {
+            @for (action of quickActions; track action.labelKey) {
               <button mat-stroked-button 
                       class="quick-chip"
                       (click)="useQuickAction(action.prompt)">
                 <mat-icon class="chip-icon" [style.color]="action.color">{{ action.icon }}</mat-icon>
-                <span>{{ action.label }}</span>
+                <span>{{ action.labelKey | translate }}</span>
               </button>
             }
           </div>
@@ -212,13 +212,13 @@ import { TranslateModule } from '@ngx-translate/core';
             <div class="queue-header">
               <div class="queue-header-left" (click)="queueExpanded = !queueExpanded">
                 <mat-icon class="expand-icon" [class.expanded]="queueExpanded">expand_more</mat-icon>
-                <span class="queue-count">{{ chatService.promptQueue().length }} Queued</span>
+                <span class="queue-count">{{ chatService.promptQueue().length }} {{ 'queue.queued' | translate }}</span>
               </div>
               <div class="queue-header-actions">
-                <button mat-icon-button class="send-all-btn" matTooltip="Send all" (click)="chatService.sendAllFromQueue(); $event.stopPropagation()">
+                <button mat-icon-button class="send-all-btn" [matTooltip]="'queue.sendAll' | translate" (click)="chatService.sendAllFromQueue(); $event.stopPropagation()">
                   <mat-icon>double_arrow</mat-icon>
                 </button>
-                <button mat-icon-button class="clear-all-btn" matTooltip="Clear all" (click)="chatService.clearQueue(); $event.stopPropagation()">
+                <button mat-icon-button class="clear-all-btn" [matTooltip]="'queue.clearAll' | translate" (click)="chatService.clearQueue(); $event.stopPropagation()">
                   <mat-icon>clear_all</mat-icon>
                 </button>
               </div>
@@ -240,13 +240,13 @@ import { TranslateModule } from '@ngx-translate/core';
                       <span class="queue-item-content">{{ item.content }}</span>
                     }
                     <div class="queue-item-actions">
-                      <button mat-icon-button matTooltip="Send now" (click)="chatService.sendFromQueue(item.id)">
+                      <button mat-icon-button [matTooltip]="'queue.sendNow' | translate" (click)="chatService.sendFromQueue(item.id)">
                         <mat-icon>send</mat-icon>
                       </button>
-                      <button mat-icon-button matTooltip="Edit" (click)="startEditQueue(item)">
+                      <button mat-icon-button [matTooltip]="'actions.edit' | translate" (click)="startEditQueue(item)">
                         <mat-icon>edit</mat-icon>
                       </button>
-                      <button mat-icon-button matTooltip="Delete" (click)="chatService.removeFromQueue(item.id)">
+                      <button mat-icon-button [matTooltip]="'actions.delete' | translate" (click)="chatService.removeFromQueue(item.id)">
                         <mat-icon>delete</mat-icon>
                       </button>
                     </div>
@@ -281,7 +281,7 @@ import { TranslateModule } from '@ngx-translate/core';
                     #chatTextarea></textarea>
 
           @if (userMessage) {
-            <button mat-icon-button class="clear-input-btn" (click)="clearInput()" aria-label="Clear input" matTooltip="Clear">
+            <button mat-icon-button class="clear-input-btn" (click)="clearInput()" [attr.aria-label]="'chat.clearInput' | translate" [matTooltip]="'chat.clearInput' | translate">
               <mat-icon>close</mat-icon>
             </button>
           }
@@ -292,8 +292,8 @@ import { TranslateModule } from '@ngx-translate/core';
               <!-- Add/Attach Button -->
               <button mat-icon-button 
                       class="toolbar-btn add-btn"
-                      aria-label="Add files"
-                      matTooltip="Add files"
+                      [attr.aria-label]="'chat.addFiles' | translate"
+                      [matTooltip]="'chat.addFiles' | translate"
                       [matMenuTriggerFor]="attachMenu">
                 <mat-icon>add</mat-icon>
               </button>
@@ -485,8 +485,8 @@ import { TranslateModule } from '@ngx-translate/core';
                   <button mat-icon-button 
                           class="toolbar-btn send-btn"
                           @slideButton
-                          aria-label="Send message"
-                          matTooltip="Send message"
+                          [attr.aria-label]="'chat.sendMessage' | translate"
+                          [matTooltip]="'chat.sendMessage' | translate"
                           (click)="sendMessage()">
                     <mat-icon>send</mat-icon>
                   </button>
@@ -495,8 +495,8 @@ import { TranslateModule } from '@ngx-translate/core';
                           class="toolbar-btn mic-btn"
                           @slideButton
                           [class.recording]="speechService.isListening()"
-                          [attr.aria-label]="speechService.isListening() ? 'Stop voice input' : 'Start voice input'"
-                          matTooltip="{{ speechService.isListening() ? 'Stop' : 'Voice input' }}"
+                          [attr.aria-label]="speechService.isListening() ? ('chat.stopRecording' | translate) : ('chat.voiceInput' | translate)"
+                          [matTooltip]="speechService.isListening() ? ('chat.stopRecording' | translate) : ('chat.voiceInput' | translate)"
                           (click)="toggleVoiceInput()">
                     <mat-icon>{{ speechService.isListening() ? 'mic_off' : 'mic' }}</mat-icon>
                   </button>
@@ -520,15 +520,15 @@ import { TranslateModule } from '@ngx-translate/core';
                 <button mat-icon-button 
                         class="add-more-btn"
                         (click)="anyInput.click()"
-                        aria-label="Add more files"
-                        matTooltip="Add more files">
+                        [attr.aria-label]="'chat.addMoreFiles' | translate"
+                        [matTooltip]="'chat.addMoreFiles' | translate">
                   <mat-icon>add</mat-icon>
                 </button>
                 <button mat-icon-button 
                         class="clear-all-btn"
                         (click)="clearAllFiles()"
-                        aria-label="Clear all attachments"
-                        matTooltip="Clear all">
+                        [attr.aria-label]="'actions.clearAll' | translate"
+                        [matTooltip]="'actions.clearAll' | translate">
                   <mat-icon>delete_sweep</mat-icon>
                 </button>
               </div>
@@ -557,8 +557,8 @@ import { TranslateModule } from '@ngx-translate/core';
                   <button mat-icon-button 
                           class="file-remove-btn-small" 
                           (click)="removeFile(file)" 
-                          aria-label="Remove {{ file.name }}"
-                          matTooltip="Remove">
+                          [attr.aria-label]="('actions.remove' | translate) + ' ' + file.name"
+                          [matTooltip]="'actions.remove' | translate">
                     <mat-icon>close</mat-icon>
                   </button>
                 </div>
@@ -2306,10 +2306,10 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   filteredModels = signal(this.modelsService.getSortedModels());
 
   quickActions = [
-    { label: 'Create image', prompt: 'Create an image of', icon: 'image', color: '#EA4335' },
-    { label: 'Write a poem', prompt: 'Write a poem about', icon: 'edit_note', color: '#4285F4' },
-    { label: 'Help me learn', prompt: 'Explain in simple terms:', icon: 'school', color: '#34A853' },
-    { label: 'Create video', prompt: 'Create a video about', icon: 'videocam', color: '#FBBC04' },
+    { labelKey: 'quickActions.createImage', prompt: 'Create an image of', icon: 'image', color: '#EA4335' },
+    { labelKey: 'quickActions.writeAnything', prompt: 'Write a poem about', icon: 'edit_note', color: '#4285F4' },
+    { labelKey: 'quickActions.helpMeLearn', prompt: 'Explain in simple terms:', icon: 'school', color: '#34A853' },
+    { labelKey: 'quickActions.createVideo', prompt: 'Create a video about', icon: 'videocam', color: '#FBBC04' },
   ];
 
   constructor() {

@@ -16,13 +16,15 @@
         "voiceInput": "Voice input",
         "stopRecording": "Stop recording",
         "addFiles": "Add files",
+        "addMoreFiles": "Add more files",
         "uploadFiles": "Upload files",
         "googleDrive": "Add from Drive",
         "camera": "Camera",
         "removeFile": "Remove",
         "disclaimer": "Genkit Chat may display inaccurate info. Double-check its responses.",
         "greeting": "Hello",
-        "greetingSubtitle": "How can I help you today?"
+        "greetingSubtitle": "How can I help you today?",
+        "clearInput": "Clear"
     },
     "attach": {
         "photos": "Photos",
@@ -43,6 +45,23 @@
     "settings": {
         "clearPreferences": "Clear preferences"
     },
+    "actions": {
+        "copy": "Copy to clipboard",
+        "readAloud": "Read aloud",
+        "goodResponse": "Good response",
+        "badResponse": "Bad response",
+        "more": "More",
+        "edit": "Edit",
+        "delete": "Delete",
+        "remove": "Remove",
+        "clearAll": "Clear all"
+    },
+    "queue": {
+        "queued": "Queued",
+        "sendAll": "Send all",
+        "clearAll": "Clear all",
+        "sendNow": "Send now"
+    },
     "model": {
         "selectModel": "Select model",
         "searchModels": "Search models...",
@@ -57,7 +76,7 @@
     },
     "quickActions": {
         "createImage": "Create image",
-        "writeAnything": "Write anything",
+        "writeAnything": "Write a poem",
         "helpMeLearn": "Help me learn",
         "createVideo": "Create video",
         "stayOrganized": "Stay organized"

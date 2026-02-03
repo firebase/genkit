@@ -6,34 +6,36 @@
     },
     "nav": {
         "chat": "चॅट",
-        "compare": "तुलना करा",
+        "compare": "तुलना",
         "settings": "सेटिंग्ज",
         "demoUser": "डेमो वापरकर्ता"
     },
     "chat": {
         "placeholder": "Genkit Chat ला विचारा",
         "sendMessage": "संदेश पाठवा",
-        "voiceInput": "आवाज इनपुट",
+        "voiceInput": "व्हॉइस इनपुट",
         "stopRecording": "रेकॉर्डिंग थांबवा",
         "addFiles": "फाइल्स जोडा",
+        "addMoreFiles": "आणखी फाइल्स जोडा",
         "uploadFiles": "फाइल्स अपलोड करा",
         "googleDrive": "Drive वरून जोडा",
         "camera": "कॅमेरा",
-        "removeFile": "काढून टाका",
-        "disclaimer": "Genkit Chat चुकीची माहिती दाखवू शकते. कृपया उत्तरे तपासा.",
+        "removeFile": "काढा",
+        "disclaimer": "Genkit Chat चुकीची माहिती दाखवू शकतो. उत्तरे तपासा.",
         "greeting": "नमस्कार",
-        "greetingSubtitle": "आज मी तुम्हाला कशी मदत करू शकतो?"
+        "greetingSubtitle": "आज मी तुम्हाला कशी मदत करू शकतो?",
+        "clearInput": "साफ करा"
     },
     "attach": {
         "photos": "फोटो",
         "audio": "ऑडिओ",
         "video": "व्हिडिओ",
         "pdf": "PDF",
-        "code": "कोड आयात करा"
+        "code": "कोड इम्पोर्ट करा"
     },
     "toolbar": {
         "settings": "सेटिंग्ज",
-        "tools": "साधने",
+        "tools": "टूल्स",
         "stream": "स्ट्रीमिंग प्रतिसाद",
         "markdown": "Markdown रेंडर करा",
         "safe": "सामग्री सुरक्षा",
@@ -43,10 +45,27 @@
     "settings": {
         "clearPreferences": "प्राधान्ये साफ करा"
     },
+    "actions": {
+        "copy": "क्लिपबोर्डवर कॉपी करा",
+        "readAloud": "मोठ्याने वाचा",
+        "goodResponse": "चांगला प्रतिसाद",
+        "badResponse": "वाईट प्रतिसाद",
+        "more": "अधिक",
+        "edit": "संपादित करा",
+        "delete": "हटवा",
+        "remove": "काढा",
+        "clearAll": "सर्व साफ करा"
+    },
+    "queue": {
+        "queued": "रांगेत",
+        "sendAll": "सर्व पाठवा",
+        "clearAll": "सर्व साफ करा",
+        "sendNow": "आता पाठवा"
+    },
     "model": {
         "selectModel": "मॉडेल निवडा",
-        "searchModels": "मॉडेल शोधा...",
-        "noModelsFound": "कोणतेही मॉडेल सापडले नाहीत",
+        "searchModels": "मॉडेल्स शोधा...",
+        "noModelsFound": "कोणतेही मॉडेल सापडले नाही",
         "categories": {
             "gemini": "Gemini",
             "claude": "Claude",
@@ -57,10 +76,10 @@
     },
     "quickActions": {
         "createImage": "प्रतिमा तयार करा",
-        "writeAnything": "काहीही लिहा",
-        "helpMeLearn": "शिकण्यात मदत करा",
+        "writeAnything": "कविता लिहा",
+        "helpMeLearn": "शिकायला मदत करा",
         "createVideo": "व्हिडिओ तयार करा",
-        "stayOrganized": "व्यवस्थित रहा"
+        "stayOrganized": "व्यवस्थित राहा"
     },
     "theme": {
         "label": "थीम",
@@ -76,7 +95,7 @@
     },
     "help": {
         "label": "मदत आणि संसाधने",
-        "documentation": "दस्तऐवजीकरण",
+        "documentation": "दस्तऐवज",
         "github": "GitHub"
     },
     "auth": {
@@ -86,7 +105,7 @@
         "connectDrive": "Google Drive जोडा"
     },
     "safety": {
-        "flagged": "सामग्री फ्लॅग केली",
+        "flagged": "सामग्री ध्वजांकित",
         "warning": "ही सामग्री हानिकारक असू शकते"
     },
     "errors": {

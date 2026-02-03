@@ -6,30 +6,32 @@
     },
     "nav": {
         "chat": "चैट",
-        "compare": "तुलना करें",
+        "compare": "तुलना",
         "settings": "सेटिंग्स",
         "demoUser": "डेमो उपयोगकर्ता"
     },
     "chat": {
         "placeholder": "Genkit Chat से पूछें",
         "sendMessage": "संदेश भेजें",
-        "voiceInput": "आवाज़ इनपुट",
+        "voiceInput": "ध्वनि इनपुट",
         "stopRecording": "रिकॉर्डिंग रोकें",
-        "addFiles": "फ़ाइलें जोड़ें",
-        "uploadFiles": "फ़ाइलें अपलोड करें",
+        "addFiles": "फाइलें जोड़ें",
+        "addMoreFiles": "और फाइलें जोड़ें",
+        "uploadFiles": "फाइलें अपलोड करें",
         "googleDrive": "Drive से जोड़ें",
         "camera": "कैमरा",
         "removeFile": "हटाएं",
-        "disclaimer": "Genkit Chat गलत जानकारी दिखा सकता है। कृपया इसके जवाबों की जांच करें।",
+        "disclaimer": "Genkit Chat गलत जानकारी दिखा सकता है। कृपया उत्तरों की जांच करें।",
         "greeting": "नमस्ते",
-        "greetingSubtitle": "आज मैं आपकी कैसे मदद कर सकता हूं?"
+        "greetingSubtitle": "आज मैं आपकी कैसे मदद कर सकता हूं?",
+        "clearInput": "साफ़ करें"
     },
     "attach": {
         "photos": "फ़ोटो",
         "audio": "ऑडियो",
         "video": "वीडियो",
         "pdf": "PDF",
-        "code": "कोड आयात करें"
+        "code": "कोड इम्पोर्ट करें"
     },
     "toolbar": {
         "settings": "सेटिंग्स",
@@ -42,6 +44,23 @@
     },
     "settings": {
         "clearPreferences": "प्राथमिकताएं साफ़ करें"
+    },
+    "actions": {
+        "copy": "क्लिपबोर्ड पर कॉपी करें",
+        "readAloud": "जोर से पढ़ें",
+        "goodResponse": "अच्छी प्रतिक्रिया",
+        "badResponse": "खराब प्रतिक्रिया",
+        "more": "अधिक",
+        "edit": "संपादित करें",
+        "delete": "हटाएं",
+        "remove": "हटाएं",
+        "clearAll": "सभी साफ़ करें"
+    },
+    "queue": {
+        "queued": "कतार में",
+        "sendAll": "सभी भेजें",
+        "clearAll": "सभी साफ़ करें",
+        "sendNow": "अभी भेजें"
     },
     "model": {
         "selectModel": "मॉडल चुनें",
@@ -57,8 +76,8 @@
     },
     "quickActions": {
         "createImage": "छवि बनाएं",
-        "writeAnything": "कुछ भी लिखें",
-        "helpMeLearn": "मुझे सीखने में मदद करें",
+        "writeAnything": "कविता लिखें",
+        "helpMeLearn": "सीखने में मदद करें",
         "createVideo": "वीडियो बनाएं",
         "stayOrganized": "व्यवस्थित रहें"
     },
@@ -76,22 +95,22 @@
     },
     "help": {
         "label": "सहायता और संसाधन",
-        "documentation": "दस्तावेज़ीकरण",
+        "documentation": "दस्तावेज़",
         "github": "GitHub"
     },
     "auth": {
         "signIn": "साइन इन करें",
         "signOut": "साइन आउट करें",
         "account": "खाता",
-        "connectDrive": "Google Drive कनेक्ट करें"
+        "connectDrive": "Google Drive जोड़ें"
     },
     "safety": {
-        "flagged": "सामग्री फ़्लैग की गई",
+        "flagged": "सामग्री चिह्नित",
         "warning": "यह सामग्री हानिकारक हो सकती है"
     },
     "errors": {
-        "fileTooLarge": "फ़ाइल \"{name}\" बहुत बड़ी है (अधिकतम {size})",
+        "fileTooLarge": "फाइल \"{name}\" बहुत बड़ी है (अधिकतम {size})",
         "maxAttachments": "अधिकतम {count} अटैचमेंट की अनुमति है",
-        "invalidFileType": "फ़ाइल प्रकार समर्थित नहीं है"
+        "invalidFileType": "फाइल प्रकार समर्थित नहीं है"
     }
 }

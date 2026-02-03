@@ -13,16 +13,18 @@
     "chat": {
         "placeholder": "Demandez à Genkit Chat",
         "sendMessage": "Envoyer le message",
-        "voiceInput": "Saisie vocale",
+        "voiceInput": "Entrée vocale",
         "stopRecording": "Arrêter l'enregistrement",
         "addFiles": "Ajouter des fichiers",
-        "uploadFiles": "Télécharger des fichiers",
+        "addMoreFiles": "Ajouter plus de fichiers",
+        "uploadFiles": "Téléverser des fichiers",
         "googleDrive": "Ajouter depuis Drive",
         "camera": "Caméra",
         "removeFile": "Supprimer",
-        "disclaimer": "Genkit Chat peut afficher des informations inexactes. Vérifiez ses réponses.",
+        "disclaimer": "Genkit Chat peut afficher des informations inexactes. Vérifiez les réponses.",
         "greeting": "Bonjour",
-        "greetingSubtitle": "Comment puis-je vous aider aujourd'hui ?"
+        "greetingSubtitle": "Comment puis-je vous aider aujourd'hui ?",
+        "clearInput": "Effacer"
     },
     "attach": {
         "photos": "Photos",
@@ -35,7 +37,7 @@
         "settings": "Paramètres",
         "tools": "Outils",
         "stream": "Réponses en streaming",
-        "markdown": "Afficher le markdown",
+        "markdown": "Afficher le Markdown",
         "safe": "Sécurité du contenu",
         "enabled": "Activé",
         "disabled": "Désactivé"
@@ -43,8 +45,25 @@
     "settings": {
         "clearPreferences": "Effacer les préférences"
     },
+    "actions": {
+        "copy": "Copier dans le presse-papiers",
+        "readAloud": "Lire à voix haute",
+        "goodResponse": "Bonne réponse",
+        "badResponse": "Mauvaise réponse",
+        "more": "Plus",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "remove": "Retirer",
+        "clearAll": "Tout effacer"
+    },
+    "queue": {
+        "queued": "En file d'attente",
+        "sendAll": "Tout envoyer",
+        "clearAll": "Tout effacer",
+        "sendNow": "Envoyer maintenant"
+    },
     "model": {
-        "selectModel": "Sélectionner un modèle",
+        "selectModel": "Sélectionner le modèle",
         "searchModels": "Rechercher des modèles...",
         "noModelsFound": "Aucun modèle trouvé",
         "categories": {
@@ -57,8 +76,8 @@
     },
     "quickActions": {
         "createImage": "Créer une image",
-        "writeAnything": "Écrire quelque chose",
-        "helpMeLearn": "Aidez-moi à apprendre",
+        "writeAnything": "Écrire un poème",
+        "helpMeLearn": "M'aider à apprendre",
         "createVideo": "Créer une vidéo",
         "stayOrganized": "Rester organisé"
     },

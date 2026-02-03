@@ -16,13 +16,15 @@
         "voiceInput": "Spracheingabe",
         "stopRecording": "Aufnahme stoppen",
         "addFiles": "Dateien hinzufügen",
+        "addMoreFiles": "Weitere Dateien hinzufügen",
         "uploadFiles": "Dateien hochladen",
         "googleDrive": "Von Drive hinzufügen",
         "camera": "Kamera",
         "removeFile": "Entfernen",
-        "disclaimer": "Genkit Chat kann ungenaue Informationen anzeigen. Überprüfe die Antworten.",
+        "disclaimer": "Genkit Chat kann ungenaue Informationen anzeigen. Überprüfen Sie die Antworten.",
         "greeting": "Hallo",
-        "greetingSubtitle": "Wie kann ich dir heute helfen?"
+        "greetingSubtitle": "Wie kann ich Ihnen heute helfen?",
+        "clearInput": "Löschen"
     },
     "attach": {
         "photos": "Fotos",
@@ -43,6 +45,23 @@
     "settings": {
         "clearPreferences": "Einstellungen löschen"
     },
+    "actions": {
+        "copy": "In Zwischenablage kopieren",
+        "readAloud": "Vorlesen",
+        "goodResponse": "Gute Antwort",
+        "badResponse": "Schlechte Antwort",
+        "more": "Mehr",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "remove": "Entfernen",
+        "clearAll": "Alle löschen"
+    },
+    "queue": {
+        "queued": "In Warteschlange",
+        "sendAll": "Alle senden",
+        "clearAll": "Alle löschen",
+        "sendNow": "Jetzt senden"
+    },
     "model": {
         "selectModel": "Modell auswählen",
         "searchModels": "Modelle suchen...",
@@ -57,8 +76,8 @@
     },
     "quickActions": {
         "createImage": "Bild erstellen",
-        "writeAnything": "Etwas schreiben",
-        "helpMeLearn": "Beim Lernen helfen",
+        "writeAnything": "Ein Gedicht schreiben",
+        "helpMeLearn": "Lernhilfe",
         "createVideo": "Video erstellen",
         "stayOrganized": "Organisiert bleiben"
     },
@@ -87,7 +106,7 @@
     },
     "safety": {
         "flagged": "Inhalt markiert",
-        "warning": "Dieser Inhalt kann schädlich sein"
+        "warning": "Dieser Inhalt könnte schädlich sein"
     },
     "errors": {
         "fileTooLarge": "Datei \"{name}\" ist zu groß (max. {size})",
