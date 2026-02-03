@@ -197,7 +197,8 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
               <button mat-stroked-button 
                       class="quick-chip"
                       (click)="useQuickAction(action.prompt)">
-                {{ action.label }}
+                <mat-icon class="chip-icon" [style.color]="action.color">{{ action.icon }}</mat-icon>
+                <span>{{ action.label }}</span>
               </button>
             }
           </div>
@@ -1540,7 +1541,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       width: 100%;
       border: none;
       background: transparent;
-      font-size: 16px;
+      font-size: 18px;
       font-family: inherit;
       color: var(--on-surface);
       outline: none;
@@ -2009,12 +2010,21 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
     }
     
     .quick-chip {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 6px;
       border-radius: 20px !important;
       font-size: 14px;
-      padding: 8px 16px !important;
+      padding: 8px 14px !important;
       background: var(--surface) !important;
       border: 1px solid var(--surface-variant) !important;
       color: var(--on-surface) !important;
+      
+      .chip-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
       
       &:hover {
         background: var(--surface-container) !important;
@@ -2069,7 +2079,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       min-width: 0;
       border: none;
       background: transparent;
-      font-size: 15px;
+      font-size: 18px;
       font-family: inherit;
       color: var(--on-surface);
       outline: none;
@@ -2161,17 +2171,23 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
 
     .clear-input-btn {
       position: absolute;
-      top: 8px;
-      right: 8px;
+      top: 20px;
+      right: 20px;
       width: 32px !important;
       height: 32px !important;
       padding: 0 !important;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
 
       mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
         color: var(--on-surface-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       &:hover mat-icon {
@@ -2289,11 +2305,10 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   filteredModels = signal(this.modelsService.getSortedModels());
 
   quickActions = [
-    { label: 'Create image', prompt: 'Create an image of' },
-    { label: 'Write anything', prompt: 'Help me write' },
-    { label: 'Help me learn', prompt: 'Explain in simple terms:' },
-    { label: 'Create video', prompt: 'Create a video about' },
-    { label: 'Stay organized', prompt: 'Help me organize' },
+    { label: 'Create image', prompt: 'Create an image of', icon: 'image', color: '#EA4335' },
+    { label: 'Write a poem', prompt: 'Write a poem about', icon: 'edit_note', color: '#4285F4' },
+    { label: 'Help me learn', prompt: 'Explain in simple terms:', icon: 'school', color: '#34A853' },
+    { label: 'Create video', prompt: 'Create a video about', icon: 'videocam', color: '#FBBC04' },
   ];
 
   constructor() {
