@@ -4,10 +4,10 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
-## Current Status (Updated 2026-02-03)
+## Current Status (Updated 2026-01-30)
 
 > [!IMPORTANT]
-> **Overall Parity: ~98% Complete** - All critical production features implemented.
+> **Overall Parity: ~99% Complete** - Nearly all milestones done!
 
 ### Completed Milestones ✅
 
@@ -20,80 +20,31 @@ This document organizes the identified gaps into executable milestones with depe
 | **M4: Telemetry** | ✅ Complete | RealtimeSpanProcessor, flushTracing, AdjustingTraceExporter, GCP parity |
 | **M5: Advanced** | ✅ Complete | embed_many ✅, define_simple_retriever ✅, define_background_model ✅ |
 | **M6: Media Models** | ✅ Complete | Veo, Lyria, TTS, Gemini Image models |
-| **M8: Model Plugins** | ✅ Complete | Mistral, HuggingFace, DeepSeek, xAI, etc. |
-| **M10: DAP** | ✅ Complete | Dynamic Action Providers with cache |
-| **M11: Middleware** | ✅ Complete | `retry()`, `fallback()`, `augment_with_context()` |
-| **M12: Tool Interrupts** | ✅ Complete | `tool_response()`, `tool_restart()` |
-| **M13: Vertex AI RAG** | ✅ Complete | Rerankers + Built-in Evaluators |
 
-### Remaining Work (Lower Priority)
+### Remaining Work
 
-| Priority | Task | Effort | Status | Description |
-|----------|------|--------|--------|-------------|
-| **P1** | Live/Realtime API | L | ❌ Not Started | Google GenAI Live API |
-| **P2** | Chroma vector store plugin | M | ❌ **OPTIONAL** | Popular vector store |
-| **P2** | Pinecone vector store plugin | M | ❌ **OPTIONAL** | Popular managed vector store |
-| **P2** | Multi-agent sample | M | ❌ Not Started | |
-| **P2** | MCP sample | M | ❌ Not Started | |
-
-### Lower Priority Gaps
-
-| Priority | Task | Effort | Status | Notes |
-|----------|------|--------|--------|-------|
-| **P3** | Multipart tools (v2) | M | ❌ | Advanced tool responses |
-| **P3** | `asTool()` conversion | S | ❌ | Convert actions to tools |
-| **P3** | `defineInterrupt()` | S | ❌ | Interrupt tool factory |
-| **P3** | `downloadRequestMedia()` middleware | M | ❌ | Auto-download HTTP media URLs |
-| **P3** | `simulateSystemPrompt()` middleware | S | ❌ | For models without system prompt |
-| **P3** | `validateSupport()` middleware | S | ❌ | Validate model capabilities |
-| **P3** | `abortSignal` in generate | S | ❌ | Cancellation support |
-| **P3** | `stepName` in generate | S | ❌ | Custom trace step names |
-| **P3** | Span ID in reflection headers | S | ❌ | `X-Genkit-Span-Id` header |
-| **P3** | Configurable envs in reflection | S | ❌ | Currently hardcoded to `['dev']` |
-
----
-
-## Release Readiness Assessment
-
-> [!NOTE]
-> **Recommendation: READY FOR RELEASE** with documented limitations.
-
-### What's Complete ✅
-
-- **All core generate/flow/tool/prompt APIs** - Full feature parity
-- **Session/Chat API** - Multi-thread conversations
-- **DAP (Dynamic Action Providers)** - Runtime action registration
-- **All output formats** - json, text, array, enum, jsonl
-- **Embedder/Retriever/Indexer/Reranker APIs** - Full RAG support
-- **Evaluator API** - Single and batch evaluation
-- **Telemetry/Observability** - OpenTelemetry, GCP exporters
-- **Reflection API** - DevUI support
-- **Media models** - Veo, Lyria, TTS, Image generation
-- **Model plugins** - google-genai, anthropic, ollama, mistral, huggingface, deepseek, xai, aws-bedrock, azure, cf-ai
-
-### What's Missing (Document in Release Notes)
-
-1. **Chroma/Pinecone plugins** - Use `dev-local-vectorstore` or custom implementation
-2. **Live/Realtime API** - Google GenAI Live API (can be added post-release)
-3. **Multipart tools (v2)** - Advanced tool responses (edge case)
+| Priority | Task | Effort | Status |
+|----------|------|--------|--------|
+| **P0** | Testing Infrastructure (`genkit.testing`) | S | ✅ Complete |
+| **P0** | Context Caching (google-genai) | M | ✅ Complete |
+| **P1** | `define_background_model()` | M | ✅ Complete |
+| **P1** | Veo support in google-genai plugin | M | ✅ Complete |
+| **P1** | TTS (Text-to-Speech) models | S | ✅ Complete |
+| **P1** | Gemini Image models | S | ✅ Complete |
+| **P1** | Lyria audio generation (Vertex AI) | S | ✅ Complete |
+| **P1** | Live/Realtime API | L | ❌ Not Started |
+| **P2** | Multi-agent sample | M | ❌ Not Started |
+| **P2** | MCP sample | M | ❌ Not Started |
 
 ---
 
 ## Remaining Gaps (Prioritized)
 
 > [!NOTE]
-> Gaps identified from comprehensive JS vs Python parity analysis (2026-02-03).
+> Most original gaps have been addressed. These are the remaining items.
 
 | Gap | Description | Priority | Status |
 |-----|-------------|----------|--------|
-| **retry() middleware** | Retry on transient errors with exponential backoff | **P0** | ✅ IMPLEMENTED |
-| **fallback() middleware** | Fallback to alternative models on failure | **P0** | ✅ IMPLEMENTED |
-| **Vertex AI Rerankers** | v2 API + legacy rerankers for RAG | **P1** | ✅ IMPLEMENTED |
-| **tool.restart()** | Resume interrupted tool with new input | **P1** | ✅ IMPLEMENTED |
-| **Vertex built-in evaluators** | Native GCP evaluation metrics | **P2** | ✅ IMPLEMENTED |
-| **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
-| **Chroma plugin** | Chroma vector store integration | **P2** | ❌ **OPTIONAL** |
-| **Pinecone plugin** | Pinecone vector store integration | **P2** | ❌ **OPTIONAL** |
 | **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. | **P0** | ✅ Complete |
 | **Context Caching** | `ai.cacheContent()`, `cachedContent` option in generate | **P0** | ✅ Complete |
 | **define_background_model** | Core API for background models (Veo, etc.) | **P1** | ✅ Complete |
@@ -101,6 +52,7 @@ This document organizes the identified gaps into executable milestones with depe
 | **TTS models** | Text-to-speech Gemini models (gemini-*-tts) | **P1** | ✅ Complete |
 | **Gemini Image models** | Native image generation (gemini-*-image) | **P1** | ✅ Complete |
 | **Lyria audio generation** | Audio generation via Vertex AI (lyria-002) | **P1** | ✅ Complete |
+| **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
 | **CLI/Tooling Parity** | `genkit` CLI commands and Python project behavior | Medium | ⚠️ Mostly Working |
 | **Error Types** | Python error hierarchy parity check | Low | ⚠️ Needs Review |
 | **Auth/Security Patterns** | Auth context flow through actions | Medium | ⚠️ Needs Review |
@@ -1159,172 +1111,6 @@ ai = Genkit(
 >
 > Dedicated plugins are only needed when provider-specific features aren't available
 > through these unified interfaces.
-
----
-
-## M10: Critical Middleware (High Priority for Production)
-
-> [!WARNING]
-> These middleware features are critical for production use. Implement before major production deployments.
-
-### retry() Middleware
-
-The `retry()` middleware automatically retries failed requests with exponential backoff.
-
-**JavaScript Implementation Reference:** `js/ai/src/model/middleware.ts`
-
-```typescript
-// JS API
-retry({
-  maxRetries: 3,
-  statuses: ['UNAVAILABLE', 'RESOURCE_EXHAUSTED'],
-  initialDelayMs: 1000,
-  maxDelayMs: 60000,
-  backoffFactor: 2,
-  noJitter: false,
-  onError: (error, attempt) => console.log(`Retry ${attempt}`)
-})
-```
-
-**Python Implementation Plan:**
-
-```python
-# py/packages/genkit/src/genkit/blocks/middleware/retry.py
-from genkit.blocks.model import ModelMiddleware
-
-def retry(
-    max_retries: int = 3,
-    statuses: list[str] | None = None,  # Default: ['UNAVAILABLE', 'RESOURCE_EXHAUSTED']
-    initial_delay_ms: int = 1000,
-    max_delay_ms: int = 60000,
-    backoff_factor: float = 2.0,
-    no_jitter: bool = False,
-    on_error: Callable[[Exception, int], None] | None = None,
-) -> ModelMiddleware:
-    """Retry middleware with exponential backoff."""
-    ...
-```
-
-**Tasks:**
-
-| ID | Task | Effort | Status |
-|----|------|--------|--------|
-| MW-1 | Implement `retry()` middleware | M | ❌ Not Started |
-| MW-2 | Add jitter calculation | S | ❌ Not Started |
-| MW-3 | Add status code matching | S | ❌ Not Started |
-| MW-4 | Add tests | S | ❌ Not Started |
-| MW-5 | Add documentation | S | ❌ Not Started |
-
-### fallback() Middleware
-
-The `fallback()` middleware tries alternative models when the primary fails.
-
-**JavaScript Implementation Reference:** `js/ai/src/model/middleware.ts`
-
-```typescript
-// JS API
-fallback(ai, {
-  models: ['googleai/gemini-2.0-flash', 'anthropic/claude-3-5-sonnet'],
-  statuses: ['UNAVAILABLE'],
-  onError: (error) => console.log(`Falling back: ${error}`)
-})
-```
-
-**Python Implementation Plan:**
-
-```python
-# py/packages/genkit/src/genkit/blocks/middleware/fallback.py
-from genkit.blocks.model import ModelMiddleware
-
-def fallback(
-    ai: Genkit,
-    models: list[str],
-    statuses: list[str] | None = None,  # Default: ['UNAVAILABLE']
-    on_error: Callable[[Exception], None] | None = None,
-) -> ModelMiddleware:
-    """Fallback to alternative models on failure."""
-    ...
-```
-
-**Tasks:**
-
-| ID | Task | Effort | Status |
-|----|------|--------|--------|
-| MW-6 | Implement `fallback()` middleware | M | ❌ Not Started |
-| MW-7 | Add model resolution | S | ❌ Not Started |
-| MW-8 | Add tests | S | ❌ Not Started |
-| MW-9 | Add documentation | S | ❌ Not Started |
-
----
-
-## M11: Vertex AI Rerankers (High Priority for RAG)
-
-> [!NOTE]
-> Rerankers are critical for production RAG applications. They improve retrieval quality by re-scoring documents.
-
-**JavaScript Implementation Reference:** `js/plugins/vertexai/src/rerankers/`
-
-### Vertex AI Reranker Features
-
-| Feature | JavaScript | Python | Status |
-|---------|-----------|--------|--------|
-| v2 Reranker API | ✅ | ❌ | **MISSING** |
-| Legacy Reranker API | ✅ | ❌ | **MISSING** |
-| `semantic-ranker-512` model | ✅ | ❌ | **MISSING** |
-
-**Python Implementation Plan:**
-
-```python
-# py/plugins/google-genai/src/genkit/plugins/google_genai/rerankers/
-from genkit.ai import Genkit
-from genkit.blocks.reranker import defineReranker, RankedDocument
-
-# In VertexAI plugin
-def _register_rerankers(ai: Genkit, options: VertexAIOptions):
-    @ai.define_reranker(
-        name='vertexai/semantic-ranker-512',
-        config_schema=VertexRerankerConfig,
-    )
-    async def vertex_reranker(query: Document, documents: list[Document], config: VertexRerankerConfig) -> list[RankedDocument]:
-        # Call Vertex AI Ranking API
-        ...
-```
-
-**Tasks:**
-
-| ID | Task | Effort | Status |
-|----|------|--------|--------|
-| VR-1 | Add `rerankers/` module to google-genai plugin | M | ❌ Not Started |
-| VR-2 | Implement v2 Ranking API client | M | ❌ Not Started |
-| VR-3 | Implement legacy Ranking API client | S | ❌ Not Started |
-| VR-4 | Add `semantic-ranker-512` model | S | ❌ Not Started |
-| VR-5 | Add tests | M | ❌ Not Started |
-| VR-6 | Add documentation | S | ❌ Not Started |
-
----
-
-## M12: Vector Store Plugins (Medium Priority)
-
-> [!NOTE]
-> These are popular vector stores that would benefit Python users.
-
-### Chroma Plugin
-
-| Task | Effort | Status |
-|------|--------|--------|
-| CH-1 | Create `genkit-plugin-chroma` package | M | ❌ Not Started |
-| CH-2 | Implement retriever | M | ❌ Not Started |
-| CH-3 | Implement indexer | M | ❌ Not Started |
-| CH-4 | Add sample | S | ❌ Not Started |
-
-### Pinecone Plugin
-
-| Task | Effort | Status |
-|------|--------|--------|
-| PI-1 | Create `genkit-plugin-pinecone` package | M | ❌ Not Started |
-| PI-2 | Implement retriever | M | ❌ Not Started |
-| PI-3 | Implement indexer | M | ❌ Not Started |
-| PI-4 | Add sample | S | ❌ Not Started |
 
 ---
 
