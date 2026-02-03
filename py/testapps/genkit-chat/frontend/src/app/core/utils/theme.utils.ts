@@ -30,53 +30,53 @@ export const THEME_STORAGE_KEY = 'genkit-chat-theme';
  * Determine if dark mode should be active.
  */
 export function isDarkTheme(theme: Theme, prefersDark: boolean): boolean {
-    if (theme === 'system') {
-        return prefersDark;
-    }
-    return theme === 'dark';
+  if (theme === 'system') {
+    return prefersDark;
+  }
+  return theme === 'dark';
 }
 
 /**
  * Toggle between light and dark themes.
  */
 export function toggleTheme(currentTheme: Theme): Theme {
-    return currentTheme === 'dark' ? 'light' : 'dark';
+  return currentTheme === 'dark' ? 'light' : 'dark';
 }
 
 /**
  * Get the color-scheme value for CSS.
  */
 export function getColorScheme(isDark: boolean): 'light' | 'dark' {
-    return isDark ? 'dark' : 'light';
+  return isDark ? 'dark' : 'light';
 }
 
 /**
  * Load theme from localStorage.
  */
 export function loadThemeFromStorage(defaultTheme: Theme = 'system'): Theme {
-    if (typeof localStorage === 'undefined') return defaultTheme;
+  if (typeof localStorage === 'undefined') return defaultTheme;
 
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
-        return stored;
-    }
-    return defaultTheme;
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === 'light' || stored === 'dark' || stored === 'system') {
+    return stored;
+  }
+  return defaultTheme;
 }
 
 /**
  * Save theme to localStorage.
  */
 export function saveThemeToStorage(theme: Theme): void {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
 }
 
 /**
  * Apply theme classes to the document body.
  */
 export function applyThemeToDocument(isDark: boolean): void {
-    if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined') return;
 
-    document.body.classList.toggle('dark-theme', isDark);
-    document.documentElement.style.colorScheme = getColorScheme(isDark);
+  document.body.classList.toggle('dark-theme', isDark);
+  document.documentElement.style.colorScheme = getColorScheme(isDark);
 }

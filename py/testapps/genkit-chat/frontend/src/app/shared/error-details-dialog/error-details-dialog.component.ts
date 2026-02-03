@@ -1,3 +1,21 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { Component, Inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
@@ -6,15 +24,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
-    selector: 'app-error-details-dialog',
-    imports: [
-        CommonModule,
-        MatDialogModule,
-        MatButtonModule,
-        MatIconModule,
-        MatSnackBarModule,
-    ],
-    template: `
+  selector: 'app-error-details-dialog',
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, MatSnackBarModule],
+  template: `
     <div class="error-dialog">
       <div class="dialog-header">
         <div class="header-content">
@@ -48,7 +60,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
       </div>
     </div>
   `,
-    styles: [`
+  styles: [
+    `
     :host {
       display: block;
       font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -190,53 +203,56 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         }
       }
     }
-  `]
+  `,
+  ],
 })
 export class ErrorDetailsDialogComponent {
-    highlightedJson: string;
-    copied = signal(false);
+  highlightedJson: string;
+  copied = signal(false);
 
-    constructor(
-        public dialogRef: MatDialogRef<ErrorDetailsDialogComponent>,
-        @Inject(MAT_DIALOG_DATA) public data: { errorDetails: string },
-        private snackBar: MatSnackBar
-    ) {
-        this.highlightedJson = this.highlightJson(data.errorDetails);
+  constructor(
+    public dialogRef: MatDialogRef<ErrorDetailsDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: { errorDetails: string },
+    private snackBar: MatSnackBar
+  ) {
+    this.highlightedJson = this.highlightJson(data.errorDetails);
+  }
+
+  private highlightJson(json: string): string {
+    try {
+      // Try to parse and re-format
+      const parsed = JSON.parse(json);
+      json = JSON.stringify(parsed, null, 2);
+    } catch {
+      // Keep original if not valid JSON
     }
 
-    private highlightJson(json: string): string {
-        try {
-            // Try to parse and re-format
-            const parsed = JSON.parse(json);
-            json = JSON.stringify(parsed, null, 2);
-        } catch {
-            // Keep original if not valid JSON
-        }
+    // Syntax highlighting with regex
+    return (
+      json
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        // Match JSON keys (strings followed by colon)
+        .replace(/"([^"]+)"(?=\s*:)/g, '<span class="json-key">"$1"</span>')
+        // Match JSON string values
+        .replace(/:\s*"([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+        // Match numbers
+        .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+        // Match booleans
+        .replace(/:\s*(true|false)/g, ': <span class="json-boolean">$1</span>')
+        // Match null
+        .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>')
+        // Match brackets
+        .replace(/([{}\[\]])/g, '<span class="json-bracket">$1</span>')
+    );
+  }
 
-        // Syntax highlighting with regex
-        return json
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            // Match JSON keys (strings followed by colon)
-            .replace(/"([^"]+)"(?=\s*:)/g, '<span class="json-key">"$1"</span>')
-            // Match JSON string values
-            .replace(/:\s*"([^"]*)"/g, ': <span class="json-string">"$1"</span>')
-            // Match numbers
-            .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
-            // Match booleans
-            .replace(/:\s*(true|false)/g, ': <span class="json-boolean">$1</span>')
-            // Match null
-            .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>')
-            // Match brackets
-            .replace(/([{}\[\]])/g, '<span class="json-bracket">$1</span>');
-    }
-
-    copyToClipboard(): void {
-        navigator.clipboard.writeText(this.data.errorDetails).then(() => {
-            this.copied.set(true);
-            this.snackBar.open('Copied to clipboard', '', { duration: 2000 });
-            setTimeout(() => this.copied.set(false), 2000);
-        });
-    }
+  copyToClipboard(): void {
+    navigator.clipboard.writeText(this.data.errorDetails).then(() => {
+      this.copied.set(true);
+      this.snackBar.open('Copied to clipboard', '', { duration: 2000 });
+      setTimeout(() => this.copied.set(false), 2000);
+    });
+  }
 }

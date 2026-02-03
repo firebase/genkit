@@ -1,3 +1,21 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -276,7 +294,8 @@ interface ConfigResponse {
       </section>
     </div>
   `,
-  styles: [`
+  styles: [
+    `
     :host {
       display: block;
       font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -583,7 +602,8 @@ interface ConfigResponse {
         height: 18px;
       }
     }
-  `],
+  `,
+  ],
 })
 export class SettingsComponent implements OnInit {
   private http = inject(HttpClient);
@@ -599,16 +619,15 @@ export class SettingsComponent implements OnInit {
   }
 
   private loadConfig(): void {
-    this.http.get<ConfigResponse>('http://localhost:8080/api/config')
-      .subscribe({
-        next: (data) => {
-          this.config.set(data);
-          this.loading.set(false);
-        },
-        error: (err) => {
-          console.error('Failed to load config:', err);
-          this.loading.set(false);
-        },
-      });
+    this.http.get<ConfigResponse>('http://localhost:8080/api/config').subscribe({
+      next: (data) => {
+        this.config.set(data);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load config:', err);
+        this.loading.set(false);
+      },
+    });
   }
 }

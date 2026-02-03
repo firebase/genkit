@@ -1,14 +1,32 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * ModelSelectorComponent - Model selection dropdown with search.
- * 
+ *
  * This component is responsible for:
  * - Displaying the currently selected model
  * - Searchable dropdown for model selection
  * - Recent models section
  * - Models grouped by provider
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────┐
  *     │          ModelSelectorComponent             │
  *     ├─────────────────────────────────────────────┤
@@ -140,7 +158,8 @@ export interface Provider {
       </div>
     </mat-menu>
   `,
-  styles: [`
+  styles: [
+    `
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: inline-block;
@@ -287,7 +306,8 @@ export interface Provider {
       color: var(--_on-surface-variant);
       font-size: 14px;
     }
-  `]
+  `,
+  ],
 })
 export class ModelSelectorComponent {
   /** Currently selected model ID */
@@ -312,10 +332,9 @@ export class ModelSelectorComponent {
     const query = this.searchQuery.toLowerCase();
     const allModels: Model[] = [];
 
-    this.providers().forEach(provider => {
-      provider.models.forEach(model => {
-        if (model.name.toLowerCase().includes(query) ||
-          model.id.toLowerCase().includes(query)) {
+    this.providers().forEach((provider) => {
+      provider.models.forEach((model) => {
+        if (model.name.toLowerCase().includes(query) || model.id.toLowerCase().includes(query)) {
           allModels.push(model);
         }
       });
@@ -338,7 +357,7 @@ export class ModelSelectorComponent {
 
   getModelName(modelId: string): string {
     for (const provider of this.providers()) {
-      const model = provider.models.find(m => m.id === modelId);
+      const model = provider.models.find((m) => m.id === modelId);
       if (model) return model.name;
     }
     // Fallback: extract name from ID
@@ -348,7 +367,7 @@ export class ModelSelectorComponent {
 
   getProviderName(modelId: string): string {
     for (const provider of this.providers()) {
-      if (provider.models.some(m => m.id === modelId)) {
+      if (provider.models.some((m) => m.id === modelId)) {
         return provider.name;
       }
     }

@@ -1,4 +1,31 @@
-import { Component, inject, signal, effect, ElementRef, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  Component,
+  inject,
+  signal,
+  effect,
+  ElementRef,
+  ViewChild,
+  OnDestroy,
+  AfterViewInit,
+} from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -28,41 +55,40 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
 import { TranslateModule } from '@ngx-translate/core';
 
-
 /**
  * Main chat interface component for Genkit Chat.
- * 
+ *
  * This is the legacy monolithic component. For new development, prefer using
  * the refactored components from `./components/`:
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ChatComponent (this file - legacy container)
  *     │
  *     └── Refactored Components (./components/)
  *         ├── MessageListComponent      - Message display with markdown
- *         ├── WelcomeScreenComponent    - Greeting animation, quick actions  
+ *         ├── WelcomeScreenComponent    - Greeting animation, quick actions
  *         ├── PromptQueueComponent      - Queue with drag-and-drop
  *         ├── ChatInputComponent        - Input, attachments, voice, settings
  *         │   └── [slot: modelSelector]
  *         └── ModelSelectorComponent    - Searchable model dropdown
- * 
+ *
  * Migration Path:
  * 1. Import components from './components'
  * 2. Replace template sections with component usages
  * 3. Wire up inputs/outputs to existing services
  * 4. Remove redundant code from this file
- * 
+ *
  * Example using new components::
- * 
+ *
  *     <!-- Message list -->
- *     <app-message-list 
+ *     <app-message-list
  *       [messages]="chatService.messages()"
  *       [isLoading]="chatService.isLoading()"
  *       [markdownMode]="chatService.markdownMode()"
  *       (copy)="copyMessage($event)"
  *       (speak)="speakMessage($event)" />
- *     
+ *
  *     <!-- Welcome screen (when no messages) -->
  *     @if (chatService.messages().length === 0) {
  *       <app-welcome-screen
@@ -70,7 +96,7 @@ import { TranslateModule } from '@ngx-translate/core';
  *         [quickActions]="quickActions"
  *         (actionSelected)="useQuickAction($event)" />
  *     }
- *     
+ *
  *     <!-- Input area -->
  *     <app-chat-input
  *       [streamingEnabled]="chatService.streamingMode()"
@@ -82,7 +108,7 @@ import { TranslateModule } from '@ngx-translate/core';
  *         [providers]="modelsService.providers()"
  *         (modelSelected)="modelsService.setSelectedModel($event)" />
  *     </app-chat-input>
- * 
+ *
  * @see ./components/index.ts for all available components
  */
 @Component({
@@ -111,22 +137,22 @@ import { TranslateModule } from '@ngx-translate/core';
     trigger('slideIn', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(10px)' }),
-        animate('200ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+        animate('200ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
       ]),
       transition(':leave', [
-        animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' }))
-      ])
+        animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' })),
+      ]),
     ]),
     // Slide animation for mic/send button transition - slide left
     trigger('slideButton', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateX(10px)' }),
-        animate('150ms ease-out', style({ opacity: 1, transform: 'translateX(0)' }))
+        animate('150ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
       ]),
       transition(':leave', [
-        animate('100ms ease-in', style({ opacity: 0, transform: 'translateX(-10px)' }))
-      ])
-    ])
+        animate('100ms ease-in', style({ opacity: 0, transform: 'translateX(-10px)' })),
+      ]),
+    ]),
   ],
   template: `
     <div class="chat-container" 
@@ -634,7 +660,8 @@ import { TranslateModule } from '@ngx-translate/core';
       </div>
     </div>
   `,
-  styles: [`
+  styles: [
+    `
     :host {
       display: block;
       width: 100%;
@@ -2251,7 +2278,8 @@ import { TranslateModule } from '@ngx-translate/core';
         color: var(--on-surface);
       }
     }
-  `],
+  `,
+  ],
 })
 export class ChatComponent implements OnDestroy, AfterViewInit {
   chatService = inject(ChatService);
@@ -2270,7 +2298,9 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   userMessage = '';
   inputFocused = false;
   isDragging = signal(false);
-  attachedFiles = signal<{ name: string; type: string; size: number; preview: string; data: string }[]>([]);
+  attachedFiles = signal<
+    { name: string; type: string; size: number; preview: string; data: string }[]
+  >([]);
 
   // Debounced send button visibility to smooth animation
   showSendButton = signal(false);
@@ -2284,9 +2314,6 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   // Attachment limits from config
   maxAttachments = CHAT_CONFIG.maxAttachments;
   maxFileSizeBytes = CHAT_CONFIG.maxFileSizeBytes;
-
-
-
 
   // Queue editing state
   queueExpanded = true;
@@ -2362,10 +2389,30 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   filteredModels = signal(this.modelsService.getSortedModels());
 
   quickActions = [
-    { labelKey: 'quickActions.createImage', prompt: 'Create an image of', icon: 'image', color: '#EA4335' },
-    { labelKey: 'quickActions.writeAnything', prompt: 'Write a poem about', icon: 'edit_note', color: '#4285F4' },
-    { labelKey: 'quickActions.helpMeLearn', prompt: 'Explain in simple terms:', icon: 'school', color: '#34A853' },
-    { labelKey: 'quickActions.createVideo', prompt: 'Create a video about', icon: 'videocam', color: '#FBBC04' },
+    {
+      labelKey: 'quickActions.createImage',
+      prompt: 'Create an image of',
+      icon: 'image',
+      color: '#EA4335',
+    },
+    {
+      labelKey: 'quickActions.writeAnything',
+      prompt: 'Write a poem about',
+      icon: 'edit_note',
+      color: '#4285F4',
+    },
+    {
+      labelKey: 'quickActions.helpMeLearn',
+      prompt: 'Explain in simple terms:',
+      icon: 'school',
+      color: '#34A853',
+    },
+    {
+      labelKey: 'quickActions.createVideo',
+      prompt: 'Create a video about',
+      icon: 'videocam',
+      color: '#FBBC04',
+    },
   ];
 
   constructor() {
@@ -2429,7 +2476,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   private startGreetingCarousel(): void {
     // Start cursor blinking
     this.cursorInterval = setInterval(() => {
-      this.showCursor.update(v => !v);
+      this.showCursor.update((v) => !v);
     }, 530);
 
     // Type the first greeting
@@ -2453,7 +2500,11 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     }, 8000);
   }
 
-  private typeGreeting(greetingText: string, anim: 'type' | 'slide' = 'type', dir: 'ltr' | 'rtl' = 'ltr'): void {
+  private typeGreeting(
+    greetingText: string,
+    anim: 'type' | 'slide' = 'type',
+    dir: 'ltr' | 'rtl' = 'ltr'
+  ): void {
     // Build the full text including user's name (no comma, looks cooler)
     const userName = this.authService.user()?.given_name;
     const text = userName ? `${greetingText} ${userName}` : greetingText;
@@ -2541,7 +2592,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
 
       // Trigger pulse animation
       this.isPulsing = true;
-      setTimeout(() => this.isPulsing = false, 400);
+      setTimeout(() => (this.isPulsing = false), 400);
 
       this.sendMessage();
       // Ensure focus stays on input after Angular's change detection
@@ -2572,7 +2623,6 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
       }
     }, 0);
   }
-
 
   /**
    * Clear content flagging when user edits their message.
@@ -2674,19 +2724,18 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
       return;
     }
 
-    this.chatService.sendMessage(message, this.modelsService.selectedModel())
-      .subscribe({
-        next: response => {
-          this.chatService.addAssistantMessage(response);
-        },
-        error: err => {
-          this.snackBar.open('Failed to send message. Please try again.', 'Dismiss', {
-            duration: 5000,
-            panelClass: 'error-snackbar',
-          });
-          console.error('Chat error:', err);
-        }
-      });
+    this.chatService.sendMessage(message, this.modelsService.selectedModel()).subscribe({
+      next: (response) => {
+        this.chatService.addAssistantMessage(response);
+      },
+      error: (err) => {
+        this.snackBar.open('Failed to send message. Please try again.', 'Dismiss', {
+          duration: 5000,
+          panelClass: 'error-snackbar',
+        });
+        console.error('Chat error:', err);
+      },
+    });
   }
 
   clearInput(): void {
@@ -2794,11 +2843,14 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
 
   clearPreferences(): void {
     this.preferencesService.clearAll();
-    this.snackBar.open('Preferences cleared. Refresh to apply defaults.', 'Refresh', {
-      duration: 5000
-    }).onAction().subscribe(() => {
-      window.location.reload();
-    });
+    this.snackBar
+      .open('Preferences cleared. Refresh to apply defaults.', 'Refresh', {
+        duration: 5000,
+      })
+      .onAction()
+      .subscribe(() => {
+        window.location.reload();
+      });
   }
 
   onDragOver(event: DragEvent): void {
@@ -2837,7 +2889,9 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     const remaining = this.maxAttachments - currentCount;
 
     if (remaining <= 0) {
-      this.snackBar.open(`Maximum ${this.maxAttachments} attachments allowed`, 'Dismiss', { duration: 4000 });
+      this.snackBar.open(`Maximum ${this.maxAttachments} attachments allowed`, 'Dismiss', {
+        duration: 4000,
+      });
       return;
     }
 
@@ -2845,20 +2899,24 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     const filesToProcess = files.slice(0, remaining);
 
     if (files.length > remaining) {
-      this.snackBar.open(`Only ${remaining} more file(s) can be attached`, 'Dismiss', { duration: 4000 });
+      this.snackBar.open(`Only ${remaining} more file(s) can be attached`, 'Dismiss', {
+        duration: 4000,
+      });
     }
 
-    filesToProcess.forEach(file => {
+    filesToProcess.forEach((file) => {
       if (file.size > this.maxFileSizeBytes) {
         const maxSizeMB = (this.maxFileSizeBytes / (1024 * 1024)).toFixed(0);
-        this.snackBar.open(`File "${file.name}" is too large (max ${maxSizeMB}MB)`, 'Dismiss', { duration: 4000 });
+        this.snackBar.open(`File "${file.name}" is too large (max ${maxSizeMB}MB)`, 'Dismiss', {
+          duration: 4000,
+        });
         return;
       }
 
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
-        this.attachedFiles.update(current => [
+        this.attachedFiles.update((current) => [
           ...current,
           {
             name: file.name,
@@ -2874,9 +2932,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   }
 
   removeFile(file: { name: string }): void {
-    this.attachedFiles.update(current =>
-      current.filter(f => f.name !== file.name)
-    );
+    this.attachedFiles.update((current) => current.filter((f) => f.name !== file.name));
   }
 
   /**

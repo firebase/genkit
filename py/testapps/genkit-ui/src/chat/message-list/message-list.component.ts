@@ -1,15 +1,33 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * MessageListComponent - Displays chat messages with markdown rendering.
- * 
+ *
  * This component is responsible for:
  * - Rendering user and assistant messages
  * - Markdown rendering for assistant responses
  * - Message actions (copy, speak, thumbs up/down)
  * - Loading indicator with typing animation
  * - Error message display
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────────────────────────┐
  *     │                    MessageListComponent                         │
  *     ├─────────────────────────────────────────────────────────────────┤
@@ -27,7 +45,7 @@
  *     │  - thumbUp: EventEmitter<Message>                               │
  *     │  - thumbDown: EventEmitter<Message>                             │
  *     └─────────────────────────────────────────────────────────────────┘
- * 
+ *
  * Portability:
  * - This component is SELF-CONTAINED with CSS fallback variables
  * - Requires: @angular/material, @ngx-translate/core
@@ -35,7 +53,16 @@
  * - Avatar URL is configurable via input
  * - SpeechService replaced with isSpeaking input
  */
-import { Component, input, output, ElementRef, AfterViewChecked, ViewChild, Optional, Inject } from '@angular/core';
+import {
+	Component,
+	input,
+	output,
+	ElementRef,
+	AfterViewChecked,
+	ViewChild,
+	Optional,
+	Inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -45,33 +72,33 @@ import { MatDividerModule } from '@angular/material/divider';
 import { TranslateModule } from '@ngx-translate/core';
 import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 
-/** 
+/**
  * Message interface - defined locally for portability.
  * Compatible with ChatService.Message.
  */
 export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp?: Date;
-  model?: string;
-  isError?: boolean;
-  errorDetails?: string;
+	role: 'user' | 'assistant';
+	content: string;
+	timestamp?: Date;
+	model?: string;
+	isError?: boolean;
+	errorDetails?: string;
 }
 
 @Component({
-  selector: 'genkit-message-list',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatIconModule,
-    MatButtonModule,
-    MatTooltipModule,
-    MatMenuModule,
-    MatDividerModule,
-    TranslateModule,
-    SafeMarkdownPipe,
-  ],
-  template: `
+	selector: 'genkit-message-list',
+	standalone: true,
+	imports: [
+		CommonModule,
+		MatIconModule,
+		MatButtonModule,
+		MatTooltipModule,
+		MatMenuModule,
+		MatDividerModule,
+		TranslateModule,
+		SafeMarkdownPipe,
+	],
+	template: `
     <div class="messages-container" #messagesContainer>
       @for (message of messages(); track message.timestamp; let i = $index) {
         <div class="message-row animate-fade-in" 
@@ -166,7 +193,8 @@ export interface Message {
       }
     </div>
   `,
-  styles: [`
+	styles: [
+		`
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: block;
@@ -352,55 +380,56 @@ export interface Message {
     @keyframes fadeIn {
       to { opacity: 1; }
     }
-  `]
+  `,
+	],
 })
 export class MessageListComponent implements AfterViewChecked {
-  /** List of messages to display */
-  messages = input.required<Message[]>();
+	/** List of messages to display */
+	messages = input.required<Message[]>();
 
-  /** Whether the chat is currently loading a response */
-  isLoading = input<boolean>(false);
+	/** Whether the chat is currently loading a response */
+	isLoading = input<boolean>(false);
 
-  /** Whether to render markdown in assistant responses */
-  markdownMode = input<boolean>(true);
+	/** Whether to render markdown in assistant responses */
+	markdownMode = input<boolean>(true);
 
-  /** Avatar URL for assistant messages (configurable for portability) */
-  avatarUrl = input<string>('genkit-logo.png');
+	/** Avatar URL for assistant messages (configurable for portability) */
+	avatarUrl = input<string>('genkit-logo.png');
 
-  /** Alt text for avatar image */
-  avatarAlt = input<string>('Assistant');
+	/** Alt text for avatar image */
+	avatarAlt = input<string>('Assistant');
 
-  /** Whether TTS is currently speaking (replaces SpeechService dependency) */
-  isSpeaking = input<boolean>(false);
+	/** Whether TTS is currently speaking (replaces SpeechService dependency) */
+	isSpeaking = input<boolean>(false);
 
-  /** Emitted when user clicks copy on a message */
-  copy = output<string>();
+	/** Emitted when user clicks copy on a message */
+	copy = output<string>();
 
-  /** Emitted when user clicks speak on a message */
-  speak = output<string>();
+	/** Emitted when user clicks speak on a message */
+	speak = output<string>();
 
-  /** Emitted when user clicks to view error details */
-  showError = output<string>();
+	/** Emitted when user clicks to view error details */
+	showError = output<string>();
 
-  /** Emitted when user gives thumbs up */
-  thumbUp = output<Message>();
+	/** Emitted when user gives thumbs up */
+	thumbUp = output<Message>();
 
-  /** Emitted when user gives thumbs down */
-  thumbDown = output<Message>();
+	/** Emitted when user gives thumbs down */
+	thumbDown = output<Message>();
 
-  @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
-  private shouldScrollToBottom = true;
+	@ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+	private shouldScrollToBottom = true;
 
-  ngAfterViewChecked(): void {
-    if (this.shouldScrollToBottom) {
-      this.scrollToBottom();
-    }
-  }
+	ngAfterViewChecked(): void {
+		if (this.shouldScrollToBottom) {
+			this.scrollToBottom();
+		}
+	}
 
-  private scrollToBottom(): void {
-    if (this.messagesContainer?.nativeElement) {
-      const container = this.messagesContainer.nativeElement;
-      container.scrollTop = container.scrollHeight;
-    }
-  }
+	private scrollToBottom(): void {
+		if (this.messagesContainer?.nativeElement) {
+			const container = this.messagesContainer.nativeElement;
+			container.scrollTop = container.scrollHeight;
+		}
+	}
 }

@@ -1,14 +1,32 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * ModelSelectorComponent - Model selection dropdown with search.
- * 
+ *
  * This component is responsible for:
  * - Displaying the currently selected model
  * - Searchable dropdown for model selection
  * - Recent models section
  * - Models grouped by provider
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────┐
  *     │          ModelSelectorComponent             │
  *     ├─────────────────────────────────────────────┤
@@ -37,31 +55,31 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 
 export interface Model {
-  id: string;
-  name: string;
-  capabilities?: string[];
-  context_window?: number;
+	id: string;
+	name: string;
+	capabilities?: string[];
+	context_window?: number;
 }
 
 export interface Provider {
-  id: string;
-  name: string;
-  available: boolean;
-  models: Model[];
+	id: string;
+	name: string;
+	available: boolean;
+	models: Model[];
 }
 
 @Component({
-  selector: 'genkit-model-selector',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatButtonModule,
-    MatIconModule,
-    MatMenuModule,
-    MatDividerModule,
-  ],
-  template: `
+	selector: 'genkit-model-selector',
+	standalone: true,
+	imports: [
+		CommonModule,
+		FormsModule,
+		MatButtonModule,
+		MatIconModule,
+		MatMenuModule,
+		MatDividerModule,
+	],
+	template: `
     <button mat-button 
             class="model-select-btn"
             [matMenuTriggerFor]="modelMenu"
@@ -140,7 +158,8 @@ export interface Provider {
       </div>
     </mat-menu>
   `,
-  styles: [`
+	styles: [
+		`
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: inline-block;
@@ -287,76 +306,76 @@ export interface Provider {
       color: var(--_on-surface-variant);
       font-size: 14px;
     }
-  `]
+  `,
+	],
 })
 export class ModelSelectorComponent {
-  /** Currently selected model ID */
-  selectedModel = input.required<string>();
+	/** Currently selected model ID */
+	selectedModel = input.required<string>();
 
-  /** List of providers with their models */
-  providers = input.required<Provider[]>();
+	/** List of providers with their models */
+	providers = input.required<Provider[]>();
 
-  /** Recently used models */
-  recentModels = input<Model[]>([]);
+	/** Recently used models */
+	recentModels = input<Model[]>([]);
 
-  /** Emitted when a model is selected */
-  modelSelected = output<string>();
+	/** Emitted when a model is selected */
+	modelSelected = output<string>();
 
-  /** Search query for filtering models */
-  searchQuery = '';
+	/** Search query for filtering models */
+	searchQuery = '';
 
-  /** Filtered models based on search query */
-  filteredModels = computed(() => {
-    if (!this.searchQuery) return [];
+	/** Filtered models based on search query */
+	filteredModels = computed(() => {
+		if (!this.searchQuery) return [];
 
-    const query = this.searchQuery.toLowerCase();
-    const allModels: Model[] = [];
+		const query = this.searchQuery.toLowerCase();
+		const allModels: Model[] = [];
 
-    this.providers().forEach(provider => {
-      provider.models.forEach(model => {
-        if (model.name.toLowerCase().includes(query) ||
-          model.id.toLowerCase().includes(query)) {
-          allModels.push(model);
-        }
-      });
-    });
+		this.providers().forEach((provider) => {
+			provider.models.forEach((model) => {
+				if (model.name.toLowerCase().includes(query) || model.id.toLowerCase().includes(query)) {
+					allModels.push(model);
+				}
+			});
+		});
 
-    return allModels;
-  });
+		return allModels;
+	});
 
-  onMenuOpened(): void {
-    this.searchQuery = '';
-  }
+	onMenuOpened(): void {
+		this.searchQuery = '';
+	}
 
-  clearSearch(): void {
-    this.searchQuery = '';
-  }
+	clearSearch(): void {
+		this.searchQuery = '';
+	}
 
-  selectModel(modelId: string): void {
-    this.modelSelected.emit(modelId);
-  }
+	selectModel(modelId: string): void {
+		this.modelSelected.emit(modelId);
+	}
 
-  getModelName(modelId: string): string {
-    for (const provider of this.providers()) {
-      const model = provider.models.find(m => m.id === modelId);
-      if (model) return model.name;
-    }
-    // Fallback: extract name from ID
-    const parts = modelId.split('/');
-    return parts[parts.length - 1];
-  }
+	getModelName(modelId: string): string {
+		for (const provider of this.providers()) {
+			const model = provider.models.find((m) => m.id === modelId);
+			if (model) return model.name;
+		}
+		// Fallback: extract name from ID
+		const parts = modelId.split('/');
+		return parts[parts.length - 1];
+	}
 
-  getProviderName(modelId: string): string {
-    for (const provider of this.providers()) {
-      if (provider.models.some(m => m.id === modelId)) {
-        return provider.name;
-      }
-    }
-    // Fallback: extract provider from ID prefix
-    const parts = modelId.split('/');
-    if (parts.length > 1) {
-      return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-    }
-    return 'Unknown';
-  }
+	getProviderName(modelId: string): string {
+		for (const provider of this.providers()) {
+			if (provider.models.some((m) => m.id === modelId)) {
+				return provider.name;
+			}
+		}
+		// Fallback: extract provider from ID prefix
+		const parts = modelId.split('/');
+		if (parts.length > 1) {
+			return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+		}
+		return 'Unknown';
+	}
 }

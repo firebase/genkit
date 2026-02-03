@@ -20,20 +20,20 @@ import { Injectable, signal, effect } from '@angular/core';
  * User preferences stored in localStorage.
  */
 export interface UserPreferences {
-    /** Selected model ID */
-    selectedModel?: string;
-    /** Recent model IDs (max 5) */
-    recentModels?: string[];
-    /** Streaming mode enabled */
-    streamingMode?: boolean;
-    /** Markdown rendering enabled */
-    markdownMode?: boolean;
-    /** Content safety enabled */
-    contentSafetyEnabled?: boolean;
-    /** Theme preference */
-    theme?: 'light' | 'dark' | 'system';
-    /** Language code */
-    language?: string;
+  /** Selected model ID */
+  selectedModel?: string;
+  /** Recent model IDs (max 5) */
+  recentModels?: string[];
+  /** Streaming mode enabled */
+  streamingMode?: boolean;
+  /** Markdown rendering enabled */
+  markdownMode?: boolean;
+  /** Content safety enabled */
+  contentSafetyEnabled?: boolean;
+  /** Theme preference */
+  theme?: 'light' | 'dark' | 'system';
+  /** Language code */
+  language?: string;
 }
 
 const STORAGE_KEY = 'genkit-chat-preferences';
@@ -41,7 +41,7 @@ const MAX_RECENT_MODELS = 5;
 
 /**
  * Service for persisting and retrieving user preferences from localStorage.
- * 
+ *
  * Key Concepts:
  * ┌─────────────────────┬────────────────────────────────────────────────┐
  * │ Concept             │ Description                                    │
@@ -52,164 +52,164 @@ const MAX_RECENT_MODELS = 5;
  * └─────────────────────┴────────────────────────────────────────────────┘
  */
 @Injectable({
-    providedIn: 'root',
+  providedIn: 'root',
 })
 export class PreferencesService {
-    /** Current preferences (reactive) */
-    preferences = signal<UserPreferences>(this.load());
+  /** Current preferences (reactive) */
+  preferences = signal<UserPreferences>(this.load());
 
-    constructor() {
-        // Auto-save when preferences change
-        effect(() => {
-            this.save(this.preferences());
-        });
+  constructor() {
+    // Auto-save when preferences change
+    effect(() => {
+      this.save(this.preferences());
+    });
+  }
+
+  /**
+   * Load preferences from localStorage.
+   */
+  private load(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored) as UserPreferences;
+      }
+    } catch (e) {
+      console.warn('Failed to load preferences:', e);
     }
+    return this.getDefaults();
+  }
 
-    /**
-     * Load preferences from localStorage.
-     */
-    private load(): UserPreferences {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                return JSON.parse(stored) as UserPreferences;
-            }
-        } catch (e) {
-            console.warn('Failed to load preferences:', e);
-        }
-        return this.getDefaults();
+  /**
+   * Save preferences to localStorage.
+   */
+  private save(prefs: UserPreferences): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    } catch (e) {
+      console.warn('Failed to save preferences:', e);
     }
+  }
 
-    /**
-     * Save preferences to localStorage.
-     */
-    private save(prefs: UserPreferences): void {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-        } catch (e) {
-            console.warn('Failed to save preferences:', e);
-        }
-    }
+  /**
+   * Get default preferences.
+   */
+  private getDefaults(): UserPreferences {
+    return {
+      streamingMode: true,
+      markdownMode: true,
+      contentSafetyEnabled: true,
+      theme: 'system',
+      recentModels: [],
+    };
+  }
 
-    /**
-     * Get default preferences.
-     */
-    private getDefaults(): UserPreferences {
-        return {
-            streamingMode: true,
-            markdownMode: true,
-            contentSafetyEnabled: true,
-            theme: 'system',
-            recentModels: [],
-        };
-    }
+  // ────────────────────────────────────────────────────────────────
+  // Getters
+  // ────────────────────────────────────────────────────────────────
 
-    // ────────────────────────────────────────────────────────────────
-    // Getters
-    // ────────────────────────────────────────────────────────────────
+  get selectedModel(): string | undefined {
+    return this.preferences().selectedModel;
+  }
 
-    get selectedModel(): string | undefined {
-        return this.preferences().selectedModel;
-    }
+  get recentModels(): string[] {
+    return this.preferences().recentModels || [];
+  }
 
-    get recentModels(): string[] {
-        return this.preferences().recentModels || [];
-    }
+  get streamingMode(): boolean {
+    return this.preferences().streamingMode ?? true;
+  }
 
-    get streamingMode(): boolean {
-        return this.preferences().streamingMode ?? true;
-    }
+  get markdownMode(): boolean {
+    return this.preferences().markdownMode ?? true;
+  }
 
-    get markdownMode(): boolean {
-        return this.preferences().markdownMode ?? true;
-    }
+  get contentSafetyEnabled(): boolean {
+    return this.preferences().contentSafetyEnabled ?? true;
+  }
 
-    get contentSafetyEnabled(): boolean {
-        return this.preferences().contentSafetyEnabled ?? true;
-    }
+  get theme(): 'light' | 'dark' | 'system' {
+    return this.preferences().theme ?? 'system';
+  }
 
-    get theme(): 'light' | 'dark' | 'system' {
-        return this.preferences().theme ?? 'system';
-    }
+  get language(): string | undefined {
+    return this.preferences().language;
+  }
 
-    get language(): string | undefined {
-        return this.preferences().language;
-    }
+  // ────────────────────────────────────────────────────────────────
+  // Setters (update individual preferences)
+  // ────────────────────────────────────────────────────────────────
 
-    // ────────────────────────────────────────────────────────────────
-    // Setters (update individual preferences)
-    // ────────────────────────────────────────────────────────────────
+  setSelectedModel(modelId: string): void {
+    this.preferences.update((p) => ({
+      ...p,
+      selectedModel: modelId,
+    }));
+    this.addRecentModel(modelId);
+  }
 
-    setSelectedModel(modelId: string): void {
-        this.preferences.update(p => ({
-            ...p,
-            selectedModel: modelId,
-        }));
-        this.addRecentModel(modelId);
-    }
+  addRecentModel(modelId: string): void {
+    this.preferences.update((p) => {
+      const recent = (p.recentModels || []).filter((m) => m !== modelId);
+      recent.unshift(modelId);
+      return {
+        ...p,
+        recentModels: recent.slice(0, MAX_RECENT_MODELS),
+      };
+    });
+  }
 
-    addRecentModel(modelId: string): void {
-        this.preferences.update(p => {
-            const recent = (p.recentModels || []).filter(m => m !== modelId);
-            recent.unshift(modelId);
-            return {
-                ...p,
-                recentModels: recent.slice(0, MAX_RECENT_MODELS),
-            };
-        });
-    }
+  setStreamingMode(enabled: boolean): void {
+    this.preferences.update((p) => ({
+      ...p,
+      streamingMode: enabled,
+    }));
+  }
 
-    setStreamingMode(enabled: boolean): void {
-        this.preferences.update(p => ({
-            ...p,
-            streamingMode: enabled,
-        }));
-    }
+  setMarkdownMode(enabled: boolean): void {
+    this.preferences.update((p) => ({
+      ...p,
+      markdownMode: enabled,
+    }));
+  }
 
-    setMarkdownMode(enabled: boolean): void {
-        this.preferences.update(p => ({
-            ...p,
-            markdownMode: enabled,
-        }));
-    }
+  setContentSafetyEnabled(enabled: boolean): void {
+    this.preferences.update((p) => ({
+      ...p,
+      contentSafetyEnabled: enabled,
+    }));
+  }
 
-    setContentSafetyEnabled(enabled: boolean): void {
-        this.preferences.update(p => ({
-            ...p,
-            contentSafetyEnabled: enabled,
-        }));
-    }
+  setTheme(theme: 'light' | 'dark' | 'system'): void {
+    this.preferences.update((p) => ({
+      ...p,
+      theme,
+    }));
+  }
 
-    setTheme(theme: 'light' | 'dark' | 'system'): void {
-        this.preferences.update(p => ({
-            ...p,
-            theme,
-        }));
-    }
+  setLanguage(languageCode: string): void {
+    this.preferences.update((p) => ({
+      ...p,
+      language: languageCode,
+    }));
+  }
 
-    setLanguage(languageCode: string): void {
-        this.preferences.update(p => ({
-            ...p,
-            language: languageCode,
-        }));
-    }
+  // ────────────────────────────────────────────────────────────────
+  // Clear all preferences
+  // ────────────────────────────────────────────────────────────────
 
-    // ────────────────────────────────────────────────────────────────
-    // Clear all preferences
-    // ────────────────────────────────────────────────────────────────
+  /**
+   * Clear all stored preferences and reset to defaults.
+   */
+  clearAll(): void {
+    localStorage.removeItem(STORAGE_KEY);
+    this.preferences.set(this.getDefaults());
+  }
 
-    /**
-     * Clear all stored preferences and reset to defaults.
-     */
-    clearAll(): void {
-        localStorage.removeItem(STORAGE_KEY);
-        this.preferences.set(this.getDefaults());
-    }
-
-    /**
-     * Check if there are any stored preferences.
-     */
-    hasStoredPreferences(): boolean {
-        return localStorage.getItem(STORAGE_KEY) !== null;
-    }
+  /**
+   * Check if there are any stored preferences.
+   */
+  hasStoredPreferences(): boolean {
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  }
 }

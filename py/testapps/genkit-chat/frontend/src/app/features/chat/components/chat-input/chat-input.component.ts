@@ -1,6 +1,24 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * ChatInputComponent - Text area, attachments, voice input, send button.
- * 
+ *
  * This component is responsible for:
  * - Message text input with auto-resizing
  * - File attachments with drag-and-drop
@@ -8,9 +26,9 @@
  * - Content safety highlighting
  * - Send button with animation
  * - Settings dropdown (streaming, markdown, safety)
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────────────────────┐
  *     │                    ChatInputComponent                       │
  *     ├─────────────────────────────────────────────────────────────┤
@@ -45,8 +63,16 @@
  *     └─────────────────────────────────────────────────────────────┘
  */
 import {
-  Component, input, output, signal, computed, effect,
-  ElementRef, ViewChild, AfterViewInit, inject
+  Component,
+  input,
+  output,
+  signal,
+  computed,
+  effect,
+  ElementRef,
+  ViewChild,
+  AfterViewInit,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -114,12 +140,12 @@ export interface SendEvent {
     trigger('slideButton', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateX(10px)' }),
-        animate('150ms ease-out', style({ opacity: 1, transform: 'translateX(0)' }))
+        animate('150ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
       ]),
       transition(':leave', [
-        animate('100ms ease-in', style({ opacity: 0, transform: 'translateX(-10px)' }))
-      ])
-    ])
+        animate('100ms ease-in', style({ opacity: 0, transform: 'translateX(-10px)' })),
+      ]),
+    ]),
   ],
   template: `
     <div class="input-box" 
@@ -323,7 +349,8 @@ export interface SendEvent {
       </div>
     }
   `,
-  styles: [`
+  styles: [
+    `
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: block;
@@ -574,7 +601,8 @@ export interface SendEvent {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
-  `]
+  `,
+  ],
 })
 export class ChatInputComponent implements AfterViewInit {
   /** Placeholder text for the input */
@@ -608,14 +636,14 @@ export class ChatInputComponent implements AfterViewInit {
    * Signal-based text injection for decoupled communication.
    * When this value changes, the input text is updated and the input is focused.
    * Use with a signal from parent component:
-   * 
+   *
    * @example
    * // In parent:
    * injectedPrompt = signal<string | null>(null);
-   * 
+   *
    * // When quick action clicked:
    * this.injectedPrompt.set('Tell me a joke');
-   * 
+   *
    * // In template:
    * <app-chat-input [injectedText]="injectedPrompt()" />
    */
@@ -722,7 +750,7 @@ export class ChatInputComponent implements AfterViewInit {
 
     this.send.emit({
       message: trimmedMessage,
-      attachments: [...this.attachedFiles()]
+      attachments: [...this.attachedFiles()],
     });
 
     this.message = '';
@@ -794,27 +822,33 @@ export class ChatInputComponent implements AfterViewInit {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = () => {
-          this.attachedFiles.update(files => [...files, {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            preview: reader.result as string,
-            data: reader.result as string
-          }]);
+          this.attachedFiles.update((files) => [
+            ...files,
+            {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              preview: reader.result as string,
+              data: reader.result as string,
+            },
+          ]);
         };
         reader.readAsDataURL(file);
       } else {
-        this.attachedFiles.update(files => [...files, {
-          name: file.name,
-          size: file.size,
-          type: file.type
-        }]);
+        this.attachedFiles.update((files) => [
+          ...files,
+          {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          },
+        ]);
       }
     }
   }
 
   removeFile(file: AttachedFile): void {
-    this.attachedFiles.update(files => files.filter(f => f.name !== file.name));
+    this.attachedFiles.update((files) => files.filter((f) => f.name !== file.name));
   }
 
   clearAllFiles(): void {

@@ -1,3 +1,21 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -128,7 +146,8 @@ import { ModelsService, ModelInfo } from '../../core/services/models.service';
       }
     </div>
   `,
-  styles: [`
+  styles: [
+    `
     :host {
       display: block;
       font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -379,7 +398,8 @@ import { ModelsService, ModelInfo } from '../../core/services/models.service';
         }
       }
     }
-  `],
+  `,
+  ],
 })
 export class CompareComponent {
   chatService = inject(ChatService);
@@ -395,9 +415,9 @@ export class CompareComponent {
   }
 
   toggleModel(modelId: string): void {
-    this.selectedModels.update(current => {
+    this.selectedModels.update((current) => {
       if (current.includes(modelId)) {
-        return current.filter(id => id !== modelId);
+        return current.filter((id) => id !== modelId);
       } else if (current.length < 4) {
         return [...current, modelId];
       }
@@ -407,7 +427,7 @@ export class CompareComponent {
 
   getModelName(modelId: string): string {
     const allModels = this.modelsService.getAllModels();
-    return allModels.find(m => m.id === modelId)?.name || modelId;
+    return allModels.find((m) => m.id === modelId)?.name || modelId;
   }
 
   compare(): void {
@@ -416,16 +436,15 @@ export class CompareComponent {
     this.isLoading.set(true);
     this.results.set(null);
 
-    this.chatService.compareModels(this.prompt, this.selectedModels())
-      .subscribe({
-        next: (response) => {
-          this.results.set(response);
-          this.isLoading.set(false);
-        },
-        error: (error) => {
-          console.error('Compare error:', error);
-          this.isLoading.set(false);
-        },
-      });
+    this.chatService.compareModels(this.prompt, this.selectedModels()).subscribe({
+      next: (response) => {
+        this.results.set(response);
+        this.isLoading.set(false);
+      },
+      error: (error) => {
+        console.error('Compare error:', error);
+        this.isLoading.set(false);
+      },
+    });
   }
 }

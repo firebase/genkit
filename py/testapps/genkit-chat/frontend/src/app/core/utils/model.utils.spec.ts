@@ -16,206 +16,204 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-    flattenModels,
-    findModelById,
-    getProviderName,
-    hasCapability,
-    filterByProvider,
-    filterByCapability,
-    searchModels,
-    groupByProvider,
-    getDefaultModelId,
-    type ModelWithProvider,
+  flattenModels,
+  findModelById,
+  getProviderName,
+  hasCapability,
+  filterByProvider,
+  filterByCapability,
+  searchModels,
+  groupByProvider,
+  getDefaultModelId,
+  type ModelWithProvider,
 } from './model.utils';
 import type { Model, Provider } from '../services/model.service';
 
 const mockProviders: Provider[] = [
-    {
-        id: 'googleai',
-        name: 'Google AI',
-        models: [
-            { id: 'googleai/gemini-pro', name: 'Gemini Pro', capabilities: ['text', 'vision'] },
-            { id: 'googleai/gemini-flash', name: 'Gemini Flash', capabilities: ['text'] },
-        ],
-    },
-    {
-        id: 'openai',
-        name: 'OpenAI',
-        models: [
-            { id: 'openai/gpt-4', name: 'GPT-4', capabilities: ['text', 'code'] },
-        ],
-    },
+  {
+    id: 'googleai',
+    name: 'Google AI',
+    models: [
+      { id: 'googleai/gemini-pro', name: 'Gemini Pro', capabilities: ['text', 'vision'] },
+      { id: 'googleai/gemini-flash', name: 'Gemini Flash', capabilities: ['text'] },
+    ],
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    models: [{ id: 'openai/gpt-4', name: 'GPT-4', capabilities: ['text', 'code'] }],
+  },
 ];
 
 describe('model.utils', () => {
-    describe('flattenModels', () => {
-        it('should flatten providers into models with provider info', () => {
-            const result = flattenModels(mockProviders);
-            expect(result).toHaveLength(3);
-            expect(result[0].provider).toBe('Google AI');
-            expect(result[0].providerId).toBe('googleai');
-        });
-
-        it('should handle empty providers', () => {
-            const result = flattenModels([]);
-            expect(result).toHaveLength(0);
-        });
-
-        it('should handle provider with no models', () => {
-            const providers: Provider[] = [{ id: 'empty', name: 'Empty', models: [] }];
-            const result = flattenModels(providers);
-            expect(result).toHaveLength(0);
-        });
+  describe('flattenModels', () => {
+    it('should flatten providers into models with provider info', () => {
+      const result = flattenModels(mockProviders);
+      expect(result).toHaveLength(3);
+      expect(result[0].provider).toBe('Google AI');
+      expect(result[0].providerId).toBe('googleai');
     });
 
-    describe('findModelById', () => {
-        const models = flattenModels(mockProviders);
-
-        it('should find model by ID', () => {
-            const result = findModelById(models, 'googleai/gemini-pro');
-            expect(result?.name).toBe('Gemini Pro');
-        });
-
-        it('should return undefined for unknown ID', () => {
-            const result = findModelById(models, 'unknown');
-            expect(result).toBeUndefined();
-        });
+    it('should handle empty providers', () => {
+      const result = flattenModels([]);
+      expect(result).toHaveLength(0);
     });
 
-    describe('getProviderName', () => {
-        const models = flattenModels(mockProviders);
+    it('should handle provider with no models', () => {
+      const providers: Provider[] = [{ id: 'empty', name: 'Empty', models: [] }];
+      const result = flattenModels(providers);
+      expect(result).toHaveLength(0);
+    });
+  });
 
-        it('should return provider name for model', () => {
-            const result = getProviderName(models, 'googleai/gemini-pro');
-            expect(result).toBe('Google AI');
-        });
+  describe('findModelById', () => {
+    const models = flattenModels(mockProviders);
 
-        it('should return Unknown for unknown model', () => {
-            const result = getProviderName(models, 'unknown');
-            expect(result).toBe('Unknown');
-        });
+    it('should find model by ID', () => {
+      const result = findModelById(models, 'googleai/gemini-pro');
+      expect(result?.name).toBe('Gemini Pro');
     });
 
-    describe('hasCapability', () => {
-        const allModels: Model[] = mockProviders.flatMap((p) => p.models);
+    it('should return undefined for unknown ID', () => {
+      const result = findModelById(models, 'unknown');
+      expect(result).toBeUndefined();
+    });
+  });
 
-        it('should return true if model has capability', () => {
-            expect(hasCapability(allModels, 'googleai/gemini-pro', 'vision')).toBe(true);
-        });
+  describe('getProviderName', () => {
+    const models = flattenModels(mockProviders);
 
-        it('should return false if model lacks capability', () => {
-            expect(hasCapability(allModels, 'googleai/gemini-flash', 'vision')).toBe(false);
-        });
-
-        it('should return false for unknown model', () => {
-            expect(hasCapability(allModels, 'unknown', 'text')).toBe(false);
-        });
+    it('should return provider name for model', () => {
+      const result = getProviderName(models, 'googleai/gemini-pro');
+      expect(result).toBe('Google AI');
     });
 
-    describe('filterByProvider', () => {
-        const models = flattenModels(mockProviders);
+    it('should return Unknown for unknown model', () => {
+      const result = getProviderName(models, 'unknown');
+      expect(result).toBe('Unknown');
+    });
+  });
 
-        it('should filter models by provider', () => {
-            const result = filterByProvider(models, 'googleai');
-            expect(result).toHaveLength(2);
-            expect(result.every((m) => m.providerId === 'googleai')).toBe(true);
-        });
+  describe('hasCapability', () => {
+    const allModels: Model[] = mockProviders.flatMap((p) => p.models);
 
-        it('should return empty for unknown provider', () => {
-            const result = filterByProvider(models, 'unknown');
-            expect(result).toHaveLength(0);
-        });
+    it('should return true if model has capability', () => {
+      expect(hasCapability(allModels, 'googleai/gemini-pro', 'vision')).toBe(true);
     });
 
-    describe('filterByCapability', () => {
-        const allModels: Model[] = mockProviders.flatMap((p) => p.models);
-
-        it('should filter models with capability', () => {
-            const result = filterByCapability(allModels, 'vision');
-            expect(result).toHaveLength(1);
-            expect(result[0].id).toBe('googleai/gemini-pro');
-        });
-
-        it('should return multiple matches', () => {
-            const result = filterByCapability(allModels, 'text');
-            expect(result.length).toBeGreaterThanOrEqual(2);
-        });
-
-        it('should return empty for unknown capability', () => {
-            const result = filterByCapability(allModels, 'unknown');
-            expect(result).toHaveLength(0);
-        });
+    it('should return false if model lacks capability', () => {
+      expect(hasCapability(allModels, 'googleai/gemini-flash', 'vision')).toBe(false);
     });
 
-    describe('searchModels', () => {
-        const models = flattenModels(mockProviders);
+    it('should return false for unknown model', () => {
+      expect(hasCapability(allModels, 'unknown', 'text')).toBe(false);
+    });
+  });
 
-        it('should search by name', () => {
-            const result = searchModels(models, 'Gemini');
-            expect(result).toHaveLength(2);
-        });
+  describe('filterByProvider', () => {
+    const models = flattenModels(mockProviders);
 
-        it('should search by ID', () => {
-            const result = searchModels(models, 'gpt-4');
-            expect(result).toHaveLength(1);
-        });
-
-        it('should search by provider', () => {
-            const result = searchModels(models, 'OpenAI');
-            expect(result).toHaveLength(1);
-        });
-
-        it('should be case insensitive', () => {
-            const result = searchModels(models, 'GEMINI');
-            expect(result).toHaveLength(2);
-        });
-
-        it('should return all for empty query', () => {
-            const result = searchModels(models, '');
-            expect(result).toHaveLength(3);
-        });
-
-        it('should return all for whitespace query', () => {
-            const result = searchModels(models, '   ');
-            expect(result).toHaveLength(3);
-        });
+    it('should filter models by provider', () => {
+      const result = filterByProvider(models, 'googleai');
+      expect(result).toHaveLength(2);
+      expect(result.every((m) => m.providerId === 'googleai')).toBe(true);
     });
 
-    describe('groupByProvider', () => {
-        const models = flattenModels(mockProviders);
+    it('should return empty for unknown provider', () => {
+      const result = filterByProvider(models, 'unknown');
+      expect(result).toHaveLength(0);
+    });
+  });
 
-        it('should group models by provider', () => {
-            const result = groupByProvider(models);
-            expect(result.size).toBe(2);
-            expect(result.get('googleai')?.length).toBe(2);
-            expect(result.get('openai')?.length).toBe(1);
-        });
+  describe('filterByCapability', () => {
+    const allModels: Model[] = mockProviders.flatMap((p) => p.models);
 
-        it('should handle empty array', () => {
-            const result = groupByProvider([]);
-            expect(result.size).toBe(0);
-        });
+    it('should filter models with capability', () => {
+      const result = filterByCapability(allModels, 'vision');
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('googleai/gemini-pro');
     });
 
-    describe('getDefaultModelId', () => {
-        const models: Model[] = [
-            { id: 'model-1', name: 'Model 1' },
-            { id: 'model-2', name: 'Model 2' },
-        ];
-
-        it('should return first model ID', () => {
-            const result = getDefaultModelId(models);
-            expect(result).toBe('model-1');
-        });
-
-        it('should return fallback for empty array', () => {
-            const result = getDefaultModelId([]);
-            expect(result).toBe('ollama/llama3.2');
-        });
-
-        it('should accept custom fallback', () => {
-            const result = getDefaultModelId([], 'custom-fallback');
-            expect(result).toBe('custom-fallback');
-        });
+    it('should return multiple matches', () => {
+      const result = filterByCapability(allModels, 'text');
+      expect(result.length).toBeGreaterThanOrEqual(2);
     });
+
+    it('should return empty for unknown capability', () => {
+      const result = filterByCapability(allModels, 'unknown');
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('searchModels', () => {
+    const models = flattenModels(mockProviders);
+
+    it('should search by name', () => {
+      const result = searchModels(models, 'Gemini');
+      expect(result).toHaveLength(2);
+    });
+
+    it('should search by ID', () => {
+      const result = searchModels(models, 'gpt-4');
+      expect(result).toHaveLength(1);
+    });
+
+    it('should search by provider', () => {
+      const result = searchModels(models, 'OpenAI');
+      expect(result).toHaveLength(1);
+    });
+
+    it('should be case insensitive', () => {
+      const result = searchModels(models, 'GEMINI');
+      expect(result).toHaveLength(2);
+    });
+
+    it('should return all for empty query', () => {
+      const result = searchModels(models, '');
+      expect(result).toHaveLength(3);
+    });
+
+    it('should return all for whitespace query', () => {
+      const result = searchModels(models, '   ');
+      expect(result).toHaveLength(3);
+    });
+  });
+
+  describe('groupByProvider', () => {
+    const models = flattenModels(mockProviders);
+
+    it('should group models by provider', () => {
+      const result = groupByProvider(models);
+      expect(result.size).toBe(2);
+      expect(result.get('googleai')?.length).toBe(2);
+      expect(result.get('openai')?.length).toBe(1);
+    });
+
+    it('should handle empty array', () => {
+      const result = groupByProvider([]);
+      expect(result.size).toBe(0);
+    });
+  });
+
+  describe('getDefaultModelId', () => {
+    const models: Model[] = [
+      { id: 'model-1', name: 'Model 1' },
+      { id: 'model-2', name: 'Model 2' },
+    ];
+
+    it('should return first model ID', () => {
+      const result = getDefaultModelId(models);
+      expect(result).toBe('model-1');
+    });
+
+    it('should return fallback for empty array', () => {
+      const result = getDefaultModelId([]);
+      expect(result).toBe('ollama/llama3.2');
+    });
+
+    it('should accept custom fallback', () => {
+      const result = getDefaultModelId([], 'custom-fallback');
+      expect(result).toBe('custom-fallback');
+    });
+  });
 });

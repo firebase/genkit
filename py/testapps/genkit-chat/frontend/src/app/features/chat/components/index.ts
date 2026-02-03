@@ -1,11 +1,29 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Genkit Chat Feature Components
- * 
+ *
  * A collection of reusable Angular components for building AI chat interfaces.
  * These components are designed to be portable and can be used in other applications.
- * 
+ *
  * Component Hierarchy::
- * 
+ *
  *     ChatComponent (container)
  *     ├── MessageListComponent      - Message display with markdown
  *     ├── WelcomeScreenComponent    - Greeting animation, quick actions
@@ -13,9 +31,9 @@
  *     ├── ChatInputComponent        - Input, attachments, voice, settings
  *     │   └── [slot: modelSelector]
  *     └── ModelSelectorComponent    - Searchable model dropdown
- * 
+ *
  * Portability Requirements::
- * 
+ *
  *     ┌─────────────────────────────────────────────────────────────────┐
  *     │                    REQUIRED IN HOST APP                        │
  *     ├─────────────────────────────────────────────────────────────────┤
@@ -40,30 +58,30 @@
  *     │     - SpeechService (Web Speech API wrapper)                    │
  *     │     - ContentSafetyService (TensorFlow toxicity)                │
  *     └─────────────────────────────────────────────────────────────────┘
- * 
+ *
  * Quick Start::
- * 
+ *
  *     1. Install dependencies:
  *        npm install @angular/material @ngx-translate/core
- * 
+ *
  *     2. Import the theme in your styles.scss:
  *        @import '@genkit-chat/components/theme';
  *        // OR copy CSS variables from _theme.scss to your :root
- * 
+ *
  *     3. Import components in your module:
  *        import { ChatInputComponent, MessageListComponent } from './components';
- * 
+ *
  *     4. Use in templates:
  *        <app-message-list [messages]="messages" [isLoading]="isLoading" />
  *        <app-chat-input (send)="onSend($event)" />
- * 
+ *
  * Signal-Based Communication::
- * 
+ *
  *     The components use signals for decoupled communication. For example,
  *     when a quick action is selected in WelcomeScreenComponent, it emits
  *     the prompt text. The parent can then inject it into ChatInputComponent
  *     using the [injectedText] input:
- * 
+ *
  *     @Component({
  *       template: `
  *         @if (messages.length === 0) {
@@ -72,7 +90,7 @@
  *             [quickActions]="quickActions"
  *             (actionSelected)="injectedPrompt.set($event)" />
  *         }
- *         
+ *
  *         <app-chat-input
  *           [injectedText]="injectedPrompt()"
  *           (send)="onSend($event)" />
@@ -83,17 +101,17 @@
  *       // When WelcomeScreen emits, injectedPrompt updates,
  *       // ChatInput effect triggers, sets text, focuses cursor at end
  *     }
- * 
+ *
  * Example Usage::
- * 
+ *
  *     @Component({
  *       template: `
- *         <app-message-list 
- *           [messages]="chatService.messages()" 
+ *         <app-message-list
+ *           [messages]="chatService.messages()"
  *           [isLoading]="chatService.isLoading()"
  *           [markdownMode]="true"
  *           (copy)="copyToClipboard($event)" />
- *         
+ *
  *         <app-chat-input
  *           [placeholder]="'Ask me anything...'"
  *           [streamingEnabled]="true"

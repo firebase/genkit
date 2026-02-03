@@ -1,18 +1,36 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * WelcomeScreenComponent - Greeting animation and quick action chips.
- * 
+ *
  * This component is responsible for:
  * - Animated greeting carousel with typewriter effect
  * - Multi-language greetings with RTL support
  * - Quick action chips for common prompts
- * 
+ *
  * Portability:
  * - This component is SELF-CONTAINED with CSS fallback variables
  * - Requires: @angular/material, @ngx-translate/core
  * - Logo URL is configurable via input
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────────────────────────┐
  *     │                    WelcomeScreenComponent                       │
  *     ├─────────────────────────────────────────────────────────────────┤
@@ -49,12 +67,7 @@ export interface QuickAction {
 @Component({
   selector: 'app-welcome-screen',
   standalone: true,
-  imports: [
-    CommonModule,
-    MatButtonModule,
-    MatIconModule,
-    TranslateModule,
-  ],
+  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule],
   template: `
     <div class="welcome-header">
       <div class="welcome-logo">
@@ -80,7 +93,8 @@ export interface QuickAction {
       }
     </div>
   `,
-  styles: [`
+  styles: [
+    `
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: flex;
@@ -187,7 +201,8 @@ export interface QuickAction {
     @keyframes blink {
       50% { opacity: 0; }
     }
-  `]
+  `,
+  ],
 })
 export class WelcomeScreenComponent implements OnInit, OnDestroy {
   /** List of greetings to cycle through */
@@ -251,7 +266,11 @@ export class WelcomeScreenComponent implements OnInit, OnDestroy {
     }, 4000);
   }
 
-  private typeGreeting(greetingText: string, anim: 'type' | 'slide' = 'type', dir: 'ltr' | 'rtl' = 'ltr'): void {
+  private typeGreeting(
+    greetingText: string,
+    anim: 'type' | 'slide' = 'type',
+    dir: 'ltr' | 'rtl' = 'ltr'
+  ): void {
     this.showCursor.set(true);
 
     if (anim === 'slide') {

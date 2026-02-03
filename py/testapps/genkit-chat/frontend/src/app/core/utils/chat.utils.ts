@@ -29,112 +29,108 @@ export const MAX_QUEUE_SIZE = 50;
 /**
  * Add a prompt to the queue.
  */
-export function addToQueue(
-    queue: QueuedPrompt[],
-    content: string,
-    model: string
-): QueuedPrompt[] {
-    const newPrompt: QueuedPrompt = {
-        id: crypto.randomUUID(),
-        content,
-        model,
-        timestamp: new Date(),
-    };
-    return [...queue, newPrompt].slice(0, MAX_QUEUE_SIZE);
+export function addToQueue(queue: QueuedPrompt[], content: string, model: string): QueuedPrompt[] {
+  const newPrompt: QueuedPrompt = {
+    id: crypto.randomUUID(),
+    content,
+    model,
+    timestamp: new Date(),
+  };
+  return [...queue, newPrompt].slice(0, MAX_QUEUE_SIZE);
 }
 
 /**
  * Remove a prompt from the queue by ID.
  */
 export function removeFromQueue(queue: QueuedPrompt[], id: string): QueuedPrompt[] {
-    return queue.filter((p) => p.id !== id);
+  return queue.filter((p) => p.id !== id);
 }
 
 /**
  * Update a prompt's content in the queue.
  */
 export function updateQueuedPrompt(
-    queue: QueuedPrompt[],
-    id: string,
-    content: string
+  queue: QueuedPrompt[],
+  id: string,
+  content: string
 ): QueuedPrompt[] {
-    return queue.map((p) => (p.id === id ? { ...p, content } : p));
+  return queue.map((p) => (p.id === id ? { ...p, content } : p));
 }
 
 /**
  * Move a prompt up in the queue.
  */
 export function moveQueuedPromptUp(queue: QueuedPrompt[], id: string): QueuedPrompt[] {
-    const index = queue.findIndex((p) => p.id === id);
-    if (index <= 0) return queue;
+  const index = queue.findIndex((p) => p.id === id);
+  if (index <= 0) return queue;
 
-    const newQueue = [...queue];
-    [newQueue[index - 1], newQueue[index]] = [newQueue[index], newQueue[index - 1]];
-    return newQueue;
+  const newQueue = [...queue];
+  [newQueue[index - 1], newQueue[index]] = [newQueue[index], newQueue[index - 1]];
+  return newQueue;
 }
 
 /**
  * Move a prompt down in the queue.
  */
 export function moveQueuedPromptDown(queue: QueuedPrompt[], id: string): QueuedPrompt[] {
-    const index = queue.findIndex((p) => p.id === id);
-    if (index < 0 || index >= queue.length - 1) return queue;
+  const index = queue.findIndex((p) => p.id === id);
+  if (index < 0 || index >= queue.length - 1) return queue;
 
-    const newQueue = [...queue];
-    [newQueue[index], newQueue[index + 1]] = [newQueue[index + 1], newQueue[index]];
-    return newQueue;
+  const newQueue = [...queue];
+  [newQueue[index], newQueue[index + 1]] = [newQueue[index + 1], newQueue[index]];
+  return newQueue;
 }
 
 /**
  * Get the first prompt from the queue and return the updated queue.
  */
 export function popFromQueue(queue: QueuedPrompt[]): {
-    prompt: QueuedPrompt | undefined;
-    remaining: QueuedPrompt[];
+  prompt: QueuedPrompt | undefined;
+  remaining: QueuedPrompt[];
 } {
-    if (queue.length === 0) {
-        return { prompt: undefined, remaining: [] };
-    }
-    const [prompt, ...remaining] = queue;
-    return { prompt, remaining };
+  if (queue.length === 0) {
+    return { prompt: undefined, remaining: [] };
+  }
+  const [prompt, ...remaining] = queue;
+  return { prompt, remaining };
 }
 
 /**
  * Build chat history from messages for API requests.
  */
 export function buildHistory(messages: Message[]): Array<{ role: string; content: string }> {
-    return messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-    }));
+  return messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
 }
 
 /**
  * Create a user message.
  */
 export function createUserMessage(content: string): Message {
-    return {
-        role: 'user',
-        content,
-        timestamp: new Date(),
-    };
+  return {
+    role: 'user',
+    content,
+    timestamp: new Date(),
+  };
 }
 
 /**
  * Create an assistant message from a response.
  */
 export function createAssistantMessage(
-    content: string,
-    model: string,
-    isError = false,
-    errorDetails?: string
+  content: string,
+  model: string,
+  isError = false,
+  errorDetails?: string
 ): Message {
-    return {
-        role: 'assistant',
-        content,
-        timestamp: new Date(),
-        model,
-        isError,
-        errorDetails,
-    };
+  return {
+    role: 'assistant',
+    content,
+    timestamp: new Date(),
+    model,
+    isError,
+    errorDetails,
+  };
 }

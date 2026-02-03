@@ -35,76 +35,76 @@ export const MAX_RECENT_MODELS = 5;
  * Get default preferences.
  */
 export function getDefaultPreferences(): UserPreferences {
-    return {
-        streamingMode: true,
-        markdownMode: true,
-        contentSafetyEnabled: true,
-        theme: 'system',
-        recentModels: [],
-    };
+  return {
+    streamingMode: true,
+    markdownMode: true,
+    contentSafetyEnabled: true,
+    theme: 'system',
+    recentModels: [],
+  };
 }
 
 /**
  * Add a model to the recent models list.
  */
 export function addRecentModel(current: string[], modelId: string): string[] {
-    const recent = current.filter((m) => m !== modelId);
-    recent.unshift(modelId);
-    return recent.slice(0, MAX_RECENT_MODELS);
+  const recent = current.filter((m) => m !== modelId);
+  recent.unshift(modelId);
+  return recent.slice(0, MAX_RECENT_MODELS);
 }
 
 /**
  * Merge preferences with updates.
  */
 export function updatePreferences(
-    current: UserPreferences,
-    updates: Partial<UserPreferences>
+  current: UserPreferences,
+  updates: Partial<UserPreferences>
 ): UserPreferences {
-    return { ...current, ...updates };
+  return { ...current, ...updates };
 }
 
 /**
  * Get a preference value with a default.
  */
 export function getPreferenceWithDefault<T>(value: T | undefined, defaultValue: T): T {
-    return value ?? defaultValue;
+  return value ?? defaultValue;
 }
 
 /**
  * Load preferences from localStorage.
  */
 export function loadPreferencesFromStorage(): UserPreferences | null {
-    if (typeof localStorage === 'undefined') return null;
+  if (typeof localStorage === 'undefined') return null;
 
-    try {
-        const stored = localStorage.getItem(PREFERENCES_STORAGE_KEY);
-        if (stored) {
-            return JSON.parse(stored) as UserPreferences;
-        }
-    } catch {
-        // Ignore parse errors
+  try {
+    const stored = localStorage.getItem(PREFERENCES_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored) as UserPreferences;
     }
-    return null;
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
 }
 
 /**
  * Save preferences to localStorage.
  */
 export function savePreferencesToStorage(prefs: UserPreferences): boolean {
-    if (typeof localStorage === 'undefined') return false;
+  if (typeof localStorage === 'undefined') return false;
 
-    try {
-        localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(prefs));
-        return true;
-    } catch {
-        return false;
-    }
+  try {
+    localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(prefs));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Clear preferences from localStorage.
  */
 export function clearPreferencesFromStorage(): void {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.removeItem(PREFERENCES_STORAGE_KEY);
+  if (typeof localStorage === 'undefined') return;
+  localStorage.removeItem(PREFERENCES_STORAGE_KEY);
 }

@@ -1,18 +1,36 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * WelcomeScreenComponent - Greeting animation and quick action chips.
- * 
+ *
  * This component is responsible for:
  * - Animated greeting carousel with typewriter effect
  * - Multi-language greetings with RTL support
  * - Quick action chips for common prompts
- * 
+ *
  * Portability:
  * - This component is SELF-CONTAINED with CSS fallback variables
  * - Requires: @angular/material, @ngx-translate/core
  * - Logo URL is configurable via input
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────────────────────────┐
  *     │                    WelcomeScreenComponent                       │
  *     ├─────────────────────────────────────────────────────────────────┤
@@ -33,29 +51,24 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 
 export interface Greeting {
-  text: string;
-  lang: string;
-  dir: 'ltr' | 'rtl';
-  anim: 'type' | 'slide';
+	text: string;
+	lang: string;
+	dir: 'ltr' | 'rtl';
+	anim: 'type' | 'slide';
 }
 
 export interface QuickAction {
-  icon: string;
-  labelKey: string;
-  prompt: string;
-  color: string;
+	icon: string;
+	labelKey: string;
+	prompt: string;
+	color: string;
 }
 
 @Component({
-  selector: 'genkit-welcome-screen',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatButtonModule,
-    MatIconModule,
-    TranslateModule,
-  ],
-  template: `
+	selector: 'genkit-welcome-screen',
+	standalone: true,
+	imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule],
+	template: `
     <div class="welcome-header">
       <div class="welcome-logo">
         <img [src]="logoUrl()" [alt]="logoAlt()">
@@ -80,7 +93,8 @@ export interface QuickAction {
       }
     </div>
   `,
-  styles: [`
+	styles: [
+		`
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: flex;
@@ -187,112 +201,117 @@ export interface QuickAction {
     @keyframes blink {
       50% { opacity: 0; }
     }
-  `]
+  `,
+	],
 })
 export class WelcomeScreenComponent implements OnInit, OnDestroy {
-  /** List of greetings to cycle through */
-  greetings = input.required<Greeting[]>();
+	/** List of greetings to cycle through */
+	greetings = input.required<Greeting[]>();
 
-  /** Quick action buttons */
-  quickActions = input.required<QuickAction[]>();
+	/** Quick action buttons */
+	quickActions = input.required<QuickAction[]>();
 
-  /** Logo URL (configurable for portability) */
-  logoUrl = input<string>('genkit-logo.png');
+	/** Logo URL (configurable for portability) */
+	logoUrl = input<string>('genkit-logo.png');
 
-  /** Logo alt text */
-  logoAlt = input<string>('Genkit');
+	/** Logo alt text */
+	logoAlt = input<string>('Genkit');
 
-  /** Emitted when a quick action is selected */
-  actionSelected = output<string>();
+	/** Emitted when a quick action is selected */
+	actionSelected = output<string>();
 
-  /** Current greeting index */
-  currentGreetingIndex = signal(0);
+	/** Current greeting index */
+	currentGreetingIndex = signal(0);
 
-  /** Current typewriter text */
-  typewriterText = signal('');
+	/** Current typewriter text */
+	typewriterText = signal('');
 
-  /** Whether to show the cursor */
-  showCursor = signal(true);
+	/** Whether to show the cursor */
+	showCursor = signal(true);
 
-  private greetingInterval?: ReturnType<typeof setInterval>;
-  private typeInterval?: ReturnType<typeof setTimeout>;
-  private eraseInterval?: ReturnType<typeof setTimeout>;
+	private greetingInterval?: ReturnType<typeof setInterval>;
+	private typeInterval?: ReturnType<typeof setTimeout>;
+	private eraseInterval?: ReturnType<typeof setTimeout>;
 
-  /** Get the current greeting based on index */
-  currentGreeting(): Greeting {
-    return this.greetings()[this.currentGreetingIndex()];
-  }
+	/** Get the current greeting based on index */
+	currentGreeting(): Greeting {
+		return this.greetings()[this.currentGreetingIndex()];
+	}
 
-  ngOnInit(): void {
-    this.startGreetingCarousel();
-  }
+	ngOnInit(): void {
+		this.startGreetingCarousel();
+	}
 
-  ngOnDestroy(): void {
-    if (this.greetingInterval) clearInterval(this.greetingInterval);
-    if (this.typeInterval) clearTimeout(this.typeInterval);
-    if (this.eraseInterval) clearTimeout(this.eraseInterval);
-  }
+	ngOnDestroy(): void {
+		if (this.greetingInterval) clearInterval(this.greetingInterval);
+		if (this.typeInterval) clearTimeout(this.typeInterval);
+		if (this.eraseInterval) clearTimeout(this.eraseInterval);
+	}
 
-  private startGreetingCarousel(): void {
-    const greetings = this.greetings();
-    if (greetings.length === 0) return;
+	private startGreetingCarousel(): void {
+		const greetings = this.greetings();
+		if (greetings.length === 0) return;
 
-    // Type the first greeting
-    this.typeGreeting(greetings[0].text, greetings[0].anim, greetings[0].dir);
+		// Type the first greeting
+		this.typeGreeting(greetings[0].text, greetings[0].anim, greetings[0].dir);
 
-    // Set up interval to cycle through greetings
-    this.greetingInterval = setInterval(() => {
-      this.eraseGreeting(() => {
-        const nextIndex = (this.currentGreetingIndex() + 1) % greetings.length;
-        this.currentGreetingIndex.set(nextIndex);
-        const nextGreeting = greetings[nextIndex];
-        this.typeGreeting(nextGreeting.text, nextGreeting.anim, nextGreeting.dir);
-      }, this.currentGreeting().anim);
-    }, 4000);
-  }
+		// Set up interval to cycle through greetings
+		this.greetingInterval = setInterval(() => {
+			this.eraseGreeting(() => {
+				const nextIndex = (this.currentGreetingIndex() + 1) % greetings.length;
+				this.currentGreetingIndex.set(nextIndex);
+				const nextGreeting = greetings[nextIndex];
+				this.typeGreeting(nextGreeting.text, nextGreeting.anim, nextGreeting.dir);
+			}, this.currentGreeting().anim);
+		}, 4000);
+	}
 
-  private typeGreeting(greetingText: string, anim: 'type' | 'slide' = 'type', dir: 'ltr' | 'rtl' = 'ltr'): void {
-    this.showCursor.set(true);
+	private typeGreeting(
+		greetingText: string,
+		anim: 'type' | 'slide' = 'type',
+		dir: 'ltr' | 'rtl' = 'ltr'
+	): void {
+		this.showCursor.set(true);
 
-    if (anim === 'slide') {
-      // For slide animation, show full text immediately
-      this.typewriterText.set(greetingText);
-      return;
-    }
+		if (anim === 'slide') {
+			// For slide animation, show full text immediately
+			this.typewriterText.set(greetingText);
+			return;
+		}
 
-    // Typewriter effect
-    let charIndex = 0;
-    const typeNext = () => {
-      if (charIndex <= greetingText.length) {
-        this.typewriterText.set(greetingText.substring(0, charIndex));
-        charIndex++;
-        this.typeInterval = setTimeout(typeNext, 50 + Math.random() * 30);
-      }
-    };
-    typeNext();
-  }
+		// Typewriter effect
+		let charIndex = 0;
+		const typeNext = () => {
+			if (charIndex <= greetingText.length) {
+				this.typewriterText.set(greetingText.substring(0, charIndex));
+				charIndex++;
+				this.typeInterval = setTimeout(typeNext, 50 + Math.random() * 30);
+			}
+		};
+		typeNext();
+	}
 
-  private eraseGreeting(callback: () => void, anim: 'type' | 'slide' = 'type'): void {
-    if (anim === 'slide') {
-      // For slide, just clear and callback
-      this.typewriterText.set('');
-      callback();
-      return;
-    }
+	private eraseGreeting(callback: () => void, anim: 'type' | 'slide' = 'type'): void {
+		if (anim === 'slide') {
+			// For slide, just clear and callback
+			this.typewriterText.set('');
+			callback();
+			return;
+		}
 
-    // Erase effect
-    const currentText = this.typewriterText();
-    let charIndex = currentText.length;
+		// Erase effect
+		const currentText = this.typewriterText();
+		let charIndex = currentText.length;
 
-    const eraseNext = () => {
-      if (charIndex >= 0) {
-        this.typewriterText.set(currentText.substring(0, charIndex));
-        charIndex--;
-        this.eraseInterval = setTimeout(eraseNext, 30);
-      } else {
-        callback();
-      }
-    };
-    eraseNext();
-  }
+		const eraseNext = () => {
+			if (charIndex >= 0) {
+				this.typewriterText.set(currentText.substring(0, charIndex));
+				charIndex--;
+				this.eraseInterval = setTimeout(eraseNext, 30);
+			} else {
+				callback();
+			}
+		};
+		eraseNext();
+	}
 }

@@ -1,20 +1,38 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * LanguageSelectorComponent - Self-contained language dropdown selector.
- * 
+ *
  * This component is responsible for:
  * - Displaying the currently selected language
  * - Searchable dropdown for language selection
  * - Support for RTL languages
  * - System language auto-detection option
- * 
+ *
  * Portability:
  * - This component is SELF-CONTAINED with CSS fallback variables
  * - Requires: @angular/material
  * - Optional: @ngx-translate/core (for labels)
  * - Languages are passed as input - no service dependency required
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────────────────────────┐
  *     │                    LanguageSelectorComponent                    │
  *     ├─────────────────────────────────────────────────────────────────┤
@@ -41,11 +59,11 @@ import { TranslateModule } from '@ngx-translate/core';
  * Exported for use by host applications.
  */
 export interface Language {
-    code: string;
-    name: string;
-    nativeName: string;
-    direction: 'ltr' | 'rtl';
-    flag: string;
+	code: string;
+	name: string;
+	nativeName: string;
+	direction: 'ltr' | 'rtl';
+	flag: string;
 }
 
 /**
@@ -53,29 +71,29 @@ export interface Language {
  * Can be overridden by passing custom languages via input.
  */
 export const DEFAULT_LANGUAGES: Language[] = [
-    { code: 'en', name: 'English', nativeName: 'English', direction: 'ltr', flag: '🇺🇸' },
-    { code: 'es', name: 'Spanish', nativeName: 'Español', direction: 'ltr', flag: '🇪🇸' },
-    { code: 'de', name: 'German', nativeName: 'Deutsch', direction: 'ltr', flag: '🇩🇪' },
-    { code: 'fr', name: 'French', nativeName: 'Français', direction: 'ltr', flag: '🇫🇷' },
-    { code: 'ar', name: 'Arabic', nativeName: 'العربية', direction: 'rtl', flag: '🇸🇦' },
-    { code: 'zh', name: 'Chinese', nativeName: '中文', direction: 'ltr', flag: '🇨🇳' },
-    { code: 'ja', name: 'Japanese', nativeName: '日本語', direction: 'ltr', flag: '🇯🇵' },
-    { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', direction: 'ltr', flag: '🇮🇳' },
+	{ code: 'en', name: 'English', nativeName: 'English', direction: 'ltr', flag: '🇺🇸' },
+	{ code: 'es', name: 'Spanish', nativeName: 'Español', direction: 'ltr', flag: '🇪🇸' },
+	{ code: 'de', name: 'German', nativeName: 'Deutsch', direction: 'ltr', flag: '🇩🇪' },
+	{ code: 'fr', name: 'French', nativeName: 'Français', direction: 'ltr', flag: '🇫🇷' },
+	{ code: 'ar', name: 'Arabic', nativeName: 'العربية', direction: 'rtl', flag: '🇸🇦' },
+	{ code: 'zh', name: 'Chinese', nativeName: '中文', direction: 'ltr', flag: '🇨🇳' },
+	{ code: 'ja', name: 'Japanese', nativeName: '日本語', direction: 'ltr', flag: '🇯🇵' },
+	{ code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', direction: 'ltr', flag: '🇮🇳' },
 ];
 
 @Component({
-    selector: 'genkit-language-selector',
-    standalone: true,
-    imports: [
-        CommonModule,
-        FormsModule,
-        MatButtonModule,
-        MatIconModule,
-        MatMenuModule,
-        MatDividerModule,
-        TranslateModule,
-    ],
-    template: `
+	selector: 'genkit-language-selector',
+	standalone: true,
+	imports: [
+		CommonModule,
+		FormsModule,
+		MatButtonModule,
+		MatIconModule,
+		MatMenuModule,
+		MatDividerModule,
+		TranslateModule,
+	],
+	template: `
     <button mat-button 
             class="language-select-btn"
             [matMenuTriggerFor]="languageMenu"
@@ -136,7 +154,8 @@ export const DEFAULT_LANGUAGES: Language[] = [
       </div>
     </mat-menu>
   `,
-    styles: [`
+	styles: [
+		`
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: inline-block;
@@ -272,58 +291,60 @@ export const DEFAULT_LANGUAGES: Language[] = [
       color: var(--_on-surface-variant);
       font-size: 14px;
     }
-  `]
+  `,
+	],
 })
 export class LanguageSelectorComponent {
-    /** List of available languages */
-    languages = input<Language[]>(DEFAULT_LANGUAGES);
+	/** List of available languages */
+	languages = input<Language[]>(DEFAULT_LANGUAGES);
 
-    /** Currently selected language code (or 'system') */
-    selectedLanguage = input<string>('en');
+	/** Currently selected language code (or 'system') */
+	selectedLanguage = input<string>('en');
 
-    /** Whether to show the 'System' option */
-    showSystemOption = input<boolean>(true);
+	/** Whether to show the 'System' option */
+	showSystemOption = input<boolean>(true);
 
-    /** Emitted when a language is selected */
-    languageSelected = output<string>();
+	/** Emitted when a language is selected */
+	languageSelected = output<string>();
 
-    /** Search query for filtering languages */
-    searchQuery = '';
+	/** Search query for filtering languages */
+	searchQuery = '';
 
-    /** Filtered languages based on search */
-    filteredLanguages = computed(() => {
-        const query = this.searchQuery.toLowerCase();
-        if (!query) return this.languages();
+	/** Filtered languages based on search */
+	filteredLanguages = computed(() => {
+		const query = this.searchQuery.toLowerCase();
+		if (!query) return this.languages();
 
-        return this.languages().filter(lang =>
-            lang.name.toLowerCase().includes(query) ||
-            lang.nativeName.toLowerCase().includes(query) ||
-            lang.code.toLowerCase().includes(query)
-        );
-    });
+		return this.languages().filter(
+			(lang) =>
+				lang.name.toLowerCase().includes(query) ||
+				lang.nativeName.toLowerCase().includes(query) ||
+				lang.code.toLowerCase().includes(query)
+		);
+	});
 
-    onMenuOpened(): void {
-        this.searchQuery = '';
-    }
+	onMenuOpened(): void {
+		this.searchQuery = '';
+	}
 
-    clearSearch(): void {
-        this.searchQuery = '';
-    }
+	clearSearch(): void {
+		this.searchQuery = '';
+	}
 
-    selectLanguage(code: string): void {
-        this.languageSelected.emit(code);
-    }
+	selectLanguage(code: string): void {
+		this.languageSelected.emit(code);
+	}
 
-    getCurrentLanguage(): Language | undefined {
-        const code = this.selectedLanguage();
-        if (code === 'system') return undefined;
-        return this.languages().find(l => l.code === code);
-    }
+	getCurrentLanguage(): Language | undefined {
+		const code = this.selectedLanguage();
+		if (code === 'system') return undefined;
+		return this.languages().find((l) => l.code === code);
+	}
 
-    getDisplayLabel(): string {
-        const code = this.selectedLanguage();
-        if (code === 'system') return 'System';
-        const lang = this.languages().find(l => l.code === code);
-        return lang?.nativeName || code;
-    }
+	getDisplayLabel(): string {
+		const code = this.selectedLanguage();
+		if (code === 'system') return 'System';
+		const lang = this.languages().find((l) => l.code === code);
+		return lang?.nativeName || code;
+	}
 }

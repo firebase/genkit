@@ -1,14 +1,32 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * PromptQueueComponent - Queue management with drag-and-drop reordering.
- * 
+ *
  * This component is responsible for:
  * - Displaying queued prompts waiting to be sent
  * - Drag-and-drop reordering of queue items
  * - Editing queued prompts inline
  * - Queue actions (send now, send all, clear all)
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────┐
  *     │           PromptQueueComponent              │
  *     ├─────────────────────────────────────────────┤
@@ -42,34 +60,34 @@ import { TranslateModule } from '@ngx-translate/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 
 export interface QueueItem {
-  id: string;
-  content: string;
+	id: string;
+	content: string;
 }
 
 @Component({
-  selector: 'genkit-prompt-queue',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    DragDropModule,
-    MatIconModule,
-    MatButtonModule,
-    MatTooltipModule,
-    TranslateModule,
-  ],
-  animations: [
-    trigger('slideIn', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(10px)' }),
-        animate('200ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
-      ]),
-      transition(':leave', [
-        animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' }))
-      ])
-    ])
-  ],
-  template: `
+	selector: 'genkit-prompt-queue',
+	standalone: true,
+	imports: [
+		CommonModule,
+		FormsModule,
+		DragDropModule,
+		MatIconModule,
+		MatButtonModule,
+		MatTooltipModule,
+		TranslateModule,
+	],
+	animations: [
+		trigger('slideIn', [
+			transition(':enter', [
+				style({ opacity: 0, transform: 'translateY(10px)' }),
+				animate('200ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
+			]),
+			transition(':leave', [
+				animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' })),
+			]),
+		]),
+	],
+	template: `
     <div class="prompt-queue slide-up">
       <div class="queue-header">
         <div class="queue-header-left" (click)="expanded.set(!expanded())">
@@ -121,7 +139,8 @@ export interface QueueItem {
       }
     </div>
   `,
-  styles: [`
+	styles: [
+		`
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: block;
@@ -295,57 +314,58 @@ export interface QueueItem {
     .queue-items.cdk-drop-list-dragging .queue-item:not(.cdk-drag-placeholder) {
       transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
     }
-  `]
+  `,
+	],
 })
 export class PromptQueueComponent {
-  /** List of queued items */
-  queue = input.required<QueueItem[]>();
+	/** List of queued items */
+	queue = input.required<QueueItem[]>();
 
-  /** Emitted when user clicks send on an item */
-  send = output<string>();
+	/** Emitted when user clicks send on an item */
+	send = output<string>();
 
-  /** Emitted when user clicks send all */
-  sendAll = output<void>();
+	/** Emitted when user clicks send all */
+	sendAll = output<void>();
 
-  /** Emitted when user clicks remove on an item */
-  remove = output<string>();
+	/** Emitted when user clicks remove on an item */
+	remove = output<string>();
 
-  /** Emitted when user clicks clear all */
-  clearAll = output<void>();
+	/** Emitted when user clicks clear all */
+	clearAll = output<void>();
 
-  /** Emitted when a queue item is updated */
-  update = output<{ id: string; content: string }>();
+	/** Emitted when a queue item is updated */
+	update = output<{ id: string; content: string }>();
 
-  /** Emitted when items are reordered via drag-drop */
-  reorder = output<CdkDragDrop<QueueItem[]>>();
+	/** Emitted when items are reordered via drag-drop */
+	reorder = output<CdkDragDrop<QueueItem[]>>();
 
-  /** Whether the queue is expanded */
-  expanded = signal(true);
+	/** Whether the queue is expanded */
+	expanded = signal(true);
 
-  /** ID of the item being edited */
-  editingId = signal<string | null>(null);
+	/** ID of the item being edited */
+	editingId = signal<string | null>(null);
 
-  /** Content being edited */
-  editingContent = '';
+	/** Content being edited */
+	editingContent = '';
 
-  onDrop(event: CdkDragDrop<QueueItem[]>): void {
-    this.reorder.emit(event);
-  }
+	onDrop(event: CdkDragDrop<QueueItem[]>): void {
+		this.reorder.emit(event);
+	}
 
-  startEdit(item: QueueItem): void {
-    this.editingId.set(item.id);
-    this.editingContent = item.content;
-  }
+	startEdit(item: QueueItem): void {
+		this.editingId.set(item.id);
+		this.editingContent = item.content;
+	}
 
-  saveEdit(id: string): void {
-    if (this.editingContent.trim()) {
-      this.update.emit({ id, content: this.editingContent.trim() });
-    }
-    this.editingId.set(null);
-  }
+	saveEdit(id: string): void {
+		if (this.editingContent.trim()) {
+			this.update.emit({ id, content: this.editingContent.trim() });
+		}
+		this.editingId.set(null);
+	}
 
-  cancelEdit(): void {
-    this.editingId.set(null);
-    this.editingContent = '';
-  }
+	cancelEdit(): void {
+		this.editingId.set(null);
+		this.editingContent = '';
+	}
 }

@@ -1,6 +1,24 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * ChatInputComponent - Text area, attachments, voice input, send button.
- * 
+ *
  * This component is responsible for:
  * - Message text input with auto-resizing
  * - File attachments with drag-and-drop
@@ -8,9 +26,9 @@
  * - Content safety highlighting
  * - Send button with animation
  * - Settings dropdown (streaming, markdown, safety)
- * 
+ *
  * Component Architecture::
- * 
+ *
  *     ┌─────────────────────────────────────────────────────────────┐
  *     │                    ChatInputComponent                       │
  *     ├─────────────────────────────────────────────────────────────┤
@@ -45,8 +63,16 @@
  *     └─────────────────────────────────────────────────────────────┘
  */
 import {
-  Component, input, output, signal, computed, effect,
-  ElementRef, ViewChild, AfterViewInit, inject
+	Component,
+	input,
+	output,
+	signal,
+	computed,
+	effect,
+	ElementRef,
+	ViewChild,
+	AfterViewInit,
+	inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -61,8 +87,8 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 /** Default configuration - can be overridden via inputs */
 const DEFAULT_CONFIG = {
-  maxAttachments: 10,
-  maxFileSizeBytes: 1 * 1024 * 1024, // 1MB
+	maxAttachments: 10,
+	maxFileSizeBytes: 1 * 1024 * 1024, // 1MB
 };
 
 /**
@@ -70,58 +96,58 @@ const DEFAULT_CONFIG = {
  * Inlined for component portability.
  */
 function getMimeTypeIcon(mimeType: string): string {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('video/')) return 'videocam';
-  if (mimeType.startsWith('audio/')) return 'audio_file';
-  if (mimeType === 'application/pdf') return 'picture_as_pdf';
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'table_chart';
-  if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'slideshow';
-  if (mimeType.includes('document') || mimeType.includes('word')) return 'description';
-  if (mimeType.startsWith('text/')) return 'article';
-  if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'folder_zip';
-  if (mimeType.includes('json')) return 'data_object';
-  return 'insert_drive_file';
+	if (mimeType.startsWith('image/')) return 'image';
+	if (mimeType.startsWith('video/')) return 'videocam';
+	if (mimeType.startsWith('audio/')) return 'audio_file';
+	if (mimeType === 'application/pdf') return 'picture_as_pdf';
+	if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'table_chart';
+	if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'slideshow';
+	if (mimeType.includes('document') || mimeType.includes('word')) return 'description';
+	if (mimeType.startsWith('text/')) return 'article';
+	if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'folder_zip';
+	if (mimeType.includes('json')) return 'data_object';
+	return 'insert_drive_file';
 }
 
 export interface AttachedFile {
-  name: string;
-  size: number;
-  type: string;
-  preview?: string;
-  data?: string;
+	name: string;
+	size: number;
+	type: string;
+	preview?: string;
+	data?: string;
 }
 
 export interface SendEvent {
-  message: string;
-  attachments: AttachedFile[];
+	message: string;
+	attachments: AttachedFile[];
 }
 
 @Component({
-  selector: 'genkit-chat-input',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatButtonModule,
-    MatIconModule,
-    MatMenuModule,
-    MatTooltipModule,
-    MatDividerModule,
-    MatSnackBarModule,
-    TranslateModule,
-  ],
-  animations: [
-    trigger('slideButton', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateX(10px)' }),
-        animate('150ms ease-out', style({ opacity: 1, transform: 'translateX(0)' }))
-      ]),
-      transition(':leave', [
-        animate('100ms ease-in', style({ opacity: 0, transform: 'translateX(-10px)' }))
-      ])
-    ])
-  ],
-  template: `
+	selector: 'genkit-chat-input',
+	standalone: true,
+	imports: [
+		CommonModule,
+		FormsModule,
+		MatButtonModule,
+		MatIconModule,
+		MatMenuModule,
+		MatTooltipModule,
+		MatDividerModule,
+		MatSnackBarModule,
+		TranslateModule,
+	],
+	animations: [
+		trigger('slideButton', [
+			transition(':enter', [
+				style({ opacity: 0, transform: 'translateX(10px)' }),
+				animate('150ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
+			]),
+			transition(':leave', [
+				animate('100ms ease-in', style({ opacity: 0, transform: 'translateX(-10px)' })),
+			]),
+		]),
+	],
+	template: `
     <div class="input-box" 
          [class.focused]="inputFocused()" 
          [class.is-dragging]="isDragging()"
@@ -323,7 +349,8 @@ export interface SendEvent {
       </div>
     }
   `,
-  styles: [`
+	styles: [
+		`
     /* CSS Variable Defaults - ensures component works without global theme */
     :host {
       display: block;
@@ -574,262 +601,269 @@ export interface SendEvent {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
-  `]
+  `,
+	],
 })
 export class ChatInputComponent implements AfterViewInit {
-  /** Placeholder text for the input */
-  placeholder = input<string>('Type a message...');
+	/** Placeholder text for the input */
+	placeholder = input<string>('Type a message...');
 
-  /** Whether the input is disabled */
-  disabled = input<boolean>(false);
+	/** Whether the input is disabled */
+	disabled = input<boolean>(false);
 
-  /** Whether content is flagged as unsafe */
-  contentFlagged = input<boolean>(false);
+	/** Whether content is flagged as unsafe */
+	contentFlagged = input<boolean>(false);
 
-  /** Labels of flagged content */
-  flaggedLabels = input<string[]>([]);
+	/** Labels of flagged content */
+	flaggedLabels = input<string[]>([]);
 
-  /** Whether streaming is enabled */
-  streamingEnabled = input<boolean>(true);
+	/** Whether streaming is enabled */
+	streamingEnabled = input<boolean>(true);
 
-  /** Whether markdown rendering is enabled */
-  markdownEnabled = input<boolean>(true);
+	/** Whether markdown rendering is enabled */
+	markdownEnabled = input<boolean>(true);
 
-  /** Whether content safety is enabled */
-  safetyEnabled = input<boolean>(true);
+	/** Whether content safety is enabled */
+	safetyEnabled = input<boolean>(true);
 
-  /** Whether voice is currently recording */
-  isRecording = input<boolean>(false);
+	/** Whether voice is currently recording */
+	isRecording = input<boolean>(false);
 
-  /** Whether voice input is supported */
-  voiceSupported = input<boolean>(false);
+	/** Whether voice input is supported */
+	voiceSupported = input<boolean>(false);
 
-  /**
-   * Signal-based text injection for decoupled communication.
-   * When this value changes, the input text is updated and the input is focused.
-   * Use with a signal from parent component:
-   * 
-   * @example
-   * // In parent:
-   * injectedPrompt = signal<string | null>(null);
-   * 
-   * // When quick action clicked:
-   * this.injectedPrompt.set('Tell me a joke');
-   * 
-   * // In template:
-   * <app-chat-input [injectedText]="injectedPrompt()" />
-   */
-  injectedText = input<string | null>(null);
+	/**
+	 * Signal-based text injection for decoupled communication.
+	 * When this value changes, the input text is updated and the input is focused.
+	 * Use with a signal from parent component:
+	 *
+	 * @example
+	 * // In parent:
+	 * injectedPrompt = signal<string | null>(null);
+	 *
+	 * // When quick action clicked:
+	 * this.injectedPrompt.set('Tell me a joke');
+	 *
+	 * // In template:
+	 * <app-chat-input [injectedText]="injectedPrompt()" />
+	 */
+	injectedText = input<string | null>(null);
 
-  /** Emitted when user sends a message */
-  send = output<SendEvent>();
+	/** Emitted when user sends a message */
+	send = output<SendEvent>();
 
-  /** Emitted when input text changes */
-  inputChange = output<string>();
+	/** Emitted when input text changes */
+	inputChange = output<string>();
 
-  /** Emitted when voice toggle is clicked */
-  toggleVoice = output<void>();
+	/** Emitted when voice toggle is clicked */
+	toggleVoice = output<void>();
 
-  /** Emitted when streaming toggle is clicked */
-  toggleStreaming = output<void>();
+	/** Emitted when streaming toggle is clicked */
+	toggleStreaming = output<void>();
 
-  /** Emitted when markdown toggle is clicked */
-  toggleMarkdown = output<void>();
+	/** Emitted when markdown toggle is clicked */
+	toggleMarkdown = output<void>();
 
-  /** Emitted when safety toggle is clicked */
-  toggleSafety = output<void>();
+	/** Emitted when safety toggle is clicked */
+	toggleSafety = output<void>();
 
-  /** Emitted when clear preferences is clicked */
-  clearPreferences = output<void>();
+	/** Emitted when clear preferences is clicked */
+	clearPreferences = output<void>();
 
-  /** Emitted when files are selected */
-  filesSelected = output<File[]>();
+	/** Emitted when files are selected */
+	filesSelected = output<File[]>();
 
-  /** Services */
-  private snackBar = inject(MatSnackBar);
-  private translate = inject(TranslateService);
+	/** Services */
+	private snackBar = inject(MatSnackBar);
+	private translate = inject(TranslateService);
 
-  /** Local state */
-  message = '';
-  inputFocused = signal(false);
-  isDragging = signal(false);
-  attachedFiles = signal<AttachedFile[]>([]);
+	/** Local state */
+	message = '';
+	inputFocused = signal(false);
+	isDragging = signal(false);
+	attachedFiles = signal<AttachedFile[]>([]);
 
-  /** Computed: show send button when there's text */
-  showSendButton = computed(() => this.message.trim().length > 0);
+	/** Computed: show send button when there's text */
+	showSendButton = computed(() => this.message.trim().length > 0);
 
-  @ViewChild('chatTextarea') private textareaRef!: ElementRef<HTMLTextAreaElement>;
+	@ViewChild('chatTextarea') private textareaRef!: ElementRef<HTMLTextAreaElement>;
 
-  constructor() {
-    // Watch for injected text changes and update input with focus
-    effect(() => {
-      const text = this.injectedText();
-      if (text !== null && text !== undefined) {
-        this.message = text;
-        this.onInputChange();
-        // Focus and move cursor to end after text is set
-        setTimeout(() => {
-          this.focusInputAtEnd();
-        }, 0);
-      }
-    });
-  }
+	constructor() {
+		// Watch for injected text changes and update input with focus
+		effect(() => {
+			const text = this.injectedText();
+			if (text !== null && text !== undefined) {
+				this.message = text;
+				this.onInputChange();
+				// Focus and move cursor to end after text is set
+				setTimeout(() => {
+					this.focusInputAtEnd();
+				}, 0);
+			}
+		});
+	}
 
-  ngAfterViewInit(): void {
-    // Focus the input on init
-    setTimeout(() => this.focusInput(), 100);
-  }
+	ngAfterViewInit(): void {
+		// Focus the input on init
+		setTimeout(() => this.focusInput(), 100);
+	}
 
-  focusInput(event?: MouseEvent): void {
-    if (event) {
-      // Don't focus if clicking on a button
-      const target = event.target as HTMLElement;
-      if (target.closest('button') || target.closest('mat-menu')) {
-        return;
-      }
-    }
-    this.textareaRef?.nativeElement?.focus();
-  }
+	focusInput(event?: MouseEvent): void {
+		if (event) {
+			// Don't focus if clicking on a button
+			const target = event.target as HTMLElement;
+			if (target.closest('button') || target.closest('mat-menu')) {
+				return;
+			}
+		}
+		this.textareaRef?.nativeElement?.focus();
+	}
 
-  /**
-   * Focus the input and move cursor to the end of the text.
-   * Used when injecting text to place cursor after the injected content.
-   */
-  focusInputAtEnd(): void {
-    const textarea = this.textareaRef?.nativeElement;
-    if (textarea) {
-      textarea.focus();
-      const length = textarea.value.length;
-      textarea.setSelectionRange(length, length);
-    }
-  }
+	/**
+	 * Focus the input and move cursor to the end of the text.
+	 * Used when injecting text to place cursor after the injected content.
+	 */
+	focusInputAtEnd(): void {
+		const textarea = this.textareaRef?.nativeElement;
+		if (textarea) {
+			textarea.focus();
+			const length = textarea.value.length;
+			textarea.setSelectionRange(length, length);
+		}
+	}
 
-  onInputChange(): void {
-    this.inputChange.emit(this.message);
-  }
+	onInputChange(): void {
+		this.inputChange.emit(this.message);
+	}
 
-  onEnterKey(event: Event): void {
-    const keyEvent = event as KeyboardEvent;
-    if (!keyEvent.shiftKey) {
-      event.preventDefault();
-      this.sendMessage();
-    }
-  }
+	onEnterKey(event: Event): void {
+		const keyEvent = event as KeyboardEvent;
+		if (!keyEvent.shiftKey) {
+			event.preventDefault();
+			this.sendMessage();
+		}
+	}
 
-  sendMessage(): void {
-    const trimmedMessage = this.message.trim();
-    if (!trimmedMessage && this.attachedFiles().length === 0) return;
+	sendMessage(): void {
+		const trimmedMessage = this.message.trim();
+		if (!trimmedMessage && this.attachedFiles().length === 0) return;
 
-    this.send.emit({
-      message: trimmedMessage,
-      attachments: [...this.attachedFiles()]
-    });
+		this.send.emit({
+			message: trimmedMessage,
+			attachments: [...this.attachedFiles()],
+		});
 
-    this.message = '';
-    this.attachedFiles.set([]);
-  }
+		this.message = '';
+		this.attachedFiles.set([]);
+	}
 
-  clearInput(): void {
-    this.message = '';
-    this.inputChange.emit('');
-  }
+	clearInput(): void {
+		this.message = '';
+		this.inputChange.emit('');
+	}
 
-  // Drag and drop handlers
-  onDragOver(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragging.set(true);
-  }
+	// Drag and drop handlers
+	onDragOver(event: DragEvent): void {
+		event.preventDefault();
+		event.stopPropagation();
+		this.isDragging.set(true);
+	}
 
-  onDragLeave(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragging.set(false);
-  }
+	onDragLeave(event: DragEvent): void {
+		event.preventDefault();
+		event.stopPropagation();
+		this.isDragging.set(false);
+	}
 
-  onDrop(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragging.set(false);
+	onDrop(event: DragEvent): void {
+		event.preventDefault();
+		event.stopPropagation();
+		this.isDragging.set(false);
 
-    const files = event.dataTransfer?.files;
-    if (files && files.length > 0) {
-      this.processFiles(Array.from(files));
-    }
-  }
+		const files = event.dataTransfer?.files;
+		if (files && files.length > 0) {
+			this.processFiles(Array.from(files));
+		}
+	}
 
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.processFiles(Array.from(input.files));
-      input.value = ''; // Reset for same file selection
-    }
-  }
+	onFileSelected(event: Event): void {
+		const input = event.target as HTMLInputElement;
+		if (input.files && input.files.length > 0) {
+			this.processFiles(Array.from(input.files));
+			input.value = ''; // Reset for same file selection
+		}
+	}
 
-  private processFiles(files: File[]): void {
-    const currentFiles = this.attachedFiles();
+	private processFiles(files: File[]): void {
+		const currentFiles = this.attachedFiles();
 
-    // Check max attachments
-    if (currentFiles.length + files.length > DEFAULT_CONFIG.maxAttachments) {
-      this.snackBar.open(
-        this.translate.instant('errors.tooManyFiles', { max: DEFAULT_CONFIG.maxAttachments }),
-        'OK',
-        { duration: 3000 }
-      );
-      return;
-    }
+		// Check max attachments
+		if (currentFiles.length + files.length > DEFAULT_CONFIG.maxAttachments) {
+			this.snackBar.open(
+				this.translate.instant('errors.tooManyFiles', { max: DEFAULT_CONFIG.maxAttachments }),
+				'OK',
+				{ duration: 3000 }
+			);
+			return;
+		}
 
-    for (const file of files) {
-      // Check file size
-      if (file.size > DEFAULT_CONFIG.maxFileSizeBytes) {
-        this.snackBar.open(
-          this.translate.instant('errors.fileTooLarge', { name: file.name, size: '1MB' }),
-          'OK',
-          { duration: 3000 }
-        );
-        continue;
-      }
+		for (const file of files) {
+			// Check file size
+			if (file.size > DEFAULT_CONFIG.maxFileSizeBytes) {
+				this.snackBar.open(
+					this.translate.instant('errors.fileTooLarge', { name: file.name, size: '1MB' }),
+					'OK',
+					{ duration: 3000 }
+				);
+				continue;
+			}
 
-      // Create preview for images
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          this.attachedFiles.update(files => [...files, {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            preview: reader.result as string,
-            data: reader.result as string
-          }]);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        this.attachedFiles.update(files => [...files, {
-          name: file.name,
-          size: file.size,
-          type: file.type
-        }]);
-      }
-    }
-  }
+			// Create preview for images
+			if (file.type.startsWith('image/')) {
+				const reader = new FileReader();
+				reader.onload = () => {
+					this.attachedFiles.update((files) => [
+						...files,
+						{
+							name: file.name,
+							size: file.size,
+							type: file.type,
+							preview: reader.result as string,
+							data: reader.result as string,
+						},
+					]);
+				};
+				reader.readAsDataURL(file);
+			} else {
+				this.attachedFiles.update((files) => [
+					...files,
+					{
+						name: file.name,
+						size: file.size,
+						type: file.type,
+					},
+				]);
+			}
+		}
+	}
 
-  removeFile(file: AttachedFile): void {
-    this.attachedFiles.update(files => files.filter(f => f.name !== file.name));
-  }
+	removeFile(file: AttachedFile): void {
+		this.attachedFiles.update((files) => files.filter((f) => f.name !== file.name));
+	}
 
-  clearAllFiles(): void {
-    this.attachedFiles.set([]);
-  }
+	clearAllFiles(): void {
+		this.attachedFiles.set([]);
+	}
 
-  getFileIcon(mimeType: string): string {
-    return getMimeTypeIcon(mimeType);
-  }
+	getFileIcon(mimeType: string): string {
+		return getMimeTypeIcon(mimeType);
+	}
 
-  formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }
+	formatFileSize(bytes: number): string {
+		if (bytes === 0) return '0 B';
+		const k = 1024;
+		const sizes = ['B', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+	}
 }
