@@ -51,7 +51,7 @@ export interface Provider {
 }
 
 @Component({
-  selector: 'app-model-selector',
+  selector: 'genkit-model-selector',
   standalone: true,
   imports: [
     CommonModule,

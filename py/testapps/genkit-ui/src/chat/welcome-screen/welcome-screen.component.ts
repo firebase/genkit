@@ -47,7 +47,7 @@ export interface QuickAction {
 }
 
 @Component({
-  selector: 'app-welcome-screen',
+  selector: 'genkit-welcome-screen',
   standalone: true,
   imports: [
     CommonModule,

@@ -2,15 +2,13 @@ import type { Preview } from '@storybook/angular';
 import { applicationConfig } from '@storybook/angular';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient, withFetch } from '@angular/common/http';
-import { importProvidersFrom } from '@angular/core';
-import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
-import { of } from 'rxjs';
-
-// NOTE: Global styles are loaded via angular.json build configuration
-// Storybook uses the "browserTarget": "genkit-chat-ui:build" which includes styles
+import { importProvidersFrom, APP_INITIALIZER } from '@angular/core';
+import { TranslateModule, TranslateLoader, TranslateService } from '@ngx-translate/core';
+import { Observable, of } from 'rxjs';
 
 // Complete mock translations for Storybook (copied from en.json)
-const TRANSLATIONS = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TRANSLATIONS: Record<string, any> = {
   en: {
     app: {
       title: 'Genkit Chat',
@@ -130,10 +128,20 @@ const TRANSLATIONS = {
 };
 
 // Custom translation loader for Storybook
-class MockTranslateLoader implements TranslateLoader {
-  getTranslation(lang: string) {
-    return of(TRANSLATIONS[lang as keyof typeof TRANSLATIONS] || TRANSLATIONS.en);
+class MockTranslateLoader extends TranslateLoader {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override getTranslation(lang: string): Observable<any> {
+    return of(TRANSLATIONS[lang] || TRANSLATIONS['en']);
   }
+}
+
+// Initialize translations synchronously
+function initTranslations(translate: TranslateService) {
+  return () => {
+    translate.setDefaultLang('en');
+    translate.use('en');
+    return Promise.resolve();
+  };
 }
 
 const preview: Preview = {
@@ -151,6 +159,12 @@ const preview: Preview = {
             },
           })
         ),
+        {
+          provide: APP_INITIALIZER,
+          useFactory: initTranslations,
+          deps: [TranslateService],
+          multi: true,
+        },
       ],
     }),
   ],

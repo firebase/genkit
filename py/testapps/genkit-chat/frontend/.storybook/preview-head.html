@@ -2,50 +2,92 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <!-- Google Fonts for typography -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link
+    href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
 
-<!-- Material Design theme CSS variables -->
+<!-- Angular Material Prebuilt Theme -->
+<link href="https://unpkg.com/@angular/material/prebuilt-themes/indigo-pink.css" rel="stylesheet">
+
 <style>
+    /**
+   * Genkit Chat Component Theme Variables
+   * Required for all chat components to render correctly
+   */
     :root {
-        /* Light theme colors */
+        /* Primary Colors */
         --primary: #4285f4;
-        --primary-container: #d3e3fd;
         --on-primary: #ffffff;
+        --primary-container: #d3e3fd;
         --on-primary-container: #041e49;
 
-        --secondary: #535f70;
-        --secondary-container: #d7e3f7;
-        --on-secondary: #ffffff;
-        --on-secondary-container: #101c2b;
-
-        --surface: #fafafa;
-        --surface-container: #f5f5f5;
-        --surface-container-high: #eeeeee;
-        --surface-container-highest: #e0e0e0;
-
+        /* Surface Colors */
+        --surface: #ffffff;
+        --surface-container: #f0f4f9;
+        --surface-container-high: #e5eaf0;
         --on-surface: #1a1c1e;
-        --on-surface-variant: #44474f;
+        --on-surface-variant: #5f6368;
 
+        /* Outline */
         --outline: #74777f;
         --outline-variant: #c4c6d0;
 
+        /* Error Colors */
         --error: #ba1a1a;
         --error-container: #ffdad6;
         --on-error: #ffffff;
         --on-error-container: #410002;
 
+        /* Additional colors */
+        --success: #34a853;
+        --warning: #fbbc05;
+
         /* Typography */
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    /* Ensure proper styling in story containers */
-    .sb-show-main {
-        background: var(--surface) !important;
-    }
-
+    /* Proper styling for Storybook preview */
     body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         margin: 0;
         padding: 0;
+        background: var(--surface);
+        color: var(--on-surface);
+    }
+
+    /* Ensure proper layout in Storybook docs */
+    .docs-story,
+    .sb-show-main {
+        background: var(--surface) !important;
+        padding: 16px;
+    }
+
+    /* Animations required by components */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease forwards;
     }
 </style>

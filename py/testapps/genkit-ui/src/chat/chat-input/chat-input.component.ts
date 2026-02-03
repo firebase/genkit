@@ -97,7 +97,7 @@ export interface SendEvent {
 }
 
 @Component({
-  selector: 'app-chat-input',
+  selector: 'genkit-chat-input',
   standalone: true,
   imports: [
     CommonModule,

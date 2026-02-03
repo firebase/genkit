@@ -13,7 +13,19 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "module": "preserve"
+    "module": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@aspect/genkit-ui": [
+        "../../genkit-ui/src/index.ts"
+      ],
+      "@aspect/genkit-ui/chat": [
+        "../../genkit-ui/src/chat/index.ts"
+      ],
+      "@aspect/genkit-ui/theme": [
+        "../../genkit-ui/src/theme/index.ts"
+      ]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

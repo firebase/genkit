@@ -47,7 +47,8 @@
     "mermaid": "^11.12.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "zone.js": "~0.15.0"
+    "zone.js": "~0.15.0",
+    "@aspect/genkit-ui": "workspace:*"
   },
   "devDependencies": {
     "@angular/build": "^21.1.2",

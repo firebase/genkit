@@ -59,7 +59,7 @@ export interface Message {
 }
 
 @Component({
-  selector: 'app-message-list',
+  selector: 'genkit-message-list',
   standalone: true,
   imports: [
     CommonModule,
@@ -372,9 +372,6 @@ export class MessageListComponent implements AfterViewChecked {
 
   /** Whether TTS is currently speaking (replaces SpeechService dependency) */
   isSpeaking = input<boolean>(false);
-
-  /** Error message to display (optional) */
-  error = input<string | null>(null);
 
   /** Emitted when user clicks copy on a message */
   copy = output<string>();

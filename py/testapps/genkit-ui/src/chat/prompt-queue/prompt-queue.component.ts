@@ -47,7 +47,7 @@ export interface QueueItem {
 }
 
 @Component({
-  selector: 'app-prompt-queue',
+  selector: 'genkit-prompt-queue',
   standalone: true,
   imports: [
     CommonModule,
