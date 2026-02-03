@@ -108,6 +108,33 @@ export class ChatService {
             },
         ]);
         this.isLoading.set(false);
+        // Process next queued prompt if any
+        this.processNextInQueue();
+    }
+
+    /**
+     * Process the next item in the queue automatically after a response is received.
+     */
+    private processNextInQueue(): void {
+        if (this.promptQueue().length > 0 && !this.isLoading()) {
+            const next = this.promptQueue()[0];
+            this.removeFromQueue(next.id);
+
+            if (this.streamingMode()) {
+                this.sendStreamMessage(next.content, next.model, () => {
+                    this.processNextInQueue();
+                });
+            } else {
+                this.sendMessage(next.content, next.model).subscribe({
+                    next: response => this.addAssistantMessage(response),
+                    error: err => {
+                        console.error('Queue send error:', err);
+                        this.isLoading.set(false);
+                        this.processNextInQueue();
+                    }
+                });
+            }
+        }
     }
 
     // Streaming mode (enabled by default)
@@ -115,6 +142,13 @@ export class ChatService {
 
     toggleStreamingMode(): void {
         this.streamingMode.update(v => !v);
+    }
+
+    // Markdown rendering mode (enabled by default)
+    markdownMode = signal(true);
+
+    toggleMarkdownMode(): void {
+        this.markdownMode.update(v => !v);
     }
 
     // Send message with streaming (returns EventSource URL)

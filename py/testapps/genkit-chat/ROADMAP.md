@@ -67,6 +67,14 @@ testing ground for Genkit features.
 | run.bat | Windows equivalent of run.sh |
 | Lint Commands | `./run.sh lint` runs ruff + pyright |
 | Test Commands | `./run.sh test` runs pytest |
+| Markdown Rendering | Safe markdown with DOMPurify, toggle in toolbar |
+| Mermaid Diagrams | Render diagrams in chat responses |
+| Math Equations | LaTeX-style math rendering |
+| Content Safety | TensorFlow.js toxicity detection (client-side) |
+| Strict CSP | Angular autoCsp for production builds |
+| Prompt Queue | Queue prompts while model is busy |
+| Drag & Drop Queue | Reorder queued prompts |
+| Playwright E2E Tests | Browser automation testing |
 
 ### Planned Features
 
@@ -74,6 +82,8 @@ testing ground for Genkit features.
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
+| **Shareable Chats** | 🔴 High | Share conversations via URL |
+| **libSQL Integration** | 🔴 High | SQLite-compatible Rust DB for persistence |
 | Vector Store Integration | 🟡 Medium | ChromaDB or Pinecone for real RAG |
 | Conversation History | 🟡 Medium | Persistent chat context |
 | Rate Limiting | 🟡 Medium | API request throttling |
@@ -86,6 +96,9 @@ testing ground for Genkit features.
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
+| **Image Recognition** | 🔴 High | Google Lens-like image analysis |
+| **Drag & Drop Attachments** | 🔴 High | Drop zone in chatbox for files |
+| **IndexedDB Persistence** | 🔴 High | Dexie.js for frontend chat storage |
 | File Upload | 🟡 Medium | Image/document upload for vision |
 | Code Highlighting | 🟡 Medium | Syntax highlighting in responses |
 | Export Chat | 🟡 Medium | Download conversation as JSON/MD |

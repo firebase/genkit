@@ -21,7 +21,9 @@ import { ModelsService } from '../../core/services/models.service';
 import { SpeechService } from '../../core/services/speech.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ContentSafetyService } from '../../core/services/content-safety.service';
 import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/error-details-dialog.component';
+import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 
 
 @Component({
@@ -43,6 +45,7 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
     MatSnackBarModule,
     MatDividerModule,
     MatDialogModule,
+    SafeMarkdownPipe,
   ],
   animations: [
     trigger('slideIn', [
@@ -90,7 +93,11 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
             }
             
             <div class="message-content" [class.user-message]="message.role === 'user'" [class.error-message]="message.isError">
-              <div class="message-text">{{ message.content }}</div>
+              @if (message.role === 'assistant' && chatService.markdownMode()) {
+                <div class="message-text markdown-content" [innerHTML]="message.content | safeMarkdown"></div>
+              } @else {
+                <div class="message-text">{{ message.content }}</div>
+              }
               
               @if (message.isError && message.errorDetails) {
                 <button mat-stroked-button class="error-details-btn" (click)="showErrorDetails(message.errorDetails)">
@@ -332,6 +339,27 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
                 <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
                 <span>Stream</span>
               </button>
+              
+              <!-- Markdown Toggle -->
+              <button mat-button 
+                      class="toolbar-btn markdown-btn"
+                      [class.active]="chatService.markdownMode()"
+                      (click)="chatService.toggleMarkdownMode()"
+                      [matTooltip]="chatService.markdownMode() ? 'Markdown ON - click to show raw' : 'Markdown OFF - click to render'">
+                <mat-icon>{{ chatService.markdownMode() ? 'code' : 'code_off' }}</mat-icon>
+                <span>MD</span>
+              </button>
+              
+              <!-- Content Safety Toggle -->
+              <button mat-button 
+                      class="toolbar-btn safety-btn"
+                      [class.active]="contentSafetyService.enabled()"
+                      [class.loading]="contentSafetyService.loading()"
+                      (click)="contentSafetyService.toggle()"
+                      [matTooltip]="getSafetyTooltip()">
+                <mat-icon>{{ contentSafetyService.enabled() ? 'shield' : 'shield_outlined' }}</mat-icon>
+                <span>Safe</span>
+              </button>
             </div>
             
             <div class="toolbar-right">
@@ -340,9 +368,10 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
                       class="model-select-btn"
                       [matMenuTriggerFor]="modelMenu"
                       (menuOpened)="onModelMenuOpened()">
-                <span class="model-label">{{ modelsService.getModelName(modelsService.selectedModel()) }}</span>
-                <span class="separator">·</span>
-                <span class="provider-label">{{ modelsService.getProviderName(modelsService.selectedModel()) }}</span>
+                <div class="model-info">
+                  <span class="model-name">{{ modelsService.getModelName(modelsService.selectedModel()) }}</span>
+                  <span class="provider-name">{{ modelsService.getProviderName(modelsService.selectedModel()) }}</span>
+                </div>
                 <mat-icon class="dropdown-icon">arrow_drop_down</mat-icon>
               </button>
               
@@ -671,6 +700,167 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
       color: var(--on-surface);
       white-space: pre-wrap;
       word-break: break-word;
+    }
+    
+    /* Markdown content styling */
+    .markdown-content {
+      white-space: normal;
+      
+      p {
+        margin: 0 0 0.75em;
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+      
+      h1, h2, h3, h4, h5, h6 {
+        margin: 1em 0 0.5em;
+        font-weight: 600;
+        line-height: 1.3;
+        &:first-child {
+          margin-top: 0;
+        }
+      }
+      
+      h1 { font-size: 1.4em; }
+      h2 { font-size: 1.25em; }
+      h3 { font-size: 1.1em; }
+      h4, h5, h6 { font-size: 1em; }
+      
+      code {
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+        font-size: 0.85em;
+        padding: 2px 6px;
+        background: var(--surface-variant);
+        border-radius: 4px;
+      }
+      
+      pre {
+        margin: 0.75em 0;
+        padding: 12px 16px;
+        background: var(--surface-variant);
+        border-radius: 8px;
+        overflow-x: auto;
+        
+        code {
+          padding: 0;
+          background: none;
+          font-size: 0.85em;
+        }
+      }
+      
+      ul, ol {
+        margin: 0.5em 0;
+        padding-left: 1.5em;
+      }
+      
+      li {
+        margin: 0.25em 0;
+      }
+      
+      blockquote {
+        margin: 0.75em 0;
+        padding: 8px 16px;
+        border-left: 3px solid var(--gemini-blue);
+        background: var(--surface-variant);
+        font-style: italic;
+      }
+      
+      a {
+        color: var(--gemini-blue);
+        text-decoration: none;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+      
+      table {
+        border-collapse: collapse;
+        margin: 0.75em 0;
+        width: 100%;
+      }
+      
+      th, td {
+        padding: 8px 12px;
+        border: 1px solid var(--outline);
+        text-align: left;
+      }
+      
+      th {
+        background: var(--surface-variant);
+        font-weight: 600;
+      }
+      
+      hr {
+        border: none;
+        border-top: 1px solid var(--outline);
+        margin: 1em 0;
+      }
+      
+      img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+      }
+      
+      /* Mermaid diagram styling */
+      .mermaid-diagram {
+        margin: 1em 0;
+        padding: 16px;
+        background: var(--surface-variant);
+        border-radius: 12px;
+        overflow-x: auto;
+        
+        svg {
+          max-width: 100%;
+          height: auto;
+        }
+      }
+      
+      .mermaid-error {
+        padding: 12px 16px;
+        background: rgba(217, 48, 37, 0.1);
+        border: 1px solid rgba(217, 48, 37, 0.3);
+        border-radius: 8px;
+        color: #d93025;
+        font-family: monospace;
+        font-size: 0.9em;
+      }
+      
+      /* Math equation styling */
+      .math-inline {
+        font-family: 'Cambria Math', 'Times New Roman', serif;
+        font-style: italic;
+        padding: 0 2px;
+      }
+      
+      .math-display {
+        display: block;
+        text-align: center;
+        font-family: 'Cambria Math', 'Times New Roman', serif;
+        font-size: 1.2em;
+        margin: 1em 0;
+        padding: 16px;
+        background: var(--surface-variant);
+        border-radius: 8px;
+      }
+      
+      .math-frac {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        vertical-align: middle;
+        margin: 0 4px;
+        
+        .math-num {
+          border-bottom: 1px solid currentColor;
+          padding-bottom: 2px;
+        }
+        
+        .math-denom {
+          padding-top: 2px;
+        }
+      }
     }
 
     .user-message .message-text {
@@ -1339,38 +1529,119 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
       }
     }
     
+    /* Markdown toggle - blue when ON */
+    .markdown-btn {
+      font-size: 14px;
+      padding: 4px 12px !important;
+      min-width: auto;
+      transition: all var(--transition-fast);
+      
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-right: 4px;
+      }
+      
+      span {
+        font-weight: 500;
+      }
+      
+      &.active {
+        background: rgba(66, 133, 244, 0.15);
+        color: #4285f4;
+        
+        mat-icon {
+          color: #4285f4;
+        }
+      }
+    }
+    
+    /* Safety toggle - green when ON, red when OFF */
+    .safety-btn {
+      font-size: 14px;
+      padding: 4px 12px !important;
+      min-width: auto;
+      transition: all var(--transition-fast);
+      
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-right: 4px;
+      }
+      
+      span {
+        font-weight: 500;
+      }
+      
+      &.active {
+        background: rgba(52, 168, 83, 0.15);
+        color: #34a853;
+        
+        mat-icon {
+          color: #34a853;
+        }
+      }
+      
+      &:not(.active) {
+        background: rgba(234, 67, 53, 0.1);
+        color: #ea4335;
+        
+        mat-icon {
+          color: #ea4335;
+        }
+      }
+      
+      &.loading {
+        opacity: 0.7;
+        
+        mat-icon {
+          animation: pulse 1.5s infinite;
+        }
+      }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
     .model-select-btn {
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 6px 12px !important;
+      gap: 6px;
+      padding: 4px 10px !important;
       font-size: 14px;
       color: var(--on-surface);
       background: transparent;
       border-radius: 8px;
       
-      .model-label {
+      .model-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        line-height: 1.2;
+      }
+      
+      .model-name {
         font-weight: 500;
+        font-size: 13px;
         white-space: nowrap;
       }
       
-      .separator {
-        color: #c4c9ce;
+      .provider-name {
         font-weight: 400;
-        margin: 0 4px;
-      }
-      
-      .provider-label {
-        font-weight: 400;
+        font-size: 10px;
         color: var(--on-surface-muted);
         white-space: nowrap;
+        opacity: 0.7;
       }
       
       .dropdown-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-        margin-left: 2px;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
         color: var(--on-surface-muted);
       }
       
@@ -1559,6 +1830,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   speechService = inject(SpeechService);
   themeService = inject(ThemeService);
   authService = inject(AuthService);
+  contentSafetyService = inject(ContentSafetyService);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
 
@@ -1836,7 +2108,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     this.userMessage = prompt + ' ';
   }
 
-  sendMessage(): void {
+  async sendMessage(): Promise<void> {
     if (!this.userMessage.trim()) return;
 
     const message = this.userMessage;
@@ -1844,6 +2116,21 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
 
     // Always keep focus on the input
     this.chatTextarea?.nativeElement?.focus();
+
+    // Check content safety if enabled
+    if (this.contentSafetyService.enabled()) {
+      const safetyResult = await this.contentSafetyService.checkContent(message);
+      if (!safetyResult.safe) {
+        this.snackBar.open(
+          `Message blocked: ${safetyResult.message || 'Potentially harmful content detected'}`,
+          'Dismiss',
+          { duration: 5000, panelClass: 'warning-snackbar' }
+        );
+        // Restore the message so user can edit it
+        this.userMessage = message;
+        return;
+      }
+    }
 
     // If model is busy, queue the prompt
     if (this.chatService.isLoading()) {
@@ -1957,6 +2244,18 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     return this.chatService.streamingMode()
       ? 'Streaming ON - click to disable'
       : 'Streaming OFF - click to enable';
+  }
+
+  getSafetyTooltip(): string {
+    if (this.contentSafetyService.loading()) {
+      return 'Loading toxicity detection model...';
+    }
+    if (this.contentSafetyService.enabled()) {
+      return this.contentSafetyService.modelReady()
+        ? 'Content Safety ON - toxic content will be blocked'
+        : 'Content Safety ON - model loading on first use';
+    }
+    return 'Content Safety OFF - no client-side filtering';
   }
 
   onDragOver(event: DragEvent): void {

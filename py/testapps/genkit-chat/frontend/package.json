@@ -6,7 +6,11 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:headed": "playwright test --headed",
+    "e2e:report": "playwright show-report"
   },
   "prettier": {
     "printWidth": 100,
@@ -21,7 +25,7 @@
     ]
   },
   "private": true,
-  "packageManager": "npm@10.9.2",
+  "packageManager": "pnpm@10.4.1",
   "dependencies": {
     "@angular/animations": "^21.1.2",
     "@angular/cdk": "~21.1.2",
@@ -32,6 +36,13 @@
     "@angular/material": "~21.1.2",
     "@angular/platform-browser": "^21.1.0",
     "@angular/router": "^21.1.0",
+    "@tensorflow-models/toxicity": "^1.2.2",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@types/dompurify": "^3.2.0",
+    "dompurify": "^3.3.1",
+    "marked": "^17.0.1",
+    "mathjax-full": "^3.2.2",
+    "mermaid": "^11.12.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
@@ -41,6 +52,7 @@
     "@angular/cli": "^21.1.2",
     "@angular/compiler-cli": "^21.1.0",
     "@angular/material": "^21.1.2",
+    "@playwright/test": "^1.58.1",
     "typescript": "~5.9.2"
   }
 }
