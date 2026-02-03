@@ -129,6 +129,11 @@ import { ModelsService, ModelInfo } from '../../core/services/models.service';
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
     .compare-container {
       max-width: 1200px;
       margin: 0 auto;

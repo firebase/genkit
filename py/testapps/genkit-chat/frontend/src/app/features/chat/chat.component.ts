@@ -71,8 +71,15 @@ import { AuthService } from '../../core/services/auth.service';
               </div>
             }
             
-            <div class="message-content" [class.user-message]="message.role === 'user'">
+            <div class="message-content" [class.user-message]="message.role === 'user'" [class.error-message]="message.isError">
               <div class="message-text">{{ message.content }}</div>
+              
+              @if (message.isError && message.errorDetails) {
+                <button mat-stroked-button class="error-details-btn" (click)="showErrorDetails(message.errorDetails)">
+                  <mat-icon>info_outline</mat-icon>
+                  View Details
+                </button>
+              }
               
               @if (message.role === 'assistant') {
                 <div class="message-actions">
@@ -246,6 +253,16 @@ import { AuthService } from '../../core/services/auth.service';
                 <mat-icon>tune</mat-icon>
                 <span>Tools</span>
               </button>
+              
+              <!-- Streaming Toggle -->
+              <button mat-button 
+                      class="toolbar-btn streaming-btn"
+                      [class.active]="chatService.streamingMode()"
+                      (click)="chatService.toggleStreamingMode()"
+                      [matTooltip]="chatService.streamingMode() ? 'Streaming ON - click to disable' : 'Streaming OFF - click to enable'">
+                <mat-icon>{{ chatService.streamingMode() ? 'stream' : 'pause_circle' }}</mat-icon>
+                <span>Stream</span>
+              </button>
             </div>
             
             <div class="toolbar-right">
@@ -362,6 +379,14 @@ import { AuthService } from '../../core/services/auth.service';
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
     .chat-container {
       display: flex;
       flex-direction: column;
@@ -581,6 +606,34 @@ import { AuthService } from '../../core/services/auth.service';
 
     .user-message .message-text {
       color: var(--user-bubble-text);
+    }
+
+    /* Error message styling */
+    .error-message {
+      .message-text {
+        color: #d93025;
+      }
+    }
+    
+    .error-details-btn {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #d93025;
+      border-color: #d93025;
+      padding: 4px 12px;
+      height: auto;
+      line-height: 1.4;
+      
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        margin-right: 4px;
+      }
+      
+      &:hover {
+        background: rgba(217, 48, 37, 0.08);
+      }
     }
 
     .message-actions {
@@ -950,6 +1003,33 @@ import { AuthService } from '../../core/services/auth.service';
       
       span {
         font-weight: 500;
+      }
+    }
+    
+    .streaming-btn {
+      font-size: 14px;
+      padding: 4px 12px !important;
+      min-width: auto;
+      transition: all var(--transition-fast);
+      
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-right: 4px;
+      }
+      
+      span {
+        font-weight: 500;
+      }
+      
+      &.active {
+        background: var(--user-bubble-bg);
+        color: var(--gemini-blue);
+        
+        mat-icon {
+          color: var(--gemini-blue);
+        }
       }
     }
     
@@ -1445,6 +1525,12 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
       this.chatTextarea?.nativeElement?.focus();
     }, 0);
 
+    // Use streaming if enabled
+    if (this.chatService.streamingMode()) {
+      this.chatService.sendStreamMessage(message, this.modelsService.selectedModel());
+      return;
+    }
+
     this.chatService.sendMessage(message, this.modelsService.selectedModel())
       .subscribe({
         next: response => {
@@ -1505,6 +1591,24 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     navigator.clipboard.writeText(text).then(() => {
       this.snackBar.open('Copied to clipboard', '', { duration: 2000 });
     });
+  }
+
+  showErrorDetails(details: string): void {
+    // Format the error details for display
+    let formattedDetails = details;
+    try {
+      const parsed = JSON.parse(details);
+      formattedDetails = JSON.stringify(parsed, null, 2);
+    } catch {
+      // Keep original if not JSON
+    }
+
+    // Open a dialog or snackbar with the error details
+    this.snackBar.open('Error details copied to clipboard. Check console for full details.', 'Dismiss', {
+      duration: 5000
+    });
+    navigator.clipboard.writeText(formattedDetails);
+    console.error('Error Details:', formattedDetails);
   }
 
   onDragOver(event: DragEvent): void {

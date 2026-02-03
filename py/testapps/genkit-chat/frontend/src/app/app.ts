@@ -224,6 +224,11 @@ import { ChatService } from './core/services/chat.service';
     </mat-sidenav-container>
   `,
   styles: [`
+    :host {
+      display: block;
+      font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
     .app-container {
       height: 100vh;
     }
@@ -650,7 +655,7 @@ import { ChatService } from './core/services/chat.service';
     /* Main Content */
     .main-content {
       height: calc(100vh - 56px);
-      overflow: auto;
+      overflow: hidden;
       background: var(--surface-dim);
     }
 

@@ -104,7 +104,7 @@ export class ModelsService {
     private http = inject(HttpClient);
     private apiUrl = '/api';
     private readonly RECENT_KEY = 'genkit-chat-recent-models';
-    private readonly MAX_RECENT = 5;
+    private readonly MAX_RECENT = 3;
 
     providers = signal<ProviderInfo[]>(DEFAULT_PROVIDERS);
     selectedModel = signal<string>('ollama/llama3.2');

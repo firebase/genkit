@@ -12,6 +12,13 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
 }
 
+/* Force Google Sans on ALL elements except Material Icons */
+*:not(.material-icons):not(.mat-icon),
+*::before,
+*::after {
+  font-family: var(--font-primary);
+}
+
 /* Gemini Color Palette */
 :root {
   /* Gemini Brand Colors */
@@ -565,7 +572,7 @@ button {
 .model-panel.mat-mdc-menu-panel {
   min-width: 280px !important;
   max-width: 320px !important;
-  max-height: 450px !important;
+  max-height: 500px !important;
   overflow: hidden !important;
 
   .mat-mdc-menu-content {

@@ -277,6 +277,11 @@ interface ConfigResponse {
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
     .settings-container {
       max-width: 720px;
       margin: 0 auto;
