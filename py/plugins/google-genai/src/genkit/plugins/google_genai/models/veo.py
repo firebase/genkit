@@ -178,14 +178,13 @@ def _extract_text(request: GenerateRequest) -> str:
     Returns:
         The text prompt string.
     """
-    prompt = []
-    if not request.messages:
-        return ''
-    for message in request.messages:
-        for part in message.content:
-            if hasattr(part.root, 'text') and part.root.text:
-                prompt.append(str(part.root.text))
-    return ' '.join(prompt)
+    prompt_parts = [
+        str(part.root.text)
+        for message in request.messages or []
+        for part in message.content
+        if hasattr(part.root, 'text') and part.root.text
+    ]
+    return ' '.join(prompt_parts)
 
 
 def _to_veo_parameters(config: Any) -> dict[str, Any]:  # noqa: ANN401
