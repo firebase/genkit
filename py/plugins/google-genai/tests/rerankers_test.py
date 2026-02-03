@@ -104,7 +104,7 @@ def test_vertex_reranker_client_options_default_location() -> None:
     """Test VertexRerankerClientOptions uses default location."""
     options = VertexRerankerClientOptions(project_id='test-project')
     assert options.project_id == 'test-project'
-    assert options.location == 'us-central1'
+    assert options.location == 'global'
 
 
 def test_rerank_request_record() -> None:

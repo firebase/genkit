@@ -336,10 +336,12 @@ def _create_evaluator_for_metric(
             'to_request': lambda dp, spec: {
                 'rougeInput': {
                     'metricSpec': spec,
-                    'instances': {
-                        'prediction': _stringify(dp.output),
-                        'reference': dp.reference,
-                    },
+                    'instances': [
+                        {
+                            'prediction': _stringify(dp.output),
+                            'reference': dp.reference,
+                        }
+                    ],
                 }
             },
             'response_handler': lambda r: Score(

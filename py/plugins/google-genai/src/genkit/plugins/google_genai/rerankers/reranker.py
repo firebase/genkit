@@ -70,8 +70,8 @@ from genkit.blocks.reranker import RankedDocument
 from genkit.core.error import GenkitError
 from genkit.core.typing import DocumentData
 
-# Default location for Vertex AI services
-DEFAULT_LOCATION = 'us-central1'
+# Default location for Vertex AI Ranking API (global is recommended per docs)
+DEFAULT_LOCATION = 'global'
 
 # Default reranker model name
 DEFAULT_MODEL_NAME = 'semantic-ranker-default@latest'
