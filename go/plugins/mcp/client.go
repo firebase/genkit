@@ -256,7 +256,9 @@ func (c *GenkitMCPClient) ReenableWithContext(ctx context.Context) error {
 // Reenable re-enables a previously disabled client by reconnecting it.
 // Deprecated: Use ReenableWithContext instead.
 func (c *GenkitMCPClient) Reenable() {
-	_ = c.ReenableWithContext(context.Background())
+	if err := c.ReenableWithContext(context.Background()); err != nil {
+		logger.FromContext(context.Background()).Warn("failed to re-enable MCP client", "client", c.options.Name, "error", err)
+	}
 }
 
 // Restart restarts the transport connection
