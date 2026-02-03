@@ -40,7 +40,7 @@ show_help() {
     cat << EOF
 Genkit Chat - Multi-model AI Chat Application
 
-Usage: ./run.sh [command] [options]
+Usage: ./genkit-chat.sh [command] [options]
 
 Commands:
     setup       Install all dependencies (Ollama, models, uv, Node.js, etc.)
@@ -77,13 +77,13 @@ Ollama Models:
       - qwen2.5-coder  Code-focused model (~4.7GB)
 
 Examples:
-    ./run.sh setup                        # Install all dependencies
-    ./run.sh start                        # Start with Robyn (default)
-    ./run.sh dev --framework fastapi      # Start with FastAPI + DevUI
-    ./run.sh backend --framework robyn    # Backend only with Robyn
-    ./run.sh backend --framework fastapi  # Backend only with FastAPI
-    ./run.sh stop                         # Stop all running services
-    ./run.sh container                    # Build container image
+    ./genkit-chat.sh setup                        # Install all dependencies
+    ./genkit-chat.sh start                        # Start with Robyn (default)
+    ./genkit-chat.sh dev --framework fastapi      # Start with FastAPI + DevUI
+    ./genkit-chat.sh backend --framework robyn    # Backend only with Robyn
+    ./genkit-chat.sh backend --framework fastapi  # Backend only with FastAPI
+    ./genkit-chat.sh stop                         # Stop all running services
+    ./genkit-chat.sh container                    # Build container image
 EOF
 }
 
@@ -388,7 +388,7 @@ run_setup() {
     log_info "     export ANTHROPIC_API_KEY=your-key-here  (optional)"
     log_info ""
     log_info "  2. Start the application:"
-    log_info "     ./run.sh start"
+    log_info "     ./genkit-chat.sh start"
     log_info ""
     log_info "  3. Open http://localhost:4200 in your browser"
     log_info ""

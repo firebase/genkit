@@ -304,8 +304,9 @@ export class SafeMarkdownPipe implements PipeTransform {
     }
 
     // Check cache first
-    if (this.cache.has(content)) {
-      return this.cache.get(content)!;
+    const cached = this.cache.get(content);
+    if (cached !== undefined) {
+      return cached;
     }
 
     // Start async rendering

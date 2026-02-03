@@ -316,7 +316,7 @@ export class AuthService {
       // Revoke the token
       const token = localStorage.getItem('gauth_token');
       if (token) {
-        google.accounts.id.revoke(this.user()?.email || '', () => { });
+        google.accounts.id.revoke(this.user()?.email || '', () => {});
       }
     }
 

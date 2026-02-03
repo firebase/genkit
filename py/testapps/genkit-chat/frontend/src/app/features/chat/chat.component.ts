@@ -2605,7 +2605,9 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
 
       // Trigger pulse animation
       this.isPulsing = true;
-      setTimeout(() => (this.isPulsing = false), 400);
+      setTimeout(() => {
+        this.isPulsing = false;
+      }, 400);
 
       this.sendMessage();
       // Ensure focus stays on input after Angular's change detection

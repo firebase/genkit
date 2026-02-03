@@ -174,7 +174,7 @@ export class ModelService {
    */
   getProviderName(modelId: string): string {
     const model = this.allModels().find((m) => m.id === modelId);
-    return (model as any)?.provider || 'Unknown';
+    return model?.provider || 'Unknown';
   }
 
   /**

@@ -219,17 +219,18 @@ export class ErrorDetailsDialogComponent {
   }
 
   private highlightJson(json: string): string {
+    let formattedJson = json;
     try {
       // Try to parse and re-format
       const parsed = JSON.parse(json);
-      json = JSON.stringify(parsed, null, 2);
+      formattedJson = JSON.stringify(parsed, null, 2);
     } catch {
       // Keep original if not valid JSON
     }
 
     // Syntax highlighting with regex
     return (
-      json
+      formattedJson
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')

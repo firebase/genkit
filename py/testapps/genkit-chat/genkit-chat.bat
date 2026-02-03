@@ -32,7 +32,7 @@ goto :%CMD% 2>nul || goto :unknown
 echo.
 echo Genkit Chat - Multi-model AI Chat Application (Windows)
 echo.
-echo Usage: run.bat [command] [options]
+echo Usage: genkit-chat.bat [command] [options]
 echo.
 echo Commands:
 echo     start       Run backend (DevUI) and frontend concurrently
@@ -56,11 +56,11 @@ echo     OPENAI_API_KEY          OpenAI API key (optional)
 echo     OLLAMA_HOST             Ollama server URL (default: http://localhost:11434)
 echo.
 echo Examples:
-echo     run.bat start
-echo     run.bat dev --framework fastapi
-echo     run.bat backend --framework robyn
-echo     run.bat lint
-echo     run.bat test
+echo     genkit-chat.bat start
+echo     genkit-chat.bat dev --framework fastapi
+echo     genkit-chat.bat backend --framework robyn
+echo     genkit-chat.bat lint
+echo     genkit-chat.bat test
 echo.
 goto :eof
 

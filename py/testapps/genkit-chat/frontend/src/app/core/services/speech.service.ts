@@ -115,7 +115,9 @@ export class SpeechService {
       this.recognition.onend = () => {
         this.isListening.set(false);
         resolve(this.transcript());
-        this.recognition!.onend = originalOnEnd as any;
+        if (this.recognition) {
+          this.recognition.onend = originalOnEnd;
+        }
       };
 
       this.recognition.start();
