@@ -251,38 +251,6 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
             </div>
           }
           
-          <!-- Attached Files Preview (inside input box) - macOS style -->
-          @if (attachedFiles().length > 0) {
-            <div class="attached-files-inline">
-              <div class="files-scroll-container">
-                @for (file of attachedFiles(); track file.name) {
-                  <div class="file-chip-macos" [matTooltip]="file.name + ' (' + formatFileSize(file.size) + ')'">
-                    <!-- Remove button (top-right corner) -->
-                    <button class="file-remove-btn" (click)="removeFile(file); $event.stopPropagation()" matTooltip="Remove">
-                      <mat-icon>close</mat-icon>
-                    </button>
-                    
-                    <!-- Icon or Thumbnail -->
-                    <div class="file-preview">
-                      @if (file.type.startsWith('image/')) {
-                        <img [src]="file.preview" alt="preview" class="file-thumb">
-                      } @else {
-                        <mat-icon class="file-type-icon">{{ getFileIcon(file.type) }}</mat-icon>
-                      }
-                    </div>
-                    
-                    <!-- Name and Size (vertical stack) -->
-                    <div class="file-info">
-                      <span class="file-name">{{ file.name }}</span>
-                      <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                    </div>
-                  </div>
-                }
-              </div>
-              <span class="files-count">{{ attachedFiles().length }}/{{ maxAttachments }}</span>
-            </div>
-          }
-          
           <!-- Text Area with content safety highlighting -->
           <textarea class="chat-input" 
                     [class.content-flagged]="contentFlagged()"
@@ -509,6 +477,38 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
             </div>
           </div>
         </div>
+        
+        <!-- Attached Files Preview (below chatbox) - staging area -->
+        @if (attachedFiles().length > 0) {
+          <div class="attached-files-staging">
+            <div class="files-scroll-container">
+              @for (file of attachedFiles(); track file.name) {
+                <div class="file-chip-macos" [matTooltip]="file.name + ' (' + formatFileSize(file.size) + ')'">
+                  <!-- Remove button (top-right corner) -->
+                  <button class="file-remove-btn" (click)="removeFile(file); $event.stopPropagation()" matTooltip="Remove">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                  
+                  <!-- Icon or Thumbnail -->
+                  <div class="file-preview">
+                    @if (file.type.startsWith('image/')) {
+                      <img [src]="file.preview" alt="preview" class="file-thumb">
+                    } @else {
+                      <mat-icon class="file-type-icon">{{ getFileIcon(file.type) }}</mat-icon>
+                    }
+                  </div>
+                  
+                  <!-- Name and Size (vertical stack) -->
+                  <div class="file-info">
+                    <span class="file-name">{{ file.name }}</span>
+                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+            <span class="files-count">{{ attachedFiles().length }}/{{ maxAttachments }}</span>
+          </div>
+        }
         
         <!-- Quick Actions (below chatbox) -->
         @if (chatService.messages().length === 0) {
@@ -1531,14 +1531,16 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       font-weight: 500;
     }
     
-    /* Attached Files Inline (inside input box) */
-    .attached-files-inline {
+    /* Attached Files Staging Area (below chatbox) */
+    .attached-files-staging {
       display: flex;
-      flex-wrap: wrap;
+      align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--outline-variant);
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: var(--surface-container);
+      border-radius: 12px;
+      border: 1px solid var(--outline-variant);
     }
     
     /* Horizontal scroll container */

@@ -20,11 +20,15 @@ import { ContentSafetyService } from './content-safety.service';
 // Mock the toxicity model
 vi.mock('@tensorflow-models/toxicity', () => ({
     load: vi.fn().mockResolvedValue({
-        classify: vi.fn().mockImplementation((text: string) => {
+        classify: vi.fn().mockImplementation((texts: string[]) => {
+            // The model expects an array of strings
+            const text = Array.isArray(texts) ? texts[0] || '' : String(texts);
+            const textLower = text.toLowerCase();
+
             // Simulate toxic content detection
-            const isToxic = text.toLowerCase().includes('kill') ||
-                text.toLowerCase().includes('hate') ||
-                text.toLowerCase().includes('die');
+            const isToxic = textLower.includes('kill') ||
+                textLower.includes('hate') ||
+                textLower.includes('die');
 
             return Promise.resolve([
                 {
@@ -53,7 +57,7 @@ vi.mock('@tensorflow-models/toxicity', () => ({
                 },
                 {
                     label: 'threat',
-                    results: [{ match: isToxic && text.toLowerCase().includes('kill'), probabilities: [0.1, 0.9] }]
+                    results: [{ match: isToxic && textLower.includes('kill'), probabilities: [0.1, 0.9] }]
                 },
             ]);
         }),

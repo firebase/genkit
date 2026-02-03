@@ -35,6 +35,17 @@ Object.defineProperty(globalThis, 'webkitSpeechRecognition', {
     value: undefined,
 });
 
+// Mock speechSynthesis
+const speechSynthesisMock = {
+    cancel: vi.fn(),
+    speak: vi.fn(),
+    getVoices: vi.fn().mockReturnValue([]),
+};
+Object.defineProperty(globalThis, 'speechSynthesis', {
+    writable: true,
+    value: speechSynthesisMock,
+});
+
 // Mock ResizeObserver
 class ResizeObserverMock {
     observe = vi.fn();
