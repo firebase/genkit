@@ -15,52 +15,52 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-name = "genkit-chat"
-version = "0.1.0"
-description = "Multi-model AI chat app with Genkit, Robyn, and Angular Material"
-readme = "README.md"
-requires-python = ">=3.10"
-license = "Apache-2.0"
 authors = [{ name = "Google LLC" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
+description = "Multi-model AI chat app with Genkit, Robyn, and Angular Material"
+license = "Apache-2.0"
+name = "genkit-chat"
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.1.0"
 
 dependencies = [
-    # Web framework - use latest to get updated watchdog
-    "robyn>=0.76.0",
+  # Web framework - use latest to get updated watchdog
+  "robyn>=0.76.0",
 
-    # Genkit core
-    "genkit",
+  # Genkit core
+  "genkit",
 
-    # Model plugins
-    "genkit-plugin-google-genai",
-    "genkit-plugin-ollama",
+  # Model plugins
+  "genkit-plugin-google-genai",
+  "genkit-plugin-ollama",
 
-    # Vector store (local)
-    "genkit-plugin-dev-local-vectorstore",
+  # Vector store (local)
+  "genkit-plugin-dev-local-vectorstore",
 
-    # Database
-    "aiosqlite>=0.20.0",
+  # Database
+  "aiosqlite>=0.20.0",
 
-    # Utilities
-    "pydantic>=2.0.0",
-    "python-dotenv>=1.0.0",
-    "rich>=13.0.0",
-    "structlog>=25.2.0",
+  # Utilities
+  "pydantic>=2.0.0",
+  "python-dotenv>=1.0.0",
+  "rich>=13.0.0",
+  "structlog>=25.2.0",
 ]
 
 [build-system]
-requires = ["hatchling"]
 build-backend = "hatchling.build"
+requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["backend/src"]
@@ -69,7 +69,7 @@ packages = ["backend/src"]
 allow-direct-references = true
 
 [tool.ruff]
-line-length = 88
+line-length    = 88
 target-version = "py310"
 
 [tool.ruff.lint]
@@ -77,12 +77,11 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths    = ["tests"]
 
 # Use local workspace packages during development
 [tool.uv.sources]
-genkit = { path = "../../packages/genkit", editable = true }
-genkit-plugin-google-genai = { path = "../../plugins/google-genai", editable = true }
-genkit-plugin-ollama = { path = "../../plugins/ollama", editable = true }
+genkit                              = { path = "../../packages/genkit", editable = true }
 genkit-plugin-dev-local-vectorstore = { path = "../../plugins/dev-local-vectorstore", editable = true }
-
+genkit-plugin-google-genai          = { path = "../../plugins/google-genai", editable = true }
+genkit-plugin-ollama                = { path = "../../plugins/ollama", editable = true }

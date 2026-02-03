@@ -15,62 +15,62 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-name = "genkit-chat-backend"
-version = "0.1.0"
+dependencies = [
+  "genkit",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-anthropic",
+  "genkit-plugin-compat-oai",
+  "genkit-plugin-ollama",
+  "genkit-plugin-dev-local-vectorstore",
+  "robyn>=0.68.0",
+  "fastapi>=0.115.0",
+  "uvicorn>=0.34.0",
+  "uvloop>=0.21.0",
+  "python-dotenv>=1.0.0",
+  "httpx>=0.28.0",
+]
 description = "Genkit Chat Backend - Multi-model AI chat server"
+name = "genkit-chat-backend"
 readme = "../README.md"
 requires-python = ">=3.10"
-dependencies = [
-    "genkit",
-    "genkit-plugin-google-genai",
-    "genkit-plugin-anthropic",
-    "genkit-plugin-compat-oai",
-    "genkit-plugin-ollama",
-    "genkit-plugin-dev-local-vectorstore",
-    "robyn>=0.68.0",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.34.0",
-    "uvloop>=0.21.0",
-    "python-dotenv>=1.0.0",
-    "httpx>=0.28.0",
-]
+version = "0.1.0"
 
 [dependency-groups]
-test = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.25.0",
-]
+test = ["pytest>=8.0.0", "pytest-asyncio>=0.25.0"]
 
 [tool.uv.sources]
-genkit = { path = "../../../packages/genkit", editable = true }
-genkit-plugin-google-genai = { path = "../../../plugins/google-genai", editable = true }
-genkit-plugin-anthropic = { path = "../../../plugins/anthropic", editable = true }
-genkit-plugin-compat-oai = { path = "../../../plugins/compat-oai", editable = true }
-genkit-plugin-ollama = { path = "../../../plugins/ollama", editable = true }
+genkit                              = { path = "../../../packages/genkit", editable = true }
+genkit-plugin-anthropic             = { path = "../../../plugins/anthropic", editable = true }
+genkit-plugin-compat-oai            = { path = "../../../plugins/compat-oai", editable = true }
 genkit-plugin-dev-local-vectorstore = { path = "../../../plugins/dev-local-vectorstore", editable = true }
+genkit-plugin-google-genai          = { path = "../../../plugins/google-genai", editable = true }
+genkit-plugin-ollama                = { path = "../../../plugins/ollama", editable = true }
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["tests"]
-python_files = ["*_test.py"]
+asyncio_mode                       = "auto"
+python_files                       = ["*_test.py"]
+testpaths                          = ["tests"]
 
 [tool.pyright]
-pythonVersion = "3.10"
-typeCheckingMode = "basic"
-reportMissingImports = true
+include                = ["src", "tests"]
+pythonVersion          = "3.10"
+reportMissingImports   = true
 reportMissingTypeStubs = false
-include = ["src", "tests"]
-venv = ".venv"
-venvPath = "."
+typeCheckingMode       = "basic"
+venv                   = ".venv"
+venvPath               = "."
 
 [tool.ruff]
-line-length = 120
+line-length    = 120
 target-version = "py310"
 
 [tool.ruff.lint]
+ignore = [
+  "ANN201",
+  "ANN202",
+] # Allow missing return types for nested/private functions
 select = ["E", "F", "I", "UP", "B", "N", "ANN"]
-ignore = ["ANN201", "ANN202"]  # Allow missing return types for nested/private functions
 
 [tool.ruff.lint.isort]
 known-first-party = ["genkit"]

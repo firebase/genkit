@@ -84,9 +84,7 @@ class ModelInfo(BaseModel):
 
     id: str = Field(..., description="Model ID (e.g., 'googleai/gemini-3-flash-preview')")
     name: str = Field(..., description="Display name")
-    capabilities: list[str] = Field(
-        default_factory=list, description="Supported capabilities"
-    )
+    capabilities: list[str] = Field(default_factory=list, description="Supported capabilities")
     context_window: int = Field(4096, description="Maximum context window size")
 
 
@@ -102,9 +100,7 @@ class ProviderInfo(BaseModel):
 class ModelsResponse(BaseModel):
     """Response from models listing endpoint."""
 
-    providers: list[ProviderInfo] = Field(
-        default_factory=list, description="Available providers"
-    )
+    providers: list[ProviderInfo] = Field(default_factory=list, description="Available providers")
 
 
 class ConversationSummary(BaseModel):

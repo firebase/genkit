@@ -56,19 +56,19 @@ STARTUP_TIMEOUT = 15  # seconds to wait for server to start
 def _run_fastapi_server(port: int) -> None:
     """Run FastAPI server in a separate process."""
     import sys
-    
+
     # Set up paths correctly
     backend_dir = os.path.dirname(os.path.dirname(__file__))
-    src_dir = os.path.join(backend_dir, 'src')
+    src_dir = os.path.join(backend_dir, "src")
     os.chdir(backend_dir)
-    
+
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
-    
+
     import uvicorn
 
     from main import create_fastapi_server  # type: ignore[import-not-found]
-    
+
     app = create_fastapi_server()
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
 
@@ -76,17 +76,17 @@ def _run_fastapi_server(port: int) -> None:
 def _run_robyn_server(port: int) -> None:
     """Run Robyn server in a separate process."""
     import sys
-    
+
     # Set up paths correctly
     backend_dir = os.path.dirname(os.path.dirname(__file__))
-    src_dir = os.path.join(backend_dir, 'src')
+    src_dir = os.path.join(backend_dir, "src")
     os.chdir(backend_dir)
-    
+
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
-    
+
     from main import create_http_server  # type: ignore[import-not-found]
-    
+
     app = create_http_server()
     app.start(port=port)
 
@@ -111,7 +111,7 @@ def fastapi_server():
     """Start FastAPI server for testing."""
     process = multiprocessing.Process(target=_run_fastapi_server, args=(FASTAPI_PORT,))
     process.start()
-    
+
     # Wait for server to start
     loop = asyncio.new_event_loop()
     try:
@@ -121,9 +121,9 @@ def fastapi_server():
             pytest.skip("FastAPI server failed to start")
     finally:
         loop.close()
-    
+
     yield f"http://127.0.0.1:{FASTAPI_PORT}"
-    
+
     process.terminate()
     process.join(timeout=5)
     if process.is_alive():
@@ -135,7 +135,7 @@ def robyn_server():
     """Start Robyn server for testing."""
     process = multiprocessing.Process(target=_run_robyn_server, args=(ROBYN_PORT,))
     process.start()
-    
+
     # Wait for server to start
     loop = asyncio.new_event_loop()
     try:
@@ -145,9 +145,9 @@ def robyn_server():
             pytest.skip("Robyn server failed to start")
     finally:
         loop.close()
-    
+
     yield f"http://127.0.0.1:{ROBYN_PORT}"
-    
+
     process.terminate()
     process.join(timeout=5)
     if process.is_alive():
@@ -162,7 +162,7 @@ class TestFastAPI:
         """Test health check endpoint returns correct status."""
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{fastapi_server}/")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["status"] == "healthy"
@@ -174,18 +174,18 @@ class TestFastAPI:
         """Test config endpoint returns API key status."""
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{fastapi_server}/api/config")
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Verify structure
             assert "api_keys" in data
             assert "features" in data
-            
+
             # Check required API key entries exist
             assert "GEMINI_API_KEY" in data["api_keys"]
             assert "OLLAMA_HOST" in data["api_keys"]
-            
+
             # Check features
             assert data["features"]["rag_enabled"] is True
             assert data["features"]["streaming_enabled"] is True
@@ -196,13 +196,13 @@ class TestFastAPI:
         """Test models endpoint returns provider list."""
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{fastapi_server}/api/models")
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Should be a list of providers
             assert isinstance(data, list)
-            
+
             # Each provider should have required fields
             for provider in data:
                 assert "id" in provider
@@ -210,7 +210,7 @@ class TestFastAPI:
                 assert "available" in provider
                 assert "models" in provider
                 assert isinstance(provider["models"], list)
-                
+
                 # Each model should have required fields
                 for model in provider["models"]:
                     assert "id" in model
@@ -226,7 +226,7 @@ class TestRobyn:
         """Test health check endpoint returns correct status."""
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{robyn_server}/")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["status"] == "healthy"
@@ -238,14 +238,14 @@ class TestRobyn:
         """Test config endpoint returns API key status."""
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{robyn_server}/api/config")
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Verify structure
             assert "api_keys" in data
             assert "features" in data
-            
+
             # Check required API key entries exist
             assert "GEMINI_API_KEY" in data["api_keys"]
             assert "OLLAMA_HOST" in data["api_keys"]
@@ -255,13 +255,13 @@ class TestRobyn:
         """Test models endpoint returns provider list."""
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{robyn_server}/api/models")
-            
+
             assert response.status_code == 200
             data = response.json()
-            
+
             # Should be a list of providers
             assert isinstance(data, list)
-            
+
             # Each provider should have required fields
             for provider in data:
                 assert "id" in provider
@@ -279,7 +279,7 @@ class TestRobyn:
                     "Access-Control-Request-Method": "POST",
                 },
             )
-            
+
             # Should handle OPTIONS request
             assert response.status_code in (200, 204)
 
@@ -293,13 +293,13 @@ class TestFrameworkParity:
         async with httpx.AsyncClient() as client:
             fastapi_resp = await client.get(f"{fastapi_server}/api/config")
             robyn_resp = await client.get(f"{robyn_server}/api/config")
-            
+
             assert fastapi_resp.status_code == 200
             assert robyn_resp.status_code == 200
-            
+
             fastapi_data = fastapi_resp.json()
             robyn_data = robyn_resp.json()
-            
+
             # Both should have same structure
             assert set(fastapi_data.keys()) == set(robyn_data.keys())
             assert set(fastapi_data["api_keys"].keys()) == set(robyn_data["api_keys"].keys())
@@ -311,16 +311,16 @@ class TestFrameworkParity:
         async with httpx.AsyncClient() as client:
             fastapi_resp = await client.get(f"{fastapi_server}/api/models")
             robyn_resp = await client.get(f"{robyn_server}/api/models")
-            
+
             assert fastapi_resp.status_code == 200
             assert robyn_resp.status_code == 200
-            
+
             fastapi_data = fastapi_resp.json()
             robyn_data = robyn_resp.json()
-            
+
             # Both should return same number of providers
             assert len(fastapi_data) == len(robyn_data)
-            
+
             # Provider IDs should match
             fastapi_ids = {p["id"] for p in fastapi_data}
             robyn_ids = {p["id"] for p in robyn_data}

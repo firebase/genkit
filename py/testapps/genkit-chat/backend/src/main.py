@@ -113,7 +113,6 @@ Usage:
     python src/main.py
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -122,11 +121,11 @@ import json
 import logging
 import os
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import httpx
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -134,7 +133,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from robyn import Request, Response, Robyn, SSEResponse, SSEMessage
+from robyn import Request, Response, Robyn, SSEMessage, SSEResponse
 from robyn.robyn import Headers
 
 from genkit import Genkit
@@ -155,33 +154,27 @@ PROMPTS_DIR = BASE_DIR / "prompts"
 STATIC_DIR = BASE_DIR / "static"
 
 
-
 # Import shared functions from genkit_setup to avoid duplication
 # Add src directory to path for when running from backend directory
-import sys
+import sys  # noqa: E402 - must be before sys.path manipulation
+
 SRC_DIR = BASE_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
-from genkit_setup import get_available_models
-from genkit_setup import _load_plugins as load_plugins
+from genkit_setup import _load_plugins as load_plugins  # noqa: E402
+from genkit_setup import get_available_models  # noqa: E402
 
 g = Genkit(plugins=load_plugins())
 
 # Note: Prompts in backend/prompts/ are automatically discovered by Genkit
 
 
-
-
 class ChatInput(BaseModel):
     """Input for chat flow."""
 
     message: str = Field(..., description="User's message")
-    model: str = Field(
-        "googleai/gemini-3-flash-preview", description="Model to use for generation"
-    )
-    history: list[dict[str, str]] = Field(
-        default_factory=list, description="Conversation history"
-    )
+    model: str = Field("googleai/gemini-3-flash-preview", description="Model to use for generation")
+    history: list[dict[str, str]] = Field(default_factory=list, description="Conversation history")
 
 
 class ChatOutput(BaseModel):
@@ -216,12 +209,8 @@ class ImageDescribeInput(BaseModel):
     """Input for image description flow."""
 
     image_url: str = Field(..., description="Image URL or data URL")
-    question: str = Field(
-        "Describe this image in detail.", description="Question about the image"
-    )
-    model: str = Field(
-        "googleai/gemini-3-flash-preview", description="Vision model to use"
-    )
+    question: str = Field("Describe this image in detail.", description="Question about the image")
+    model: str = Field("googleai/gemini-3-flash-preview", description="Vision model to use")
 
 
 class ImageDescribeOutput(BaseModel):
@@ -245,8 +234,6 @@ class RAGOutput(BaseModel):
     sources: list[str] = Field(..., description="Source documents used")
 
 
-
-
 class WebSearchInput(BaseModel):
     """Web search input schema."""
 
@@ -265,8 +252,6 @@ class CalculateInput(BaseModel):
     expression: str = Field(description="Mathematical expression to evaluate")
 
 
-
-
 @g.tool(description="Search the web for current information")
 async def web_search(input: WebSearchInput) -> str:
     """Simulate web search (replace with real API in production)."""
@@ -283,24 +268,55 @@ async def get_weather(input: WeatherInput) -> str:
 
 @g.tool(description="Perform mathematical calculations")
 async def calculate(input: CalculateInput) -> str:
-    """Evaluate a mathematical expression safely."""
+    """Evaluate a mathematical expression safely using an AST walker.
+
+    This implementation avoids eval() by parsing the expression into an AST
+    and evaluating only supported mathematical operations.
+    """
+    import ast
+    import operator as op
+
+    # Binary operators (two operands)
+    binary_ops: dict[type, Callable[[Any, Any], Any]] = {
+        ast.Add: op.add,
+        ast.Sub: op.sub,
+        ast.Mult: op.mul,
+        ast.Div: op.truediv,
+        ast.Pow: op.pow,
+    }
+    # Unary operators (one operand)
+    unary_ops: dict[type, Callable[[Any], Any]] = {
+        ast.USub: op.neg,
+    }
+
+    def eval_expr(node: ast.expr) -> float | int:
+        """Recursively evaluate an AST node."""
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, int | float):
+                return node.value
+            raise TypeError(f"Unsupported constant type: {type(node.value).__name__}")
+        elif isinstance(node, ast.BinOp):
+            left = eval_expr(node.left)
+            right = eval_expr(node.right)
+            return binary_ops[type(node.op)](left, right)
+        elif isinstance(node, ast.UnaryOp):
+            operand = eval_expr(node.operand)
+            return unary_ops[type(node.op)](operand)
+        else:
+            raise TypeError(f"Unsupported node type: {type(node).__name__}")
+
     try:
-        # Only allow safe math operations
-        allowed_chars = set("0123456789+-*/.(). ")
-        if not all(c in allowed_chars for c in input.expression):
-            return "Error: Invalid characters in expression"
-        result = eval(input.expression)  # noqa: S307 - controlled input
+        tree = ast.parse(input.expression, mode="eval")
+        result = eval_expr(tree.body)
         return f"Result: {result}"
-    except Exception as e:
-        return f"Error: {e}"
+    except (TypeError, SyntaxError, KeyError, ZeroDivisionError) as e:
+        return f"Error: Invalid or unsupported expression. {e}"
 
 
 @g.tool(description="Get the current date and time")
 async def get_current_time() -> str:
     """Return the current date and time."""
     return datetime.now().isoformat()
-
-
 
 
 @g.flow()
@@ -323,7 +339,7 @@ async def chat_flow(input: ChatInput) -> ChatOutput:
         role = msg.get("role", "user")
         if role == "assistant":
             role = "model"
-            
+
         messages.append({
             "role": role,
             "content": [{"text": msg.get("content", "")}],
@@ -359,6 +375,7 @@ async def compare_flow(input: CompareInput) -> CompareOutput:
         {"prompt": "Explain quantum computing in one sentence",
          "models": ["googleai/gemini-3-flash-preview", "ollama/llama3.2"]}
     """
+
     async def generate_for_model(model_id: str) -> dict[str, Any]:
         try:
             start_time = time.time()
@@ -379,9 +396,7 @@ async def compare_flow(input: CompareInput) -> CompareOutput:
             }
 
     # Run all models in parallel
-    responses = await asyncio.gather(
-        *[generate_for_model(m) for m in input.models]
-    )
+    responses = await asyncio.gather(*[generate_for_model(m) for m in input.models])
 
     return CompareOutput(prompt=input.prompt, responses=list(responses))
 
@@ -431,10 +446,7 @@ async def rag_flow(input: RAGInput) -> RAGOutput:
 
     # Simple keyword-based retrieval (in production, use embeddings)
     query_lower = input.query.lower()
-    relevant_docs = [
-        doc for doc in knowledge_base
-        if any(word in doc.lower() for word in query_lower.split())
-    ]
+    relevant_docs = [doc for doc in knowledge_base if any(word in doc.lower() for word in query_lower.split())]
 
     # If no matches, return all docs as context
     sources = relevant_docs if relevant_docs else knowledge_base[:3]
@@ -454,8 +466,6 @@ Answer:""",
     )
 
     return RAGOutput(answer=response.text, sources=sources)
-
-
 
 
 @g.flow()
@@ -488,11 +498,9 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
     )
 
 
-
-
 def create_fastapi_server() -> FastAPI:
     """Create the FastAPI HTTP server for the Angular frontend.
-    
+
     This is an alternative to Robyn, demonstrating how Genkit flows
     work equally well with FastAPI.
     """
@@ -530,7 +538,7 @@ def create_fastapi_server() -> FastAPI:
             return {"configured": True, "preview": preview}
 
         gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
-        
+
         return {
             "api_keys": {
                 "GEMINI_API_KEY": mask_key(gemini_key),
@@ -585,45 +593,42 @@ def create_fastapi_server() -> FastAPI:
     @app.get("/api/stream")
     async def api_stream_chat(message: str, model: str, history: str = "[]"):
         """Stream chat response using Server-Sent Events (SSE).
-        
+
         Uses Genkit's generate_stream for real-time token streaming.
         """
+
         async def generate():
             try:
                 # Handle empty or invalid history
-                parsed_history = []
                 if history and history.strip() and history.strip() != "[]":
                     try:
-                        parsed_history = json.loads(history)
+                        json.loads(history)
                     except json.JSONDecodeError:
-                        parsed_history = []
-                
-                # URL-decode parameters (FastAPI should handle this, but be safe)
-                from urllib.parse import unquote
-                decoded_message = unquote(message)
-                decoded_model = unquote(model)
-                logger.info(f"Stream request: model={decoded_model}, message_len={len(decoded_message)}")
-                
+                        pass
+
+                # FastAPI automatically handles URL decoding for query parameters
+                logger.info(f"Stream request: model={model}, message_len={len(message)}")
+
                 # generate_stream returns (stream, future) tuple
                 stream, _ = g.generate_stream(
-                    model=decoded_model,
-                    prompt=decoded_message,
+                    model=model,
+                    prompt=message,
                 )
                 async for chunk in stream:
                     if chunk.text:
                         # Send each chunk as SSE event
                         data = json.dumps({"chunk": chunk.text})
                         yield f"data: {data}\n\n"
-                
+
                 # Signal completion
                 yield "data: [DONE]\n\n"
-                
+
             except Exception as e:
                 logger.exception(f"Stream error: {e}")
                 error_data = json.dumps({"error": str(e), "type": type(e).__name__})
                 yield f"data: {error_data}\n\n"
                 yield "data: [DONE]\n\n"
-        
+
         return StreamingResponse(
             generate(),
             media_type="text/event-stream",
@@ -631,7 +636,7 @@ def create_fastapi_server() -> FastAPI:
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
-            }
+            },
         )
 
     # Serve static files if they exist
@@ -639,8 +644,6 @@ def create_fastapi_server() -> FastAPI:
         app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
     return app
-
-
 
 
 def create_http_server() -> Robyn:
@@ -664,7 +667,7 @@ def create_http_server() -> Robyn:
 
     @app.after_request()
     async def add_cors(response: Response):
-        response.headers.set("Access-Control-Allow-Origin", "*")  # type: ignore[attr-defined] - Robyn Headers
+        response.headers.set("Access-Control-Allow-Origin", "*")
         return response
 
     @app.get("/")
@@ -688,7 +691,7 @@ def create_http_server() -> Robyn:
 
         # Check GEMINI_API_KEY first (preferred), then legacy GOOGLE_GENAI_API_KEY
         gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
-        
+
         return {
             "api_keys": {
                 "GEMINI_API_KEY": mask_key(gemini_key),
@@ -758,13 +761,13 @@ def create_http_server() -> Robyn:
     @app.get("/api/stream")
     async def api_stream_chat(request: Request):
         """Stream chat response using Server-Sent Events (SSE).
-        
+
         Uses Robyn's native SSEResponse with async generators for real-time
         token-by-token streaming. Each chunk from the model is sent immediately
         as it's generated.
-        
+
         SSE Data Flow::
-        
+
             Frontend Request
                  │
                  ▼
@@ -791,30 +794,30 @@ def create_http_server() -> Robyn:
         message = query_params.get("message", "")
         model = query_params.get("model", "ollama/llama3.2")
         history = query_params.get("history", "[]")
-        
+
         async def sse_generator():
             """Async generator that yields SSE messages for each token chunk."""
             try:
                 # Handle empty or invalid history
-                parsed_history = []
                 if history and history.strip() and history.strip() != "[]":
                     try:
-                        parsed_history = json.loads(history)
+                        json.loads(history)
                     except json.JSONDecodeError:
-                        parsed_history = []
-                
+                        pass
+
                 # URL-decode parameters (e.g., ollama%2Fllama3.2 -> ollama/llama3.2)
                 from urllib.parse import unquote
+
                 decoded_message = unquote(message)
                 decoded_model = unquote(model)
                 logger.info(f"Stream request (Robyn SSE): model={decoded_model}, message_len={len(decoded_message)}")
-                
+
                 # generate_stream returns (stream, future) tuple
                 stream, _ = g.generate_stream(
                     model=decoded_model,
                     prompt=decoded_message,
                 )
-                
+
                 # Yield each chunk as it arrives from the model
                 async for chunk in stream:
                     if chunk.text:
@@ -822,10 +825,10 @@ def create_http_server() -> Robyn:
                             data=json.dumps({"chunk": chunk.text}),
                             event="message",
                         )
-                
+
                 # Signal completion
                 yield SSEMessage(data="[DONE]", event="done")
-                
+
             except Exception as e:
                 logger.exception(f"Stream error: {e}")
                 yield SSEMessage(
@@ -833,7 +836,7 @@ def create_http_server() -> Robyn:
                     event="error",
                 )
                 yield SSEMessage(data="[DONE]", event="done")
-        
+
         return SSEResponse(sse_generator())
 
     # Serve static files if they exist
@@ -847,11 +850,9 @@ def create_http_server() -> Robyn:
     return app
 
 
-
-
 def main() -> None:
     """Run the Genkit chat server.
-    
+
     Supports both Robyn (default) and FastAPI frameworks via --framework flag.
     """
     parser = argparse.ArgumentParser(description="Genkit Chat Server")

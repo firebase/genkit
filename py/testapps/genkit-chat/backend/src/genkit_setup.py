@@ -41,9 +41,12 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any
+
+import httpx
 
 from genkit import Genkit
 
@@ -132,9 +135,7 @@ def _load_plugins() -> list[Any]:
         logger.debug("DevLocalVectorStore plugin not installed (optional)")
 
     if not plugins:
-        logger.warning(
-            "No model plugins loaded! Set at least one API key or start Ollama."
-        )
+        logger.warning("No model plugins loaded! Set at least one API key or start Ollama.")
 
     return plugins
 
@@ -160,14 +161,14 @@ async def get_available_models() -> list[dict[str, Any]]:
 
     Returns:
         List of provider info with their available models.
-    
+
     Note:
         Model lists for cloud providers (Google AI, Anthropic, OpenAI) are hardcoded
         because these providers do not offer public APIs for model discovery, or their
         discovery APIs require authentication and may have rate limits.
-        
+
         Ollama is the exception - its /api/tags endpoint provides dynamic model discovery.
-        
+
         Future improvement: When providers offer stable model listing APIs, this function
         should be refactored to query them dynamically. For now, update the hardcoded
         lists when new models are released or deprecated.
@@ -267,8 +268,6 @@ async def get_available_models() -> list[dict[str, Any]]:
     # Ollama models (try to detect running server)
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     try:
-        import httpx
-
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{ollama_host}/api/tags", timeout=2.0)
             if response.status_code == 200:
@@ -289,8 +288,8 @@ async def get_available_models() -> list[dict[str, Any]]:
                         "available": True,
                         "models": ollama_models,
                     })
-    except Exception:
-        # Ollama not running, that's fine
-        pass
+    except (httpx.RequestError, json.JSONDecodeError) as e:
+        # Ollama not running or response is malformed, that's fine
+        logger.debug(f"Could not connect to Ollama or parse response: {e}")
 
     return providers
