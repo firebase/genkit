@@ -37,7 +37,7 @@ requires specific dependencies in `backend/pyproject.toml`.
 | Plugin | Environment Variables | Import Path | Package |
 |--------|----------------------|-------------|---------|
 | Google AI | `GOOGLE_GENAI_API_KEY` | `genkit.plugins.google_genai.GoogleAI` | `genkit-plugin-google-genai` |
-| Vertex AI | `GOOGLE_CLOUD_PROJECT` | `genkit.plugins.vertex_ai.VertexAI` | `genkit-plugin-vertex-ai` |
+| Vertex AI | `GOOGLE_CLOUD_PROJECT` | `genkit.plugins.vertex_ai.ModelGardenPlugin` | `genkit-plugin-vertex-ai` |
 | Anthropic | `ANTHROPIC_API_KEY` | `genkit.plugins.anthropic.Anthropic` | `genkit-plugin-anthropic` |
 | OpenAI | `OPENAI_API_KEY` | `genkit.plugins.compat_oai.OpenAI` | `genkit-plugin-compat-oai` |
 | Cloudflare AI | `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` | `genkit.plugins.cf_ai.CfAI` | `genkit-plugin-cf-ai` |

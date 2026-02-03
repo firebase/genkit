@@ -75,13 +75,13 @@ def _load_plugins() -> list[Any]:
         except ImportError:
             logger.warning("Google AI plugin not installed")
 
-    # Vertex AI
+    # Vertex AI Model Garden (for third-party models like Claude on Vertex)
     if os.getenv("GOOGLE_CLOUD_PROJECT"):
         try:
-            from genkit.plugins.vertex_ai import VertexAI  # type: ignore[import-not-found]
+            from genkit.plugins.vertex_ai import ModelGardenPlugin  # type: ignore[import-not-found]
 
-            plugins.append(VertexAI())
-            logger.info("Loaded Vertex AI plugin")
+            plugins.append(ModelGardenPlugin())
+            logger.info("Loaded Vertex AI Model Garden plugin")
         except ImportError:
             logger.warning("Vertex AI plugin not installed")
 

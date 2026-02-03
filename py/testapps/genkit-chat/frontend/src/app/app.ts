@@ -34,6 +34,7 @@ import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 import { ChatService } from './core/services/chat.service';
 import { LanguageService } from './core/services/language.service';
+import { CodeCopyService } from './core/services/code-copy.service';
 
 @Component({
   selector: 'app-root',
@@ -942,12 +943,14 @@ export class AppComponent implements OnInit {
   authService = inject(AuthService);
   languageService = inject(LanguageService);
   private chatService = inject(ChatService);
+  private codeCopyService = inject(CodeCopyService);
   sidenavOpened = signal(true);
   editingName = signal(false);
   currentYear = new Date().getFullYear();
 
   ngOnInit(): void {
     this.authService.restoreSession();
+    this.codeCopyService.initialize();
   }
 
   toggleSidenav(): void {

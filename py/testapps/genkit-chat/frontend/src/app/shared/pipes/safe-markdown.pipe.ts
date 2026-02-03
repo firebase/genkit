@@ -18,19 +18,21 @@
 
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { marked } from 'marked';
+import { marked, Renderer } from 'marked';
 import DOMPurify from 'dompurify';
+import hljs from 'highlight.js';
 import { RenderingService } from '../../core/services/rendering.service';
 
 /**
- * Safe Markdown rendering pipe with Mermaid diagrams and Math support.
- * Uses DOMPurify for XSS protection.
+ * Safe Markdown rendering pipe with Mermaid diagrams, Math, and syntax highlighting.
+ * Uses DOMPurify for XSS protection and highlight.js for code syntax highlighting.
  *
  * Features:
  * - GitHub Flavored Markdown
  * - Mermaid diagrams (```mermaid blocks)
  * - Math equations ($inline$ and $$display$$)
- * - Syntax highlighting for code blocks
+ * - Syntax highlighting for code blocks (via highlight.js)
+ * - Copy button for code blocks
  *
  * Usage:
  *   [innerHTML]="content | safeMarkdown"
@@ -46,8 +48,11 @@ export class SafeMarkdownPipe implements PipeTransform {
   // Cache for rendered content
   private cache = new Map<string, SafeHtml>();
 
+  // Counter for unique code block IDs
+  private codeBlockCounter = 0;
+
   /**
-   * Configure DOMPurify with settings that allow Mermaid SVGs.
+   * Configure DOMPurify with settings that allow Mermaid SVGs and code highlighting.
    */
   private readonly purifyConfig = {
     ALLOWED_TAGS: [
@@ -85,6 +90,7 @@ export class SafeMarkdownPipe implements PipeTransform {
       'span',
       'sub',
       'sup',
+      'button',
       // SVG elements for Mermaid
       'svg',
       'g',
@@ -113,6 +119,11 @@ export class SafeMarkdownPipe implements PipeTransform {
       'rel',
       'width',
       'height',
+      'data-code',
+      'data-lang',
+      'onclick',
+      'aria-label',
+      'type',
       // SVG attributes
       'd',
       'fill',
@@ -151,10 +162,75 @@ export class SafeMarkdownPipe implements PipeTransform {
     ],
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
     ADD_ATTR: ['target'],
-    ALLOW_DATA_ATTR: false,
+    ALLOW_DATA_ATTR: true, // Enable data-* attributes for copy functionality
     RETURN_DOM: false as const,
     RETURN_DOM_FRAGMENT: false as const,
   };
+
+  constructor() {
+    // Configure marked with custom renderer for syntax highlighting
+    this.configureMarked();
+  }
+
+  /**
+   * Configure marked with a custom renderer for code blocks.
+   */
+  private configureMarked(): void {
+    const renderer = new Renderer();
+
+    // Override code block rendering to add syntax highlighting and copy button
+    renderer.code = ({ text, lang }: { text: string; lang?: string }): string => {
+      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+      const highlighted = hljs.highlight(text, { language }).value;
+      const blockId = `code-block-${++this.codeBlockCounter}`;
+      const escapedCode = this.escapeHtml(text);
+
+      return `
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span class="code-language">${language}</span>
+            <button
+              class="copy-button"
+              data-code="${escapedCode}"
+              aria-label="Copy code"
+              title="Copy to clipboard"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="copy-text">Copy</span>
+            </button>
+          </div>
+          <pre id="${blockId}"><code class="hljs language-${language}">${highlighted}</code></pre>
+        </div>
+      `;
+    };
+
+    // Override inline code to add styling class
+    renderer.codespan = ({ text }: { text: string }): string => {
+      return `<code class="inline-code">${text}</code>`;
+    };
+
+    marked.setOptions({
+      renderer,
+      breaks: true,
+      gfm: true,
+    });
+  }
+
+  /**
+   * Escape HTML characters for safe embedding in data attributes.
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+      .replace(/\n/g, '&#10;');
+  }
 
   transform(content: string | null | undefined): SafeHtml {
     if (!content) {
@@ -182,11 +258,9 @@ export class SafeMarkdownPipe implements PipeTransform {
       // Process math before markdown
       let processed = this.processMathSync(content);
 
-      // Parse markdown to HTML
+      // Parse markdown to HTML (with syntax highlighting)
       const rawHtml = marked.parse(processed, {
         async: false,
-        breaks: true,
-        gfm: true,
       }) as string;
 
       // Sanitize HTML with DOMPurify
@@ -212,11 +286,9 @@ export class SafeMarkdownPipe implements PipeTransform {
       // Process math
       let processed = await this.renderingService.renderMath(content);
 
-      // Parse markdown
+      // Parse markdown (with syntax highlighting)
       const rawHtml = marked.parse(processed, {
         async: false,
-        breaks: true,
-        gfm: true,
       }) as string;
 
       // Render Mermaid diagrams

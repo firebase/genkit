@@ -164,10 +164,18 @@ check_node() {
     log_success "Node.js found: $(node --version)"
 }
 
+check_pnpm() {
+    if ! command -v pnpm &> /dev/null; then
+        log_warning "pnpm not found. Installing..."
+        npm install -g pnpm
+    fi
+    log_success "pnpm found: $(pnpm --version)"
+}
+
 check_genkit_cli() {
     if ! command -v genkit &> /dev/null; then
         log_warning "Genkit CLI not found. Installing..."
-        npm install -g genkit
+        pnpm add -g genkit
     fi
     log_success "Genkit CLI found"
 }
@@ -366,7 +374,7 @@ run_setup() {
     setup_backend
     
     cd "$FRONTEND_DIR"
-    npm install
+    pnpm install
     log_success "Frontend dependencies installed"
     
     log_info ""
@@ -502,7 +510,7 @@ run_start() {
     # Setup frontend
     cd "$FRONTEND_DIR"
     if [ ! -d "node_modules" ]; then
-        npm install
+        pnpm install
         log_success "Frontend dependencies installed"
     fi
     
@@ -529,7 +537,7 @@ run_start() {
     
     # Start frontend in foreground
     cd "$FRONTEND_DIR"
-    npm start
+    pnpm start
 }
 
 run_backend() {
@@ -571,11 +579,11 @@ run_frontend() {
     cd "$FRONTEND_DIR"
     
     if [ ! -d "node_modules" ]; then
-        npm install
+        pnpm install
         log_success "Frontend dependencies installed"
     fi
     
-    npm start
+    pnpm start
 }
 
 build_frontend() {
@@ -583,8 +591,8 @@ build_frontend() {
     check_node
     
     cd "$FRONTEND_DIR"
-    npm install
-    npm run build
+    pnpm install
+    pnpm run build
     
     # Copy to backend static directory
     rm -rf "$BACKEND_DIR/static"

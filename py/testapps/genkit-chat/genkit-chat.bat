@@ -96,7 +96,7 @@ goto :eof
 where genkit >nul 2>&1
 if errorlevel 1 (
     echo [WARN] Genkit CLI not found. Installing...
-    npm install -g genkit
+    pnpm add -g genkit
 )
 echo [OK] Genkit CLI found
 goto :eof
@@ -183,9 +183,9 @@ if errorlevel 1 exit /b 1
 cd /d "%FRONTEND_DIR%"
 if not exist "node_modules" (
     echo [INFO] Installing frontend dependencies...
-    npm install
+    pnpm install
 )
-npm run start
+pnpm start
 goto :eof
 
 :build
@@ -195,9 +195,9 @@ if errorlevel 1 exit /b 1
 
 cd /d "%FRONTEND_DIR%"
 if not exist "node_modules" (
-    npm install
+    pnpm install
 )
-npm run build
+pnpm run build
 echo [OK] Frontend built to frontend/dist/
 goto :eof
 
@@ -277,7 +277,7 @@ REM Setup frontend
 cd /d "%FRONTEND_DIR%"
 if not exist "node_modules" (
     echo [INFO] Installing frontend dependencies...
-    npm install
+    pnpm install
 )
 
 echo [INFO] Starting services...
@@ -293,7 +293,7 @@ timeout /t 3 /nobreak >nul
 
 REM Start frontend in foreground
 cd /d "%FRONTEND_DIR%"
-npm run start
+pnpm start
 goto :eof
 
 :stop

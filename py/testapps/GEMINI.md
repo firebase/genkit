@@ -26,6 +26,25 @@ py/testapps/
 
 ---
 
+## Package Manager: pnpm (REQUIRED)
+
+**This workspace uses pnpm, NOT npm.** The `workspace:*` protocol in package.json requires pnpm.
+
+```bash
+# Check if pnpm is installed
+pnpm --version
+
+# Install pnpm if needed
+npm install -g pnpm
+
+# Install dependencies (from testapps/ root)
+pnpm install
+```
+
+**DO NOT use npm** - it will fail with `Unsupported URL Type "workspace:"` errors.
+
+---
+
 ## Google OSS Requirements
 
 Every package or testapp in this workspace MUST include these files for Google OSS compliance:
@@ -130,10 +149,10 @@ export STORYBOOK_DISABLE_TELEMETRY=1
 cd frontend
 
 # Start Storybook development server
-npm run storybook
+pnpm run storybook
 
 # Build static Storybook
-npm run build-storybook
+pnpm run build-storybook
 ```
 
 Storybook will be available at `http://localhost:6006`.
