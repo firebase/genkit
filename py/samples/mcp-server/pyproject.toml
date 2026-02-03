@@ -31,36 +31,34 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
-  "Typing :: Typed",
-  "License :: OSI Approved :: Apache Software License",
 ]
-dependencies = ["genkit", "mcp", "structlog"]
-description = "Genkit MCP Plugin"
-license = "Apache-2.0"
-keywords = [
+dependencies = [
   "genkit",
-  "ai",
-  "llm",
-  "machine-learning",
-  "artificial-intelligence",
-  "generative-ai",
-  "mcp",
-  "model-context-protocol",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-mcp",
+  "mcp>=1.25.0",
+  "pydantic>=2.10.5",
+  "starlette>=0.52.1",
+  "structlog>=25.2.0",
+  "uvicorn>=0.40.0",
 ]
-name = "genkit-plugin-mcp"
-readme = "README.md"
+description = "MCP Sample"
+license = "Apache-2.0"
+name = "mcp-server"
 requires-python = ">=3.10"
-version = "0.4.0"
-
-[project.urls]
-"Bug Tracker" = "https://github.com/firebase/genkit/issues"
-"Documentation" = "https://firebase.google.com/docs/genkit"
-"Homepage" = "https://github.com/firebase/genkit"
-"Repository" = "https://github.com/firebase/genkit/tree/main/py"
+version = "0.1.0"
 
 [build-system]
 build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/genkit", "src/genkit/plugins"]
+packages = ["src/main.py"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv.sources]
+genkit                     = { workspace = true }
+genkit-plugin-google-genai = { workspace = true }
+genkit-plugin-mcp          = { workspace = true }

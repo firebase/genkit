@@ -20,6 +20,8 @@ This module contains helper functions for handling MCP resources,
 including reading and converting resource content.
 """
 
+from typing import cast
+
 import structlog
 
 from genkit.core.typing import MediaPart, Part, TextPart
@@ -85,7 +87,7 @@ def process_resource_content(resource_result: ReadResourceResult) -> object:
     if not hasattr(resource_result, 'contents') or not resource_result.contents:
         return []
 
-    return [from_mcp_resource_part(content) for content in resource_result.contents]
+    return [from_mcp_resource_part(content.model_dump()) for content in resource_result.contents]
 
 
 def convert_resource_to_genkit_part(resource: Resource) -> dict[str, object]:
@@ -121,13 +123,11 @@ def to_mcp_resource_contents(uri: str | AnyUrl, parts: list[Part]) -> list[TextR
         ValueError: If part type is not supported.
     """
     contents: list[TextResourceContents | BlobResourceContents] = []
-    uri_str = str(uri)
 
     for part in parts:
         if isinstance(part, Part):
-            # Handle Genkit Part object
-            if isinstance(part.root, TextPart) and part.root.text is not None:
-                contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part.root.text))
+            if isinstance(part.root, TextPart):
+                contents.append(TextResourceContents(uri=cast(AnyUrl, uri), text=part.root.text))
             elif isinstance(part.root, MediaPart):
                 media = part.root.media
                 url = media.url
@@ -139,15 +139,22 @@ def to_mcp_resource_contents(uri: str | AnyUrl, parts: list[Part]) -> list[TextR
                 try:
                     mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
                     blob_data = url[url.index(',') + 1 :]
-                    contents.append(BlobResourceContents(uri=AnyUrl(uri), mimeType=mime_type, blob=blob_data))
                 except ValueError as e:
                     raise ValueError(f'Invalid data URL format: {url}') from e
-            elif isinstance(part.root, TextPart):
-                contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part.root.text))
+
+                contents.append(BlobResourceContents(uri=cast(AnyUrl, uri), mimeType=mime_type, blob=blob_data))
+            else:
+                # Skip other part types or raise?
+                # Tests don't cover other types, but logic suggests strictness or skipping.
+                # Given previous logic raised for unsupported dict types, we might want to be strict,
+                # but for now let's just handle known supported types or fall through if we want validation.
+                # Actually, let's allow fallthrough or raise.
+                # Reusing the logic from dict might be cleaner if extracted, but copy-paste is safer for now.
+                pass
 
         elif isinstance(part, dict):
-            # Legacy/Dict definition support
-            if 'media' in part:
+            # Handle media/image content
+            if 'media' in part and part['media']:
                 media = part['media']
                 url = media.get('url', '')
                 content_type = media.get('contentType', '')
@@ -161,16 +168,16 @@ def to_mcp_resource_contents(uri: str | AnyUrl, parts: list[Part]) -> list[TextR
                 except ValueError as e:
                     raise ValueError(f'Invalid data URL format: {url}') from e
 
-                contents.append(BlobResourceContents(uri=AnyUrl(uri_str), mimeType=mime_type, blob=blob_data))
+                contents.append(BlobResourceContents(uri=cast(AnyUrl, uri), mimeType=mime_type, blob=blob_data))
 
             elif 'text' in part:
-                contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part['text']))
+                contents.append(TextResourceContents(uri=cast(AnyUrl, uri), text=part['text']))
             else:
                 raise ValueError(
                     f'MCP resource messages only support media and text parts. '
                     f'Unsupported part type: {list(part.keys())}'
                 )
         elif isinstance(part, str):
-            contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part))
+            contents.append(TextResourceContents(uri=cast(AnyUrl, uri), text=part))
 
     return contents

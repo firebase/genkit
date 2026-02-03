@@ -40,7 +40,7 @@ async def main() -> None:
     if GoogleAI:
         plugins.append(GoogleAI())
 
-    Genkit(plugins=plugins)
+    Genkit(plugins=plugins)  # type: ignore[arg-type]
 
     await everything_client.connect()
 

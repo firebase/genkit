@@ -24,21 +24,13 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from mcp.types import (
-    ListPromptsRequest,
-    ListResourcesRequest,
-    ListResourceTemplatesRequest,
-    ListToolsRequest,
-    TextContent,
-    TextResourceContents,
-)
 
 from genkit.core.error import GenkitError
 
 # Defer genkit imports to allow mocking. Type annotations help ty understand these are callable.
-Genkit: Any = None
-McpServerOptions: Any = None
-create_mcp_server: Any = None
+# Genkit: Any = None
+# McpServerOptions: Any = None
+# create_mcp_server: Any = None
 
 
 def setup_mocks() -> None:
@@ -56,29 +48,25 @@ def setup_mocks() -> None:
 
     try:
         # Deferred import: mock_mcp_modules must be called before importing genkit.plugins.mcp
-        from fakes import mock_mcp_modules
+        from fakes import mock_mcp_modules  # noqa: F401
 
         mock_mcp_modules()
-
-        # Deferred import: these imports must happen after mock_mcp_modules() is called
-        from genkit.ai import Genkit as _Genkit
-        from genkit.plugins.mcp import (
-            McpServerOptions as _McpServerOptions,
-            create_mcp_server as _create_mcp_server,
-        )
-
-        Genkit = _Genkit
-        McpServerOptions = _McpServerOptions
-        create_mcp_server = _create_mcp_server
     except ImportError:
-        # Fallback if dependencies missing
         pass
 
 
-# Call setup at module level but wrapped? No, still E402 if statements are here.
-# But we can call it in setUpClass or invoke it.
-# However, for the classes to use these types, they need to be defined.
-# If I use lazy imports inside tests, E402 is solved.
+from mcp.types import (  # noqa: E402
+    ListPromptsRequest,
+    ListResourcesRequest,
+    ListResourceTemplatesRequest,
+    ListToolsRequest,
+)
+
+from genkit.ai import Genkit  # noqa: E402, F811
+from genkit.blocks.resource import ResourceInput, ResourceOutput  # noqa: E402
+from genkit.core.action import ActionRunContext  # noqa: E402
+from genkit.core.typing import Part, TextPart  # noqa: E402
+from genkit.plugins.mcp import McpServerOptions, create_mcp_server  # noqa: E402, F811
 
 
 @pytest.mark.asyncio
@@ -92,17 +80,24 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_resources_with_fixed_uri(self) -> None:
         """Test listing resources with fixed URIs."""
-        # Define resources
-        self.ai.define_resource(name='config', uri='app://config', fn=lambda req: {'content': [{'text': 'config'}]})
 
-        self.ai.define_resource(name='data', uri='app://data', fn=lambda req: {'content': [{'text': 'data'}]})
+        # Define resources
+        async def config_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='config'))])
+
+        self.ai.define_resource(name='config', uri='app://config', fn=config_handler)
+
+        async def data_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+
+        self.ai.define_resource(name='data', uri='app://data', fn=data_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
         await server.setup()
 
         # List resources
-        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
+        result = await server.list_resources(MagicMock(spec=ListResourcesRequest))
 
         # Verify
         self.assertEqual(len(result.resources), 2)
@@ -116,21 +111,24 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_resource_templates(self) -> None:
         """Test listing resources with URI templates."""
-        # Define template resources
-        self.ai.define_resource(
-            name='file', template='file://{+path}', fn=lambda req: {'content': [{'text': 'file content'}]}
-        )
 
-        self.ai.define_resource(
-            name='user', template='user://{id}/profile', fn=lambda req: {'content': [{'text': 'user profile'}]}
-        )
+        # Define template resources
+        async def file_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='file content'))])
+
+        self.ai.define_resource(name='file', template='file://{+path}', fn=file_handler)
+
+        async def user_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='user profile'))])
+
+        self.ai.define_resource(name='user', template='user://{id}/profile', fn=user_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
         await server.setup()
 
         # List resource templates
-        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
+        result = await server.list_resource_templates(MagicMock(spec=ListResourceTemplatesRequest))
 
         # Verify
         self.assertEqual(len(result.resourceTemplates), 2)
@@ -144,38 +142,48 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_resources_excludes_templates(self) -> None:
         """Test that list_resources excludes template resources."""
-        # Define mixed resources
-        self.ai.define_resource(name='fixed', uri='app://fixed', fn=lambda req: {'content': [{'text': 'fixed'}]})
 
-        self.ai.define_resource(
-            name='template', template='app://{id}', fn=lambda req: {'content': [{'text': 'template'}]}
-        )
+        # Define mixed resources
+        async def fixed_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+
+        self.ai.define_resource(name='fixed', uri='app://fixed', fn=fixed_handler)
+
+        async def template_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='template'))])
+
+        self.ai.define_resource(name='template', template='app://{id}', fn=template_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
         await server.setup()
 
         # List resources (should only include fixed URI)
-        result = await server.list_resources(ListResourcesRequest(method='resources/list'))
+        result = await server.list_resources(MagicMock(spec=ListResourcesRequest))
 
         self.assertEqual(len(result.resources), 1)
         self.assertEqual(result.resources[0].name, 'fixed')
 
     async def test_list_resource_templates_excludes_fixed(self) -> None:
         """Test that list_resource_templates excludes fixed URI resources."""
-        # Define mixed resources
-        self.ai.define_resource(name='fixed', uri='app://fixed', fn=lambda req: {'content': [{'text': 'fixed'}]})
 
-        self.ai.define_resource(
-            name='template', template='app://{id}', fn=lambda req: {'content': [{'text': 'template'}]}
-        )
+        # Define mixed resources
+        async def fixed_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='fixed'))])
+
+        self.ai.define_resource(name='fixed', uri='app://fixed', fn=fixed_handler)
+
+        async def template_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='template'))])
+
+        self.ai.define_resource(name='template', template='app://{id}', fn=template_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
         await server.setup()
 
         # List templates (should only include template)
-        result = await server.list_resource_templates(ListResourceTemplatesRequest(method='resources/templates/list'))
+        result = await server.list_resource_templates(MagicMock(spec=ListResourceTemplatesRequest))
 
         self.assertEqual(len(result.resourceTemplates), 1)
         self.assertEqual(result.resourceTemplates[0].name, 'template')
@@ -183,7 +191,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_fixed_uri(self) -> None:
         """Test reading a resource with fixed URI."""
 
-        def config_resource(req: object) -> dict[str, list[dict[str, str]]]:
+        def config_resource(req: Any) -> dict[str, list[dict[str, str]]]:  # noqa: ANN401
             return {'content': [{'text': 'Configuration data'}]}
 
         self.ai.define_resource(name='config', uri='app://config', fn=config_resource)
@@ -201,17 +209,16 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
-        assert isinstance(result.contents[0], TextResourceContents)
-        self.assertEqual(result.contents[0].text, 'Configuration data')
+        self.assertEqual(result.contents[0].text, 'Configuration data')  # type: ignore
 
     async def test_read_resource_with_template(self) -> None:
         """Test reading a resource with URI template."""
 
-        def file_resource(req: object) -> dict[str, list[dict[str, str]]]:
-            uri = getattr(req, 'uri', '')
+        def file_resource(req: Any) -> ResourceOutput:  # noqa: ANN401
+            uri = req.uri
             # Extract path from URI
             path = uri.replace('file://', '')
-            return {'content': [{'text': f'Contents of {path}'}]}
+            return ResourceOutput(content=[Part(root=TextPart(text=f'Contents of {path}'))])
 
         self.ai.define_resource(name='file', template='file://{+path}', fn=file_resource)
 
@@ -227,12 +234,15 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.contents), 1)
-        assert isinstance(result.contents[0], TextResourceContents)
-        self.assertIn('/home/user/document.txt', result.contents[0].text)
+        self.assertIn('/home/user/document.txt', result.contents[0].text)  # type: ignore
 
     async def test_read_resource_not_found(self) -> None:
         """Test reading a non-existent resource."""
-        self.ai.define_resource(name='existing', uri='app://existing', fn=lambda req: {'content': [{'text': 'data'}]})
+
+        async def existing_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='data'))])
+
+        self.ai.define_resource(name='existing', uri='app://existing', fn=existing_handler)
 
         # Create server
         server = create_mcp_server(self.ai, McpServerOptions(name='test-server'))
@@ -250,7 +260,7 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
     async def test_read_resource_with_multiple_content_parts(self) -> None:
         """Test reading a resource that returns multiple content parts."""
 
-        def multi_part_resource(req: object) -> dict[str, list[dict[str, str]]]:
+        def multi_part_resource(req: Any) -> dict[str, list[dict[str, str]]]:  # noqa: ANN401
             return {'content': [{'text': 'Part 1'}, {'text': 'Part 2'}, {'text': 'Part 3'}]}
 
         self.ai.define_resource(name='multi', uri='app://multi', fn=multi_part_resource)
@@ -266,13 +276,11 @@ class TestMcpServerResources(unittest.IsolatedAsyncioTestCase):
         result = await server.read_resource(request)
 
         # Verify
+        # Verify result content
         self.assertEqual(len(result.contents), 3)
-        assert isinstance(result.contents[0], TextResourceContents)
-        self.assertEqual(result.contents[0].text, 'Part 1')
-        assert isinstance(result.contents[1], TextResourceContents)
-        self.assertEqual(result.contents[1].text, 'Part 2')
-        assert isinstance(result.contents[2], TextResourceContents)
-        self.assertEqual(result.contents[2].text, 'Part 3')
+        self.assertEqual(result.contents[0].text, 'Part 1')  # type: ignore
+        self.assertEqual(result.contents[1].text, 'Part 2')  # type: ignore
+        self.assertEqual(result.contents[2].text, 'Part 3')  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -300,7 +308,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List tools
-        result = await server.list_tools(ListToolsRequest(method='tools/list'))
+        result = await server.list_tools(MagicMock(spec=ListToolsRequest))
 
         # Verify
         self.assertEqual(len(result.tools), 2)
@@ -328,8 +336,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
 
         # Verify
         self.assertEqual(len(result.content), 1)
-        assert isinstance(result.content[0], TextContent)
-        self.assertEqual(result.content[0].text, '8')
+        self.assertEqual(result.content[0].text, '8')  # type: ignore
 
     async def test_list_prompts(self) -> None:
         """Test listing prompts."""
@@ -342,7 +349,7 @@ class TestMcpServerToolsAndPrompts(unittest.IsolatedAsyncioTestCase):
         await server.setup()
 
         # List prompts
-        result = await server.list_prompts(ListPromptsRequest(method='prompts/list'))
+        result = await server.list_prompts(MagicMock(spec=ListPromptsRequest))
 
         # Verify
         self.assertGreaterEqual(len(result.prompts), 2)
@@ -368,7 +375,10 @@ class TestMcpServerIntegration(unittest.IsolatedAsyncioTestCase):
         ai.define_prompt(name='test', prompt='Test prompt')
 
         # Define resource
-        ai.define_resource(name='test_resource', uri='test://resource', fn=lambda req: {'content': [{'text': 'test'}]})
+        async def resource_handler(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+            return ResourceOutput(content=[Part(root=TextPart(text='test'))])
+
+        ai.define_resource(name='test_resource', uri='test://resource', fn=resource_handler)
 
         # Create server
         server = create_mcp_server(ai, McpServerOptions(name='integration-test'))

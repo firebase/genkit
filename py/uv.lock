@@ -55,6 +55,7 @@ members = [
     "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
     "huggingface-hello",
+    "mcp-server",
     "media-models-demo",
     "menu",
     "mistral-hello",
@@ -2414,12 +2415,14 @@ source = { editable = "plugins/mcp" }
 dependencies = [
     { name = "genkit" },
     { name = "mcp" },
+    { name = "structlog" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "mcp" },
+    { name = "structlog" },
 ]
 
 [[package]]
@@ -2596,9 +2599,11 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "pytest-watcher" },
+    { name = "structlog" },
     { name = "tox" },
     { name = "tox-uv" },
     { name = "twine" },
+    { name = "ty" },
 ]
 lint = [
     { name = "bandit" },
@@ -2664,9 +2669,11 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0.0" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
     { name = "pytest-watcher", specifier = ">=0.4.3" },
+    { name = "structlog", specifier = ">=25.2.0" },
     { name = "tox", specifier = ">=4.25.0" },
     { name = "tox-uv", specifier = ">=1.25.0" },
     { name = "twine", specifier = ">=6.1.0" },
+    { name = "ty", specifier = ">=0.0.13" },
 ]
 lint = [
     { name = "bandit", specifier = ">=1.7.0" },
@@ -4407,6 +4414,33 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/fc/6d/62e76bbb8144d6ed86e202b5edd8a4cb631e7c8130f3f4893c3f90262b10/mcp-1.26.0.tar.gz", hash = "sha256:db6e2ef491eecc1a0d93711a76f28dec2e05999f93afd48795da1c1137142c66", size = 608005, upload-time = "2026-01-24T19:40:32.468Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fd/d9/eaa1f80170d2b7c5ba23f3b59f766f3a0bb41155fbc32a69adfa1adaaef9/mcp-1.26.0-py3-none-any.whl", hash = "sha256:904a21c33c25aa98ddbeb47273033c435e595bbacfdb177f4bd87f6dceebe1ca", size = 233615, upload-time = "2026-01-24T19:40:30.652Z" },
+]
+
+[[package]]
+name = "mcp-server"
+version = "0.1.0"
+source = { editable = "samples/mcp-server" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "genkit-plugin-mcp" },
+    { name = "mcp" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "structlog" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-mcp", editable = "plugins/mcp" },
+    { name = "mcp", specifier = ">=1.25.0" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "starlette", specifier = ">=0.52.1" },
+    { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvicorn", specifier = ">=0.40.0" },
 ]
 
 [[package]]

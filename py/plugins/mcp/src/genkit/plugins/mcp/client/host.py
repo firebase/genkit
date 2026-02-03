@@ -16,9 +16,13 @@
 
 """Host for managing multiple MCP server connections."""
 
+import structlog
+
 from genkit.ai import Genkit
 
 from .client import McpClient, McpServerConfig
+
+logger = structlog.get_logger(__name__)
 
 
 class McpHost:
@@ -64,7 +68,41 @@ class McpHost:
             client.config.disabled = True
             await client.close()
 
+    async def reconnect(self, name: str) -> None:
+        """Reconnects a specific MCP client."""
+        if name in self.clients:
+            client_to_reconnect = self.clients[name]
+            await client_to_reconnect.close()
+            await client_to_reconnect.connect()
+
+    async def get_active_tools(self, ai: Genkit) -> list[str]:
+        """Returns a list of all active tool names from all clients."""
+        active_tools = []
+        for client in self.clients.values():
+            if client.session:
+                try:
+                    tools = await client.get_active_tools()
+                    # Determine tool names as registered: server_tool
+                    for tool in tools:
+                        active_tools.append(f'{client.server_name}/{tool.name}')
+                except Exception as e:
+                    logger.debug(f'Error getting tools from {client.server_name}: {e}')
+        return active_tools
+
+    async def get_active_resources(self, ai: Genkit) -> list[str]:
+        """Returns a list of all active resource URIs from all clients."""
+        active_resources = []
+        for client in self.clients.values():
+            if client.session:
+                try:
+                    resources = await client.list_resources()
+                    for resource in resources:
+                        active_resources.append(str(resource.uri))
+                except Exception as e:
+                    logger.debug(f'Error getting resources from {client.server_name}: {e}')
+        return active_resources
+
 
 def create_mcp_host(configs: dict[str, McpServerConfig]) -> McpHost:
-    """Creates a new MCP host for managing multiple server connections."""
+    """Creates an MCP host with the given configurations."""
     return McpHost(configs)
