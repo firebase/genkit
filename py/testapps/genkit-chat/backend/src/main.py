@@ -821,15 +821,16 @@ def create_fastapi_server() -> FastAPI:
                     except json.JSONDecodeError:
                         parsed_history = []
                 
-                # URL-decode model name (FastAPI should handle this, but be safe)
+                # URL-decode parameters (FastAPI should handle this, but be safe)
                 from urllib.parse import unquote
+                decoded_message = unquote(message)
                 decoded_model = unquote(model)
-                logger.info(f"Stream request: model={decoded_model}, message_len={len(message)}")
+                logger.info(f"Stream request: model={decoded_model}, message_len={len(decoded_message)}")
                 
                 # generate_stream returns (stream, future) tuple
                 stream, _ = g.generate_stream(
                     model=decoded_model,
-                    prompt=message,
+                    prompt=decoded_message,
                 )
                 async for chunk in stream:
                     if chunk.text:
@@ -1001,16 +1002,17 @@ def create_http_server() -> Robyn:
                 except json.JSONDecodeError:
                     parsed_history = []
             
-            # URL-decode model name (e.g., ollama%2Fllama3.2 -> ollama/llama3.2)
+            # URL-decode parameters (e.g., ollama%2Fllama3.2 -> ollama/llama3.2)
             from urllib.parse import unquote
+            decoded_message = unquote(message)
             decoded_model = unquote(model)
-            logger.info(f"Stream request (Robyn): model={decoded_model}, message_len={len(message)}")
+            logger.info(f"Stream request (Robyn): model={decoded_model}, message_len={len(decoded_message)}")
             
             full_response = ""
             # generate_stream returns (stream, future) tuple
             stream, _ = g.generate_stream(
                 model=decoded_model,
-                prompt=message,
+                prompt=decoded_message,
             )
             async for chunk in stream:
                 if chunk.text:

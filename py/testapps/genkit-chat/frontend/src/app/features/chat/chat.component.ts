@@ -259,7 +259,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
           </div>
         }
         
-        <div class="input-box" [class.focused]="inputFocused" [class.pulse-send]="isPulsing">
+        <div class="input-box" [class.focused]="inputFocused" [class.pulse-send]="isPulsing" (click)="focusInput($event)">
           <!-- Text Area at top -->
           <textarea class="chat-input" 
                     [(ngModel)]="userMessage" 
@@ -649,6 +649,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 
     .message-row {
       display: flex;
+      align-items: flex-start;
       gap: 16px;
       padding: 16px 0;
       
@@ -661,6 +662,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       flex-shrink: 0;
       width: 28px;
       height: 28px;
+      margin-top: 2px;
     }
 
     .avatar-logo {
@@ -2101,6 +2103,16 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
       this.sendMessage();
       // Ensure focus stays on input after Angular's change detection
       setTimeout(() => this.chatTextarea?.nativeElement?.focus(), 0);
+    }
+  }
+
+  focusInput(event: MouseEvent): void {
+    // Focus the textarea when clicking anywhere in the input box
+    // Ignore clicks on buttons, menus, and other interactive elements
+    const target = event.target as HTMLElement;
+    const isInteractive = target.closest('button, mat-icon, .mat-mdc-menu-trigger, input, select');
+    if (!isInteractive) {
+      this.chatTextarea?.nativeElement?.focus();
     }
   }
 
