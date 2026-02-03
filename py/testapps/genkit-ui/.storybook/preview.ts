@@ -1,10 +1,88 @@
 import type { Preview } from '@storybook/angular';
-import { setCompodocJson } from '@storybook/addon-docs/angular';
+import { applicationConfig } from '@storybook/angular';
+import { provideAnimations } from '@angular/platform-browser/animations';
+import { provideHttpClient, withFetch } from '@angular/common/http';
+import { importProvidersFrom, APP_INITIALIZER } from '@angular/core';
+import { TranslateModule, TranslateLoader, TranslateService } from '@ngx-translate/core';
+import { Observable, of } from 'rxjs';
 
 // Apply global styles for Storybook
 import '../src/theme/styles.css';
 
+// Mock translations for standalone library Storybook
+const TRANSLATIONS: Record<string, Record<string, unknown>> = {
+    en: {
+        chat: {
+            placeholder: 'Ask Genkit Chat',
+            sendMessage: 'Send message',
+            voiceInput: 'Voice input',
+            stopRecording: 'Stop recording',
+            addFiles: 'Add files',
+            greeting: 'Hello',
+        },
+        toolbar: {
+            settings: 'Settings',
+            tools: 'Tools',
+            stream: 'Streaming responses',
+            markdown: 'Render markdown',
+            safe: 'Content safety',
+        },
+        actions: {
+            copy: 'Copy to clipboard',
+            readAloud: 'Read aloud',
+            goodResponse: 'Good response',
+            badResponse: 'Bad response',
+            more: 'More',
+        },
+        theme: {
+            label: 'Theme',
+            system: 'System',
+            light: 'Light',
+            dark: 'Dark',
+        },
+    },
+};
+
+// Custom translation loader for Storybook
+class MockTranslateLoader extends TranslateLoader {
+    override getTranslation(lang: string): Observable<Record<string, unknown>> {
+        return of(TRANSLATIONS[lang] || TRANSLATIONS['en']);
+    }
+}
+
+// Initialize translations synchronously
+function initTranslations(translate: TranslateService) {
+    return () => {
+        translate.setDefaultLang('en');
+        translate.use('en');
+        return Promise.resolve();
+    };
+}
+
 const preview: Preview = {
+    decorators: [
+        applicationConfig({
+            providers: [
+                provideAnimations(),
+                provideHttpClient(withFetch()),
+                importProvidersFrom(
+                    TranslateModule.forRoot({
+                        defaultLanguage: 'en',
+                        loader: {
+                            provide: TranslateLoader,
+                            useClass: MockTranslateLoader,
+                        },
+                    })
+                ),
+                {
+                    provide: APP_INITIALIZER,
+                    useFactory: initTranslations,
+                    deps: [TranslateService],
+                    multi: true,
+                },
+            ],
+        }),
+    ],
     parameters: {
         controls: {
             matchers: {
@@ -13,20 +91,18 @@ const preview: Preview = {
             },
         },
         backgrounds: {
-            options: {
-                light: { name: 'light', value: '#fafafa' },
-                dark: { name: 'dark', value: '#1a1c1e' }
-            }
+            default: 'light',
+            values: [
+                { name: 'light', value: '#fafafa' },
+                { name: 'dark', value: '#1a1c1e' },
+            ],
         },
     },
-
-    decorators: [],
-
     initialGlobals: {
         backgrounds: {
-            value: 'light'
-        }
-    }
+            value: 'light',
+        },
+    },
 };
 
 export default preview;

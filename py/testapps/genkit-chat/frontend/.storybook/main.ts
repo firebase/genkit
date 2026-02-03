@@ -18,5 +18,6 @@ const config: StorybookConfig = {
     { from: '../src/assets', to: '/assets' },
     { from: '../public', to: '/' },
   ],
+  styles: ['../src/styles.scss'],
 };
 export default config;

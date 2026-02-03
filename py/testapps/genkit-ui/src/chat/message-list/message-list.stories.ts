@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/angular';
 import { argsToTemplate } from '@storybook/angular';
-import { MessageListComponent } from './message-list.component';
-import { Message } from '../../../../core/services/chat.service';
+import { MessageListComponent, Message } from './message-list.component';
 
 /**
  * MessageListComponent displays chat messages with markdown rendering,

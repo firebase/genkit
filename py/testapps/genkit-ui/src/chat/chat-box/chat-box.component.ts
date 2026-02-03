@@ -127,6 +127,7 @@ export const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
  */
 interface SpeechRecognitionResult {
     readonly length: number;
+    readonly isFinal: boolean;
     item(index: number): SpeechRecognitionAlternative;
     [index: number]: SpeechRecognitionAlternative;
 }

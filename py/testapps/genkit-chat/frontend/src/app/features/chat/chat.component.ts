@@ -2561,7 +2561,18 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
 
   useQuickAction(prompt: string): void {
     this.userMessage = prompt + ' ';
+    // Focus the textarea and move cursor to end after Angular updates the DOM
+    setTimeout(() => {
+      const textarea = this.chatTextarea?.nativeElement;
+      if (textarea) {
+        textarea.focus();
+        // Move cursor to end of text
+        const length = textarea.value.length;
+        textarea.setSelectionRange(length, length);
+      }
+    }, 0);
   }
+
 
   /**
    * Clear content flagging when user edits their message.
