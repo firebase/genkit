@@ -131,6 +131,7 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
 """
 
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -1050,7 +1051,7 @@ class GeminiModel:
             params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
 
         function = genai_types.FunctionDeclaration(
-            name=tool.name.replace('/', '__'),
+            name=re.sub(r'[^a-zA-Z0-9_-]', '_', tool.name),
             description=tool.description,
             parameters=params,
             response=self._convert_schema_property(tool.output_schema) if tool.output_schema else None,
@@ -1308,7 +1309,7 @@ class GeminiModel:
             client = client or self._client
             response = await client.aio.models.generate_content(
                 model=model_name,
-                contents=request_contents,  # type: ignore[arg-type]
+                contents=cast(genai_types.ContentListUnion, request_contents),
                 config=request_cfg,
             )
             span.set_attribute('genkit:output', dump_json(response))

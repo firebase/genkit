@@ -123,7 +123,6 @@ def to_mcp_resource_contents(uri: str | AnyUrl, parts: list[Part]) -> list[TextR
         ValueError: If part type is not supported.
     """
     contents: list[TextResourceContents | BlobResourceContents] = []
-    str(uri)
 
     for part in parts:
         if isinstance(part, Part):

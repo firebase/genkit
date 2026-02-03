@@ -84,6 +84,8 @@ away the complexities of sync/async handling (for async callers), schema
 generation, tracing, and streaming mechanics.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import time
@@ -495,6 +497,17 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         else:
             self._output_schema = TypeAdapter(object).json_schema()
             self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
+
+    def to_metadata(self) -> ActionMetadata:
+        """Create ActionMetadata from this action."""
+        return ActionMetadata(
+            kind=self.kind,
+            name=self.name,
+            description=self.description,
+            input_json_schema=self.input_schema,
+            output_json_schema=self.output_schema,
+            metadata=self.metadata,
+        )
 
 
 class ActionMetadata(BaseModel):

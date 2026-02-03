@@ -84,7 +84,7 @@ class McpHost:
                     tools = await client.get_active_tools()
                     # Determine tool names as registered: server_tool
                     for tool in tools:
-                        active_tools.append(f'{client.server_name}_{tool.name}')
+                        active_tools.append(f'{client.server_name}/{tool.name}')
                 except Exception as e:
                     logger.debug(f'Error getting tools from {client.server_name}: {e}')
         return active_tools

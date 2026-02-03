@@ -211,7 +211,7 @@ class McpClient:
                 # Define the tool in Genkit registry
                 action = registry.register_action(
                     kind=cast(ActionKind, ActionKind.TOOL),
-                    name=f'{self.server_name}_{tool.name}',
+                    name=f'{self.server_name}/{tool.name}',
                     fn=wrapped_tool,
                     description=tool.description,
                     metadata=metadata,
@@ -222,7 +222,7 @@ class McpClient:
                     action._input_schema = tool.inputSchema
                     action._metadata['inputSchema'] = tool.inputSchema
 
-                logger.debug(f'Registered MCP tool: {self.server_name}_{tool.name}')
+                logger.debug(f'Registered MCP tool: {self.server_name}/{tool.name}')
         except Exception as e:
             logger.error(f'Error registering tools for {self.server_name}: {e}')
 

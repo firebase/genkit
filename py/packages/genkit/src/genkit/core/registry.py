@@ -490,16 +490,7 @@ class Registry:
                 if allowed_kinds and kind not in allowed_kinds:
                     continue
                 for action in kind_map.values():
-                    metas.append(
-                        ActionMetadata(
-                            kind=action.kind,
-                            name=action.name,
-                            description=action.description,
-                            input_json_schema=action.input_schema,
-                            output_json_schema=action.output_schema,
-                            metadata=action.metadata,
-                        )
-                    )
+                    metas.append(action.to_metadata())
 
         return metas
 
