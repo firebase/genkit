@@ -9,26 +9,34 @@ This document captures learnings, patterns, and best practices from developing t
 │                           Genkit Chat Architecture                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Frontend (Angular 19)                                                      │
-│  ├── ChatComponent       - Main chat interface with input/messages          │
-│  ├── CompareComponent    - Side-by-side model comparison                    │
+│  ├── ChatComponent (legacy)  - Legacy monolithic component                  │
+│  │   └── Refactored Components (features/chat/components/)                  │
+│  │       ├── MessageListComponent    - Message display with markdown        │
+│  │       ├── WelcomeScreenComponent  - Greeting animation, quick actions    │
+│  │       ├── PromptQueueComponent    - Queue with drag-and-drop             │
+│  │       ├── ChatInputComponent      - Input, attachments, voice, settings  │
+│  │       └── ModelSelectorComponent  - Searchable model dropdown            │
+│  ├── CompareComponent        - Side-by-side model comparison                │
 │  ├── Services                                                               │
-│  │   ├── ChatService     - Message management, streaming, queue             │
-│  │   ├── ModelsService   - Model list, selection, categorization            │
-│  │   ├── SpeechService   - Voice input via Web Speech API                   │
+│  │   ├── ChatService         - Message management, streaming, queue         │
+│  │   ├── ModelsService       - Model list, selection, categorization        │
+│  │   ├── SpeechService       - Voice input via Web Speech API               │
 │  │   ├── ContentSafetyService - Client-side toxicity detection              │
-│  │   ├── ThemeService    - Dark/light/system theme management               │
-│  │   ├── LanguageService - i18n with RTL support                            │
-│  │   └── AuthService     - Demo mode user management                        │
+│  │   ├── ThemeService        - Dark/light/system theme management           │
+│  │   ├── LanguageService     - i18n with RTL support                        │
+│  │   └── AuthService         - Google OAuth with jwt-decode                 │
 │  └── Utilities                                                              │
-│      ├── SafeMarkdownPipe - DOMPurify + marked for safe rendering           │
-│      └── getMimeTypeIcon  - Semantic file type icons                        │
+│      ├── SafeMarkdownPipe    - DOMPurify + marked for safe rendering        │
+│      └── getMimeTypeIcon     - Semantic file type icons                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  Backend (Python + Robyn)                                                   │
-│  ├── main.py             - Routes, SSE streaming, model registry            │
-│  ├── Genkit Integration  - Flows, tools, prompts                            │
-│  └── Multi-provider      - Google AI, Vertex AI, Ollama                     │
+│  Backend (Python + Robyn/FastAPI)                                           │
+│  ├── main.py                 - Routes, SSE streaming, model registry        │
+│  ├── genkit_setup.py         - Plugin loading, model discovery              │
+│  ├── Genkit Integration      - Flows, tools, prompts                        │
+│  └── Multi-provider          - Google AI, Anthropic, OpenAI, Ollama         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
 
 ## Coding Standards
 

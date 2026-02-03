@@ -32,22 +32,58 @@ import { TranslateModule } from '@ngx-translate/core';
 /**
  * Main chat interface component for Genkit Chat.
  * 
- * This component currently handles multiple responsibilities:
- * - Message display and markdown rendering
- * - Input bar with attachments and voice input
- * - Prompt queue management with drag-and-drop reordering
- * - Welcome screen with quick action chips
- * - Model selection dropdown
+ * This is the legacy monolithic component. For new development, prefer using
+ * the refactored components from `./components/`:
  * 
- * Future Refactoring Roadmap:
- * To improve maintainability and testability, this should be split into:
- * - ChatInputComponent: Text area, attachments, voice input, send button
- * - MessageListComponent: Message display with markdown rendering
- * - PromptQueueComponent: Queue management with drag-and-drop
- * - WelcomeScreenComponent: Greeting animation and quick actions
- * - ModelSelectorComponent: Model selection dropdown with search
+ * Component Architecture::
  * 
- * See: https://github.com/firebase/genkit/issues (search for "chat component refactoring")
+ *     ChatComponent (this file - legacy container)
+ *     │
+ *     └── Refactored Components (./components/)
+ *         ├── MessageListComponent      - Message display with markdown
+ *         ├── WelcomeScreenComponent    - Greeting animation, quick actions  
+ *         ├── PromptQueueComponent      - Queue with drag-and-drop
+ *         ├── ChatInputComponent        - Input, attachments, voice, settings
+ *         │   └── [slot: modelSelector]
+ *         └── ModelSelectorComponent    - Searchable model dropdown
+ * 
+ * Migration Path:
+ * 1. Import components from './components'
+ * 2. Replace template sections with component usages
+ * 3. Wire up inputs/outputs to existing services
+ * 4. Remove redundant code from this file
+ * 
+ * Example using new components::
+ * 
+ *     <!-- Message list -->
+ *     <app-message-list 
+ *       [messages]="chatService.messages()"
+ *       [isLoading]="chatService.isLoading()"
+ *       [markdownMode]="chatService.markdownMode()"
+ *       (copy)="copyMessage($event)"
+ *       (speak)="speakMessage($event)" />
+ *     
+ *     <!-- Welcome screen (when no messages) -->
+ *     @if (chatService.messages().length === 0) {
+ *       <app-welcome-screen
+ *         [greetings]="greetings"
+ *         [quickActions]="quickActions"
+ *         (actionSelected)="useQuickAction($event)" />
+ *     }
+ *     
+ *     <!-- Input area -->
+ *     <app-chat-input
+ *       [streamingEnabled]="chatService.streamingMode()"
+ *       [markdownEnabled]="chatService.markdownMode()"
+ *       [safetyEnabled]="contentSafetyService.enabled()"
+ *       (send)="handleSend($event)">
+ *       <app-model-selector modelSelector
+ *         [selectedModel]="modelsService.selectedModel()"
+ *         [providers]="modelsService.providers()"
+ *         (modelSelected)="modelsService.setSelectedModel($event)" />
+ *     </app-chat-input>
+ * 
+ * @see ./components/index.ts for all available components
  */
 @Component({
   selector: 'app-chat',
