@@ -14,6 +14,70 @@ import (
 	"google.golang.org/genai"
 )
 
+// Model capability definitions - these describe what different model types support.
+var (
+	// BasicText describes model capabilities for text-only Gemini models.
+	BasicText = ai.ModelSupports{
+		Multiturn:  true,
+		Tools:      true,
+		ToolChoice: true,
+		SystemRole: true,
+		Media:      false,
+	}
+
+	// Multimodal describes model capabilities for multimodal Gemini models.
+	Multimodal = ai.ModelSupports{
+		Multiturn:   true,
+		Tools:       true,
+		ToolChoice:  true,
+		SystemRole:  true,
+		Media:       true,
+		Constrained: ai.ConstrainedSupportNoTools,
+	}
+
+	// Media describes model capabilities for image generation models (Imagen).
+	Media = ai.ModelSupports{
+		Multiturn:  false,
+		Tools:      false,
+		SystemRole: false,
+		Media:      true,
+		Output:     []string{"media"},
+	}
+
+	// VeoSupports describes model capabilities for video generation models (Veo).
+	VeoSupports = ai.ModelSupports{
+		Media:       true,
+		Multiturn:   false,
+		Tools:       false,
+		SystemRole:  false,
+		Output:      []string{"media"},
+		LongRunning: true,
+	}
+)
+
+// Default options for unknown models of each type.
+var (
+	defaultGeminiOpts = ai.ModelOptions{
+		Supports: &Multimodal,
+		Stage:    ai.ModelStageUnstable,
+	}
+
+	defaultImagenOpts = ai.ModelOptions{
+		Supports: &Media,
+		Stage:    ai.ModelStageUnstable,
+	}
+
+	defaultVeoOpts = ai.ModelOptions{
+		Supports: &VeoSupports,
+		Stage:    ai.ModelStageUnstable,
+	}
+
+	defaultEmbedOpts = ai.EmbedderOptions{
+		Supports:   &ai.EmbedderSupports{Input: []string{"text"}},
+		Dimensions: 768,
+	}
+)
+
 const (
 	gemini15Flash   = "gemini-1.5-flash"
 	gemini15Pro     = "gemini-1.5-pro"
@@ -250,47 +314,26 @@ var (
 
 	supportedVideoModels = map[string]ai.ModelOptions{
 		veo20Generate001: {
-			Label:    "Google AI - Veo 2.0 Generate 001",
+			Label:    "Veo 2.0 Generate 001",
 			Versions: []string{},
-			Supports: &ai.ModelSupports{
-				Media:       true,
-				Multiturn:   false,
-				Tools:       false,
-				SystemRole:  false,
-				Output:      []string{"media"},
-				LongRunning: true,
-			},
-			Stage: ai.ModelStageStable,
+			Supports: &VeoSupports,
+			Stage:    ai.ModelStageStable,
 		},
 		veo30Generate001: {
-			Label:    "Google AI - Veo 3.0 Generate 001",
+			Label:    "Veo 3.0 Generate 001",
 			Versions: []string{},
-			Supports: &ai.ModelSupports{
-				Media:       true,
-				Multiturn:   false,
-				Tools:       false,
-				SystemRole:  false,
-				Output:      []string{"media"},
-				LongRunning: true,
-			},
-			Stage: ai.ModelStageStable,
+			Supports: &VeoSupports,
+			Stage:    ai.ModelStageStable,
 		},
 		veo30FastGenerate001: {
-			Label:    "Google AI - Veo 3.0 Fast Generate 001",
+			Label:    "Veo 3.0 Fast Generate 001",
 			Versions: []string{},
-			Supports: &ai.ModelSupports{
-				Media:       true,
-				Multiturn:   false,
-				Tools:       false,
-				SystemRole:  false,
-				Output:      []string{"media"},
-				LongRunning: true,
-			},
-			Stage: ai.ModelStageStable,
+			Supports: &VeoSupports,
+			Stage:    ai.ModelStageStable,
 		},
 	}
 
-	googleAIEmbedderConfig = map[string]ai.EmbedderOptions{
+	embedderConfig = map[string]ai.EmbedderOptions{
 		textembedding004: {
 			Dimensions: 768,
 			Label:      "Google Gen AI - Text Embedding 001",
@@ -354,39 +397,99 @@ var (
 	}
 )
 
+// GetModelOptions returns ModelOptions for a model name with provider-prefixed label.
+func GetModelOptions(name, provider string) ai.ModelOptions {
+	mt := ClassifyModel(name)
+	var opts ai.ModelOptions
+	var ok bool
+
+	switch mt {
+	case ModelTypeGemini:
+		opts, ok = supportedGeminiModels[name]
+		if !ok {
+			opts = defaultGeminiOpts
+		}
+	case ModelTypeImagen:
+		opts, ok = supportedImagenModels[name]
+		if !ok {
+			opts = defaultImagenOpts
+		}
+	case ModelTypeVeo:
+		opts, ok = supportedVideoModels[name]
+		if !ok {
+			opts = defaultVeoOpts
+		}
+	default:
+		opts = defaultGeminiOpts
+	}
+
+	// Set label with provider prefix
+	prefix := googleAILabelPrefix
+	if provider == vertexAIProvider {
+		prefix = vertexAILabelPrefix
+	}
+	if opts.Label == "" {
+		opts.Label = name
+	}
+	opts.Label = fmt.Sprintf("%s - %s", prefix, opts.Label)
+
+	return opts
+}
+
+// GetEmbedderOptions returns EmbedderOptions for an embedder name with provider-prefixed label.
+func GetEmbedderOptions(name, provider string) ai.EmbedderOptions {
+	opts, ok := embedderConfig[name]
+	if !ok {
+		opts = defaultEmbedOpts
+	}
+
+	prefix := googleAILabelPrefix
+	if provider == vertexAIProvider {
+		prefix = vertexAILabelPrefix
+	}
+	if opts.Label == "" {
+		opts.Label = name
+	}
+	opts.Label = fmt.Sprintf("%s - %s", prefix, opts.Label)
+
+	return opts
+}
+
 // listModels returns a map of supported models and their capabilities
-// based on the detected backend
+// based on the detected backend.
 func listModels(provider string) (map[string]ai.ModelOptions, error) {
 	var names []string
-	var prefix string
 
 	switch provider {
 	case googleAIProvider:
 		names = googleAIModels
-		prefix = googleAILabelPrefix
 	case vertexAIProvider:
 		names = vertexAIModels
-		prefix = vertexAILabelPrefix
 	default:
 		return nil, fmt.Errorf("unknown provider detected %s", provider)
 	}
 
-	models := make(map[string]ai.ModelOptions, 0)
+	models := make(map[string]ai.ModelOptions, len(names))
 	for _, n := range names {
+		mt := ClassifyModel(n)
 		var m ai.ModelOptions
 		var ok bool
-		if strings.HasPrefix(n, "image") {
+
+		switch mt {
+		case ModelTypeImagen:
 			m, ok = supportedImagenModels[n]
-		} else if strings.HasPrefix(n, "veo") {
+		case ModelTypeVeo:
 			m, ok = supportedVideoModels[n]
-		} else {
+		default:
 			m, ok = supportedGeminiModels[n]
 		}
 		if !ok {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
+		models[n] = GetModelOptions(n, provider)
+		// Preserve original fields that GetModelOptions doesn't copy
 		models[n] = ai.ModelOptions{
-			Label:        prefix + " - " + m.Label,
+			Label:        models[n].Label,
 			Versions:     m.Versions,
 			Supports:     m.Supports,
 			ConfigSchema: m.ConfigSchema,
@@ -406,44 +509,42 @@ type genaiModels struct {
 }
 
 // listGenaiModels returns a list of supported models and embedders from the
-// Go Genai SDK
+// Go Genai SDK, categorized by model type.
 func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
 	models := genaiModels{}
-	allowedModels := []string{"gemini", "gemma"}
 
 	for item, err := range client.Models.All(ctx) {
-		var name string
-		var description string
 		if err != nil {
 			log.Fatal(err)
 		}
 		if !strings.HasPrefix(item.Name, "models/") {
 			continue
 		}
-		description = strings.ToLower(item.Description)
+		description := strings.ToLower(item.Description)
 		if strings.Contains(description, "deprecated") {
 			continue
 		}
 
-		name = strings.TrimPrefix(item.Name, "models/")
-		if slices.Contains(item.SupportedActions, "embedContent") {
-			models.embedders = append(models.embedders, name)
-			continue
-		}
+		name := strings.TrimPrefix(item.Name, "models/")
+		mt := ClassifyModel(name)
 
-		if slices.Contains(item.SupportedActions, "predict") && strings.Contains(name, "imagen") {
-			models.imagen = append(models.imagen, name)
-			continue
-		}
-
-		if slices.Contains(item.SupportedActions, "generateContent") {
-			found := slices.ContainsFunc(allowedModels, func(s string) bool {
-				return strings.Contains(name, s)
-			})
-			// filter out: Aqa, Text-bison, Chat, learnlm
-			if found {
+		switch mt {
+		case ModelTypeEmbedder:
+			if slices.Contains(item.SupportedActions, "embedContent") {
+				models.embedders = append(models.embedders, name)
+			}
+		case ModelTypeImagen:
+			if slices.Contains(item.SupportedActions, "predict") {
+				models.imagen = append(models.imagen, name)
+			}
+		case ModelTypeVeo:
+			// Veo uses predict for long-running operations
+			if slices.Contains(item.SupportedActions, "predict") {
+				models.veo = append(models.veo, name)
+			}
+		case ModelTypeGemini:
+			if slices.Contains(item.SupportedActions, "generateContent") {
 				models.gemini = append(models.gemini, name)
-				continue
 			}
 		}
 	}
