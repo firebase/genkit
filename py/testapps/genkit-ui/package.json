@@ -32,7 +32,9 @@
         "@angular-devkit/build-angular": "^21.1.2",
         "@angular-devkit/core": "^21.1.2",
         "@angular/animations": "^21.1.2",
+        "@angular/build": "^21.1.2",
         "@angular/cdk": "^21.1.2",
+        "@angular/cli": "^21.1.2",
         "@angular/common": "^21.1.2",
         "@angular/compiler": "^21.1.2",
         "@angular/compiler-cli": "^21.1.2",
@@ -53,8 +55,9 @@
         "zone.js": "~0.16.0"
     },
     "scripts": {
-        "storybook": "storybook dev -p 6006",
-        "build-storybook": "storybook build",
+        "ng": "ng",
+        "storybook": "ng run genkit-ui:storybook",
+        "build-storybook": "ng run genkit-ui:build-storybook",
         "lint": "biome lint .",
         "lint:fix": "biome lint --write .",
         "format": "biome format --write .",

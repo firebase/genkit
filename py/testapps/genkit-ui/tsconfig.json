@@ -1,4 +1,5 @@
 {
+    "compileOnSave": false,
     "compilerOptions": {
         "target": "ES2022",
         "module": "ESNext",
@@ -24,7 +25,19 @@
             "@aspect/genkit-ui/*": [
                 "./src/*"
             ]
-        }
+        },
+        "outDir": "./dist",
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "isolatedModules": true
+    },
+    "angularCompilerOptions": {
+        "enableI18nLegacyMessageIdFormat": false,
+        "strictInjectionParameters": true,
+        "strictInputAccessModifiers": true,
+        "strictTemplates": true
     },
     "include": [
         "src/**/*.ts"
