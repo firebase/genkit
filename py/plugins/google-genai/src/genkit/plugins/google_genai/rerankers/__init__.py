@@ -139,17 +139,25 @@ See Also:
 from genkit.plugins.google_genai.rerankers.reranker import (
     DEFAULT_MODEL_NAME,
     KNOWN_MODELS,
+    RerankRequest,
+    RerankResponse,
+    VertexRerankerClientOptions,
     VertexRerankerConfig,
-    define_vertex_reranker,
+    _from_rerank_response,
+    _to_reranker_doc,
     is_reranker_model_name,
-    list_known_rerankers,
+    reranker_rank,
 )
 
 __all__ = [
     'DEFAULT_MODEL_NAME',
     'KNOWN_MODELS',
+    'RerankRequest',
+    'RerankResponse',
+    'VertexRerankerClientOptions',
     'VertexRerankerConfig',
-    'define_vertex_reranker',
+    '_from_rerank_response',
+    '_to_reranker_doc',
     'is_reranker_model_name',
-    'list_known_rerankers',
+    'reranker_rank',
 ]

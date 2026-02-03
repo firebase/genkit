@@ -41,23 +41,24 @@ Architecture::
     ├─────────────────────────────────────────────────────────────────────────┤
     │  Conversion Functions                                                   │
     │  ├── _to_reranker_doc() - Document → RerankRequestRecord                │
-    │  └── _from_rerank_response() - Response → Scored Documents              │
-    ├─────────────────────────────────────────────────────────────────────────┤
-    │  Plugin Integration                                                     │
-    │  ├── define_vertex_reranker() - Register single reranker                │
-    │  └── list_known_rerankers() - Register all known rerankers              │
+    │  └── _from_rerank_response() - Response → RankedDocument list           │
     └─────────────────────────────────────────────────────────────────────────┘
 
 Implementation Notes:
     - Uses Google Cloud Application Default Credentials (ADC) for auth
     - Calls the Discovery Engine rankingConfigs:rank endpoint
     - Supports configurable location and top_n parameters
-    - Returns documents with score metadata added
+    - Returns RankedDocument instances with scores
+
+Note:
+    The actual reranker action registration is handled by the VertexAI plugin
+    in google.py via the _resolve_reranker method, which uses the conversion
+    functions and API client defined here.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 import httpx
 from google.auth import default as google_auth_default
@@ -65,11 +66,9 @@ from google.auth.transport.requests import Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from genkit.blocks.document import Document
+from genkit.blocks.reranker import RankedDocument
 from genkit.core.error import GenkitError
 from genkit.core.typing import DocumentData
-
-if TYPE_CHECKING:
-    from genkit.core.registry import Registry
 
 # Default location for Vertex AI services
 DEFAULT_LOCATION = 'us-central1'
@@ -326,7 +325,7 @@ def _to_reranker_doc(doc: Document | DocumentData, idx: int) -> RerankRequestRec
 def _from_rerank_response(
     response: RerankResponse,
     documents: list[Document],
-) -> list[Document]:
+) -> list[RankedDocument]:
     """Convert rerank response to ranked documents.
 
     Args:
@@ -334,126 +333,20 @@ def _from_rerank_response(
         documents: The original documents.
 
     Returns:
-        Documents with scores in metadata, sorted by score.
+        RankedDocument instances with scores, sorted by relevance.
     """
-    ranked_docs = []
+    ranked_docs: list[RankedDocument] = []
     for record in response.records:
         idx = int(record.id)
         original_doc = documents[idx]
 
-        # Create new document with score in metadata
-        metadata = dict(original_doc.metadata or {})
-        metadata['score'] = record.score
-
+        # Create RankedDocument with the score from the API response
         ranked_docs.append(
-            Document(
+            RankedDocument(
                 content=original_doc.content,
-                metadata=metadata,
+                metadata=original_doc.metadata,
+                score=record.score,
             )
         )
 
     return ranked_docs
-
-
-def define_vertex_reranker(
-    registry: Registry,
-    name: str,
-    client_options: VertexRerankerClientOptions,
-) -> None:
-    """Define and register a Vertex AI reranker.
-
-    Args:
-        registry: The Genkit registry.
-        name: The reranker model name.
-        client_options: Client options including project and location.
-    """
-    # Extract just the model name if it has a prefix
-    model_name = name
-    if '/' in name:
-        model_name = name.split('/')[-1]
-
-    reranker_name = f'vertexai/{model_name}'
-
-    async def reranker_fn(
-        query: Document,
-        documents: list[Document],
-        options: dict[str, Any] | None = None,
-    ) -> dict[str, list[Document]]:
-        """Rerank documents based on relevance to query.
-
-        Args:
-            query: The query document.
-            documents: The documents to rerank.
-            options: Optional reranker configuration.
-
-        Returns:
-            A dict with 'documents' key containing ranked documents.
-        """
-        config = VertexRerankerConfig.model_validate(options or {})
-
-        # Use location from config if provided, otherwise use client default
-        effective_options = VertexRerankerClientOptions(
-            project_id=client_options.project_id,
-            location=config.location or client_options.location,
-        )
-
-        request = RerankRequest(
-            model=model_name,
-            query=query.text(),
-            records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
-            top_n=config.top_n,
-            ignore_record_details_in_response=config.ignore_record_details_in_response,
-        )
-
-        response = await reranker_rank(model_name, request, effective_options)
-        ranked_docs = _from_rerank_response(response, documents)
-
-        return {'documents': ranked_docs}
-
-    # Register the reranker action
-    from genkit.core.action import ActionMetadata
-    from genkit.core.action.types import ActionKind
-    from genkit.core.schema import to_json_schema
-
-    metadata = ActionMetadata(
-        kind=ActionKind.RERANKER,
-        name=reranker_name,
-        description=f'Vertex AI Reranker: {model_name}',
-        input_schema=to_json_schema(Document),
-        output_schema=to_json_schema(Document),
-        metadata={
-            'type': 'reranker',
-            'supports': {'media': False},
-        },
-    )
-
-    # Use the registry's define_reranker method
-    registry.register_value(
-        'reranker',
-        reranker_name,
-        {
-            'name': reranker_name,
-            'fn': reranker_fn,
-            'metadata': metadata,
-        },
-    )
-
-
-def list_known_rerankers(
-    registry: Registry,
-    client_options: VertexRerankerClientOptions,
-) -> list[str]:
-    """Define and register all known Vertex AI rerankers.
-
-    Args:
-        registry: The Genkit registry.
-        client_options: Client options including project and location.
-
-    Returns:
-        List of registered reranker names.
-    """
-    registered = []
-    for name in KNOWN_MODELS:
-        define_vertex_reranker(registry, name, client_options)
-        registered.append(f'vertexai/{name}')
-    return registered

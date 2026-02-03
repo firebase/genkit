@@ -108,7 +108,7 @@ from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
-from genkit.blocks.reranker import RankedDocument, reranker_action_metadata
+from genkit.blocks.reranker import reranker_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
@@ -893,11 +893,10 @@ class VertexAI(Plugin):
             response = await reranker_rank(clean_name, rerank_request, effective_options)
             ranked_docs = _from_rerank_response(response, documents)
 
-            # Convert to RerankerResponse format
+            # Convert to RerankerResponse format - ranked_docs are RankedDocument instances
             response_docs: list[RankedDocumentData] = []
             for doc in ranked_docs:
-                score = doc.score if isinstance(doc, RankedDocument) else None
-                metadata = RankedDocumentMetadata(score=score if score is not None else 0.0)
+                metadata = RankedDocumentMetadata(score=doc.score)
                 response_docs.append(RankedDocumentData(content=doc.content, metadata=metadata))
 
             return RerankerResponse(documents=response_docs)

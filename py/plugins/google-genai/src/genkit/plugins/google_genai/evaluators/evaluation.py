@@ -323,7 +323,11 @@ def _create_evaluator_for_metric(
                 }
             },
             'response_handler': lambda r: Score(
-                score=r.get('bleuResults', {}).get('bleuMetricValues', [{}])[0].get('score'),
+                score=(
+                    bleu_metrics[0].get('score')
+                    if (bleu_metrics := r.get('bleuResults', {}).get('bleuMetricValues', []))
+                    else None
+                ),
             ),
         },
         VertexAIEvaluationMetricType.ROUGE: {
@@ -339,7 +343,11 @@ def _create_evaluator_for_metric(
                 }
             },
             'response_handler': lambda r: Score(
-                score=r.get('rougeResults', {}).get('rougeMetricValues', [{}])[0].get('score'),
+                score=(
+                    rouge_metrics[0].get('score')
+                    if (rouge_metrics := r.get('rougeResults', {}).get('rougeMetricValues', []))
+                    else None
+                ),
             ),
         },
         VertexAIEvaluationMetricType.FLUENCY: {
