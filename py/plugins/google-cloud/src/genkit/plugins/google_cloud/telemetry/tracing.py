@@ -440,8 +440,9 @@ class GcpTelemetry:
             try:
                 gcp_resource = GoogleCloudResourceDetector(raise_on_error=True).detect()
                 resource = resource.merge(gcp_resource)
-            except Exception:
-                pass  # Use default resource if detection fails
+            except Exception as e:
+                # For detection failure log the exception and use the default resource
+                detector_logger.warning(f'Google Cloud resource detection failed: {e}')
             finally:
                 detector_logger.setLevel(original_level)
 
