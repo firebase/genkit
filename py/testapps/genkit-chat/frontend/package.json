@@ -12,19 +12,14 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:headed": "playwright test --headed",
-    "e2e:report": "playwright show-report"
-  },
-  "prettier": {
-    "printWidth": 100,
-    "singleQuote": true,
-    "overrides": [
-      {
-        "files": "*.html",
-        "options": {
-          "parser": "angular"
-        }
-      }
-    ]
+    "e2e:report": "playwright show-report",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "license:check": "license-checker --production --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0'"
   },
   "private": true,
   "packageManager": "pnpm@10.4.1",
@@ -56,9 +51,11 @@
     "@angular/cli": "^21.1.2",
     "@angular/compiler-cli": "^21.1.0",
     "@angular/material": "^21.1.2",
+    "@biomejs/biome": "^1.9.4",
     "@playwright/test": "^1.58.1",
     "@vitest/coverage-v8": "^4.0.18",
     "jsdom": "^28.0.0",
+    "license-checker": "^25.0.1",
     "typescript": "~5.9.2",
     "vitest": "^4.0.18"
   }
