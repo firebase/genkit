@@ -141,6 +141,7 @@ compat-oai-hello                    = { workspace = true }
 deepseek-hello                      = { workspace = true }
 dev-local-vectorstore-hello         = { workspace = true }
 evaluator-demo                      = { workspace = true }
+fastapi-hello                       = { workspace = true }
 firestore-retreiver                 = { workspace = true }
 flask-hello                         = { workspace = true }
 format-demo                         = { workspace = true }

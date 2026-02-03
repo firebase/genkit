@@ -16,9 +16,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-import uvicorn
-from dotenv import load_dotenv
-from fastapi import FastAPI
+import uvicorn  # ty: ignore[unresolved-import]
+from dotenv import load_dotenv  # ty: ignore[unresolved-import]
+from fastapi import FastAPI  # ty: ignore[unresolved-import]
 from pydantic import BaseModel, Field
 
 from genkit import Genkit, Input, Output
@@ -131,18 +131,10 @@ class DiffInput(BaseModel):
 # Typed Prompt Handles (defined once, reused everywhere)
 # =============================================================================
 
-security_prompt = ai.prompt(
-    'analyze_security', input=Input(schema=CodeInput), output=Output(schema=Analysis)
-)
-bugs_prompt = ai.prompt(
-    'analyze_bugs', input=Input(schema=CodeInput), output=Output(schema=Analysis)
-)
-style_prompt = ai.prompt(
-    'analyze_style', input=Input(schema=CodeInput), output=Output(schema=Analysis)
-)
-diff_prompt = ai.prompt(
-    'analyze_diff', input=Input(schema=DiffInput), output=Output(schema=Analysis)
-)
+security_prompt = ai.prompt('analyze_security', input=Input(schema=CodeInput), output=Output(schema=Analysis))
+bugs_prompt = ai.prompt('analyze_bugs', input=Input(schema=CodeInput), output=Output(schema=Analysis))
+style_prompt = ai.prompt('analyze_style', input=Input(schema=CodeInput), output=Output(schema=Analysis))
+diff_prompt = ai.prompt('analyze_diff', input=Input(schema=DiffInput), output=Output(schema=Analysis))
 
 
 # =============================================================================
