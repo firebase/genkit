@@ -53,6 +53,7 @@ from genkit.ai._aio import Genkit, Output
 
 # Core types for convenience (also available from genkit.types)
 from genkit.blocks.document import Document
+from genkit.blocks.interfaces import Input
 
 # Response types
 from genkit.blocks.model import GenerateResponseWrapper
@@ -79,6 +80,7 @@ extend_plugin_namespace()
 __all__ = [
     # Main class
     'Genkit',
+    'Input',
     'Output',
     # Response types
     'GenerateResponseWrapper',

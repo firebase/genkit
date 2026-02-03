@@ -278,10 +278,14 @@ async def generate_action(
             return None
         return formatter.parse_message(msg)
 
+    # Extract schema_type for runtime Pydantic validation
+    schema_type = raw_request.output.schema_type if raw_request.output else None
+
     response = GenerateResponseWrapper(
         model_response,
         request,
         message_parser=message_parser if formatter else None,
+        schema_type=schema_type,
     )
 
     logger.debug('generate response', response=dump_dict(response))
@@ -323,6 +327,7 @@ async def generate_action(
             response,
             request,
             message_parser=message_parser if formatter else None,
+            schema_type=schema_type,
         )
         interrupted_resp.finish_reason = FinishReason.INTERRUPTED
         interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
