@@ -321,15 +321,15 @@ async def test_reranker_api_call_structure() -> None:
     with patch('genkit.plugins.google_genai.rerankers.reranker.google_auth_default') as mock_auth:
         mock_auth.return_value = (mock_credentials, 'test-project')
 
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Mock get_cached_client to return a mock client
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_response_data
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.is_closed = False
 
+        with patch('genkit.plugins.google_genai.rerankers.reranker.get_cached_client', return_value=mock_client):
             request = RerankRequest(
                 model='semantic-ranker-default@latest',
                 query='test query',

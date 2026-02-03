@@ -136,15 +136,15 @@ async def test_evaluator_factory_evaluate_instances_structure() -> None:
     with patch('genkit.plugins.google_genai.evaluators.evaluation.google_auth_default') as mock_auth:
         mock_auth.return_value = (mock_credentials, 'test-project')
 
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Mock get_cached_client to return a mock client
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_response_data
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.is_closed = False
 
+        with patch('genkit.plugins.google_genai.evaluators.evaluation.get_cached_client', return_value=mock_client):
             result = await factory.evaluate_instances({'fluencyInput': {'prediction': 'Test'}})
 
             assert result == mock_response_data
@@ -168,15 +168,15 @@ async def test_evaluator_factory_evaluate_instances_error_handling() -> None:
     with patch('genkit.plugins.google_genai.evaluators.evaluation.google_auth_default') as mock_auth:
         mock_auth.return_value = (mock_credentials, 'test-project')
 
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.text = 'Internal Server Error'
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Mock get_cached_client to return a mock client
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.is_closed = False
 
+        with patch('genkit.plugins.google_genai.evaluators.evaluation.get_cached_client', return_value=mock_client):
             with pytest.raises(GenkitError) as exc_info:
                 await factory.evaluate_instances({'input': 'test'})
 

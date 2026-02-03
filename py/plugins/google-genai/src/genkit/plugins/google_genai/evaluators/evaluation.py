@@ -64,7 +64,6 @@ if sys.version_info >= (3, 11):
 else:
     from strenum import StrEnum
 
-import httpx
 from google.auth import default as google_auth_default
 from google.auth.transport.requests import Request
 from pydantic import BaseModel, ConfigDict
@@ -73,6 +72,7 @@ from genkit.ai import GENKIT_CLIENT_HEADER
 from genkit.blocks.evaluator import EvalFnResponse
 from genkit.core.action import Action
 from genkit.core.error import GenkitError
+from genkit.core.http_client import get_cached_client
 from genkit.core.typing import BaseDataPoint, Details, Score
 
 if TYPE_CHECKING:
@@ -180,36 +180,43 @@ class EvaluatorFactory:
             **request_body,
         }
 
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    json=request,
-                    timeout=60.0,
+        # Use cached client for better connection reuse.
+        # Note: Auth headers are passed per-request since tokens may expire.
+        client = get_cached_client(
+            cache_key='vertex-ai-evaluator',
+            timeout=60.0,
+        )
+
+        try:
+            response = await client.post(
+                url,
+                headers=headers,
+                json=request,
+            )
+
+            if response.status_code != 200:
+                error_message = response.text
+                try:
+                    error_json = response.json()
+                    if 'error' in error_json and 'message' in error_json['error']:
+                        error_message = error_json['error']['message']
+                except Exception:  # noqa: S110
+                    pass
+
+                raise GenkitError(
+                    message=f'Error calling Vertex AI Evaluation API: [{response.status_code}] {error_message}',
+                    status='INTERNAL',
                 )
 
-                if response.status_code != 200:
-                    error_message = response.text
-                    try:
-                        error_json = response.json()
-                        if 'error' in error_json and 'message' in error_json['error']:
-                            error_message = error_json['error']['message']
-                    except Exception:  # noqa: S110
-                        pass
+            return response.json()
 
-                    raise GenkitError(
-                        message=f'Error calling Vertex AI Evaluation API: [{response.status_code}] {error_message}',
-                        status='INTERNAL',
-                    )
-
-                return response.json()
-
-            except httpx.RequestError as e:
-                raise GenkitError(
-                    message=f'Failed to call Vertex AI Evaluation API: {e}',
-                    status='UNAVAILABLE',
-                ) from e
+        except Exception as e:
+            if isinstance(e, GenkitError):
+                raise
+            raise GenkitError(
+                message=f'Failed to call Vertex AI Evaluation API: {e}',
+                status='UNAVAILABLE',
+            ) from e
 
     def create_evaluator_fn(
         self,
