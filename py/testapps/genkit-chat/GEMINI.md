@@ -99,12 +99,12 @@ from genkit.plugins.compat_oai import OpenAI
 from genkit.plugins.openai import OpenAI
 ```
 
-## Using @aspect/genkit-ui Components
+## Using @genkit-ai/genkit-ui Components
 
-This demo uses the shared `@aspect/genkit-ui` library:
+This demo uses the shared `@genkit-ai/genkit-ui` library:
 
 ```typescript
-import { ChatBoxComponent } from '@aspect/genkit-ui/chat';
+import { ChatBoxComponent } from '@genkit-ai/genkit-ui/chat';
 
 @Component({
   imports: [ChatBoxComponent],

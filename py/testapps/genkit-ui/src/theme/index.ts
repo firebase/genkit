@@ -28,7 +28,7 @@
  *
  * Usage::
  *
- *     import { LanguageSelectorComponent, ThemeSelectorComponent } from '@aspect/genkit-ui/theme';
+ *     import { LanguageSelectorComponent, ThemeSelectorComponent } from '@genkit-ai/genkit-ui/theme';
  *
  *     @Component({
  *       imports: [LanguageSelectorComponent, ThemeSelectorComponent],

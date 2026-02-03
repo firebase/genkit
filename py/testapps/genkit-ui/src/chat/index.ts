@@ -33,7 +33,7 @@
  * Quick Start::
  *
  *     // For a complete chat interface:
- *     import { ChatBoxComponent } from '@aspect/genkit-ui/chat';
+ *     import { ChatBoxComponent } from '@genkit-ai/genkit-ui/chat';
  *
  *     @Component({
  *       imports: [ChatBoxComponent],
@@ -47,7 +47,7 @@
  *     })
  *
  *     // For individual components:
- *     import { ChatInputComponent, MessageListComponent } from '@aspect/genkit-ui/chat';
+ *     import { ChatInputComponent, MessageListComponent } from '@genkit-ai/genkit-ui/chat';
  *
  * @packageDocumentation
  */

@@ -19,9 +19,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, Inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, type MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-error-details-dialog',
@@ -37,7 +37,7 @@ import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar
           <mat-icon>close</mat-icon>
         </button>
       </div>
-      
+
       <div class="dialog-content">
         <div class="code-container">
           <div class="code-header">
@@ -50,7 +50,7 @@ import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar
           <pre class="code-block"><code [innerHTML]="highlightedJson"></code></pre>
         </div>
       </div>
-      
+
       <div class="dialog-actions">
         <button mat-button (click)="dialogRef.close()">Close</button>
         <button mat-raised-button color="primary" (click)="copyToClipboard()">
@@ -66,56 +66,56 @@ import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar
       display: block;
       font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-    
+
     .error-dialog {
       min-width: 500px;
       max-width: 800px;
     }
-    
+
     .dialog-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 16px 24px;
       border-bottom: 1px solid var(--surface-variant);
-      
+
       .header-content {
         display: flex;
         align-items: center;
         gap: 12px;
       }
-      
+
       .error-icon {
         color: #d93025;
         font-size: 28px;
         width: 28px;
         height: 28px;
       }
-      
+
       h2 {
         margin: 0;
         font-size: 20px;
         font-weight: 500;
         color: var(--on-surface);
       }
-      
+
       .close-btn {
         color: var(--on-surface-muted);
       }
     }
-    
+
     .dialog-content {
       padding: 24px;
       max-height: 60vh;
       overflow-y: auto;
     }
-    
+
     .code-container {
       border: 1px solid var(--surface-variant);
       border-radius: 8px;
       overflow: hidden;
     }
-    
+
     .code-header {
       display: flex;
       align-items: center;
@@ -123,7 +123,7 @@ import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar
       padding: 8px 16px;
       background: var(--surface-container);
       border-bottom: 1px solid var(--surface-variant);
-      
+
       .language-label {
         font-size: 12px;
         font-weight: 500;
@@ -131,13 +131,13 @@ import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar
         text-transform: uppercase;
         letter-spacing: 0.02em;
       }
-      
+
       .copy-btn {
         font-size: 12px;
         padding: 4px 8px;
         min-width: auto;
         line-height: 1.2;
-        
+
         mat-icon {
           font-size: 16px;
           width: 16px;
@@ -146,7 +146,7 @@ import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar
         }
       }
     }
-    
+
     .code-block {
       margin: 0;
       padding: 16px;
@@ -158,42 +158,42 @@ import { type MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar
       overflow-x: auto;
       white-space: pre-wrap;
       word-break: break-word;
-      
+
       /* JSON Syntax Highlighting */
       :host ::ng-deep {
         .json-key {
           color: #9cdcfe;
         }
-        
+
         .json-string {
           color: #ce9178;
         }
-        
+
         .json-number {
           color: #b5cea8;
         }
-        
+
         .json-boolean {
           color: #569cd6;
         }
-        
+
         .json-null {
           color: #569cd6;
         }
-        
+
         .json-bracket {
           color: #ffd700;
         }
       }
     }
-    
+
     .dialog-actions {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
       padding: 16px 24px;
       border-top: 1px solid var(--surface-variant);
-      
+
       button {
         mat-icon {
           font-size: 18px;

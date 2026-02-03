@@ -16,8 +16,8 @@
     "useDefineForClassFields": false,
     "baseUrl": ".",
     "paths": {
-      "@aspect/genkit-ui": ["./src/index.ts"],
-      "@aspect/genkit-ui/*": ["./src/*"]
+      "@genkit-ai/genkit-ui": ["./src/index.ts"],
+      "@genkit-ai/genkit-ui/*": ["./src/*"]
     },
     "outDir": "./dist",
     "noImplicitOverride": true,

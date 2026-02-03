@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/genkit-ui",
+  "name": "@genkit-ai/genkit-ui",
   "version": "0.0.1",
   "description": "Genkit UI - Angular components for AI-powered applications",
   "author": "Google LLC",

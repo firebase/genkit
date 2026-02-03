@@ -745,7 +745,7 @@ def create_http_server() -> Robyn:
 
     @app.get("/")
     async def health(request: Request):
-        return {"status": "healthy", "service": "genkit-chat"}
+        return {"status": "healthy", "service": "genkit-chat", "framework": "robyn"}
 
     @app.get("/api/config")
     async def get_config(request: Request):
@@ -906,21 +906,22 @@ def create_http_server() -> Robyn:
                 # Yield each chunk as it arrives from the model
                 async for chunk in stream:
                     if chunk.text:
+                        # Use "message" event type - EventSource.onmessage handles these
                         yield SSEMessage(
                             data=json.dumps({"chunk": chunk.text}),
                             event="message",
                         )
 
-                # Signal completion
-                yield SSEMessage(data="[DONE]", event="done")
+                # Signal completion - use "message" event so onmessage handler receives it
+                yield SSEMessage(data="[DONE]", event="message")
 
             except Exception as e:
                 logger.exception(f"Stream error: {e}")
                 yield SSEMessage(
                     data=json.dumps({"error": str(e), "type": type(e).__name__}),
-                    event="error",
+                    event="message",
                 )
-                yield SSEMessage(data="[DONE]", event="done")
+                yield SSEMessage(data="[DONE]", event="message")
 
         return SSEResponse(sse_generator())
 

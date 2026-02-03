@@ -62,7 +62,7 @@ export class CodeCopyService {
    * Handle code copy button click.
    */
   private async handleCopyClick(button: HTMLElement): Promise<void> {
-    const code = button.dataset.code;
+    const code = button.dataset['code'];
     if (!code) return;
 
     // Decode HTML entities
@@ -83,7 +83,7 @@ export class CodeCopyService {
    * Extracts table data as TSV (tab-separated values) for Google Sheets compatibility.
    */
   private async handleTableCopyClick(button: HTMLElement): Promise<void> {
-    const tableId = button.dataset.tableId;
+    const tableId = button.dataset['tableId'];
     if (!tableId) return;
 
     const table = document.getElementById(tableId) as HTMLTableElement | null;

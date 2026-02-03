@@ -155,44 +155,44 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
     ]),
   ],
   template: `
-    <div class="chat-container" 
+    <div class="chat-container"
          [class.welcome-mode]="chatService.messages().length === 0"
          [class.has-messages]="chatService.messages().length > 0"
-         (dragover)="onDragOver($event)" 
+         (dragover)="onDragOver($event)"
          (dragleave)="onDragLeave($event)"
          (drop)="onDrop($event)">
-      
+
       <!-- Drag zone covers entire container to detect drags, but overlay shows in input box -->
-      
+
       <!-- Messages -->
       <div class="messages-container" #messagesContainer>
         @for (message of chatService.messages(); track message.timestamp; let i = $index) {
-          <div class="message-row animate-fade-in" 
-               [class.user-row]="message.role === 'user'" 
+          <div class="message-row animate-fade-in"
+               [class.user-row]="message.role === 'user'"
                [class.assistant-row]="message.role === 'assistant'"
                [style.animation-delay]="i * 30 + 'ms'">
-            
+
             <!-- Assistant Avatar -->
             @if (message.role === 'assistant') {
               <div class="message-avatar">
                 <img src="genkit-logo.png" alt="Genkit" class="avatar-logo">
               </div>
             }
-            
+
             <div class="message-content" [class.user-message]="message.role === 'user'" [class.error-message]="message.isError">
               @if (message.role === 'assistant' && chatService.markdownMode()) {
                 <div class="message-text markdown-content" [innerHTML]="message.content | safeMarkdown"></div>
               } @else {
                 <div class="message-text">{{ message.content }}</div>
               }
-              
+
               @if (message.isError && message.errorDetails) {
                 <button mat-stroked-button class="error-details-btn" (click)="showErrorDetails(message.errorDetails)">
                   <mat-icon>info_outline</mat-icon>
                   View Details
                 </button>
               }
-              
+
               @if (message.role === 'assistant') {
                 <div class="message-actions">
                   <button mat-icon-button [matTooltip]="'actions.copy' | translate" (click)="copyMessage(message.content)">
@@ -231,7 +231,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                   </mat-menu>
                 </div>
               }
-              
+
               @if (message.model) {
                 <div class="message-model">
                   <mat-icon>smart_toy</mat-icon>
@@ -267,18 +267,18 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
             <div class="welcome-logo">
               <img src="genkit-logo.png" alt="Genkit">
             </div>
-            <h1 class="welcome-title" 
+            <h1 class="welcome-title"
                 [class.rtl]="greetings[currentGreetingIndex()].dir === 'rtl'"
                 [class.slide-in]="greetings[currentGreetingIndex()].anim === 'slide'">
               <span class="typewriter-text">{{ typewriterText() }}</span><span class="cursor" [class.visible]="showCursor()">|</span>
             </h1>
             <p class="welcome-subtitle">{{ 'chat.greetingSubtitle' | translate }}</p>
           </div>
-          
+
           <!-- Quick Action Chips (between greeting and chatbox) -->
           <div class="quick-chips">
             @for (action of quickActions; track action.labelKey) {
-              <button mat-stroked-button 
+              <button mat-stroked-button
                       class="quick-chip"
                       (click)="useQuickAction(action.prompt)">
                 <mat-icon class="chip-icon" [style.color]="action.color">{{ action.icon }}</mat-icon>
@@ -287,7 +287,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
             }
           </div>
         }
-        
+
         <!-- Prompt Queue (shows when loading and has queued items) -->
         @if (chatService.isLoading() && chatService.promptQueue().length > 0) {
           <div class="prompt-queue slide-up">
@@ -311,8 +311,8 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                   <div class="queue-item" cdkDrag @slideIn>
                     <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
                     @if (editingQueueId === item.id) {
-                      <input 
-                        class="queue-edit-input" 
+                      <input
+                        class="queue-edit-input"
                         [(ngModel)]="editingQueueContent"
                         (blur)="saveQueueEdit(item.id)"
                         (keydown.enter)="saveQueueEdit(item.id)"
@@ -338,7 +338,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
             }
           </div>
         }
-        
+
         <div class="input-box" [class.focused]="inputFocused" [class.pulse-send]="isPulsing" [class.is-dragging]="isDragging()" (click)="focusInput($event)">
           <!-- Drop Zone Overlay (inside input box) -->
           @if (isDragging()) {
@@ -347,10 +347,10 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
               <span class="drop-caption">Drop files to attach</span>
             </div>
           }
-          
-          <textarea class="chat-input" 
+
+          <textarea class="chat-input"
                     [class.content-flagged]="contentFlagged()"
-                    [(ngModel)]="userMessage" 
+                    [(ngModel)]="userMessage"
                     [placeholder]="'chat.placeholder' | translate"
                     [attr.aria-label]="'chat.placeholder' | translate"
                     (keydown.enter)="onEnterKey($event)"
@@ -367,25 +367,25 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
               <mat-icon>close</mat-icon>
             </button>
           }
-          
+
           <!-- Bottom Toolbar -->
           <div class="input-toolbar">
             <div class="toolbar-left">
               <!-- Add/Attach Button -->
-              <button mat-icon-button 
+              <button mat-icon-button
                       class="toolbar-btn add-btn"
                       [attr.aria-label]="'chat.addFiles' | translate"
                       [matTooltip]="'chat.addFiles' | translate"
                       [matMenuTriggerFor]="attachMenu">
                 <mat-icon>add</mat-icon>
               </button>
-              
+
               <mat-menu #attachMenu="matMenu" class="attach-menu">
                 <button mat-menu-item (click)="anyInput.click()">
                   <mat-icon>upload_file</mat-icon>
                   <span>{{ 'chat.uploadFiles' | translate }}</span>
                 </button>
-                <button mat-menu-item (click)="openGoogleDrive()" 
+                <button mat-menu-item (click)="openGoogleDrive()"
                         [disabled]="authService.demoMode()"
                         [matTooltip]="authService.demoMode() ? ('nav.demoUser' | translate) : ''">
                   <mat-icon>add_to_drive</mat-icon>
@@ -413,7 +413,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                   <span>{{ 'attach.code' | translate }}</span>
                 </button>
               </mat-menu>
-              
+
               <!-- Hidden file inputs -->
               <input #imageInput type="file" hidden (change)="onFileSelected($event)" multiple accept="image/*">
               <input #videoInput type="file" hidden (change)="onFileSelected($event)" multiple accept="video/*">
@@ -421,18 +421,18 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
               <input #pdfInput type="file" hidden (change)="onFileSelected($event)" multiple accept=".pdf">
               <input #textInput type="file" hidden (change)="onFileSelected($event)" multiple accept=".txt,.md,.json,.csv,.xml,.yaml,.yml,.py,.ts,.js,.go,.rs,.java">
               <input #anyInput type="file" hidden (change)="onFileSelected($event)" multiple>
-              
+
               <!-- Tools Button -->
               <button mat-button class="toolbar-btn tools-btn">
                 <mat-icon>handyman</mat-icon>
                 <span>{{ 'toolbar.tools' | translate }}</span>
               </button>
-              
+
             </div>
-            
+
             <div class="toolbar-right">
               <!-- Model Selector -->
-              <button mat-button 
+              <button mat-button
                       class="model-select-btn"
                       [matMenuTriggerFor]="modelMenu"
                       (menuOpened)="onModelMenuOpened()">
@@ -442,13 +442,13 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                 </div>
                 <mat-icon class="dropdown-icon">arrow_drop_down</mat-icon>
               </button>
-              
+
               <mat-menu #modelMenu="matMenu" class="model-panel" xPosition="before">
                 <!-- Search Input -->
                 <div class="model-search" (click)="$event.stopPropagation()">
                   <mat-icon>search</mat-icon>
-                  <input type="text" 
-                         placeholder="Search models..." 
+                  <input type="text"
+                         placeholder="Search models..."
                          [(ngModel)]="modelSearchQuery"
                          (input)="filterModels()"
                          (keydown)="$event.stopPropagation()">
@@ -458,13 +458,13 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                     </button>
                   }
                 </div>
-                
+
                 <!-- Recent Models -->
                 @if (!modelSearchQuery && modelsService.getRecentModels().length > 0) {
                   <div class="model-group">
                     <div class="group-header">Recent</div>
                     @for (model of modelsService.getRecentModels(); track model.id) {
-                      <button mat-menu-item 
+                      <button mat-menu-item
                               class="model-item"
                               [class.selected]="modelsService.selectedModel() === model.id"
                               (click)="selectModel(model.id)">
@@ -475,14 +475,14 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                   </div>
                   <mat-divider></mat-divider>
                 }
-                
+
                 <!-- Models Grouped by Provider -->
                 <div class="model-list">
                   @if (modelSearchQuery) {
                     <div class="model-group">
                       <div class="group-header">Results</div>
                       @for (model of filteredModels(); track model.id) {
-                        <button mat-menu-item 
+                        <button mat-menu-item
                                 class="model-item"
                                 [class.selected]="modelsService.selectedModel() === model.id"
                                 (click)="selectModel(model.id)">
@@ -498,7 +498,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                       <div class="model-group">
                         <div class="group-header">{{ provider.name }}</div>
                         @for (model of modelsService.getModelsByProvider(provider.id); track model.id) {
-                          <button mat-menu-item 
+                          <button mat-menu-item
                                   class="model-item"
                                   [class.selected]="modelsService.selectedModel() === model.id"
                                   (click)="selectModel(model.id)">
@@ -510,9 +510,9 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                   }
                 </div>
               </mat-menu>
-              
+
               <!-- Settings Dropdown (icon only) - between model selector and mic -->
-              <button mat-icon-button 
+              <button mat-icon-button
                       class="toolbar-btn settings-btn"
                       [matMenuTriggerFor]="settingsMenu"
                       [attr.aria-label]="'toolbar.settings' | translate"
@@ -521,17 +521,17 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
               </button>
               <mat-menu #settingsMenu="matMenu" class="settings-menu">
                 <!-- Streaming Toggle -->
-                <button mat-menu-item 
+                <button mat-menu-item
                         [disabled]="!modelsService.supportsStreaming()"
                         (click)="toggleStreaming(); $event.stopPropagation()">
                   <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
                   <span>{{ 'toolbar.stream' | translate }}</span>
-                  <mat-icon class="toggle-indicator" 
+                  <mat-icon class="toggle-indicator"
                             [class.active]="chatService.streamingMode() && modelsService.supportsStreaming()">
                     {{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'check_circle' : 'radio_button_unchecked' }}
                   </mat-icon>
                 </button>
-                
+
                 <!-- Markdown Toggle -->
                 <button mat-menu-item (click)="chatService.toggleMarkdownMode(); $event.stopPropagation()">
                   <mat-icon>{{ chatService.markdownMode() ? 'code' : 'code_off' }}</mat-icon>
@@ -540,31 +540,31 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                     {{ chatService.markdownMode() ? 'check_circle' : 'radio_button_unchecked' }}
                   </mat-icon>
                 </button>
-                
+
                 <!-- Content Safety Toggle -->
                 <button mat-menu-item (click)="contentSafetyService.toggle(); $event.stopPropagation()">
                   <mat-icon>{{ contentSafetyService.enabled() ? 'shield' : 'shield_outlined' }}</mat-icon>
                   <span>{{ 'toolbar.safe' | translate }}</span>
-                  <mat-icon class="toggle-indicator" 
+                  <mat-icon class="toggle-indicator"
                             [class.active]="contentSafetyService.enabled()"
                             [class.loading]="contentSafetyService.loading()">
                     {{ contentSafetyService.enabled() ? 'check_circle' : 'radio_button_unchecked' }}
                   </mat-icon>
                 </button>
-                
+
                 <mat-divider></mat-divider>
-                
+
                 <!-- Clear Preferences -->
                 <button mat-menu-item (click)="clearPreferences()">
                   <mat-icon>delete_outline</mat-icon>
                   <span>{{ 'settings.clearPreferences' | translate }}</span>
                 </button>
               </mat-menu>
-              
+
               <!-- Send Button (when text is entered) or Voice Input -->
               <div class="action-btn-container">
                 @if (showSendButton()) {
-                  <button mat-icon-button 
+                  <button mat-icon-button
                           class="toolbar-btn send-btn"
                           @slideButton
                           [attr.aria-label]="'chat.sendMessage' | translate"
@@ -573,7 +573,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                     <mat-icon>send</mat-icon>
                   </button>
                 } @else if (speechService.isSupported()) {
-                  <button mat-icon-button 
+                  <button mat-icon-button
                           class="toolbar-btn mic-btn"
                           @slideButton
                           [class.recording]="speechService.isListening()"
@@ -587,11 +587,11 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
             </div>
           </div>
         </div>
-        
+
         <!-- Attached Files List (below chatbox) - also acts as dropzone -->
         @if (attachedFiles().length > 0) {
           <div class="attached-files-container"
-               (dragover)="onDragOver($event)" 
+               (dragover)="onDragOver($event)"
                (dragleave)="onDragLeave($event)"
                (drop)="onDrop($event)"
                [class.is-dragging]="isDragging()">
@@ -599,14 +599,14 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
             <div class="attachments-header">
               <span class="attachments-count">{{ attachedFiles().length }} file{{ attachedFiles().length > 1 ? 's' : '' }} attached</span>
               <div class="attachments-actions">
-                <button mat-icon-button 
+                <button mat-icon-button
                         class="add-more-btn"
                         (click)="anyInput.click()"
                         [attr.aria-label]="'chat.addMoreFiles' | translate"
                         [matTooltip]="'chat.addMoreFiles' | translate">
                   <mat-icon>add</mat-icon>
                 </button>
-                <button mat-icon-button 
+                <button mat-icon-button
                         class="clear-all-btn"
                         (click)="clearAllFiles()"
                         [attr.aria-label]="'actions.clearAll' | translate"
@@ -615,7 +615,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                 </button>
               </div>
             </div>
-            
+
             <!-- File list -->
             <div class="attached-files-list">
               @for (file of attachedFiles(); track file.name) {
@@ -628,17 +628,17 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                       <mat-icon class="file-type-icon-small">{{ getFileIcon(file.type) }}</mat-icon>
                     }
                   </div>
-                  
+
                   <!-- File name (truncated with tooltip for full name) -->
                   <span class="file-name-text" [matTooltip]="file.name">{{ file.name }}</span>
-                  
+
                   <!-- File size -->
                   <span class="file-size-text">{{ formatFileSize(file.size) }}</span>
-                  
+
                   <!-- Remove button -->
-                  <button mat-icon-button 
-                          class="file-remove-btn-small" 
-                          (click)="removeFile(file)" 
+                  <button mat-icon-button
+                          class="file-remove-btn-small"
+                          (click)="removeFile(file)"
                           [attr.aria-label]="('actions.remove' | translate) + ' ' + file.name"
                           [matTooltip]="'actions.remove' | translate">
                     <mat-icon>close</mat-icon>
@@ -646,7 +646,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                 </div>
               }
             </div>
-            
+
             <!-- Drop overlay for adding more files -->
             @if (isDragging()) {
               <div class="attachments-drop-overlay">
@@ -669,7 +669,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       overflow: hidden;
       font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-    
+
     .chat-container {
       display: flex;
       flex-direction: column;
@@ -680,12 +680,12 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       position: relative;
       overflow: hidden;
     }
-    
+
     /* When in welcome mode (no messages), center content */
     .chat-container.welcome-mode {
       justify-content: center;
     }
-    
+
     /* When has messages, use flex layout for scroll */
     .chat-container.has-messages {
       justify-content: flex-start;
@@ -704,12 +704,12 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 
     .welcome-logo {
       margin-bottom: 24px;
-      
+
       img {
         height: 56px;
         width: auto;
         border-radius: 12px;
-        
+
         &.dark {
           /* filter: invert(1); removed */
         }
@@ -755,12 +755,12 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       text-align: left;
       transition: all var(--transition-fast);
       font-family: inherit;
-      
+
       &:hover {
         background: var(--surface-dim);
         border-color: var(--gemini-blue-light);
       }
-      
+
       &:active {
         transform: scale(0.98);
       }
@@ -794,7 +794,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       align-items: flex-start;
       gap: 16px;
       padding: 16px 0;
-      
+
       &.user-row {
         justify-content: flex-end;
       }
@@ -812,11 +812,11 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
     .avatar-logo {
       width: 28px;
       height: auto;
-      
+
       &.dark {
         /* filter: invert(1); removed */
       }
-      
+
       &.loading {
         animation: pulse 1.2s ease-in-out infinite;
       }
@@ -847,18 +847,18 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       white-space: pre-wrap;
       word-break: break-word;
     }
-    
+
     /* Markdown content styling */
     .markdown-content {
       white-space: normal;
-      
+
       p {
         margin: 0 0 0.75em;
         &:last-child {
           margin-bottom: 0;
         }
       }
-      
+
       h1, h2, h3, h4, h5, h6 {
         margin: 1em 0 0.5em;
         font-weight: 600;
@@ -867,12 +867,12 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
           margin-top: 0;
         }
       }
-      
+
       h1 { font-size: 1.4em; }
       h2 { font-size: 1.25em; }
       h3 { font-size: 1.1em; }
       h4, h5, h6 { font-size: 1em; }
-      
+
       code {
         font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
         font-size: 0.85em;
@@ -880,30 +880,30 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         background: var(--surface-variant);
         border-radius: 4px;
       }
-      
+
       pre {
         margin: 0.75em 0;
         padding: 12px 16px;
         background: var(--surface-variant);
         border-radius: 8px;
         overflow-x: auto;
-        
+
         code {
           padding: 0;
           background: none;
           font-size: 0.85em;
         }
       }
-      
+
       ul, ol {
         margin: 0.5em 0;
         padding-left: 1.5em;
       }
-      
+
       li {
         margin: 0.25em 0;
       }
-      
+
       blockquote {
         margin: 0.75em 0;
         padding: 8px 16px;
@@ -911,7 +911,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         background: var(--surface-variant);
         font-style: italic;
       }
-      
+
       a {
         color: var(--gemini-blue);
         text-decoration: none;
@@ -919,30 +919,30 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
           text-decoration: underline;
         }
       }
-      
+
       table {
         border-collapse: collapse;
         margin: 0.75em 0;
         width: 100%;
       }
-      
+
       th, td {
         padding: 8px 12px;
         border: 1px solid var(--outline);
         text-align: left;
       }
-      
+
       th {
         background: var(--surface-variant);
         font-weight: 600;
       }
-      
+
       hr {
         border: none;
         border-top: 1px solid var(--outline);
         margin: 1em 0;
       }
-      
+
       img {
         max-width: 100%;
         height: auto;
@@ -951,16 +951,16 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         cursor: zoom-in;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
-        
+
         &:hover {
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
-        
+
         /* Limit max height for very tall images */
         max-height: 500px;
         object-fit: contain;
       }
-      
+
       /* Mermaid diagram styling */
       .mermaid-diagram {
         margin: 1em 0;
@@ -968,13 +968,13 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         background: var(--surface-variant);
         border-radius: 12px;
         overflow-x: auto;
-        
+
         svg {
           max-width: 100%;
           height: auto;
         }
       }
-      
+
       .mermaid-error {
         padding: 12px 16px;
         background: rgba(217, 48, 37, 0.1);
@@ -984,14 +984,14 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         font-family: monospace;
         font-size: 0.9em;
       }
-      
+
       /* Math equation styling */
       .math-inline {
         font-family: 'Cambria Math', 'Times New Roman', serif;
         font-style: italic;
         padding: 0 2px;
       }
-      
+
       .math-display {
         display: block;
         text-align: center;
@@ -1002,19 +1002,19 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         background: var(--surface-variant);
         border-radius: 8px;
       }
-      
+
       .math-frac {
         display: inline-flex;
         flex-direction: column;
         align-items: center;
         vertical-align: middle;
         margin: 0 4px;
-        
+
         .math-num {
           border-bottom: 1px solid currentColor;
           padding-bottom: 2px;
         }
-        
+
         .math-denom {
           padding-top: 2px;
         }
@@ -1031,7 +1031,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         color: #d93025;
       }
     }
-    
+
     .error-details-btn {
       margin-top: 8px;
       font-size: 12px;
@@ -1040,14 +1040,14 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       padding: 4px 12px;
       height: auto;
       line-height: 1.4;
-      
+
       mat-icon {
         font-size: 16px;
         width: 16px;
         height: 16px;
         margin-right: 4px;
       }
-      
+
       &:hover {
         background: rgba(217, 48, 37, 0.08);
       }
@@ -1059,22 +1059,22 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       margin-top: 8px;
       opacity: 0;
       transition: opacity var(--transition-fast);
-      
+
       .message-row:hover & {
         opacity: 1;
       }
-      
+
       button {
         width: 32px;
         height: 32px;
-        
+
         mat-icon {
           font-size: 18px;
           width: 18px;
           height: 18px;
           color: var(--on-surface-muted);
         }
-        
+
         &:hover mat-icon {
           color: var(--on-surface);
         }
@@ -1088,7 +1088,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       font-size: 12px;
       color: var(--on-surface-muted);
       margin-top: 8px;
-      
+
       mat-icon {
         font-size: 14px;
         width: 14px;
@@ -1101,25 +1101,25 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       display: flex;
       gap: 4px;
       padding: 8px 0;
-      
+
       span {
         width: 8px;
         height: 8px;
         background: var(--on-surface-muted);
         border-radius: 50%;
         animation: bounce 1.4s infinite ease-in-out;
-        
+
         &:nth-child(1) { animation-delay: -0.32s; }
         &:nth-child(2) { animation-delay: -0.16s; }
       }
     }
 
     @keyframes bounce {
-      0%, 80%, 100% { 
+      0%, 80%, 100% {
         transform: scale(0.8);
         opacity: 0.5;
       }
-      40% { 
+      40% {
         transform: scale(1);
         opacity: 1;
       }
@@ -1170,7 +1170,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       width: 24px !important;
       height: 24px !important;
       margin: -4px -4px -4px 0;
-      
+
       mat-icon {
         font-size: 16px;
         width: 16px;
@@ -1191,12 +1191,12 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08), 0 -2px 8px rgba(0, 0, 0, 0.04);
       position: relative;
       z-index: 1; /* Below chatbox */
-      
+
       &.slide-up {
         animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
     }
-    
+
     @keyframes slideUp {
       from {
         opacity: 0;
@@ -1215,25 +1215,25 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       padding: 8px 12px 8px 16px;
       transition: background 0.2s;
     }
-    
+
     .queue-header-left {
       display: flex;
       align-items: center;
       gap: 8px;
       cursor: pointer;
       flex: 1;
-      
+
       &:hover {
         opacity: 0.8;
       }
     }
-    
+
     .queue-header-actions {
       display: flex;
       align-items: center;
       gap: 2px;
     }
-    
+
     .send-all-btn,
     .clear-all-btn {
       width: 24px !important;
@@ -1242,7 +1242,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       align-items: center !important;
       justify-content: center !important;
       padding: 0 !important;
-      
+
       mat-icon {
         font-size: 16px;
         width: 16px;
@@ -1253,11 +1253,11 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         justify-content: center;
       }
     }
-    
+
     .send-all-btn:hover mat-icon {
       color: var(--gemini-blue);
     }
-    
+
     .clear-all-btn:hover mat-icon {
       color: var(--error);
     }
@@ -1268,7 +1268,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       height: 20px;
       color: var(--on-surface-variant);
       transition: transform 0.2s;
-      
+
       &.expanded {
         transform: rotate(180deg);
       }
@@ -1294,25 +1294,25 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       border-bottom: 1px solid var(--surface-variant);
       background: var(--surface-container);
       transition: box-shadow 0.2s, transform 0.2s;
-      
+
       &:last-child {
         border-bottom: none;
       }
-      
+
       &.cdk-drag-preview {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         border-radius: var(--radius-md);
       }
-      
+
       &.cdk-drag-placeholder {
         opacity: 0.4;
       }
-      
+
       &.cdk-drag-animating {
         transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
       }
     }
-    
+
     .drag-handle {
       cursor: grab;
       color: var(--on-surface-variant);
@@ -1320,12 +1320,12 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       width: 16px;
       height: 16px;
       flex-shrink: 0;
-      
+
       &:active {
         cursor: grabbing;
       }
     }
-    
+
     .cdk-drop-list-dragging .queue-item:not(.cdk-drag-placeholder) {
       transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
     }
@@ -1348,7 +1348,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       background: var(--surface);
       color: var(--on-surface);
       outline: none;
-      
+
       &:focus {
         box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
       }
@@ -1359,7 +1359,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       align-items: center;
       gap: 2px;
       flex-shrink: 0;
-      
+
       button {
         width: 32px !important;
         height: 32px !important;
@@ -1367,7 +1367,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         align-items: center !important;
         justify-content: center !important;
         padding: 0 !important;
-        
+
         mat-icon {
           font-size: 18px;
           width: 18px;
@@ -1377,11 +1377,11 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
           align-items: center;
           justify-content: center;
         }
-        
+
         &:hover mat-icon {
           color: var(--on-surface);
         }
-        
+
         &:disabled mat-icon {
           color: var(--outline);
         }
@@ -1401,23 +1401,23 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       background: var(--surface-dim);
     }
-    
+
     /* Welcome header above chatbox */
     .welcome-header {
       text-align: center;
       margin-bottom: 32px;
       animation: fadeIn 0.3s ease-out;
-      
+
       .welcome-logo {
         margin-bottom: 24px;
-        
+
         img {
           height: 56px;
           width: auto;
           border-radius: 12px;
         }
       }
-      
+
       .welcome-title {
         font-size: 52px;
         font-weight: 400;
@@ -1425,7 +1425,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         color: var(--on-surface);
         display: inline-flex;
         align-items: center;
-        
+
         &.rtl {
           direction: rtl;
           .typewriter-text {
@@ -1433,60 +1433,60 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
             unicode-bidi: bidi-override;
           }
         }
-        
+
         &.slide-in {
           .typewriter-text {
             animation: slideInFade 0.5s ease-out;
           }
         }
-        
+
         .typewriter-text {
           display: inline;
         }
-        
+
         .cursor {
           opacity: 0;
           font-weight: 300;
           color: #9aa0a6;
           margin-left: 2px;
-          
+
           &.visible {
             opacity: 1;
           }
         }
       }
-      
+
       .welcome-subtitle {
         font-size: 20px;
         color: var(--on-surface-variant);
         margin: 0;
       }
     }
-    
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    
+
     @keyframes slideInFade {
-      from { 
-        opacity: 0; 
+      from {
+        opacity: 0;
         transform: translateY(15px);
       }
-      to { 
-        opacity: 1; 
+      to {
+        opacity: 1;
         transform: translateY(0);
       }
     }
-    
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    
+
     @keyframes slideUpType {
-      0% { 
-        opacity: 0; 
+      0% {
+        opacity: 0;
         transform: translateY(20px);
         clip-path: inset(0 100% 0 0);
       }
@@ -1495,22 +1495,22 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         transform: translateY(0);
         clip-path: inset(0 50% 0 0);
       }
-      100% { 
-        opacity: 1; 
+      100% {
+        opacity: 1;
         transform: translateY(0);
         clip-path: inset(0 0 0 0);
       }
     }
-    
+
     /* Centered welcome state - vertically centered */
     .chat-container.welcome-mode {
       justify-content: center;
       align-items: center;
-      
+
       .messages-container {
         display: none;
       }
-      
+
       .input-section {
         position: absolute;
         top: 50%;
@@ -1522,16 +1522,16 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         width: calc(100% - 48px);
       }
     }
-    
+
     /* After typing starts - slide down to bottom */
     .chat-container.has-messages {
       justify-content: flex-start;
-      
+
       .messages-container {
         display: block;
         flex: 1;
       }
-      
+
       .input-section {
         position: absolute;
         bottom: 24px;
@@ -1555,31 +1555,31 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       width: 100%;
       position: relative;
       z-index: 2; /* Above queue */
-      
+
       &:hover {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.06);
       }
-      
+
       &.focused {
         border-color: var(--gemini-blue);
         box-shadow: 0 4px 16px rgba(66, 133, 244, 0.15), 0 8px 32px rgba(66, 133, 244, 0.1);
       }
-      
+
       &.pulse-send {
         animation: sendPulse 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      
+
       &.is-dragging {
         border: 2px dashed var(--gemini-blue);
         background: rgba(66, 133, 244, 0.05);
         box-shadow: 0 4px 16px rgba(66, 133, 244, 0.2), 0 8px 32px rgba(66, 133, 244, 0.15);
       }
     }
-    
+
     body.dark-theme .input-box.is-dragging {
       background: rgba(138, 180, 248, 0.08);
     }
-    
+
     /* Drop Zone Overlay - absolutely positioned within input-box */
     .drop-zone-overlay {
       position: absolute;
@@ -1609,7 +1609,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       color: var(--gemini-blue);
       animation: dropBounce 0.8s ease infinite;
     }
-    
+
     @keyframes dropBounce {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-6px); }
@@ -1620,7 +1620,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       font-weight: 500;
       color: var(--gemini-blue);
     }
-    
+
     @keyframes sendPulse {
       0% {
         box-shadow: 0 4px 16px rgba(66, 133, 244, 0.15), 0 8px 32px rgba(66, 133, 244, 0.1);
@@ -1632,7 +1632,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         box-shadow: 0 4px 16px rgba(66, 133, 244, 0.15), 0 8px 32px rgba(66, 133, 244, 0.1);
       }
     }
-    
+
     .chat-input {
       width: 100%;
       border: none;
@@ -1647,22 +1647,22 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       max-height: 200px;
       line-height: 1.5;
       padding-right: 40px; /* Space for clear button */
-      
+
       &::placeholder {
         color: var(--on-surface-muted);
       }
-      
+
       &:disabled {
         opacity: 0.7;
       }
-      
+
       /* Squiggly red underline for flagged content */
       &.content-flagged {
         text-decoration: underline wavy var(--error);
         text-decoration-skip-ink: none;
         text-underline-offset: 3px;
         color: var(--error);
-        
+
         /* Fallback for browsers that don't support wavy */
         @supports not (text-decoration-style: wavy) {
           text-decoration: underline;
@@ -1670,14 +1670,14 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         }
       }
     }
-    
+
     /* Tooltip styling for flagged content */
     ::ng-deep .flagged-content-tooltip {
       background: var(--error) !important;
       color: white !important;
       font-weight: 500;
     }
-    
+
     /* Attached Files Container (wrapper with header and dropzone capability) */
     .attached-files-container {
       margin: -8px auto 0;
@@ -1691,13 +1691,13 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       position: relative;
       overflow: hidden;
       transition: border-color 0.2s, box-shadow 0.2s;
-      
+
       &.is-dragging {
         border-color: var(--gemini-blue);
         box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.12), inset 0 1px 4px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--gemini-blue-light);
       }
     }
-    
+
     /* Attachments header toolbar */
     .attachments-header {
       display: flex;
@@ -1708,41 +1708,41 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.12), inset 0 1px 4px rgba(0, 0, 0, 0.15);
       background: var(--surface-container);
     }
-    
+
     .attachments-count {
       font-size: 12px;
       font-weight: 500;
       color: var(--on-surface-variant);
     }
-    
+
     .attachments-actions {
       display: flex;
       align-items: center;
       gap: 2px;
     }
-    
+
     .add-more-btn,
     .clear-all-btn {
       width: 28px !important;
       height: 28px !important;
       padding: 0 !important;
-      
+
       .mat-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
         color: var(--on-surface-variant);
       }
-      
+
       &:hover .mat-icon {
         color: var(--on-surface);
       }
     }
-    
+
     .clear-all-btn:hover .mat-icon {
       color: var(--error) !important;
     }
-    
+
     /* Drop overlay for attachments container */
     .attachments-drop-overlay {
       position: absolute;
@@ -1755,21 +1755,21 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       justify-content: center;
       gap: 8px;
       z-index: 10;
-      
+
       mat-icon {
         font-size: 32px;
         width: 32px;
         height: 32px;
         color: var(--gemini-blue);
       }
-      
+
       span {
         font-size: 13px;
         font-weight: 500;
         color: var(--gemini-blue);
       }
     }
-    
+
     /* Attached Files List (scrollable file list) */
     .attached-files-list {
       display: flex;
@@ -1780,25 +1780,25 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       overflow-x: hidden;
       overflow-y: auto;
       scrollbar-width: thin;
-      
+
       &::-webkit-scrollbar {
         width: 4px;
       }
-      
+
       &::-webkit-scrollbar-track {
         background: transparent;
       }
-      
+
       &::-webkit-scrollbar-thumb {
         background: transparent;
         border-radius: 2px;
       }
-      
+
       &:hover::-webkit-scrollbar-thumb {
         background: var(--outline-variant);
       }
     }
-    
+
     /* File row - horizontal layout */
     .file-row {
       display: flex;
@@ -1807,22 +1807,22 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       padding: 6px 4px;
       border-radius: 6px;
       transition: background var(--transition-fast);
-      
+
       &:not(:last-child) {
         border-bottom: 1px solid var(--outline-variant);
         padding-bottom: 8px;
         margin-bottom: 4px;
       }
-      
+
       &:hover {
         background: rgba(255, 255, 255, 0.5);
-        
+
         .file-remove-btn-small {
           opacity: 1;
         }
       }
     }
-    
+
     /* File icon wrapper */
     .file-icon-wrapper {
       width: 28px;
@@ -1832,21 +1832,21 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       justify-content: center;
       flex-shrink: 0;
     }
-    
+
     .file-thumb-small {
       width: 28px;
       height: 28px;
       object-fit: cover;
       border-radius: 4px;
     }
-    
+
     .file-type-icon-small {
       font-size: 22px;
       width: 22px;
       height: 22px;
       color: var(--gemini-blue);
     }
-    
+
     /* File name text */
     .file-name-text {
       flex: 1;
@@ -1857,14 +1857,14 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    
+
     /* File size text */
     .file-size-text {
       font-size: 11px;
       color: var(--on-surface-muted);
       flex-shrink: 0;
     }
-    
+
     /* Remove button - small circular */
     .file-remove-btn-small {
       width: 24px !important;
@@ -1876,7 +1876,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       display: flex !important;
       align-items: center;
       justify-content: center;
-      
+
       .mat-icon {
         font-size: 16px;
         width: 16px;
@@ -1886,16 +1886,16 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         align-items: center;
         justify-content: center;
       }
-      
+
       &:hover {
         opacity: 1;
-        
+
         .mat-icon {
           color: var(--error);
         }
       }
     }
-    
+
     .input-toolbar {
       display: flex;
       align-items: center;
@@ -1903,124 +1903,124 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       margin-top: 8px;
       padding-top: 8px;
     }
-    
+
     .toolbar-left,
     .toolbar-right {
       display: flex;
       align-items: center;
       gap: 2px;
     }
-    
+
     .toolbar-btn {
       color: var(--on-surface-variant);
-      
+
       &:hover {
         color: var(--on-surface);
         background: var(--surface-container);
       }
     }
-    
+
     .add-btn {
       background: var(--surface-container);
       border-radius: 50%;
     }
-    
+
     .tools-btn {
       font-size: 14px;
       padding: 4px 12px !important;
       min-width: auto;
-      
+
       mat-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
         margin-right: 4px;
       }
-      
+
       span {
         font-weight: 500;
       }
     }
-    
+
     .streaming-btn {
       font-size: 14px;
       padding: 4px 12px !important;
       min-width: auto;
       transition: all var(--transition-fast);
-      
+
       mat-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
         margin-right: 4px;
       }
-      
+
       span {
         font-weight: 500;
       }
-      
+
       &.active {
         background: var(--user-bubble-bg);
         color: var(--gemini-blue);
-        
+
         mat-icon {
           color: var(--gemini-blue);
         }
       }
-      
+
       &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        
+
         &:hover {
           background: transparent;
         }
       }
     }
-    
+
     /* Settings dropdown button */
     .settings-btn {
       width: 36px !important;
       height: 36px !important;
       padding: 0 !important;
-      
+
       mat-icon {
         font-size: 20px;
         width: 20px;
         height: 20px;
       }
     }
-    
+
     /* Toggle indicators in settings menu */
     ::ng-deep .settings-menu {
       .mat-mdc-menu-item {
         display: flex;
         align-items: center;
         gap: 8px;
-        
+
         .toggle-indicator {
           margin-left: auto;
           font-size: 18px;
           width: 18px;
           height: 18px;
           color: var(--on-surface-muted);
-          
+
           &.active {
             color: #34a853;
           }
-          
+
           &.loading {
             animation: pulse 1.5s infinite;
           }
         }
       }
     }
-    
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
-    
+
     .model-select-btn {
       display: flex;
       align-items: center;
@@ -2031,7 +2031,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       background: transparent;
       border-radius: 8px;
       min-width: auto;
-      
+
       .model-info {
         display: flex;
         flex-direction: column;
@@ -2039,13 +2039,13 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         line-height: 1.2;
         order: 0;
       }
-      
+
       .model-name {
         font-weight: 500;
         font-size: 13px;
         white-space: nowrap;
       }
-      
+
       .provider-name {
         font-weight: 400;
         font-size: 10px;
@@ -2053,7 +2053,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         white-space: nowrap;
         opacity: 0.7;
       }
-      
+
       .dropdown-icon {
         font-size: 18px;
         width: 18px;
@@ -2062,19 +2062,19 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         order: 1;
         margin-left: 2px;
       }
-      
+
       &:hover {
         background: var(--surface-container);
       }
     }
-    
+
     .mic-btn {
       &.recording {
         color: #ea4335 !important;
         animation: pulse 1s infinite;
       }
     }
-    
+
     /* Action button container for send/mic transition */
     .action-btn-container {
       display: flex;
@@ -2086,15 +2086,15 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       position: relative;
       margin-top: -4px;
     }
-    
+
     .send-btn {
       color: var(--gemini-blue) !important;
-      
+
       &:hover {
         background: rgba(66, 133, 244, 0.1) !important;
       }
     }
-    
+
     /* Quick Action Chips */
     .quick-chips {
       display: flex;
@@ -2104,7 +2104,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       margin: 24px 0;
       padding: 0 16px;
     }
-    
+
     .quick-chip {
       display: inline-flex !important;
       align-items: center;
@@ -2116,19 +2116,19 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       background: var(--surface) !important;
       border: 1px solid var(--surface-variant) !important;
       color: var(--on-surface) !important;
-      
+
       .chip-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
       }
-      
+
       &:hover {
         background: var(--surface-container) !important;
         border-color: var(--on-surface-muted) !important;
       }
     }
-    
+
     .disclaimer {
       margin: 16px 0 0;
       font-size: 12px;
@@ -2145,11 +2145,11 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       border: 1px solid var(--surface-variant);
       border-radius: var(--radius-full);
       transition: all var(--transition-fast);
-      
+
       &:hover {
         border-color: var(--on-surface-muted);
       }
-      
+
       &.focused {
         background: var(--surface);
         border-color: var(--gemini-blue);
@@ -2160,11 +2160,11 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
     .input-action {
       color: var(--on-surface-variant);
       flex-shrink: 0;
-      
+
       &:hover {
         color: var(--on-surface);
       }
-      
+
       &.recording {
         color: #ea4335 !important;
         animation: pulse 1s infinite;
@@ -2181,11 +2181,11 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       color: var(--on-surface);
       outline: none;
       padding: 8px;
-      
+
       &::placeholder {
         color: var(--on-surface-muted);
       }
-      
+
       &:disabled {
         opacity: 0.7;
       }
@@ -2194,7 +2194,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
     .model-select-container {
       flex-shrink: 0;
     }
-    
+
     .model-select-trigger {
       display: flex;
       align-items: center;
@@ -2207,7 +2207,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       border-radius: var(--radius-sm) !important;
       font-size: 13px;
       height: 32px;
-      
+
       .selected-model {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2215,7 +2215,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         flex: 1;
         text-align: left;
       }
-      
+
       .dropdown-arrow {
         font-size: 18px;
         width: 18px;
@@ -2223,7 +2223,7 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         margin: 0 -4px 0 0;
         color: var(--on-surface-muted);
       }
-      
+
       &:hover {
         background: var(--surface-container) !important;
         border-color: var(--gemini-blue);
@@ -2234,15 +2234,15 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
       color: var(--on-surface-muted);
       flex-shrink: 0;
       transition: all var(--transition-fast);
-      
+
       &.active {
         color: var(--gemini-blue);
-        
+
         &:hover {
           background: var(--user-bubble-bg);
         }
       }
-      
+
       &:disabled {
         opacity: 0.4;
       }
@@ -2312,7 +2312,13 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   inputFocused = false;
   isDragging = signal(false);
   attachedFiles = signal<
-    { name: string; type: string; size: number; preview: string; data: string }[]
+    {
+      name: string;
+      type: string;
+      size: number;
+      preview: string;
+      data: string;
+    }[]
   >([]);
 
   // Debounced send button visibility to smooth animation
@@ -2337,7 +2343,12 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   isPulsing = false;
 
   // Greeting carousel - macOS style with RTL/LTR support (50 languages)
-  greetings: { text: string; lang: string; dir?: 'ltr' | 'rtl'; anim?: 'type' | 'slide' }[] = [
+  greetings: {
+    text: string;
+    lang: string;
+    dir?: 'ltr' | 'rtl';
+    anim?: 'type' | 'slide';
+  }[] = [
     { text: 'Hello', lang: 'English', dir: 'ltr', anim: 'type' },
     { text: 'Hola', lang: 'Spanish', dir: 'ltr', anim: 'type' },
     { text: 'Bonjour', lang: 'French', dir: 'ltr', anim: 'type' },
@@ -2696,6 +2707,15 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     const message = this.userMessage;
     this.userMessage = '';
 
+    // TODO(#file-attachments): Include attachedFiles in the message payload.
+    // The UI allows attaching files (stored in this.attachedFiles signal), but they
+    // are not currently sent to the backend. To complete this feature:
+    // 1. Update chatService.sendMessage() and sendStreamMessage() to accept attachments
+    // 2. Update the backend API to handle multimodal input (text + images)
+    // 3. Clear attachedFiles after successful send
+    // 4. Handle attachment display in the chat history
+    // See: https://github.com/firebase/genkit/issues/XXXX
+
     // Reset send button state (will animate to mic)
     this.showSendButton.set(false);
 
@@ -2786,7 +2806,9 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   }
   openGoogleDrive(): void {
     // TODO: Implement Google Drive picker integration
-    this.snackBar.open('Google Drive integration coming soon!', 'Dismiss', { duration: 3000 });
+    this.snackBar.open('Google Drive integration coming soon!', 'Dismiss', {
+      duration: 3000,
+    });
   }
 
   async toggleVoiceInput(): Promise<void> {
@@ -2799,7 +2821,9 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
           this.userMessage = transcript;
         }
       } catch (_error) {
-        this.snackBar.open('Voice input not available', 'Dismiss', { duration: 3000 });
+        this.snackBar.open('Voice input not available', 'Dismiss', {
+          duration: 3000,
+        });
       }
     }
   }

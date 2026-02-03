@@ -118,6 +118,14 @@ goto :eof
 set "FRAMEWORK=robyn"
 :parse_dev_args
 if "%~2"=="" goto :run_dev
+REM Handle --framework=VALUE format
+set "ARG=%~2"
+if "%ARG:~0,12%"=="--framework=" (
+    set "FRAMEWORK=%ARG:~12%"
+    shift
+    goto :parse_dev_args
+)
+REM Handle --framework VALUE format
 if "%~2"=="--framework" (
     set "FRAMEWORK=%~3"
     shift
@@ -148,12 +156,27 @@ set "FRAMEWORK=robyn"
 set "PORT=8080"
 :parse_backend_args
 if "%~2"=="" goto :run_backend
+REM Handle --framework=VALUE format
+set "ARG=%~2"
+if "%ARG:~0,12%"=="--framework=" (
+    set "FRAMEWORK=%ARG:~12%"
+    shift
+    goto :parse_backend_args
+)
+REM Handle --framework VALUE format
 if "%~2"=="--framework" (
     set "FRAMEWORK=%~3"
     shift
     shift
     goto :parse_backend_args
 )
+REM Handle --port=VALUE format
+if "%ARG:~0,7%"=="--port=" (
+    set "PORT=%ARG:~7%"
+    shift
+    goto :parse_backend_args
+)
+REM Handle --port VALUE format
 if "%~2"=="--port" (
     set "PORT=%~3"
     shift
@@ -254,6 +277,14 @@ goto :eof
 set "FRAMEWORK=robyn"
 :parse_start_args
 if "%~2"=="" goto :run_start
+REM Handle --framework=VALUE format
+set "ARG=%~2"
+if "%ARG:~0,12%"=="--framework=" (
+    set "FRAMEWORK=%ARG:~12%"
+    shift
+    goto :parse_start_args
+)
+REM Handle --framework VALUE format
 if "%~2"=="--framework" (
     set "FRAMEWORK=%~3"
     shift

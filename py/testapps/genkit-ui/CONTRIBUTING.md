@@ -1,4 +1,4 @@
-# Contributing to @aspect/genkit-ui
+# Contributing to @genkit-ai/genkit-ui
 
 We'd love to accept your contributions to this project. For detailed contribution guidelines, please see the [main CONTRIBUTING.md](../../CONTRIBUTING.md) in the repository root.
 

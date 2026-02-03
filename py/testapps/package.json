@@ -14,7 +14,7 @@
     "check": "pnpm -r run check",
     "check:fix": "pnpm -r run check:fix",
     "build": "pnpm -r run build",
-    "storybook": "pnpm --filter @aspect/genkit-ui run storybook",
+    "storybook": "pnpm --filter @genkit-ai/genkit-ui run storybook",
     "storybook:chat": "pnpm --filter genkit-chat-ui run storybook",
     "license:check": "license-checker --production --onlyAllow 'MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense;Python-2.0;WTFPL' --excludePrivatePackages",
     "license:summary": "license-checker --production --summary"

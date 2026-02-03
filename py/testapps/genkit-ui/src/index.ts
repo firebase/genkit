@@ -17,7 +17,7 @@
  */
 
 /**
- * @aspect/genkit-ui
+ * @genkit-ai/genkit-ui
  *
  * Beautiful Angular components for AI-powered applications.
  *
@@ -34,8 +34,8 @@
  *
  * Usage::
  *
- *     import { ChatBoxComponent } from '@aspect/genkit-ui/chat';
- *     import { ThemeSelectorComponent } from '@aspect/genkit-ui/theme';
+ *     import { ChatBoxComponent } from '@genkit-ai/genkit-ui/chat';
+ *     import { ThemeSelectorComponent } from '@genkit-ai/genkit-ui/theme';
  *
  * @packageDocumentation
  */

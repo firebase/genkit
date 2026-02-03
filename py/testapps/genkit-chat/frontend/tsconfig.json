@@ -16,9 +16,9 @@
     "module": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@aspect/genkit-ui": ["../../genkit-ui/src/index.ts"],
-      "@aspect/genkit-ui/chat": ["../../genkit-ui/src/chat/index.ts"],
-      "@aspect/genkit-ui/theme": ["../../genkit-ui/src/theme/index.ts"]
+      "@genkit-ai/genkit-ui": ["../../genkit-ui/src/index.ts"],
+      "@genkit-ai/genkit-ui/chat": ["../../genkit-ui/src/chat/index.ts"],
+      "@genkit-ai/genkit-ui/theme": ["../../genkit-ui/src/theme/index.ts"]
     }
   },
   "angularCompilerOptions": {

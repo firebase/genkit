@@ -12,7 +12,7 @@ This document captures learnings, patterns, and best practices from developing t
 py/testapps/
 ├── pnpm-workspace.yaml    # PNPM workspace config
 ├── GEMINI.md              # This file - shared documentation
-├── genkit-ui/             # Shared component library (@aspect/genkit-ui)
+├── genkit-ui/             # Shared component library (@genkit-ai/genkit-ui)
 │   ├── package.json
 │   ├── src/
 │   │   ├── index.ts       # Main entry point
@@ -909,15 +909,15 @@ Ensure chevron is on the right:
 
 ---
 
-## @aspect/genkit-ui Library
+## @genkit-ai/genkit-ui Library
 
-The `@aspect/genkit-ui` library is a pnpm workspace package containing reusable Angular components for AI-powered applications. All portable components live in `testapps/genkit-ui/`.
+The `@genkit-ai/genkit-ui` library is a pnpm workspace package containing reusable Angular components for AI-powered applications. All portable components live in `testapps/genkit-ui/`.
 
 ### Library Structure
 
 ```
 genkit-ui/
-├── package.json           # @aspect/genkit-ui
+├── package.json           # @genkit-ai/genkit-ui
 ├── tsconfig.json
 ├── .storybook/            # Storybook configuration
 │   ├── main.ts
@@ -960,7 +960,7 @@ All library components use the `genkit-` prefix:
    ```json
    {
      "dependencies": {
-       "@aspect/genkit-ui": "workspace:*"
+       "@genkit-ai/genkit-ui": "workspace:*"
      }
    }
    ```
@@ -968,7 +968,7 @@ All library components use the `genkit-` prefix:
 2. **Import components**:
    ```typescript
    // Import the complete chat box
-   import { ChatBoxComponent } from '@aspect/genkit-ui/chat';
+   import { ChatBoxComponent } from '@genkit-ai/genkit-ui/chat';
    
    // Or import individual components
    import { 
@@ -976,13 +976,13 @@ All library components use the `genkit-` prefix:
      MessageListComponent,
      Model, 
      Provider 
-   } from '@aspect/genkit-ui/chat';
+   } from '@genkit-ai/genkit-ui/chat';
    
    // Theme components
    import { 
      ThemeSelectorComponent, 
      LanguageSelectorComponent 
-   } from '@aspect/genkit-ui/theme';
+   } from '@genkit-ai/genkit-ui/theme';
    ```
 
 3. **Use in templates**:

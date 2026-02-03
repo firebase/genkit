@@ -89,10 +89,10 @@ EOF
 
 stop_services() {
     log_info "Stopping all Genkit Chat services..."
-    
+
     local ports=(8080 4000 4001 4034 4200)
     local killed=0
-    
+
     for port in "${ports[@]}"; do
         local pids
         pids=$(lsof -ti:"$port" 2>/dev/null || true)
@@ -102,7 +102,7 @@ stop_services() {
             killed=$((killed + 1))
         fi
     done
-    
+
     if [ "$killed" -eq 0 ]; then
         log_info "No services were running"
     else
@@ -128,13 +128,13 @@ check_uv() {
 
 check_node() {
     local required_major=24
-    
+
     # Try to use fnm if available
     if command -v fnm &> /dev/null; then
         log_info "Using fnm for Node.js version management"
         # Set up fnm environment (required for fnm use to work)
         eval "$(fnm env --shell bash 2>/dev/null)" || eval "$(fnm env)"
-        
+
         # Check if Node 24 is installed via fnm
         if ! fnm list 2>/dev/null | grep -q "v${required_major}"; then
             log_info "Installing Node.js ${required_major} via fnm..."
@@ -144,7 +144,7 @@ check_node() {
         log_success "Node.js (via fnm): $(node --version)"
         return 0
     fi
-    
+
     # Fall back to system node
     if ! command -v node &> /dev/null; then
         log_error "Node.js ${required_major}+ is required for frontend."
@@ -152,7 +152,7 @@ check_node() {
         log_info "Or from: https://nodejs.org"
         exit 1
     fi
-    
+
     # Check version
     local node_version
     node_version=$(node --version | sed 's/v//' | cut -d. -f1)
@@ -160,7 +160,7 @@ check_node() {
         log_warning "Node.js ${required_major}+ recommended (found v${node_version})"
         log_info "Update via fnm: fnm install ${required_major} && fnm use ${required_major}"
     fi
-    
+
     log_success "Node.js found: $(node --version)"
 }
 
@@ -187,14 +187,14 @@ check_ollama() {
         log_info "Ollama models will not be available."
         return 1
     fi
-    
+
     # Check if Ollama server is running
     if ! curl -s http://localhost:11434/api/tags &> /dev/null; then
         log_warning "Ollama server not responding. Start with: ollama serve"
         log_info "Ollama models will not be available until the server is running."
         return 1
     fi
-    
+
     log_success "Ollama server is running"
     return 0
 }
@@ -208,10 +208,10 @@ setup_ollama_models() {
         "mistral"         # General purpose (~4.1GB)
         "qwen2.5-coder"   # Code-focused model (~4.7GB)
     )
-    
+
     log_info "Checking Ollama models..."
     log_info "Note: First-time model pulls can take several minutes depending on your connection."
-    
+
     for model in "${RECOMMENDED_MODELS[@]}"; do
         # Check if model exists (match at start of line or after whitespace)
         if ollama list 2>/dev/null | grep -qE "(^|[[:space:]])${model}"; then
@@ -238,15 +238,15 @@ detect_os() {
 
 install_ollama() {
     log_info "Checking Ollama installation..."
-    
+
     if command -v ollama &> /dev/null; then
         log_success "Ollama is already installed: $(ollama --version 2>/dev/null || echo 'installed')"
         return 0
     fi
-    
+
     local os
     os=$(detect_os)
-    
+
     case "$os" in
         macos)
             log_info "Installing Ollama for macOS..."
@@ -270,7 +270,7 @@ install_ollama() {
             return 1
             ;;
     esac
-    
+
     if command -v ollama &> /dev/null; then
         log_success "Ollama installed successfully"
     else
@@ -285,12 +285,12 @@ start_ollama_server() {
         log_success "Ollama server is already running"
         return 0
     fi
-    
+
     log_info "Starting Ollama server in background..."
-    
+
     local os
     os=$(detect_os)
-    
+
     case "$os" in
         macos)
             # On macOS, Ollama may run as an app or service
@@ -316,7 +316,7 @@ start_ollama_server() {
             disown 2>/dev/null || true
             ;;
     esac
-    
+
     # Wait for server to be ready
     log_info "Waiting for Ollama server to start..."
     for i in {1..30}; do
@@ -326,7 +326,7 @@ start_ollama_server() {
         fi
         sleep 1
     done
-    
+
     log_warning "Ollama server may not have started. Try running 'ollama serve' manually."
     return 1
 }
@@ -334,49 +334,49 @@ start_ollama_server() {
 run_setup() {
     log_info "Setting up Genkit Chat development environment..."
     log_info ""
-    
+
     local os
     os=$(detect_os)
     log_info "Detected OS: $os"
     log_info ""
-    
+
     # 1. Install uv (Python package manager)
     log_info "[1/6] Installing uv (Python package manager)..."
     check_uv
-    
+
     # 2. Check Python
     log_info "[2/6] Checking Python installation..."
     check_python
-    
+
     # 3. Install Node.js
     log_info "[3/6] Checking Node.js installation..."
     check_node
-    
+
     # 4. Install Genkit CLI
     log_info "[4/6] Installing Genkit CLI..."
     check_genkit_cli
-    
+
     # 5. Install Ollama
     log_info "[5/6] Installing Ollama..."
     if install_ollama; then
         start_ollama_server
-        
+
         # Pull recommended models
         log_info "[6/6] Pulling Ollama models..."
         setup_ollama_models
     else
         log_warning "[6/6] Skipping Ollama models (Ollama not installed)"
     fi
-    
+
     # Setup backend and frontend
     log_info ""
     log_info "Setting up project dependencies..."
     setup_backend
-    
+
     cd "$FRONTEND_DIR"
     pnpm install
     log_success "Frontend dependencies installed"
-    
+
     log_info ""
     log_success "========================================"
     log_success "  Setup complete!"
@@ -396,26 +396,26 @@ run_setup() {
 
 setup_backend() {
     log_info "Setting up backend..."
-    
+
     cd "$BACKEND_DIR"
-    
+
     # Create venv and sync dependencies using uv
     if [ ! -d ".venv" ]; then
         uv venv
         log_success "Created virtual environment"
     fi
-    
+
     # Sync dependencies from pyproject.toml (including test group for lint tools)
     uv sync --group test
-    
+
     log_success "Backend dependencies installed"
 }
 
 check_lint() {
     log_info "Running lint checks..."
-    
+
     cd "$BACKEND_DIR"
-    
+
     # Run ruff check
     if ! uv run --with ruff ruff check src/ tests/; then
         log_error "Ruff lint check failed!"
@@ -423,7 +423,7 @@ check_lint() {
         return 1
     fi
     log_success "Ruff lint check passed"
-    
+
     # Run ruff format check
     if ! uv run --with ruff ruff format --check src/ tests/; then
         log_error "Ruff format check failed!"
@@ -431,23 +431,27 @@ check_lint() {
         return 1
     fi
     log_success "Ruff format check passed"
-    
+
     # Run pyright type check
     if ! uv run --with pyright pyright src/ tests/; then
         log_error "Pyright type check failed!"
         return 1
     fi
     log_success "Pyright type check passed"
-    
+
     log_success "All lint checks passed!"
 }
 
 run_dev() {
     local framework="robyn"
-    
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --framework=*)
+                framework="${1#*=}"
+                shift
+                ;;
             --framework)
                 framework="$2"
                 shift 2
@@ -457,21 +461,21 @@ run_dev() {
                 ;;
         esac
     done
-    
+
     log_info "Starting Genkit Chat with DevUI (${framework})..."
     check_python
     check_uv
     check_genkit_cli
     setup_backend
-    
+
     # Setup Ollama models if Ollama is available
     if check_ollama; then
         setup_ollama_models
     fi
-    
+
     log_info "DevUI will be available at http://localhost:4000"
     log_info "API will be available at http://localhost:8080"
-    
+
     cd "$BACKEND_DIR"
     source "$BACKEND_DIR/.venv/bin/activate" 2>/dev/null || source "$BACKEND_DIR/.venv/Scripts/activate" 2>/dev/null
     genkit start -- python src/main.py --framework "$framework"
@@ -479,10 +483,14 @@ run_dev() {
 
 run_start() {
     local framework="robyn"
-    
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --framework=*)
+                framework="${1#*=}"
+                shift
+                ;;
             --framework)
                 framework="$2"
                 shift 2
@@ -492,28 +500,28 @@ run_start() {
                 ;;
         esac
     done
-    
+
     log_info "Starting Genkit Chat (Backend + Frontend) with ${framework}..."
     check_python
     check_uv
     check_node
     check_genkit_cli
-    
+
     # Setup backend
     setup_backend
-    
+
     # Setup Ollama models if Ollama is available
     if check_ollama; then
         setup_ollama_models
     fi
-    
+
     # Setup frontend
     cd "$FRONTEND_DIR"
     if [ ! -d "node_modules" ]; then
         pnpm install
         log_success "Frontend dependencies installed"
     fi
-    
+
     log_info ""
     log_info "Starting services:"
     log_info "  DevUI:    http://localhost:4000"
@@ -522,19 +530,19 @@ run_start() {
     log_info ""
     log_info "Press Ctrl+C to stop all services"
     log_info ""
-    
+
     # Trap to kill all background processes on exit
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
-    
+
     # Start backend with DevUI in background
     cd "$BACKEND_DIR"
     source "$BACKEND_DIR/.venv/bin/activate" 2>/dev/null || source "$BACKEND_DIR/.venv/Scripts/activate" 2>/dev/null
     genkit start -- python src/main.py --framework "$framework" &
     BACKEND_PID=$!
-    
+
     # Wait a bit for backend to start
     sleep 3
-    
+
     # Start frontend in foreground
     cd "$FRONTEND_DIR"
     pnpm start
@@ -542,12 +550,25 @@ run_start() {
 
 run_backend() {
     local framework="robyn"
-    
+    local port="8080"
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --framework=*)
+                framework="${1#*=}"
+                shift
+                ;;
             --framework)
                 framework="$2"
+                shift 2
+                ;;
+            --port=*)
+                port="${1#*=}"
+                shift
+                ;;
+            --port)
+                port="$2"
                 shift 2
                 ;;
             *)
@@ -555,45 +576,45 @@ run_backend() {
                 ;;
         esac
     done
-    
-    log_info "Starting backend server (${framework})..."
+
+    log_info "Starting backend server (${framework}) on port ${port}..."
     check_python
     check_uv
     setup_backend
-    
+
     # Setup Ollama models if Ollama is available
     if check_ollama; then
         setup_ollama_models
     fi
-    
+
     cd "$BACKEND_DIR"
     source "$BACKEND_DIR/.venv/bin/activate" 2>/dev/null || source "$BACKEND_DIR/.venv/Scripts/activate" 2>/dev/null
-    
-    python src/main.py --framework "$framework"
+
+    python src/main.py --framework "$framework" --port "$port"
 }
 
 run_frontend() {
     log_info "Starting frontend development server..."
     check_node
-    
+
     cd "$FRONTEND_DIR"
-    
+
     if [ ! -d "node_modules" ]; then
         pnpm install
         log_success "Frontend dependencies installed"
     fi
-    
+
     pnpm start
 }
 
 build_frontend() {
     log_info "Building frontend for production..."
     check_node
-    
+
     cd "$FRONTEND_DIR"
     pnpm install
     pnpm run build
-    
+
     # Copy to backend static directory
     rm -rf "$BACKEND_DIR/static"
     cp -r dist/browser "$BACKEND_DIR/static"
@@ -602,7 +623,7 @@ build_frontend() {
 
 build_container() {
     log_info "Building container image..."
-    
+
     # Detect container runtime
     if command -v podman &> /dev/null; then
         CONTAINER_CMD="podman"
@@ -612,9 +633,9 @@ build_container() {
         log_error "Neither Podman nor Docker found. Please install one."
         exit 1
     fi
-    
+
     log_info "Using $CONTAINER_CMD"
-    
+
     cd "$SCRIPT_DIR"
     $CONTAINER_CMD build -t genkit-chat:latest -f Containerfile .
     log_success "Container image built: genkit-chat:latest"
@@ -622,20 +643,20 @@ build_container() {
 
 deploy_cloudrun() {
     log_info "Deploying to Cloud Run..."
-    
+
     if ! command -v gcloud &> /dev/null; then
         log_error "gcloud CLI not found. Install from https://cloud.google.com/sdk"
         exit 1
     fi
-    
+
     PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
     if [ -z "$PROJECT_ID" ]; then
         log_error "No GCP project configured. Run: gcloud config set project YOUR_PROJECT"
         exit 1
     fi
-    
+
     log_info "Deploying to project: $PROJECT_ID"
-    
+
     cd "$SCRIPT_DIR"
     gcloud builds submit --tag "gcr.io/$PROJECT_ID/genkit-chat"
     gcloud run deploy genkit-chat \
@@ -643,7 +664,7 @@ deploy_cloudrun() {
         --platform managed \
         --region us-central1 \
         --allow-unauthenticated
-    
+
     log_success "Deployed to Cloud Run!"
 }
 

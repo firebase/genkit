@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **genkit-ui library**: Shared Angular component library (`@aspect/genkit-ui`)
+- **genkit-ui library**: Shared Angular component library (`@genkit-ai/genkit-ui`)
   - ChatBoxComponent - Complete chat interface
   - MessageListComponent - Message display with markdown
   - WelcomeScreenComponent - Animated greeting carousel

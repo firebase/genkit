@@ -1,4 +1,4 @@
-# @aspect/genkit-ui
+# @genkit-ai/genkit-ui
 
 Beautiful Angular components for AI-powered applications.
 
@@ -14,13 +14,13 @@ Beautiful Angular components for AI-powered applications.
 ## Installation
 
 ```bash
-pnpm add @aspect/genkit-ui
+pnpm add @genkit-ai/genkit-ui
 ```
 
 ## Quick Start
 
 ```typescript
-import { ChatBoxComponent } from '@aspect/genkit-ui/chat';
+import { ChatBoxComponent } from '@genkit-ai/genkit-ui/chat';
 
 @Component({
   imports: [ChatBoxComponent],

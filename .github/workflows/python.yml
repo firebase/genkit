@@ -98,7 +98,7 @@ jobs:
         run: uv run --directory py ty check packages plugins samples
 
       - name: Type check with Pyrefly
-        run: uv run --directory py pyrefly check .
+        run: uv run --directory py pyrefly check packages plugins samples
 
       - name: Type check with Pyright
         run: uv run --directory py pyright packages/

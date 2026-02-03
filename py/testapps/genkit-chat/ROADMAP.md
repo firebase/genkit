@@ -76,12 +76,19 @@ testing ground for Genkit features.
 | Drag & Drop Queue | Reorder queued prompts |
 | Playwright E2E Tests | Browser automation testing |
 
+### Known Issues / Incomplete Features
+
+| Issue | Priority | Description |
+|-------|----------|-------------|
+| **File Attachments Not Sent** | 🔴 High | UI allows attaching files (stored in `attachedFiles` signal) but `sendMessage()` does not include them in the payload. Backend API needs to be updated to handle multimodal input. See `chat.component.ts` TODO comment. |
+
 ### Planned Features
 
 #### Backend Enhancements
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
+| **Multimodal Chat API** | 🔴 High | Update `/api/chat` to accept text + image attachments |
 | **Shareable Chats** | 🔴 High | Share conversations via URL |
 | **libSQL Integration** | 🔴 High | SQLite-compatible Rust DB for persistence |
 | Vector Store Integration | 🟡 Medium | ChromaDB or Pinecone for real RAG |
@@ -96,6 +103,7 @@ testing ground for Genkit features.
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
+| **Complete File Attachment Flow** | 🔴 High | Send attachedFiles with messages, display in history, clear after send |
 | **Image Recognition** | 🔴 High | Google Lens-like image analysis |
 | **Drag & Drop Attachments** | 🔴 High | Drop zone in chatbox for files |
 | **IndexedDB Persistence** | 🔴 High | Dexie.js for frontend chat storage |
@@ -120,16 +128,18 @@ testing ground for Genkit features.
 ## Version History
 
 ### v0.1.0 (Current)
-- Initial release
-- Multi-framework backend (Robyn + FastAPI)
-- Multi-provider support (Google AI, Anthropic, OpenAI, Ollama)
-- Angular 19 frontend with Material Design
-- Basic chat, compare, and RAG flows
-- Integration tests for both frameworks
+
+* Initial release
+* Multi-framework backend (Robyn + FastAPI)
+* Multi-provider support (Google AI, Anthropic, OpenAI, Ollama)
+* Angular 19 frontend with Material Design
+* Basic chat, compare, and RAG flows
+* Integration tests for both frameworks
 
 ## Contributing
 
 When adding new features:
+
 1. Update this roadmap with the feature status
 2. Add integration tests if applicable
 3. Update the README with usage instructions
