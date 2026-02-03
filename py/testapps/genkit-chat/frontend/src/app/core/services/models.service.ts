@@ -7,6 +7,7 @@ export interface ModelInfo {
     name: string;
     capabilities: string[];
     context_window: number;
+    supportsStreaming?: boolean;
 }
 
 export interface ProviderInfo {
@@ -201,5 +202,22 @@ export class ModelsService {
         const updated = recent.slice(0, this.MAX_RECENT);
         this.recentModels.set(updated);
         localStorage.setItem(this.RECENT_KEY, JSON.stringify(updated));
+    }
+
+    /** Check if the selected model supports streaming */
+    supportsStreaming(modelId?: string): boolean {
+        const id = modelId || this.selectedModel();
+        // Ollama models may have unreliable streaming support
+        // For now, assume all cloud models support streaming
+        if (id.startsWith('ollama/')) {
+            return false;
+        }
+        // Check if model explicitly declares streaming support
+        const model = this.getAllModels().find(m => m.id === id);
+        if (model?.supportsStreaming !== undefined) {
+            return model.supportsStreaming;
+        }
+        // Default: all non-Ollama models support streaming
+        return true;
     }
 }

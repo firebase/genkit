@@ -131,6 +131,7 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from robyn import Request, Response, Robyn
@@ -692,10 +693,12 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
     start_time = time.time()
     full_response = ""
 
-    async for chunk in g.generate_stream(  # type: ignore[union-attr] - async iterator
+    # generate_stream returns (stream, future) tuple
+    stream, _ = g.generate_stream(
         model=input.model,
         prompt=input.message,
-    ):
+    )
+    async for chunk in stream:
         if chunk.text:
             full_response += chunk.text
 
@@ -801,6 +804,57 @@ def create_fastapi_server() -> FastAPI:
         """Call the RAG flow via HTTP."""
         result = await rag_flow(input)
         return result.model_dump()
+
+    @app.get("/api/stream")
+    async def api_stream_chat(message: str, model: str, history: str = "[]"):
+        """Stream chat response using Server-Sent Events (SSE).
+        
+        Uses Genkit's generate_stream for real-time token streaming.
+        """
+        async def generate():
+            try:
+                # Handle empty or invalid history
+                parsed_history = []
+                if history and history.strip() and history.strip() != "[]":
+                    try:
+                        parsed_history = json.loads(history)
+                    except json.JSONDecodeError:
+                        parsed_history = []
+                
+                # URL-decode model name (FastAPI should handle this, but be safe)
+                from urllib.parse import unquote
+                decoded_model = unquote(model)
+                logger.info(f"Stream request: model={decoded_model}, message_len={len(message)}")
+                
+                # generate_stream returns (stream, future) tuple
+                stream, _ = g.generate_stream(
+                    model=decoded_model,
+                    prompt=message,
+                )
+                async for chunk in stream:
+                    if chunk.text:
+                        # Send each chunk as SSE event
+                        data = json.dumps({"chunk": chunk.text})
+                        yield f"data: {data}\n\n"
+                
+                # Signal completion
+                yield "data: [DONE]\n\n"
+                
+            except Exception as e:
+                logger.exception(f"Stream error: {e}")
+                error_data = json.dumps({"error": str(e), "type": type(e).__name__})
+                yield f"data: {error_data}\n\n"
+                yield "data: [DONE]\n\n"
+        
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
 
     # Serve static files if they exist
     if STATIC_DIR.exists():
@@ -922,6 +976,59 @@ def create_http_server() -> Robyn:
         body = json.loads(request.body)
         result = await rag_flow(RAGInput(**body))
         return result.model_dump()
+
+    @app.get("/api/stream")
+    async def api_stream_chat(request: Request):
+        """Stream chat response using Server-Sent Events (SSE).
+        
+        Note: Robyn's SSE support requires returning an async generator.
+        For full SSE support, consider using FastAPI with --framework fastapi.
+        """
+        # Parse query parameters
+        query_params = request.query_params
+        message = query_params.get("message", "")
+        model = query_params.get("model", "ollama/llama3.2")
+        history = query_params.get("history", "[]")
+        
+        # Robyn doesn't natively support SSE streaming like FastAPI
+        # Fall back to regular response with full content
+        try:
+            # Handle empty or invalid history
+            parsed_history = []
+            if history and history.strip() and history.strip() != "[]":
+                try:
+                    parsed_history = json.loads(history)
+                except json.JSONDecodeError:
+                    parsed_history = []
+            
+            # URL-decode model name (e.g., ollama%2Fllama3.2 -> ollama/llama3.2)
+            from urllib.parse import unquote
+            decoded_model = unquote(model)
+            logger.info(f"Stream request (Robyn): model={decoded_model}, message_len={len(message)}")
+            
+            full_response = ""
+            # generate_stream returns (stream, future) tuple
+            stream, _ = g.generate_stream(
+                model=decoded_model,
+                prompt=message,
+            )
+            async for chunk in stream:
+                if chunk.text:
+                    full_response += chunk.text
+            
+            return Response(
+                status_code=200,
+                headers=Headers({"Content-Type": "text/event-stream", "Cache-Control": "no-cache"}),
+                description=f"data: {json.dumps({'chunk': full_response})}\n\ndata: [DONE]\n\n",
+            )
+        except Exception as e:
+            logger.exception(f"Stream error: {e}")
+            error_data = json.dumps({"error": str(e), "type": type(e).__name__})
+            return Response(
+                status_code=500,
+                headers=Headers({"Content-Type": "text/event-stream"}),
+                description=f"data: {error_data}\n\ndata: [DONE]\n\n",
+            )
 
     # Serve static files if they exist
     if STATIC_DIR.exists():

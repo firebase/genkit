@@ -13,11 +13,14 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatRippleModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ChatService, Message } from '../../core/services/chat.service';
 import { ModelsService } from '../../core/services/models.service';
 import { SpeechService } from '../../core/services/speech.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/error-details-dialog.component';
+
 
 @Component({
   selector: 'app-chat',
@@ -36,6 +39,7 @@ import { AuthService } from '../../core/services/auth.service';
     MatRippleModule,
     MatSnackBarModule,
     MatDividerModule,
+    MatDialogModule,
   ],
   template: `
     <div class="chat-container" 
@@ -257,10 +261,11 @@ import { AuthService } from '../../core/services/auth.service';
               <!-- Streaming Toggle -->
               <button mat-button 
                       class="toolbar-btn streaming-btn"
-                      [class.active]="chatService.streamingMode()"
-                      (click)="chatService.toggleStreamingMode()"
-                      [matTooltip]="chatService.streamingMode() ? 'Streaming ON - click to disable' : 'Streaming OFF - click to enable'">
-                <mat-icon>{{ chatService.streamingMode() ? 'stream' : 'pause_circle' }}</mat-icon>
+                      [class.active]="chatService.streamingMode() && modelsService.supportsStreaming()"
+                      [disabled]="!modelsService.supportsStreaming()"
+                      (click)="toggleStreaming()"
+                      [matTooltip]="getStreamingTooltip()">
+                <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
                 <span>Stream</span>
               </button>
             </div>
@@ -1031,6 +1036,15 @@ import { AuthService } from '../../core/services/auth.service';
           color: var(--gemini-blue);
         }
       }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        
+        &:hover {
+          background: transparent;
+        }
+      }
     }
     
     .model-select-btn {
@@ -1254,6 +1268,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   themeService = inject(ThemeService);
   authService = inject(AuthService);
   private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('chatTextarea') chatTextarea!: ElementRef<HTMLTextAreaElement>;
@@ -1594,21 +1609,26 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   }
 
   showErrorDetails(details: string): void {
-    // Format the error details for display
-    let formattedDetails = details;
-    try {
-      const parsed = JSON.parse(details);
-      formattedDetails = JSON.stringify(parsed, null, 2);
-    } catch {
-      // Keep original if not JSON
-    }
-
-    // Open a dialog or snackbar with the error details
-    this.snackBar.open('Error details copied to clipboard. Check console for full details.', 'Dismiss', {
-      duration: 5000
+    this.dialog.open(ErrorDetailsDialogComponent, {
+      data: { errorDetails: details },
+      width: '600px',
+      maxHeight: '80vh',
     });
-    navigator.clipboard.writeText(formattedDetails);
-    console.error('Error Details:', formattedDetails);
+  }
+
+  toggleStreaming(): void {
+    if (this.modelsService.supportsStreaming()) {
+      this.chatService.toggleStreamingMode();
+    }
+  }
+
+  getStreamingTooltip(): string {
+    if (!this.modelsService.supportsStreaming()) {
+      return 'Streaming not supported for this model';
+    }
+    return this.chatService.streamingMode()
+      ? 'Streaming ON - click to disable'
+      : 'Streaming OFF - click to enable';
   }
 
   onDragOver(event: DragEvent): void {
