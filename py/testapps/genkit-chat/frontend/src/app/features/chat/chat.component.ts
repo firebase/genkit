@@ -1,6 +1,8 @@
 import { Component, inject, signal, effect, ElementRef, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
+import { trigger, transition, style, animate } from '@angular/animations';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -27,6 +29,7 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
   imports: [
     CommonModule,
     FormsModule,
+    DragDropModule,
     MatCardModule,
     MatInputModule,
     MatButtonModule,
@@ -40,6 +43,17 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
     MatSnackBarModule,
     MatDividerModule,
     MatDialogModule,
+  ],
+  animations: [
+    trigger('slideIn', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(10px)' }),
+        animate('200ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+      ]),
+      transition(':leave', [
+        animate('150ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' }))
+      ])
+    ])
   ],
   template: `
     <div class="chat-container" 
@@ -187,7 +201,58 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
           </div>
         }
         
-        <div class="input-box" [class.focused]="inputFocused">
+        <!-- Prompt Queue (shows when loading and has queued items) -->
+        @if (chatService.isLoading() && chatService.promptQueue().length > 0) {
+          <div class="prompt-queue slide-up">
+            <div class="queue-header">
+              <div class="queue-header-left" (click)="queueExpanded = !queueExpanded">
+                <mat-icon class="expand-icon" [class.expanded]="queueExpanded">expand_more</mat-icon>
+                <span class="queue-count">{{ chatService.promptQueue().length }} Queued</span>
+              </div>
+              <div class="queue-header-actions">
+                <button mat-icon-button class="send-all-btn" matTooltip="Send all" (click)="chatService.sendAllFromQueue(); $event.stopPropagation()">
+                  <mat-icon>double_arrow</mat-icon>
+                </button>
+                <button mat-icon-button class="clear-all-btn" matTooltip="Clear all" (click)="chatService.clearQueue(); $event.stopPropagation()">
+                  <mat-icon>clear_all</mat-icon>
+                </button>
+              </div>
+            </div>
+            @if (queueExpanded) {
+              <div class="queue-items" cdkDropList (cdkDropListDropped)="onQueueDrop($event)">
+                @for (item of chatService.promptQueue(); track item.id; let i = $index) {
+                  <div class="queue-item" cdkDrag @slideIn>
+                    <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
+                    @if (editingQueueId === item.id) {
+                      <input 
+                        class="queue-edit-input" 
+                        [(ngModel)]="editingQueueContent"
+                        (blur)="saveQueueEdit(item.id)"
+                        (keydown.enter)="saveQueueEdit(item.id)"
+                        (keydown.escape)="cancelQueueEdit()"
+                        #queueEditInput>
+                    } @else {
+                      <span class="queue-item-content">{{ item.content }}</span>
+                    }
+                    <div class="queue-item-actions">
+                      <button mat-icon-button matTooltip="Send now" (click)="chatService.sendFromQueue(item.id)">
+                        <mat-icon>send</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Edit" (click)="startEditQueue(item)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Delete" (click)="chatService.removeFromQueue(item.id)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+        
+        <div class="input-box" [class.focused]="inputFocused" [class.pulse-send]="isPulsing">
           <!-- Text Area at top -->
           <textarea class="chat-input" 
                     [(ngModel)]="userMessage" 
@@ -195,7 +260,6 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
                     (keydown.enter)="onEnterKey($event)"
                     (focus)="inputFocused = true"
                     (blur)="inputFocused = false"
-                    [disabled]="chatService.isLoading()"
                     rows="1"
                     #chatTextarea></textarea>
           
@@ -551,7 +615,7 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
       min-height: 0; /* Critical for flexbox scrolling */
       overflow-y: auto;
       padding: 24px 0;
-      padding-bottom: 16px; /* Space before input section */
+      padding-bottom: 120px; /* Large space before input section + queue */
     }
 
     .message-row {
@@ -766,6 +830,216 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
       }
     }
 
+    /* Prompt Queue */
+    .prompt-queue {
+      width: 90%;
+      max-width: 740px;
+      margin: 0 auto 0; /* No bottom margin - chatbox overlays */
+      background: var(--surface-container);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0; /* Rounded top only */
+      border: 1px solid var(--surface-variant);
+      border-bottom: none; /* Remove bottom border - hidden by chatbox */
+      overflow: hidden;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08), 0 -2px 8px rgba(0, 0, 0, 0.04);
+      position: relative;
+      z-index: 1; /* Below chatbox */
+      
+      &.slide-up {
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px 8px 16px;
+      transition: background 0.2s;
+    }
+    
+    .queue-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      flex: 1;
+      
+      &:hover {
+        opacity: 0.8;
+      }
+    }
+    
+    .queue-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .send-all-btn,
+    .clear-all-btn {
+      width: 24px !important;
+      height: 24px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0 !important;
+      
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: var(--on-surface-variant);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+    
+    .send-all-btn:hover mat-icon {
+      color: var(--gemini-blue);
+    }
+    
+    .clear-all-btn:hover mat-icon {
+      color: var(--error);
+    }
+
+    .expand-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--on-surface-variant);
+      transition: transform 0.2s;
+      
+      &.expanded {
+        transform: rotate(180deg);
+      }
+    }
+
+    .queue-count {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--on-surface-variant);
+    }
+
+    .queue-items {
+      border-top: 1px solid var(--surface-variant);
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--surface-variant);
+      background: var(--surface-container);
+      transition: box-shadow 0.2s, transform 0.2s;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      &.cdk-drag-preview {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        border-radius: var(--radius-md);
+      }
+      
+      &.cdk-drag-placeholder {
+        opacity: 0.4;
+      }
+      
+      &.cdk-drag-animating {
+        transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+      }
+    }
+    
+    .drag-handle {
+      cursor: grab;
+      color: var(--on-surface-variant);
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      
+      &:active {
+        cursor: grabbing;
+      }
+    }
+    
+    .cdk-drop-list-dragging .queue-item:not(.cdk-drag-placeholder) {
+      transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+    }
+
+    .queue-item-content {
+      flex: 1;
+      font-size: 12px;
+      color: var(--on-surface);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .queue-edit-input {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 14px;
+      border: 1px solid var(--gemini-blue);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--on-surface);
+      outline: none;
+      
+      &:focus {
+        box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+      }
+    }
+
+    .queue-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      
+      button {
+        width: 32px !important;
+        height: 32px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        
+        mat-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+          color: var(--on-surface-variant);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        &:hover mat-icon {
+          color: var(--on-surface);
+        }
+        
+        &:disabled mat-icon {
+          color: var(--outline);
+        }
+      }
+    }
+
     /* Input Section */
     .input-section {
       flex-shrink: 0; /* Don't shrink - stay at bottom */
@@ -931,6 +1205,8 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
       transition: all var(--transition-fast);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
       width: 100%;
+      position: relative;
+      z-index: 2; /* Above queue */
       
       &:hover {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.06);
@@ -938,6 +1214,22 @@ import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/e
       
       &.focused {
         border-color: var(--gemini-blue);
+        box-shadow: 0 4px 16px rgba(66, 133, 244, 0.15), 0 8px 32px rgba(66, 133, 244, 0.1);
+      }
+      
+      &.pulse-send {
+        animation: sendPulse 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+    }
+    
+    @keyframes sendPulse {
+      0% {
+        box-shadow: 0 4px 16px rgba(66, 133, 244, 0.15), 0 8px 32px rgba(66, 133, 244, 0.1);
+      }
+      50% {
+        box-shadow: 0 6px 24px rgba(66, 133, 244, 0.4), 0 12px 48px rgba(66, 133, 244, 0.25);
+      }
+      100% {
         box-shadow: 0 4px 16px rgba(66, 133, 244, 0.15), 0 8px 32px rgba(66, 133, 244, 0.1);
       }
     }
@@ -1278,6 +1570,14 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   isDragging = signal(false);
   attachedFiles = signal<{ name: string; type: string; preview: string; data: string }[]>([]);
 
+  // Queue editing state
+  queueExpanded = true;
+  editingQueueId: string | null = null;
+  editingQueueContent = '';
+
+  // Animation state
+  isPulsing = false;
+
   // Greeting carousel - macOS style with RTL/LTR support (50 languages)
   greetings: { text: string; lang: string; dir?: 'ltr' | 'rtl'; anim?: 'type' | 'slide' }[] = [
     { text: 'Hello', lang: 'English', dir: 'ltr', anim: 'type' },
@@ -1521,7 +1821,14 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     const keyEvent = event as KeyboardEvent;
     if (!keyEvent.shiftKey) {
       keyEvent.preventDefault();
+
+      // Trigger pulse animation
+      this.isPulsing = true;
+      setTimeout(() => this.isPulsing = false, 400);
+
       this.sendMessage();
+      // Ensure focus stays on input after Angular's change detection
+      setTimeout(() => this.chatTextarea?.nativeElement?.focus(), 0);
     }
   }
 
@@ -1535,14 +1842,20 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     const message = this.userMessage;
     this.userMessage = '';
 
-    // Keep focus on the input after sending
-    setTimeout(() => {
-      this.chatTextarea?.nativeElement?.focus();
-    }, 0);
+    // Always keep focus on the input
+    this.chatTextarea?.nativeElement?.focus();
+
+    // If model is busy, queue the prompt
+    if (this.chatService.isLoading()) {
+      this.chatService.addToQueue(message, this.modelsService.selectedModel());
+      return;
+    }
 
     // Use streaming if enabled
-    if (this.chatService.streamingMode()) {
-      this.chatService.sendStreamMessage(message, this.modelsService.selectedModel());
+    if (this.chatService.streamingMode() && this.modelsService.supportsStreaming()) {
+      this.chatService.sendStreamMessage(message, this.modelsService.selectedModel(), () => {
+        this.chatTextarea?.nativeElement?.focus();
+      });
       return;
     }
 
@@ -1550,10 +1863,6 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
       .subscribe({
         next: response => {
           this.chatService.addAssistantMessage(response);
-          // Refocus after response
-          setTimeout(() => {
-            this.chatTextarea?.nativeElement?.focus();
-          }, 0);
         },
         error: err => {
           this.snackBar.open('Failed to send message. Please try again.', 'Dismiss', {
@@ -1561,10 +1870,6 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
             panelClass: 'error-snackbar',
           });
           console.error('Chat error:', err);
-          // Refocus on error too
-          setTimeout(() => {
-            this.chatTextarea?.nativeElement?.focus();
-          }, 0);
         }
       });
   }
@@ -1573,6 +1878,29 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     this.userMessage = prompt;
   }
 
+  // Queue editing methods
+  startEditQueue(item: { id: string; content: string }): void {
+    this.editingQueueId = item.id;
+    this.editingQueueContent = item.content;
+  }
+
+  saveQueueEdit(id: string): void {
+    if (this.editingQueueContent.trim()) {
+      this.chatService.updateQueuedPrompt(id, this.editingQueueContent);
+    }
+    this.cancelQueueEdit();
+  }
+
+  cancelQueueEdit(): void {
+    this.editingQueueId = null;
+    this.editingQueueContent = '';
+  }
+
+  onQueueDrop(event: CdkDragDrop<unknown[]>): void {
+    const queue = [...this.chatService.promptQueue()];
+    moveItemInArray(queue, event.previousIndex, event.currentIndex);
+    this.chatService.promptQueue.set(queue);
+  }
   openGoogleDrive(): void {
     // TODO: Implement Google Drive picker integration
     this.snackBar.open('Google Drive integration coming soon!', 'Dismiss', { duration: 3000 });

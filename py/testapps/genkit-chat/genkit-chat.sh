@@ -43,6 +43,7 @@ Genkit Chat - Multi-model AI Chat Application
 Usage: ./run.sh [command] [options]
 
 Commands:
+    setup       Install all dependencies (Ollama, models, uv, Node.js, etc.)
     start       Run backend (DevUI) and frontend concurrently
     dev         Run backend with Genkit DevUI (recommended for development)
     backend     Run backend only
@@ -76,6 +77,7 @@ Ollama Models:
       - qwen2.5-coder  Code-focused model (~4.7GB)
 
 Examples:
+    ./run.sh setup                        # Install all dependencies
     ./run.sh start                        # Start with Robyn (default)
     ./run.sh dev --framework fastapi      # Start with FastAPI + DevUI
     ./run.sh backend --framework robyn    # Backend only with Robyn
@@ -215,6 +217,173 @@ setup_ollama_models() {
             fi
         fi
     done
+}
+
+detect_os() {
+    case "$(uname -s)" in
+        Darwin*) echo "macos" ;;
+        Linux*)  echo "linux" ;;
+        MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+install_ollama() {
+    log_info "Checking Ollama installation..."
+    
+    if command -v ollama &> /dev/null; then
+        log_success "Ollama is already installed: $(ollama --version 2>/dev/null || echo 'installed')"
+        return 0
+    fi
+    
+    local os
+    os=$(detect_os)
+    
+    case "$os" in
+        macos)
+            log_info "Installing Ollama for macOS..."
+            if command -v brew &> /dev/null; then
+                brew install ollama
+            else
+                curl -fsSL https://ollama.com/install.sh | sh
+            fi
+            ;;
+        linux)
+            log_info "Installing Ollama for Linux..."
+            curl -fsSL https://ollama.com/install.sh | sh
+            ;;
+        windows)
+            log_warning "On Windows, please install Ollama manually from: https://ollama.com/download/windows"
+            log_info "After installation, run 'ollama serve' to start the server."
+            return 1
+            ;;
+        *)
+            log_error "Unknown operating system. Please install Ollama manually from: https://ollama.com/download"
+            return 1
+            ;;
+    esac
+    
+    if command -v ollama &> /dev/null; then
+        log_success "Ollama installed successfully"
+    else
+        log_error "Ollama installation failed"
+        return 1
+    fi
+}
+
+start_ollama_server() {
+    # Check if Ollama server is already running
+    if curl -s http://localhost:11434/api/tags &> /dev/null; then
+        log_success "Ollama server is already running"
+        return 0
+    fi
+    
+    log_info "Starting Ollama server in background..."
+    
+    local os
+    os=$(detect_os)
+    
+    case "$os" in
+        macos)
+            # On macOS, Ollama may run as an app or service
+            if command -v brew &> /dev/null && brew services list 2>/dev/null | grep -q ollama; then
+                brew services start ollama
+            else
+                ollama serve &> /dev/null &
+                disown
+            fi
+            ;;
+        linux)
+            # Try systemd first, otherwise run in background
+            if command -v systemctl &> /dev/null && systemctl list-unit-files | grep -q ollama; then
+                sudo systemctl start ollama
+            else
+                ollama serve &> /dev/null &
+                disown
+            fi
+            ;;
+        windows)
+            # On Windows (Git Bash/WSL), run in background
+            ollama serve &> /dev/null &
+            disown 2>/dev/null || true
+            ;;
+    esac
+    
+    # Wait for server to be ready
+    log_info "Waiting for Ollama server to start..."
+    for i in {1..30}; do
+        if curl -s http://localhost:11434/api/tags &> /dev/null; then
+            log_success "Ollama server started"
+            return 0
+        fi
+        sleep 1
+    done
+    
+    log_warning "Ollama server may not have started. Try running 'ollama serve' manually."
+    return 1
+}
+
+run_setup() {
+    log_info "Setting up Genkit Chat development environment..."
+    log_info ""
+    
+    local os
+    os=$(detect_os)
+    log_info "Detected OS: $os"
+    log_info ""
+    
+    # 1. Install uv (Python package manager)
+    log_info "[1/6] Installing uv (Python package manager)..."
+    check_uv
+    
+    # 2. Check Python
+    log_info "[2/6] Checking Python installation..."
+    check_python
+    
+    # 3. Install Node.js
+    log_info "[3/6] Checking Node.js installation..."
+    check_node
+    
+    # 4. Install Genkit CLI
+    log_info "[4/6] Installing Genkit CLI..."
+    check_genkit_cli
+    
+    # 5. Install Ollama
+    log_info "[5/6] Installing Ollama..."
+    if install_ollama; then
+        start_ollama_server
+        
+        # Pull recommended models
+        log_info "[6/6] Pulling Ollama models..."
+        setup_ollama_models
+    else
+        log_warning "[6/6] Skipping Ollama models (Ollama not installed)"
+    fi
+    
+    # Setup backend and frontend
+    log_info ""
+    log_info "Setting up project dependencies..."
+    setup_backend
+    
+    cd "$FRONTEND_DIR"
+    npm install
+    log_success "Frontend dependencies installed"
+    
+    log_info ""
+    log_success "========================================"
+    log_success "  Setup complete!"
+    log_success "========================================"
+    log_info ""
+    log_info "Next steps:"
+    log_info "  1. Set your API keys (one or more):"
+    log_info "     export GEMINI_API_KEY=your-key-here"
+    log_info "     export ANTHROPIC_API_KEY=your-key-here  (optional)"
+    log_info ""
+    log_info "  2. Start the application:"
+    log_info "     ./run.sh start"
+    log_info ""
+    log_info "  3. Open http://localhost:4200 in your browser"
+    log_info ""
 }
 
 setup_backend() {
@@ -475,6 +644,9 @@ cmd="${1:-help}"
 shift 2>/dev/null || true  # Remove the command, keep remaining args
 
 case "$cmd" in
+    setup)
+        run_setup
+        ;;
     start)
         run_start "$@"
         ;;

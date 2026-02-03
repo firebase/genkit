@@ -40,6 +40,13 @@ export interface CompareResponse {
     }[];
 }
 
+export interface QueuedPrompt {
+    id: string;
+    content: string;
+    model: string;
+    timestamp: Date;
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -49,6 +56,10 @@ export class ChatService {
 
     messages = signal<Message[]>([]);
     isLoading = signal(false);
+
+    // Prompt queue
+    promptQueue = signal<QueuedPrompt[]>([]);
+    private isProcessingQueue = false;
 
     sendMessage(message: string, model: string): Observable<ChatResponse> {
         const history = this.messages().map(m => ({
@@ -107,7 +118,7 @@ export class ChatService {
     }
 
     // Send message with streaming (returns EventSource URL)
-    sendStreamMessage(message: string, model: string): void {
+    sendStreamMessage(message: string, model: string, onComplete?: () => void): void {
         const history = this.messages().map(m => ({
             role: m.role,
             content: m.content,
@@ -135,6 +146,7 @@ export class ChatService {
             if (event.data === '[DONE]') {
                 eventSource.close();
                 this.isLoading.set(false);
+                onComplete?.();
                 return;
             }
 
@@ -178,6 +190,7 @@ export class ChatService {
                 return updated;
             });
             this.isLoading.set(false);
+            onComplete?.();
         };
     }
 
@@ -190,5 +203,101 @@ export class ChatService {
 
     clearHistory(): void {
         this.messages.set([]);
+    }
+
+    // Queue management methods
+    addToQueue(content: string, model: string): void {
+        const queuedPrompt: QueuedPrompt = {
+            id: crypto.randomUUID(),
+            content,
+            model,
+            timestamp: new Date(),
+        };
+        this.promptQueue.update(queue => [...queue, queuedPrompt]);
+        // Note: Don't process here - queue items are added when model is busy
+        // Processing happens when the current request completes via addAssistantMessage
+    }
+
+    removeFromQueue(id: string): void {
+        this.promptQueue.update(queue => queue.filter(p => p.id !== id));
+    }
+
+    clearQueue(): void {
+        this.promptQueue.set([]);
+    }
+
+    sendFromQueue(id: string): void {
+        const item = this.promptQueue().find(p => p.id === id);
+        if (!item || this.isLoading()) return;
+
+        this.removeFromQueue(id);
+        this.sendMessage(item.content, item.model).subscribe({
+            next: response => this.addAssistantMessage(response),
+            error: err => console.error('Queue send error:', err)
+        });
+    }
+
+    sendAllFromQueue(): void {
+        // Move all queue items to be processed - they will be sent sequentially
+        // as the processNextInQueue is called after each response
+        // For now, just start processing the first one if not already loading
+        if (!this.isLoading() && this.promptQueue().length > 0) {
+            const first = this.promptQueue()[0];
+            this.sendFromQueue(first.id);
+        }
+    }
+
+    updateQueuedPrompt(id: string, content: string): void {
+        this.promptQueue.update(queue =>
+            queue.map(p => p.id === id ? { ...p, content } : p)
+        );
+    }
+
+    moveQueuedPromptUp(id: string): void {
+        this.promptQueue.update(queue => {
+            const index = queue.findIndex(p => p.id === id);
+            if (index > 0) {
+                const newQueue = [...queue];
+                [newQueue[index - 1], newQueue[index]] = [newQueue[index], newQueue[index - 1]];
+                return newQueue;
+            }
+            return queue;
+        });
+    }
+
+    moveQueuedPromptDown(id: string): void {
+        this.promptQueue.update(queue => {
+            const index = queue.findIndex(p => p.id === id);
+            if (index >= 0 && index < queue.length - 1) {
+                const newQueue = [...queue];
+                [newQueue[index], newQueue[index + 1]] = [newQueue[index + 1], newQueue[index]];
+                return newQueue;
+            }
+            return queue;
+        });
+    }
+
+    private processQueue(): void {
+        if (this.isProcessingQueue || this.isLoading() || this.promptQueue().length === 0) {
+            return;
+        }
+
+        this.isProcessingQueue = true;
+        const [nextPrompt, ...remaining] = this.promptQueue();
+        this.promptQueue.set(remaining);
+
+        // Process the prompt
+        this.sendMessage(nextPrompt.content, nextPrompt.model).subscribe({
+            next: response => {
+                this.addAssistantMessage(response);
+                this.isProcessingQueue = false;
+                // Process next in queue
+                this.processQueue();
+            },
+            error: () => {
+                this.isProcessingQueue = false;
+                this.processQueue();
+            }
+        });
     }
 }
