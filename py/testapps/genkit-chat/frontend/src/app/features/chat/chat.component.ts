@@ -190,6 +190,17 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
             </h1>
             <p class="welcome-subtitle">How can I help you today?</p>
           </div>
+          
+          <!-- Quick Action Chips (between greeting and chatbox) -->
+          <div class="quick-chips">
+            @for (action of quickActions; track action.label) {
+              <button mat-stroked-button 
+                      class="quick-chip"
+                      (click)="useQuickAction(action.prompt)">
+                {{ action.label }}
+              </button>
+            }
+          </div>
         }
         
         <!-- Prompt Queue (shows when loading and has queued items) -->
@@ -493,52 +504,74 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
           </div>
         </div>
         
-        <!-- Attached Files List (below chatbox) -->
+        <!-- Attached Files List (below chatbox) - also acts as dropzone -->
         @if (attachedFiles().length > 0) {
-          <div class="attached-files-list">
-            @for (file of attachedFiles(); track file.name) {
-              <div class="file-row">
-                <!-- Icon or Thumbnail -->
-                <div class="file-icon-wrapper">
-                  @if (file.type.startsWith('image/')) {
-                    <img [src]="file.preview" alt="preview" class="file-thumb-small">
-                  } @else {
-                    <mat-icon class="file-type-icon-small">{{ getFileIcon(file.type) }}</mat-icon>
-                  }
-                </div>
-                
-                <!-- File name -->
-                <span class="file-name-text">{{ file.name }}</span>
-                
-                <!-- File size -->
-                <span class="file-size-text">{{ formatFileSize(file.size) }}</span>
-                
-                <!-- Remove button -->
+          <div class="attached-files-container"
+               (dragover)="onDragOver($event)" 
+               (dragleave)="onDragLeave($event)"
+               (drop)="onDrop($event)"
+               [class.is-dragging]="isDragging()">
+            <!-- Header toolbar -->
+            <div class="attachments-header">
+              <span class="attachments-count">{{ attachedFiles().length }} file{{ attachedFiles().length > 1 ? 's' : '' }} attached</span>
+              <div class="attachments-actions">
                 <button mat-icon-button 
-                        class="file-remove-btn-small" 
-                        (click)="removeFile(file)" 
-                        aria-label="Remove {{ file.name }}"
-                        matTooltip="Remove">
-                  <mat-icon>close</mat-icon>
+                        class="add-more-btn"
+                        (click)="anyInput.click()"
+                        aria-label="Add more files"
+                        matTooltip="Add more files">
+                  <mat-icon>add</mat-icon>
                 </button>
+                <button mat-icon-button 
+                        class="clear-all-btn"
+                        (click)="clearAllFiles()"
+                        aria-label="Clear all attachments"
+                        matTooltip="Clear all">
+                  <mat-icon>delete_sweep</mat-icon>
+                </button>
+              </div>
+            </div>
+            
+            <!-- File list -->
+            <div class="attached-files-list">
+              @for (file of attachedFiles(); track file.name) {
+                <div class="file-row">
+                  <!-- Icon or Thumbnail -->
+                  <div class="file-icon-wrapper">
+                    @if (file.type.startsWith('image/')) {
+                      <img [src]="file.preview" alt="preview" class="file-thumb-small">
+                    } @else {
+                      <mat-icon class="file-type-icon-small">{{ getFileIcon(file.type) }}</mat-icon>
+                    }
+                  </div>
+                  
+                  <!-- File name (truncated with tooltip for full name) -->
+                  <span class="file-name-text" [matTooltip]="file.name">{{ file.name }}</span>
+                  
+                  <!-- File size -->
+                  <span class="file-size-text">{{ formatFileSize(file.size) }}</span>
+                  
+                  <!-- Remove button -->
+                  <button mat-icon-button 
+                          class="file-remove-btn-small" 
+                          (click)="removeFile(file)" 
+                          aria-label="Remove {{ file.name }}"
+                          matTooltip="Remove">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+            
+            <!-- Drop overlay for adding more files -->
+            @if (isDragging()) {
+              <div class="attachments-drop-overlay">
+                <mat-icon>add_circle</mat-icon>
+                <span>Drop to add more files</span>
               </div>
             }
           </div>
         }
-        
-        <!-- Quick Actions (below chatbox) -->
-        @if (chatService.messages().length === 0) {
-          <div class="quick-chips">
-            @for (action of quickActions; track action.label) {
-              <button mat-stroked-button 
-                      class="quick-chip"
-                      (click)="useQuickAction(action.prompt)">
-                {{ action.label }}
-              </button>
-            }
-          </div>
-        }
-        
 
       </div>
     </div>
@@ -1548,13 +1581,106 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       font-weight: 500;
     }
     
-    /* Attached Files List (clean list format) */
+    /* Attached Files Container (wrapper with header and dropzone capability) */
+    .attached-files-container {
+      margin: -8px auto 0;
+      width: 85%;
+      max-width: 700px;
+      background: var(--surface-container);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      border: 1px solid var(--outline-variant);
+      border-top: none;
+      box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.12), inset 0 1px 4px rgba(0, 0, 0, 0.15);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      
+      &.is-dragging {
+        border-color: var(--gemini-blue);
+        box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.12), inset 0 1px 4px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--gemini-blue-light);
+      }
+    }
+    
+    /* Attachments header toolbar */
+    .attachments-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 12px 6px 16px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.12), inset 0 1px 4px rgba(0, 0, 0, 0.15);
+      background: var(--surface-container);
+    }
+    
+    .attachments-count {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--on-surface-variant);
+    }
+    
+    .attachments-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .add-more-btn,
+    .clear-all-btn {
+      width: 28px !important;
+      height: 28px !important;
+      padding: 0 !important;
+      
+      .mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--on-surface-variant);
+      }
+      
+      &:hover .mat-icon {
+        color: var(--on-surface);
+      }
+    }
+    
+    .clear-all-btn:hover .mat-icon {
+      color: var(--error) !important;
+    }
+    
+    /* Drop overlay for attachments container */
+    .attachments-drop-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(var(--gemini-blue-rgb, 66, 133, 244), 0.1);
+      backdrop-filter: blur(2px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 10;
+      
+      mat-icon {
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+        color: var(--gemini-blue);
+      }
+      
+      span {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--gemini-blue);
+      }
+    }
+    
+    /* Attached Files List (scrollable file list) */
     .attached-files-list {
       display: flex;
       flex-direction: column;
       gap: 4px;
-      margin-top: 8px;
-      max-height: 150px;
+      padding: 8px 16px 12px 16px;
+      max-height: 180px; /* Height for 3 items without scroll */
+      overflow-x: hidden;
       overflow-y: auto;
       scrollbar-width: thin;
       
@@ -1567,8 +1693,12 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       }
       
       &::-webkit-scrollbar-thumb {
-        background: var(--outline-variant);
+        background: transparent;
         border-radius: 2px;
+      }
+      
+      &:hover::-webkit-scrollbar-thumb {
+        background: var(--outline-variant);
       }
     }
     
@@ -1577,14 +1707,18 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 8px;
-      background: var(--surface-container);
-      border-radius: 8px;
-      border: 1px solid var(--outline-variant);
+      padding: 6px 4px;
+      border-radius: 6px;
       transition: background var(--transition-fast);
       
+      &:not(:last-child) {
+        border-bottom: 1px solid var(--outline-variant);
+        padding-bottom: 8px;
+        margin-bottom: 4px;
+      }
+      
       &:hover {
-        background: var(--surface-container-high);
+        background: rgba(255, 255, 255, 0.5);
         
         .file-remove-btn-small {
           opacity: 1;
@@ -1642,12 +1776,18 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       opacity: 0.6;
       transition: opacity var(--transition-fast);
       flex-shrink: 0;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
       
       .mat-icon {
         font-size: 16px;
         width: 16px;
         height: 16px;
         color: var(--on-surface-variant);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       
       &:hover {
@@ -1864,7 +2004,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       flex-wrap: wrap;
       gap: 8px;
       justify-content: center;
-      margin-top: 16px;
+      margin: 24px 0;
       padding: 0 16px;
     }
     
@@ -2654,6 +2794,13 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
     this.attachedFiles.update(current =>
       current.filter(f => f.name !== file.name)
     );
+  }
+
+  /**
+   * Clear all attached files.
+   */
+  clearAllFiles(): void {
+    this.attachedFiles.set([]);
   }
 
   /**
