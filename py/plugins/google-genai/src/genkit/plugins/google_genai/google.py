@@ -109,6 +109,7 @@ from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     default_embedder_info,
@@ -458,12 +459,17 @@ class GoogleAI(Plugin):
         veo = VeoModel(clean_name, self._client)
 
         # Create actions manually since we don't have registry access here
+
+        # Prepare metadata matching model_action_metadata structure
+        info = veo_model_info(clean_name).model_dump(by_alias=True)
+        config_schema = VeoConfigSchema
+
         start_action = Action(
             kind=ActionKind.BACKGROUND_MODEL,
             name=name,
             fn=veo.start,
             metadata={
-                'model': veo_model_info(clean_name).model_dump(),
+                'model': {**info, 'customOptions': to_json_schema(config_schema)},
                 'type': 'background-model',
             },
         )
@@ -567,7 +573,7 @@ class GoogleAI(Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=googleai_name(name),
-                    info=veo_model_info(name).model_dump(),
+                    info=veo_model_info(name).model_dump(by_alias=True),
                     config_schema=VeoConfigSchema,
                 )
             )
@@ -846,7 +852,7 @@ class VertexAI(Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=vertexai_name(name),
-                    info=veo_model_info(name).model_dump(),
+                    info=veo_model_info(name).model_dump(by_alias=True),
                     config_schema=VeoConfigSchema,
                 )
             )
