@@ -11,9 +11,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatRippleModule } from '@angular/material/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 import { ChatService } from './core/services/chat.service';
+import { LanguageService } from './core/services/language.service';
 
 @Component({
   selector: 'app-root',
@@ -32,6 +34,7 @@ import { ChatService } from './core/services/chat.service';
     MatMenuModule,
     MatDividerModule,
     MatRippleModule,
+    TranslateModule,
   ],
   template: `
     <mat-sidenav-container class="app-container">
@@ -119,6 +122,30 @@ import { ChatService } from './core/services/chat.service';
                 <mat-icon>dark_mode</mat-icon>
                 <span>Dark</span>
               </button>
+            </mat-menu>
+            
+            <!-- Language Selector -->
+            <button mat-list-item [matMenuTriggerFor]="langMenu" [matTooltip]="sidenavOpened() ? '' : languageService.getLanguageLabel()" matTooltipPosition="right">
+              <mat-icon matListItemIcon>language</mat-icon>
+              @if (sidenavOpened()) {
+                <span matListItemTitle>{{ languageService.getLanguageLabel() }}</span>
+              }
+            </button>
+            <mat-menu #langMenu="matMenu">
+              <button mat-menu-item (click)="languageService.setLanguagePreference('system')">
+                <mat-icon>{{ languageService.languagePreference() === 'system' ? 'check' : '' }}</mat-icon>
+                <span>System</span>
+              </button>
+              <mat-divider></mat-divider>
+              @for (lang of languageService.languages; track lang.code) {
+                <button mat-menu-item (click)="languageService.setLanguagePreference(lang.code)">
+                  <span class="lang-flag">{{ lang.flag }}</span>
+                  <span>{{ lang.nativeName }}</span>
+                  @if (languageService.languagePreference() === lang.code) {
+                    <mat-icon class="check-icon">check</mat-icon>
+                  }
+                </button>
+              }
             </mat-menu>
           </mat-nav-list>
         </div>
@@ -678,6 +705,7 @@ import { ChatService } from './core/services/chat.service';
 export class AppComponent implements OnInit {
   themeService = inject(ThemeService);
   authService = inject(AuthService);
+  languageService = inject(LanguageService);
   private chatService = inject(ChatService);
   sidenavOpened = signal(true);
   editingName = signal(false);

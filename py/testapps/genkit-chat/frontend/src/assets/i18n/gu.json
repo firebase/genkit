@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit ચેટ",
+        "newChat": "નવી ચેટ",
+        "version": "પૂર્વાવલોકન"
+    },
+    "nav": {
+        "chat": "ચેટ",
+        "compare": "સરખામણી કરો",
+        "settings": "સેટિંગ્સ",
+        "demoMode": "ડેમો મોડ"
+    },
+    "chat": {
+        "placeholder": "Genkit Chat ને પૂછો",
+        "sendMessage": "સંદેશ મોકલો",
+        "voiceInput": "વૉઇસ ઇનપુટ",
+        "stopRecording": "રેકોર્ડિંગ બંધ કરો",
+        "addFiles": "ફાઇલ્સ ઉમેરો",
+        "uploadFiles": "ફાઇલ્સ અપલોડ કરો",
+        "googleDrive": "Google Drive",
+        "camera": "કેમેરા",
+        "removeFile": "દૂર કરો",
+        "disclaimer": "Genkit Chat ખોટી માહિતી બતાવી શકે છે. કૃપા કરીને જવાબો તપાસો.",
+        "greeting": "નમસ્તે",
+        "greetingSubtitle": "આજે હું તમને કેવી રીતે મદદ કરી શકું?"
+    },
+    "toolbar": {
+        "tools": "ટૂલ્સ",
+        "stream": "સ્ટ્રીમ",
+        "markdown": "MD",
+        "safe": "સુરક્ષિત"
+    },
+    "model": {
+        "selectModel": "મોડેલ પસંદ કરો",
+        "searchModels": "મોડેલ્સ શોધો...",
+        "noModelsFound": "કોઈ મોડેલ મળ્યું નથી",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "અન્ય"
+        }
+    },
+    "quickActions": {
+        "createImage": "છબી બનાવો",
+        "writeAnything": "કંઈપણ લખો",
+        "helpMeLearn": "શીખવામાં મદદ કરો",
+        "createVideo": "વીડિયો બનાવો",
+        "stayOrganized": "સંગઠિત રહો"
+    },
+    "theme": {
+        "label": "થીમ",
+        "system": "સિસ્ટમ",
+        "light": "લાઇટ",
+        "dark": "ડાર્ક"
+    },
+    "language": {
+        "label": "ભાષા",
+        "select": "ભાષા પસંદ કરો"
+    },
+    "help": {
+        "label": "મદદ અને સંસાધનો",
+        "documentation": "દસ્તાવેજીકરણ",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "સાઇન ઇન કરો",
+        "signOut": "સાઇન આઉટ કરો",
+        "account": "એકાઉન્ટ",
+        "connectDrive": "Google Drive જોડો"
+    },
+    "safety": {
+        "flagged": "સામગ્રી ફ્લેગ કરેલ",
+        "warning": "આ સામગ્રી હાનિકારક હોઈ શકે છે"
+    },
+    "errors": {
+        "fileTooLarge": "ફાઇલ \"{name}\" ખૂબ મોટી છે (મહત્તમ {size})",
+        "maxAttachments": "મહત્તમ {count} જોડાણો મંજૂર છે",
+        "invalidFileType": "ફાઇલ પ્રકાર સપોર્ટેડ નથી"
+    }
+}

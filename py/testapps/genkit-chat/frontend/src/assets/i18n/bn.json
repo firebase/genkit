@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit চ্যাট",
+        "newChat": "নতুন চ্যাট",
+        "version": "প্রিভিউ"
+    },
+    "nav": {
+        "chat": "চ্যাট",
+        "compare": "তুলনা করুন",
+        "settings": "সেটিংস",
+        "demoMode": "ডেমো মোড"
+    },
+    "chat": {
+        "placeholder": "Genkit Chat-কে জিজ্ঞাসা করুন",
+        "sendMessage": "বার্তা পাঠান",
+        "voiceInput": "ভয়েস ইনপুট",
+        "stopRecording": "রেকর্ডিং বন্ধ করুন",
+        "addFiles": "ফাইল যোগ করুন",
+        "uploadFiles": "ফাইল আপলোড করুন",
+        "googleDrive": "Google Drive",
+        "camera": "ক্যামেরা",
+        "removeFile": "সরান",
+        "disclaimer": "Genkit Chat ভুল তথ্য দেখাতে পারে। দয়া করে উত্তরগুলো যাচাই করুন।",
+        "greeting": "নমস্কার",
+        "greetingSubtitle": "আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?"
+    },
+    "toolbar": {
+        "tools": "টুলস",
+        "stream": "স্ট্রিম",
+        "markdown": "MD",
+        "safe": "নিরাপদ"
+    },
+    "model": {
+        "selectModel": "মডেল নির্বাচন করুন",
+        "searchModels": "মডেল খুঁজুন...",
+        "noModelsFound": "কোনো মডেল পাওয়া যায়নি",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "অন্যান্য"
+        }
+    },
+    "quickActions": {
+        "createImage": "ছবি তৈরি করুন",
+        "writeAnything": "কিছু লিখুন",
+        "helpMeLearn": "শিখতে সাহায্য করুন",
+        "createVideo": "ভিডিও তৈরি করুন",
+        "stayOrganized": "সংগঠিত থাকুন"
+    },
+    "theme": {
+        "label": "থিম",
+        "system": "সিস্টেম",
+        "light": "লাইট",
+        "dark": "ডার্ক"
+    },
+    "language": {
+        "label": "ভাষা",
+        "select": "ভাষা নির্বাচন করুন"
+    },
+    "help": {
+        "label": "সাহায্য এবং সংস্থান",
+        "documentation": "ডকুমেন্টেশন",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "সাইন ইন করুন",
+        "signOut": "সাইন আউট করুন",
+        "account": "অ্যাকাউন্ট",
+        "connectDrive": "Google Drive সংযুক্ত করুন"
+    },
+    "safety": {
+        "flagged": "বিষয়বস্তু চিহ্নিত",
+        "warning": "এই বিষয়বস্তু ক্ষতিকর হতে পারে"
+    },
+    "errors": {
+        "fileTooLarge": "ফাইল \"{name}\" খুব বড় (সর্বোচ্চ {size})",
+        "maxAttachments": "সর্বোচ্চ {count}টি সংযুক্তি অনুমোদিত",
+        "invalidFileType": "ফাইল টাইপ সমর্থিত নয়"
+    }
+}

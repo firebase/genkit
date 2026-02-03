@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit அரட்டை",
+        "newChat": "புதிய அரட்டை",
+        "version": "முன்னோட்டம்"
+    },
+    "nav": {
+        "chat": "அரட்டை",
+        "compare": "ஒப்பிடு",
+        "settings": "அமைப்புகள்",
+        "demoMode": "டெமோ பயன்முறை"
+    },
+    "chat": {
+        "placeholder": "Genkit Chat-ஐ கேளுங்கள்",
+        "sendMessage": "செய்தி அனுப்பு",
+        "voiceInput": "குரல் உள்ளீடு",
+        "stopRecording": "பதிவை நிறுத்து",
+        "addFiles": "கோப்புகளைச் சேர்க்கவும்",
+        "uploadFiles": "கோப்புகளைப் பதிவேற்றவும்",
+        "googleDrive": "Google Drive",
+        "camera": "கேமரா",
+        "removeFile": "அகற்று",
+        "disclaimer": "Genkit Chat தவறான தகவல்களைக் காட்டலாம். பதில்களை சரிபார்க்கவும்.",
+        "greeting": "வணக்கம்",
+        "greetingSubtitle": "இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்?"
+    },
+    "toolbar": {
+        "tools": "கருவிகள்",
+        "stream": "ஸ்ட்ரீம்",
+        "markdown": "MD",
+        "safe": "பாதுகாப்பு"
+    },
+    "model": {
+        "selectModel": "மாடலைத் தேர்ந்தெடுக்கவும்",
+        "searchModels": "மாடல்களைத் தேடுங்கள்...",
+        "noModelsFound": "மாடல்கள் கிடைக்கவில்லை",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "மற்றவை"
+        }
+    },
+    "quickActions": {
+        "createImage": "படம் உருவாக்கு",
+        "writeAnything": "எதையாவது எழுதுங்கள்",
+        "helpMeLearn": "கற்றுக்கொள்ள உதவுங்கள்",
+        "createVideo": "வீடியோ உருவாக்கு",
+        "stayOrganized": "ஒழுங்காக இருங்கள்"
+    },
+    "theme": {
+        "label": "தீம்",
+        "system": "சிஸ்டம்",
+        "light": "லைட்",
+        "dark": "டார்க்"
+    },
+    "language": {
+        "label": "மொழி",
+        "select": "மொழியைத் தேர்ந்தெடுக்கவும்"
+    },
+    "help": {
+        "label": "உதவி மற்றும் ஆதாரங்கள்",
+        "documentation": "ஆவணங்கள்",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "உள்நுழைக",
+        "signOut": "வெளியேறு",
+        "account": "கணக்கு",
+        "connectDrive": "Google Drive இணைக்கவும்"
+    },
+    "safety": {
+        "flagged": "உள்ளடக்கம் கொடியிடப்பட்டது",
+        "warning": "இந்த உள்ளடக்கம் தீங்கு விளைவிக்கக்கூடும்"
+    },
+    "errors": {
+        "fileTooLarge": "கோப்பு \"{name}\" மிகப் பெரியது (அதிகபட்சம் {size})",
+        "maxAttachments": "அதிகபட்சம் {count} இணைப்புகள் அனுமதிக்கப்படுகின்றன",
+        "invalidFileType": "கோப்பு வகை ஆதரிக்கப்படவில்லை"
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit Чат",
+        "newChat": "Новый чат",
+        "version": "Предпросмотр"
+    },
+    "nav": {
+        "chat": "Чат",
+        "compare": "Сравнить",
+        "settings": "Настройки",
+        "demoMode": "Демо режим"
+    },
+    "chat": {
+        "placeholder": "Спросите Genkit Chat",
+        "sendMessage": "Отправить сообщение",
+        "voiceInput": "Голосовой ввод",
+        "stopRecording": "Остановить запись",
+        "addFiles": "Добавить файлы",
+        "uploadFiles": "Загрузить файлы",
+        "googleDrive": "Google Диск",
+        "camera": "Камера",
+        "removeFile": "Удалить",
+        "disclaimer": "Genkit Chat может выдавать неточную информацию. Проверяйте ответы.",
+        "greeting": "Привет",
+        "greetingSubtitle": "Чем могу помочь сегодня?"
+    },
+    "toolbar": {
+        "tools": "Инструменты",
+        "stream": "Потоковый",
+        "markdown": "MD",
+        "safe": "Безопасно"
+    },
+    "model": {
+        "selectModel": "Выбрать модель",
+        "searchModels": "Поиск моделей...",
+        "noModelsFound": "Модели не найдены",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "Другие"
+        }
+    },
+    "quickActions": {
+        "createImage": "Создать изображение",
+        "writeAnything": "Написать что-нибудь",
+        "helpMeLearn": "Помочь мне учиться",
+        "createVideo": "Создать видео",
+        "stayOrganized": "Организоваться"
+    },
+    "theme": {
+        "label": "Тема",
+        "system": "Системная",
+        "light": "Светлая",
+        "dark": "Тёмная"
+    },
+    "language": {
+        "label": "Язык",
+        "select": "Выбрать язык"
+    },
+    "help": {
+        "label": "Помощь и ресурсы",
+        "documentation": "Документация",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "Войти",
+        "signOut": "Выйти",
+        "account": "Аккаунт",
+        "connectDrive": "Подключить Google Диск"
+    },
+    "safety": {
+        "flagged": "Контент помечен",
+        "warning": "Этот контент может быть вредным"
+    },
+    "errors": {
+        "fileTooLarge": "Файл \"{name}\" слишком большой (макс. {size})",
+        "maxAttachments": "Максимум {count} вложений",
+        "invalidFileType": "Неподдерживаемый тип файла"
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit チャット",
+        "newChat": "新しいチャット",
+        "version": "プレビュー"
+    },
+    "nav": {
+        "chat": "チャット",
+        "compare": "比較",
+        "settings": "設定",
+        "demoMode": "デモモード"
+    },
+    "chat": {
+        "placeholder": "Genkit Chat に質問",
+        "sendMessage": "メッセージを送信",
+        "voiceInput": "音声入力",
+        "stopRecording": "録音を停止",
+        "addFiles": "ファイルを追加",
+        "uploadFiles": "ファイルをアップロード",
+        "googleDrive": "Google ドライブ",
+        "camera": "カメラ",
+        "removeFile": "削除",
+        "disclaimer": "Genkit Chat は不正確な情報を表示することがあります。回答を確認してください。",
+        "greeting": "こんにちは",
+        "greetingSubtitle": "今日は何をお手伝いしましょうか？"
+    },
+    "toolbar": {
+        "tools": "ツール",
+        "stream": "ストリーム",
+        "markdown": "MD",
+        "safe": "安全"
+    },
+    "model": {
+        "selectModel": "モデルを選択",
+        "searchModels": "モデルを検索...",
+        "noModelsFound": "モデルが見つかりません",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "その他"
+        }
+    },
+    "quickActions": {
+        "createImage": "画像を作成",
+        "writeAnything": "何でも書く",
+        "helpMeLearn": "学習を手伝って",
+        "createVideo": "動画を作成",
+        "stayOrganized": "整理整頓"
+    },
+    "theme": {
+        "label": "テーマ",
+        "system": "システム",
+        "light": "ライト",
+        "dark": "ダーク"
+    },
+    "language": {
+        "label": "言語",
+        "select": "言語を選択"
+    },
+    "help": {
+        "label": "ヘルプとリソース",
+        "documentation": "ドキュメント",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "ログイン",
+        "signOut": "ログアウト",
+        "account": "アカウント",
+        "connectDrive": "Google ドライブを接続"
+    },
+    "safety": {
+        "flagged": "コンテンツにフラグが付きました",
+        "warning": "このコンテンツは有害な可能性があります"
+    },
+    "errors": {
+        "fileTooLarge": "ファイル「{name}」が大きすぎます（最大 {size}）",
+        "maxAttachments": "添付ファイルは最大 {count} 個までです",
+        "invalidFileType": "サポートされていないファイル形式です"
+    }
+}

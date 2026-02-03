@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit Chat",
+        "newChat": "Neuer Chat",
+        "version": "Vorschau"
+    },
+    "nav": {
+        "chat": "Chat",
+        "compare": "Vergleichen",
+        "settings": "Einstellungen",
+        "demoMode": "Demo-Modus"
+    },
+    "chat": {
+        "placeholder": "Frag Genkit Chat",
+        "sendMessage": "Nachricht senden",
+        "voiceInput": "Spracheingabe",
+        "stopRecording": "Aufnahme stoppen",
+        "addFiles": "Dateien hinzufügen",
+        "uploadFiles": "Dateien hochladen",
+        "googleDrive": "Google Drive",
+        "camera": "Kamera",
+        "removeFile": "Entfernen",
+        "disclaimer": "Genkit Chat kann ungenaue Informationen anzeigen. Überprüfe die Antworten.",
+        "greeting": "Hallo",
+        "greetingSubtitle": "Wie kann ich dir heute helfen?"
+    },
+    "toolbar": {
+        "tools": "Werkzeuge",
+        "stream": "Streamen",
+        "markdown": "MD",
+        "safe": "Sicher"
+    },
+    "model": {
+        "selectModel": "Modell auswählen",
+        "searchModels": "Modelle suchen...",
+        "noModelsFound": "Keine Modelle gefunden",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "Andere"
+        }
+    },
+    "quickActions": {
+        "createImage": "Bild erstellen",
+        "writeAnything": "Etwas schreiben",
+        "helpMeLearn": "Beim Lernen helfen",
+        "createVideo": "Video erstellen",
+        "stayOrganized": "Organisiert bleiben"
+    },
+    "theme": {
+        "label": "Design",
+        "system": "System",
+        "light": "Hell",
+        "dark": "Dunkel"
+    },
+    "language": {
+        "label": "Sprache",
+        "select": "Sprache auswählen"
+    },
+    "help": {
+        "label": "Hilfe & Ressourcen",
+        "documentation": "Dokumentation",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "Anmelden",
+        "signOut": "Abmelden",
+        "account": "Konto",
+        "connectDrive": "Google Drive verbinden"
+    },
+    "safety": {
+        "flagged": "Inhalt markiert",
+        "warning": "Dieser Inhalt kann schädlich sein"
+    },
+    "errors": {
+        "fileTooLarge": "Datei \"{name}\" ist zu groß (max. {size})",
+        "maxAttachments": "Maximal {count} Anhänge erlaubt",
+        "invalidFileType": "Dateityp nicht unterstützt"
+    }
+}

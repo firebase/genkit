@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit Chat",
+        "newChat": "Nouvelle conversation",
+        "version": "Aperçu"
+    },
+    "nav": {
+        "chat": "Chat",
+        "compare": "Comparer",
+        "settings": "Paramètres",
+        "demoMode": "Mode démo"
+    },
+    "chat": {
+        "placeholder": "Demandez à Genkit Chat",
+        "sendMessage": "Envoyer le message",
+        "voiceInput": "Saisie vocale",
+        "stopRecording": "Arrêter l'enregistrement",
+        "addFiles": "Ajouter des fichiers",
+        "uploadFiles": "Télécharger des fichiers",
+        "googleDrive": "Google Drive",
+        "camera": "Caméra",
+        "removeFile": "Supprimer",
+        "disclaimer": "Genkit Chat peut afficher des informations inexactes. Vérifiez ses réponses.",
+        "greeting": "Bonjour",
+        "greetingSubtitle": "Comment puis-je vous aider aujourd'hui ?"
+    },
+    "toolbar": {
+        "tools": "Outils",
+        "stream": "Diffuser",
+        "markdown": "MD",
+        "safe": "Sûr"
+    },
+    "model": {
+        "selectModel": "Sélectionner un modèle",
+        "searchModels": "Rechercher des modèles...",
+        "noModelsFound": "Aucun modèle trouvé",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "Autres"
+        }
+    },
+    "quickActions": {
+        "createImage": "Créer une image",
+        "writeAnything": "Écrire quelque chose",
+        "helpMeLearn": "Aidez-moi à apprendre",
+        "createVideo": "Créer une vidéo",
+        "stayOrganized": "Rester organisé"
+    },
+    "theme": {
+        "label": "Thème",
+        "system": "Système",
+        "light": "Clair",
+        "dark": "Sombre"
+    },
+    "language": {
+        "label": "Langue",
+        "select": "Sélectionner la langue"
+    },
+    "help": {
+        "label": "Aide et ressources",
+        "documentation": "Documentation",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "Se connecter",
+        "signOut": "Se déconnecter",
+        "account": "Compte",
+        "connectDrive": "Connecter Google Drive"
+    },
+    "safety": {
+        "flagged": "Contenu signalé",
+        "warning": "Ce contenu peut être nuisible"
+    },
+    "errors": {
+        "fileTooLarge": "Le fichier \"{name}\" est trop volumineux (max {size})",
+        "maxAttachments": "Maximum {count} pièces jointes autorisées",
+        "invalidFileType": "Type de fichier non pris en charge"
+    }
+}

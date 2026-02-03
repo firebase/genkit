@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit Chat",
+        "newChat": "Nuova chat",
+        "version": "Anteprima"
+    },
+    "nav": {
+        "chat": "Chat",
+        "compare": "Confronta",
+        "settings": "Impostazioni",
+        "demoMode": "Modalità demo"
+    },
+    "chat": {
+        "placeholder": "Chiedi a Genkit Chat",
+        "sendMessage": "Invia messaggio",
+        "voiceInput": "Input vocale",
+        "stopRecording": "Interrompi registrazione",
+        "addFiles": "Aggiungi file",
+        "uploadFiles": "Carica file",
+        "googleDrive": "Google Drive",
+        "camera": "Fotocamera",
+        "removeFile": "Rimuovi",
+        "disclaimer": "Genkit Chat potrebbe mostrare informazioni imprecise. Verifica le risposte.",
+        "greeting": "Ciao",
+        "greetingSubtitle": "Come posso aiutarti oggi?"
+    },
+    "toolbar": {
+        "tools": "Strumenti",
+        "stream": "Streaming",
+        "markdown": "MD",
+        "safe": "Sicuro"
+    },
+    "model": {
+        "selectModel": "Seleziona modello",
+        "searchModels": "Cerca modelli...",
+        "noModelsFound": "Nessun modello trovato",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "Altri"
+        }
+    },
+    "quickActions": {
+        "createImage": "Crea immagine",
+        "writeAnything": "Scrivi qualcosa",
+        "helpMeLearn": "Aiutami a imparare",
+        "createVideo": "Crea video",
+        "stayOrganized": "Mantieniti organizzato"
+    },
+    "theme": {
+        "label": "Tema",
+        "system": "Sistema",
+        "light": "Chiaro",
+        "dark": "Scuro"
+    },
+    "language": {
+        "label": "Lingua",
+        "select": "Seleziona lingua"
+    },
+    "help": {
+        "label": "Aiuto e risorse",
+        "documentation": "Documentazione",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "Accedi",
+        "signOut": "Esci",
+        "account": "Account",
+        "connectDrive": "Collega Google Drive"
+    },
+    "safety": {
+        "flagged": "Contenuto segnalato",
+        "warning": "Questo contenuto potrebbe essere dannoso"
+    },
+    "errors": {
+        "fileTooLarge": "Il file \"{name}\" è troppo grande (max {size})",
+        "maxAttachments": "Massimo {count} allegati consentiti",
+        "invalidFileType": "Tipo di file non supportato"
+    }
+}

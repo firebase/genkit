@@ -1,0 +1,83 @@
+{
+    "app": {
+        "title": "Genkit 聊天",
+        "newChat": "新对话",
+        "version": "预览版"
+    },
+    "nav": {
+        "chat": "聊天",
+        "compare": "比较",
+        "settings": "设置",
+        "demoMode": "演示模式"
+    },
+    "chat": {
+        "placeholder": "询问 Genkit Chat",
+        "sendMessage": "发送消息",
+        "voiceInput": "语音输入",
+        "stopRecording": "停止录音",
+        "addFiles": "添加文件",
+        "uploadFiles": "上传文件",
+        "googleDrive": "Google 云端硬盘",
+        "camera": "相机",
+        "removeFile": "移除",
+        "disclaimer": "Genkit Chat 可能显示不准确的信息。请仔细核实其回复。",
+        "greeting": "你好",
+        "greetingSubtitle": "今天我能帮您什么？"
+    },
+    "toolbar": {
+        "tools": "工具",
+        "stream": "流式传输",
+        "markdown": "MD",
+        "safe": "安全"
+    },
+    "model": {
+        "selectModel": "选择模型",
+        "searchModels": "搜索模型...",
+        "noModelsFound": "未找到模型",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "其他"
+        }
+    },
+    "quickActions": {
+        "createImage": "创建图片",
+        "writeAnything": "写作",
+        "helpMeLearn": "帮助我学习",
+        "createVideo": "创建视频",
+        "stayOrganized": "保持条理"
+    },
+    "theme": {
+        "label": "主题",
+        "system": "跟随系统",
+        "light": "浅色",
+        "dark": "深色"
+    },
+    "language": {
+        "label": "语言",
+        "select": "选择语言"
+    },
+    "help": {
+        "label": "帮助与资源",
+        "documentation": "文档",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "登录",
+        "signOut": "退出登录",
+        "account": "账户",
+        "connectDrive": "连接 Google 云端硬盘"
+    },
+    "safety": {
+        "flagged": "内容已标记",
+        "warning": "此内容可能有害"
+    },
+    "errors": {
+        "fileTooLarge": "文件"{name
+        }"太大（最大 {size}）",
+        "maxAttachments": "最多允许 {count} 个附件",
+        "invalidFileType": "不支持的文件类型"
+    }
+}

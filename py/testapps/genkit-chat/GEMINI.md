@@ -17,6 +17,7 @@ This document captures learnings, patterns, and best practices from developing t
 │  │   ├── SpeechService   - Voice input via Web Speech API                   │
 │  │   ├── ContentSafetyService - Client-side toxicity detection              │
 │  │   ├── ThemeService    - Dark/light/system theme management               │
+│  │   ├── LanguageService - i18n with RTL support                            │
 │  │   └── AuthService     - Demo mode user management                        │
 │  └── Utilities                                                              │
 │      ├── SafeMarkdownPipe - DOMPurify + marked for safe rendering           │
@@ -103,6 +104,8 @@ function getMimeTypeIcon(mimeType: string): string {
 }
 ```
 
+---
+
 ## Accessibility (a11y)
 
 ### Required ARIA Attributes
@@ -121,14 +124,18 @@ Every icon-only button MUST have an `aria-label`:
 </button>
 ```
 
-### Checklist
+### Accessibility Checklist
+
+When adding new UI components, ensure:
 
 - [ ] All `<button>` with icons have `aria-label`
 - [ ] All `<img>` have `alt` attributes
 - [ ] All `<input>` and `<textarea>` have `aria-label` or associated `<label>`
 - [ ] Interactive elements are keyboard-focusable (tab order)
-- [ ] Color contrast meets WCAG AA standards
+- [ ] Color contrast meets WCAG AA standards (4.5:1 for text)
 - [ ] Focus indicators are visible
+- [ ] Dynamic content changes are announced to screen readers
+- [ ] RTL languages display correctly
 
 ### Dynamic ARIA Labels
 
@@ -136,6 +143,75 @@ For buttons with state-dependent labels:
 ```html
 <button [attr.aria-label]="isRecording ? 'Stop recording' : 'Start voice input'">
 ```
+
+### Updating Accessibility
+
+When modifying the UI:
+1. Run accessibility audit: `pnpm exec playwright test --grep "accessibility"`
+2. Test with keyboard navigation (Tab, Enter, Space, Arrow keys)
+3. Test with screen reader (VoiceOver on macOS, NVDA on Windows)
+4. Verify focus management after actions (e.g., focus returns to input after send)
+
+---
+
+## Internationalization (i18n)
+
+### Supported Languages
+
+| Code | Language | Direction | Status |
+|------|----------|-----------|--------|
+| en | English | LTR | ✅ Complete |
+| es | Spanish | LTR | ✅ Complete |
+| de | German | LTR | ✅ Complete |
+| fr | French | LTR | ✅ Complete |
+| zh | Chinese (Simplified) | LTR | ✅ Complete |
+| hi | Hindi | LTR | ✅ Complete |
+| ja | Japanese | LTR | ✅ Complete |
+| ar | Arabic | RTL | 🔄 Planned |
+| ko | Korean | LTR | 🔄 Planned |
+
+### Adding a New Language
+
+1. **Create translation file:** `src/assets/i18n/{code}.json`
+   - Copy `en.json` as template
+   - Translate all strings
+
+2. **Register in LanguageService:** `src/app/core/services/language.service.ts`
+   ```typescript
+   export const SUPPORTED_LANGUAGES: Language[] = [
+     // ... existing
+     { code: 'ko', name: 'Korean', nativeName: '한국어', direction: 'ltr', flag: '🇰🇷' },
+   ];
+   ```
+
+3. **Test RTL support** (for Arabic, Hebrew, etc.):
+   - Verify layout flips correctly
+   - Check text alignment
+   - Test model selector chevron position
+
+### Using Translations in Templates
+
+```html
+<!-- Simple translation -->
+{{ 'chat.placeholder' | translate }}
+
+<!-- With parameters -->
+{{ 'errors.fileTooLarge' | translate:{ name: file.name, size: '1MB' } }}
+```
+
+### RTL Support
+
+For RTL languages, the app automatically sets `dir="rtl"` on `<html>`. CSS handles layout adjustments:
+
+```scss
+[dir="rtl"] {
+  .toolbar-left { order: 1; }
+  .toolbar-right { order: 0; }
+  .model-info { align-items: flex-start; }
+}
+```
+
+---
 
 ## Content Safety
 
@@ -174,62 +250,166 @@ export class ContentSafetyService {
 }
 ```
 
-## Internationalization (i18n)
+### Testing Content Safety
 
-### Supported Languages
+Unit tests verify the service correctly flags known toxic content:
 
-| Code | Language | Direction |
-|------|----------|-----------|
-| en-US | English (US) | LTR |
-| en-GB | English (UK) | LTR |
-| es | Spanish | LTR |
-| de | German | LTR |
-| fr | French | LTR |
-| zh | Chinese (Simplified) | LTR |
-| hi | Hindi | LTR |
-| ar | Arabic | RTL |
-| ja | Japanese | LTR |
-| ko | Korean | LTR |
+```typescript
+it('should flag toxic content', async () => {
+  const result = await service.checkContent('I hate you');
+  expect(result.safe).toBeFalse();
+  expect(result.labels).toContain('identity_attack');
+});
 
-### Implementation with ngx-translate
-
-1. **Install dependencies:**
-   ```bash
-   pnpm add @ngx-translate/core @ngx-translate/http-loader
-   ```
-
-2. **Create translation files:** `src/assets/i18n/{lang}.json`
-
-3. **Service setup:**
-   ```typescript
-   export function HttpLoaderFactory(http: HttpClient) {
-     return new TranslateHttpLoader(http, './assets/i18n/', '.json');
-   }
-   ```
-
-4. **Usage in templates:**
-   ```html
-   {{ 'chat.placeholder' | translate }}
-   ```
-
-5. **Language selector in sidebar:**
-   ```html
-   <button mat-list-item [matMenuTriggerFor]="langMenu">
-     <mat-icon>language</mat-icon>
-     <span>{{ currentLang }}</span>
-   </button>
-   ```
-
-### RTL Support
-
-For RTL languages (Arabic, Hebrew):
-```scss
-[dir="rtl"] {
-  .toolbar-left { order: 1; }
-  .toolbar-right { order: 0; }
-  .model-info { align-items: flex-start; }
-}
+it('should pass safe content', async () => {
+  const result = await service.checkContent('Hello, how are you?');
+  expect(result.safe).toBeTrue();
+});
 ```
+
+---
+
+## Testing
+
+### Test Structure
+
+```
+frontend/
+├── src/app/
+│   ├── core/services/
+│   │   ├── content-safety.service.spec.ts  # Unit tests
+│   │   ├── language.service.spec.ts
+│   │   └── ...
+│   └── features/chat/
+│       └── chat.component.spec.ts
+├── e2e/
+│   ├── chat.spec.ts                        # Playwright E2E tests
+│   └── accessibility.spec.ts
+```
+
+### Running Tests
+
+```bash
+# Frontend unit tests
+cd frontend && pnpm test
+
+# E2E tests with Playwright
+cd frontend && pnpm exec playwright test
+
+# Backend tests
+cd backend && uv run pytest
+
+# Run specific test file
+pnpm test -- --include="**/content-safety.service.spec.ts"
+```
+
+### Writing Unit Tests
+
+Follow Angular testing conventions:
+
+```typescript
+describe('ContentSafetyService', () => {
+  let service: ContentSafetyService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(ContentSafetyService);
+  });
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+
+  // Test specific functionality
+  it('should toggle enabled state', () => {
+    expect(service.enabled()).toBeTrue();
+    service.enabled.set(false);
+    expect(service.enabled()).toBeFalse();
+  });
+});
+```
+
+### Writing Playwright E2E Tests
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Chat functionality', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+  });
+
+  test('should send a message and receive response', async ({ page }) => {
+    const input = page.locator('textarea[aria-label="Chat message input"]');
+    await input.fill('Hello!');
+    await page.click('button[aria-label="Send message"]');
+    
+    // Wait for response
+    await expect(page.locator('.message.assistant')).toBeVisible({ timeout: 30000 });
+  });
+
+  test('should show content safety warning for toxic input', async ({ page }) => {
+    const input = page.locator('textarea[aria-label="Chat message input"]');
+    await input.fill('I hate you');
+    
+    // Wait for debounced safety check
+    await page.waitForTimeout(600);
+    
+    await expect(input).toHaveClass(/content-flagged/);
+  });
+});
+```
+
+### Accessibility Testing with Playwright
+
+```typescript
+test('should have no accessibility violations', async ({ page }) => {
+  await page.goto('/');
+  
+  // Check for missing ARIA labels on buttons
+  const issues = await page.evaluate(() => {
+    const buttons = document.querySelectorAll('button');
+    return [...buttons].filter(b => 
+      !b.hasAttribute('aria-label') && 
+      !b.textContent?.trim()
+    ).length;
+  });
+  
+  expect(issues).toBe(0);
+});
+```
+
+---
+
+## Roadmap Maintenance
+
+### Updating the Roadmap
+
+The project roadmap is maintained in the knowledge base. When completing features:
+
+1. **Mark completed items** with ✅
+2. **Add new planned features** as they're identified
+3. **Update percentages** for phase completion
+4. **Document blockers** if any
+
+### Current Roadmap Status
+
+Track progress in these areas:
+
+| Area | Status | Priority |
+|------|--------|----------|
+| Core Chat | ✅ Complete | P0 |
+| Multi-model Support | ✅ Complete | P0 |
+| Streaming Responses | ✅ Complete | P0 |
+| File Attachments | ✅ Complete | P1 |
+| Voice Input | ✅ Complete | P1 |
+| Content Safety | ✅ Complete | P1 |
+| Internationalization | 🔄 In Progress | P1 |
+| Compare Mode | ✅ Complete | P2 |
+| Persistent History | 🔄 Planned | P2 |
+| Shareable Chats | 🔄 Planned | P3 |
+
+---
 
 ## Performance Optimizations
 
@@ -265,75 +445,7 @@ messageCount = computed(() => this.chatService.messages().length);
 })
 ```
 
-## Testing
-
-### Running Tests
-
-```bash
-# Frontend unit tests
-cd frontend && pnpm test
-
-# E2E tests with Playwright
-cd frontend && pnpm exec playwright test
-
-# Backend tests
-cd backend && uv run pytest
-```
-
-### Accessibility Testing
-
-```javascript
-// In Playwright test
-test('accessibility audit', async ({ page }) => {
-  await page.goto('/');
-  
-  // Check for missing ARIA labels
-  const issues = await page.evaluate(() => {
-    const buttons = document.querySelectorAll('button');
-    return [...buttons].filter(b => 
-      !b.hasAttribute('aria-label') && 
-      !b.textContent?.trim()
-    ).length;
-  });
-  
-  expect(issues).toBe(0);
-});
-```
-
-## Common Patterns
-
-### 1. Tooltip + ARIA Label Combo
-
-```html
-<button mat-icon-button 
-        aria-label="Add files"
-        matTooltip="Add files">
-  <mat-icon>add</mat-icon>
-</button>
-```
-
-### 2. Conditional Disabled State
-
-```html
-<button [disabled]="!canSend()"
-        [attr.aria-disabled]="!canSend()">
-  Send
-</button>
-```
-
-### 3. Focus Management
-
-```typescript
-ngAfterViewInit() {
-  // Auto-focus chat input
-  this.chatTextarea.nativeElement.focus();
-}
-
-sendMessage() {
-  // Restore focus after sending
-  this.chatTextarea.nativeElement.focus();
-}
-```
+---
 
 ## Troubleshooting
 
@@ -367,8 +479,28 @@ Ensure chevron is on the right:
 }
 ```
 
+### i18n Translation Not Loading
+
+1. Check translation file exists: `src/assets/i18n/{lang}.json`
+2. Verify JSON syntax is valid
+3. Check network tab for 404 errors
+4. Ensure `TranslateModule` is imported in component
+
+---
+
 ## Git Commit Guidelines
 
-- Use conventional commits: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`
-- Scope by area: `feat(chat):`, `fix(a11y):`, `docs(i18n):`
+- Use conventional commits: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`
+- Scope by area: `feat(chat):`, `fix(a11y):`, `docs(i18n):`, `test(safety):`
 - Keep messages concise but descriptive
+- Reference issues when applicable: `fix(chat): resolve streaming bug (#123)`
+
+### Examples
+
+```
+feat(i18n): add Japanese translation
+fix(a11y): add missing aria-labels to toolbar buttons
+test(safety): add unit tests for toxicity detection
+docs: update GEMINI.md with testing guidelines
+refactor(chat): debounce content safety checks
+```

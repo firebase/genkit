@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit చాట్",
+        "newChat": "కొత్త చాట్",
+        "version": "ప్రివ్యూ"
+    },
+    "nav": {
+        "chat": "చాట్",
+        "compare": "పోల్చండి",
+        "settings": "సెట్టింగ్‌లు",
+        "demoMode": "డెమో మోడ్"
+    },
+    "chat": {
+        "placeholder": "Genkit Chat ని అడగండి",
+        "sendMessage": "సందేశం పంపండి",
+        "voiceInput": "వాయిస్ ఇన్‌పుట్",
+        "stopRecording": "రికార్డింగ్ ఆపండి",
+        "addFiles": "ఫైల్‌లు జోడించండి",
+        "uploadFiles": "ఫైల్‌లు అప్‌లోడ్ చేయండి",
+        "googleDrive": "Google Drive",
+        "camera": "కెమెరా",
+        "removeFile": "తొలగించు",
+        "disclaimer": "Genkit Chat తప్పు సమాచారం చూపించవచ్చు. దయచేసి సమాధానాలను ధృవీకరించండి.",
+        "greeting": "నమస్కారం",
+        "greetingSubtitle": "ఈ రోజు నేను మీకు ఎలా సహాయం చేయగలను?"
+    },
+    "toolbar": {
+        "tools": "టూల్స్",
+        "stream": "స్ట్రీమ్",
+        "markdown": "MD",
+        "safe": "సురక్షితం"
+    },
+    "model": {
+        "selectModel": "మోడల్ ఎంచుకోండి",
+        "searchModels": "మోడల్స్ శోధించండి...",
+        "noModelsFound": "మోడల్స్ కనుగొనబడలేదు",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "ఇతరాలు"
+        }
+    },
+    "quickActions": {
+        "createImage": "చిత్రం సృష్టించండి",
+        "writeAnything": "ఏదైనా రాయండి",
+        "helpMeLearn": "నేర్చుకోవడంలో సహాయం చేయండి",
+        "createVideo": "వీడియో సృష్టించండి",
+        "stayOrganized": "వ్యవస్థీకృతంగా ఉండండి"
+    },
+    "theme": {
+        "label": "థీమ్",
+        "system": "సిస్టమ్",
+        "light": "లైట్",
+        "dark": "డార్క్"
+    },
+    "language": {
+        "label": "భాష",
+        "select": "భాష ఎంచుకోండి"
+    },
+    "help": {
+        "label": "సహాయం మరియు వనరులు",
+        "documentation": "డాక్యుమెంటేషన్",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "సైన్ ఇన్",
+        "signOut": "సైన్ అవుట్",
+        "account": "ఖాతా",
+        "connectDrive": "Google Drive కనెక్ట్ చేయండి"
+    },
+    "safety": {
+        "flagged": "కంటెంట్ ఫ్లాగ్ చేయబడింది",
+        "warning": "ఈ కంటెంట్ హానికరం కావచ్చు"
+    },
+    "errors": {
+        "fileTooLarge": "ఫైల్ \"{name}\" చాలా పెద్దది (గరిష్ట {size})",
+        "maxAttachments": "గరిష్టంగా {count} అటాచ్‌మెంట్‌లు అనుమతించబడ్డాయి",
+        "invalidFileType": "ఫైల్ రకం మద్దతు లేదు"
+    }
+}

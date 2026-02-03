@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit चैट",
+        "newChat": "नई चैट",
+        "version": "पूर्वावलोकन"
+    },
+    "nav": {
+        "chat": "चैट",
+        "compare": "तुलना करें",
+        "settings": "सेटिंग्स",
+        "demoMode": "डेमो मोड"
+    },
+    "chat": {
+        "placeholder": "Genkit Chat से पूछें",
+        "sendMessage": "संदेश भेजें",
+        "voiceInput": "आवाज़ इनपुट",
+        "stopRecording": "रिकॉर्डिंग रोकें",
+        "addFiles": "फ़ाइलें जोड़ें",
+        "uploadFiles": "फ़ाइलें अपलोड करें",
+        "googleDrive": "Google Drive",
+        "camera": "कैमरा",
+        "removeFile": "हटाएं",
+        "disclaimer": "Genkit Chat गलत जानकारी दिखा सकता है। कृपया इसके जवाबों की जांच करें।",
+        "greeting": "नमस्ते",
+        "greetingSubtitle": "आज मैं आपकी कैसे मदद कर सकता हूं?"
+    },
+    "toolbar": {
+        "tools": "टूल्स",
+        "stream": "स्ट्रीम",
+        "markdown": "MD",
+        "safe": "सुरक्षित"
+    },
+    "model": {
+        "selectModel": "मॉडल चुनें",
+        "searchModels": "मॉडल खोजें...",
+        "noModelsFound": "कोई मॉडल नहीं मिला",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "अन्य"
+        }
+    },
+    "quickActions": {
+        "createImage": "छवि बनाएं",
+        "writeAnything": "कुछ भी लिखें",
+        "helpMeLearn": "मुझे सीखने में मदद करें",
+        "createVideo": "वीडियो बनाएं",
+        "stayOrganized": "व्यवस्थित रहें"
+    },
+    "theme": {
+        "label": "थीम",
+        "system": "सिस्टम",
+        "light": "लाइट",
+        "dark": "डार्क"
+    },
+    "language": {
+        "label": "भाषा",
+        "select": "भाषा चुनें"
+    },
+    "help": {
+        "label": "सहायता और संसाधन",
+        "documentation": "दस्तावेज़ीकरण",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "साइन इन करें",
+        "signOut": "साइन आउट करें",
+        "account": "खाता",
+        "connectDrive": "Google Drive कनेक्ट करें"
+    },
+    "safety": {
+        "flagged": "सामग्री फ़्लैग की गई",
+        "warning": "यह सामग्री हानिकारक हो सकती है"
+    },
+    "errors": {
+        "fileTooLarge": "फ़ाइल \"{name}\" बहुत बड़ी है (अधिकतम {size})",
+        "maxAttachments": "अधिकतम {count} अटैचमेंट की अनुमति है",
+        "invalidFileType": "फ़ाइल प्रकार समर्थित नहीं है"
+    }
+}

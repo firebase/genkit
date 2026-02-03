@@ -1,0 +1,82 @@
+{
+    "app": {
+        "title": "Genkit شات",
+        "newChat": "محادثة جديدة",
+        "version": "معاينة"
+    },
+    "nav": {
+        "chat": "الدردشة",
+        "compare": "المقارنة",
+        "settings": "الإعدادات",
+        "demoMode": "وضع العرض"
+    },
+    "chat": {
+        "placeholder": "اسأل Genkit Chat",
+        "sendMessage": "إرسال الرسالة",
+        "voiceInput": "الإدخال الصوتي",
+        "stopRecording": "إيقاف التسجيل",
+        "addFiles": "إضافة ملفات",
+        "uploadFiles": "تحميل الملفات",
+        "googleDrive": "Google Drive",
+        "camera": "الكاميرا",
+        "removeFile": "إزالة",
+        "disclaimer": "قد يعرض Genkit Chat معلومات غير دقيقة. تحقق من الردود.",
+        "greeting": "مرحباً",
+        "greetingSubtitle": "كيف يمكنني مساعدتك اليوم؟"
+    },
+    "toolbar": {
+        "tools": "الأدوات",
+        "stream": "البث",
+        "markdown": "MD",
+        "safe": "آمن"
+    },
+    "model": {
+        "selectModel": "اختر النموذج",
+        "searchModels": "البحث عن النماذج...",
+        "noModelsFound": "لم يتم العثور على نماذج",
+        "categories": {
+            "gemini": "Gemini",
+            "claude": "Claude",
+            "openai": "OpenAI",
+            "ollama": "Ollama",
+            "other": "أخرى"
+        }
+    },
+    "quickActions": {
+        "createImage": "إنشاء صورة",
+        "writeAnything": "اكتب أي شيء",
+        "helpMeLearn": "ساعدني في التعلم",
+        "createVideo": "إنشاء فيديو",
+        "stayOrganized": "البقاء منظماً"
+    },
+    "theme": {
+        "label": "المظهر",
+        "system": "النظام",
+        "light": "فاتح",
+        "dark": "داكن"
+    },
+    "language": {
+        "label": "اللغة",
+        "select": "اختر اللغة"
+    },
+    "help": {
+        "label": "المساعدة والموارد",
+        "documentation": "التوثيق",
+        "github": "GitHub"
+    },
+    "auth": {
+        "signIn": "تسجيل الدخول",
+        "signOut": "تسجيل الخروج",
+        "account": "الحساب",
+        "connectDrive": "ربط Google Drive"
+    },
+    "safety": {
+        "flagged": "تم الإبلاغ عن المحتوى",
+        "warning": "قد يكون هذا المحتوى ضاراً"
+    },
+    "errors": {
+        "fileTooLarge": "الملف \"{name}\" كبير جداً (الحد الأقصى {size})",
+        "maxAttachments": "الحد الأقصى {count} مرفقات مسموح بها",
+        "invalidFileType": "نوع الملف غير مدعوم"
+    }
+}

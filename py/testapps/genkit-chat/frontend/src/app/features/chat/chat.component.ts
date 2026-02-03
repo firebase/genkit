@@ -358,37 +358,48 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                 <span>Tools</span>
               </button>
               
-              <!-- Streaming Toggle -->
+              <!-- Settings Dropdown -->
               <button mat-button 
-                      class="toolbar-btn streaming-btn"
-                      [class.active]="chatService.streamingMode() && modelsService.supportsStreaming()"
-                      [disabled]="!modelsService.supportsStreaming()"
-                      (click)="toggleStreaming()"
-                      [matTooltip]="getStreamingTooltip()">
-                <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
-                <span>Stream</span>
+                      class="toolbar-btn settings-btn"
+                      [matMenuTriggerFor]="settingsMenu"
+                      matTooltip="Response settings">
+                <mat-icon>settings</mat-icon>
+                <span>Settings</span>
+                <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
               </button>
-              
-              <!-- Markdown Toggle -->
-              <button mat-button 
-                      class="toolbar-btn markdown-btn"
-                      [class.active]="chatService.markdownMode()"
-                      (click)="chatService.toggleMarkdownMode()"
-                      [matTooltip]="chatService.markdownMode() ? 'Markdown ON - click to show raw' : 'Markdown OFF - click to render'">
-                <mat-icon>{{ chatService.markdownMode() ? 'code' : 'code_off' }}</mat-icon>
-                <span>MD</span>
-              </button>
-              
-              <!-- Content Safety Toggle -->
-              <button mat-button 
-                      class="toolbar-btn safety-btn"
-                      [class.active]="contentSafetyService.enabled()"
-                      [class.loading]="contentSafetyService.loading()"
-                      (click)="contentSafetyService.toggle()"
-                      [matTooltip]="getSafetyTooltip()">
-                <mat-icon>{{ contentSafetyService.enabled() ? 'shield' : 'shield_outlined' }}</mat-icon>
-                <span>Safe</span>
-              </button>
+              <mat-menu #settingsMenu="matMenu" class="settings-menu">
+                <!-- Streaming Toggle -->
+                <button mat-menu-item 
+                        [disabled]="!modelsService.supportsStreaming()"
+                        (click)="toggleStreaming(); $event.stopPropagation()">
+                  <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
+                  <span>Streaming responses</span>
+                  <mat-icon class="toggle-indicator" 
+                            [class.active]="chatService.streamingMode() && modelsService.supportsStreaming()">
+                    {{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </button>
+                
+                <!-- Markdown Toggle -->
+                <button mat-menu-item (click)="chatService.toggleMarkdownMode(); $event.stopPropagation()">
+                  <mat-icon>{{ chatService.markdownMode() ? 'code' : 'code_off' }}</mat-icon>
+                  <span>Render markdown</span>
+                  <mat-icon class="toggle-indicator" [class.active]="chatService.markdownMode()">
+                    {{ chatService.markdownMode() ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </button>
+                
+                <!-- Content Safety Toggle -->
+                <button mat-menu-item (click)="contentSafetyService.toggle(); $event.stopPropagation()">
+                  <mat-icon>{{ contentSafetyService.enabled() ? 'shield' : 'shield_outlined' }}</mat-icon>
+                  <span>Content safety</span>
+                  <mat-icon class="toggle-indicator" 
+                            [class.active]="contentSafetyService.enabled()"
+                            [class.loading]="contentSafetyService.loading()">
+                    {{ contentSafetyService.enabled() ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </button>
+              </mat-menu>
             </div>
             
             <div class="toolbar-right">
@@ -1745,12 +1756,11 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       }
     }
     
-    /* Markdown toggle - blue when ON */
-    .markdown-btn {
+    /* Settings dropdown button */
+    .settings-btn {
       font-size: 14px;
       padding: 4px 12px !important;
       min-width: auto;
-      transition: all var(--transition-fast);
       
       mat-icon {
         font-size: 18px;
@@ -1763,57 +1773,36 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
         font-weight: 500;
       }
       
-      &.active {
-        background: rgba(66, 133, 244, 0.15);
-        color: #4285f4;
-        
-        mat-icon {
-          color: #4285f4;
-        }
+      .dropdown-arrow {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-left: 2px;
+        margin-right: 0;
       }
     }
     
-    /* Safety toggle - green when ON, red when OFF */
-    .safety-btn {
-      font-size: 14px;
-      padding: 4px 12px !important;
-      min-width: auto;
-      transition: all var(--transition-fast);
-      
-      mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-        margin-right: 4px;
-      }
-      
-      span {
-        font-weight: 500;
-      }
-      
-      &.active {
-        background: rgba(52, 168, 83, 0.15);
-        color: #34a853;
+    /* Toggle indicators in settings menu */
+    ::ng-deep .settings-menu {
+      .mat-mdc-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         
-        mat-icon {
-          color: #34a853;
-        }
-      }
-      
-      &:not(.active) {
-        background: rgba(234, 67, 53, 0.1);
-        color: #ea4335;
-        
-        mat-icon {
-          color: #ea4335;
-        }
-      }
-      
-      &.loading {
-        opacity: 0.7;
-        
-        mat-icon {
-          animation: pulse 1.5s infinite;
+        .toggle-indicator {
+          margin-left: auto;
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+          color: var(--on-surface-muted);
+          
+          &.active {
+            color: #34a853;
+          }
+          
+          &.loading {
+            animation: pulse 1.5s infinite;
+          }
         }
       }
     }
