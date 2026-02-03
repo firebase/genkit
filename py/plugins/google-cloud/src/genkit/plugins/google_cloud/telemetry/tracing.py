@@ -382,10 +382,7 @@ class GcpTelemetry:
             # A better check would be to see if any processor matches our signature/name.
 
             # Simple deduplication: Check for function name in processors
-            if not any(
-                getattr(p, '__name__', '') == '_inject_trace_context' and getattr(p, '__self__', None) == self
-                for p in processors
-            ):
+            if not any(getattr(p, '__name__', '') == 'inject_trace_context' for p in processors):
 
                 def inject_trace_context(
                     logger: Any,  # noqa: ANN401
