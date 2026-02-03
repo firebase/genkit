@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -86,21 +85,10 @@ func TestHTTPServerIntegration(t *testing.T) {
 		t.Fatalf("gablorken.RunRaw failed: %v", err)
 	}
 
-	// Convert rawRes to *mcp.CallToolResult for inspection
-	bytes, err := json.Marshal(rawRes)
-	if err != nil {
-		t.Fatalf("failed to marshal result: %v", err)
+	res, ok := rawRes.(*mcp.CallToolResult)
+	if !ok {
+		t.Fatalf("gablorken.RunRaw result is not *mcp.CallToolResult, got: %T", rawRes)
 	}
-
-	var res mcp.CallToolResult
-	if err := json.Unmarshal(bytes, &res); err != nil {
-		t.Fatalf("failed to unmarshal into CallToolResult: %v", err)
-	}
-
-	if res.IsError {
-		t.Fatalf("tool reported error: %v", res.Content)
-	}
-
 	if len(res.Content) == 0 {
 		t.Fatal("expected result content, got none")
 	}

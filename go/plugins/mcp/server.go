@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -133,7 +133,10 @@ func (s *GenkitMCPServer) createToolHandler(t ai.Tool) mcp.ToolHandler {
 			if s, ok := res.(string); ok {
 				text = s
 			} else {
-				bytes, _ := json.Marshal(res)
+				bytes, err := json.Marshal(res)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal tool result: %w", err)
+				}
 				text = string(bytes)
 			}
 			return &mcp.CallToolResult{
@@ -282,4 +285,24 @@ func (s *GenkitMCPServer) HTTPHandler() (http.Handler, error) {
 	}, nil)
 
 	return sseHandler, nil
+}
+
+// ListRegisteredTools returns the names of all tools registered in the server's Genkit instance.
+func (s *GenkitMCPServer) ListRegisteredTools() []string {
+	tools := genkit.ListTools(s.genkit)
+	var names []string
+	for _, t := range tools {
+		names = append(names, t.Name())
+	}
+	return names
+}
+
+// ListRegisteredResources returns the names of all resources registered in the server's Genkit instance.
+func (s *GenkitMCPServer) ListRegisteredResources() []string {
+	resources := genkit.ListResources(s.genkit)
+	var names []string
+	for _, r := range resources {
+		names = append(names, r.Name())
+	}
+	return names
 }

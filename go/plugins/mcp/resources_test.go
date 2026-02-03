@@ -122,7 +122,4 @@ func TestToGenkitResource(t *testing.T) {
 	if got := res.Name(); got != wantName {
 		t.Errorf("res.Name() got = %q, want %q", got, wantName)
 	}
-
-	// We can't easily check URI/Description without exposing internal fields of ai.Resource implementation
-	// But we can check that it doesn't crash and returns a valid object.
 }

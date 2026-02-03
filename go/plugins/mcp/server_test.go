@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ func TestToMCPTool(t *testing.T) {
 	g := genkit.Init(ctx)
 	server := &GenkitMCPServer{genkit: g}
 
-	// Use genkit.DefineTool to create a real tool
 	genkitTool := genkit.DefineTool(g, "gablorken", "calculates a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
@@ -52,12 +51,9 @@ func TestToMCPTool(t *testing.T) {
 }
 
 func TestNewMCPServer(t *testing.T) {
-	ctx := context.Background()
-	// Basic check that constructor sets up version
 	s := NewMCPServer(nil, MCPServerOptions{Name: "test-server"})
 
 	if got := s.options.Version; got != "1.0.0" {
 		t.Errorf("default version got = %q, want %q", got, "1.0.0")
 	}
-	_ = ctx
 }
