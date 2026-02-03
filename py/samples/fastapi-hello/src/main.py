@@ -1,7 +1,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""BugBot: AI Code Reviewer.
+r"""BugBot: AI Code Reviewer.
 
     genkit start -- uv run src/main.py
     curl localhost:8080/review -d '{"code": "query = f\"SELECT * FROM users WHERE id={user_input}\""}'
@@ -10,22 +10,18 @@ If something looks wrong, check localhost:4000 to see what the model actually re
 """
 
 import asyncio
-import os
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-import uvicorn  # ty: ignore[unresolved-import]
-from dotenv import load_dotenv  # ty: ignore[unresolved-import]
-from fastapi import FastAPI  # ty: ignore[unresolved-import]
+import uvicorn
+from dotenv import load_dotenv
+from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from genkit import Genkit, Input, Output
-from genkit.ai._runtime import RuntimeManager
-from genkit.ai._server import ServerSpec
-from genkit.core.reflection import create_reflection_asgi_app
-from genkit.plugins.google_genai import GoogleAI  # pyright: ignore[reportMissingImports,reportUnknownVariableType]
+from genkit.ai import FlowWrapper
+from genkit.plugins.fastapi import genkit_fastapi_handler, genkit_lifespan
+from genkit.plugins.google_genai import GoogleAI
 
 load_dotenv()
 
@@ -35,57 +31,8 @@ ai = Genkit(
     prompt_dir=Path(__file__).parent.parent / 'prompts',
 )
 
-
-# =============================================================================
-# Reflection Server for Dev UI (only in dev mode)
-# =============================================================================
-
-
-def _find_free_port(start: int = 3100, end: int = 3999) -> int:
-    """Find a free port in the given range."""
-    import socket
-
-    for port in range(start, end):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('127.0.0.1', port))
-                return port
-        except OSError:
-            continue
-    raise RuntimeError(f'No free port found in range {start}-{end}')
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Start reflection server for Dev UI integration."""
-    reflection_server = None
-    runtime_manager = None
-
-    # Only start reflection server in dev mode
-    if os.environ.get('GENKIT_ENV') == 'dev':
-        port = _find_free_port()
-        server_spec = ServerSpec(scheme='http', host='127.0.0.1', port=port)
-
-        # Create and start reflection server
-        reflection_app = create_reflection_asgi_app(registry=ai.registry)
-        config = uvicorn.Config(reflection_app, host='127.0.0.1', port=port, log_level='warning')
-        reflection_server = uvicorn.Server(config)
-
-        # Register runtime with Dev UI using RuntimeManager
-        runtime_manager = RuntimeManager(server_spec)
-        await runtime_manager.__aenter__()
-
-        # Start reflection server in background
-        asyncio.create_task(reflection_server.serve())
-        print(f'Genkit reflection server running at {server_spec.url}')
-
-    yield
-
-    # Cleanup
-    if reflection_server:
-        reflection_server.should_exit = True
-    if runtime_manager:
-        await runtime_manager.__aexit__(None, None, None)
+# Dev UI lifespan - registers with Genkit Dev UI when GENKIT_ENV=dev
+lifespan = genkit_lifespan(ai)
 
 
 # =============================================================================
@@ -206,5 +153,25 @@ async def review_diff_endpoint(diff: str, context: str = '') -> Analysis:
     return await review_diff(DiffInput(diff=diff, context=context))
 
 
+# =============================================================================
+# Flow Endpoints (using genkit_fastapi_handler)
+# These expose flows directly with {"data": ...} format
+# =============================================================================
+
+
+@app.post('/flow/review', response_model=None)
+@genkit_fastapi_handler(ai)
+async def flow_review() -> FlowWrapper:
+    """Expose review_code flow directly via {"data": {"code": "...", "language": "..."}}."""
+    return review_code
+
+
+@app.post('/flow/security', response_model=None)
+@genkit_fastapi_handler(ai)
+async def flow_security() -> FlowWrapper:
+    """Expose analyze_security flow directly."""
+    return analyze_security
+
+
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8080)
+    uvicorn.run(app, host='0.0.0.0', port=8080)  # noqa: S104
