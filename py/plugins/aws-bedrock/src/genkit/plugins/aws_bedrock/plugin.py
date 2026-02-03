@@ -366,7 +366,7 @@ class AWSBedrock(Plugin):
             fn=model.generate,
             metadata=model_action_metadata(
                 name=name,
-                info=model_info.supports.model_dump() if model_info.supports else {},
+                info={'supports': model_info.supports.model_dump(by_alias=True)} if model_info.supports else {},
                 config_schema=config_schema,
             ).metadata,
         )
@@ -475,7 +475,7 @@ class AWSBedrock(Plugin):
             actions.append(
                 model_action_metadata(
                     name=bedrock_name(model_id),
-                    info=model_info.supports.model_dump() if model_info.supports else {},
+                    info={'supports': model_info.supports.model_dump(by_alias=True)} if model_info.supports else {},
                     config_schema=config_schema,
                 )
             )

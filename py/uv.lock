@@ -8293,6 +8293,7 @@ version = "0.1.0"
 source = { editable = "samples/xai-hello" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-xai" },
     { name = "pydantic" },
     { name = "rich" },
@@ -8308,6 +8309,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-xai", editable = "plugins/xai" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=13.0.0" },

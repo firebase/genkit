@@ -38,7 +38,7 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.types import Embedding, EmbedRequest, EmbedResponse
+from genkit.types import Embedding, EmbedRequest, EmbedResponse, Supports
 
 
 def open_ai_name(name: str) -> str:
@@ -110,14 +110,18 @@ class OpenAI(Plugin):
             the model's capabilities (e.g., tools, streaming).
         """
         if model_supported := SUPPORTED_OPENAI_MODELS.get(name):
-            supports = model_supported.supports.model_dump(exclude_none=True) if model_supported.supports else {}
+            supports = (
+                model_supported.supports.model_dump(by_alias=True, exclude_none=True)
+                if model_supported.supports
+                else {}
+            )
             return {
                 'label': model_supported.label,
                 'supports': supports,
             }
 
         model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(name, get_default_openai_model_info(name))
-        supports = model_info.supports.model_dump(exclude_none=True) if model_info.supports else {}
+        supports = model_info.supports.model_dump(by_alias=True, exclude_none=True) if model_info.supports else {}
         return {
             'label': model_info.label,
             'supports': supports,
@@ -269,9 +273,11 @@ class OpenAI(Plugin):
                         config_schema=GenerationCommonConfig,
                         info={
                             'label': f'OpenAI - {name}',
-                            'multiturn': True,
-                            'system_role': True,
-                            'tools': False,
+                            'supports': Supports(
+                                multiturn=True,
+                                system_role=True,
+                                tools=False,
+                            ).model_dump(by_alias=True, exclude_none=True),
                         },
                     )
                 )
