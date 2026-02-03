@@ -216,6 +216,72 @@
       async with aiofiles.open(path, encoding='utf-8') as f:
           return await f.read()
   ```
+
+  **CRITICAL: Per-Event-Loop HTTP Client Caching**:
+
+  When making multiple HTTP requests in async code, **do NOT create a new
+  `httpx.AsyncClient` for every request**. This has two problems:
+
+  1. **Performance overhead**: Each new client requires connection setup, SSL
+     handshake, etc.
+  2. **Event loop binding**: `httpx.AsyncClient` instances are bound to the
+     event loop they were created in. Reusing a client across different event
+     loops causes "bound to different event loop" errors.
+
+  **Use the shared `get_cached_client()` utility** from `genkit.core.http_client`:
+
+  ```python
+  from genkit.core.http_client import get_cached_client
+
+  # WRONG - creates new client per request (connection overhead)
+  async def call_api(url: str) -> dict:
+      async with httpx.AsyncClient() as client:
+          response = await client.get(url)
+          return response.json()
+
+  # WRONG - stores client at init time (event loop binding issues)
+  class MyPlugin:
+      def __init__(self):
+          self._client = httpx.AsyncClient()  # ❌ Bound to current event loop!
+
+      async def call_api(self, url: str) -> dict:
+          response = await self._client.get(url)  # May fail in different loop
+          return response.json()
+
+  # CORRECT - uses per-event-loop cached client
+  async def call_api(url: str, token: str) -> dict:
+      # For APIs with expiring tokens, pass auth headers per-request
+      client = get_cached_client(
+          cache_key='my-api',
+          timeout=60.0,
+      )
+      response = await client.get(url, headers={'Authorization': f'Bearer {token}'})
+      return response.json()
+
+  # CORRECT - for static auth (API keys that don't expire)
+  async def call_api_static_auth(url: str) -> dict:
+      client = get_cached_client(
+          cache_key='my-plugin/api',
+          headers={
+              'Authorization': f'Bearer {API_KEY}',
+              'Content-Type': 'application/json',
+          },
+          timeout=60.0,
+      )
+      response = await client.get(url)
+      return response.json()
+  ```
+
+  **Key patterns**:
+
+  * **Use unique `cache_key`** for each distinct client configuration (e.g.,
+    `'vertex-ai-reranker'`, `'cf-ai/account123'`)
+  * **Pass expiring auth per-request**: For Google Cloud, Azure, etc. where
+    tokens expire, pass auth headers in the request, not in `get_cached_client()`
+  * **Static auth in client**: For Cloudflare, OpenAI, etc. where API keys
+    don't expire, include auth headers in `get_cached_client()`
+  * **WeakKeyDictionary cleanup**: The cache automatically cleans up clients
+    when their event loop is garbage collected
 * **Error Suppression Policy**: Avoid ignoring warnings from the type checker
   (`# type: ignore`, `# pyrefly: ignore`, etc.) or linter (`# noqa`) unless there is
   a compelling, documented reason.
@@ -1880,3 +1946,82 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format:
 ### Security
 - Security fixes
 ```
+
+### Session Learnings (2026-02-03): HTTP Client Event Loop Binding
+
+#### The Problem: `httpx.AsyncClient` Event Loop Binding
+
+`httpx.AsyncClient` instances are **bound to the event loop** they were created in.
+This causes issues in production when:
+
+1. **Different event loops**: The client was created in one event loop but is used
+   in another (common in test frameworks, async workers, or web servers)
+2. **Closed event loops**: The original event loop was closed but the client is
+   still being used
+
+**Error message**: `RuntimeError: Event loop is closed` or
+`RuntimeError: cannot schedule new futures after interpreter shutdown`
+
+#### The Solution: Per-Event-Loop Client Caching
+
+Created `genkit.core.http_client` module with a shared utility:
+
+```python
+from genkit.core.http_client import get_cached_client
+
+# Get or create cached client for current event loop
+client = get_cached_client(
+    cache_key='my-plugin',
+    headers={'Authorization': 'Bearer token'},
+    timeout=60.0,
+)
+```
+
+**Key design decisions**:
+
+| Decision | Rationale |
+|----------|-----------|
+| **WeakKeyDictionary** | Automatically cleanup when event loop is GC'd |
+| **Two-level cache** | `loop -> cache_key -> client` allows multiple configs per loop |
+| **Per-request auth** | For expiring tokens (GCP), pass headers in request not client |
+| **Static auth in client** | For static API keys (Cloudflare), include in cached client |
+
+#### Plugins Updated
+
+| Plugin | Change |
+|--------|--------|
+| **cf-ai** | Refactored `_get_client()` to use `get_cached_client()` |
+| **google-genai/rerankers** | Changed from `async with httpx.AsyncClient()` to cached client |
+| **google-genai/evaluators** | Changed from `async with httpx.AsyncClient()` to cached client |
+
+#### When to Use Which Pattern
+
+| Pattern | Use When |
+|---------|----------|
+| `async with httpx.AsyncClient()` | One-off requests, infrequent calls |
+| `get_cached_client()` | Frequent requests, performance-critical paths |
+| Client stored at init | **Never** - causes event loop binding issues |
+
+#### Testing Cached Clients
+
+When mocking HTTP clients in tests, mock `get_cached_client` instead of
+`httpx.AsyncClient`:
+
+```python
+from unittest.mock import AsyncMock, patch
+
+@patch('my_module.get_cached_client')
+async def test_api_call(mock_get_client):
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_client.is_closed = False
+    mock_get_client.return_value = mock_client
+
+    result = await my_api_call()
+
+    mock_client.post.assert_called_once()
+```
+
+#### Related Issue
+
+- GitHub Issue: [#4420](https://github.com/firebase/genkit/issues/4420)
