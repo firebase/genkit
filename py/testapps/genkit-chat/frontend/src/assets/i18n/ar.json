@@ -17,12 +17,19 @@
         "stopRecording": "إيقاف التسجيل",
         "addFiles": "إضافة ملفات",
         "uploadFiles": "تحميل الملفات",
-        "googleDrive": "Google Drive",
+        "googleDrive": "إضافة من Drive",
         "camera": "الكاميرا",
         "removeFile": "إزالة",
         "disclaimer": "قد يعرض Genkit Chat معلومات غير دقيقة. تحقق من الردود.",
         "greeting": "مرحباً",
         "greetingSubtitle": "كيف يمكنني مساعدتك اليوم؟"
+    },
+    "attach": {
+        "photos": "صور",
+        "audio": "صوت",
+        "video": "فيديو",
+        "pdf": "PDF",
+        "code": "استيراد الكود"
     },
     "toolbar": {
         "settings": "الإعدادات",
@@ -32,6 +39,9 @@
         "safe": "أمان المحتوى",
         "enabled": "مُفعّل",
         "disabled": "معطّل"
+    },
+    "settings": {
+        "clearPreferences": "مسح التفضيلات"
     },
     "model": {
         "selectModel": "اختر النموذج",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "اللغة",
-        "select": "اختر اللغة"
+        "select": "اختر اللغة",
+        "searchLanguages": "البحث عن اللغات...",
+        "noLanguagesFound": "لم يتم العثور على لغات"
     },
     "help": {
         "label": "المساعدة والموارد",

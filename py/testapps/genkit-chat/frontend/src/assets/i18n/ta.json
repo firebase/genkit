@@ -17,12 +17,19 @@
         "stopRecording": "பதிவை நிறுத்து",
         "addFiles": "கோப்புகளைச் சேர்க்கவும்",
         "uploadFiles": "கோப்புகளைப் பதிவேற்றவும்",
-        "googleDrive": "Google Drive",
+        "googleDrive": "Drive இலிருந்து சேர்க்கவும்",
         "camera": "கேமரா",
         "removeFile": "அகற்று",
         "disclaimer": "Genkit Chat தவறான தகவல்களைக் காட்டலாம். பதில்களை சரிபார்க்கவும்.",
         "greeting": "வணக்கம்",
         "greetingSubtitle": "இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்?"
+    },
+    "attach": {
+        "photos": "புகைப்படங்கள்",
+        "audio": "ஆடியோ",
+        "video": "வீடியோ",
+        "pdf": "PDF",
+        "code": "குறியீடு இறக்குமதி"
     },
     "toolbar": {
         "settings": "அமைப்புகள்",
@@ -32,6 +39,9 @@
         "safe": "உள்ளடக்க பாதுகாப்பு",
         "enabled": "இயக்கப்பட்டது",
         "disabled": "முடக்கப்பட்டது"
+    },
+    "settings": {
+        "clearPreferences": "விருப்பங்களை அழிக்கவும்"
     },
     "model": {
         "selectModel": "மாடலைத் தேர்ந்தெடுக்கவும்",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "மொழி",
-        "select": "மொழியைத் தேர்ந்தெடுக்கவும்"
+        "select": "மொழியைத் தேர்ந்தெடுக்கவும்",
+        "searchLanguages": "மொழிகளைத் தேடுங்கள்...",
+        "noLanguagesFound": "மொழிகள் கிடைக்கவில்லை"
     },
     "help": {
         "label": "உதவி மற்றும் ஆதாரங்கள்",

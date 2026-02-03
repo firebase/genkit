@@ -59,25 +59,24 @@ import { LanguageService } from './core/services/language.service';
           </div>
 
           <!-- New Chat Button -->
-          <button mat-stroked-button class="new-chat-btn" routerLink="/" (click)="startNewChat()" matRipple [matTooltip]="sidenavOpened() ? '' : 'New chat'" matTooltipPosition="right">
+          <button mat-stroked-button class="new-chat-btn" routerLink="/" (click)="startNewChat()" matRipple [matTooltip]="sidenavOpened() ? '' : ('app.newChat' | translate)" matTooltipPosition="right">
             <mat-icon>add</mat-icon>
             @if (sidenavOpened()) {
-              <span>New chat</span>
+              <span>{{ 'app.newChat' | translate }}</span>
             }
           </button>
 
-          <!-- Main Navigation -->
           <mat-nav-list class="main-nav">
-            <a mat-list-item routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" [matTooltip]="sidenavOpened() ? '' : 'Chat'" matTooltipPosition="right">
+            <a mat-list-item routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" [matTooltip]="sidenavOpened() ? '' : ('nav.chat' | translate)" matTooltipPosition="right">
               <mat-icon matListItemIcon>chat_bubble_outline</mat-icon>
               @if (sidenavOpened()) {
-                <span matListItemTitle>Chat</span>
+                <span matListItemTitle>{{ 'nav.chat' | translate }}</span>
               }
             </a>
-            <a mat-list-item routerLink="/compare" routerLinkActive="active" [matTooltip]="sidenavOpened() ? '' : 'Compare'" matTooltipPosition="right">
+            <a mat-list-item routerLink="/compare" routerLinkActive="active" [matTooltip]="sidenavOpened() ? '' : ('nav.compare' | translate)" matTooltipPosition="right">
               <mat-icon matListItemIcon>compare_arrows</mat-icon>
               @if (sidenavOpened()) {
-                <span matListItemTitle>Compare</span>
+                <span matListItemTitle>{{ 'nav.compare' | translate }}</span>
               }
             </a>
           </mat-nav-list>
@@ -89,18 +88,18 @@ import { LanguageService } from './core/services/language.service';
           <mat-nav-list class="footer-nav">
             <!-- Demo User Toggle -->
             <button mat-list-item (click)="authService.toggleDemoMode()" 
-                    [matTooltip]="sidenavOpened() ? '' : (authService.demoMode() ? 'Demo User ON' : 'Demo User OFF')" 
+                    [matTooltip]="sidenavOpened() ? '' : ('nav.demoUser' | translate)" 
                     matTooltipPosition="right"
                     [class.demo-active]="authService.demoMode()">
               <mat-icon matListItemIcon>{{ authService.demoMode() ? 'toggle_on' : 'toggle_off' }}</mat-icon>
               @if (sidenavOpened()) {
-                <span matListItemTitle>Demo User</span>
+                <span matListItemTitle>{{ 'nav.demoUser' | translate }}</span>
               }
             </button>
-            <a mat-list-item routerLink="/settings" routerLinkActive="active" [matTooltip]="sidenavOpened() ? '' : 'Settings'" matTooltipPosition="right">
+            <a mat-list-item routerLink="/settings" routerLinkActive="active" [matTooltip]="sidenavOpened() ? '' : ('nav.settings' | translate)" matTooltipPosition="right">
               <mat-icon matListItemIcon>settings</mat-icon>
               @if (sidenavOpened()) {
-                <span matListItemTitle>Settings</span>
+                <span matListItemTitle>{{ 'nav.settings' | translate }}</span>
               }
             </a>
             <button mat-list-item [matMenuTriggerFor]="themeMenu" [matTooltip]="sidenavOpened() ? '' : themeService.getThemeLabel()" matTooltipPosition="right">
@@ -112,15 +111,15 @@ import { LanguageService } from './core/services/language.service';
             <mat-menu #themeMenu="matMenu">
               <button mat-menu-item (click)="themeService.setTheme('system')">
                 <mat-icon>brightness_auto</mat-icon>
-                <span>System</span>
+                <span>{{ 'theme.system' | translate }}</span>
               </button>
               <button mat-menu-item (click)="themeService.setTheme('light')">
                 <mat-icon>light_mode</mat-icon>
-                <span>Light</span>
+                <span>{{ 'theme.light' | translate }}</span>
               </button>
               <button mat-menu-item (click)="themeService.setTheme('dark')">
                 <mat-icon>dark_mode</mat-icon>
-                <span>Dark</span>
+                <span>{{ 'theme.dark' | translate }}</span>
               </button>
             </mat-menu>
             
@@ -137,7 +136,7 @@ import { LanguageService } from './core/services/language.service';
                 <mat-icon class="filter-icon">search</mat-icon>
                 <input type="text" 
                        class="lang-filter-input" 
-                       placeholder="Search languages..."
+                       [placeholder]="'language.searchLanguages' | translate"
                        [ngModel]="languageService.languageFilter()"
                        (ngModelChange)="languageService.languageFilter.set($event)"
                        (keydown)="$event.stopPropagation()">
@@ -150,22 +149,20 @@ import { LanguageService } from './core/services/language.service';
               <mat-divider></mat-divider>
               <button mat-menu-item (click)="languageService.setLanguagePreference('system')">
                 <mat-icon>{{ languageService.languagePreference() === 'system' ? 'check' : '' }}</mat-icon>
-                <span>System</span>
+                <span>{{ 'theme.system' | translate }}</span>
               </button>
               <mat-divider></mat-divider>
               <div class="lang-list-container">
                 @for (lang of languageService.filteredLanguages; track lang.code) {
                   <button mat-menu-item class="lang-menu-item" (click)="languageService.setLanguagePreference(lang.code)">
+                    <mat-icon class="check-icon" [class.visible]="languageService.languagePreference() === lang.code">check</mat-icon>
                     <span class="lang-flag">{{ lang.flag }}</span>
                     <span class="lang-native-name">{{ lang.nativeName }}</span>
                     <span class="lang-english-name">{{ lang.name }}</span>
-                    @if (languageService.languagePreference() === lang.code) {
-                      <mat-icon class="check-icon">check</mat-icon>
-                    }
                   </button>
                 }
                 @if (languageService.filteredLanguages.length === 0) {
-                  <div class="no-results">No languages found</div>
+                  <div class="no-results">{{ 'language.noLanguagesFound' | translate }}</div>
                 }
               </div>
             </mat-menu>
@@ -184,25 +181,25 @@ import { LanguageService } from './core/services/language.service';
           </div>
           
           <div class="top-bar-center">
-            <span class="app-title">Genkit Chat</span>
-            <span class="version-badge">Preview</span>
+            <span class="app-title">{{ 'app.title' | translate }}</span>
+            <span class="version-badge">{{ 'app.version' | translate }}</span>
           </div>
           
           <div class="top-bar-right">
             <button mat-icon-button 
                     [matMenuTriggerFor]="helpMenu" 
-                    aria-label="Help and resources"
-                    matTooltip="Help & resources">
+                    [attr.aria-label]="'help.label' | translate"
+                    [matTooltip]="'help.label' | translate">
               <mat-icon>help_outline</mat-icon>
             </button>
             <mat-menu #helpMenu="matMenu" xPosition="before">
               <a mat-menu-item href="https://firebase.google.com/docs/genkit" target="_blank">
                 <mat-icon>menu_book</mat-icon>
-                <span>Documentation</span>
+                <span>{{ 'help.documentation' | translate }}</span>
               </a>
               <a mat-menu-item href="https://github.com/firebase/genkit" target="_blank">
                 <mat-icon>code</mat-icon>
-                <span>GitHub</span>
+                <span>{{ 'help.github' | translate }}</span>
               </a>
               <mat-divider></mat-divider>
               <button mat-menu-item disabled>
@@ -213,7 +210,7 @@ import { LanguageService } from './core/services/language.service';
             
             <!-- Always show user profile / sign-in in header -->
             @if (authService.user()) {
-              <button mat-icon-button [matMenuTriggerFor]="userMenu" matTooltip="Account" class="profile-btn">
+              <button mat-icon-button [matMenuTriggerFor]="userMenu" [matTooltip]="'auth.account' | translate" class="profile-btn">
                 <div class="header-avatar">
                   @if (authService.user()!.picture) {
                     <img [src]="authService.user()!.picture" alt="Profile">
@@ -225,7 +222,7 @@ import { LanguageService } from './core/services/language.service';
             } @else {
               <button mat-flat-button color="primary" class="header-signin" (click)="authService.signIn()">
                 <mat-icon>login</mat-icon>
-                Sign in
+                {{ 'auth.signIn' | translate }}
               </button>
             }
           </div>
@@ -263,12 +260,12 @@ import { LanguageService } from './core/services/language.service';
           <mat-divider></mat-divider>
           <button mat-menu-item disabled>
             <mat-icon>cloud</mat-icon>
-            <span>Connect Google Drive</span>
+            <span>{{ 'auth.connectDrive' | translate }}</span>
           </button>
           <mat-divider></mat-divider>
           <button mat-menu-item (click)="authService.signOut()">
             <mat-icon>logout</mat-icon>
-            <span>Sign out</span>
+            <span>{{ 'auth.signOut' | translate }}</span>
           </button>
         </mat-menu>
 
@@ -863,7 +860,12 @@ import { LanguageService } from './core/services/language.service';
         width: 18px;
         height: 18px;
         flex-shrink: 0;
-        margin-left: 8px;
+        margin-right: 8px;
+        visibility: hidden;
+        
+        &.visible {
+          visibility: visible;
+        }
       }
     }
     

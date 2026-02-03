@@ -2,8 +2,8 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChang
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { provideTranslateService, TranslateLoader } from '@ngx-translate/core';
-import { TranslateHttpLoader, provideTranslateHttpLoader } from '@ngx-translate/http-loader';
+import { provideTranslateService } from '@ngx-translate/core';
+import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 
 import { routes } from './app.routes';
 
@@ -16,13 +16,9 @@ export const appConfig: ApplicationConfig = {
     provideAnimations(),
     provideTranslateService({
       defaultLanguage: 'en',
-      loader: {
-        provide: TranslateLoader,
-        useClass: TranslateHttpLoader,
-      }
     }),
     provideTranslateHttpLoader({
-      prefix: './assets/i18n/',
+      prefix: '/assets/i18n/',
       suffix: '.json',
     }),
   ],

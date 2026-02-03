@@ -17,12 +17,19 @@
         "stopRecording": "停止录音",
         "addFiles": "添加文件",
         "uploadFiles": "上传文件",
-        "googleDrive": "Google 云端硬盘",
+        "googleDrive": "从云端硬盘添加",
         "camera": "相机",
         "removeFile": "移除",
         "disclaimer": "Genkit Chat 可能显示不准确的信息。请仔细核实其回复。",
         "greeting": "你好",
         "greetingSubtitle": "今天我能帮您什么？"
+    },
+    "attach": {
+        "photos": "照片",
+        "audio": "音频",
+        "video": "视频",
+        "pdf": "PDF",
+        "code": "导入代码"
     },
     "toolbar": {
         "settings": "设置",
@@ -32,6 +39,9 @@
         "safe": "内容安全",
         "enabled": "已启用",
         "disabled": "已禁用"
+    },
+    "settings": {
+        "clearPreferences": "清除偏好设置"
     },
     "model": {
         "selectModel": "选择模型",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "语言",
-        "select": "选择语言"
+        "select": "选择语言",
+        "searchLanguages": "搜索语言...",
+        "noLanguagesFound": "未找到语言"
     },
     "help": {
         "label": "帮助与资源",

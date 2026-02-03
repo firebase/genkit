@@ -17,12 +17,19 @@
         "stopRecording": "రికార్డింగ్ ఆపండి",
         "addFiles": "ఫైల్‌లు జోడించండి",
         "uploadFiles": "ఫైల్‌లు అప్‌లోడ్ చేయండి",
-        "googleDrive": "Google Drive",
+        "googleDrive": "Drive నుండి జోడించు",
         "camera": "కెమెరా",
         "removeFile": "తొలగించు",
         "disclaimer": "Genkit Chat తప్పు సమాచారం చూపించవచ్చు. దయచేసి సమాధానాలను ధృవీకరించండి.",
         "greeting": "నమస్కారం",
         "greetingSubtitle": "ఈ రోజు నేను మీకు ఎలా సహాయం చేయగలను?"
+    },
+    "attach": {
+        "photos": "ఫోటోలు",
+        "audio": "ఆడియో",
+        "video": "వీడియో",
+        "pdf": "PDF",
+        "code": "కోడ్ దిగుమతి చేయండి"
     },
     "toolbar": {
         "settings": "సెట్టింగ్‌లు",
@@ -32,6 +39,9 @@
         "safe": "కంటెంట్ భద్రత",
         "enabled": "ఎనేబుల్ చేయబడింది",
         "disabled": "డిసేబుల్ చేయబడింది"
+    },
+    "settings": {
+        "clearPreferences": "ప్రాధాన్యతలను క్లియర్ చేయండి"
     },
     "model": {
         "selectModel": "మోడల్ ఎంచుకోండి",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "భాష",
-        "select": "భాష ఎంచుకోండి"
+        "select": "భాష ఎంచుకోండి",
+        "searchLanguages": "భాషలు శోధించండి...",
+        "noLanguagesFound": "భాషలు కనుగొనబడలేదు"
     },
     "help": {
         "label": "సహాయం మరియు వనరులు",

@@ -17,12 +17,19 @@
         "stopRecording": "Остановить запись",
         "addFiles": "Добавить файлы",
         "uploadFiles": "Загрузить файлы",
-        "googleDrive": "Google Диск",
+        "googleDrive": "Добавить с Диска",
         "camera": "Камера",
         "removeFile": "Удалить",
         "disclaimer": "Genkit Chat может выдавать неточную информацию. Проверяйте ответы.",
         "greeting": "Привет",
         "greetingSubtitle": "Чем могу помочь сегодня?"
+    },
+    "attach": {
+        "photos": "Фото",
+        "audio": "Аудио",
+        "video": "Видео",
+        "pdf": "PDF",
+        "code": "Импортировать код"
     },
     "toolbar": {
         "settings": "Настройки",
@@ -32,6 +39,9 @@
         "safe": "Безопасность контента",
         "enabled": "Включено",
         "disabled": "Отключено"
+    },
+    "settings": {
+        "clearPreferences": "Сбросить настройки"
     },
     "model": {
         "selectModel": "Выбрать модель",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "Язык",
-        "select": "Выбрать язык"
+        "select": "Выбрать язык",
+        "searchLanguages": "Поиск языков...",
+        "noLanguagesFound": "Языки не найдены"
     },
     "help": {
         "label": "Помощь и ресурсы",

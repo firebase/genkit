@@ -17,12 +17,19 @@
         "stopRecording": "Detener grabación",
         "addFiles": "Agregar archivos",
         "uploadFiles": "Subir archivos",
-        "googleDrive": "Google Drive",
+        "googleDrive": "Agregar desde Drive",
         "camera": "Cámara",
         "removeFile": "Eliminar",
         "disclaimer": "Genkit Chat puede mostrar información inexacta. Verifica sus respuestas.",
         "greeting": "Hola",
         "greetingSubtitle": "¿Cómo puedo ayudarte hoy?"
+    },
+    "attach": {
+        "photos": "Fotos",
+        "audio": "Audio",
+        "video": "Video",
+        "pdf": "PDF",
+        "code": "Importar código"
     },
     "toolbar": {
         "settings": "Configuración",
@@ -32,6 +39,9 @@
         "safe": "Seguridad de contenido",
         "enabled": "Activado",
         "disabled": "Desactivado"
+    },
+    "settings": {
+        "clearPreferences": "Borrar preferencias"
     },
     "model": {
         "selectModel": "Seleccionar modelo",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "Idioma",
-        "select": "Seleccionar idioma"
+        "select": "Seleccionar idioma",
+        "searchLanguages": "Buscar idiomas...",
+        "noLanguagesFound": "No se encontraron idiomas"
     },
     "help": {
         "label": "Ayuda y recursos",

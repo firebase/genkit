@@ -17,12 +17,19 @@
         "stopRecording": "রেকর্ডিং বন্ধ করুন",
         "addFiles": "ফাইল যোগ করুন",
         "uploadFiles": "ফাইল আপলোড করুন",
-        "googleDrive": "Google Drive",
+        "googleDrive": "Drive থেকে যোগ করুন",
         "camera": "ক্যামেরা",
         "removeFile": "সরান",
         "disclaimer": "Genkit Chat ভুল তথ্য দেখাতে পারে। দয়া করে উত্তরগুলো যাচাই করুন।",
         "greeting": "নমস্কার",
         "greetingSubtitle": "আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?"
+    },
+    "attach": {
+        "photos": "ছবি",
+        "audio": "অডিও",
+        "video": "ভিডিও",
+        "pdf": "PDF",
+        "code": "কোড আমদানি করুন"
     },
     "toolbar": {
         "settings": "সেটিংস",
@@ -32,6 +39,9 @@
         "safe": "বিষয়বস্তু নিরাপত্তা",
         "enabled": "সক্রিয়",
         "disabled": "নিষ্ক্রিয়"
+    },
+    "settings": {
+        "clearPreferences": "পছন্দগুলি মুছুন"
     },
     "model": {
         "selectModel": "মডেল নির্বাচন করুন",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "ভাষা",
-        "select": "ভাষা নির্বাচন করুন"
+        "select": "ভাষা নির্বাচন করুন",
+        "searchLanguages": "ভাষা খুঁজুন...",
+        "noLanguagesFound": "কোনো ভাষা পাওয়া যায়নি"
     },
     "help": {
         "label": "সাহায্য এবং সংস্থান",

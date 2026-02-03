@@ -17,12 +17,19 @@
         "stopRecording": "रेकॉर्डिंग थांबवा",
         "addFiles": "फाइल्स जोडा",
         "uploadFiles": "फाइल्स अपलोड करा",
-        "googleDrive": "Google Drive",
+        "googleDrive": "Drive वरून जोडा",
         "camera": "कॅमेरा",
         "removeFile": "काढून टाका",
         "disclaimer": "Genkit Chat चुकीची माहिती दाखवू शकते. कृपया उत्तरे तपासा.",
         "greeting": "नमस्कार",
         "greetingSubtitle": "आज मी तुम्हाला कशी मदत करू शकतो?"
+    },
+    "attach": {
+        "photos": "फोटो",
+        "audio": "ऑडिओ",
+        "video": "व्हिडिओ",
+        "pdf": "PDF",
+        "code": "कोड आयात करा"
     },
     "toolbar": {
         "settings": "सेटिंग्ज",
@@ -32,6 +39,9 @@
         "safe": "सामग्री सुरक्षा",
         "enabled": "सक्षम",
         "disabled": "अक्षम"
+    },
+    "settings": {
+        "clearPreferences": "प्राधान्ये साफ करा"
     },
     "model": {
         "selectModel": "मॉडेल निवडा",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "भाषा",
-        "select": "भाषा निवडा"
+        "select": "भाषा निवडा",
+        "searchLanguages": "भाषा शोधा...",
+        "noLanguagesFound": "कोणतीही भाषा सापडली नाही"
     },
     "help": {
         "label": "मदत आणि संसाधने",

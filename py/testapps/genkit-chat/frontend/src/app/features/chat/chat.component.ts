@@ -26,6 +26,7 @@ import { PreferencesService } from '../../core/services/preferences.service';
 import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/error-details-dialog.component';
 import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
+import { TranslateModule } from '@ngx-translate/core';
 
 
 @Component({
@@ -48,6 +49,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
     MatDividerModule,
     MatDialogModule,
     SafeMarkdownPipe,
+    TranslateModule,
   ],
   animations: [
     trigger('slideIn', [
@@ -188,7 +190,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                 [class.slide-in]="greetings[currentGreetingIndex()].anim === 'slide'">
               <span class="typewriter-text">{{ typewriterText() }}</span><span class="cursor" [class.visible]="showCursor()">|</span>
             </h1>
-            <p class="welcome-subtitle">How can I help you today?</p>
+            <p class="welcome-subtitle">{{ 'chat.greetingSubtitle' | translate }}</p>
           </div>
           
           <!-- Quick Action Chips (between greeting and chatbox) -->
@@ -264,12 +266,11 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
             </div>
           }
           
-          <!-- Text Area with content safety highlighting -->
           <textarea class="chat-input" 
                     [class.content-flagged]="contentFlagged()"
                     [(ngModel)]="userMessage" 
-                    placeholder="Ask Genkit Chat"
-                    aria-label="Chat message input"
+                    [placeholder]="'chat.placeholder' | translate"
+                    [attr.aria-label]="'chat.placeholder' | translate"
                     (keydown.enter)="onEnterKey($event)"
                     (focus)="inputFocused = true"
                     (blur)="inputFocused = false"
@@ -300,34 +301,34 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
               <mat-menu #attachMenu="matMenu" class="attach-menu">
                 <button mat-menu-item (click)="anyInput.click()">
                   <mat-icon>upload_file</mat-icon>
-                  <span>Upload files</span>
+                  <span>{{ 'chat.uploadFiles' | translate }}</span>
                 </button>
                 <button mat-menu-item (click)="openGoogleDrive()" 
                         [disabled]="authService.demoMode()"
-                        [matTooltip]="authService.demoMode() ? 'Not available for Demo User' : ''">
+                        [matTooltip]="authService.demoMode() ? ('nav.demoUser' | translate) : ''">
                   <mat-icon>add_to_drive</mat-icon>
-                  <span>Add from Drive</span>
+                  <span>{{ 'chat.googleDrive' | translate }}</span>
                 </button>
                 <button mat-menu-item (click)="imageInput.click()">
                   <mat-icon>image</mat-icon>
-                  <span>Photos</span>
+                  <span>{{ 'attach.photos' | translate }}</span>
                 </button>
                 <mat-divider></mat-divider>
                 <button mat-menu-item (click)="audioInput.click()">
                   <mat-icon>audio_file</mat-icon>
-                  <span>Audio</span>
+                  <span>{{ 'attach.audio' | translate }}</span>
                 </button>
                 <button mat-menu-item (click)="videoInput.click()">
                   <mat-icon>videocam</mat-icon>
-                  <span>Video</span>
+                  <span>{{ 'attach.video' | translate }}</span>
                 </button>
                 <button mat-menu-item (click)="pdfInput.click()">
                   <mat-icon>picture_as_pdf</mat-icon>
-                  <span>PDF</span>
+                  <span>{{ 'attach.pdf' | translate }}</span>
                 </button>
                 <button mat-menu-item (click)="textInput.click()">
                   <mat-icon>code</mat-icon>
-                  <span>Import code</span>
+                  <span>{{ 'attach.code' | translate }}</span>
                 </button>
               </mat-menu>
               
@@ -342,7 +343,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
               <!-- Tools Button -->
               <button mat-button class="toolbar-btn tools-btn">
                 <mat-icon>handyman</mat-icon>
-                <span>Tools</span>
+                <span>{{ 'toolbar.tools' | translate }}</span>
               </button>
               
             </div>
@@ -432,8 +433,8 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
               <button mat-icon-button 
                       class="toolbar-btn settings-btn"
                       [matMenuTriggerFor]="settingsMenu"
-                      aria-label="Response settings"
-                      matTooltip="Settings">
+                      [attr.aria-label]="'toolbar.settings' | translate"
+                      [matTooltip]="'toolbar.settings' | translate">
                 <mat-icon>tune</mat-icon>
               </button>
               <mat-menu #settingsMenu="matMenu" class="settings-menu">
@@ -442,7 +443,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                         [disabled]="!modelsService.supportsStreaming()"
                         (click)="toggleStreaming(); $event.stopPropagation()">
                   <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
-                  <span>Streaming responses</span>
+                  <span>{{ 'toolbar.stream' | translate }}</span>
                   <mat-icon class="toggle-indicator" 
                             [class.active]="chatService.streamingMode() && modelsService.supportsStreaming()">
                     {{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'check_circle' : 'radio_button_unchecked' }}
@@ -452,7 +453,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                 <!-- Markdown Toggle -->
                 <button mat-menu-item (click)="chatService.toggleMarkdownMode(); $event.stopPropagation()">
                   <mat-icon>{{ chatService.markdownMode() ? 'code' : 'code_off' }}</mat-icon>
-                  <span>Render markdown</span>
+                  <span>{{ 'toolbar.markdown' | translate }}</span>
                   <mat-icon class="toggle-indicator" [class.active]="chatService.markdownMode()">
                     {{ chatService.markdownMode() ? 'check_circle' : 'radio_button_unchecked' }}
                   </mat-icon>
@@ -461,7 +462,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                 <!-- Content Safety Toggle -->
                 <button mat-menu-item (click)="contentSafetyService.toggle(); $event.stopPropagation()">
                   <mat-icon>{{ contentSafetyService.enabled() ? 'shield' : 'shield_outlined' }}</mat-icon>
-                  <span>Content safety</span>
+                  <span>{{ 'toolbar.safe' | translate }}</span>
                   <mat-icon class="toggle-indicator" 
                             [class.active]="contentSafetyService.enabled()"
                             [class.loading]="contentSafetyService.loading()">
@@ -474,7 +475,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                 <!-- Clear Preferences -->
                 <button mat-menu-item (click)="clearPreferences()">
                   <mat-icon>delete_outline</mat-icon>
-                  <span>Clear preferences</span>
+                  <span>{{ 'settings.clearPreferences' | translate }}</span>
                 </button>
               </mat-menu>
               

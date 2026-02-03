@@ -17,12 +17,19 @@
         "stopRecording": "રેકોર્ડિંગ બંધ કરો",
         "addFiles": "ફાઇલ્સ ઉમેરો",
         "uploadFiles": "ફાઇલ્સ અપલોડ કરો",
-        "googleDrive": "Google Drive",
+        "googleDrive": "Drive થી ઉમેરો",
         "camera": "કેમેરા",
         "removeFile": "દૂર કરો",
         "disclaimer": "Genkit Chat ખોટી માહિતી બતાવી શકે છે. કૃપા કરીને જવાબો તપાસો.",
         "greeting": "નમસ્તે",
         "greetingSubtitle": "આજે હું તમને કેવી રીતે મદદ કરી શકું?"
+    },
+    "attach": {
+        "photos": "ફોટોઝ",
+        "audio": "ઑડિયો",
+        "video": "વીડિયો",
+        "pdf": "PDF",
+        "code": "કોડ આયાત કરો"
     },
     "toolbar": {
         "settings": "સેટિંગ્સ",
@@ -32,6 +39,9 @@
         "safe": "સામગ્રી સુરક્ષા",
         "enabled": "સક્ષમ",
         "disabled": "અક્ષમ"
+    },
+    "settings": {
+        "clearPreferences": "પસંદગીઓ સાફ કરો"
     },
     "model": {
         "selectModel": "મોડેલ પસંદ કરો",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "ભાષા",
-        "select": "ભાષા પસંદ કરો"
+        "select": "ભાષા પસંદ કરો",
+        "searchLanguages": "ભાષાઓ શોધો...",
+        "noLanguagesFound": "કોઈ ભાષા મળી નથી"
     },
     "help": {
         "label": "મદદ અને સંસાધનો",

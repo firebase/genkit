@@ -17,12 +17,19 @@
         "stopRecording": "녹음 중지",
         "addFiles": "파일 추가",
         "uploadFiles": "파일 업로드",
-        "googleDrive": "Google 드라이브",
+        "googleDrive": "드라이브에서 추가",
         "camera": "카메라",
         "removeFile": "삭제",
         "disclaimer": "Genkit Chat은 부정확한 정보를 표시할 수 있습니다. 응답을 확인하세요.",
         "greeting": "안녕하세요",
         "greetingSubtitle": "오늘 무엇을 도와드릴까요?"
+    },
+    "attach": {
+        "photos": "사진",
+        "audio": "오디오",
+        "video": "동영상",
+        "pdf": "PDF",
+        "code": "코드 가져오기"
     },
     "toolbar": {
         "settings": "설정",
@@ -32,6 +39,9 @@
         "safe": "콘텐츠 안전",
         "enabled": "활성화됨",
         "disabled": "비활성화됨"
+    },
+    "settings": {
+        "clearPreferences": "설정 초기화"
     },
     "model": {
         "selectModel": "모델 선택",
@@ -60,7 +70,9 @@
     },
     "language": {
         "label": "언어",
-        "select": "언어 선택"
+        "select": "언어 선택",
+        "searchLanguages": "언어 검색...",
+        "noLanguagesFound": "언어를 찾을 수 없습니다"
     },
     "help": {
         "label": "도움말 및 리소스",
