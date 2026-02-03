@@ -77,8 +77,22 @@ export class LanguageService {
     /** Resolved language code (the actual language being used) */
     currentLanguage = signal<string>('en');
 
-    /** All supported languages */
-    readonly languages = SUPPORTED_LANGUAGES;
+    /** Filter text for language search */
+    languageFilter = signal<string>('');
+
+    /** All supported languages sorted lexicographically by English name */
+    readonly languages = [...SUPPORTED_LANGUAGES].sort((a, b) => a.name.localeCompare(b.name));
+
+    /** Filtered languages based on search */
+    get filteredLanguages(): Language[] {
+        const filter = this.languageFilter().toLowerCase();
+        if (!filter) return this.languages;
+        return this.languages.filter(lang =>
+            lang.name.toLowerCase().includes(filter) ||
+            lang.nativeName.toLowerCase().includes(filter) ||
+            lang.code.toLowerCase().includes(filter)
+        );
+    }
 
     constructor() {
         this.initLanguage();

@@ -131,21 +131,43 @@ import { LanguageService } from './core/services/language.service';
                 <span matListItemTitle>{{ languageService.getLanguageLabel() }}</span>
               }
             </button>
-            <mat-menu #langMenu="matMenu">
+            <mat-menu #langMenu="matMenu" class="language-menu">
+              <!-- Filter Input -->
+              <div class="lang-filter-container" (click)="$event.stopPropagation()">
+                <mat-icon class="filter-icon">search</mat-icon>
+                <input type="text" 
+                       class="lang-filter-input" 
+                       placeholder="Search languages..."
+                       [ngModel]="languageService.languageFilter()"
+                       (ngModelChange)="languageService.languageFilter.set($event)"
+                       (keydown)="$event.stopPropagation()">
+                @if (languageService.languageFilter()) {
+                  <button mat-icon-button class="clear-filter-btn" (click)="languageService.languageFilter.set('')">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                }
+              </div>
+              <mat-divider></mat-divider>
               <button mat-menu-item (click)="languageService.setLanguagePreference('system')">
                 <mat-icon>{{ languageService.languagePreference() === 'system' ? 'check' : '' }}</mat-icon>
                 <span>System</span>
               </button>
               <mat-divider></mat-divider>
-              @for (lang of languageService.languages; track lang.code) {
-                <button mat-menu-item (click)="languageService.setLanguagePreference(lang.code)">
-                  <span class="lang-flag">{{ lang.flag }}</span>
-                  <span>{{ lang.nativeName }}</span>
-                  @if (languageService.languagePreference() === lang.code) {
-                    <mat-icon class="check-icon">check</mat-icon>
-                  }
-                </button>
-              }
+              <div class="lang-list-container">
+                @for (lang of languageService.filteredLanguages; track lang.code) {
+                  <button mat-menu-item class="lang-menu-item" (click)="languageService.setLanguagePreference(lang.code)">
+                    <span class="lang-flag">{{ lang.flag }}</span>
+                    <span class="lang-native-name">{{ lang.nativeName }}</span>
+                    <span class="lang-english-name">{{ lang.name }}</span>
+                    @if (languageService.languagePreference() === lang.code) {
+                      <mat-icon class="check-icon">check</mat-icon>
+                    }
+                  </button>
+                }
+                @if (languageService.filteredLanguages.length === 0) {
+                  <div class="no-results">No languages found</div>
+                }
+              </div>
             </mat-menu>
           </mat-nav-list>
         </div>
@@ -755,6 +777,103 @@ import { LanguageService } from './core/services/language.service';
     /* Responsive */
     /* Responsive Breakpoints */
     
+    /* Language Menu Styles */
+    ::ng-deep .language-menu {
+      min-width: 320px !important;
+      max-width: 400px;
+    }
+    
+    .lang-filter-container {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      gap: 8px;
+      
+      .filter-icon {
+        color: var(--on-surface-muted);
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+      
+      .lang-filter-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-size: 14px;
+        color: var(--on-surface);
+        outline: none;
+        padding: 4px 0;
+        
+        &::placeholder {
+          color: var(--on-surface-muted);
+        }
+      }
+      
+      .clear-filter-btn {
+        width: 24px !important;
+        height: 24px !important;
+        padding: 0 !important;
+        
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
+    
+    .lang-list-container {
+      max-height: 350px;
+      overflow-y: auto;
+    }
+    
+    ::ng-deep .lang-menu-item {
+      display: flex !important;
+      align-items: center;
+      gap: 16px;
+      min-height: 48px;
+      padding: 8px 16px !important;
+      
+      .lang-flag {
+        font-size: 20px;
+        flex-shrink: 0;
+        width: 24px;
+        text-align: center;
+        margin-right: 8px;
+      }
+      
+      .lang-native-name {
+        flex: 1;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      
+      .lang-english-name {
+        color: var(--on-surface-muted);
+        font-size: 13px;
+        margin-left: auto;
+        text-align: right;
+        padding-left: 16px;
+      }
+      
+      .check-icon {
+        color: var(--gemini-blue);
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        margin-left: 8px;
+      }
+    }
+    
+    .no-results {
+      padding: 16px;
+      text-align: center;
+      color: var(--on-surface-muted);
+      font-size: 14px;
+    }
+
     /* Mobile (< 480px) */
     @media (max-width: 479px) {
       mat-sidenav {
