@@ -487,9 +487,7 @@ class Registry:
                 metas.append(meta)
         return metas
 
-    def register_schema(
-        self, name: str, schema: dict[str, object], schema_type: type[BaseModel] | None = None
-    ) -> None:
+    def register_schema(self, name: str, schema: dict[str, object], schema_type: type[BaseModel] | None = None) -> None:
         """Registers a schema by name.
 
         Schemas registered with this method can be referenced by name in
