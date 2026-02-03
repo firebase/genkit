@@ -58,7 +58,7 @@ keywords = [
 name = "genkit-plugin-google-genai"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.4.0"
+version = "0.5.0"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/firebase/genkit/issues"
