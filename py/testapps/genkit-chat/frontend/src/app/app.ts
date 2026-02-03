@@ -258,7 +258,7 @@ import { LanguageService } from './core/services/language.service';
         <!-- Footer -->
         <footer class="app-footer">
           <div class="footer-links">
-            <a href="https://firebase.google.com/docs/genkit" target="_blank" rel="noopener">About Genkit</a>
+            <a href="https://genkit.dev" target="_blank" rel="noopener">About Genkit</a>
             <span class="separator">·</span>
             <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a>
             <span class="separator">·</span>
@@ -386,7 +386,7 @@ import { LanguageService } from './core/services/language.service';
       opacity: 0.7;
       
       &.dark {
-        filter: invert(1);
+        /* filter: invert(1); removed */
       }
       
       &.small {
@@ -753,11 +753,46 @@ import { LanguageService } from './core/services/language.service';
     }
 
     /* Responsive */
-    @media (max-width: 768px) {
+    /* Responsive Breakpoints */
+    
+    /* Mobile (< 480px) */
+    @media (max-width: 479px) {
+      mat-sidenav {
+        width: 85vw; /* Almost full width */
+        max-width: 320px;
+        position: fixed;
+        z-index: 1000;
+        height: 100%;
+      }
+      
+      mat-sidenav.collapsed {
+        transform: translateX(-100%);
+        width: 85vw;
+      }
+      
+      mat-sidenav-content.sidebar-collapsed {
+        margin-left: 0 !important;
+      }
+    }
+
+    /* Tablet (480px - 768px) */
+    @media (min-width: 480px) and (max-width: 768px) {
       mat-sidenav {
         width: 100%;
-        max-width: 300px;
+        max-width: 280px;
       }
+    }
+
+    /* Laptop (768px - 1024px) */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      mat-sidenav {
+        width: 260px;
+      }
+    }
+
+    /* Desktop (> 1024px) */
+    @media (min-width: 1025px) {
+      /* Standard layout */
     }
   `],
 })

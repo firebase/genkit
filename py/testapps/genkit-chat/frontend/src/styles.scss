@@ -96,12 +96,10 @@ body.dark-theme {
   --mat-sys-on-surface-variant: #9aa0a6;
 
   // Invert logos for dark mode visibility
-  .logo-img {
-    filter: invert(1) !important;
-  }
+  /* .logo-img { filter: invert(1) !important; } removed */
 
   .avatar-logo {
-    filter: invert(1) brightness(0.9);
+    /* filter: invert(1) brightness(0.9); removed */
   }
 }
 

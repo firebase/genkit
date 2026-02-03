@@ -266,6 +266,12 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                     [matTooltipClass]="'flagged-content-tooltip'"
                     rows="1"
                     #chatTextarea></textarea>
+
+          @if (userMessage) {
+            <button mat-icon-button class="clear-input-btn" (click)="clearInput()" aria-label="Clear input" matTooltip="Clear">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
           
           <!-- Bottom Toolbar -->
           <div class="input-toolbar">
@@ -533,9 +539,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
           </div>
         }
         
-        <p class="disclaimer">
-          Genkit Chat may display inaccurate info. Double-check its responses.
-        </p>
+
       </div>
     </div>
   `,
@@ -589,7 +593,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
         border-radius: 12px;
         
         &.dark {
-          filter: invert(1);
+          /* filter: invert(1); removed */
         }
       }
     }
@@ -682,7 +686,9 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       flex-shrink: 0;
       width: 28px;
       height: 28px;
-      margin-top: 4px; /* Align with first line text baseline */
+      width: 28px;
+      height: 28px;
+      margin-top: 0; /* Align with first line text baseline */
     }
 
     .avatar-logo {
@@ -690,7 +696,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       height: auto;
       
       &.dark {
-        filter: invert(1);
+        /* filter: invert(1); removed */
       }
       
       &.loading {
@@ -1510,6 +1516,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       min-height: 24px;
       max-height: 200px;
       line-height: 1.5;
+      padding-right: 40px; /* Space for clear button */
       
       &::placeholder {
         color: var(--on-surface-muted);
@@ -1994,12 +2001,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       }
     }
 
-    .disclaimer {
-      text-align: center;
-      font-size: 12px;
-      color: var(--on-surface-muted);
-      margin: 12px 0 0;
-    }
+
 
     /* Animations */
     .animate-fade-in {
@@ -2014,6 +2016,26 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       to {
         opacity: 1;
         transform: translateY(0);
+      }
+    }
+
+    .clear-input-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 32px !important;
+      height: 32px !important;
+      padding: 0 !important;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--on-surface-muted);
+      }
+
+      &:hover mat-icon {
+        color: var(--on-surface);
       }
     }
   `],
@@ -2050,8 +2072,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   maxAttachments = CHAT_CONFIG.maxAttachments;
   maxFileSizeBytes = CHAT_CONFIG.maxFileSizeBytes;
 
-  // Footer copyright year
-  currentYear = new Date().getFullYear();
+
 
 
   // Queue editing state
@@ -2443,6 +2464,12 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
           console.error('Chat error:', err);
         }
       });
+  }
+
+  clearInput(): void {
+    this.userMessage = '';
+    this.onInputChange();
+    this.chatTextarea?.nativeElement?.focus();
   }
 
   sendQuickAction(prompt: string): void {
