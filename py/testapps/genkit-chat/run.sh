@@ -48,6 +48,8 @@ Commands:
     backend     Run backend only
     frontend    Run frontend development server
     build       Build frontend for production
+    lint        Run lint and type checks on backend code
+    test        Run backend integration tests
     stop        Stop all running services (kills ports 8080, 4000, 4001, 4034, 4200)
     container   Build container image with Podman/Docker
     deploy      Deploy to Cloud Run
@@ -226,10 +228,41 @@ setup_backend() {
         log_success "Created virtual environment"
     fi
     
-    # Sync dependencies from pyproject.toml
-    uv sync
+    # Sync dependencies from pyproject.toml (including test group for lint tools)
+    uv sync --group test
     
     log_success "Backend dependencies installed"
+}
+
+check_lint() {
+    log_info "Running lint checks..."
+    
+    cd "$BACKEND_DIR"
+    
+    # Run ruff check
+    if ! uv run --with ruff ruff check src/ tests/; then
+        log_error "Ruff lint check failed!"
+        log_info "Run 'cd backend && uv run --with ruff ruff check --fix src/ tests/' to auto-fix"
+        return 1
+    fi
+    log_success "Ruff lint check passed"
+    
+    # Run ruff format check
+    if ! uv run --with ruff ruff format --check src/ tests/; then
+        log_error "Ruff format check failed!"
+        log_info "Run 'cd backend && uv run --with ruff ruff format src/ tests/' to auto-fix"
+        return 1
+    fi
+    log_success "Ruff format check passed"
+    
+    # Run pyright type check
+    if ! uv run --with pyright pyright src/ tests/; then
+        log_error "Pyright type check failed!"
+        return 1
+    fi
+    log_success "Pyright type check passed"
+    
+    log_success "All lint checks passed!"
 }
 
 run_dev() {
@@ -456,6 +489,19 @@ case "$cmd" in
         ;;
     build)
         build_frontend
+        ;;
+    lint)
+        check_python
+        check_uv
+        setup_backend
+        check_lint
+        ;;
+    test)
+        check_python
+        check_uv
+        setup_backend
+        cd "$BACKEND_DIR"
+        uv run --group test pytest tests/ -v
         ;;
     stop)
         stop_services
