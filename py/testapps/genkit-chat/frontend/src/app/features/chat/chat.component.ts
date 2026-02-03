@@ -163,25 +163,6 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
         }
       </div>
 
-      <!-- Attached Files Preview -->
-      @if (attachedFiles().length > 0) {
-        <div class="attached-files">
-          @for (file of attachedFiles(); track file.name) {
-            <div class="file-chip">
-              @if (file.type.startsWith('image/')) {
-                <img [src]="file.preview" alt="preview" class="file-thumb">
-              } @else {
-                <mat-icon class="file-icon">description</mat-icon>
-              }
-              <span class="file-name">{{ file.name }}</span>
-              <button mat-icon-button class="file-remove" (click)="removeFile(file)" matTooltip="Remove">
-                <mat-icon>close</mat-icon>
-              </button>
-            </div>
-          }
-        </div>
-      }
-
       <!-- Input Section - Gemini Style -->
       <div class="input-section">
         <!-- Welcome Content (above chatbox) - hides when responses start streaming -->
@@ -247,7 +228,8 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
                 }
               </div>
             }
-        </div>
+          </div>
+        }
         
         <div class="input-box" [class.focused]="inputFocused" [class.pulse-send]="isPulsing" [class.is-dragging]="isDragging()" (click)="focusInput($event)">
           <!-- Drop Zone Overlay (inside input box) -->
@@ -502,61 +484,6 @@ import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
     /* When has messages, use flex layout for scroll */
     .chat-container.has-messages {
       justify-content: flex-start;
-    }
-
-    /* Drop Zone - contained within input-box */
-    .input-box {
-      position: relative;
-    }
-    
-    .input-box.is-dragging {
-      border-style: dashed;
-      border-color: var(--gemini-blue);
-      background: rgba(66, 133, 244, 0.05);
-    }
-    
-    body.dark-theme .input-box.is-dragging {
-      background: rgba(138, 180, 248, 0.08);
-    }
-    
-    .drop-zone-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255, 255, 255, 0.95);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      z-index: 10;
-      border-radius: inherit;
-      pointer-events: none;
-    }
-
-    body.dark-theme .drop-zone-overlay {
-      background: rgba(31, 31, 31, 0.95);
-    }
-
-    .drop-icon {
-      font-size: 40px;
-      width: 40px;
-      height: 40px;
-      color: var(--gemini-blue);
-      animation: dropBounce 0.8s ease infinite;
-    }
-    
-    @keyframes dropBounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
-
-    .drop-caption {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--gemini-blue);
     }
 
     /* Welcome Section */
