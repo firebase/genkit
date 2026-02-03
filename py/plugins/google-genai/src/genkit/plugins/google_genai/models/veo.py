@@ -149,7 +149,7 @@ DEFAULT_VEO_SUPPORT = Supports(
     media=True,
     multiturn=False,
     tools=False,
-    system_role=False,
+    system_role=True,
     output=['media'],
 )
 
@@ -178,13 +178,14 @@ def _extract_text(request: GenerateRequest) -> str:
     Returns:
         The text prompt string.
     """
+    prompt = []
     if not request.messages:
         return ''
     for message in request.messages:
         for part in message.content:
             if hasattr(part.root, 'text') and part.root.text:
-                return str(part.root.text)
-    return ''
+                prompt.append(str(part.root.text))
+    return ' '.join(prompt)
 
 
 def _to_veo_parameters(config: Any) -> dict[str, Any]:  # noqa: ANN401
@@ -294,6 +295,9 @@ class VeoModel:
         Returns:
             The model's response.
         """
+        if request.tools:
+            raise ValueError('Tools are not supported for this model.')
+
         prompt = self._build_prompt(request)
         config = self._get_config(request)
 
@@ -331,6 +335,9 @@ class VeoModel:
         Returns:
             An Operation with the job ID.
         """
+        if request.tools:
+            raise ValueError('Tools are not supported for this model.')
+
         prompt = _extract_text(request)
         if not prompt:
             raise ValueError('Veo requires a text prompt')
@@ -407,4 +414,4 @@ class VeoModel:
     @property
     def metadata(self) -> dict:
         """Model metadata."""
-        return {'model': {'supports': DEFAULT_VEO_SUPPORT.model_dump()}}
+        return {'model': {'supports': DEFAULT_VEO_SUPPORT.model_dump(by_alias=True)}}

@@ -703,7 +703,7 @@ GENERIC_TTS_MODEL = ModelInfo(
         media=False,
         tools=False,
         tool_choice=False,
-        system_role=False,
+        system_role=True,
         constrained=Constrained.NO_TOOLS,
     ),
 )
@@ -711,13 +711,13 @@ GENERIC_TTS_MODEL = ModelInfo(
 GENERIC_IMAGE_MODEL = ModelInfo(
     label='Google AI - Gemini Image',
     supports=Supports(
-        multiturn=True,
+        multiturn=False,
         media=True,
-        tools=True,
-        tool_choice=True,
+        tools=False,
+        tool_choice=False,
         system_role=True,
         constrained=Constrained.NO_TOOLS,
-        output=['text'],
+        output=['media'],
     ),
 )
 
@@ -1205,6 +1205,11 @@ class GeminiModel:
 
         # Image models require response_modalities: ["TEXT", "IMAGE"]
         if is_image_model(model_name):
+            if request.tools:
+                raise ValueError(
+                    f'Model {model_name} does not support tools. '
+                    'Please remove the tools config or use a model that supports tools.'
+                )
             if not request_cfg:
                 request_cfg = genai_types.GenerateContentConfig()
             request_cfg.response_modalities = ['TEXT', 'IMAGE']
