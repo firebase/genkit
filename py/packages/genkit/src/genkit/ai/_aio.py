@@ -51,7 +51,7 @@ from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
 )
-from genkit.blocks.interfaces import Input, Output, OutputConfigDict
+from genkit.blocks.interfaces import Output, OutputConfigDict
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,

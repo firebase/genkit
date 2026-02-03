@@ -49,10 +49,11 @@ from genkit.ai import (
     ToolRunContext,
     tool_response,
 )
-from genkit.ai._aio import Genkit, Input, Output
+from genkit.ai._aio import Genkit, Output
 
 # Core types for convenience (also available from genkit.types)
 from genkit.blocks.document import Document
+from genkit.blocks.interfaces import Input
 
 # Response types
 from genkit.blocks.model import GenerateResponseWrapper
