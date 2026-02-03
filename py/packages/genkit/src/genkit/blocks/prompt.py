@@ -1107,7 +1107,22 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         if prompt_options.output_instructions is not None:
             output.instructions = prompt_options.output_instructions
         if prompt_options.output_schema:
-            output.json_schema = to_json_schema(prompt_options.output_schema)
+            # Handle schema - could be a Pydantic type, string name, or dict
+            if isinstance(prompt_options.output_schema, str):
+                # Schema name - look up from registry
+                resolved_schema = self._registry.lookup_schema(prompt_options.output_schema)
+                if resolved_schema:
+                    output.json_schema = resolved_schema
+                schema_type = self._registry.lookup_schema_type(prompt_options.output_schema)
+                if schema_type:
+                    output.schema_type = schema_type
+            elif isinstance(prompt_options.output_schema, type) and issubclass(prompt_options.output_schema, BaseModel):
+                # Pydantic type - store both JSON schema and type
+                output.json_schema = to_json_schema(prompt_options.output_schema)
+                output.schema_type = prompt_options.output_schema
+            else:
+                # dict (raw JSON schema)
+                output.json_schema = to_json_schema(prompt_options.output_schema)
         if prompt_options.output_constrained is not None:
             output.constrained = prompt_options.output_constrained
 
@@ -1518,6 +1533,10 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
             resolved_schema = registry.lookup_schema(options.output_schema)
             if resolved_schema:
                 output.json_schema = resolved_schema
+            # Also look up the schema type for runtime validation
+            schema_type = registry.lookup_schema_type(options.output_schema)
+            if schema_type:
+                output.schema_type = schema_type
             elif options.output_constrained:
                 # If we have a schema name but can't resolve it, and constrained is True,
                 # we should probably error or warn. But for now, we might pass None or
@@ -1526,6 +1545,9 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
                 pass
         else:
             output.json_schema = to_json_schema(options.output_schema)
+            # If output_schema is a Pydantic type, store it for runtime validation
+            if isinstance(options.output_schema, type) and issubclass(options.output_schema, BaseModel):
+                output.schema_type = options.output_schema
     if options.output_constrained is not None:
         output.constrained = options.output_constrained
 
@@ -1937,7 +1959,7 @@ def define_helper(registry: Registry, name: str, fn: Callable[..., Any]) -> None
     logger.debug(f'Registered Dotprompt helper "{name}"')
 
 
-def define_schema(registry: Registry, name: str, schema: type) -> None:
+def define_schema(registry: Registry, name: str, schema: type[BaseModel]) -> None:
     """Register a Pydantic schema for use in prompts.
 
     Schemas registered with this function can be referenced by name in
@@ -1962,7 +1984,7 @@ def define_schema(registry: Registry, name: str, schema: type) -> None:
         ```
     """
     json_schema = to_json_schema(schema)
-    registry.register_schema(name, json_schema)
+    registry.register_schema(name, json_schema, schema_type=schema)
     logger.debug(f'Registered schema "{name}"')
 
 

@@ -51,7 +51,7 @@ from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
 )
-from genkit.blocks.interfaces import Input as _Input, Output, OutputConfigDict
+from genkit.blocks.interfaces import Input, Output, OutputConfigDict
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -88,9 +88,6 @@ from ._base_async import GenkitBase
 from ._server import ServerSpec
 
 T = TypeVar('T')
-Input = _Input
-
-
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 

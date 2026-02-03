@@ -33,6 +33,7 @@ from collections.abc import Awaitable, Callable
 from typing import cast
 
 from dotpromptz.dotprompt import Dotprompt
+from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit.core.action import (
@@ -109,6 +110,7 @@ class Registry:
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, object]] = {}
         self._schemas_by_name: dict[str, dict[str, object]] = {}
+        self._schema_types_by_name: dict[str, type[BaseModel]] = {}
         self._lock: threading.RLock = threading.RLock()
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
@@ -485,7 +487,9 @@ class Registry:
                 metas.append(meta)
         return metas
 
-    def register_schema(self, name: str, schema: dict[str, object]) -> None:
+    def register_schema(
+        self, name: str, schema: dict[str, object], schema_type: type[BaseModel] | None = None
+    ) -> None:
         """Registers a schema by name.
 
         Schemas registered with this method can be referenced by name in
@@ -494,6 +498,7 @@ class Registry:
         Args:
             name: The name of the schema.
             schema: The schema data (JSON schema format).
+            schema_type: Optional Pydantic model class for runtime validation.
 
         Raises:
             ValueError: If a schema with the given name is already registered.
@@ -502,6 +507,8 @@ class Registry:
             if name in self._schemas_by_name:
                 raise ValueError(f'Schema "{name}" is already registered')
             self._schemas_by_name[name] = schema
+            if schema_type is not None:
+                self._schema_types_by_name[name] = schema_type
             logger.debug(f'Registered schema "{name}"')
 
     def lookup_schema(self, name: str) -> dict[str, object] | None:
@@ -515,6 +522,18 @@ class Registry:
         """
         with self._lock:
             return self._schemas_by_name.get(name)
+
+    def lookup_schema_type(self, name: str) -> type[BaseModel] | None:
+        """Looks up a schema's Pydantic type by name.
+
+        Args:
+            name: The name of the schema to look up.
+
+        Returns:
+            The Pydantic model class if found, None otherwise.
+        """
+        with self._lock:
+            return self._schema_types_by_name.get(name)
 
     # ===== Typed Action Lookups =====
     #

@@ -340,7 +340,7 @@ class GenkitRegistry:
         """
         define_partial(self.registry, name, source)
 
-    def define_schema(self, name: str, schema: type) -> type:
+    def define_schema(self, name: str, schema: type[BaseModel]) -> type[BaseModel]:
         """Register a Pydantic schema for use in prompts.
 
         Schemas registered with this method can be referenced by name in
@@ -1489,11 +1489,58 @@ class GenkitRegistry:
             output=None,
         )
 
+    # Overload 1: Neither typed -> ExecutablePrompt[Any, Any]
+    @overload
     def prompt(
         self,
         name: str,
         variant: str | None = None,
-    ) -> 'ExecutablePrompt[Any, Any]':
+        *,
+        input: None = None,
+        output: None = None,
+    ) -> ExecutablePrompt[Any, Any]: ...
+
+    # Overload 2: Only input typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: Input[InputT],
+        output: None = None,
+    ) -> ExecutablePrompt[InputT, Any]: ...
+
+    # Overload 3: Only output typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: None = None,
+        output: Output[OutputT],
+    ) -> ExecutablePrompt[Any, OutputT]: ...
+
+    # Overload 4: Both input and output typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: Input[InputT],
+        output: Output[OutputT],
+    ) -> ExecutablePrompt[InputT, OutputT]: ...
+
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: Input[InputT] | None = None,
+        output: Output[OutputT] | None = None,
+    ) -> ExecutablePrompt[InputT, OutputT] | ExecutablePrompt[Any, Any]:
         """Look up a prompt by name and optional variant.
 
         This matches the JavaScript prompt() function behavior.
@@ -1505,14 +1552,35 @@ class GenkitRegistry:
         Args:
             name: The name of the prompt.
             variant: Optional variant name.
+            input: Optional typed input configuration. When provided, the
+                prompt's input parameter will be type-checked.
+            output: Optional typed output configuration. When provided,
+                response.output will be statically typed.
 
         Returns:
             An ExecutablePrompt instance.
+
+        Example:
+            ```python
+            # Without type hints (output is Any)
+            prompt = ai.prompt('greet')
+
+            # With typed output (response.output is MySchema)
+            prompt = ai.prompt('greet', output=Output(schema=MySchema))
+            response = await prompt(input={'name': 'World'})
+            response.output  # Statically typed as MySchema
+            ```
         """
+        # Extract schema types if provided
+        input_schema = input.schema if input else None
+        output_schema = output.schema if output else None
+
         return ExecutablePrompt(
             registry=self.registry,
             _name=name,
             variant=variant,
+            input_schema=input_schema,
+            output_schema=output_schema,
         )
 
     def define_resource(

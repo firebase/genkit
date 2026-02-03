@@ -180,6 +180,8 @@ class GenerateActionOutputConfig(BaseModel):
     instructions: bool | str | None = None
     json_schema: Any | None = Field(default=None)
     constrained: bool | None = None
+    # Store the original Pydantic type for runtime validation (excluded from JSON)
+    schema_type: Any = Field(default=None, exclude=True)
 
 
 class GenerationCommonConfig(BaseModel):
