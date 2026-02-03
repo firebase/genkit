@@ -476,7 +476,12 @@ class TestVertexAIInit(unittest.TestCase):
 @patch('google.genai.client.Client')
 def vertexai_plugin_instance(client: MagicMock) -> VertexAI:
     """VertexAI fixture."""
-    return VertexAI()
+    plugin = VertexAI()
+    # Set mock values for _project and _location which are accessed by _resolve_reranker
+    # These are stored on the plugin instance, not the client
+    plugin._project = 'test-project'  # type: ignore[attr-defined]
+    plugin._location = 'us-central1'  # type: ignore[attr-defined]
+    return plugin
 
 
 @pytest.mark.asyncio
