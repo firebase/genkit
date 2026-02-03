@@ -133,7 +133,9 @@ class DeepSeek(Plugin):
         for model, model_info in SUPPORTED_DEEPSEEK_MODELS.items():
             actions_list.append(
                 model_action_metadata(
-                    name=deepseek_name(model), info=model_info.model_dump(), config_schema=OpenAIConfig
+                    name=deepseek_name(model),
+                    info=model_info.model_dump(by_alias=True, exclude_none=True),
+                    config_schema=OpenAIConfig,
                 )
             )
 
