@@ -26,6 +26,7 @@ import { type Observable, of } from 'rxjs';
 
 // Complete mock translations for Storybook (copied from en.json)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: Mock data
 const TRANSLATIONS: Record<string, any> = {
   en: {
     app: {
@@ -148,6 +149,7 @@ const TRANSLATIONS: Record<string, any> = {
 // Custom translation loader for Storybook
 class MockTranslateLoader extends TranslateLoader {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: Library override
   override getTranslation(lang: string): Observable<any> {
     return of(TRANSLATIONS[lang] || TRANSLATIONS.en);
   }

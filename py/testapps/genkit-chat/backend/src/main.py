@@ -380,10 +380,12 @@ async def chat_flow(input: ChatInput) -> ChatOutput:
         if role == "assistant":
             role = "model"
 
-        messages.append({
-            "role": role,
-            "content": [{"text": msg.get("content", "")}],
-        })
+        messages.append(
+            {
+                "role": role,
+                "content": [{"text": msg.get("content", "")}],
+            }
+        )
 
     # Generate response
     # Note: Tools are disabled for now as some models (e.g., small Ollama models)
@@ -526,10 +528,12 @@ async def stream_chat_flow(input: ChatInput) -> ChatOutput:
         role = msg.get("role", "user")
         if role == "assistant":
             role = "model"
-        messages.append({
-            "role": role,
-            "content": [{"text": msg.get("content", "")}],
-        })
+        messages.append(
+            {
+                "role": role,
+                "content": [{"text": msg.get("content", "")}],
+            }
+        )
 
     # generate_stream returns (stream, future) tuple
     stream, _ = g.generate_stream(
@@ -660,10 +664,12 @@ def create_fastapi_server() -> FastAPI:
                             role = msg.get("role", "user")
                             if role == "assistant":
                                 role = "model"
-                            messages.append({
-                                "role": role,
-                                "content": [{"text": msg.get("content", "")}],
-                            })
+                            messages.append(
+                                {
+                                    "role": role,
+                                    "content": [{"text": msg.get("content", "")}],
+                                }
+                            )
                     except json.JSONDecodeError:
                         logger.warning("Failed to parse history JSON")
 
@@ -718,11 +724,13 @@ def create_http_server() -> Robyn:
         if request.method == "OPTIONS":
             return Response(
                 status_code=204,
-                headers=Headers({
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type",
-                }),
+                headers=Headers(
+                    {
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                        "Access-Control-Allow-Headers": "Content-Type",
+                    }
+                ),
                 description="",
             )
         return request
@@ -872,10 +880,12 @@ def create_http_server() -> Robyn:
                             role = msg.get("role", "user")
                             if role == "assistant":
                                 role = "model"
-                            messages.append({
-                                "role": role,
-                                "content": [{"text": msg.get("content", "")}],
-                            })
+                            messages.append(
+                                {
+                                    "role": role,
+                                    "content": [{"text": msg.get("content", "")}],
+                                }
+                            )
                     except json.JSONDecodeError:
                         logger.warning("Failed to parse history JSON")
 

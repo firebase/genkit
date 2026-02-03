@@ -20,6 +20,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { Injectable, inject, PLATFORM_ID, signal } from '@angular/core';
 import { type JwtPayload, jwtDecode } from 'jwt-decode';
 
+// biome-ignore lint/suspicious/noExplicitAny: Google Identity Services global
 declare const google: any;
 
 export interface GoogleUser {
@@ -89,7 +90,9 @@ export class AuthService {
   // Set your Google OAuth Client ID here
   // Get one from: https://console.cloud.google.com/apis/credentials
   private readonly CLIENT_ID =
-    (typeof window !== 'undefined' && (window as any).__GOOGLE_OAUTH_CLIENT_ID__) ||
+    (typeof window !== 'undefined' &&
+      // biome-ignore lint/suspicious/noExplicitAny: Global configuration
+      (window as any).__GOOGLE_OAUTH_CLIENT_ID__) ||
     // Replace the empty string below with your Client ID:
     '';
 
@@ -170,6 +173,7 @@ export class AuthService {
     try {
       google.accounts.id.initialize({
         client_id: this.CLIENT_ID,
+        // biome-ignore lint/suspicious/noExplicitAny: Google Identity Services callback
         callback: (response: any) => this.handleCredentialResponse(response),
         auto_select: true, // Auto sign-in if one account
         cancel_on_tap_outside: true,
@@ -192,6 +196,7 @@ export class AuthService {
   private showOneTap(): void {
     if (!this.CLIENT_ID || typeof google === 'undefined') return;
 
+    // biome-ignore lint/suspicious/noExplicitAny: Google Identity Services callback
     google.accounts.id.prompt((notification: any) => {
       if (notification.isDisplayed()) {
       } else if (notification.isNotDisplayed()) {
@@ -201,6 +206,7 @@ export class AuthService {
     });
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: Google Identity Services response
   private handleCredentialResponse(response: any): void {
     if (response.credential) {
       // Decode the JWT token to get user info
@@ -291,6 +297,7 @@ export class AuthService {
 
     if (google?.accounts) {
       this.isLoading.set(true);
+      // biome-ignore lint/suspicious/noExplicitAny: Google Identity Services callback
       google.accounts.id.prompt((notification: any) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
           // One Tap was blocked (e.g., by browser settings)
@@ -309,7 +316,7 @@ export class AuthService {
       // Revoke the token
       const token = localStorage.getItem('gauth_token');
       if (token) {
-        google.accounts.id.revoke(this.user()?.email || '', () => {});
+        google.accounts.id.revoke(this.user()?.email || '', () => { });
       }
     }
 
