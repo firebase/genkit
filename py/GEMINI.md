@@ -5,6 +5,7 @@
 * **MANDATORY: Pass `bin/lint`**: Before submitting any PR, you MUST run `./bin/lint`
   from the repo root and ensure it passes with 0 errors. This is a hard requirement.
   PRs with lint failures will not be accepted. The lint script runs:
+
   * Ruff (formatting and linting)
   * Ty, Pyrefly, Pyright (type checking)
   * PySentry (security vulnerability scanning)
@@ -174,18 +175,21 @@
   absolutely necessary and documented.
 * **Security & Async Best Practices**: Ruff is configured with security (S), async (ASYNC),
   and print (T20) rules. These catch common production issues:
+
   * **S rules (Bandit)**: SQL injection, hardcoded secrets, insecure hashing, etc.
   * **ASYNC rules**: Blocking calls in async functions (use `httpx.AsyncClient` not
     `urllib.request`, use `aiofiles` not `open()` in async code)
   * **T20 rules**: No `print()` statements in production code (use `logging` or `structlog`)
 
   **Async I/O Best Practices**:
+
   * Use `httpx.AsyncClient` for HTTP requests in async functions
   * Use `aiofiles` for file I/O in async functions
   * Never use blocking `urllib.request`, `requests`, or `open()` in async code
   * If you must use blocking I/O, run it in a thread with `anyio.to_thread.run_sync()`
 
   **Example - Async HTTP**:
+
   ```python
   # WRONG - blocks the event loop
   async def fetch_data(url: str) -> bytes:
@@ -200,6 +204,7 @@
   ```
 
   **Example - Async File I/O**:
+
   ```python
   # WRONG - blocks the event loop
   async def read_file(path: str) -> str:
@@ -1421,9 +1426,9 @@ curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 "https://docs.mistral.ai
 
 #### URLs That Don't Need Verification
 
-- Placeholder URLs: `https://your-endpoint.com`, `https://example.com`
-- Template URLs with variables: `https://{region}.api.com`
-- Test/mock URLs in test files
+* Placeholder URLs: `https://your-endpoint.com`, `https://example.com`
+* Template URLs with variables: `https://{region}.api.com`
+* Test/mock URLs in test files
 
 ### Telemetry Plugin Authentication Patterns
 
@@ -1737,6 +1742,7 @@ Before releasing, run the release check script:
 ```
 
 The release check validates:
+
 1. **Package Metadata**: All packages have required fields (name, version, description, license, authors, classifiers)
 2. **Build Verification**: Lock file is current, dependencies resolve, packages build successfully
 3. **Code Quality**: Type checking, formatting, linting all pass
@@ -1808,6 +1814,7 @@ Each publishable package directory MUST contain:
 | `src/.../py.typed` | Yes | PEP 561 type hint marker file |
 
 To copy LICENSE files to all packages:
+
 ```bash
 # Copy LICENSE to core package
 cp py/LICENSE py/packages/genkit/LICENSE

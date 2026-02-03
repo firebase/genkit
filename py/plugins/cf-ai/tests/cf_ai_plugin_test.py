@@ -351,6 +351,66 @@ class TestResponseParsing:
         assert tool_part.root.tool_request.name == 'get_weather'
 
 
+class TestClientCaching:
+    """Tests for per-event-loop client caching."""
+
+    @pytest.mark.asyncio
+    async def test_client_cached_per_event_loop(self) -> None:
+        """Client should be cached and reused within the same event loop."""
+        plugin = CfAI(
+            account_id='test-id',
+            api_token='test-token',
+        )
+
+        # Get client twice in the same event loop
+        client1 = plugin._get_client()
+        client2 = plugin._get_client()
+
+        # Should be the same instance (cached)
+        assert client1 is client2
+
+        # Clean up
+        await client1.aclose()
+
+    @pytest.mark.asyncio
+    async def test_client_has_correct_headers(self) -> None:
+        """Client should have authorization headers configured."""
+        plugin = CfAI(
+            account_id='test-id',
+            api_token='my-secret-token',
+        )
+
+        client = plugin._get_client()
+
+        assert 'Authorization' in client.headers
+        assert client.headers['Authorization'] == 'Bearer my-secret-token'
+        assert client.headers['Content-Type'] == 'application/json'
+
+        # Clean up
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_closed_client_gets_replaced(self) -> None:
+        """A closed client should be replaced with a new one."""
+        plugin = CfAI(
+            account_id='test-id',
+            api_token='test-token',
+        )
+
+        # Get client and close it
+        client1 = plugin._get_client()
+        await client1.aclose()
+
+        # Get client again - should be a new instance
+        client2 = plugin._get_client()
+
+        assert client1 is not client2
+        assert not client2.is_closed
+
+        # Clean up
+        await client2.aclose()
+
+
 class TestPluginActions:
     """Tests for plugin action methods."""
 

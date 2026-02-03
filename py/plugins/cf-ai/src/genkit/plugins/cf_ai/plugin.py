@@ -26,7 +26,10 @@ Environment Variables:
     CLOUDFLARE_API_TOKEN: Your Cloudflare API token with Workers AI permissions.
 """
 
+import asyncio
 import os
+import weakref
+from collections.abc import MutableMapping
 
 import httpx
 
@@ -56,6 +59,12 @@ from genkit.types import (
 logger = get_logger(__name__)
 
 CF_AI_PLUGIN_NAME = 'cf-ai'
+
+# Per-event-loop client cache using WeakKeyDictionary.
+# This ensures clients are cached per event loop (avoiding "bound to different event loop"
+# errors) while allowing automatic cleanup when event loops are garbage collected.
+# Key: asyncio.AbstractEventLoop, Value: httpx.AsyncClient
+_loop_clients: MutableMapping[asyncio.AbstractEventLoop, httpx.AsyncClient] = weakref.WeakKeyDictionary()
 
 
 def cf_name(model_id: str) -> str:
@@ -138,22 +147,57 @@ class CfAI(Plugin):
         self._embedders = embedders or list(SUPPORTED_EMBEDDING_MODELS.keys())
 
     def _get_client(self) -> httpx.AsyncClient:
-        """Create a fresh httpx client with auth headers.
+        """Get or create an httpx client for the current event loop.
 
-        Note: We create a new client per request to avoid async event loop
-        binding issues. httpx.AsyncClient instances cannot be safely shared
-        across different event loops.
+        Uses a per-event-loop cache to avoid creating a new client for every
+        request while still handling multiple event loops correctly. This is
+        important because:
+
+        1. httpx.AsyncClient instances are bound to the event loop they were
+           created in and cannot be safely reused across different event loops.
+        2. Creating a new client per request has overhead (connection setup,
+           SSL handshake, etc.).
+
+        The cache uses WeakKeyDictionary with event loops as keys, so clients
+        are automatically cleaned up when their associated event loop is
+        garbage collected.
 
         Returns:
-            Configured httpx.AsyncClient.
+            Configured httpx.AsyncClient for the current event loop.
         """
-        return httpx.AsyncClient(
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running event loop - create a fresh client (will be used once)
+            logger.debug('No running event loop, creating ephemeral client')
+            return httpx.AsyncClient(
+                headers={
+                    'Authorization': f'Bearer {self._api_token}',
+                    'Content-Type': 'application/json',
+                },
+                timeout=httpx.Timeout(60.0, connect=10.0),
+            )
+
+        # Check if we have a cached client for this event loop
+        if loop in _loop_clients:
+            client = _loop_clients[loop]
+            # Verify the client is still usable (not closed)
+            if not client.is_closed:
+                return client
+            # Client was closed, remove from cache and create new one
+            logger.debug('Cached client was closed, creating new one')
+
+        # Create a new client for this event loop
+        client = httpx.AsyncClient(
             headers={
                 'Authorization': f'Bearer {self._api_token}',
                 'Content-Type': 'application/json',
             },
             timeout=httpx.Timeout(60.0, connect=10.0),
         )
+        _loop_clients[loop] = client
+        logger.debug('Created new httpx client for event loop', loop_id=id(loop))
+        return client
 
     async def init(self) -> list[Action]:
         """Initialize plugin.
