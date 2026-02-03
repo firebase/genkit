@@ -1317,3 +1317,68 @@ docs: update GEMINI.md with testing guidelines
 refactor(chat): debounce content safety checks
 ```
 
+---
+
+## Code Review Learnings
+
+### Critical: Streaming Endpoints Must Include History
+
+**Problem:** Streaming chat endpoints were stateless because they didn't pass conversation history to the model.
+
+**Solution:** Always parse the `history` parameter and build `messages` array for `g.generate_stream()`:
+
+```python
+# Parse history and build messages
+messages = []
+if history and history.strip() and history.strip() != "[]":
+    try:
+        history_data = json.loads(history)
+        for msg in history_data:
+            role = msg.get("role", "user")
+            if role == "assistant":
+                role = "model"
+            messages.append({
+                "role": role,
+                "content": [{"text": msg.get("content", "")}],
+            })
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse history JSON")
+
+# Pass messages to generate_stream
+stream, _ = g.generate_stream(
+    model=model,
+    prompt=message,
+    messages=messages,  # Required for stateful conversations!
+)
+```
+
+**Applies to:**
+- Genkit flow functions (`stream_chat_flow`)
+- FastAPI streaming endpoints (`/api/stream`)
+- Robyn SSE endpoints (`/api/stream`)
+
+### Medium: Plugin Factory Functions vs Plugin Classes
+
+**Problem:** Some plugins export factory functions (e.g., `define_dev_local_vector_store`) not plugin classes.
+
+**Correct usage:**
+```python
+# DON'T try to instantiate as a plugin
+from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
+plugins.append(DevLocalVectorStore())  # Wrong!
+
+# DO use the factory function to create indexers/retrievers
+from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
+store = define_dev_local_vector_store(g, name="my_store", embedder="...")
+```
+
+### Medium: Type Safety for Nullable Query Parameters
+
+**Problem:** Query parameters can be `None`, causing type errors with functions like `unquote()`.
+
+**Solution:** Always provide fallbacks:
+```python
+decoded_message = unquote(message) if message else ""
+decoded_model = unquote(model) if model else "ollama/llama3.2"
+```
+

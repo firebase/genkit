@@ -81,4 +81,14 @@ select = ["E", "F", "I", "UP", "B", "N", "ANN"]
 known-first-party = ["genkit"]
 
 [tool.ty.environment]
-root = ["src", "../../../packages/genkit/src", "../../../plugins/google-genai/src", "../../../plugins/vertex-ai/src", "../../../plugins/anthropic/src", "../../../plugins/compat-oai/src", "../../../plugins/ollama/src", "../../../plugins/cf-ai/src", "../../../plugins/dev-local-vectorstore/src"]
+root = [
+  "src",
+  "../../../packages/genkit/src",
+  "../../../plugins/google-genai/src",
+  "../../../plugins/vertex-ai/src",
+  "../../../plugins/anthropic/src",
+  "../../../plugins/compat-oai/src",
+  "../../../plugins/ollama/src",
+  "../../../plugins/cf-ai/src",
+  "../../../plugins/dev-local-vectorstore/src",
+]
