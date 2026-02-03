@@ -52,7 +52,7 @@ func TestHTTPServerIntegration(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
-	client, err := NewGenkitMCPClient(MCPClientOptions{
+	client, err := NewClient(ctx, MCPClientOptions{
 		Name: "remote-mcp",
 		SSE: &SSEConfig{
 			BaseURL: ts.URL + "/mcp",

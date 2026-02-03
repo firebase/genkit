@@ -24,7 +24,8 @@ func main() {
   g := genkit.Init(ctx)
 
   // Connect to the MCP everything server
-  client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+  // NewClient uses the context to manage the connection lifecycle.
+  client, err := mcp.NewClient(ctx, mcp.MCPClientOptions{
     Name: "everything-server",
     Stdio: &mcp.StdioConfig{
       Command: "npx",
@@ -48,6 +49,8 @@ func main() {
   }
 }
 ```
+
+> **Note:** `NewGenkitMCPClient` is deprecated in favor of `NewClient`, which supports context propagation.
 
 ## MCPHost - Multiple Server Management
 
@@ -150,6 +153,7 @@ func main() {
   })
 
   // Start serving over Stdio
+  // Use ServeStdioWithContext(ctx) for graceful shutdown support.
   if err := server.ServeStdio(); err != nil {
     log.Fatal(err)
   }

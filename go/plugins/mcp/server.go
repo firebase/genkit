@@ -236,6 +236,7 @@ func (s *GenkitMCPServer) createResourceHandler(resource ai.Resource) mcp.Resour
 	}
 }
 
+// toMCPResourceContents translates a slice of [ai.Part] into a slice of [mcp.ResourceContents]
 func (s *GenkitMCPServer) toMCPResourceContents(requestURI string, parts []*ai.Part) ([]*mcp.ResourceContents, error) {
 	var contents []*mcp.ResourceContents
 	for _, p := range parts {
@@ -267,11 +268,18 @@ func (s *GenkitMCPServer) toMCPResourceContents(requestURI string, parts []*ai.P
 	return contents, nil
 }
 
+// ServeStdio runs the server over Stdio
 func (s *GenkitMCPServer) ServeStdio() error {
+	return s.ServeStdioWithContext(context.Background())
+}
+
+// ServeStdioWithContext runs the server over Stdio with the given context.
+// Canceling the context will stop the server.
+func (s *GenkitMCPServer) ServeStdioWithContext(ctx context.Context) error {
 	if err := s.setup(); err != nil {
 		return err
 	}
-	return s.server.Run(context.Background(), &mcp.StdioTransport{})
+	return s.server.Run(ctx, &mcp.StdioTransport{})
 }
 
 // HTTPHandler creates an HTTP handler that serves MCP using SSE.

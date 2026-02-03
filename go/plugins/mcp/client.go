@@ -87,8 +87,8 @@ type GenkitMCPClient struct {
 	server  *ServerRef
 }
 
-// NewGenkitMCPClient creates a new [GenkitMCPClient] with the given options.
-func NewGenkitMCPClient(opts MCPClientOptions) (*GenkitMCPClient, error) {
+// NewClient creates a new GenkitMCPClient with the given options.
+func NewClient(ctx context.Context, opts MCPClientOptions) (*GenkitMCPClient, error) {
 	if opts.Name == "" {
 		opts.Name = "unnamed"
 	}
@@ -104,7 +104,7 @@ func NewGenkitMCPClient(opts MCPClientOptions) (*GenkitMCPClient, error) {
 		}, nil),
 	}
 
-	if err := c.connect(context.Background()); err != nil {
+	if err := c.connect(ctx); err != nil {
 		return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
 	}
 	if c.server.Error != nil {
@@ -112,6 +112,12 @@ func NewGenkitMCPClient(opts MCPClientOptions) (*GenkitMCPClient, error) {
 	}
 
 	return c, nil
+}
+
+// NewGenkitMCPClient creates a new [GenkitMCPClient] with the given options.
+// Deprecated: Use NewClient(ctx, opts) instead.
+func NewGenkitMCPClient(opts MCPClientOptions) (*GenkitMCPClient, error) {
+	return NewClient(context.Background(), opts)
 }
 
 // connect establishes a connection to an MCP server
@@ -238,12 +244,19 @@ func (c *GenkitMCPClient) Disable() {
 	}
 }
 
-// Reenable re-enables a previously disabled client by reconnecting it
-func (c *GenkitMCPClient) Reenable() {
+// ReenableWithContext re-enables a previously disabled client by reconnecting it.
+func (c *GenkitMCPClient) ReenableWithContext(ctx context.Context) error {
 	if c.options.Disabled {
 		c.options.Disabled = false
-		c.connect(context.Background())
+		return c.connect(ctx)
 	}
+	return nil
+}
+
+// Reenable re-enables a previously disabled client by reconnecting it.
+// Deprecated: Use ReenableWithContext instead.
+func (c *GenkitMCPClient) Reenable() {
+	_ = c.ReenableWithContext(context.Background())
 }
 
 // Restart restarts the transport connection
