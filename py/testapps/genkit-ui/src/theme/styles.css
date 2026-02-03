@@ -1,0 +1,114 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * Genkit Shared Components - Default Theme
+ *
+ * This CSS file provides default theme variables for the shared components.
+ * Import this in your application's global styles, or define your own variables.
+ *
+ * All components use CSS variable fallbacks, so they will work without this file,
+ * but the theme provides a consistent Material Design 3 look.
+ */
+
+:root {
+	/* Primary colors */
+	--primary: #4285f4;
+	--on-primary: #ffffff;
+	--primary-container: #d3e3fd;
+	--on-primary-container: #041e49;
+
+	/* Secondary colors */
+	--secondary: #5f6368;
+	--on-secondary: #ffffff;
+	--secondary-container: #e8eaed;
+	--on-secondary-container: #1f1f1f;
+
+	/* Tertiary colors */
+	--tertiary: #7c5800;
+	--on-tertiary: #ffffff;
+	--tertiary-container: #ffdea1;
+	--on-tertiary-container: #261a00;
+
+	/* Surface colors */
+	--surface: #fafafa;
+	--surface-container: #f0f4f9;
+	--surface-container-low: #f5f5f5;
+	--surface-container-high: #e8eaed;
+	--on-surface: #1a1c1e;
+	--on-surface-variant: #5f6368;
+
+	/* Error colors */
+	--error: #ba1a1a;
+	--on-error: #ffffff;
+	--error-container: #ffdad6;
+	--on-error-container: #410002;
+
+	/* Outline colors */
+	--outline: #747775;
+	--outline-variant: #c4c6d0;
+
+	/* Inverse colors */
+	--inverse-surface: #2f3033;
+	--inverse-on-surface: #f2f0f4;
+	--inverse-primary: #a8c7fa;
+
+	/* Shadow */
+	--shadow: rgba(0, 0, 0, 0.15);
+
+	/* Status colors */
+	--success: #34a853;
+	--on-success: #ffffff;
+	--warning: #fbbc04;
+	--on-warning: #1a1c1e;
+}
+
+/* Dark theme */
+[data-theme="dark"],
+.dark-theme {
+	--primary: #a8c7fa;
+	--on-primary: #062e6f;
+	--primary-container: #1a4591;
+	--on-primary-container: #d3e3fd;
+
+	--secondary: #bdc1c6;
+	--on-secondary: #303033;
+	--secondary-container: #474a4d;
+	--on-secondary-container: #e8eaed;
+
+	--surface: #1a1c1e;
+	--surface-container: #202124;
+	--surface-container-low: #1a1c1e;
+	--surface-container-high: #303033;
+	--on-surface: #e3e3e3;
+	--on-surface-variant: #c4c6d0;
+
+	--error: #ffb4ab;
+	--on-error: #690005;
+	--error-container: #93000a;
+	--on-error-container: #ffdad6;
+
+	--outline: #8e9099;
+	--outline-variant: #44474e;
+
+	--inverse-surface: #e3e2e6;
+	--inverse-on-surface: #2f3033;
+	--inverse-primary: #1a5db6;
+
+	--shadow: rgba(0, 0, 0, 0.3);
+}

@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit ಚಾಟ್",
+    "newChat": "ಹೊಸ ಚಾಟ್",
+    "version": "ಪೂರ್ವವೀಕ್ಷಣೆ"
+  },
+  "nav": {
+    "chat": "ಚಾಟ್",
+    "compare": "ಹೋಲಿಸಿ",
+    "settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
+    "demoUser": "ಡೆಮೊ ಬಳಕೆದಾರ"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat ಗೆ ಕೇಳಿ",
+    "sendMessage": "ಸಂದೇಶ ಕಳುಹಿಸಿ",
+    "voiceInput": "ಧ್ವನಿ ಇನ್‌ಪುಟ್",
+    "stopRecording": "ರೆಕಾರ್ಡಿಂಗ್ ನಿಲ್ಲಿಸಿ",
+    "addFiles": "ಫೈಲ್‌ಗಳನ್ನು ಸೇರಿಸಿ",
+    "addMoreFiles": "ಇನ್ನಷ್ಟು ಫೈಲ್‌ಗಳನ್ನು ಸೇರಿಸಿ",
+    "uploadFiles": "ಫೈಲ್‌ಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ",
+    "googleDrive": "Drive ಇಂದ ಸೇರಿಸಿ",
+    "camera": "ಕ್ಯಾಮೆರಾ",
+    "removeFile": "ತೆಗೆದುಹಾಕಿ",
+    "disclaimer": "Genkit Chat ತಪ್ಪು ಮಾಹಿತಿ ತೋರಿಸಬಹುದು. ಉತ್ತರಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.",
+    "greeting": "ನಮಸ್ಕಾರ",
+    "greetingSubtitle": "ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
+    "clearInput": "ಅಳಿಸಿ"
+  },
+  "attach": {
+    "photos": "ಫೋಟೋಗಳು",
+    "audio": "ಆಡಿಯೋ",
+    "video": "ವೀಡಿಯೊ",
+    "pdf": "PDF",
+    "code": "ಕೋಡ್ ಆಮದು ಮಾಡಿ"
+  },
+  "toolbar": {
+    "settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
+    "tools": "ಉಪಕರಣಗಳು",
+    "stream": "ಸ್ಟ್ರೀಮಿಂಗ್ ಪ್ರತಿಕ್ರಿಯೆಗಳು",
+    "markdown": "Markdown ರೆಂಡರ್ ಮಾಡಿ",
+    "safe": "ವಿಷಯ ಸುರಕ್ಷತೆ",
+    "enabled": "ಸಕ್ರಿಯ",
+    "disabled": "ನಿಷ್ಕ್ರಿಯ"
+  },
+  "settings": {
+    "clearPreferences": "ಆದ್ಯತೆಗಳನ್ನು ಅಳಿಸಿ"
+  },
+  "actions": {
+    "copy": "ಕ್ಲಿಪ್‌ಬೋರ್ಡ್‌ಗೆ ನಕಲಿಸಿ",
+    "readAloud": "ಜೋರಾಗಿ ಓದಿ",
+    "goodResponse": "ಉತ್ತಮ ಪ್ರತಿಕ್ರಿಯೆ",
+    "badResponse": "ಕೆಟ್ಟ ಪ್ರತಿಕ್ರಿಯೆ",
+    "more": "ಇನ್ನಷ್ಟು",
+    "edit": "ಸಂಪಾದಿಸಿ",
+    "delete": "ಅಳಿಸಿ",
+    "remove": "ತೆಗೆದುಹಾಕಿ",
+    "clearAll": "ಎಲ್ಲವನ್ನೂ ಅಳಿಸಿ"
+  },
+  "queue": {
+    "queued": "ಸರತಿಯಲ್ಲಿ",
+    "sendAll": "ಎಲ್ಲವನ್ನೂ ಕಳುಹಿಸಿ",
+    "clearAll": "ಎಲ್ಲವನ್ನೂ ಅಳಿಸಿ",
+    "sendNow": "ಈಗ ಕಳುಹಿಸಿ"
+  },
+  "model": {
+    "selectModel": "ಮಾದರಿ ಆಯ್ಕೆಮಾಡಿ",
+    "searchModels": "ಮಾದರಿಗಳನ್ನು ಹುಡುಕಿ...",
+    "noModelsFound": "ಯಾವುದೇ ಮಾದರಿ ಕಂಡುಬಂದಿಲ್ಲ",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "ಇತರ"
+    }
+  },
+  "quickActions": {
+    "createImage": "ಚಿತ್ರ ರಚಿಸಿ",
+    "writeAnything": "ಕವಿತೆ ಬರೆಯಿರಿ",
+    "helpMeLearn": "ಕಲಿಯಲು ಸಹಾಯ ಮಾಡಿ",
+    "createVideo": "ವೀಡಿಯೊ ರಚಿಸಿ",
+    "stayOrganized": "ಸಂಘಟಿತವಾಗಿರಿ"
+  },
+  "theme": {
+    "label": "ಥೀಮ್",
+    "system": "ಸಿಸ್ಟಮ್",
+    "light": "ಬೆಳಕು",
+    "dark": "ಗಾಢ"
+  },
+  "language": {
+    "label": "ಭಾಷೆ",
+    "select": "ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ",
+    "searchLanguages": "ಭಾಷೆಗಳನ್ನು ಹುಡುಕಿ...",
+    "noLanguagesFound": "ಯಾವುದೇ ಭಾಷೆ ಕಂಡುಬಂದಿಲ್ಲ"
+  },
+  "help": {
+    "label": "ಸಹಾಯ ಮತ್ತು ಸಂಪನ್ಮೂಲಗಳು",
+    "documentation": "ದಾಖಲೆ",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "ಸೈನ್ ಇನ್ ಮಾಡಿ",
+    "signOut": "ಸೈನ್ ಔಟ್ ಮಾಡಿ",
+    "account": "ಖಾತೆ",
+    "connectDrive": "Google Drive ಸಂಪರ್ಕಿಸಿ"
+  },
+  "safety": {
+    "flagged": "ವಿಷಯ ಫ್ಲ್ಯಾಗ್ ಮಾಡಲಾಗಿದೆ",
+    "warning": "ಈ ವಿಷಯ ಹಾನಿಕಾರಕವಾಗಿರಬಹುದು"
+  },
+  "errors": {
+    "fileTooLarge": "ಫೈಲ್ \"{name}\" ತುಂಬಾ ದೊಡ್ಡದಾಗಿದೆ (ಗರಿಷ್ಠ {size})",
+    "maxAttachments": "ಗರಿಷ್ಠ {count} ಲಗತ್ತುಗಳು ಅನುಮತಿಸಲಾಗಿದೆ",
+    "invalidFileType": "ಫೈಲ್ ಪ್ರಕಾರ ಬೆಂಬಲಿತವಲ್ಲ"
+  }
+}

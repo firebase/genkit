@@ -9,6 +9,15 @@
     For more information about how to get started with using
     Genkit, please see: [User Guide](.)
 
+!!! tip "New to the Team?"
+
+    If you're a new engineer joining the Genkit team, start here:
+
+    1. **[Quick Start for Engineers](./architecture/quick-start-for-engineers.md)** - Get productive fast
+    2. **[Architecture Guide](./architecture/README.md)** - Understand how the framework works
+    3. **[GEMINI.md](../GEMINI.md)** - Coding guidelines (must read before writing code)
+    4. **[Glossary](./extending/glossary.md)** - Terminology reference
+
 ## What is Genkit?
 
 Genkit is a framework designed to help you build AI-powered applications and

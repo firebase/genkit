@@ -9,9 +9,41 @@
     For more information about how to get started with using
     Genkit, please see: [User Guide](.)
 
+!!! tip "New to Genkit?"
+
+    If you're new to the team, start with the
+    [Architecture Guide](../architecture/README.md) for a beginner-friendly
+    introduction with ELI5 explanations and ASCII diagrams.
+
 Genkit models a generative AI framework allowing application developers
 to work with abstractions to allow the use of pluggable implementations of the
 various elements of generative AI. It has SDKs for JavaScript, Go, and Python.
+
+## Quick Concepts (ELI5)
+
+```
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ Concept             │ ELI5 Explanation                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Action              │ A named function that can be called locally or via     │
+│                     │ HTTP. The "atom" of Genkit - everything is an action.  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Flow                │ A user-defined action. Your custom logic wrapped in    │
+│                     │ Genkit's observable, callable action system.           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Registry            │ The central "phone book" where all actions are stored  │
+│                     │ and looked up by name.                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Plugin              │ An extension that adds new capabilities (models,       │
+│                     │ embedders, tools) by registering actions.              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Veneer              │ The user-friendly API layer (Genkit class, generate(), │
+│                     │ etc.) that hides internal complexity.                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Blocks              │ Higher-level AI abstractions (models, embedders,       │
+│                     │ retrievers) built on top of the core action system.    │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+```
 
 ## Design
 

@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit شات",
+    "newChat": "محادثة جديدة",
+    "version": "معاينة"
+  },
+  "nav": {
+    "chat": "الدردشة",
+    "compare": "المقارنة",
+    "settings": "الإعدادات",
+    "demoUser": "مستخدم تجريبي"
+  },
+  "chat": {
+    "placeholder": "اسأل Genkit Chat",
+    "sendMessage": "إرسال الرسالة",
+    "voiceInput": "الإدخال الصوتي",
+    "stopRecording": "إيقاف التسجيل",
+    "addFiles": "إضافة ملفات",
+    "addMoreFiles": "إضافة المزيد من الملفات",
+    "uploadFiles": "تحميل الملفات",
+    "googleDrive": "إضافة من Drive",
+    "camera": "الكاميرا",
+    "removeFile": "إزالة",
+    "disclaimer": "قد يعرض Genkit Chat معلومات غير دقيقة. تحقق من الردود.",
+    "greeting": "مرحباً",
+    "greetingSubtitle": "كيف يمكنني مساعدتك اليوم؟",
+    "clearInput": "مسح"
+  },
+  "attach": {
+    "photos": "صور",
+    "audio": "صوت",
+    "video": "فيديو",
+    "pdf": "PDF",
+    "code": "استيراد الكود"
+  },
+  "toolbar": {
+    "settings": "الإعدادات",
+    "tools": "الأدوات",
+    "stream": "الردود المباشرة",
+    "markdown": "عرض Markdown",
+    "safe": "أمان المحتوى",
+    "enabled": "مُفعّل",
+    "disabled": "معطّل"
+  },
+  "settings": {
+    "clearPreferences": "مسح التفضيلات"
+  },
+  "actions": {
+    "copy": "نسخ إلى الحافظة",
+    "readAloud": "القراءة بصوت عال",
+    "goodResponse": "رد جيد",
+    "badResponse": "رد سيء",
+    "more": "المزيد",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "remove": "إزالة",
+    "clearAll": "مسح الكل"
+  },
+  "queue": {
+    "queued": "في الانتظار",
+    "sendAll": "إرسال الكل",
+    "clearAll": "مسح الكل",
+    "sendNow": "إرسال الآن"
+  },
+  "model": {
+    "selectModel": "اختر النموذج",
+    "searchModels": "البحث عن النماذج...",
+    "noModelsFound": "لم يتم العثور على نماذج",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "أخرى"
+    }
+  },
+  "quickActions": {
+    "createImage": "إنشاء صورة",
+    "writeAnything": "كتابة قصيدة",
+    "helpMeLearn": "ساعدني في التعلم",
+    "createVideo": "إنشاء فيديو",
+    "stayOrganized": "البقاء منظماً"
+  },
+  "theme": {
+    "label": "المظهر",
+    "system": "النظام",
+    "light": "فاتح",
+    "dark": "داكن"
+  },
+  "language": {
+    "label": "اللغة",
+    "select": "اختر اللغة",
+    "searchLanguages": "البحث عن اللغات...",
+    "noLanguagesFound": "لم يتم العثور على لغات"
+  },
+  "help": {
+    "label": "المساعدة والموارد",
+    "documentation": "التوثيق",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "تسجيل الدخول",
+    "signOut": "تسجيل الخروج",
+    "account": "الحساب",
+    "connectDrive": "ربط Google Drive"
+  },
+  "safety": {
+    "flagged": "تم الإبلاغ عن المحتوى",
+    "warning": "قد يكون هذا المحتوى ضاراً"
+  },
+  "errors": {
+    "fileTooLarge": "الملف \"{name}\" كبير جداً (الحد الأقصى {size})",
+    "maxAttachments": "الحد الأقصى {count} مرفقات مسموح بها",
+    "invalidFileType": "نوع الملف غير مدعوم"
+  }
+}

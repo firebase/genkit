@@ -1,0 +1,72 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * Chat Components
+ *
+ * A complete set of components for building AI chat interfaces.
+ *
+ * Component Hierarchy::
+ *
+ *     ChatBoxComponent (container - use this for complete chat UI)
+ *     ├── MessageListComponent      - Message display with markdown
+ *     ├── WelcomeScreenComponent    - Greeting animation, quick actions
+ *     ├── PromptQueueComponent      - Queue with drag-and-drop
+ *     ├── ChatInputComponent        - Input, attachments, voice, settings
+ *     └── ModelSelectorComponent    - Searchable model dropdown
+ *
+ * Quick Start::
+ *
+ *     // For a complete chat interface:
+ *     import { ChatBoxComponent } from '@genkit-ai/genkit-ui/chat';
+ *
+ *     @Component({
+ *       imports: [ChatBoxComponent],
+ *       template: `
+ *         <genkit-chat-box
+ *           [messages]="messages"
+ *           [isLoading]="isLoading"
+ *           [selfManagedVoice]="true"
+ *           (send)="onSend($event)" />
+ *       `
+ *     })
+ *
+ *     // For individual components:
+ *     import { ChatInputComponent, MessageListComponent } from '@genkit-ai/genkit-ui/chat';
+ *
+ * @packageDocumentation
+ */
+
+export type { ChatSettings } from './chat-box/chat-box.component';
+// Main container component
+export {
+	ChatBoxComponent,
+	DEFAULT_GREETINGS,
+	DEFAULT_QUICK_ACTIONS,
+} from './chat-box/chat-box.component';
+export type { AttachedFile, SendEvent } from './chat-input/chat-input.component';
+export { ChatInputComponent } from './chat-input/chat-input.component';
+export type { Message } from './message-list/message-list.component';
+// Individual components
+export { MessageListComponent } from './message-list/message-list.component';
+export type { Model, Provider } from './model-selector/model-selector.component';
+export { ModelSelectorComponent } from './model-selector/model-selector.component';
+export type { QueueItem } from './prompt-queue/prompt-queue.component';
+export { PromptQueueComponent } from './prompt-queue/prompt-queue.component';
+export type { Greeting, QuickAction } from './welcome-screen/welcome-screen.component';
+export { WelcomeScreenComponent } from './welcome-screen/welcome-screen.component';

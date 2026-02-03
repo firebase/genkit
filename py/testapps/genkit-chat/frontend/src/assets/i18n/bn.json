@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit চ্যাট",
+    "newChat": "নতুন চ্যাট",
+    "version": "পূর্বরূপ"
+  },
+  "nav": {
+    "chat": "চ্যাট",
+    "compare": "তুলনা",
+    "settings": "সেটিংস",
+    "demoUser": "ডেমো ব্যবহারকারী"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat-কে জিজ্ঞাসা করুন",
+    "sendMessage": "বার্তা পাঠান",
+    "voiceInput": "ভয়েস ইনপুট",
+    "stopRecording": "রেকর্ডিং বন্ধ করুন",
+    "addFiles": "ফাইল যোগ করুন",
+    "addMoreFiles": "আরও ফাইল যোগ করুন",
+    "uploadFiles": "ফাইল আপলোড করুন",
+    "googleDrive": "Drive থেকে যোগ করুন",
+    "camera": "ক্যামেরা",
+    "removeFile": "সরান",
+    "disclaimer": "Genkit Chat ভুল তথ্য দেখাতে পারে। উত্তর যাচাই করুন।",
+    "greeting": "হ্যালো",
+    "greetingSubtitle": "আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?",
+    "clearInput": "মুছুন"
+  },
+  "attach": {
+    "photos": "ফটো",
+    "audio": "অডিও",
+    "video": "ভিডিও",
+    "pdf": "PDF",
+    "code": "কোড ইম্পোর্ট করুন"
+  },
+  "toolbar": {
+    "settings": "সেটিংস",
+    "tools": "টুলস",
+    "stream": "স্ট্রিমিং প্রতিক্রিয়া",
+    "markdown": "Markdown রেন্ডার করুন",
+    "safe": "কন্টেন্ট সুরক্ষা",
+    "enabled": "সক্রিয়",
+    "disabled": "নিষ্ক্রিয়"
+  },
+  "settings": {
+    "clearPreferences": "পছন্দ মুছুন"
+  },
+  "actions": {
+    "copy": "ক্লিপবোর্ডে কপি করুন",
+    "readAloud": "জোরে পড়ুন",
+    "goodResponse": "ভালো উত্তর",
+    "badResponse": "খারাপ উত্তর",
+    "more": "আরও",
+    "edit": "সম্পাদনা",
+    "delete": "মুছে ফেলুন",
+    "remove": "সরান",
+    "clearAll": "সব মুছুন"
+  },
+  "queue": {
+    "queued": "সারিতে আছে",
+    "sendAll": "সব পাঠান",
+    "clearAll": "সব মুছুন",
+    "sendNow": "এখনই পাঠান"
+  },
+  "model": {
+    "selectModel": "মডেল নির্বাচন করুন",
+    "searchModels": "মডেল খুঁজুন...",
+    "noModelsFound": "কোনো মডেল পাওয়া যায়নি",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "অন্যান্য"
+    }
+  },
+  "quickActions": {
+    "createImage": "ছবি তৈরি করুন",
+    "writeAnything": "কবিতা লিখুন",
+    "helpMeLearn": "শিখতে সাহায্য করুন",
+    "createVideo": "ভিডিও তৈরি করুন",
+    "stayOrganized": "সংগঠিত থাকুন"
+  },
+  "theme": {
+    "label": "থিম",
+    "system": "সিস্টেম",
+    "light": "হালকা",
+    "dark": "গাঢ়"
+  },
+  "language": {
+    "label": "ভাষা",
+    "select": "ভাষা নির্বাচন করুন",
+    "searchLanguages": "ভাষা খুঁজুন...",
+    "noLanguagesFound": "কোনো ভাষা পাওয়া যায়নি"
+  },
+  "help": {
+    "label": "সাহায্য ও সংস্থান",
+    "documentation": "ডকুমেন্টেশন",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "সাইন ইন করুন",
+    "signOut": "সাইন আউট করুন",
+    "account": "অ্যাকাউন্ট",
+    "connectDrive": "Google Drive সংযোগ করুন"
+  },
+  "safety": {
+    "flagged": "কন্টেন্ট ফ্ল্যাগ করা হয়েছে",
+    "warning": "এই কন্টেন্ট ক্ষতিকর হতে পারে"
+  },
+  "errors": {
+    "fileTooLarge": "ফাইল \"{name}\" অনেক বড় (সর্বোচ্চ {size})",
+    "maxAttachments": "সর্বোচ্চ {count}টি সংযুক্তি অনুমোদিত",
+    "invalidFileType": "ফাইলের ধরন সমর্থিত নয়"
+  }
+}

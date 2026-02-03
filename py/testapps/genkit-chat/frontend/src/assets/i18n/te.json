@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit చాట్",
+    "newChat": "కొత్త చాట్",
+    "version": "ప్రివ్యూ"
+  },
+  "nav": {
+    "chat": "చాట్",
+    "compare": "పోల్చండి",
+    "settings": "సెట్టింగ్‌లు",
+    "demoUser": "డెమో యూజర్"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat ని అడగండి",
+    "sendMessage": "సందేశం పంపండి",
+    "voiceInput": "వాయిస్ ఇన్‌పుట్",
+    "stopRecording": "రికార్డింగ్ ఆపండి",
+    "addFiles": "ఫైల్‌లను జోడించండి",
+    "addMoreFiles": "మరిన్ని ఫైల్‌లను జోడించండి",
+    "uploadFiles": "ఫైల్‌లను అప్‌లోడ్ చేయండి",
+    "googleDrive": "Drive నుండి జోడించండి",
+    "camera": "కెమెరా",
+    "removeFile": "తీసివేయండి",
+    "disclaimer": "Genkit Chat తప్పు సమాచారం చూపించవచ్చు. సమాధానాలను ధృవీకరించండి.",
+    "greeting": "హలో",
+    "greetingSubtitle": "ఈ రోజు నేను మీకు ఎలా సహాయం చేయగలను?",
+    "clearInput": "క్లియర్"
+  },
+  "attach": {
+    "photos": "ఫోటోలు",
+    "audio": "ఆడియో",
+    "video": "వీడియో",
+    "pdf": "PDF",
+    "code": "కోడ్ దిగుమతి"
+  },
+  "toolbar": {
+    "settings": "సెట్టింగ్‌లు",
+    "tools": "టూల్స్",
+    "stream": "స్ట్రీమింగ్ ప్రతిస్పందనలు",
+    "markdown": "Markdown రెండర్",
+    "safe": "కంటెంట్ భద్రత",
+    "enabled": "ప్రారంభించబడింది",
+    "disabled": "నిలిపివేయబడింది"
+  },
+  "settings": {
+    "clearPreferences": "ప్రాధాన్యతలను క్లియర్ చేయండి"
+  },
+  "actions": {
+    "copy": "క్లిప్‌బోర్డ్‌కు కాపీ చేయండి",
+    "readAloud": "బిగ్గరగా చదవండి",
+    "goodResponse": "మంచి ప్రతిస్పందన",
+    "badResponse": "చెడ్డ ప్రతిస్పందన",
+    "more": "మరిన్ని",
+    "edit": "సవరించండి",
+    "delete": "తొలగించండి",
+    "remove": "తీసివేయండి",
+    "clearAll": "అన్నీ క్లియర్ చేయండి"
+  },
+  "queue": {
+    "queued": "క్యూలో ఉంది",
+    "sendAll": "అన్నీ పంపండి",
+    "clearAll": "అన్నీ క్లియర్ చేయండి",
+    "sendNow": "ఇప్పుడే పంపండి"
+  },
+  "model": {
+    "selectModel": "మోడల్ ఎంచుకోండి",
+    "searchModels": "మోడల్స్ వెతకండి...",
+    "noModelsFound": "మోడల్స్ కనుగొనబడలేదు",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "ఇతర"
+    }
+  },
+  "quickActions": {
+    "createImage": "చిత్రం సృష్టించండి",
+    "writeAnything": "కవిత రాయండి",
+    "helpMeLearn": "నేర్చుకోవడంలో సహాయం",
+    "createVideo": "వీడియో సృష్టించండి",
+    "stayOrganized": "వ్యవస్థీకృతంగా ఉండండి"
+  },
+  "theme": {
+    "label": "థీమ్",
+    "system": "సిస్టమ్",
+    "light": "లైట్",
+    "dark": "డార్క్"
+  },
+  "language": {
+    "label": "భాష",
+    "select": "భాష ఎంచుకోండి",
+    "searchLanguages": "భాషలను వెతకండి...",
+    "noLanguagesFound": "భాషలు కనుగొనబడలేదు"
+  },
+  "help": {
+    "label": "సహాయం & వనరులు",
+    "documentation": "డాక్యుమెంటేషన్",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "సైన్ ఇన్",
+    "signOut": "సైన్ అవుట్",
+    "account": "ఖాతా",
+    "connectDrive": "Google Drive కనెక్ట్ చేయండి"
+  },
+  "safety": {
+    "flagged": "కంటెంట్ ఫ్లాగ్ చేయబడింది",
+    "warning": "ఈ కంటెంట్ హానికరం కావచ్చు"
+  },
+  "errors": {
+    "fileTooLarge": "ఫైల్ \"{name}\" చాలా పెద్దది (గరిష్టం {size})",
+    "maxAttachments": "గరిష్టంగా {count} అటాచ్‌మెంట్‌లు అనుమతించబడతాయి",
+    "invalidFileType": "ఫైల్ రకం మద్దతు లేదు"
+  }
+}

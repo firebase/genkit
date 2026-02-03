@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit Chat",
+    "newChat": "Nouvelle conversation",
+    "version": "Aperçu"
+  },
+  "nav": {
+    "chat": "Chat",
+    "compare": "Comparer",
+    "settings": "Paramètres",
+    "demoUser": "Utilisateur démo"
+  },
+  "chat": {
+    "placeholder": "Demandez à Genkit Chat",
+    "sendMessage": "Envoyer le message",
+    "voiceInput": "Entrée vocale",
+    "stopRecording": "Arrêter l'enregistrement",
+    "addFiles": "Ajouter des fichiers",
+    "addMoreFiles": "Ajouter plus de fichiers",
+    "uploadFiles": "Téléverser des fichiers",
+    "googleDrive": "Ajouter depuis Drive",
+    "camera": "Caméra",
+    "removeFile": "Supprimer",
+    "disclaimer": "Genkit Chat peut afficher des informations inexactes. Vérifiez les réponses.",
+    "greeting": "Bonjour",
+    "greetingSubtitle": "Comment puis-je vous aider aujourd'hui ?",
+    "clearInput": "Effacer"
+  },
+  "attach": {
+    "photos": "Photos",
+    "audio": "Audio",
+    "video": "Vidéo",
+    "pdf": "PDF",
+    "code": "Importer du code"
+  },
+  "toolbar": {
+    "settings": "Paramètres",
+    "tools": "Outils",
+    "stream": "Réponses en streaming",
+    "markdown": "Afficher le Markdown",
+    "safe": "Sécurité du contenu",
+    "enabled": "Activé",
+    "disabled": "Désactivé"
+  },
+  "settings": {
+    "clearPreferences": "Effacer les préférences"
+  },
+  "actions": {
+    "copy": "Copier dans le presse-papiers",
+    "readAloud": "Lire à voix haute",
+    "goodResponse": "Bonne réponse",
+    "badResponse": "Mauvaise réponse",
+    "more": "Plus",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "remove": "Retirer",
+    "clearAll": "Tout effacer"
+  },
+  "queue": {
+    "queued": "En file d'attente",
+    "sendAll": "Tout envoyer",
+    "clearAll": "Tout effacer",
+    "sendNow": "Envoyer maintenant"
+  },
+  "model": {
+    "selectModel": "Sélectionner le modèle",
+    "searchModels": "Rechercher des modèles...",
+    "noModelsFound": "Aucun modèle trouvé",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "Autres"
+    }
+  },
+  "quickActions": {
+    "createImage": "Créer une image",
+    "writeAnything": "Écrire un poème",
+    "helpMeLearn": "M'aider à apprendre",
+    "createVideo": "Créer une vidéo",
+    "stayOrganized": "Rester organisé"
+  },
+  "theme": {
+    "label": "Thème",
+    "system": "Système",
+    "light": "Clair",
+    "dark": "Sombre"
+  },
+  "language": {
+    "label": "Langue",
+    "select": "Sélectionner la langue",
+    "searchLanguages": "Rechercher des langues...",
+    "noLanguagesFound": "Aucune langue trouvée"
+  },
+  "help": {
+    "label": "Aide et ressources",
+    "documentation": "Documentation",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "Se connecter",
+    "signOut": "Se déconnecter",
+    "account": "Compte",
+    "connectDrive": "Connecter Google Drive"
+  },
+  "safety": {
+    "flagged": "Contenu signalé",
+    "warning": "Ce contenu peut être nuisible"
+  },
+  "errors": {
+    "fileTooLarge": "Le fichier \"{name}\" est trop volumineux (max {size})",
+    "maxAttachments": "Maximum {count} pièces jointes autorisées",
+    "invalidFileType": "Type de fichier non pris en charge"
+  }
+}

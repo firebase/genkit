@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit 채팅",
+    "newChat": "새 채팅",
+    "version": "미리보기"
+  },
+  "nav": {
+    "chat": "채팅",
+    "compare": "비교",
+    "settings": "설정",
+    "demoUser": "데모 사용자"
+  },
+  "chat": {
+    "placeholder": "Genkit Chat에 질문하기",
+    "sendMessage": "메시지 보내기",
+    "voiceInput": "음성 입력",
+    "stopRecording": "녹음 중지",
+    "addFiles": "파일 추가",
+    "addMoreFiles": "파일 더 추가",
+    "uploadFiles": "파일 업로드",
+    "googleDrive": "드라이브에서 추가",
+    "camera": "카메라",
+    "removeFile": "삭제",
+    "disclaimer": "Genkit Chat은 부정확한 정보를 표시할 수 있습니다. 응답을 확인하세요.",
+    "greeting": "안녕하세요",
+    "greetingSubtitle": "오늘 무엇을 도와드릴까요?",
+    "clearInput": "지우기"
+  },
+  "attach": {
+    "photos": "사진",
+    "audio": "오디오",
+    "video": "동영상",
+    "pdf": "PDF",
+    "code": "코드 가져오기"
+  },
+  "toolbar": {
+    "settings": "설정",
+    "tools": "도구",
+    "stream": "스트리밍 응답",
+    "markdown": "Markdown 렌더링",
+    "safe": "콘텐츠 안전",
+    "enabled": "활성화됨",
+    "disabled": "비활성화됨"
+  },
+  "settings": {
+    "clearPreferences": "설정 초기화"
+  },
+  "actions": {
+    "copy": "클립보드에 복사",
+    "readAloud": "소리내어 읽기",
+    "goodResponse": "좋은 응답",
+    "badResponse": "나쁜 응답",
+    "more": "더 보기",
+    "edit": "편집",
+    "delete": "삭제",
+    "remove": "제거",
+    "clearAll": "모두 지우기"
+  },
+  "queue": {
+    "queued": "대기 중",
+    "sendAll": "모두 보내기",
+    "clearAll": "모두 지우기",
+    "sendNow": "지금 보내기"
+  },
+  "model": {
+    "selectModel": "모델 선택",
+    "searchModels": "모델 검색...",
+    "noModelsFound": "모델을 찾을 수 없습니다",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "기타"
+    }
+  },
+  "quickActions": {
+    "createImage": "이미지 만들기",
+    "writeAnything": "시 쓰기",
+    "helpMeLearn": "학습 도움",
+    "createVideo": "동영상 만들기",
+    "stayOrganized": "정리하기"
+  },
+  "theme": {
+    "label": "테마",
+    "system": "시스템",
+    "light": "라이트",
+    "dark": "다크"
+  },
+  "language": {
+    "label": "언어",
+    "select": "언어 선택",
+    "searchLanguages": "언어 검색...",
+    "noLanguagesFound": "언어를 찾을 수 없습니다"
+  },
+  "help": {
+    "label": "도움말 및 리소스",
+    "documentation": "문서",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "로그인",
+    "signOut": "로그아웃",
+    "account": "계정",
+    "connectDrive": "Google 드라이브 연결"
+  },
+  "safety": {
+    "flagged": "콘텐츠 신고됨",
+    "warning": "이 콘텐츠는 유해할 수 있습니다"
+  },
+  "errors": {
+    "fileTooLarge": "파일 \"{name}\"이(가) 너무 큽니다 (최대 {size})",
+    "maxAttachments": "최대 {count}개의 첨부 파일만 허용됩니다",
+    "invalidFileType": "지원되지 않는 파일 형식입니다"
+  }
+}

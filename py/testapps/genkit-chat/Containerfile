@@ -1,0 +1,78 @@
+# Containerfile for Genkit Chat
+# Compatible with both Podman and Docker
+# Multi-stage build for minimal image size
+#
+# IMPORTANT: Production Build Requirements
+# ----------------------------------------
+# The backend/pyproject.toml references local workspace packages with relative paths
+# (e.g., path = "../../../packages/genkit"). These paths are OUTSIDE the Docker build
+# context and will cause the build to fail.
+#
+# For production deployment, you must either:
+# 1. Publish packages to PyPI and update pyproject.toml to use version constraints
+# 2. Use a two-stage build that copies the entire workspace
+# 3. Vendor the dependencies into the build context
+#
+# For local development, run directly with:
+#   cd backend && uv run python src/main.py
+#
+# For containerized development, consider using docker-compose with volume mounts.
+
+# =============================================================================
+# Stage 1: Build Angular Frontend
+# =============================================================================
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Install dependencies first (for caching)
+COPY frontend/package*.json ./
+RUN npm ci --no-audit
+
+# Build frontend
+COPY frontend/ ./
+RUN npm run build
+
+# =============================================================================
+# Stage 2: Python Runtime with Frontend
+# =============================================================================
+FROM python:3.12-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast dependency installation
+RUN pip install uv
+
+WORKDIR /app
+
+# Install Python dependencies
+# NOTE: For production, pyproject.toml must use published packages, not local paths
+COPY backend/pyproject.toml ./
+RUN uv pip install --system -e .
+
+# Copy backend source
+COPY backend/src ./src
+COPY backend/prompts ./prompts
+
+# Copy built frontend
+COPY --from=frontend-builder /app/frontend/dist/browser ./static
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Environment
+ENV PORT=8080
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
+
+# Run the server
+CMD ["python", "src/main.py"]

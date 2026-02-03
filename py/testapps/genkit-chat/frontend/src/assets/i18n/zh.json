@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Genkit 聊天",
+    "newChat": "新对话",
+    "version": "预览版"
+  },
+  "nav": {
+    "chat": "聊天",
+    "compare": "对比",
+    "settings": "设置",
+    "demoUser": "演示用户"
+  },
+  "chat": {
+    "placeholder": "向 Genkit Chat 提问",
+    "sendMessage": "发送消息",
+    "voiceInput": "语音输入",
+    "stopRecording": "停止录音",
+    "addFiles": "添加文件",
+    "addMoreFiles": "添加更多文件",
+    "uploadFiles": "上传文件",
+    "googleDrive": "从 Drive 添加",
+    "camera": "相机",
+    "removeFile": "移除",
+    "disclaimer": "Genkit Chat 可能会显示不准确的信息。请核实回复内容。",
+    "greeting": "你好",
+    "greetingSubtitle": "今天我能为您做什么？",
+    "clearInput": "清除"
+  },
+  "attach": {
+    "photos": "照片",
+    "audio": "音频",
+    "video": "视频",
+    "pdf": "PDF",
+    "code": "导入代码"
+  },
+  "toolbar": {
+    "settings": "设置",
+    "tools": "工具",
+    "stream": "流式响应",
+    "markdown": "渲染 Markdown",
+    "safe": "内容安全",
+    "enabled": "已启用",
+    "disabled": "已禁用"
+  },
+  "settings": {
+    "clearPreferences": "清除偏好设置"
+  },
+  "actions": {
+    "copy": "复制到剪贴板",
+    "readAloud": "朗读",
+    "goodResponse": "好的回复",
+    "badResponse": "差的回复",
+    "more": "更多",
+    "edit": "编辑",
+    "delete": "删除",
+    "remove": "移除",
+    "clearAll": "全部清除"
+  },
+  "queue": {
+    "queued": "排队中",
+    "sendAll": "全部发送",
+    "clearAll": "全部清除",
+    "sendNow": "立即发送"
+  },
+  "model": {
+    "selectModel": "选择模型",
+    "searchModels": "搜索模型...",
+    "noModelsFound": "未找到模型",
+    "categories": {
+      "gemini": "Gemini",
+      "claude": "Claude",
+      "openai": "OpenAI",
+      "ollama": "Ollama",
+      "other": "其他"
+    }
+  },
+  "quickActions": {
+    "createImage": "创建图片",
+    "writeAnything": "写首诗",
+    "helpMeLearn": "帮助学习",
+    "createVideo": "创建视频",
+    "stayOrganized": "保持有序"
+  },
+  "theme": {
+    "label": "主题",
+    "system": "系统",
+    "light": "浅色",
+    "dark": "深色"
+  },
+  "language": {
+    "label": "语言",
+    "select": "选择语言",
+    "searchLanguages": "搜索语言...",
+    "noLanguagesFound": "未找到语言"
+  },
+  "help": {
+    "label": "帮助和资源",
+    "documentation": "文档",
+    "github": "GitHub"
+  },
+  "auth": {
+    "signIn": "登录",
+    "signOut": "退出",
+    "account": "账户",
+    "connectDrive": "连接 Google Drive"
+  },
+  "safety": {
+    "flagged": "内容已标记",
+    "warning": "此内容可能有害"
+  },
+  "errors": {
+    "fileTooLarge": "文件 \"{name}\" 太大（最大 {size}）",
+    "maxAttachments": "最多允许 {count} 个附件",
+    "invalidFileType": "不支持的文件类型"
+  }
+}

@@ -1,0 +1,18 @@
+---
+model: googleai/gemini-3-flash-preview
+input:
+  schema:
+    prompt: string
+    model_name: string
+  default:
+    prompt: "Explain quantum computing in one sentence."
+    model_name: "AI Model"
+config:
+  temperature: 0.7
+  maxOutputTokens: 512
+---
+You are {{model_name}}.
+
+Respond to the following prompt concisely and accurately:
+
+{{prompt}}
