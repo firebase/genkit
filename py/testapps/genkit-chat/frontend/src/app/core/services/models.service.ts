@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
+import { PreferencesService } from './preferences.service';
 
 export interface ModelInfo {
     id: string;
@@ -98,23 +99,26 @@ const DEFAULT_PROVIDERS: ProviderInfo[] = [
     },
 ];
 
+const DEFAULT_MODEL = 'ollama/gemma3:4b';
+
 @Injectable({
     providedIn: 'root',
 })
 export class ModelsService {
     private http = inject(HttpClient);
+    private preferencesService = inject(PreferencesService);
     private apiUrl = '/api';
-    private readonly RECENT_KEY = 'genkit-chat-recent-models';
     private readonly MAX_RECENT = 3;
 
     providers = signal<ProviderInfo[]>(DEFAULT_PROVIDERS);
-    selectedModel = signal<string>('ollama/llama3.2');
-    recentModels = signal<string[]>([]);
+    // Load selected model from preferences, fallback to default
+    selectedModel = signal<string>(this.preferencesService.selectedModel || DEFAULT_MODEL);
+    // Load recent models from preferences
+    recentModels = signal<string[]>(this.preferencesService.recentModels);
     isLoading = signal(false);
     isBackendConnected = signal(false);
 
     constructor() {
-        this.loadRecentModels();
         this.loadModels();
     }
 
@@ -174,6 +178,7 @@ export class ModelsService {
     /** Select a model and add to recent */
     selectModel(modelId: string): void {
         this.selectedModel.set(modelId);
+        this.preferencesService.setSelectedModel(modelId);
         this.addToRecent(modelId);
     }
 
@@ -185,23 +190,12 @@ export class ModelsService {
             .filter((m): m is ModelInfo => m !== undefined);
     }
 
-    private loadRecentModels(): void {
-        try {
-            const stored = localStorage.getItem(this.RECENT_KEY);
-            if (stored) {
-                this.recentModels.set(JSON.parse(stored));
-            }
-        } catch {
-            this.recentModels.set([]);
-        }
-    }
-
     private addToRecent(modelId: string): void {
         const recent = this.recentModels().filter(id => id !== modelId);
         recent.unshift(modelId);
         const updated = recent.slice(0, this.MAX_RECENT);
         this.recentModels.set(updated);
-        localStorage.setItem(this.RECENT_KEY, JSON.stringify(updated));
+        // PreferencesService handles persistence via setSelectedModel
     }
 
     /** Check if the selected model supports streaming */

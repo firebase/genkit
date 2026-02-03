@@ -1,6 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
+import { PreferencesService } from './preferences.service';
 
 export interface Message {
     role: 'user' | 'assistant';
@@ -52,6 +53,7 @@ export interface QueuedPrompt {
 })
 export class ChatService {
     private http = inject(HttpClient);
+    private preferencesService = inject(PreferencesService);
     private apiUrl = '/api';
 
     messages = signal<Message[]>([]);
@@ -60,6 +62,24 @@ export class ChatService {
     // Prompt queue
     promptQueue = signal<QueuedPrompt[]>([]);
     private isProcessingQueue = false;
+
+    // Streaming mode (load from preferences)
+    streamingMode = signal(this.preferencesService.streamingMode);
+
+    // Markdown rendering mode (load from preferences)
+    markdownMode = signal(this.preferencesService.markdownMode);
+
+    constructor() {
+        // Persist streaming mode changes
+        effect(() => {
+            this.preferencesService.setStreamingMode(this.streamingMode());
+        });
+
+        // Persist markdown mode changes
+        effect(() => {
+            this.preferencesService.setMarkdownMode(this.markdownMode());
+        });
+    }
 
     sendMessage(message: string, model: string): Observable<ChatResponse> {
         const history = this.messages().map(m => ({
@@ -137,15 +157,9 @@ export class ChatService {
         }
     }
 
-    // Streaming mode (enabled by default)
-    streamingMode = signal(true);
-
     toggleStreamingMode(): void {
         this.streamingMode.update(v => !v);
     }
-
-    // Markdown rendering mode (enabled by default)
-    markdownMode = signal(true);
 
     toggleMarkdownMode(): void {
         this.markdownMode.update(v => !v);

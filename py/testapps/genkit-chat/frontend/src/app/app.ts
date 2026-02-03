@@ -254,6 +254,22 @@ import { LanguageService } from './core/services/language.service';
         <main class="main-content">
           <router-outlet />
         </main>
+        
+        <!-- Footer -->
+        <footer class="app-footer">
+          <div class="footer-links">
+            <a href="https://firebase.google.com/docs/genkit" target="_blank" rel="noopener">About Genkit</a>
+            <span class="separator">·</span>
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a>
+            <span class="separator">·</span>
+            <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+            <span class="separator">·</span>
+            <a href="https://github.com/firebase/genkit" target="_blank" rel="noopener">GitHub</a>
+          </div>
+          <div class="copyright">
+            © {{ currentYear }} Google LLC. Licensed under Apache 2.0.
+          </div>
+        </footer>
       </mat-sidenav-content>
     </mat-sidenav-container>
   `,
@@ -318,6 +334,9 @@ import { LanguageService } from './core/services/language.service';
     }
     
     mat-sidenav-content {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
       transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       background: #ffffff;
       
@@ -688,9 +707,49 @@ import { LanguageService } from './core/services/language.service';
 
     /* Main Content */
     .main-content {
-      height: calc(100vh - 56px);
+      flex: 1;
       overflow: hidden;
       background: var(--surface-dim);
+    }
+
+    /* Footer */
+    .app-footer {
+      flex-shrink: 0;
+      padding: 12px 24px;
+      text-align: center;
+      border-top: 1px solid var(--outline-variant);
+      background: var(--surface-dim);
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      
+      a {
+        color: var(--on-surface-muted);
+        text-decoration: none;
+        font-size: 12px;
+        
+        &:hover {
+          color: var(--gemini-blue);
+          text-decoration: underline;
+        }
+      }
+      
+      .separator {
+        color: var(--on-surface-muted);
+        opacity: 0.5;
+      }
+    }
+
+    .copyright {
+      font-size: 11px;
+      color: var(--on-surface-muted);
+      opacity: 0.7;
     }
 
     /* Responsive */
@@ -709,6 +768,7 @@ export class AppComponent implements OnInit {
   private chatService = inject(ChatService);
   sidenavOpened = signal(true);
   editingName = signal(false);
+  currentYear = new Date().getFullYear();
 
   ngOnInit(): void {
     this.authService.restoreSession();

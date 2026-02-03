@@ -22,6 +22,7 @@ import { SpeechService } from '../../core/services/speech.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ContentSafetyService } from '../../core/services/content-safety.service';
+import { PreferencesService } from '../../core/services/preferences.service';
 import { ErrorDetailsDialogComponent } from '../../shared/error-details-dialog/error-details-dialog.component';
 import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
 import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
@@ -449,6 +450,14 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                     {{ contentSafetyService.enabled() ? 'check_circle' : 'radio_button_unchecked' }}
                   </mat-icon>
                 </button>
+                
+                <mat-divider></mat-divider>
+                
+                <!-- Clear Preferences -->
+                <button mat-menu-item (click)="clearPreferences()">
+                  <mat-icon>delete_outline</mat-icon>
+                  <span>Clear preferences</span>
+                </button>
               </mat-menu>
               
               <!-- Send Button (when text is entered) or Voice Input -->
@@ -673,7 +682,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       flex-shrink: 0;
       width: 28px;
       height: 28px;
-      margin-top: 2px;
+      margin-top: 4px; /* Align with first line text baseline */
     }
 
     .avatar-logo {
@@ -2016,6 +2025,7 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   themeService = inject(ThemeService);
   authService = inject(AuthService);
   contentSafetyService = inject(ContentSafetyService);
+  preferencesService = inject(PreferencesService);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
 
@@ -2039,6 +2049,9 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
   // Attachment limits from config
   maxAttachments = CHAT_CONFIG.maxAttachments;
   maxFileSizeBytes = CHAT_CONFIG.maxFileSizeBytes;
+
+  // Footer copyright year
+  currentYear = new Date().getFullYear();
 
 
   // Queue editing state
@@ -2527,6 +2540,15 @@ export class ChatComponent implements OnDestroy, AfterViewInit {
         : 'Content Safety ON - model loading on first use';
     }
     return 'Content Safety OFF - no client-side filtering';
+  }
+
+  clearPreferences(): void {
+    this.preferencesService.clearAll();
+    this.snackBar.open('Preferences cleared. Refresh to apply defaults.', 'Refresh', {
+      duration: 5000
+    }).onAction().subscribe(() => {
+      window.location.reload();
+    });
   }
 
   onDragOver(event: DragEvent): void {

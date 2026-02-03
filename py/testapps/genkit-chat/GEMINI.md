@@ -30,6 +30,54 @@ This document captures learnings, patterns, and best practices from developing t
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Coding Standards
+
+### Documentation
+
+- **Add JSDoc comments** to all functions, methods, classes, and interfaces
+- **Do not add section marker comments** (e.g., `// ============` banners) - let structure speak for itself
+- Keep comments meaningful - explain "why" not "what"
+
+**Example - Good:**
+```typescript
+/**
+ * Checks content for toxicity using TensorFlow.js model.
+ * Loads model lazily on first use to reduce initial bundle size.
+ * 
+ * @param text - The text to analyze for toxic content
+ * @returns Promise with safety status and flagged labels
+ */
+async checkContent(text: string): Promise<ContentCheckResult> {
+  // Implementation
+}
+```
+
+**Example - Bad:**
+```typescript
+// ============================================
+// CONTENT SAFETY METHODS
+// ============================================
+
+// Check content
+async checkContent(text: string) {
+  // check the content here
+}
+```
+
+### TypeScript
+
+- Use strict TypeScript settings (`strict: true` in tsconfig)
+- Prefer Angular signals over RxJS for component state
+- Use `readonly` for immutable properties
+- Prefer interfaces over type aliases for object shapes
+
+### SCSS/CSS
+
+- Use CSS custom properties (variables) for theming
+- Follow BEM-like naming for component styles
+- Keep selectors shallow (max 3 levels)
+- Use `var(--token-name)` for colors, not hardcoded values
+
 ## UI/UX Patterns
 
 ### 1. Input Toolbar Layout
