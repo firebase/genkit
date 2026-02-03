@@ -25,10 +25,13 @@
         "greetingSubtitle": "আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?"
     },
     "toolbar": {
+        "settings": "সেটিংস",
         "tools": "টুলস",
-        "stream": "স্ট্রিম",
-        "markdown": "MD",
-        "safe": "নিরাপদ"
+        "stream": "স্ট্রিমিং প্রতিক্রিয়া",
+        "markdown": "Markdown রেন্ডার করুন",
+        "safe": "বিষয়বস্তু নিরাপত্তা",
+        "enabled": "সক্রিয়",
+        "disabled": "নিষ্ক্রিয়"
     },
     "model": {
         "selectModel": "মডেল নির্বাচন করুন",

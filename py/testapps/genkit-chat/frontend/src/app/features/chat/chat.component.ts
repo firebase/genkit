@@ -322,52 +322,10 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
               
               <!-- Tools Button -->
               <button mat-button class="toolbar-btn tools-btn">
-                <mat-icon>tune</mat-icon>
+                <mat-icon>handyman</mat-icon>
                 <span>Tools</span>
               </button>
               
-              <!-- Settings Dropdown -->
-              <button mat-button 
-                      class="toolbar-btn settings-btn"
-                      [matMenuTriggerFor]="settingsMenu"
-                      matTooltip="Response settings">
-                <mat-icon>settings</mat-icon>
-                <span>Settings</span>
-                <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
-              </button>
-              <mat-menu #settingsMenu="matMenu" class="settings-menu">
-                <!-- Streaming Toggle -->
-                <button mat-menu-item 
-                        [disabled]="!modelsService.supportsStreaming()"
-                        (click)="toggleStreaming(); $event.stopPropagation()">
-                  <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
-                  <span>Streaming responses</span>
-                  <mat-icon class="toggle-indicator" 
-                            [class.active]="chatService.streamingMode() && modelsService.supportsStreaming()">
-                    {{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'check_circle' : 'radio_button_unchecked' }}
-                  </mat-icon>
-                </button>
-                
-                <!-- Markdown Toggle -->
-                <button mat-menu-item (click)="chatService.toggleMarkdownMode(); $event.stopPropagation()">
-                  <mat-icon>{{ chatService.markdownMode() ? 'code' : 'code_off' }}</mat-icon>
-                  <span>Render markdown</span>
-                  <mat-icon class="toggle-indicator" [class.active]="chatService.markdownMode()">
-                    {{ chatService.markdownMode() ? 'check_circle' : 'radio_button_unchecked' }}
-                  </mat-icon>
-                </button>
-                
-                <!-- Content Safety Toggle -->
-                <button mat-menu-item (click)="contentSafetyService.toggle(); $event.stopPropagation()">
-                  <mat-icon>{{ contentSafetyService.enabled() ? 'shield' : 'shield_outlined' }}</mat-icon>
-                  <span>Content safety</span>
-                  <mat-icon class="toggle-indicator" 
-                            [class.active]="contentSafetyService.enabled()"
-                            [class.loading]="contentSafetyService.loading()">
-                    {{ contentSafetyService.enabled() ? 'check_circle' : 'radio_button_unchecked' }}
-                  </mat-icon>
-                </button>
-              </mat-menu>
             </div>
             
             <div class="toolbar-right">
@@ -451,6 +409,48 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
                 </div>
               </mat-menu>
               
+              <!-- Settings Dropdown (icon only) - between model selector and mic -->
+              <button mat-icon-button 
+                      class="toolbar-btn settings-btn"
+                      [matMenuTriggerFor]="settingsMenu"
+                      aria-label="Response settings"
+                      matTooltip="Settings">
+                <mat-icon>tune</mat-icon>
+              </button>
+              <mat-menu #settingsMenu="matMenu" class="settings-menu">
+                <!-- Streaming Toggle -->
+                <button mat-menu-item 
+                        [disabled]="!modelsService.supportsStreaming()"
+                        (click)="toggleStreaming(); $event.stopPropagation()">
+                  <mat-icon>{{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'stream' : 'pause_circle' }}</mat-icon>
+                  <span>Streaming responses</span>
+                  <mat-icon class="toggle-indicator" 
+                            [class.active]="chatService.streamingMode() && modelsService.supportsStreaming()">
+                    {{ chatService.streamingMode() && modelsService.supportsStreaming() ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </button>
+                
+                <!-- Markdown Toggle -->
+                <button mat-menu-item (click)="chatService.toggleMarkdownMode(); $event.stopPropagation()">
+                  <mat-icon>{{ chatService.markdownMode() ? 'code' : 'code_off' }}</mat-icon>
+                  <span>Render markdown</span>
+                  <mat-icon class="toggle-indicator" [class.active]="chatService.markdownMode()">
+                    {{ chatService.markdownMode() ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </button>
+                
+                <!-- Content Safety Toggle -->
+                <button mat-menu-item (click)="contentSafetyService.toggle(); $event.stopPropagation()">
+                  <mat-icon>{{ contentSafetyService.enabled() ? 'shield' : 'shield_outlined' }}</mat-icon>
+                  <span>Content safety</span>
+                  <mat-icon class="toggle-indicator" 
+                            [class.active]="contentSafetyService.enabled()"
+                            [class.loading]="contentSafetyService.loading()">
+                    {{ contentSafetyService.enabled() ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </button>
+              </mat-menu>
+              
               <!-- Send Button (when text is entered) or Voice Input -->
               <div class="action-btn-container">
                 @if (showSendButton()) {
@@ -478,35 +478,36 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
           </div>
         </div>
         
-        <!-- Attached Files Preview (below chatbox) - staging area -->
+        <!-- Attached Files List (below chatbox) -->
         @if (attachedFiles().length > 0) {
-          <div class="attached-files-staging">
-            <div class="files-scroll-container">
-              @for (file of attachedFiles(); track file.name) {
-                <div class="file-chip-macos" [matTooltip]="file.name + ' (' + formatFileSize(file.size) + ')'">
-                  <!-- Remove button (top-right corner) -->
-                  <button class="file-remove-btn" (click)="removeFile(file); $event.stopPropagation()" matTooltip="Remove">
-                    <mat-icon>close</mat-icon>
-                  </button>
-                  
-                  <!-- Icon or Thumbnail -->
-                  <div class="file-preview">
-                    @if (file.type.startsWith('image/')) {
-                      <img [src]="file.preview" alt="preview" class="file-thumb">
-                    } @else {
-                      <mat-icon class="file-type-icon">{{ getFileIcon(file.type) }}</mat-icon>
-                    }
-                  </div>
-                  
-                  <!-- Name and Size (vertical stack) -->
-                  <div class="file-info">
-                    <span class="file-name">{{ file.name }}</span>
-                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                  </div>
+          <div class="attached-files-list">
+            @for (file of attachedFiles(); track file.name) {
+              <div class="file-row">
+                <!-- Icon or Thumbnail -->
+                <div class="file-icon-wrapper">
+                  @if (file.type.startsWith('image/')) {
+                    <img [src]="file.preview" alt="preview" class="file-thumb-small">
+                  } @else {
+                    <mat-icon class="file-type-icon-small">{{ getFileIcon(file.type) }}</mat-icon>
+                  }
                 </div>
-              }
-            </div>
-            <span class="files-count">{{ attachedFiles().length }}/{{ maxAttachments }}</span>
+                
+                <!-- File name -->
+                <span class="file-name-text">{{ file.name }}</span>
+                
+                <!-- File size -->
+                <span class="file-size-text">{{ formatFileSize(file.size) }}</span>
+                
+                <!-- Remove button -->
+                <button mat-icon-button 
+                        class="file-remove-btn-small" 
+                        (click)="removeFile(file)" 
+                        aria-label="Remove {{ file.name }}"
+                        matTooltip="Remove">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            }
           </div>
         }
         
@@ -1531,28 +1532,18 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       font-weight: 500;
     }
     
-    /* Attached Files Staging Area (below chatbox) */
-    .attached-files-staging {
+    /* Attached Files List (clean list format) */
+    .attached-files-list {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      flex-direction: column;
+      gap: 4px;
       margin-top: 8px;
-      padding: 8px 12px;
-      background: var(--surface-container);
-      border-radius: 12px;
-      border: 1px solid var(--outline-variant);
-    }
-    
-    /* Horizontal scroll container */
-    .files-scroll-container {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 4px 0;
+      max-height: 150px;
+      overflow-y: auto;
       scrollbar-width: thin;
       
       &::-webkit-scrollbar {
-        height: 4px;
+        width: 4px;
       }
       
       &::-webkit-scrollbar-track {
@@ -1565,115 +1556,91 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
       }
     }
     
-    .files-count {
-      font-size: 11px;
-      color: var(--on-surface-muted);
-      flex-shrink: 0;
-      padding: 4px 0;
-    }
-    
-    /* macOS-style file chip - vertical layout */
-    .file-chip-macos {
-      position: relative;
+    /* File row - horizontal layout */
+    .file-row {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      width: 72px;
-      padding: 8px 6px 6px;
+      gap: 8px;
+      padding: 6px 8px;
       background: var(--surface-container);
-      border-radius: 10px;
+      border-radius: 8px;
       border: 1px solid var(--outline-variant);
-      transition: all var(--transition-fast);
-      flex-shrink: 0;
-      cursor: default;
+      transition: background var(--transition-fast);
       
       &:hover {
         background: var(--surface-container-high);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
         
-        .file-remove-btn {
+        .file-remove-btn-small {
           opacity: 1;
         }
       }
     }
     
-    /* Remove button - top right corner */
-    .file-remove-btn {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--error);
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity var(--transition-fast);
-      z-index: 1;
-      
-      .mat-icon {
-        font-size: 12px;
-        width: 12px;
-        height: 12px;
-        color: white;
-      }
-      
-      &:hover {
-        background: var(--error-dark, #c62828);
-      }
-    }
-    
-    /* File preview (icon or thumbnail) */
-    .file-preview {
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 4px;
-    }
-    
-    .file-thumb {
-      width: 40px;
-      height: 40px;
-      object-fit: cover;
-      border-radius: 6px;
-    }
-    
-    .file-type-icon {
-      font-size: 28px;
+    /* File icon wrapper */
+    .file-icon-wrapper {
       width: 28px;
       height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .file-thumb-small {
+      width: 28px;
+      height: 28px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    
+    .file-type-icon-small {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
       color: var(--gemini-blue);
     }
     
-    /* File info - name and size */
-    .file-info {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-      overflow: hidden;
-    }
-    
-    .file-name {
-      font-size: 10px;
+    /* File name text */
+    .file-name-text {
+      flex: 1;
+      font-size: 13px;
       font-weight: 500;
       color: var(--on-surface);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 100%;
-      text-align: center;
     }
     
-    .file-size {
-      font-size: 9px;
+    /* File size text */
+    .file-size-text {
+      font-size: 11px;
       color: var(--on-surface-muted);
+      flex-shrink: 0;
+    }
+    
+    /* Remove button - small circular */
+    .file-remove-btn-small {
+      width: 24px !important;
+      height: 24px !important;
+      padding: 0 !important;
+      opacity: 0.6;
+      transition: opacity var(--transition-fast);
+      flex-shrink: 0;
+      
+      .mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: var(--on-surface-variant);
+      }
+      
+      &:hover {
+        opacity: 1;
+        
+        .mat-icon {
+          color: var(--error);
+        }
+      }
     }
     
     .input-toolbar {
@@ -1688,7 +1655,7 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
     .toolbar-right {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
     }
     
     .toolbar-btn {
@@ -1760,27 +1727,14 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
     
     /* Settings dropdown button */
     .settings-btn {
-      font-size: 14px;
-      padding: 4px 12px !important;
-      min-width: auto;
+      width: 36px !important;
+      height: 36px !important;
+      padding: 0 !important;
       
       mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-        margin-right: 4px;
-      }
-      
-      span {
-        font-weight: 500;
-      }
-      
-      .dropdown-arrow {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-        margin-left: 2px;
-        margin-right: 0;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
       }
     }
     
@@ -1817,12 +1771,13 @@ import { CHAT_CONFIG, getMimeTypeIcon } from '../../core/config/chat.config';
     .model-select-btn {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px !important;
+      gap: 4px;
+      padding: 4px 8px 4px 12px !important;
       font-size: 14px;
       color: var(--on-surface);
       background: transparent;
       border-radius: 8px;
+      min-width: auto;
       
       .model-info {
         display: flex;

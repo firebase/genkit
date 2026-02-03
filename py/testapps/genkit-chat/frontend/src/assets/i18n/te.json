@@ -25,10 +25,13 @@
         "greetingSubtitle": "ఈ రోజు నేను మీకు ఎలా సహాయం చేయగలను?"
     },
     "toolbar": {
+        "settings": "సెట్టింగ్‌లు",
         "tools": "టూల్స్",
-        "stream": "స్ట్రీమ్",
-        "markdown": "MD",
-        "safe": "సురక్షితం"
+        "stream": "స్ట్రీమింగ్ స్పందనలు",
+        "markdown": "Markdown రెండర్ చేయండి",
+        "safe": "కంటెంట్ భద్రత",
+        "enabled": "ఎనేబుల్ చేయబడింది",
+        "disabled": "డిసేబుల్ చేయబడింది"
     },
     "model": {
         "selectModel": "మోడల్ ఎంచుకోండి",

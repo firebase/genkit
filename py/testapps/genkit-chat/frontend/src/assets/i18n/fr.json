@@ -25,10 +25,13 @@
         "greetingSubtitle": "Comment puis-je vous aider aujourd'hui ?"
     },
     "toolbar": {
+        "settings": "Paramètres",
         "tools": "Outils",
-        "stream": "Diffuser",
-        "markdown": "MD",
-        "safe": "Sûr"
+        "stream": "Réponses en streaming",
+        "markdown": "Afficher le markdown",
+        "safe": "Sécurité du contenu",
+        "enabled": "Activé",
+        "disabled": "Désactivé"
     },
     "model": {
         "selectModel": "Sélectionner un modèle",

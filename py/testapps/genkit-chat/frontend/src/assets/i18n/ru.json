@@ -25,10 +25,13 @@
         "greetingSubtitle": "Чем могу помочь сегодня?"
     },
     "toolbar": {
+        "settings": "Настройки",
         "tools": "Инструменты",
-        "stream": "Потоковый",
-        "markdown": "MD",
-        "safe": "Безопасно"
+        "stream": "Потоковые ответы",
+        "markdown": "Отображать Markdown",
+        "safe": "Безопасность контента",
+        "enabled": "Включено",
+        "disabled": "Отключено"
     },
     "model": {
         "selectModel": "Выбрать модель",

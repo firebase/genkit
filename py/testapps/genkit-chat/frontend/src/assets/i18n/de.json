@@ -25,10 +25,13 @@
         "greetingSubtitle": "Wie kann ich dir heute helfen?"
     },
     "toolbar": {
+        "settings": "Einstellungen",
         "tools": "Werkzeuge",
-        "stream": "Streamen",
-        "markdown": "MD",
-        "safe": "Sicher"
+        "stream": "Streaming-Antworten",
+        "markdown": "Markdown rendern",
+        "safe": "Inhaltssicherheit",
+        "enabled": "Aktiviert",
+        "disabled": "Deaktiviert"
     },
     "model": {
         "selectModel": "Modell auswählen",

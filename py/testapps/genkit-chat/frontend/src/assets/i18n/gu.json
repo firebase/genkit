@@ -25,10 +25,13 @@
         "greetingSubtitle": "આજે હું તમને કેવી રીતે મદદ કરી શકું?"
     },
     "toolbar": {
+        "settings": "સેટિંગ્સ",
         "tools": "ટૂલ્સ",
-        "stream": "સ્ટ્રીમ",
-        "markdown": "MD",
-        "safe": "સુરક્ષિત"
+        "stream": "સ્ટ્રીમિંગ પ્રતિભાવો",
+        "markdown": "Markdown રેન્ડર કરો",
+        "safe": "સામગ્રી સુરક્ષા",
+        "enabled": "સક્ષમ",
+        "disabled": "અક્ષમ"
     },
     "model": {
         "selectModel": "મોડેલ પસંદ કરો",

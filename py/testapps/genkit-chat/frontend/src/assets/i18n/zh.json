@@ -25,10 +25,13 @@
         "greetingSubtitle": "今天我能帮您什么？"
     },
     "toolbar": {
+        "settings": "设置",
         "tools": "工具",
-        "stream": "流式传输",
-        "markdown": "MD",
-        "safe": "安全"
+        "stream": "流式响应",
+        "markdown": "渲染 Markdown",
+        "safe": "内容安全",
+        "enabled": "已启用",
+        "disabled": "已禁用"
     },
     "model": {
         "selectModel": "选择模型",

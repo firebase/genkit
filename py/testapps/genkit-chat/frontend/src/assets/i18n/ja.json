@@ -25,10 +25,13 @@
         "greetingSubtitle": "今日は何をお手伝いしましょうか？"
     },
     "toolbar": {
+        "settings": "設定",
         "tools": "ツール",
-        "stream": "ストリーム",
-        "markdown": "MD",
-        "safe": "安全"
+        "stream": "ストリーミング応答",
+        "markdown": "Markdown を表示",
+        "safe": "コンテンツの安全性",
+        "enabled": "有効",
+        "disabled": "無効"
     },
     "model": {
         "selectModel": "モデルを選択",

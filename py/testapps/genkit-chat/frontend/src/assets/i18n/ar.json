@@ -25,10 +25,13 @@
         "greetingSubtitle": "كيف يمكنني مساعدتك اليوم؟"
     },
     "toolbar": {
+        "settings": "الإعدادات",
         "tools": "الأدوات",
-        "stream": "البث",
-        "markdown": "MD",
-        "safe": "آمن"
+        "stream": "الردود المباشرة",
+        "markdown": "عرض Markdown",
+        "safe": "أمان المحتوى",
+        "enabled": "مُفعّل",
+        "disabled": "معطّل"
     },
     "model": {
         "selectModel": "اختر النموذج",

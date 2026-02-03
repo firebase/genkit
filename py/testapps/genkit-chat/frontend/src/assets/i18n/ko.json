@@ -25,10 +25,13 @@
         "greetingSubtitle": "오늘 무엇을 도와드릴까요?"
     },
     "toolbar": {
+        "settings": "설정",
         "tools": "도구",
-        "stream": "스트림",
-        "markdown": "MD",
-        "safe": "안전"
+        "stream": "스트리밍 응답",
+        "markdown": "Markdown 렌더링",
+        "safe": "콘텐츠 안전",
+        "enabled": "활성화됨",
+        "disabled": "비활성화됨"
     },
     "model": {
         "selectModel": "모델 선택",

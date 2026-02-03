@@ -25,10 +25,13 @@
         "greetingSubtitle": "आज मी तुम्हाला कशी मदत करू शकतो?"
     },
     "toolbar": {
+        "settings": "सेटिंग्ज",
         "tools": "साधने",
-        "stream": "स्ट्रीम",
-        "markdown": "MD",
-        "safe": "सुरक्षित"
+        "stream": "स्ट्रीमिंग प्रतिसाद",
+        "markdown": "Markdown रेंडर करा",
+        "safe": "सामग्री सुरक्षा",
+        "enabled": "सक्षम",
+        "disabled": "अक्षम"
     },
     "model": {
         "selectModel": "मॉडेल निवडा",
