@@ -33,10 +33,10 @@ from collections.abc import Awaitable, Callable
 from asgiref import typing as atyping
 
 try:
-    import litestar  # type: ignore[misc]
-    import litestar.types  # type: ignore[misc]
+    import litestar
+    import litestar.types
 except ImportError:
-    litestar = None
+    litestar = None  # type: ignore[assignment]
 
 try:
     import starlette.types  # Explicit import for ty type checker

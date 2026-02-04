@@ -72,15 +72,18 @@ import asyncio
 import time
 from typing import Any, cast
 
-from litestar import Controller, Litestar, get, post  # type: ignore
-from litestar.datastructures import State  # type: ignore
-from litestar.logging.config import LoggingConfig  # type: ignore
-from litestar.middleware.base import AbstractMiddleware  # type: ignore
-from litestar.plugins.structlog import StructlogPlugin  # type: ignore
-from litestar.types import Message  # type: ignore
+from litestar import Controller, Litestar, get, post
+from litestar.datastructures import State
+from litestar.logging.config import LoggingConfig
+from litestar.middleware.base import AbstractMiddleware
+from litestar.plugins.structlog import StructlogPlugin
+from litestar.types import Message
 from rich.traceback import install as install_rich_traceback
 from starlette.applications import Starlette
 
+from genkit import Genkit
+from genkit.ai._runtime import RuntimeManager
+from genkit.ai._server import ServerSpec
 from genkit.aio.loop import run_loop
 from genkit.core.environment import is_dev_environment
 from genkit.core.logging import get_logger
@@ -129,7 +132,7 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
         """Process the ASGI request/response cycle with logging."""
         if str(scope['type']) != 'http':
             # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
-            await self.app(scope, receive, send)
+            await self.app(scope, receive, send)  # type: ignore
             return
 
         start_time = time.time()
@@ -181,11 +184,11 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
                         'Error logging response',
                         error=str(e),
                     )
-            await send(message)
+            await send(message)  # type: ignore
 
         # Call the next middleware or handler
         # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
-        await self.app(scope, receive, wrapped_send)
+        await self.app(scope, receive, wrapped_send)  # type: ignore
 
 
 class BaseControllerMixin:
@@ -279,25 +282,32 @@ class FlowsServerLifecycle(AbstractBaseServer):
 class ReflectionServerStarletteLifecycle(AbstractBaseServer):
     """Reflection server implemented using Starlette."""
 
-    def __init__(self) -> None:
+    def __init__(self, registry: Registry) -> None:
         """Initialize the Starlette reflection server."""
-        pass
+        self.registry = registry
 
     def create(self, config: ServerConfig) -> Starlette:
         """Create a Starlette application instance."""
+        runtime_manager: RuntimeManager | None = None
 
         async def on_app_startup() -> None:
             """Handle application startup."""
             await logger.ainfo('[LIFESPAN] Starting Starlette Reflection API server...')
+            nonlocal runtime_manager
+            if config.port:
+                runtime_manager = RuntimeManager(ServerSpec(port=config.port, host=config.host))
+                await runtime_manager.__aenter__()
 
         async def on_app_shutdown() -> None:
             """Handle application shutdown."""
             await logger.ainfo('[LIFESPAN] Shutting down Starlette Reflection API server...')
+            if runtime_manager:
+                await runtime_manager.__aexit__(None, None, None)
 
         return cast(
             Starlette,
             create_reflection_asgi_app(
-                registry=Registry(),
+                registry=self.registry,
                 on_app_startup=on_app_startup,
                 on_app_shutdown=on_app_shutdown,
             ),
@@ -321,13 +331,20 @@ async def add_server_after(mgr: ServerManager, server: Server, delay: float) -> 
 
 async def main() -> None:
     """Entry point function."""
+    g = Genkit(plugins=[])
+
+    @g.flow()
+    async def multi_server_flow(name: str) -> str:
+        """A sample flow for multi-server demo."""
+        return f'Hello from multi-server, {name}!'
+
     servers = [
         Server(
             config=ServerConfig(
                 name='flows',
                 host='localhost',
                 port=3400,
-                ports=range(3400, 3410),
+                ports=list(range(3400, 3410)),
             ),
             lifecycle=FlowsServerLifecycle([FlowsEndpoints, GreetingEndpoints]),
             adapter=UvicornAdapter(),
@@ -341,9 +358,9 @@ async def main() -> None:
                 name='reflection-starlette',
                 host='localhost',
                 port=3100,
-                ports=range(3100, 3110),
+                ports=list(range(3100, 3110)),
             ),
-            lifecycle=ReflectionServerStarletteLifecycle(),
+            lifecycle=ReflectionServerStarletteLifecycle(registry=g.registry),
             adapter=UvicornAdapter(),
         )
         asyncio.create_task(add_server_after(mgr, reflection_server, 2.0))
