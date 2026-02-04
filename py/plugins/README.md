@@ -106,7 +106,7 @@ This directory contains all official Genkit plugins for Python.
 │       → xai                                                                     │
 │                                                                                 │
 │   "I want Cloudflare Workers AI models"                                         │
-│       → cf-ai (Llama, Mistral, Qwen on Cloudflare edge)                         │
+│       → cloudflare-workers-ai (Llama, Mistral, Qwen + OTLP telemetry)                    │
 │                                                                                 │
 │   "I want Mistral AI models (French AI)"                                        │
 │       → mistral (mistral-large, codestral, pixtral)                             │
@@ -145,11 +145,11 @@ This directory contains all official Genkit plugins for Python.
 │   │ Console │  │ Trace   │             │  Any OTLP Backend │                   │
 │   └─────────┘  └─────────┘             └───────────────────┘                   │
 │                                                                                 │
-│   ┌─────────┐  ┌─────────┐                                                      │
-│   │  azure  │  │   cf    │  ✅ NEW                                              │
-│   │ • Distro│  │ • OTLP  │  • Generic OTLP                                      │
-│   │ • AppIns│  │ • Token │  • Any backend                                       │
-│   └────┬────┘  └────┬────┘                                                      │
+│   ┌─────────┐  ┌─────────────┐                                                  │
+│   │  azure  │  │cloudflare-workers-ai│  ✅ NEW                                          │
+│   │ • Distro│  │ • OTLP      │  • Models + Telemetry                            │
+│   │ • AppIns│  │ • Token     │  • Single plugin                                 │
+│   └────┬────┘  └──────┬──────┘                                                  │
 │        │            │       CAN'T BE REPLICATED           CAN BE REPLICATED    │
 │        ▼            ▼       WITH GENERIC OTLP             WITH GENERIC OTLP    │
 │   ┌─────────┐  ┌─────────┐                                                      │
@@ -166,7 +166,7 @@ This directory contains all official Genkit plugins for Python.
 │                                                                                 │
 │   "I want Sentry/Honeycomb/Datadog"     → observability plugin                 │
 │   "I'm multi-cloud"                     → observability plugin                 │
-│   "I want generic OTLP export"          → cf plugin (Cloudflare-compatible)    │
+│   "I want generic OTLP export"          → cloudflare-workers-ai plugin (combined)      │
 │                                                                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -225,14 +225,14 @@ This directory contains all official Genkit plugins for Python.
 |--------|--------|----------|
 | **google-genai** | Gemini, Imagen, Veo, Lyria | Multimodal AI, Google ecosystem |
 | **anthropic** | Claude 3.5, Claude 4 | Direct Claude access |
-| **amazon-bedrock** | Claude, Llama, Nova, Titan | AWS managed models |
-| **msfoundry** | GPT-4o, Claude, Llama, 11,000+ | Azure AI, enterprise |
+| **amazon-bedrock** 🌐 | Claude, Llama, Nova, Titan | AWS managed models (community) |
+| **msfoundry** 🌐 | GPT-4o, Claude, Llama, 11,000+ | Azure AI, enterprise (community) |
 | **vertex-ai** | Model Garden (Claude, Llama) | GCP third-party models |
 | **ollama** | Llama, Mistral, Phi, etc. | Local/private deployment |
 | **compat-oai** | Any OpenAI-compatible | OpenAI, OpenRouter, etc. |
 | **deepseek** | DeepSeek V3, R1 | Reasoning, cost-effective |
 | **xai** | Grok | X/Twitter integration |
-| **cf-ai** | Llama, Mistral, Qwen, Gemma | Cloudflare Workers AI |
+| **cloudflare-workers-ai** 🌐 | Llama, Mistral, Qwen, Gemma | Cloudflare Workers AI + OTLP telemetry (community) |
 | **mistral** | Mistral Large, Small, Codestral, Pixtral | French AI, efficient models, code generation |
 | **huggingface** | 1M+ models via HF Hub | Open source models, inference providers |
 
@@ -250,10 +250,10 @@ This directory contains all official Genkit plugins for Python.
 | Plugin | Backend | Features |
 |--------|---------|----------|
 | **google-cloud** | Cloud Trace, Logging | GCP native, log correlation |
-| **amazon-bedrock** | X-Ray | AWS native, SigV4 auth, built into model plugin |
-| **azure** | Application Insights | Azure Monitor, trace correlation |
-| **cf** | Any OTLP endpoint | Generic OTLP, Bearer auth |
-| **observability** | Sentry, Honeycomb, Datadog, Grafana, Axiom | 3rd party presets |
+| **amazon-bedrock** 🌐 | X-Ray | AWS native, SigV4 auth, built into model plugin (community) |
+| **azure** 🌐 | Application Insights | Azure Monitor, trace correlation (community) |
+| **cloudflare-workers-ai** 🌐 | Any OTLP endpoint | Generic OTLP, Bearer auth, combined with models (community) |
+| **observability** 🌐 | Sentry, Honeycomb, Datadog, Grafana, Axiom | 3rd party presets (community) |
 | **firebase** | Firebase console | Auto-telemetry for Firebase apps |
 
 ### Integrations
@@ -297,8 +297,8 @@ All environment variables used by Genkit plugins. Configure these before running
 | `OPENAI_ORG_ID` | compat-oai | No | OpenAI organization ID | [OpenAI Settings](https://platform.openai.com/account/organization) |
 | `DEEPSEEK_API_KEY` | deepseek | Yes | DeepSeek API key | [DeepSeek Platform](https://platform.deepseek.com/) |
 | `XAI_API_KEY` | xai | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
-| `CLOUDFLARE_ACCOUNT_ID` | cf-ai | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
-| `CLOUDFLARE_API_TOKEN` | cf-ai | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `CLOUDFLARE_ACCOUNT_ID` | cloudflare-workers-ai | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
+| `CLOUDFLARE_API_TOKEN` | cloudflare-workers-ai | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
 | `MISTRAL_API_KEY` | mistral | Yes | Mistral AI API key | [Mistral Console](https://console.mistral.ai/) |
 | `HF_TOKEN` | huggingface | Yes | Hugging Face API token | [HF Tokens](https://huggingface.co/settings/tokens) |
 
@@ -337,12 +337,16 @@ All environment variables used by Genkit plugins. Configure these before running
 | `AZURE_CLIENT_ID` | No | Azure AD client ID | - |
 | `AZURE_CLIENT_SECRET` | No | Azure AD client secret | - |
 
-#### Cloudflare (cf) Plugin
+#### Cloudflare Workers AI (cloudflare-workers-ai) Plugin
 
 | Variable | Required | Description | Documentation |
 |----------|----------|-------------|---------------|
-| `CF_OTLP_ENDPOINT` | Yes | OTLP endpoint URL | [Cloudflare Workers Observability](https://developers.cloudflare.com/workers/observability/) |
-| `CF_API_TOKEN` | Yes | Cloudflare API token (Bearer auth) | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
+| `CLOUDFLARE_API_TOKEN` | Yes | API token for Workers AI | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `CF_OTLP_ENDPOINT` | No* | OTLP endpoint URL (for telemetry) | [Cloudflare Workers Observability](https://developers.cloudflare.com/workers/observability/) |
+| `CF_API_TOKEN` | No | API token for telemetry (Bearer auth) | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+
+*Required only if using OTLP telemetry export.
 
 #### Observability Plugin (Third-Party Backends)
 

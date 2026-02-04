@@ -30,7 +30,7 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 - **`genkit-plugin-anthropic`**: Full Anthropic Claude model support (#3919)
 - **`genkit-plugin-amazon-bedrock`**: AWS Bedrock integration for Claude, Titan, Llama models (#4389)
 - **`genkit-plugin-msfoundry`**: Azure OpenAI (Microsoft Foundry) support (#4383)
-- **`genkit-plugin-cf-ai`**: Cloudflare Workers AI models (#4405)
+- **`genkit-plugin-cloudflare-workers-ai`**: Cloudflare Workers AI models (#4405)
 - **`genkit-plugin-deepseek`**: DeepSeek models with structured output (#4051)
 - **`genkit-plugin-xai`**: xAI (Grok) models with plugin config (#4001, #4289)
 - **`genkit-plugin-mistral`**: Mistral AI models (Large, Small, Codestral, Pixtral) (#4406)

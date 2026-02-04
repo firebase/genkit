@@ -8,11 +8,10 @@ Genkit is a framework for building AI-powered applications with type-safe flows,
 py/
 ├── packages/genkit/          # Core Genkit framework package
 ├── plugins/                  # Official plugins
-│   ├── amazon-bedrock/       # Amazon Bedrock models + X-Ray telemetry
+│   ├── amazon-bedrock/       # Amazon Bedrock models + X-Ray telemetry (community)
 │   ├── anthropic/            # Claude models
-│   ├── azure/                # Azure AI telemetry
-│   ├── cf/                   # Cloudflare OTLP telemetry
-│   ├── cf-ai/                # Cloudflare Workers AI models
+│   ├── azure/                # Azure AI telemetry (community)
+│   ├── cloudflare-workers-ai/        # Cloudflare Workers AI + OTLP telemetry (community)
 │   ├── checks/               # Safety guardrails
 │   ├── compat-oai/           # OpenAI-compatible APIs
 │   ├── deepseek/             # DeepSeek models
@@ -25,7 +24,7 @@ py/
 │   ├── huggingface/          # HuggingFace Inference API
 │   ├── mcp/                  # Model Context Protocol
 │   ├── mistral/              # Mistral models
-│   ├── msfoundry/            # Azure AI Foundry (11,000+ models)
+│   ├── msfoundry/            # Azure AI Foundry (11,000+ models) (community)
 │   ├── observability/        # 3rd party telemetry (Sentry, Datadog, etc.)
 │   ├── ollama/               # Local Ollama models
 │   ├── vertex-ai/            # Model Garden + Vector Search
@@ -71,8 +70,8 @@ print(response.text)
 
 | Category | Plugins | Purpose |
 |----------|---------|---------|
-| **Model Providers** | google-genai, anthropic, amazon-bedrock, ollama, compat-oai, deepseek, xai, mistral, huggingface, msfoundry | AI model access |
-| **Telemetry** | google-cloud, amazon-bedrock, azure, firebase, cf, observability | Distributed tracing & logging |
+| **Model Providers** | google-genai, anthropic, amazon-bedrock, ollama, compat-oai, deepseek, xai, mistral, huggingface, msfoundry, cloudflare-workers-ai | AI model access |
+| **Telemetry** | google-cloud, amazon-bedrock, azure, firebase, cloudflare-workers-ai, observability | Distributed tracing & logging |
 | **Vector Stores** | firebase, vertex-ai, dev-local-vectorstore | Embeddings storage & retrieval |
 | **Safety** | checks, evaluators | Guardrails & evaluation |
 | **Integrations** | flask, mcp | HTTP endpoints, tool protocols |
@@ -82,6 +81,10 @@ print(response.text)
 Some plugins are community-maintained and supported on a best-effort basis:
 
 - **amazon-bedrock** - Amazon Bedrock models + AWS X-Ray telemetry
+- **azure** - Azure Monitor / Application Insights telemetry
+- **cloudflare-workers-ai** - Cloudflare Workers AI models + OTLP telemetry
+- **msfoundry** - Azure AI Foundry (11,000+ models)
+- **observability** - Third-party backends (Sentry, Honeycomb, Datadog, etc.)
 
 ## Running Tests
 

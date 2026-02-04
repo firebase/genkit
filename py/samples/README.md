@@ -14,14 +14,13 @@ This directory contains sample applications demonstrating various Genkit feature
 │   ┌─────────────────────────┐        ┌─────────────────────────┐               │
 │   │ google-genai-hello      │        │ aws-hello               │               │
 │   │ anthropic-hello         │        │ azure-hello             │               │
-│   │ amazon-bedrock-hello       │        │ cf-hello                │               │
-│   │ msfoundry-hello         │        │ observability-hello     │               │
-│   │ ollama-hello            │        │ realtime-tracing-demo   │               │
-│   │ compat-oai-hello        │        └─────────────────────────┘               │
-│   │ deepseek-hello          │                                                  │
-│   │ xai-hello               │        ADVANCED FEATURES                         │
-│   │ cf-ai-hello             │        ─────────────────                         │
-│   └─────────────────────────┘        ┌─────────────────────────┐               │
+│   │ amazon-bedrock-hello       │        │ observability-hello     │               │
+│   │ msfoundry-hello         │        │ realtime-tracing-demo   │               │
+│   │ ollama-hello            │        └─────────────────────────┘               │
+│   │ compat-oai-hello        │                                                  │
+│   │ deepseek-hello          │        ADVANCED FEATURES                         │
+│   │ xai-hello               │        ─────────────────                         │
+│   │ cloudflare-workers-ai-hello │    ┌─────────────────────────┐               │
 │                                      │ tool-interrupts         │               │
 │   VECTOR STORES                      │ menu (tool examples)    │               │
 │   ─────────────                      │ prompt-demo             │               │
@@ -67,7 +66,7 @@ cd py/samples/<sample-name>
 | **compat-oai-hello** | compat-oai | OpenAI-compatible APIs |
 | **deepseek-hello** | deepseek | DeepSeek V3 and R1 |
 | **xai-hello** | xai | Grok models |
-| **cf-ai-hello** | cf-ai | Cloudflare Workers AI |
+| **cloudflare-workers-ai-hello** | cloudflare-workers-ai | Cloudflare Workers AI + OTLP telemetry |
 
 ### Telemetry Samples
 
@@ -75,7 +74,6 @@ cd py/samples/<sample-name>
 |--------|--------|-------------|
 | **aws-hello** | aws | AWS X-Ray and CloudWatch integration |
 | **azure-hello** | azure | Azure Application Insights |
-| **cf-hello** | cf | Generic OTLP export (any backend) |
 | **observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
 | **realtime-tracing-demo** | google-cloud | Real-time tracing visualization |
 
@@ -127,8 +125,8 @@ Most samples require environment variables for API keys. Configure these before 
 | `OPENAI_API_KEY` | compat-oai-hello | Yes | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) |
 | `DEEPSEEK_API_KEY` | deepseek-hello | Yes | DeepSeek API key | [DeepSeek Platform](https://platform.deepseek.com/) |
 | `XAI_API_KEY` | xai-hello | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
-| `CLOUDFLARE_ACCOUNT_ID` | cf-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
-| `CLOUDFLARE_API_TOKEN` | cf-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `CLOUDFLARE_ACCOUNT_ID` | cloudflare-workers-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
+| `CLOUDFLARE_API_TOKEN` | cloudflare-workers-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
 
 *Can use IAM roles, managed identity, or other credential providers instead.
 
@@ -139,10 +137,10 @@ Most samples require environment variables for API keys. Configure these before 
 | `GOOGLE_CLOUD_PROJECT` | realtime-tracing-demo | Yes | GCP project ID | [GCP Console](https://console.cloud.google.com/) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | realtime-tracing-demo | Yes* | Service account JSON path | [GCP IAM](https://cloud.google.com/docs/authentication/application-default-credentials) |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | azure-hello | Yes | Azure App Insights connection string | [Azure Portal](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource) |
-| `CF_OTLP_ENDPOINT` | cf-hello | Yes | OTLP endpoint URL | Your OTLP backend |
-| `CF_API_TOKEN` | cf-hello | Yes | Bearer token for OTLP auth | Your OTLP backend |
+| `CF_OTLP_ENDPOINT` | cloudflare-workers-ai-hello | No* | OTLP endpoint URL | Your OTLP backend |
+| `CF_API_TOKEN` | cloudflare-workers-ai-hello | No* | Bearer token for OTLP auth | Your OTLP backend |
 
-*Not required when running on GCP with default credentials.
+*Only required if using OTLP telemetry export.
 
 ### Observability Plugin (Third-Party Backends)
 
@@ -210,7 +208,7 @@ export AZURE_AI_FOUNDRY_API_KEY="..."
 # Azure Telemetry (azure-hello)
 export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
 
-# Cloudflare AI (cf-ai-hello)
+# Cloudflare Workers AI (cloudflare-workers-ai-hello)
 export CLOUDFLARE_ACCOUNT_ID="abc123..."
 export CLOUDFLARE_API_TOKEN="..."
 

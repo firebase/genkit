@@ -46,7 +46,7 @@ on:
           # Model provider plugins
           - anthropic
           - amazon-bedrock
-          - cf-ai
+          - cloudflare-workers-ai
           - deepseek
           - google-genai
           - huggingface
@@ -58,7 +58,6 @@ on:
           # Telemetry plugins
           - aws
           - azure
-          - cf
           - google-cloud
           - observability
           # Framework integration plugins

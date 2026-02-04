@@ -186,7 +186,7 @@ Better error output with [Rich](https://github.com/Textualize/rich) tracebacks i
 | `genkit-plugin-anthropic` | Claude 3.5 Sonnet, Opus | ✅ New |
 | `genkit-plugin-amazon-bedrock` | Claude, Titan, Llama via AWS | ✅ New |
 | `genkit-plugin-msfoundry` | Azure OpenAI | ✅ New |
-| `genkit-plugin-cf-ai` | Cloudflare Workers AI | ✅ New |
+| `genkit-plugin-cloudflare-workers-ai` | Cloudflare Workers AI | ✅ New |
 | `genkit-plugin-mistral` | Mistral Large, Codestral | ✅ New |
 | `genkit-plugin-huggingface` | 17+ providers | ✅ New |
 | `genkit-plugin-deepseek` | DeepSeek models | ✅ New |

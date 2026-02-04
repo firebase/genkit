@@ -14,8 +14,7 @@ members = [
     "amazon-bedrock-hello",
     "anthropic-hello",
     "azure-hello",
-    "cf-ai-hello",
-    "cf-hello",
+    "cloudflare-workers-ai-hello",
     "compat-oai-hello",
     "deepseek-hello",
     "dev-local-vectorstore-hello",
@@ -27,8 +26,7 @@ members = [
     "genkit-plugin-amazon-bedrock",
     "genkit-plugin-anthropic",
     "genkit-plugin-azure",
-    "genkit-plugin-cf",
-    "genkit-plugin-cf-ai",
+    "genkit-plugin-cloudflare-workers-ai",
     "genkit-plugin-compat-oai",
     "genkit-plugin-deepseek",
     "genkit-plugin-dev-local-vectorstore",
@@ -775,42 +773,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cf-ai-hello"
-version = "0.1.0"
-source = { editable = "samples/cf-ai-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-cf-ai" },
-    { name = "rich" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-cf-ai", editable = "plugins/cf-ai" },
-    { name = "rich", specifier = ">=13.0.0" },
-]
-
-[[package]]
-name = "cf-hello"
-version = "0.1.0"
-source = { editable = "samples/cf-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-cf" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "rich" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-cf", editable = "plugins/cf" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "rich", specifier = ">=13.0.0" },
-]
-
-[[package]]
 name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1000,6 +962,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3d/fa/656b739db8587d7b5dfa22e22ed02566950fbfbcdc20311993483657a5c0/click-8.3.1.tar.gz", hash = "sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a", size = 295065, upload-time = "2025-11-15T20:45:42.706Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/98/78/01c019cdb5d6498122777c1a43056ebb3ebfeef2076d9d026bfe15583b2b/click-8.3.1-py3-none-any.whl", hash = "sha256:981153a64e25f12d547d3426c367a4857371575ee7ad18df2a6183ab0545b2a6", size = 108274, upload-time = "2025-11-15T20:45:41.139Z" },
+]
+
+[[package]]
+name = "cloudflare-workers-ai-hello"
+version = "0.1.0"
+source = { editable = "samples/cloudflare-workers-ai-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-cloudflare-workers-ai" },
+    { name = "rich" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-cloudflare-workers-ai", editable = "plugins/cloudflare-workers-ai" },
+    { name = "rich", specifier = ">=13.0.0" },
 ]
 
 [[package]]
@@ -2153,41 +2132,28 @@ requires-dist = [
 provides-extras = ["monitor"]
 
 [[package]]
-name = "genkit-plugin-cf"
+name = "genkit-plugin-cloudflare-workers-ai"
 version = "0.5.0"
-source = { editable = "plugins/cf" }
+source = { editable = "plugins/cloudflare-workers-ai" }
 dependencies = [
     { name = "genkit" },
+    { name = "httpx" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
+    { name = "pydantic" },
     { name = "structlog" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "httpx", specifier = ">=0.27.0" },
     { name = "opentelemetry-api", specifier = ">=1.20.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.20.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
-    { name = "structlog", specifier = ">=23.0.0" },
-]
-
-[[package]]
-name = "genkit-plugin-cf-ai"
-version = "0.5.0"
-source = { editable = "plugins/cf-ai" }
-dependencies = [
-    { name = "genkit" },
-    { name = "httpx" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "httpx", specifier = ">=0.27.0" },
     { name = "pydantic", specifier = ">=2.0" },
+    { name = "structlog", specifier = ">=23.0.0" },
 ]
 
 [[package]]
@@ -2506,8 +2472,7 @@ dependencies = [
     { name = "genkit-plugin-amazon-bedrock" },
     { name = "genkit-plugin-anthropic" },
     { name = "genkit-plugin-azure" },
-    { name = "genkit-plugin-cf" },
-    { name = "genkit-plugin-cf-ai" },
+    { name = "genkit-plugin-cloudflare-workers-ai" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore" },
@@ -2573,8 +2538,7 @@ requires-dist = [
     { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "genkit-plugin-azure", editable = "plugins/azure" },
-    { name = "genkit-plugin-cf", editable = "plugins/cf" },
-    { name = "genkit-plugin-cf-ai", editable = "plugins/cf-ai" },
+    { name = "genkit-plugin-cloudflare-workers-ai", editable = "plugins/cloudflare-workers-ai" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
