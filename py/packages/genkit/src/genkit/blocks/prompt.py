@@ -2187,8 +2187,8 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         # Store reference to PROMPT action on the ExecutablePrompt
         # Actions are already registered at this point (lazy loading happens after registration)
         definition_key = registry_definition_key(name, variant, ns)
-        prompt_lookup_key = f'/prompt/{definition_key}'
-        exec_prompt_lookup_key = f'/executable-prompt/{definition_key}'
+        prompt_lookup_key = create_action_key(ActionKind.PROMPT, definition_key)
+        exec_prompt_lookup_key = create_action_key(ActionKind.EXECUTABLE_PROMPT, definition_key)
 
         # Update PROMPT action
         prompt_action = await registry.resolve_action_by_key(prompt_lookup_key)
