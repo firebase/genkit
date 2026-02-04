@@ -1474,7 +1474,6 @@ class GeminiModel:
                     )
                 )
 
-
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
