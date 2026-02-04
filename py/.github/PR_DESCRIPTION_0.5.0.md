@@ -172,6 +172,33 @@ All packages now pass all three type checkers with zero errors.
 
 All 22 plugins and 40+ samples have been tested. CI runs on Python 3.10, 3.11, 3.12, 3.13, and 3.14.
 
+## Contributors
+
+This release includes contributions from **16 developers**. Thank you to everyone who contributed!
+
+| Contributor | Commits | Key Contributions |
+|-------------|---------|-------------------|
+| **Yesudeep Mangalapilly** | 93 | Core framework, type safety (ty/pyrefly/pyright), AWS/Azure/Cloudflare plugins, CI/CD, security |
+| **Elisa Shen** | 42 | Resource support, sample fixes, model config updates, prompt samples |
+| **Niraj Nepal** | 9 | Anthropic plugin, DeepSeek plugin, xAI plugin, AIM telemetry, ModelGarden |
+| **Abraham J. Lázaro** | 8 | Model Garden plugin, Ollama improvements, Gemini schema support |
+| **huangjeff5** | 7 | PluginV2 refactor, type safety, Pydantic output, real-time telemetry |
+| **Hendrik Martina** | 7 | Evaluator metrics, OpenAI compat plugin, Dotprompt render methods |
+| **Pavel Jbanov** | 7 | Reflection API, embedders, background actions, Gemini upgrades |
+| **ssbushi** | 2 | Evaluator plugins with simple evaluators |
+| **Madhav** | 1 | Windows support (file-safe timestamps) |
+| **Ty Schlichenmeyer** | 1 | Type annotations |
+| **Samuel Bushi** | 1 | genkit-tools improvements |
+| **Sahdev Garg** | 1 | Go SDK background action support |
+| **Michael Doyle** | 1 | PNPM build scripts |
+| **Marcel Folaron** | 1 | Named generates feature |
+| **Junhyuk Han** | 1 | Typo fixes |
+| **shrutip90** | 1 | ResourcePartSchema exports |
+
+**[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt integration):
+- **Zereker**: Go closure fix preventing template sharing
+- **MengqinShen**: CI/CD pipeline improvements and package publishing
+
 ## Full Changelog
 
 See [CHANGELOG.md](py/CHANGELOG.md) for the complete list of changes.
