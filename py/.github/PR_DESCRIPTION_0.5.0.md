@@ -174,30 +174,33 @@ All 22 plugins and 40+ samples have been tested. CI runs on Python 3.10, 3.11, 3
 
 ## Contributors
 
-This release includes contributions from **16 developers**. Thank you to everyone who contributed!
+This release includes contributions from **17 developers** across **191 PRs**. Thank you to everyone who contributed!
 
-| Contributor | Commits | Key Contributions |
-|-------------|---------|-------------------|
-| **Yesudeep Mangalapilly** | 93 | Core framework, type safety (ty/pyrefly/pyright), AWS/Azure/Cloudflare plugins, CI/CD, security |
-| **Elisa Shen** | 42 | Resource support, sample fixes, model config updates, prompt samples |
-| **Niraj Nepal** | 9 | Anthropic plugin, DeepSeek plugin, xAI plugin, AIM telemetry, ModelGarden |
-| **Abraham J. Lázaro** | 8 | Model Garden plugin, Ollama improvements, Gemini schema support |
-| **huangjeff5** | 7 | PluginV2 refactor, type safety, Pydantic output, real-time telemetry |
-| **Hendrik Martina** | 7 | Evaluator metrics, OpenAI compat plugin, Dotprompt render methods |
-| **Pavel Jbanov** | 7 | Reflection API, embedders, background actions, Gemini upgrades |
-| **ssbushi** | 2 | Evaluator plugins with simple evaluators |
-| **Madhav** | 1 | Windows support (file-safe timestamps) |
-| **Ty Schlichenmeyer** | 1 | Type annotations |
-| **Samuel Bushi** | 1 | genkit-tools improvements |
-| **Sahdev Garg** | 1 | Go SDK background action support |
-| **Michael Doyle** | 1 | PNPM build scripts |
-| **Marcel Folaron** | 1 | Named generates feature |
-| **Junhyuk Han** | 1 | Typo fixes |
-| **shrutip90** | 1 | ResourcePartSchema exports |
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| **Yesudeep Mangalapilly** | 91 | 93 | Core framework, type safety (ty/pyrefly/pyright), AWS/Azure/Cloudflare plugins, CI/CD, security |
+| **Elisa Shen** | 42 | 42 | Resource support, sample fixes, model config updates, prompt samples |
+| **Abraham J. Lázaro** | 11 | 8 | Model Garden plugin, Ollama improvements, Gemini schema support |
+| **Pavel Jbanov** | 10 | 7 | Reflection API, embedders, background actions, Gemini upgrades |
+| **Niraj Nepal** | 9 | 9 | Anthropic plugin, DeepSeek plugin, xAI plugin, AIM telemetry, ModelGarden |
+| **huangjeff5** | 7 | 7 | PluginV2 refactor, type safety, Pydantic output, real-time telemetry |
+| **Hendrik Martina** | 7 | 7 | Evaluator metrics, OpenAI compat plugin, Dotprompt render methods |
+| **ssbushi** | 6 | 2 | Evaluator plugins with simple evaluators |
+| **shrutip90** | 1 | 1 | ResourcePartSchema exports |
+| **Ty Schlichenmeyer** | 1 | 1 | Type annotations |
+| **Sahdev Garg** | 1 | 1 | Go SDK background action support |
+| **Michael Doyle** | 1 | 1 | PNPM build scripts |
+| **Marcel Folaron** | 1 | 1 | Named generates feature |
+| **Madhav** | 1 | 1 | Windows support (file-safe timestamps) |
+| **Junhyuk Han** | 1 | 1 | Typo fixes |
+| **CorieW** | 1 | - | Community contribution |
 
 **[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt integration):
-- **Zereker**: Go closure fix preventing template sharing
-- **MengqinShen**: CI/CD pipeline improvements and package publishing
+
+| Contributor | PRs | Key Contributions |
+|-------------|-----|-------------------|
+| **MengqinShen** | 42 | CI/CD pipeline improvements, package publishing, release automation |
+| **Zereker** | 1 | Go closure fix preventing template sharing |
 
 ## Full Changelog
 
