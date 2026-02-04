@@ -2119,9 +2119,11 @@ Use this checklist when drafting a release PR:
 | 11 | **Categorize contributions** | Use bold categories: **Core**, **Plugins**, **Fixes**, etc. |
 | 12 | **Include PR numbers** | Add (#1234) for each major contribution |
 | 13 | **Add dotprompt table** | Same format as main table with PRs, Commits, Key Contributions |
-| 14 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
-| 15 | **Push with --no-verify** | `git push --no-verify` |
-| 16 | **Update PR on GitHub** | `gh pr edit <NUM> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md` |
+| 14 | **Create blog article** | `py/engdoc/blog-genkit-python-X.Y.Z.md` (Firebase blog style) |
+| 15 | **Verify code examples** | Test all code snippets match actual API patterns |
+| 16 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
+| 17 | **Push with --no-verify** | `git push --no-verify` |
+| 18 | **Update PR on GitHub** | `gh pr edit <NUM> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md` |
 
 #### Key Principles
 
@@ -2133,6 +2135,48 @@ Use this checklist when drafting a release PR:
 6. **Match table formats**: External repo tables should have same columns as main table
 7. **Cross-check repositories**: Check both firebase/genkit and google/dotprompt for Python work
 8. **Use --no-verify**: For documentation-only changes, skip hooks for faster iteration
+9. **Always include blog article**: Every release needs a blog article in `py/engdoc/`
+
+#### Blog Article Guidelines
+
+Every release MUST include a blog article at `py/engdoc/blog-genkit-python-X.Y.Z.md` following
+the [Firebase blog style](https://firebase.blog/posts/2025/04/genkit-python-go/):
+
+**Required Sections:**
+1. **Headline**: "Genkit Python SDK X.Y.Z: [Catchy Subtitle]"
+2. **Stats paragraph**: Commits, files changed, contributors, PRs
+3. **What's New**: Plugin expansion, architecture changes, new features
+4. **Code Examples**: Accurate, tested examples (see below)
+5. **Critical Fixes & Security**: Important bug fixes
+6. **Developer Experience**: Tooling improvements
+7. **Plugin Tables**: All available plugins with status
+8. **Get Started**: Installation and quick start
+9. **Contributors**: Acknowledgment table
+10. **What's Next**: Roadmap items
+11. **Get Involved**: Community links
+
+**Code Example Accuracy Checklist:**
+
+Before publishing, verify ALL code examples match the actual API:
+
+| Pattern | Correct | Wrong |
+|---------|---------|-------|
+| Text response | `response.text` | `response.text()` |
+| Structured output | `output=Output(schema=Model)` | `output_schema=Model` |
+| Dynamic tools | `ai.dynamic_tool(name, fn, description=...)` | `@ai.action_provider()` |
+| Partials | `ai.define_partial('name', 'template')` | `Dotprompt.define_partial()` |
+| Main function | `ai.run_main(main())` | `asyncio.run(main())` |
+| Genkit init | Module-level `ai = Genkit(...)` | Inside `async def main()` |
+| Imports | `from genkit.ai import Genkit, Output` | `from genkit import Genkit` |
+
+**Verify examples against actual samples:**
+
+```bash
+# Check API patterns in existing samples
+grep -r "response.text" py/samples/*/src/main.py | head -5
+grep -r "Output(schema=" py/samples/*/src/main.py | head -5
+grep -r "ai.run_main" py/samples/*/src/main.py | head -5
+```
 
 #### CHANGELOG.md Structure
 
