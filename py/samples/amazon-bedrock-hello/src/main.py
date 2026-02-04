@@ -46,7 +46,7 @@ Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
-| Plugin Initialization                   | `ai = Genkit(plugins=[AWSBedrock()])` |
+| Plugin Initialization                   | `ai = Genkit(plugins=[AmazonBedrock()])` |
 | Default Model Configuration             | `ai = Genkit(model=...)`            |
 | Defining Flows                          | `@ai.flow()` decorator              |
 | Defining Tools                          | `@ai.tool()` decorator              |
@@ -78,8 +78,8 @@ from rich.traceback import install as install_rich_traceback
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.plugins.aws_bedrock import (
-    AWSBedrock,
+from genkit.plugins.amazon_bedrock import (
+    AmazonBedrock,
     bedrock_model,
     # Direct model IDs (for IAM credentials)
     claude_sonnet_4_5,
@@ -129,7 +129,7 @@ else:
 # Initialize Genkit with AWS Bedrock plugin
 # Region is required - either from env var (prompted above) or explicit
 ai = Genkit(
-    plugins=[AWSBedrock(region=os.environ.get('AWS_REGION'))],
+    plugins=[AmazonBedrock(region=os.environ.get('AWS_REGION'))],
     model=_default_model,
 )
 

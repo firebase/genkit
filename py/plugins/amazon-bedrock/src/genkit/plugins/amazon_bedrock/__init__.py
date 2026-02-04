@@ -58,10 +58,10 @@ Data Flow::
     │    Your Code                                                            │
     │    ai.generate(prompt="Describe this image", media=[image_url])         │
     │         │                                                               │
-    │         │  (1) Request goes to AWSBedrock plugin                        │
+    │         │  (1) Request goes to AmazonBedrock plugin                        │
     │         ▼                                                               │
     │    ┌─────────────────┐                                                  │
-    │    │  AWSBedrock     │   • Adds AWS credentials                         │
+    │    │  AmazonBedrock     │   • Adds AWS credentials                         │
     │    │  Plugin         │   • Converts model ID → inference profile        │
     │    └────────┬────────┘                                                  │
     │             │                                                           │
@@ -95,12 +95,12 @@ Architecture Overview::
     │                         AWS Bedrock Plugin                              │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  Plugin Entry Point (__init__.py)                                       │
-    │  ├── AWSBedrock - Plugin class                                          │
+    │  ├── AmazonBedrock - Plugin class                                          │
     │  ├── bedrock_model() / inference_profile() - Helper functions           │
     │  └── Pre-defined models (claude_sonnet_4_5, deepseek_r1, nova_pro, ...) │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  plugin.py - Plugin Implementation                                      │
-    │  ├── AWSBedrock class (registers models/embedders)                      │
+    │  ├── AmazonBedrock class (registers models/embedders)                      │
     │  └── Configuration and boto3 client initialization                      │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  typing.py - Type-Safe Configuration Classes                            │
@@ -143,10 +143,10 @@ Documentation Links:
 Example::
 
     from genkit import Genkit
-    from genkit.plugins.aws_bedrock import AWSBedrock, claude_sonnet_4_5
+    from genkit.plugins.amazon_bedrock import AmazonBedrock, claude_sonnet_4_5
 
     ai = Genkit(
-        plugins=[AWSBedrock(region='us-east-1')],
+        plugins=[AmazonBedrock(region='us-east-1')],
         model=claude_sonnet_4_5,
     )
 
@@ -161,8 +161,8 @@ Trademark Notice:
 """
 
 from .plugin import (
-    AWS_BEDROCK_PLUGIN_NAME,
-    AWSBedrock,
+    AMAZON_BEDROCK_PLUGIN_NAME,
+    AmazonBedrock,
     bedrock_model,
     bedrock_name,
     # Pre-defined model references - Anthropic Claude
@@ -232,10 +232,10 @@ from .typing import (
 )
 
 __all__ = [
-    'AWS_BEDROCK_PLUGIN_NAME',
+    'AMAZON_BEDROCK_PLUGIN_NAME',
     'AI21JambaConfig',
     # Plugin
-    'AWSBedrock',
+    'AmazonBedrock',
     # Model-Specific Configs (16 providers)
     'AmazonNovaConfig',
     'AnthropicConfig',

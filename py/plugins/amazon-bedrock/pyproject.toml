@@ -35,7 +35,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = ["genkit", "boto3>=1.35.0", "botocore>=1.35.0"]
-description = "Genkit AWS Bedrock Plugin"
+description = "Genkit Amazon Bedrock Plugin"
 keywords = [
   "genkit",
   "ai",
@@ -48,7 +48,7 @@ keywords = [
   "amazon",
 ]
 license = "Apache-2.0"
-name = "genkit-plugin-aws-bedrock"
+name = "genkit-plugin-amazon-bedrock"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.5.0"
@@ -64,5 +64,5 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["src/genkit/plugins/aws_bedrock"]
+only-include = ["src/genkit/plugins/amazon_bedrock"]
 sources = ["src"]

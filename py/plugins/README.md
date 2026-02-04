@@ -21,7 +21,7 @@ This directory contains all official Genkit plugins for Python.
 │   │ • Claude 3.5/4          │        │ • X-Ray                 │               │
 │   └─────────────────────────┘        │ • CloudWatch            │               │
 │   ┌─────────────────────────┐        └─────────────────────────┘               │
-│   │ aws-bedrock             │        ┌─────────────────────────┐               │
+│   │ amazon-bedrock             │        ┌─────────────────────────┐               │
 │   │ • Claude, Llama, Nova   │        │ firebase                │               │
 │   │ • Titan, Mistral        │        │ • Firebase Telemetry    │               │
 │   └─────────────────────────┘        └─────────────────────────┘               │
@@ -91,10 +91,10 @@ This directory contains all official Genkit plugins for Python.
 │       → google-genai (Gemini 2.0)                                               │
 │                                                                                 │
 │   "I need Claude models"                                                        │
-│       → anthropic (direct) OR aws-bedrock OR msfoundry                          │
+│       → anthropic (direct) OR amazon-bedrock OR msfoundry                          │
 │                                                                                 │
 │   "I'm on AWS and want managed models"                                          │
-│       → aws-bedrock (Claude, Llama, Nova, Titan)                                │
+│       → amazon-bedrock (Claude, Llama, Nova, Titan)                                │
 │                                                                                 │
 │   "I'm on Azure and want managed models"                                        │
 │       → msfoundry (GPT-4o, Claude, Llama, 11,000+ models)                       │
@@ -237,7 +237,7 @@ This directory contains all official Genkit plugins for Python.
 |--------|--------|----------|
 | **google-genai** | Gemini, Imagen, Veo, Lyria | Multimodal AI, Google ecosystem |
 | **anthropic** | Claude 3.5, Claude 4 | Direct Claude access |
-| **aws-bedrock** | Claude, Llama, Nova, Titan | AWS managed models |
+| **amazon-bedrock** | Claude, Llama, Nova, Titan | AWS managed models |
 | **msfoundry** | GPT-4o, Claude, Llama, 11,000+ | Azure AI, enterprise |
 | **vertex-ai** | Model Garden (Claude, Llama) | GCP third-party models |
 | **ollama** | Llama, Mistral, Phi, etc. | Local/private deployment |
@@ -300,9 +300,9 @@ All environment variables used by Genkit plugins. Configure these before running
 |----------|--------|----------|-------------|---------------|
 | `GOOGLE_GENAI_API_KEY` | google-genai | Yes | Google AI Studio API key | [Get API Key](https://aistudio.google.com/apikey) |
 | `ANTHROPIC_API_KEY` | anthropic | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
-| `AWS_REGION` | aws-bedrock | Yes | AWS region (e.g., `us-east-1`) | [AWS Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
-| `AWS_ACCESS_KEY_ID` | aws-bedrock | Yes* | AWS access key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AWS_SECRET_ACCESS_KEY` | aws-bedrock | Yes* | AWS secret key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AWS_REGION` | amazon-bedrock | Yes | AWS region (e.g., `us-east-1`) | [AWS Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
+| `AWS_ACCESS_KEY_ID` | amazon-bedrock | Yes* | AWS access key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AWS_SECRET_ACCESS_KEY` | amazon-bedrock | Yes* | AWS secret key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
 | `AZURE_AI_FOUNDRY_ENDPOINT` | msfoundry | Yes | Azure AI Foundry endpoint URL | [Azure AI Foundry](https://ai.azure.com/) |
 | `AZURE_AI_FOUNDRY_API_KEY` | msfoundry | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
 | `OPENAI_API_KEY` | compat-oai | Yes | OpenAI API key | [OpenAI API Keys](https://platform.openai.com/api-keys) |
@@ -429,7 +429,7 @@ Each plugin is a separate package. Install only what you need:
 # Model providers
 pip install genkit-google-genai-plugin
 pip install genkit-anthropic-plugin
-pip install genkit-aws-bedrock-plugin
+pip install genkit-amazon-bedrock-plugin
 pip install genkit-msfoundry-plugin
 
 # Telemetry

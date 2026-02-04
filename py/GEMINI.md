@@ -1070,7 +1070,7 @@ Duplicate filename in local headers.
 | `plugins/anthropic/` | `["src/genkit/plugins/anthropic"]` |
 | `plugins/google-genai/` | `["src/genkit/plugins/google_genai"]` |
 | `plugins/vertex-ai/` | `["src/genkit/plugins/vertex_ai"]` |
-| `plugins/aws-bedrock/` | `["src/genkit/plugins/aws_bedrock"]` |
+| `plugins/amazon-bedrock/` | `["src/genkit/plugins/amazon_bedrock"]` |
 
 Note: Internal Python directory names use underscores (`google_genai`), while
 the plugin directory uses hyphens (`google-genai`).
@@ -1458,13 +1458,13 @@ module. In-function imports can:
 ## Changes
 
 ### Plugins
-- **aws-bedrock**: Cleaned up `plugin.py` imports
+- **amazon-bedrock**: Cleaned up `plugin.py` imports
 - **google-cloud**: Cleaned up `telemetry/metrics.py` imports
 
 ### Samples
 Moved in-function imports to top of file:
 - **anthropic-hello**: `random`, `genkit.types` imports
-- **aws-bedrock-hello**: `asyncio`, `random`, `genkit.types` imports
+- **amazon-bedrock-hello**: `asyncio`, `random`, `genkit.types` imports
 - [additional samples...]
 
 ## Test Plan
@@ -2813,7 +2813,7 @@ This publishes all 23 packages in parallel:
 | Package Category | Packages |
 |------------------|----------|
 | **Core** | `genkit` |
-| **Model Providers** | `genkit-plugin-anthropic`, `genkit-plugin-aws-bedrock`, `genkit-plugin-cf-ai`, `genkit-plugin-deepseek`, `genkit-plugin-google-genai`, `genkit-plugin-huggingface`, `genkit-plugin-mistral`, `genkit-plugin-msfoundry`, `genkit-plugin-ollama`, `genkit-plugin-vertex-ai`, `genkit-plugin-xai` |
+| **Model Providers** | `genkit-plugin-anthropic`, `genkit-plugin-amazon-bedrock`, `genkit-plugin-cf-ai`, `genkit-plugin-deepseek`, `genkit-plugin-google-genai`, `genkit-plugin-huggingface`, `genkit-plugin-mistral`, `genkit-plugin-msfoundry`, `genkit-plugin-ollama`, `genkit-plugin-vertex-ai`, `genkit-plugin-xai` |
 | **Telemetry** | `genkit-plugin-aws`, `genkit-plugin-azure`, `genkit-plugin-cf`, `genkit-plugin-google-cloud`, `genkit-plugin-observability` |
 | **Data/Retrieval** | `genkit-plugin-dev-local-vectorstore`, `genkit-plugin-evaluators`, `genkit-plugin-firebase` |
 | **Other** | `genkit-plugin-flask`, `genkit-plugin-compat-oai`, `genkit-plugin-mcp` |
@@ -2857,7 +2857,7 @@ For the v0.5.0 release specifically:
 - genkit-plugin-google-genai, genkit-plugin-ollama, genkit-plugin-vertex-ai
 
 **New Packages (first publish at v0.5.0):**
-- genkit-plugin-anthropic, genkit-plugin-aws, genkit-plugin-aws-bedrock
+- genkit-plugin-anthropic, genkit-plugin-aws, genkit-plugin-amazon-bedrock
 - genkit-plugin-azure, genkit-plugin-cf, genkit-plugin-cf-ai
 - genkit-plugin-deepseek, genkit-plugin-evaluators, genkit-plugin-huggingface
 - genkit-plugin-mcp, genkit-plugin-mistral, genkit-plugin-msfoundry

@@ -73,7 +73,7 @@ This document organizes the identified gaps into executable milestones with depe
 |--------|----------------|------------------|-----------------|---------------|----------|
 | google-genai | ✅ Verified | Minor | None | Good | - |
 | anthropic | ⚠️ Gaps | Cache control, Citations, PDF/Document support | None | Good | Medium |
-| aws-bedrock | ✅ Verified | Guardrails | None | Good | Low |
+| amazon-bedrock | ✅ Verified | Guardrails | None | Good | Low |
 | ollama | ✅ Verified | Vision via chat API | None | Fair | Low |
 | mistral | ⚠️ Gaps | Agents API, Codestral FIM, Embeddings | None | Good | Medium |
 | xai | ⚠️ Gaps | Agent Tools API (server/client-side) | None | Fair | Medium |
@@ -94,7 +94,7 @@ This document organizes the identified gaps into executable milestones with depe
 | **P2** | Add Agent Tools API | xai | M | Server/client-side tool calling (Jan 2026) |
 | **P2** | Add Agents API | mistral | L | Mistral Agents endpoint |
 | **P2** | Add Inference Endpoints | huggingface | M | Dedicated endpoints for production |
-| **P3** | Add Guardrails | aws-bedrock | M | Bedrock Guardrails integration |
+| **P3** | Add Guardrails | amazon-bedrock | M | Bedrock Guardrails integration |
 | **P3** | Add Azure AI Studio | azure | L | New unified API |
 
 ### Detailed Gap Analysis
@@ -153,7 +153,7 @@ if hasattr(part, 'cache_control') and part.cache_control:
 
 ---
 
-#### 3. aws-bedrock
+#### 3. amazon-bedrock
 
 **Status**: ✅ Mostly Conformant
 
@@ -328,8 +328,8 @@ class DeepSeekModel:
 | Issue | Plugins Affected | Severity | Recommendation |
 |-------|-----------------|----------|----------------|
 | Silent parameter ignoring | deepseek (R1 mode) | **Medium** | Add warnings when params ignored |
-| SSRF via media URLs | cf-ai, aws-bedrock | Low | Validate URL schemes, add allowlist |
-| Long timeouts | aws-bedrock (Nova) | Low | Make timeouts configurable |
+| SSRF via media URLs | cf-ai, amazon-bedrock | Low | Validate URL schemes, add allowlist |
+| Long timeouts | amazon-bedrock (Nova) | Low | Make timeouts configurable |
 | No PII sanitization | All plugins | Medium | Add optional PII scrubbing middleware |
 | Prompt injection | All plugins | Info | Document user responsibility |
 
@@ -339,7 +339,7 @@ class DeepSeekModel:
 |--------|-----------|-------------------|-----------|----------------|
 | google-genai | ✅ Good | ⚠️ Partial | ❌ None | Add E2E with live API |
 | anthropic | ✅ Good | ⚠️ Partial | ❌ None | Add cache control tests |
-| aws-bedrock | ✅ Good | ⚠️ Partial | ❌ None | Add multi-provider tests |
+| amazon-bedrock | ✅ Good | ⚠️ Partial | ❌ None | Add multi-provider tests |
 | ollama | ⚠️ Fair | ❌ None | ❌ None | Need integration tests |
 | mistral | ✅ Good | ⚠️ Partial | ❌ None | Add vision model tests |
 | xai | ⚠️ Fair | ❌ None | ❌ None | Need more coverage |

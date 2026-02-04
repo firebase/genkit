@@ -25,7 +25,7 @@ This is a **major release** of the Genkit Python SDK with **178 commits** and **
 | Plugin | Provider | Key Features |
 |--------|----------|--------------|
 | `genkit-plugin-anthropic` | Anthropic | Claude models (Opus, Sonnet, Haiku) |
-| `genkit-plugin-aws-bedrock` | AWS Bedrock | Claude, Titan, Llama via AWS |
+| `genkit-plugin-amazon-bedrock` | AWS Bedrock | Claude, Titan, Llama via AWS |
 | `genkit-plugin-msfoundry` | Azure OpenAI | Microsoft Foundry integration |
 | `genkit-plugin-cf-ai` | Cloudflare | Workers AI models |
 | `genkit-plugin-deepseek` | DeepSeek | DeepSeek models with structured output |

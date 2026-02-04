@@ -14,7 +14,7 @@ This directory contains sample applications demonstrating various Genkit feature
 │   ┌─────────────────────────┐        ┌─────────────────────────┐               │
 │   │ google-genai-hello      │        │ aws-hello               │               │
 │   │ anthropic-hello         │        │ azure-hello             │               │
-│   │ aws-bedrock-hello       │        │ cf-hello                │               │
+│   │ amazon-bedrock-hello       │        │ cf-hello                │               │
 │   │ msfoundry-hello         │        │ observability-hello     │               │
 │   │ ollama-hello            │        │ realtime-tracing-demo   │               │
 │   │ compat-oai-hello        │        └─────────────────────────┘               │
@@ -61,7 +61,7 @@ cd py/samples/<sample-name>
 |--------|--------|-------------|
 | **google-genai-hello** | google-genai | Gemini models with Google AI |
 | **anthropic-hello** | anthropic | Claude models directly |
-| **aws-bedrock-hello** | aws-bedrock | Claude, Llama, Nova via Bedrock |
+| **amazon-bedrock-hello** | amazon-bedrock | Claude, Llama, Nova via Bedrock |
 | **msfoundry-hello** | msfoundry | Azure AI Foundry models |
 | **ollama-hello** | ollama | Local models with Ollama |
 | **compat-oai-hello** | compat-oai | OpenAI-compatible APIs |
@@ -119,9 +119,9 @@ Most samples require environment variables for API keys. Configure these before 
 |----------|--------|----------|-------------|-----------------|
 | `GOOGLE_GENAI_API_KEY` | google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
 | `ANTHROPIC_API_KEY` | anthropic-hello | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
-| `AWS_REGION` | aws-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
-| `AWS_ACCESS_KEY_ID` | aws-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AWS_SECRET_ACCESS_KEY` | aws-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AWS_REGION` | amazon-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
+| `AWS_ACCESS_KEY_ID` | amazon-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AWS_SECRET_ACCESS_KEY` | amazon-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
 | `AZURE_AI_FOUNDRY_ENDPOINT` | msfoundry-hello | Yes | Azure AI Foundry endpoint | [Azure AI Foundry](https://ai.azure.com/) |
 | `AZURE_AI_FOUNDRY_API_KEY` | msfoundry-hello | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
 | `OPENAI_API_KEY` | compat-oai-hello | Yes | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) |
@@ -198,7 +198,7 @@ export GOOGLE_GENAI_API_KEY="AIza..."
 # Anthropic (anthropic-hello)
 export ANTHROPIC_API_KEY="sk-ant-..."
 
-# AWS Bedrock (aws-bedrock-hello)
+# AWS Bedrock (amazon-bedrock-hello)
 export AWS_REGION="us-east-1"
 export AWS_ACCESS_KEY_ID="AKIA..."
 export AWS_SECRET_ACCESS_KEY="..."

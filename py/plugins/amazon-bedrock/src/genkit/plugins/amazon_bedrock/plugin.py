@@ -43,10 +43,10 @@ Authentication:
 Example::
 
     from genkit import Genkit
-    from genkit.plugins.aws_bedrock import AWSBedrock, bedrock_model
+    from genkit.plugins.amazon_bedrock import AmazonBedrock, bedrock_model
 
     ai = Genkit(
-        plugins=[AWSBedrock(region='us-east-1')],
+        plugins=[AmazonBedrock(region='us-east-1')],
         model=bedrock_model('anthropic.claude-sonnet-4-5-20250929-v1:0'),
     )
 
@@ -72,13 +72,13 @@ from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.logging import get_logger
 from genkit.core.registry import ActionKind
-from genkit.plugins.aws_bedrock.models.model import BedrockModel
-from genkit.plugins.aws_bedrock.models.model_info import (
+from genkit.plugins.amazon_bedrock.models.model import BedrockModel
+from genkit.plugins.amazon_bedrock.models.model_info import (
     SUPPORTED_BEDROCK_MODELS,
     SUPPORTED_EMBEDDING_MODELS,
     get_model_info,
 )
-from genkit.plugins.aws_bedrock.typing import (
+from genkit.plugins.amazon_bedrock.typing import (
     AI21JambaConfig,
     AmazonNovaConfig,
     AnthropicConfig,
@@ -171,7 +171,7 @@ def get_config_schema_for_model(model_id: str) -> type:
 
 
 # Plugin name
-AWS_BEDROCK_PLUGIN_NAME = 'aws-bedrock'
+AMAZON_BEDROCK_PLUGIN_NAME = 'amazon-bedrock'
 
 # Logger for this module
 logger = get_logger(__name__)
@@ -184,12 +184,12 @@ def bedrock_name(model_id: str) -> str:
         model_id: The Bedrock model ID (e.g., 'anthropic.claude-sonnet-4-5-20250929-v1:0').
 
     Returns:
-        Fully qualified model name (e.g., 'aws-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0').
+        Fully qualified model name (e.g., 'amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0').
     """
-    return f'{AWS_BEDROCK_PLUGIN_NAME}/{model_id}'
+    return f'{AMAZON_BEDROCK_PLUGIN_NAME}/{model_id}'
 
 
-class AWSBedrock(Plugin):
+class AmazonBedrock(Plugin):
     """AWS Bedrock plugin for Genkit.
 
     This plugin provides access to AWS Bedrock models including:
@@ -211,10 +211,10 @@ class AWSBedrock(Plugin):
     See: https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html
 
     Attributes:
-        name: Plugin name ('aws-bedrock').
+        name: Plugin name ('amazon-bedrock').
     """
 
-    name = AWS_BEDROCK_PLUGIN_NAME
+    name = AMAZON_BEDROCK_PLUGIN_NAME
 
     def __init__(
         self,
@@ -241,17 +241,17 @@ class AWSBedrock(Plugin):
 
         Example:
             # Using environment variables (recommended):
-            plugin = AWSBedrock(region='us-east-1')
+            plugin = AmazonBedrock(region='us-east-1')
 
             # Using explicit credentials:
-            plugin = AWSBedrock(
+            plugin = AmazonBedrock(
                 region='us-east-1',
                 access_key_id='your-access-key',
                 secret_access_key='your-secret-key',
             )
 
             # Using AWS profile:
-            plugin = AWSBedrock(
+            plugin = AmazonBedrock(
                 region='us-east-1',
                 profile_name='my-profile',
             )
@@ -342,13 +342,13 @@ class AWSBedrock(Plugin):
         """Create an Action object for a chat completion model.
 
         Args:
-            name: The namespaced model name (e.g., 'aws-bedrock/anthropic.claude-...').
+            name: The namespaced model name (e.g., 'amazon-bedrock/anthropic.claude-...').
 
         Returns:
             Action object for the model.
         """
         # Extract model ID (remove plugin prefix)
-        prefix = f'{AWS_BEDROCK_PLUGIN_NAME}/'
+        prefix = f'{AMAZON_BEDROCK_PLUGIN_NAME}/'
         model_id = name[len(prefix) :] if name.startswith(prefix) else name
 
         model = BedrockModel(
@@ -380,7 +380,7 @@ class AWSBedrock(Plugin):
         Returns:
             Action object for the embedder.
         """
-        prefix = f'{AWS_BEDROCK_PLUGIN_NAME}/'
+        prefix = f'{AMAZON_BEDROCK_PLUGIN_NAME}/'
         model_id = name[len(prefix) :] if name.startswith(prefix) else name
 
         # Get embedder info
@@ -507,11 +507,11 @@ def bedrock_model(model_id: str) -> str:
         model_id: The Bedrock model ID (e.g., 'anthropic.claude-sonnet-4-5-20250929-v1:0').
 
     Returns:
-        Fully qualified model name (e.g., 'aws-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0').
+        Fully qualified model name (e.g., 'amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0').
 
     Example:
         ai = Genkit(
-            plugins=[AWSBedrock(region='us-east-1')],
+            plugins=[AmazonBedrock(region='us-east-1')],
             model=bedrock_model('anthropic.claude-sonnet-4-5-20250929-v1:0'),
         )
 
@@ -607,11 +607,11 @@ def inference_profile(model_id: str, region: str | None = None) -> str:
 
         # Using environment variable AWS_REGION=eu-west-1
         >>> inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0')
-        'aws-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0'
+        'amazon-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0'
 
         # Explicit region
         >>> inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0', 'ap-northeast-1')
-        'aws-bedrock/apac.anthropic.claude-sonnet-4-5-20250929-v1:0'
+        'amazon-bedrock/apac.anthropic.claude-sonnet-4-5-20250929-v1:0'
     """
     prefix = get_inference_profile_prefix(region)
     return bedrock_name(f'{prefix}.{model_id}')
