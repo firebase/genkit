@@ -76,8 +76,10 @@ fi
 # 5. Verify all mentioned plugins exist
 echo -n "5. Verifying plugin references... "
 PLUGIN_ERROR=0
+# shellcheck disable=SC2013
+# Word splitting is intended for plugin names
 for plugin in $(grep -rohE 'genkit-plugin-[a-z-]+' engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null | sort -u); do
-    dir_name=$(echo "$plugin" | sed 's/genkit-plugin-//')
+    dir_name="${plugin//genkit-plugin-/}"
     if [ ! -d "plugins/$dir_name" ]; then
         if [ $PLUGIN_ERROR -eq 0 ]; then
             echo ""

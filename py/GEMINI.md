@@ -2771,3 +2771,46 @@ For detailed release instructions, see:
 - `py/engdoc/release-publishing-guide.md` - Complete step-by-step guide
 - `py/.github/PR_DESCRIPTION_0.5.0.md` - v0.5.0 PR description template
 - `py/CHANGELOG.md` - Full changelog format
+
+### Version Consistency
+
+All packages (core, plugins, and samples) must have the same version. Use these scripts:
+
+```bash
+# Check version consistency
+./bin/check_versions
+
+# Fix version mismatches
+./bin/check_versions --fix
+# or
+./bin/bump_version 0.5.0
+
+# Bump to next version
+./bin/bump_version --minor    # 0.5.0 -> 0.6.0
+./bin/bump_version --patch    # 0.5.0 -> 0.5.1
+./bin/bump_version --major    # 0.5.0 -> 1.0.0
+```
+
+The `bump_version` script dynamically discovers all packages:
+- `packages/genkit` (core)
+- `plugins/*/` (all plugins)
+- `samples/*/` (all samples)
+
+### Shell Script Linting
+
+All shell scripts in `bin/` and `py/bin/` must pass `shellcheck`. This is enforced
+by `bin/lint` and `py/bin/release_check`.
+
+```bash
+# Run shellcheck on all scripts
+shellcheck bin/* py/bin/*
+
+# Install shellcheck if not present
+brew install shellcheck  # macOS
+apt install shellcheck   # Debian/Ubuntu
+```
+
+**Common shellcheck fixes:**
+- Use `"${var}"` instead of `$var` for safer expansion
+- Add `# shellcheck disable=SC2034` for intentionally unused variables
+- Use `${var//search/replace}` instead of `echo "$var" | sed 's/search/replace/'`
