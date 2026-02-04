@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@
 # This script validates release documentation (CHANGELOG.md, PR descriptions, 
 # blog articles) to catch common mistakes before publishing.
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'

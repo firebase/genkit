@@ -2814,3 +2814,41 @@ apt install shellcheck   # Debian/Ubuntu
 - Use `"${var}"` instead of `$var` for safer expansion
 - Add `# shellcheck disable=SC2034` for intentionally unused variables
 - Use `${var//search/replace}` instead of `echo "$var" | sed 's/search/replace/'`
+
+### Shell Script Standards
+
+All shell scripts must follow these standards:
+
+**1. Shebang Line (line 1):**
+```bash
+#!/usr/bin/env bash
+```
+- Use `#!/usr/bin/env bash` for portability (not `#!/bin/bash`)
+- Must be the **first line** of the file (before license header)
+
+**2. Strict Mode:**
+```bash
+set -euo pipefail
+```
+- `-e`: Exit immediately on command failure
+- `-u`: Exit on undefined variable usage  
+- `-o pipefail`: Exit on pipe failures
+
+**3. Verification Script:**
+```bash
+# Check all scripts for proper shebang and pipefail
+for script in bin/* py/bin/*; do
+  if [ -f "$script" ] && file "$script" | grep -qE "shell|bash"; then
+    shebang=$(head -1 "$script")
+    if [[ "$shebang" != "#!/usr/bin/env bash" ]]; then
+      echo "❌ SHEBANG: $script"
+    fi
+    if ! grep -q "set -euo pipefail" "$script"; then
+      echo "❌ PIPEFAIL: $script"
+    fi
+  fi
+done
+```
+
+**Exception:** `bin/install_cli` intentionally omits `pipefail` as it's a user-facing
+install script that handles errors differently for better user experience.
