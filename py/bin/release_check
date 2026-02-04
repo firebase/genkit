@@ -393,7 +393,8 @@ rm -f /tmp/typos_release_$$ 2>/dev/null || true
 echo -e "\n${CYAN}Checking shell scripts (shellcheck)...${NC}"
 if command -v shellcheck &> /dev/null; then
   shell_errors=0
-  for script in bin/*; do
+  # Check both py/bin/ and root bin/ directories (consistent with bin/lint)
+  for script in bin/* "${TOP_DIR}"/bin/*; do
     if [ -f "$script" ] && file "$script" | grep -q "shell\|bash\|sh" 2>/dev/null; then
       script_name=$(basename "$script")
       # Skip .py files
