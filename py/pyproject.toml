@@ -35,7 +35,6 @@ dependencies = [
   "genkit-plugin-mcp",
   "genkit-plugin-msfoundry",
   "genkit-plugin-amazon-bedrock",
-  "genkit-plugin-aws",
   "genkit-plugin-azure",
   "genkit-plugin-cf",
   "genkit-plugin-mistral",
@@ -135,7 +134,6 @@ default-groups = ["dev", "lint"]
 # Samples (alphabetical by package name from pyproject.toml)
 anthropic-hello                   = { workspace = true }
 amazon-bedrock-hello                 = { workspace = true }
-aws-hello                         = { workspace = true }
 azure-hello                       = { workspace = true }
 cf-ai-hello                       = { workspace = true }
 cf-hello                          = { workspace = true }
@@ -173,7 +171,6 @@ xai-hello                         = { workspace = true }
 genkit = { workspace = true }
 # Plugins (alphabetical)
 genkit-plugin-anthropic             = { workspace = true }
-genkit-plugin-aws                   = { workspace = true }
 genkit-plugin-amazon-bedrock           = { workspace = true }
 genkit-plugin-azure                 = { workspace = true }
 genkit-plugin-cf                    = { workspace = true }
@@ -380,7 +377,6 @@ root = [
   "packages/genkit/src",
   # Plugins
   "plugins/anthropic/src",
-  "plugins/aws/src",
   "plugins/amazon-bedrock/src",
   "plugins/azure/src",
   "plugins/cf/src",

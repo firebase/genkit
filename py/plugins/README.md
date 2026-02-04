@@ -17,14 +17,13 @@ This directory contains all official Genkit plugins for Python.
 │   │ • Lyria, TTS            │        │ • Cloud Logging         │               │
 │   └─────────────────────────┘        └─────────────────────────┘               │
 │   ┌─────────────────────────┐        ┌─────────────────────────┐               │
-│   │ anthropic               │        │ aws                     │               │
-│   │ • Claude 3.5/4          │        │ • X-Ray                 │               │
-│   └─────────────────────────┘        │ • CloudWatch            │               │
-│   ┌─────────────────────────┐        └─────────────────────────┘               │
-│   │ amazon-bedrock             │        ┌─────────────────────────┐               │
-│   │ • Claude, Llama, Nova   │        │ firebase                │               │
-│   │ • Titan, Mistral        │        │ • Firebase Telemetry    │               │
+│   │ anthropic               │        │ amazon-bedrock          │               │
+│   │ • Claude 3.5/4          │        │ • X-Ray (built-in)      │               │
 │   └─────────────────────────┘        └─────────────────────────┘               │
+│   ┌─────────────────────────┐        ┌─────────────────────────┐               │
+│   │ amazon-bedrock          │        │ firebase                │               │
+│   │ • Claude, Llama, Nova   │        │ • Firebase Telemetry    │               │
+│   │ • Titan, Mistral        │        └─────────────────────────┘               │
 │   ┌─────────────────────────┐                                                  │
 │   │ msfoundry               │        INTEGRATIONS                              │
 │   │ • GPT-4o, Claude, Llama │        ────────────                              │
@@ -144,11 +143,11 @@ This directory contains all official Genkit plugins for Python.
 │   ────────────────────────              ────────────────────                    │
 │                                                                                 │
 │   ┌─────────┐  ┌─────────┐             ┌───────────────────┐                   │
-│   │   aws   │  │ google- │             │   observability   │  ✅ NEW           │
-│   │         │  │ cloud   │             │   • Sentry        │                   │
+│   │ amazon- │  │ google- │             │   observability   │  ✅ NEW           │
+│   │ bedrock │  │ cloud   │             │   • Sentry        │                   │
 │   │ • SigV4 │  │ • ADC   │             │   • Honeycomb     │                   │
 │   │ • X-Ray │  │ • Trace │             │   • Datadog       │                   │
-│   │ • CW    │  │ • Logs  │             │   • Grafana       │                   │
+│   │         │  │ • Logs  │             │   • Grafana       │                   │
 │   └────┬────┘  └────┬────┘             │   • Axiom         │                   │
 │        │            │                   └─────────┬─────────┘                   │
 │        ▼            ▼                             │                             │
@@ -171,7 +170,7 @@ This directory contains all official Genkit plugins for Python.
 │                                                                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
-│   "I'm on AWS and want X-Ray"           → aws plugin                           │
+│   "I'm on AWS and want X-Ray"           → amazon-bedrock plugin                 │
 │   "I'm on GCP and want Cloud Trace"     → google-cloud plugin                  │
 │   "I'm on Azure and want App Insights"  → azure plugin                          │
 │   "I'm using Firebase"                  → firebase plugin (auto telemetry)     │
@@ -262,7 +261,7 @@ This directory contains all official Genkit plugins for Python.
 | Plugin | Backend | Features |
 |--------|---------|----------|
 | **google-cloud** | Cloud Trace, Logging | GCP native, log correlation |
-| **aws** | X-Ray, CloudWatch | AWS native, SigV4 auth |
+| **amazon-bedrock** | X-Ray | AWS native, SigV4 auth, built into model plugin |
 | **azure** | Application Insights | Azure Monitor, trace correlation |
 | **cf** | Any OTLP endpoint | Generic OTLP, Bearer auth |
 | **observability** | Sentry, Honeycomb, Datadog, Grafana, Axiom | 3rd party presets |
@@ -329,7 +328,7 @@ All environment variables used by Genkit plugins. Configure these before running
 
 *Not required when running on GCP with default credentials.
 
-#### AWS Plugin
+#### Amazon Bedrock Plugin (X-Ray Telemetry)
 
 | Variable | Required | Description | Documentation |
 |----------|----------|-------------|---------------|
@@ -429,12 +428,11 @@ Each plugin is a separate package. Install only what you need:
 # Model providers
 pip install genkit-google-genai-plugin
 pip install genkit-anthropic-plugin
-pip install genkit-amazon-bedrock-plugin
+pip install genkit-amazon-bedrock-plugin  # Also includes X-Ray telemetry
 pip install genkit-msfoundry-plugin
 
 # Telemetry
 pip install genkit-google-cloud-plugin
-pip install genkit-aws-plugin
 
 # Safety & Evaluation
 pip install genkit-checks-plugin

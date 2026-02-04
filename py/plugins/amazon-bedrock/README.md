@@ -1,6 +1,8 @@
 # Genkit Amazon Bedrock Plugin
 
-`genkit-plugin-amazon-bedrock` is a plugin for using Amazon Bedrock models with [Genkit](https://github.com/firebase/genkit).
+> **Community Plugin** – This plugin is maintained by the community and is supported on a best-effort basis. It is not an official AWS product.
+
+`genkit-plugin-amazon-bedrock` is a plugin for using Amazon Bedrock models with [Genkit](https://github.com/firebase/genkit). It provides access to foundation models AND AWS X-Ray telemetry in a single package.
 
 Amazon Bedrock is a fully managed service that provides access to foundation models from leading AI providers including Amazon, Anthropic, Meta, Mistral, Cohere, DeepSeek, and more through a unified API.
 
@@ -86,6 +88,33 @@ Your AWS credentials need the following permissions:
   ]
 }
 ```
+
+## AWS X-Ray Telemetry
+
+This plugin includes built-in AWS X-Ray telemetry support. Enable it to send distributed traces to AWS X-Ray console:
+
+```python
+from genkit.plugins.amazon_bedrock import add_aws_telemetry
+
+# Enable X-Ray telemetry (call once at startup)
+add_aws_telemetry(region="us-east-1")
+```
+
+Traces will be visible in the [AWS X-Ray Console](https://console.aws.amazon.com/xray/home).
+
+### IAM Permissions for X-Ray
+
+Add these permissions for telemetry:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+  "Resource": "*"
+}
+```
+
+Or attach the managed policy: `AWSXrayWriteOnlyPolicy`
 
 ## Basic Usage
 

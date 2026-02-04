@@ -1,6 +1,8 @@
 # Amazon Bedrock Hello Sample
 
-This sample demonstrates how to use Amazon Bedrock models with Genkit.
+> **Community Plugin** – This plugin is maintained by the community and is supported on a best-effort basis. It is not an official AWS product.
+
+This sample demonstrates how to use Amazon Bedrock models with Genkit, including AWS X-Ray telemetry for distributed tracing.
 
 ## Prerequisites
 
@@ -159,6 +161,7 @@ This will start the Genkit Dev UI and the sample application with hot reloading.
 | Structured Output | `generate_character` | Generate JSON-structured output |
 | Multimodal | `describe_image` | Image description (Claude, Nova) |
 | Embeddings | `embed_text` | Text embeddings (Titan, Cohere) |
+| AWS X-Ray Telemetry | `add_aws_telemetry()` | Distributed tracing to X-Ray console |
 
 ## Supported Models
 

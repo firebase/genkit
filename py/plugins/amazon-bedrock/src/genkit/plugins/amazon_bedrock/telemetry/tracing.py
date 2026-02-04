@@ -195,7 +195,7 @@ Region Resolution Order:
 
 Usage:
     ```python
-    from genkit.plugins.aws import add_aws_telemetry
+    from genkit.plugins.amazon_bedrock import add_aws_telemetry
 
     # Enable telemetry with default settings (PII redaction enabled)
     add_aws_telemetry()

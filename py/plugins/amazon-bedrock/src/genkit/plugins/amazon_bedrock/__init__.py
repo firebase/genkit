@@ -202,6 +202,7 @@ from .plugin import (
     nova_pro,
     pixtral_large,
 )
+from .telemetry import add_aws_telemetry
 from .typing import (
     # Model-Specific Configs
     AI21JambaConfig,
@@ -300,4 +301,6 @@ __all__ = [
     # Pre-defined model references - Amazon Nova
     'nova_pro',
     'pixtral_large',
+    # Telemetry
+    'add_aws_telemetry',
 ]

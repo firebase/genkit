@@ -30,7 +30,7 @@ Module Structure::
 
 Quick Start:
     ```python
-    from genkit.plugins.aws import add_aws_telemetry
+    from genkit.plugins.amazon_bedrock import add_aws_telemetry
 
     # Enable telemetry with defaults (uses AWS_REGION env var)
     add_aws_telemetry()

@@ -13,7 +13,6 @@ resolution-markers = [
 members = [
     "amazon-bedrock-hello",
     "anthropic-hello",
-    "aws-hello",
     "azure-hello",
     "cf-ai-hello",
     "cf-hello",
@@ -27,7 +26,6 @@ members = [
     "genkit",
     "genkit-plugin-amazon-bedrock",
     "genkit-plugin-anthropic",
-    "genkit-plugin-aws",
     "genkit-plugin-azure",
     "genkit-plugin-cf",
     "genkit-plugin-cf-ai",
@@ -480,38 +478,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/6b/5c/685e6633917e101e5
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/2a/7cc015f5b9f5db42b7d48157e23356022889fc354a2813c15934b7cb5c0e/attrs-25.4.0-py3-none-any.whl", hash = "sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373", size = 67615, upload-time = "2025-10-06T13:54:43.17Z" },
 ]
-
-[[package]]
-name = "aws-hello"
-version = "0.1.0"
-source = { editable = "samples/aws-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-aws" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-aws", editable = "plugins/aws" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=24.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "azure-core"
@@ -2126,6 +2092,10 @@ dependencies = [
     { name = "boto3" },
     { name = "botocore" },
     { name = "genkit" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-propagator-aws-xray" },
+    { name = "opentelemetry-sdk-extension-aws" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
 ]
 
 [package.metadata]
@@ -2133,6 +2103,10 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.35.0" },
     { name = "botocore", specifier = ">=1.35.0" },
     { name = "genkit", editable = "packages/genkit" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.20.0" },
+    { name = "opentelemetry-propagator-aws-xray", specifier = ">=1.0.0" },
+    { name = "opentelemetry-sdk-extension-aws", specifier = ">=2.1.0" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
 ]
 
 [[package]]
@@ -2148,29 +2122,6 @@ dependencies = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40.0" },
     { name = "genkit", editable = "packages/genkit" },
-]
-
-[[package]]
-name = "genkit-plugin-aws"
-version = "0.5.0"
-source = { editable = "plugins/aws" }
-dependencies = [
-    { name = "botocore" },
-    { name = "genkit" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-propagator-aws-xray" },
-    { name = "opentelemetry-sdk-extension-aws" },
-    { name = "strenum", marker = "python_full_version < '3.11'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "botocore", specifier = ">=1.35.0" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.20.0" },
-    { name = "opentelemetry-propagator-aws-xray", specifier = ">=1.0.0" },
-    { name = "opentelemetry-sdk-extension-aws", specifier = ">=2.1.0" },
-    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
 ]
 
 [[package]]
@@ -2554,7 +2505,6 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-amazon-bedrock" },
     { name = "genkit-plugin-anthropic" },
-    { name = "genkit-plugin-aws" },
     { name = "genkit-plugin-azure" },
     { name = "genkit-plugin-cf" },
     { name = "genkit-plugin-cf-ai" },
@@ -2622,7 +2572,6 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
-    { name = "genkit-plugin-aws", editable = "plugins/aws" },
     { name = "genkit-plugin-azure", editable = "plugins/azure" },
     { name = "genkit-plugin-cf", editable = "plugins/cf" },
     { name = "genkit-plugin-cf-ai", editable = "plugins/cf-ai" },

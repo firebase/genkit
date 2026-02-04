@@ -34,8 +34,16 @@ classifiers = [
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
 ]
-dependencies = ["genkit", "boto3>=1.35.0", "botocore>=1.35.0"]
-description = "Genkit Amazon Bedrock Plugin"
+dependencies = [
+  "genkit",
+  "boto3>=1.35.0",
+  "botocore>=1.35.0",
+  "opentelemetry-sdk-extension-aws>=2.1.0",
+  "opentelemetry-propagator-aws-xray>=1.0.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.20.0",
+  "strenum>=0.4.15; python_version < '3.11'",
+]
+description = "Genkit Amazon Bedrock Plugin - Models and AWS Observability (X-Ray)"
 keywords = [
   "genkit",
   "ai",
@@ -46,6 +54,9 @@ keywords = [
   "aws",
   "bedrock",
   "amazon",
+  "xray",
+  "telemetry",
+  "observability",
 ]
 license = "Apache-2.0"
 name = "genkit-plugin-amazon-bedrock"

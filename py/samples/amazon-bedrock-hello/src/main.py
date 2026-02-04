@@ -14,10 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""AWS Bedrock hello sample - Foundation models with Genkit.
+"""Amazon Bedrock hello sample - Foundation models and observability with Genkit.
 
 This sample demonstrates how to use AWS Bedrock models with Genkit,
-including tools, streaming, multimodal, and embedding capabilities.
+including tools, streaming, multimodal, embedding, and AWS X-Ray telemetry.
 
 See README.md for setup and testing instructions.
 
@@ -40,6 +40,9 @@ Key Concepts (ELI5)::
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ Region              │ Which AWS data center to use. Pick one near        │
     │                     │ you (us-east-1, eu-west-1, ap-northeast-1).        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ AWS X-Ray           │ Amazon's distributed tracing service. See how      │
+    │                     │ requests flow through your AI application.         │
     └─────────────────────┴────────────────────────────────────────────────────┘
 
 Key Features
@@ -47,6 +50,7 @@ Key Features
 | Feature Description                     | Example Function / Code Snippet     |
 |-----------------------------------------|-------------------------------------|
 | Plugin Initialization                   | `ai = Genkit(plugins=[AmazonBedrock()])` |
+| AWS X-Ray Telemetry                     | `add_aws_telemetry(region=...)`     |
 | Default Model Configuration             | `ai = Genkit(model=...)`            |
 | Defining Flows                          | `@ai.flow()` decorator              |
 | Defining Tools                          | `@ai.tool()` decorator              |
@@ -80,6 +84,8 @@ from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.amazon_bedrock import (
     AmazonBedrock,
+    # Telemetry
+    add_aws_telemetry,
     bedrock_model,
     # Direct model IDs (for IAM credentials)
     claude_sonnet_4_5,
@@ -97,6 +103,11 @@ if 'AWS_REGION' not in os.environ:
     os.environ['AWS_REGION'] = input('Please enter your AWS_REGION (e.g., us-east-1): ')
 
 logger = get_logger(__name__)
+
+# Enable AWS X-Ray telemetry (traces exported to X-Ray console)
+# This provides distributed tracing for all Genkit flows and model calls
+# View traces at: https://console.aws.amazon.com/xray/home
+add_aws_telemetry(region=os.environ.get('AWS_REGION'))
 
 # Default model configuration
 # Model IDs without regional prefix - used as base for both auth methods
@@ -125,6 +136,8 @@ else:
     _nova_model = nova_pro
     _embed_model = bedrock_model(_TITAN_EMBED_MODEL_ID)
     logger.info('Using IAM credentials - model IDs are direct')
+
+logger.info('AWS X-Ray telemetry enabled - traces visible in X-Ray console')
 
 # Initialize Genkit with AWS Bedrock plugin
 # Region is required - either from env var (prompted above) or explicit
