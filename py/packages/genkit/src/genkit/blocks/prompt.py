@@ -771,6 +771,11 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         if self._prompt_action or not self._name:
             return
 
+        # Preserve Pydantic schema type if it was explicitly provided via ai.prompt(..., output=Output(schema=T))
+        # The resolved prompt from .prompt file will have a dict schema, but we want to keep the Pydantic type
+        # for runtime validation to get proper typed output.
+        original_output_schema = self._output_schema
+
         resolved = await lookup_prompt(self._registry, self._name, self._variant)
         self._model = resolved._model
         self._config = resolved._config
@@ -782,7 +787,11 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         self._output_format = resolved._output_format
         self._output_content_type = resolved._output_content_type
         self._output_instructions = resolved._output_instructions
-        self._output_schema = resolved._output_schema
+        # Keep original Pydantic type if provided, otherwise use resolved (dict) schema
+        if isinstance(original_output_schema, type) and issubclass(original_output_schema, BaseModel):
+            self._output_schema = original_output_schema
+        else:
+            self._output_schema = resolved._output_schema
         self._output_constrained = resolved._output_constrained
         self._max_turns = resolved._max_turns
         self._return_tool_requests = resolved._return_tool_requests
@@ -1106,8 +1115,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             output.content_type = prompt_options.output_content_type
         if prompt_options.output_instructions is not None:
             output.instructions = prompt_options.output_instructions
-        if prompt_options.output_schema:
-            output.json_schema = to_json_schema(prompt_options.output_schema)
+        _resolve_output_schema(self._registry, prompt_options.output_schema, output)
         if prompt_options.output_constrained is not None:
             output.constrained = prompt_options.output_constrained
 
@@ -1117,19 +1125,13 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         if resume_opts:
             respond = resume_opts.get('respond')
             if respond:
-                if isinstance(respond, list):
-                    resume = Resume(respond=respond)
-                else:
-                    resume = Resume(respond=[respond])
+                resume = Resume(respond=respond) if isinstance(respond, list) else Resume(respond=[respond])
 
         # Merge docs: opts.docs extends prompt docs
         merged_docs = await render_docs(render_input, prompt_options, context)
         opts_docs = effective_opts.get('docs')
         if opts_docs:
-            if merged_docs:
-                merged_docs = [*merged_docs, *opts_docs]
-            else:
-                merged_docs = list(opts_docs)
+            merged_docs = [*merged_docs, *opts_docs] if merged_docs else list(opts_docs)
 
         return GenerateActionOptions(
             model=model,
@@ -1481,6 +1483,44 @@ def define_prompt(
     return executable_prompt
 
 
+def _resolve_output_schema(
+    registry: Registry,
+    output_schema: type | dict[str, Any] | str | None,
+    output: GenerateActionOutputConfig,
+) -> None:
+    """Resolve output schema and populate the output config.
+
+    Handles three types of output_schema:
+    - str: Schema name - look up JSON schema and type from registry
+    - Pydantic type: Store both JSON schema and type for runtime validation
+    - dict: Raw JSON schema - convert directly
+
+    Args:
+        registry: The registry to use for schema lookups.
+        output_schema: The schema to resolve (string name, Pydantic type, or dict).
+        output: The output config to populate with json_schema and schema_type.
+    """
+    if output_schema is None:
+        return
+
+    if isinstance(output_schema, str):
+        # Schema name - look up from registry
+        resolved_schema = registry.lookup_schema(output_schema)
+        if resolved_schema:
+            output.json_schema = resolved_schema
+        # Also look up the schema type for runtime validation
+        schema_type = registry.lookup_schema_type(output_schema)
+        if schema_type:
+            output.schema_type = schema_type
+    elif isinstance(output_schema, type) and issubclass(output_schema, BaseModel):
+        # Pydantic type - store both JSON schema and type
+        output.json_schema = to_json_schema(output_schema)
+        output.schema_type = output_schema
+    else:
+        # dict (raw JSON schema)
+        output.json_schema = to_json_schema(output_schema)
+
+
 async def to_generate_action_options(registry: Registry, options: PromptConfig) -> GenerateActionOptions:
     """Converts the given parameters to a GenerateActionOptions object.
 
@@ -1510,10 +1550,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     # If is schema is set but format is not explicitly set, default to
     # `json` format.
-    if options.output_schema and not options.output_format:
-        output_format = 'json'
-    else:
-        output_format = options.output_format
+    output_format = 'json' if options.output_schema and not options.output_format else options.output_format
 
     output = GenerateActionOutputConfig()
     if output_format:
@@ -1522,19 +1559,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
         output.content_type = options.output_content_type
     if options.output_instructions is not None:
         output.instructions = options.output_instructions
-    if options.output_schema:
-        if isinstance(options.output_schema, str):
-            resolved_schema = registry.lookup_schema(options.output_schema)
-            if resolved_schema:
-                output.json_schema = resolved_schema
-            elif options.output_constrained:
-                # If we have a schema name but can't resolve it, and constrained is True,
-                # we should probably error or warn. But for now, we might pass None or
-                # try one last look up?
-                # Actually, lookup_schema handles it. If None, we can't do much.
-                pass
-        else:
-            output.json_schema = to_json_schema(options.output_schema)
+    _resolve_output_schema(registry, options.output_schema, output)
     if options.output_constrained is not None:
         output.constrained = options.output_constrained
 
@@ -1946,7 +1971,7 @@ def define_helper(registry: Registry, name: str, fn: Callable[..., Any]) -> None
     logger.debug(f'Registered Dotprompt helper "{name}"')
 
 
-def define_schema(registry: Registry, name: str, schema: type) -> None:
+def define_schema(registry: Registry, name: str, schema: type[BaseModel]) -> None:
     """Register a Pydantic schema for use in prompts.
 
     Schemas registered with this function can be referenced by name in
@@ -1971,7 +1996,7 @@ def define_schema(registry: Registry, name: str, schema: type) -> None:
         ```
     """
     json_schema = to_json_schema(schema)
-    registry.register_schema(name, json_schema)
+    registry.register_schema(name, json_schema, schema_type=schema)
     logger.debug(f'Registered schema "{name}"')
 
 
@@ -1997,10 +2022,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     base_name = filename.removesuffix('.prompt')
 
-    if prefix:
-        name = f'{prefix}{base_name}'
-    else:
-        name = base_name
+    name = f'{prefix}{base_name}' if prefix else base_name
     variant: str | None = None
 
     # Extract variant (only takes parts[1], not all remaining parts)
@@ -2019,7 +2041,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         file_path = path / filename
 
     # Read the prompt file
-    with open(file_path, encoding='utf-8') as f:
+    with Path(file_path).open(encoding='utf-8') as f:
         source = f.read()
 
     # Parse the prompt
@@ -2030,7 +2052,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
     # Create a lazy-loaded prompt definition
     # The prompt will only be fully loaded when first accessed
-    async def load_prompt_metadata() -> dict[str, Any]:  # noqa: ANN401
+    async def load_prompt_metadata() -> dict[str, Any]:
         """Lazy loader for prompt metadata."""
         prompt_metadata = await registry.dotprompt.render_metadata(parsed_prompt)
 
@@ -2253,7 +2275,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                 if entry.name.startswith('_'):
                     # This is a partial
                     partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-                    with open(entry.path, encoding='utf-8') as f:
+                    with Path(entry.path).open(encoding='utf-8') as f:
                         source = f.read()
 
                     # Strip frontmatter if present

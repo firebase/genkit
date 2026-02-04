@@ -389,7 +389,9 @@ class BedrockModel:
                             'input': '',
                         }
                     if 'input' in tool_use:
-                        accumulated_tool_uses[str(tool_use_id)]['input'] += tool_use['input']
+                        tool_input = tool_use['input']
+                        if isinstance(tool_input, str):
+                            accumulated_tool_uses[str(tool_use_id)]['input'] += tool_input
 
             # Handle content block start (for tool use)
             if 'contentBlockStart' in event:

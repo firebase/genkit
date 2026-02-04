@@ -83,7 +83,7 @@ class DeepSeekModel:
             capabilities (e.g., tools, streaming).
         """
         model_info = SUPPORTED_DEEPSEEK_MODELS.get(self.name, get_default_model_info(self.name))
-        supports_dict = model_info.supports.model_dump() if model_info.supports else {}
+        supports_dict = model_info.supports.model_dump(by_alias=True, exclude_none=True) if model_info.supports else {}
         return {
             'name': model_info.label,
             'supports': supports_dict,

@@ -25,6 +25,7 @@ exporting, including:
 - Label normalization (: -> /)
 """
 
+import contextlib
 from collections.abc import Mapping, Sequence
 from typing import Any, cast
 from unittest.mock import MagicMock
@@ -388,10 +389,8 @@ def test_error_handler_called_on_export_error() -> None:
 
     span = create_mock_span()
 
-    try:
+    with contextlib.suppress(Exception):
         adjusting.export([span])
-    except Exception:
-        pass
 
     assert len(errors) == 1
     assert str(errors[0]) == 'Export failed'

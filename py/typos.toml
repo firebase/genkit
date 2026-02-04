@@ -32,15 +32,10 @@ ot = "ot"
 # Partial strings in test data
 ba = "ba"
 # Sample directory name (legacy, would require renaming to fix)
-retreive = "retreive"
+retreive  = "retreive"
 retreiver = "retreiver"
 # Weather example uses celsius misspelling intentionally in function name
 celcius = "celcius"
 
 [files]
-extend-exclude = [
-  "*.lock",
-  "dist/",
-  ".venv/",
-  "__pycache__/",
-]
+extend-exclude = ["*.lock", "dist/", ".venv/", "__pycache__/"]

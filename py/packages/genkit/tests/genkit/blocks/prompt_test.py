@@ -20,6 +20,7 @@
 import tempfile
 from pathlib import Path
 from typing import Any
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel, Field
@@ -103,7 +104,7 @@ async def test_simple_prompt_with_override_config() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_with_system() -> None:
-    """Test that the propmt utilises both prompt and system prompt."""
+    """Test that the prompt utilises both prompt and system prompt."""
     ai, *_ = setup_test()
 
     want_txt = '[ECHO] system: "talk like a pirate" user: "hi"'
@@ -796,8 +797,6 @@ async def test_automatic_prompt_loading_default_none() -> None:
 @pytest.mark.asyncio
 async def test_automatic_prompt_loading_defaults_mock() -> None:
     """Test that Genkit defaults to ./prompts when prompt_dir is not specified and dir exists."""
-    from unittest.mock import ANY, MagicMock, patch
-
     with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
         # Setup mock to simulate ./prompts existing
         mock_path_instance = MagicMock()
@@ -811,8 +810,6 @@ async def test_automatic_prompt_loading_defaults_mock() -> None:
 @pytest.mark.asyncio
 async def test_automatic_prompt_loading_defaults_missing() -> None:
     """Test that Genkit skips loading when ./prompts is missing."""
-    from unittest.mock import MagicMock, patch
-
     with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
         # Setup mock to simulate ./prompts missing
         mock_path_instance = MagicMock()

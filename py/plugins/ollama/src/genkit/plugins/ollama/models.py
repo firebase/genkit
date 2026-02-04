@@ -73,16 +73,31 @@ class OllamaModel:
     def __init__(self, client: Callable, model_definition: ModelDefinition) -> None:
         """Initializes the OllamaModel.
 
-        Sets up the client for communicating with the Ollama server and stores
+        Sets up the client factory for communicating with the Ollama server and stores
         the definition of the model.
+
+        Note: We store the client factory (not the client instance) to avoid async
+        event loop binding issues. The client is created fresh per request to ensure
+        it's bound to the correct event loop.
 
         Args:
             client: A callable that returns an asynchronous Ollama client instance.
             model_definition: The definition describing the specific Ollama model
                 to be used (e.g., its name, API type, supported features).
         """
-        self.client = client()
+        self._client_factory = client
         self.model_definition = model_definition
+
+    def _get_client(self) -> ollama_api.AsyncClient:
+        """Creates a fresh async client bound to the current event loop.
+
+        This ensures the httpx client is not reused across different event loops,
+        which would cause 'bound to a different event loop' errors.
+
+        Returns:
+            A fresh Ollama async client instance.
+        """
+        return self._client_factory()
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
         """Generate a response from Ollama.
@@ -159,25 +174,29 @@ class OllamaModel:
         else:
             fmt = ''
 
-        chat_response = await self.client.chat(
-            model=self.model_definition.name,
-            messages=messages,
-            tools=[
-                ollama_api.Tool(
-                    function=ollama_api.Tool.Function(
-                        name=tool.name,
-                        description=tool.description,
-                        parameters=_convert_parameters(tool.input_schema or {}),
-                    )
+        # Build common kwargs for both streaming and non-streaming calls
+        tools = [
+            ollama_api.Tool(
+                function=ollama_api.Tool.Function(
+                    name=tool.name,
+                    description=tool.description,
+                    parameters=_convert_parameters(tool.input_schema or {}),
                 )
-                for tool in request.tools or []
-            ],
-            options=self.build_request_options(config=request.config),
-            format=fmt,
-            stream=streaming_request,
-        )
+            )
+            for tool in request.tools or []
+        ]
+        options = self.build_request_options(config=request.config)
 
         if streaming_request:
+            # Streaming call with literal stream=True for proper overload resolution
+            chat_response = await self._get_client().chat(  # type: ignore[no-matching-overload]
+                model=self.model_definition.name,
+                messages=messages,
+                tools=tools,
+                options=options,
+                format=fmt,
+                stream=True,
+            )
             idx = 0
             async for chunk in chat_response:
                 idx += 1
@@ -195,6 +214,15 @@ class OllamaModel:
             # is now exhausted, and the caller should not expect a return value.
             return None
         else:
+            # Non-streaming call with literal stream=False for proper overload resolution
+            chat_response = await self._get_client().chat(  # type: ignore[no-matching-overload]
+                model=self.model_definition.name,
+                messages=messages,
+                tools=tools,
+                options=options,
+                format=fmt,
+                stream=False,
+            )
             return chat_response
 
     async def _generate_ollama_response(
@@ -211,17 +239,16 @@ class OllamaModel:
         """
         prompt = self.build_prompt(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
-
-        request_kwargs = {
-            'model': self.model_definition.name,
-            'prompt': prompt,
-            'options': self.build_request_options(config=request.config),
-            'stream': streaming_request,
-        }
-
-        generate_response = await self.client.generate(**request_kwargs)
+        options = self.build_request_options(config=request.config)
 
         if streaming_request:
+            # Streaming call with literal stream=True for proper overload resolution
+            generate_response = await self._get_client().generate(
+                model=self.model_definition.name,
+                prompt=prompt,
+                options=options,
+                stream=True,
+            )
             idx = 0
             async for chunk in generate_response:
                 idx += 1
@@ -238,6 +265,13 @@ class OllamaModel:
             # is now exhausted, and the caller should not expect a return value.
             return None
         else:
+            # Non-streaming call with literal stream=False for proper overload resolution
+            generate_response = await self._get_client().generate(
+                model=self.model_definition.name,
+                prompt=prompt,
+                options=options,
+                stream=False,
+            )
             return generate_response
 
     @staticmethod

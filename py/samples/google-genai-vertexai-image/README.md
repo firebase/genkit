@@ -1,109 +1,89 @@
-# Google Imagen Image Generation
+# Vertex AI Image Generation (Imagen)
 
-This sample uses the Vertex API and Imagen model for image generation.
-Imagen model is not available with Gemini API. If you need to run image
-generation on Gemini API, please, refer to the google-gemini-image sample.
+Demonstrates image generation using Vertex AI Imagen models.
 
-Prerequisites:
+> **Note:** Imagen models are only available through Vertex AI, not the Gemini API.
+> For Gemini API image generation, see the `google-genai-image` sample.
 
-* A Google Cloud account with access to VertexAI service.
-* The `genkit` package.
+## Quick Start
 
-### Monitoring and Running
+```bash
+export GOOGLE_CLOUD_PROJECT=your-project-id
+./run.sh
+```
 
-For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+That's it! The script will:
+
+1. ✓ Prompt for your project ID if not set
+2. ✓ Check gcloud authentication (and help you authenticate if needed)
+3. ✓ Enable Vertex AI API (with your permission)
+4. ✓ Install dependencies
+5. ✓ Start the demo and open your browser
+
+## Manual Setup (if needed)
+
+If you prefer manual setup or the automatic setup fails:
+
+### 1. Install gcloud CLI
+
+Download from: https://cloud.google.com/sdk/docs/install
+
+### 2. Authentication
+
+```bash
+gcloud auth application-default login
+```
+
+### 3. Enable Vertex AI API
+
+```bash
+gcloud services enable aiplatform.googleapis.com --project=$GOOGLE_CLOUD_PROJECT
+```
+
+### 4. Run the Demo
 
 ```bash
 ./run.sh
 ```
 
-This script uses `watchmedo` to monitor changes in:
+Or manually:
+
+```bash
+genkit start -- uv run src/main.py
+```
+
+Then open the Dev UI at http://localhost:4000
+
+## Testing the Demo
+
+1. Open DevUI at http://localhost:4000
+2. Run `draw_image_with_imagen` flow
+3. Try different prompts (landscapes, objects, etc.)
+4. Verify output displays correctly
+
+## Available Options
+
+Options are based on `genai.types.GenerateImagesConfig`:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `output_gcs_uri` | string | Cloud Storage URI for generated images |
+| `negative_prompt` | string | What to discourage in generated images |
+| `number_of_images` | integer | Number of images to generate |
+| `guidance_scale` | float | Adherence to text prompt (higher = more adherence) |
+| `seed` | integer | Random seed (not available with `add_watermark=true`) |
+| `safety_filter_level` | enum | `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`, `BLOCK_ONLY_HIGH`, `BLOCK_NONE` |
+| `person_generation` | enum | `DONT_ALLOW`, `ALLOW_ADULT`, `ALLOW_ALL` |
+| `language` | enum | `auto`, `en`, `ja`, `ko`, `hi` |
+| `aspect_ratio` | string | Aspect ratio of generated images |
+| `add_watermark` | bool | Add watermark to generated images |
+
+## Development
+
+The `run.sh` script uses `watchmedo` to monitor changes in:
 - `src/` (Python logic)
 - `../../packages` (Genkit core)
 - `../../plugins` (Genkit plugins)
 - File patterns: `*.py`, `*.prompt`, `*.json`
 
-Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
-
-## Setup environment
-
-1. Install the `genkit` package.
-2. Install [GCP CLI](https://cloud.google.com/sdk/docs/install).
-3. Add your project to Google Cloud. Run the following code to log in and set up the configuration.
-```bash
-export GOOGLE_CLOUD_LOCATION=global
-export GOOGLE_CLOUD_PROJECT=your-GCP-project-ID
-gcloud init
-```
-4. Run the following code to connect to VertexAI.
-```bash
-gcloud auth application-default login
-```
-
-## Run the sample
-
-Use the following command from a sample folder:
-
-```bash
-uv run src/main.py
-```
-
-## Available options
-
-The options are based on `genai.types.GenerateImagesConfig` model.
-
-| Option                       | Type    | Description                                                                                                                                  | Available Values                                                                 |
-|------------------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
-| `output_gcs_uri`             | string  | Cloud Storage URI used to store the generated images.                                                                                        |                                                                                  |
-| `negative_prompt`            | string  | Description of what to discourage in the generated images.                                                                                   |                                                                                  |
-| `number_of_images`           | integer | Number of images to generate.                                                                                                                |                                                                                  |
-| `guidance_scale`             | float   | Controls how much the model adheres to the text prompt. Large values increase output and prompt alignment, but may compromise image quality. |                                                                                  |
-| `seed`                       | integer | Random seed for image generation. This is not available when `add_watermark` is set to true.                                                 |                                                                                  |
-| `safety_filter_level`        |         | Filter level for safety filtering.                                                                                                           | `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`, `BLOCK_ONLY_HIGH`, `BLOCK_NONE` |
-| `person_generation`          |         | Allows generation of people by the model.                                                                                                    | `DONT_ALLOW`, `ALLOW_ADULT`, `ALLOW_ALL`                                         |
-| `include_safety_attributes`  | bool    | Whether to report the safety scores of each image in the response.                                                                           |                                                                                  |
-| `include_rai_reason`         | bool    | Whether to include the Responsible AI filter reason if the image is filtered out of the response.                                            |                                                                                  |
-| `language`                   |         | Language of the text in the prompt.                                                                                                          | `auto`, `en`, `ja`, `ko`, `hi`                                                   |
-| `output_mime_type`           | string  | MIME type of the generated image.                                                                                                            |                                                                                  |
-| `output_compression_quality` | integer | Compression quality of the generated image (for `image/jpeg` only).                                                                          |                                                                                  |
-| `add_watermark`              | bool    | Whether to add a watermark to the generated images.                                                                                          |                                                                                  |
-| `aspect_ratio`               | string  | Aspect ratio of the generated images.                                                                                                        |                                                                                  |
-| `enhance_prompt`             | bool    | Whether to use the prompt rewriting logic.                                                                                                   |                                                                                  |
-
-## Testing This Demo
-
-1. **Prerequisites**:
-   ```bash
-   # Set GCP project
-   export GCLOUD_PROJECT=your_project_id
-
-   # Authenticate with GCP
-   gcloud auth application-default login
-   ```
-   Or the demo will prompt for the project interactively.
-
-2. **Enable Imagen API**:
-   - Go to Vertex AI in GCP Console
-   - Enable Imagen API for your project
-
-3. **Run the demo**:
-   ```bash
-   cd py/samples/google-genai-vertexai-image
-   ./run.sh
-   ```
-
-4. **Open DevUI** at http://localhost:4000
-
-5. **Test image generation**:
-   - [ ] `draw_image_with_imagen` - Generate image from text
-   - [ ] Try different prompts (landscapes, objects, etc.)
-   - [ ] Verify output displays correctly
-
-6. **Output handling**:
-   - Images returned as base64 data
-   - PIL Image used for display/processing
-
-7. **Expected behavior**:
-   - High-quality photorealistic images
-   - Proper aspect ratio and resolution
-   - Imagen-specific style characteristics
+Changes will automatically trigger a restart of the sample.

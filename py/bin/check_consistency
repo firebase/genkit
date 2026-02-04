@@ -196,7 +196,7 @@ echo -e "${BLUE}[5/$TOTAL_CHECKS] Checking test file naming convention...${NC}"
 test_naming_errors=0
 
 # Find test files that don't follow *_test.py convention
-bad_test_files=$(find . -name "test_*.py" -not -path "*/.*" -not -path "./.venv/*" 2>/dev/null || true)
+bad_test_files=$(find . -name "test_*.py" -not -path "*/.*" -not -path "./.venv/*" -not -path "*/node_modules/*" 2>/dev/null || true)
 if [ -n "$bad_test_files" ]; then
   echo -e "  ${RED}ERROR${NC}: Found test files starting with 'test_' (should use '*_test.py'):"
   echo "$bad_test_files" | while read -r f; do
@@ -315,10 +315,14 @@ echo -e "${BLUE}[10/$TOTAL_CHECKS] Checking for in-function imports...${NC}"
 # TYPE_CHECKING blocks with indented imports are legitimate and excluded.
 # The check uses a simple heuristic: imports with 8+ spaces of indentation
 # are likely inside functions, not in TYPE_CHECKING blocks (which use 4 spaces).
+#
+# NOTE: Core framework (packages/genkit) is excluded from this check because
+# some in-function imports are intentional for lazy loading and circular import
+# avoidance. See PR #4400 for the cleanup effort.
 
-# Find deeply indented imports (likely in functions, not TYPE_CHECKING)
+# Find deeply indented imports in plugins only (core framework excluded)
 deep_imports=$(grep -rn "^        import \|^        from .* import" \
-  packages/*/src/ plugins/*/src/ 2>/dev/null \
+  plugins/*/src/ 2>/dev/null \
   | grep -v "__pycache__" \
   | grep -v "\.pyc:" \
   | grep -v "# noqa" \
@@ -336,7 +340,7 @@ if [ -n "$deep_imports" ]; then
   fi
   WARNINGS=$((WARNINGS + 1))
 else
-  echo -e "  ${GREEN}✓${NC} No in-function imports detected"
+  echo -e "  ${GREEN}✓${NC} No in-function imports detected in plugins"
 fi
 echo ""
 
@@ -478,10 +482,15 @@ if ! grep -q "^__all__" packages/genkit/src/genkit/__init__.py 2>/dev/null; then
 fi
 
 # Check plugin __init__.py files
-for f in plugins/*/src/genkit/plugins/*/__init__.py; do
+# Use nullglob to handle case where no files match
+shopt -s nullglob
+plugin_init_files=(plugins/*/src/genkit/plugins/*/__init__.py)
+shopt -u nullglob
+
+for f in "${plugin_init_files[@]}"; do
   if [ -f "$f" ]; then
     # Skip empty or minimal __init__.py files (less than 5 lines of actual code)
-    code_lines=$(grep -v "^#\|^$\|^\"\"\"" "$f" 2>/dev/null | wc -l | tr -d ' ')
+    code_lines=$(grep -cv "^#\|^$\|^\"\"\"" "$f" 2>/dev/null || echo "0")
     if [ "$code_lines" -gt 5 ] && ! grep -q "^__all__" "$f" 2>/dev/null; then
       echo -e "  ${YELLOW}WARNING${NC}: $f missing __all__ (may affect IDE autocomplete)"
       WARNINGS=$((WARNINGS + 1))
