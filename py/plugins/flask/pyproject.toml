@@ -71,4 +71,4 @@ requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
 only-include = ["src/genkit/plugins/flask"]
-sources = ["src"]
+sources      = ["src"]

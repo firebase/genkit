@@ -132,8 +132,8 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
+amazon-bedrock-hello              = { workspace = true }
 anthropic-hello                   = { workspace = true }
-amazon-bedrock-hello                 = { workspace = true }
 azure-hello                       = { workspace = true }
 cf-ai-hello                       = { workspace = true }
 cf-hello                          = { workspace = true }
@@ -170,8 +170,8 @@ xai-hello                         = { workspace = true }
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
+genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
-genkit-plugin-amazon-bedrock           = { workspace = true }
 genkit-plugin-azure                 = { workspace = true }
 genkit-plugin-cf                    = { workspace = true }
 genkit-plugin-cf-ai                 = { workspace = true }

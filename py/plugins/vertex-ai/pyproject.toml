@@ -75,4 +75,4 @@ requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
 only-include = ["src/genkit/plugins/vertex_ai"]
-sources = ["src"]
+sources      = ["src"]
