@@ -19,19 +19,27 @@ name: Publish Python Package
 on:
   workflow_dispatch:
     inputs:
+      publish_scope:
+        description: 'Publish scope (all = release all packages, single = one package)'
+        type: choice
+        default: single
+        required: true
+        options:
+          - all
+          - single
       project_type:
-        description: 'Type of project (packages for genkit core, plugins for all others)'
+        description: 'Type of project (packages for genkit core, plugins for all others). Ignored when publish_scope=all.'
         type: choice
         default: packages
-        required: true
+        required: false
         options:
           - packages
           - plugins
       project_name:
-        description: Project name publishing to Pypi
+        description: 'Project name to publish. Ignored when publish_scope=all.'
         type: choice
         default: genkit
-        required: true
+        required: false
         options:
           # Core package
           - genkit
@@ -64,19 +72,73 @@ on:
           # MCP (Model Context Protocol)
           - mcp
 
-
-
 jobs:
-  python_build:
-    name: Python build packages
+  # Generate the matrix of packages to build
+  generate_matrix:
+    name: Generate build matrix
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.publish_scope }}" == "all" ]; then
+            # Build matrix for all packages
+            MATRIX=$(cat <<'EOF'
+          {
+            "include": [
+              {"project_type": "packages", "project_name": "genkit"},
+              {"project_type": "plugins", "project_name": "anthropic"},
+              {"project_type": "plugins", "project_name": "aws"},
+              {"project_type": "plugins", "project_name": "aws-bedrock"},
+              {"project_type": "plugins", "project_name": "azure"},
+              {"project_type": "plugins", "project_name": "cf"},
+              {"project_type": "plugins", "project_name": "cf-ai"},
+              {"project_type": "plugins", "project_name": "compat-oai"},
+              {"project_type": "plugins", "project_name": "deepseek"},
+              {"project_type": "plugins", "project_name": "dev-local-vectorstore"},
+              {"project_type": "plugins", "project_name": "evaluators"},
+              {"project_type": "plugins", "project_name": "firebase"},
+              {"project_type": "plugins", "project_name": "flask"},
+              {"project_type": "plugins", "project_name": "google-cloud"},
+              {"project_type": "plugins", "project_name": "google-genai"},
+              {"project_type": "plugins", "project_name": "huggingface"},
+              {"project_type": "plugins", "project_name": "mcp"},
+              {"project_type": "plugins", "project_name": "mistral"},
+              {"project_type": "plugins", "project_name": "msfoundry"},
+              {"project_type": "plugins", "project_name": "observability"},
+              {"project_type": "plugins", "project_name": "ollama"},
+              {"project_type": "plugins", "project_name": "vertex-ai"},
+              {"project_type": "plugins", "project_name": "xai"}
+            ]
+          }
+          EOF
+          )
+          else
+            # Build matrix for single package
+            MATRIX=$(cat <<EOF
+          {
+            "include": [
+              {"project_type": "${{ github.event.inputs.project_type }}", "project_name": "${{ github.event.inputs.project_name }}"}
+            ]
+          }
+          EOF
+          )
+          fi
+          echo "matrix=$(echo $MATRIX | jq -c .)" >> $GITHUB_OUTPUT
+
+  python_build:
+    name: Build ${{ matrix.project_name }}
+    needs: [generate_matrix]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
+      fail-fast: false
     env:
       PATH: ${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
-    strategy:
-      matrix:
-        python-version:
-          - "3.12"
-      fail-fast: false
 
     steps:
       - uses: actions/checkout@v5
@@ -99,31 +161,33 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Install Python dependencies
         run: |
-          cd py/${{ github.event.inputs.project_type }}/${{ github.event.inputs.project_name }}
-          uv pip install -e .[dev,test,docs]
+          cd py/${{ matrix.project_type }}/${{ matrix.project_name }}
+          uv pip install -e .[dev,test,docs] || uv pip install -e .
           uv pip install twine toml
 
       - name: Build package and validate pypi
         run: |
           cd py
-          PROJECT_NAME=${{ github.event.inputs.project_name }} PROJECT_TYPE=${{ github.event.inputs.project_type }}  ./bin/publish_pypi.sh
+          PROJECT_NAME=${{ matrix.project_name }} PROJECT_TYPE=${{ matrix.project_type }} ./bin/publish_pypi.sh
 
       - name: Upload build packages
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-${{ matrix.project_name }}
           path: py/dist/
 
   pypi_publish:
-    name: Upload to PyPI
-    needs: [python_build]
+    name: Publish ${{ matrix.project_name }} to PyPI
+    needs: [generate_matrix, python_build]
     runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
+      fail-fast: false
     environment:
-      # change to publish or similar in productive CI
       name: pypi_github_publishing
     permissions:
       id-token: write
@@ -131,7 +195,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
-          name: dist
+          name: dist-${{ matrix.project_name }}
           path: py/dist/
 
       - name: Publish distribution to PyPI
