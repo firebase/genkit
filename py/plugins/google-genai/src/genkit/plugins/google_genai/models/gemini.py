@@ -424,8 +424,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
             'minimum': 0.0,
             'maximum': 2.0,
             'description': (
-                'Controls the randomness of the output. '
-                'Values can range over [0.0, 2.0]. The default value is 1.0.'
+                'Controls the randomness of the output. Values can range over [0.0, 2.0]. The default value is 1.0.'
             ),
         }),
     ] = Field(
@@ -1382,15 +1381,16 @@ class GeminiModel:
 
                 raise GenkitError(
                     status=status,
-                    message=e.message,
+                    message=e.message or 'Unknown error',
                     cause=e,
                 ) from e
             except Exception as e:
                 # Catch any other exceptions and provide a clear error message
                 # This helps debug issues like authentication errors that might not be ClientError
                 import logging
+
                 logger = logging.getLogger(__name__)
-                logger.error(f"Unexpected error during generate_content: {type(e).__name__}: {str(e)}")
+                logger.error(f'Unexpected error during generate_content: {type(e).__name__}: {str(e)}')
                 raise GenkitError(
                     status='INTERNAL',
                     message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
@@ -1405,7 +1405,7 @@ class GeminiModel:
 
         return GenerateResponse(
             message=Message(
-                content=content,
+                content=content,  # type: ignore[arg-type]
                 role=Role.MODEL,
             )
         )
@@ -1459,7 +1459,7 @@ class GeminiModel:
 
                 raise GenkitError(
                     status=status,
-                    message=e.message,
+                    message=e.message or 'Unknown error',
                     cause=e,
                 ) from e
         accumulated_content = []
@@ -1474,14 +1474,11 @@ class GeminiModel:
                     )
                 )
 
-        # Ensure we always have at least one content item to avoid UI errors
-        if not accumulated_content:
-            accumulated_content = [TextPart(text='')]
 
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
-                content=accumulated_content,
+                content=accumulated_content,  # type: ignore[arg-type]
             )
         )
 
@@ -1617,7 +1614,8 @@ class GeminiModel:
                     val = dumped_config.pop('google_search_retrieval')
                     if val is not None:
                         val = {} if val is True else val
-                        tools.append(genai_types.Tool(google_search=genai_types.GoogleSearchRetrieval(**val)))
+                        # type: ignore[arg-type] - GoogleSearchRetrieval is the correct type despite type hint
+                        tools.append(genai_types.Tool(google_search=genai_types.GoogleSearchRetrieval(**val)))  # type: ignore[arg-type]
 
                 if 'file_search' in dumped_config:
                     val = dumped_config.pop('file_search')
