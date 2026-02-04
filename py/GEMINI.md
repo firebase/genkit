@@ -1001,6 +1001,104 @@ deployment environment. This makes the code more portable and user-friendly glob
   * AWS/cloud service names (e.g., `'bedrock-runtime'`)
   * Factual values from documentation (e.g., embedding dimensions)
 
+### Packaging (PEP 420 Namespace Packages)
+
+Genkit plugins use **PEP 420 implicit namespace packages** to allow multiple packages
+to contribute to the `genkit.plugins.*` namespace. This requires special care in
+build configuration.
+
+#### Directory Structure
+
+```
+plugins/
+├── anthropic/
+│   ├── pyproject.toml
+│   └── src/
+│       └── genkit/               # NO __init__.py (namespace)
+│           └── plugins/          # NO __init__.py (namespace)
+│               └── anthropic/    # HAS __init__.py (regular package)
+│                   ├── __init__.py
+│                   ├── models.py
+│                   └── py.typed
+```
+
+**CRITICAL**: The `genkit/` and `genkit/plugins/` directories must NOT have
+`__init__.py` files. Only the final plugin directory (e.g., `anthropic/`) should
+have `__init__.py`.
+
+#### Hatch Wheel Configuration
+
+For PEP 420 namespace packages, use `only-include` to specify exactly which
+directory to package:
+
+```toml
+[build-system]
+build-backend = "hatchling.build"
+requires      = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/genkit/plugins/<plugin_name>"]
+sources = ["src"]
+```
+
+**Why `sources = ["src"]` is Required:**
+
+The `sources` key tells hatch to rewrite paths by stripping the `src/` directory prefix.
+Without it, the wheel would have paths like `src/genkit/plugins/...` instead of
+`genkit/plugins/...`, which would break Python imports at runtime.
+
+| With `sources = ["src"]` | Without `sources` |
+|--------------------------|-------------------|
+| ✅ `genkit/plugins/anthropic/__init__.py` | ❌ `src/genkit/plugins/anthropic/__init__.py` |
+| `from genkit.plugins.anthropic import ...` works | Import fails |
+
+**Why `only-include` instead of `packages`:**
+
+Using `packages = ["src/genkit", "src/genkit/plugins"]` causes hatch to traverse
+both paths, including the same files twice. This creates wheels with duplicate
+entries that PyPI rejects with:
+
+```
+400 Invalid distribution file. ZIP archive not accepted: 
+Duplicate filename in local headers.
+```
+
+**Configuration Examples:**
+
+| Plugin Directory | `only-include` Value |
+|------------------|---------------------|
+| `plugins/anthropic/` | `["src/genkit/plugins/anthropic"]` |
+| `plugins/google-genai/` | `["src/genkit/plugins/google_genai"]` |
+| `plugins/vertex-ai/` | `["src/genkit/plugins/vertex_ai"]` |
+| `plugins/aws-bedrock/` | `["src/genkit/plugins/aws_bedrock"]` |
+
+Note: Internal Python directory names use underscores (`google_genai`), while
+the plugin directory uses hyphens (`google-genai`).
+
+#### Verifying Wheel Contents
+
+Always verify wheels don't have duplicates before publishing:
+
+```bash
+# Build the package
+uv build --package genkit-plugin-<name>
+
+# Check for duplicates (should show each file only once)
+unzip -l dist/genkit_plugin_*-py3-none-any.whl
+
+# Look for duplicate warnings during build
+# BAD: "UserWarning: Duplicate name: 'genkit/plugins/...'"
+# GOOD: No warnings, clean build
+```
+
+#### Common Build Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Duplicate filename in local headers` | Files included twice in wheel | Use `only-include` instead of `packages` |
+| Empty wheel (no Python files) | Wrong `only-include` path | Verify path matches actual directory structure |
+| `ModuleNotFoundError` at runtime | Missing `__init__.py` in plugin dir | Add `__init__.py` to the final plugin directory |
+
 ### Formatting
 
 * **Tool**: Format code using `ruff` (or `bin/fmt`).
