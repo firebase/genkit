@@ -22,6 +22,7 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 | **Breaking Changes** | 🟡 Medium | PluginV2 refactor requires migration |
 | **Developer Experience** | 🟢 High | Hot reloading, improved samples, better docs |
 | **Security** | 🟢 High | Ruff audit, PySentry scanning, SigV4 signing |
+| **Performance** | 🟢 High | Per-event-loop HTTP caching, release pipeline 15x faster |
 
 ### Added
 
@@ -53,16 +54,18 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 
 #### Dotprompt Integration (via [google/dotprompt](https://github.com/google/dotprompt))
 - **Dotpromptz 0.1.5**: Upgraded to latest version with type-safe schema fields
+- **Python 3.14 Support**: PyO3/maturin ABI compatibility for Rust-based Handlebars engine
 - **Directory/File Prompt Loading**: Automatic prompt discovery matching JS SDK (#3955, #3971)
 - **Handlebars Partials**: `define_partial` for template reuse (#4088)
 - **Render System Prompts**: `render_system_prompt` and `render_user_prompt` methods (#3503, #3705)
 - **Callable Support**: Prompts can now be used as callables (#4053)
-- **Cycle Detection**: Partial resolution with cycle detection for safety
+- **Cycle Detection**: Partial resolution with cycle detection prevents infinite recursion
 - **Path Traversal Hardening**: Security fix for CWE-22 vulnerability
 - **Helper Parity**: Consistent Handlebars helper behavior across all runtimes
+- **Release Pipeline**: Automated PyPI publishing, release time reduced from 30 min to 2 min
 
 #### Developer Experience
-- **Hot Reloading**: Watchdog-based autoreloading for all samples (#4268)
+- **Hot Reloading**: [Watchdog](https://github.com/gorakhargosh/watchdog)-based autoreloading for all samples (#4268)
 - **Security Scanning**: PySentry-rs integration in hooks and CI (#4273)
 - **TODO Linting**: Automated issue creation for TODO comments (#4376)
 - **Centralized Action Latency**: Built-in performance tracking (#4267)
@@ -110,7 +113,8 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 
 #### Critical Fixes
 - **Race Condition**: Dev server startup race condition resolved (#4225)
-- **Async Event Loop**: Per-event-loop HTTP client caching prevents binding errors (#4419, #4429)
+- **Thread Safety**: Per-event-loop HTTP client caching prevents event loop binding errors (#4419, #4429)
+- **Infinite Recursion**: Cycle detection in Handlebars partial resolution (via Dotprompt)
 - **Real-Time Telemetry**: Trace ID formatting and streaming fixes (#4285)
 - **Structured Output**: DeepSeek model structured output generation (#4374)
 - **JSON Schema**: None type handling per JSON Schema spec (#4247)
@@ -140,8 +144,16 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 
 - **Ruff Security Audit**: Addressed all security and code quality warnings (#4409)
 - **SigV4 Signing**: AWS X-Ray OTLP exporter now uses proper AWS signatures (#4402)
+- **Path Traversal Hardening**: CWE-22 vulnerability fix in Dotprompt (via google/dotprompt)
 - **License Compliance**: Fixed license headers in all configuration files (#3930)
 - **PySentry Integration**: Continuous security vulnerability scanning (#4273)
+
+### Performance
+
+- **Per-Event-Loop HTTP Client Caching**: Reuses HTTP connections within event loops, prevents connection overhead
+- **Dotprompt Release Pipeline**: Reduced from 30 minutes to 2 minutes (15x faster)
+- **CI Consolidation**: Single workflow, every commit is release-worthy (#4410)
+- **ty Type Checker**: Faster type checking than pyright alone (#4094)
 
 ### Deprecated
 

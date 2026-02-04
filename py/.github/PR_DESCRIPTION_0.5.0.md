@@ -16,6 +16,7 @@ This is a **major release** of the Genkit Python SDK with **178 commits** and **
 | **Type Safety** | 🟢 High | No (stricter checks) |
 | **Security Enhancements** | 🟢 High | No (automatic) |
 | **Python 3.14 Support** | 🟢 High | No (additive) |
+| **Performance** | 🟢 High | No (automatic) |
 
 ## What's New
 
@@ -53,12 +54,14 @@ This is a **major release** of the Genkit Python SDK with **178 commits** and **
 ### Dotprompt Integration (via [google/dotprompt](https://github.com/google/dotprompt))
 
 - **Dotpromptz 0.1.5**: Latest version with type-safe schema fields
+- **Python 3.14 Support**: PyO3/maturin ABI compatibility for Rust-based Handlebars engine
 - **Directory/File Prompt Loading**: Automatic prompt discovery matching JS SDK
 - **Handlebars Partials**: `define_partial` for template reuse
 - **Render Methods**: `render_system_prompt` and `render_user_prompt`
 - **Callable Support**: Prompts can be used directly as callables
-- **Security**: Cycle detection in partials, path traversal hardening (CWE-22)
+- **Security**: Cycle detection prevents infinite recursion, path traversal hardening (CWE-22)
 - **Helper Parity**: Consistent Handlebars helper behavior across all runtimes
+- **Release Pipeline**: Automated PyPI publishing, release time reduced from 30 min to 2 min
 
 ## Breaking Changes
 
@@ -124,12 +127,28 @@ All packages now pass all three type checkers with zero errors.
 
 - **Ruff Security Audit**: All S-rules (Bandit) warnings addressed
 - **SigV4 Signing**: AWS X-Ray exporter uses proper AWS authentication
+- **Path Traversal Hardening**: CWE-22 vulnerability fix in Dotprompt
 - **PySentry Integration**: Continuous vulnerability scanning in CI
 - **License Compliance**: All configuration files have proper headers
 
+## Critical Fixes
+
+- **Race Condition**: Dev server startup race condition resolved (#4225)
+- **Thread Safety**: Per-event-loop HTTP client caching prevents event loop binding errors (#4419, #4429)
+- **Infinite Recursion**: Cycle detection in Handlebars partial resolution (via Dotprompt)
+- **Structured Output**: DeepSeek model structured output generation (#4374)
+- **JSON Schema**: None type handling per JSON Schema spec (#4247)
+
+## Performance
+
+- **Per-Event-Loop HTTP Client Caching**: Reuses HTTP connections within event loops, prevents connection overhead
+- **Dotprompt Release Pipeline**: Reduced from 30 minutes to 2 minutes (15x faster)
+- **CI Consolidation**: Single workflow, every commit is release-worthy
+- **ty Type Checker**: Faster type checking than pyright alone
+
 ## Developer Experience
 
-- **Hot Reloading**: `watchdog`-based autoreloading for all samples
+- **Hot Reloading**: [Watchdog](https://github.com/gorakhargosh/watchdog)-based autoreloading for all samples
 - **Sample Improvements**: Consistent run scripts, browser auto-open, rich tracebacks
 - **TODO Linting**: Automated GitHub issue creation for TODOs
 - **Release Automation**: `bin/release_check`, `bin/bump_version` scripts
