@@ -20,9 +20,9 @@ on:
   workflow_dispatch:
     inputs:
       project_type:
-        description: Type of project
+        description: 'Type of project (packages for genkit core, plugins for all others)'
         type: choice
-        default: package
+        default: packages
         required: true
         options:
           - packages
@@ -33,15 +33,36 @@ on:
         default: genkit
         required: true
         options:
+          # Core package
           - genkit
-          - compat-oai
-          - dev-local-vectorstore
-          - firebase
-          - flask
-          - google-cloud
+          # Model provider plugins
+          - anthropic
+          - aws-bedrock
+          - cf-ai
+          - deepseek
           - google-genai
+          - huggingface
+          - mistral
+          - msfoundry
           - ollama
           - vertex-ai
+          - xai
+          # Telemetry plugins
+          - aws
+          - azure
+          - cf
+          - google-cloud
+          - observability
+          # Framework integration plugins
+          - flask
+          # Data and retrieval plugins
+          - dev-local-vectorstore
+          - evaluators
+          - firebase
+          # OpenAI compatibility
+          - compat-oai
+          # MCP (Model Context Protocol)
+          - mcp
 
 
 
