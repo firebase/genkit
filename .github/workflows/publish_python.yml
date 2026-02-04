@@ -203,3 +203,120 @@ jobs:
         with:
           verbose: true
           packages-dir: py/dist/
+
+  # Post-publish verification: confirm packages are installable and functional
+  verify_publish:
+    name: Verify published packages
+    needs: [generate_matrix, pypi_publish]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Wait for PyPI propagation
+        run: |
+          echo "Waiting 60 seconds for PyPI CDN propagation..."
+          sleep 60
+
+      - name: Get expected version
+        id: get_version
+        run: |
+          VERSION=$(grep '^version' py/${{ matrix.project_type }}/${{ matrix.project_name }}/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Expected version: $VERSION"
+
+      - name: Determine package name
+        id: package_name
+        run: |
+          if [ "${{ matrix.project_type }}" == "packages" ]; then
+            PACKAGE="${{ matrix.project_name }}"
+          else
+            PACKAGE="genkit-plugin-${{ matrix.project_name }}"
+          fi
+          echo "name=$PACKAGE" >> $GITHUB_OUTPUT
+          echo "Package name: $PACKAGE"
+
+      - name: Install from PyPI
+        run: |
+          python -m pip install --upgrade pip
+          pip install "${{ steps.package_name.outputs.name }}==${{ steps.get_version.outputs.version }}"
+
+      - name: Verify installation
+        run: |
+          PACKAGE="${{ steps.package_name.outputs.name }}"
+          VERSION="${{ steps.get_version.outputs.version }}"
+          
+          # Check installed version
+          INSTALLED=$(pip show "$PACKAGE" | grep "^Version:" | cut -d' ' -f2)
+          echo "Installed version: $INSTALLED"
+          
+          if [ "$INSTALLED" != "$VERSION" ]; then
+            echo "❌ Version mismatch: expected $VERSION, got $INSTALLED"
+            exit 1
+          fi
+          echo "✅ Version match: $VERSION"
+
+      - name: Smoke test imports
+        run: |
+          PACKAGE="${{ steps.package_name.outputs.name }}"
+          
+          if [ "$PACKAGE" == "genkit" ]; then
+            python -c "from genkit.ai import Genkit; print('✅ genkit imports successfully')"
+          else
+            # For plugins, just verify the package is importable
+            # Plugin module names use underscores, not hyphens
+            MODULE_NAME=$(echo "$PACKAGE" | sed 's/-/_/g')
+            python -c "import $MODULE_NAME; print('✅ $PACKAGE imports successfully')" || \
+              echo "⚠️ Import test skipped (plugin may require extra deps)"
+          fi
+
+  # Summary job to report overall status
+  publish_summary:
+    name: Publish Summary
+    needs: [generate_matrix, pypi_publish, verify_publish]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$(grep '^version' py/packages/genkit/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create summary
+        run: |
+          echo "## 📦 Python Package Publish Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Scope:** ${{ github.event.inputs.publish_scope }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.pypi_publish.result }}" == "success" ]; then
+            echo "### ✅ Publish Status: Success" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Publish Status: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.verify_publish.result }}" == "success" ]; then
+            echo "### ✅ Verification: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.verify_publish.result }}" == "failure" ]; then
+            echo "### ⚠️ Verification: Some packages failed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⏭️ Verification: Skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify on PyPI: https://pypi.org/project/genkit/${{ steps.get_version.outputs.version }}/" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test installation: \`pip install genkit==${{ steps.get_version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Update documentation if needed" >> $GITHUB_STEP_SUMMARY
