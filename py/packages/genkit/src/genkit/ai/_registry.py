@@ -237,7 +237,9 @@ class GenkitRegistry:
 
     @overload
     # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
-    def flow(
+    # Overloads appear to overlap because T could be Awaitable[T], but at runtime we
+    # distinguish async vs sync functions correctly.
+    def flow(  # pyright: ignore[reportOverlappingOverload]
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']: ...
 

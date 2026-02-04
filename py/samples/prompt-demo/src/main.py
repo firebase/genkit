@@ -235,8 +235,8 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
 
 async def main() -> None:
     """Run the sample flows."""
-    prompts = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
-    executable_prompts = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
+    prompts = await ai.registry.resolve_actions_by_kind(ActionKind.PROMPT)
+    executable_prompts = await ai.registry.resolve_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
     all_prompts = list(prompts.keys()) + list(executable_prompts.keys())
 
     await logger.ainfo('Registry Status', loaded_prompts=all_prompts)

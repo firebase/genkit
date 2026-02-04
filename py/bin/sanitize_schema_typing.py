@@ -482,16 +482,22 @@ def fix_field_defaults(content: str) -> str:
 
 
 def add_schema_field_suppression(content: str) -> str:
-    """Add pyrefly suppression comment for 'schema' fields.
+    """Add pyrefly and pyright suppression comments for 'schema' fields.
 
     The 'schema' field name shadows a method in Pydantic's BaseModel.
-    While protected_namespaces=() allows this in Pydantic, pyrefly still
-    reports it as a bad-override. We add a suppression comment.
+    While protected_namespaces=() allows this in Pydantic, both pyrefly and
+    pyright report it as a bad-override/incompatible method override.
+    We add suppression comments for both.
     """
-    # Find lines that define a 'schema' field and add the suppression comment
+    # Find lines that define a 'schema' field and add the suppression comments
     # Pattern: "    schema: ... = Field(...)"
-    pattern = r'^(    schema: .+= Field\(.+\))$'
-    replacement = r'    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field\n\1'
+    # Add pyrefly comment above and pyright inline comment
+    pattern = r'^(    schema: .+= Field\(.+)\)$'
+    replacement = (
+        r'    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field.\n'
+        r"    # 'schema' shadows BaseModel.schema() but protected_namespaces=() explicitly allows this.\n"
+        r'\1)  # pyright: ignore[reportIncompatibleMethodOverride]'
+    )
     content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
     return content
 
