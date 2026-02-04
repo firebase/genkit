@@ -267,7 +267,7 @@ This release was made possible by an incredible team effort. Thank you to all **
 | [@MengqinShen](https://github.com/MengqinShen) | Resources, samples, model configs |
 | [@AbeJLazaro](https://github.com/AbeJLazaro) | Model Garden, Ollama, Gemini |
 | [@pavelgj](https://github.com/pavelgj) | Reflection API, embedders |
-| [@zarinn3pal](https://github.com/zarinn3pal) | Anthropic, DeepSeek, xAI |
+| [@zarinn3pal](https://github.com/zarinn3pal) | Anthropic, DeepSeek, xAI, GCP telemetry |
 | [@huangjeff5](https://github.com/huangjeff5) | PluginV2, type safety, telemetry |
 | [@hendrixmar](https://github.com/hendrixmar) | Evaluators, OpenAI compat, Dotprompt |
 | [@ssbushi](https://github.com/ssbushi) | Evaluator plugins |
