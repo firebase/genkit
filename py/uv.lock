@@ -2036,7 +2036,7 @@ wheels = [
 
 [[package]]
 name = "genkit"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -2120,7 +2120,7 @@ provides-extras = ["dev-local-vectorstore", "flask", "google-cloud", "google-gen
 
 [[package]]
 name = "genkit-plugin-anthropic"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/anthropic" }
 dependencies = [
     { name = "anthropic" },
@@ -2135,7 +2135,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-aws"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/aws" }
 dependencies = [
     { name = "botocore" },
@@ -2158,7 +2158,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-aws-bedrock"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/aws-bedrock" }
 dependencies = [
     { name = "boto3" },
@@ -2175,7 +2175,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-azure"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/azure" }
 dependencies = [
     { name = "genkit" },
@@ -2203,7 +2203,7 @@ provides-extras = ["monitor"]
 
 [[package]]
 name = "genkit-plugin-cf"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/cf" }
 dependencies = [
     { name = "genkit" },
@@ -2224,7 +2224,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-cf-ai"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/cf-ai" }
 dependencies = [
     { name = "genkit" },
@@ -2241,7 +2241,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -2258,7 +2258,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-deepseek"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/deepseek" }
 dependencies = [
     { name = "genkit" },
@@ -2275,7 +2275,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "aiofiles" },
@@ -2296,7 +2296,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-evaluators"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/evaluators" }
 dependencies = [
     { name = "aiofiles" },
@@ -2317,7 +2317,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit" },
@@ -2334,7 +2334,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -2354,7 +2354,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -2373,7 +2373,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -2394,7 +2394,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-huggingface"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/huggingface" }
 dependencies = [
     { name = "genkit" },
@@ -2409,7 +2409,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-mcp"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/mcp" }
 dependencies = [
     { name = "genkit" },
@@ -2424,7 +2424,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-mistral"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/mistral" }
 dependencies = [
     { name = "genkit" },
@@ -2439,7 +2439,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-msfoundry"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/msfoundry" }
 dependencies = [
     { name = "azure-identity" },
@@ -2456,7 +2456,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-observability"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/observability" }
 dependencies = [
     { name = "genkit" },
@@ -2486,7 +2486,7 @@ provides-extras = ["sentry"]
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -2503,7 +2503,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "anthropic" },
@@ -2532,7 +2532,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-xai"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "plugins/xai" }
 dependencies = [
     { name = "genkit" },

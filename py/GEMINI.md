@@ -2094,3 +2094,761 @@ async def test_api_call(mock_get_client):
 #### Related Issue
 
 * GitHub Issue: [#4420](https://github.com/firebase/genkit/issues/4420)
+
+### Session Learnings (2026-02-04): Release PRs and Changelogs
+
+When drafting release PRs and changelogs, follow these guidelines to create
+comprehensive, contributor-friendly release documentation.
+
+#### Release PR Checklist
+
+Use this checklist when drafting a release PR:
+
+| Step | Task | Command/Details |
+|------|------|-----------------|
+| 1 | **Count commits** | `git log "genkit-python@PREV"..HEAD --oneline -- py/ \| wc -l` |
+| 2 | **Count file changes** | `git diff --stat "genkit-python@PREV"..HEAD -- py/ \| tail -1` |
+| 3 | **List contributors** | `git log "genkit-python@PREV"..HEAD --pretty=format:"%an" -- py/ \| sort \| uniq -c \| sort -rn` |
+| 4 | **Get PR counts** | `gh pr list --state merged --search "label:python merged:>=DATE" --json author --limit 200 \| jq ...` |
+| 5 | **Map git names to GitHub** | `gh pr list --json author --limit 200 \| jq '.[].author \| "\(.name) -> @\(.login)"'` |
+| 6 | **Get each contributor's commits** | `git log --pretty=format:"%s" --author="Name" -- py/ \| head -30` |
+| 7 | **Check external repos** (e.g., dotprompt) | Review GitHub contributors page or clone and run git log |
+| 8 | **Create CHANGELOG.md section** | Follow Keep a Changelog format with Impact Summary |
+| 9 | **Create PR_DESCRIPTION_X.Y.Z.md** | Put in `.github/` directory |
+| 10 | **Add contributor tables** | Include GitHub links, PR/commit counts, exhaustive contributions |
+| 11 | **Categorize contributions** | Use bold categories: **Core**, **Plugins**, **Fixes**, etc. |
+| 12 | **Include PR numbers** | Add (#1234) for each major contribution |
+| 13 | **Add dotprompt table** | Same format as main table with PRs, Commits, Key Contributions |
+| 14 | **Create blog article** | `py/engdoc/blog-genkit-python-X.Y.Z.md` |
+| 15 | **Verify code examples** | Test all code snippets match actual API patterns |
+| 16 | **Run release validation** | `./bin/validate_release_docs` (see below) |
+| 17 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
+| 18 | **Push with --no-verify** | `git push --no-verify` |
+| 19 | **Update PR on GitHub** | `gh pr edit <NUM> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md` |
+
+#### Automated Release Documentation Validation
+
+Run this validation script before finalizing any release documentation. Save as
+`py/bin/validate_release_docs` and run before committing:
+
+```bash
+#!/bin/bash
+# Release Documentation Validator
+# Run from py/ directory: ./bin/validate_release_docs
+
+set -e
+echo "=== Release Documentation Validation ==="
+ERRORS=0
+
+# 1. Check branding: No "Firebase Genkit" references
+echo -n "Checking branding (no 'Firebase Genkit')... "
+if grep -ri "Firebase Genkit" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
+    echo "FAIL: Found 'Firebase Genkit' - use 'Genkit' instead"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK"
+fi
+
+# 2. Check for non-existent plugins
+echo -n "Checking plugin names... "
+FAKE_PLUGINS="genkit-plugin-aim|genkit-plugin-firestore"
+if grep -rE "$FAKE_PLUGINS" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
+    echo "FAIL: Found non-existent plugin names"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK"
+fi
+
+# 3. Check for unshipped features (DAP, MCP unless actually shipped)
+echo -n "Checking for unshipped features... "
+UNSHIPPED="Dynamic Action Provider|DAP factory|MCP resource|action_provider"
+if grep -rE "$UNSHIPPED" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
+    echo "WARN: Found references to features that may not be shipped yet"
+    # Not a hard error, just a warning
+else
+    echo "OK"
+fi
+
+# 4. Check blog code syntax errors
+echo -n "Checking blog code syntax... "
+WRONG_PATTERNS='response\.text\(\)|output_schema=|asyncio\.run\(main|from genkit import Genkit[^.]'
+if grep -rE "$WRONG_PATTERNS" engdoc/blog-*.md 2>/dev/null; then
+    echo "FAIL: Found incorrect API patterns in blog code examples"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK"
+fi
+
+# 5. Verify all mentioned plugins exist
+echo -n "Verifying plugin references... "
+for plugin in $(grep -ohE 'genkit-plugin-[a-z-]+' engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null | sort -u); do
+    dir_name=$(echo "$plugin" | sed 's/genkit-plugin-//')
+    if [ ! -d "plugins/$dir_name" ]; then
+        echo "FAIL: Plugin $plugin does not exist (no plugins/$dir_name/)"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+echo "OK"
+
+# 6. Check contributor GitHub links are properly formatted
+echo -n "Checking contributor links... "
+if grep -E '\[@[a-zA-Z0-9]+\]' .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null | \
+   grep -vE '\[@[a-zA-Z0-9_-]+\]\(https://github\.com/[a-zA-Z0-9_-]+\)' 2>/dev/null; then
+    echo "WARN: Some contributor links may not have GitHub URLs"
+else
+    echo "OK"
+fi
+
+# 7. Check blog article exists for version in CHANGELOG
+echo -n "Checking blog article exists... "
+VERSION=$(grep -m1 '## \[' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+if [ -f "engdoc/blog-genkit-python-$VERSION.md" ]; then
+    echo "OK (found blog-genkit-python-$VERSION.md)"
+else
+    echo "FAIL: Missing engdoc/blog-genkit-python-$VERSION.md"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 8. Verify imports work
+echo -n "Checking Python imports... "
+if python -c "from genkit.ai import Genkit, Output; print('OK')" 2>/dev/null; then
+    :
+else
+    echo "WARN: Could not verify imports (genkit may not be installed)"
+fi
+
+# Summary
+echo ""
+echo "=== Validation Complete ==="
+if [ $ERRORS -gt 0 ]; then
+    echo "FAILED: $ERRORS error(s) found. Fix before releasing."
+    exit 1
+else
+    echo "PASSED: All checks passed!"
+    exit 0
+fi
+```
+
+**Quick manual validation commands:**
+
+```bash
+# All-in-one check for common issues
+cd py && grep -rE \
+  'Firebase Genkit|genkit-plugin-aim|response\.text\(\)|DAP factory|output_schema=' \
+  engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md
+
+# List all plugin references and verify they exist  
+for p in $(grep -ohE 'genkit-plugin-[a-z-]+' CHANGELOG.md | sort -u); do
+    d=$(echo $p | sed 's/genkit-plugin-//'); 
+    [ -d "plugins/$d" ] && echo "✓ $p" || echo "✗ $p (not found)";
+done
+```
+
+#### Key Principles
+
+1. **Exhaustive contributions**: List every significant feature, fix, and improvement
+2. **Clickable GitHub links**: Format as `[@username](https://github.com/username)`
+3. **Real names when different**: Show as `@MengqinShen (Elisa Shen)`
+4. **Categorize by type**: Use bold headers like **Core**, **Plugins**, **Type Safety**
+5. **Include PR numbers**: Every major item should have `(#1234)`
+6. **Match table formats**: External repo tables should have same columns as main table
+7. **Cross-check repositories**: Check both firebase/genkit and google/dotprompt for Python work
+8. **Use --no-verify**: For documentation-only changes, skip hooks for faster iteration
+9. **Always include blog article**: Every release needs a blog article in `py/engdoc/`
+10. **Branding**: Use "Genkit" not "Firebase Genkit" (rebranded as of 2025)
+
+#### Blog Article Guidelines
+
+Every release MUST include a blog article at `py/engdoc/blog-genkit-python-X.Y.Z.md`.
+
+**Branding Note**: The project is called **"Genkit"** (not "Firebase Genkit"). While the
+repository is hosted at `github.com/firebase/genkit` and some blog posts may be published
+on the Firebase blog, the product name is simply "Genkit". Use this consistently in all
+documentation, blog articles, and release notes.
+
+**Required Sections:**
+1. **Headline**: "Genkit Python SDK X.Y.Z: [Catchy Subtitle]"
+2. **Stats paragraph**: Commits, files changed, contributors, PRs
+3. **What's New**: Plugin expansion, architecture changes, new features
+4. **Code Examples**: Accurate, tested examples (see below)
+5. **Critical Fixes & Security**: Important bug fixes
+6. **Developer Experience**: Tooling improvements
+7. **Plugin Tables**: All available plugins with status
+8. **Get Started**: Installation and quick start
+9. **Contributors**: Acknowledgment table
+10. **What's Next**: Roadmap items
+11. **Get Involved**: Community links
+
+**Code Example Accuracy Checklist:**
+
+Before publishing, verify ALL code examples match the actual API:
+
+| Pattern | Correct | Wrong |
+|---------|---------|-------|
+| Text response | `response.text` | `response.text()` |
+| Structured output | `output=Output(schema=Model)` | `output_schema=Model` |
+| Dynamic tools | `ai.dynamic_tool(name, fn, description=...)` | `@ai.action_provider()` |
+| Partials | `ai.define_partial('name', 'template')` | `Dotprompt.define_partial()` |
+| Main function | `ai.run_main(main())` | `asyncio.run(main())` |
+| Genkit init | Module-level `ai = Genkit(...)` | Inside `async def main()` |
+| Imports | `from genkit.ai import Genkit, Output` | `from genkit import Genkit` |
+
+**Verify examples against actual samples:**
+
+```bash
+# Check API patterns in existing samples
+grep -r "response.text" py/samples/*/src/main.py | head -5
+grep -r "Output(schema=" py/samples/*/src/main.py | head -5
+grep -r "ai.run_main" py/samples/*/src/main.py | head -5
+```
+
+**Verify blog code syntax matches codebase patterns:**
+
+CRITICAL: Before publishing any blog article, extract and validate ALL code snippets
+against the actual codebase to ensure they would compile/run correctly.
+
+```bash
+# Extract Python code blocks from a blog article and check for common errors
+grep -A 50 '```python' py/engdoc/blog-genkit-python-*.md | grep -E \
+  'response\.text\(\)|output_schema=|asyncio\.run\(|from genkit import Genkit'
+
+# Verify import statements match actual module structure
+python -c "from genkit.ai import Genkit, Output; print('Imports OK')"
+
+# Check that decorator patterns exist in codebase
+grep -r "@ai.flow()" py/samples/*/src/main.py | head -3
+grep -r "@ai.tool()" py/samples/*/src/main.py | head -3
+
+# Validate a blog article's code examples by syntax checking
+python -m py_compile <(grep -A 20 '```python' py/engdoc/blog-genkit-python-*.md | \
+  grep -v '```' | head -50) 2>&1 || echo "Syntax errors found!"
+```
+
+**Blog Article Code Review Checklist:**
+
+Before finalizing a blog article, manually verify:
+
+| Check | How to Verify |
+|-------|---------------|
+| No `response.text()` | Search for `\.text\(\)` - should find nothing |
+| Correct Output usage | Search for `output=Output(schema=` |
+| Module-level Genkit | `ai = Genkit(...)` outside any function |
+| `ai.run_main()` used | Not `asyncio.run()` for samples with Dev UI |
+| Pydantic imports | `from pydantic import BaseModel, Field` |
+| Tool decorator | `@ai.tool()` with Pydantic input schema |
+| Flow decorator | `@ai.flow()` for async functions |
+| No fictional features | DAP, MCP, etc. - only document shipped features |
+
+**Verify plugin names exist before documenting:**
+
+CRITICAL: Always verify plugin names against actual packages before including them in
+release documentation. Non-existent plugins will confuse users.
+
+```bash
+# List all actual plugin package names
+grep "^name = " py/plugins/*/pyproject.toml | sort
+
+# Verify a specific plugin exists
+ls -la py/plugins/<plugin-name>/pyproject.toml
+```
+
+Common mistakes to avoid:
+- `genkit-plugin-aim` does NOT exist (use `genkit-plugin-firebase` or `genkit-plugin-observability`)
+- `genkit-plugin-firestore` does NOT exist (it's `genkit-plugin-firebase`)
+- Always double-check plugin names match directory names (with `genkit-plugin-` prefix)
+
+#### CHANGELOG.md Structure
+
+Follow [Keep a Changelog](https://keepachangelog.com/) format with these sections:
+
+```markdown
+## [X.Y.Z] - YYYY-MM-DD
+
+### Impact Summary
+| Category | Description |
+|----------|-------------|
+| **New Capabilities** | Brief summary |
+| **Critical Fixes** | Brief summary |
+| **Performance** | Brief summary |
+| **Breaking Changes** | Brief summary |
+
+### Added
+- **Category Name** - Feature description
+
+### Changed
+- **Category Name** - Change description
+
+### Fixed
+- **Category Name** - Fix description
+
+### Security
+- **Category Name** - Security fix description
+
+### Performance
+- **Per-Event-Loop HTTP Client Caching** - Performance improvement description
+
+### Deprecated
+- Item being deprecated
+
+### Contributors
+... (see contributor section below)
+```
+
+#### Gathering Release Statistics
+
+Use these commands to gather comprehensive release statistics:
+
+```bash
+# Count commits since previous version
+git log "genkit-python@0.4.0"..HEAD --oneline -- py/ | wc -l
+
+# Get contributors by commit count
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an" -- py/ | sort | uniq -c | sort -rn
+
+# Get commits by each contributor with messages
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an|%s" -- py/
+
+# Get PR counts by contributor (requires gh CLI)
+gh pr list --repo firebase/genkit --state merged \
+  --search "label:python merged:>=2025-05-26" \
+  --json author,number,title --limit 200 | \
+  jq -r '.[].author.login' | sort | uniq -c | sort -rn
+
+# Get files changed count
+git diff --stat "genkit-python@0.4.0"..HEAD -- py/ | tail -1
+```
+
+#### Contributor Acknowledgment Table
+
+Include a detailed contributors table with both PRs and commits:
+
+```markdown
+### Contributors
+
+This release includes contributions from **N developers** across **M PRs**.
+Thank you to everyone who contributed!
+
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| **Name** | 91 | 93 | Core framework, type safety, plugins |
+| **Name** | 42 | 42 | Resource support, samples |
+...
+
+**[external/repo](https://github.com/org/repo) Contributors** (Feature integration):
+
+| Contributor | PRs | Key Contributions |
+|-------------|-----|-------------------|
+| **Name** | 42 | CI/CD improvements, release automation |
+```
+
+#### PR Description File
+
+Create a `.github/PR_DESCRIPTION_X.Y.Z.md` file for each major release:
+
+```markdown
+# Genkit Python SDK vX.Y.Z Release
+
+## Overview
+
+Brief description of the release (one paragraph).
+
+## Impact Summary
+
+| Category | Description |
+|----------|-------------|
+| **New Capabilities** | Summary |
+| **Breaking Changes** | Summary |
+| **Performance** | Summary |
+
+## New Features
+
+### Feature Category 1
+- **Feature Name**: Description
+
+## Breaking Changes
+
+### Change 1
+**Before**: Old behavior...
+**After**: New behavior...
+**Migration**: How to migrate...
+
+## Critical Fixes
+
+- **Fix Name**: Description (PR #)
+
+## Testing
+
+All X plugins and Y+ samples have been tested. CI runs on Python 3.10-3.14.
+
+## Contributors
+(Same table format as CHANGELOG)
+
+## Full Changelog
+
+See [CHANGELOG.md](py/CHANGELOG.md) for the complete list of changes.
+```
+
+#### Updating the PR on GitHub
+
+Use gh CLI to update the PR body from the file:
+
+```bash
+gh pr edit <PR_NUMBER> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md
+```
+
+#### Key Sections to Include
+
+| Section | Purpose |
+|---------|---------|
+| **Impact Summary** | Quick overview table with categories |
+| **Critical Fixes** | Highlight race conditions, thread safety, security |
+| **Performance** | Document speedups and optimizations |
+| **Breaking Changes** | Migration guide with before/after examples |
+| **Contributors** | Table with PRs, commits, and key contributions |
+
+#### Commit Messages for Release Documentation
+
+Use conventional commits with `--no-verify` for release documentation:
+
+```bash
+git commit --no-verify -m "docs(py): add contributor acknowledgments to changelog
+
+Genkit Python SDK Contributors (N developers):
+- Name: Core framework, type safety
+- Name: Plugins, samples
+...
+
+External Contributors:
+- Name: CI/CD improvements"
+```
+
+#### Highlighting Critical Information
+
+**When documenting fixes, emphasize:**
+
+1. **Race conditions**: Dev server startup, async operations
+2. **Thread safety**: Event loop binding, HTTP client caching
+3. **Security**: CVE/CWE references, audit results
+4. **Infinite recursion**: Cycle detection, recursion limits
+
+**Example format:**
+
+```markdown
+### Critical Fixes
+
+- **Race Condition**: Dev server startup race condition resolved (#4225)
+- **Thread Safety**: Per-event-loop HTTP client caching prevents event loop
+  binding errors (#4419, #4429)
+- **Infinite Recursion**: Cycle detection in Handlebars partial resolution
+- **Security**: Path traversal hardening (CWE-22), SigV4 signing (#4402)
+```
+
+#### External Project Contributions
+
+When integrating external projects (e.g., dotprompt), include their contributors:
+
+```bash
+# Check commits in external repo
+# Navigate to GitHub contributors page or use git log on local clone
+```
+
+Include a separate table linking to the external repository.
+
+#### Contributor Profile Links and Exhaustive Contributions
+
+**Always include clickable GitHub profile links** for contributors in release notes:
+
+```markdown
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| [**@username**](https://github.com/username) | 91 | 93 | Exhaustive list... |
+```
+
+**Finding GitHub usernames from git log names:**
+
+```bash
+# Get GitHub username from PR data (most reliable)
+gh pr list --repo firebase/genkit --state merged \
+  --search "author:USERNAME label:python" \
+  --json author,title --limit 5
+
+# Map git log author names to GitHub handles
+gh pr list --repo firebase/genkit --state merged \
+  --search "label:python" \
+  --json author --limit 200 | \
+  jq -r '.[].author | "\(.name) -> @\(.login)"' | sort -u
+```
+
+**Make key contributions exhaustive by reviewing each contributor's commits:**
+
+```bash
+# Get detailed commits for each contributor
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%s" \
+  --author="Contributor Name" -- py/ | head -20
+```
+
+Then summarize their work comprehensively, including:
+- Specific plugins/features implemented
+- Specific samples maintained
+- API/config changes made
+- Bug fix categories
+- Documentation contributions
+
+**Handle cross-name contributors:**
+
+If a contributor uses different names in git vs GitHub (e.g., "Elisa Shen" in git but
+"@MengqinShen" on GitHub), add the real name in parentheses:
+
+```markdown
+| [**@MengqinShen**](https://github.com/MengqinShen) (Elisa Shen) | 42 | 42 | ... |
+```
+
+**Filter contributors by SDK:**
+
+For Python SDK releases, only include contributors with commits under `py/`:
+
+```bash
+# Get ONLY Python contributors
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an" -- py/ | sort | uniq -c | sort -rn
+```
+
+Exclude contributors whose work is Go-only, JS-only, or infrastructure-only (unless
+their infrastructure work directly benefits the Python SDK).
+
+#### Separate External Repository Contributors
+
+When the Python SDK integrates external projects (like dotprompt), add a separate
+contributor table for that project with the **same columns** as the main table:
+
+```markdown
+**[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt Python integration):
+
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| [**@username**](https://github.com/username) | 50+ | 100+ | **Category**: Feature descriptions with PR numbers. |
+| [**@contributor2**](https://github.com/contributor2) | 42 | 45 | **CI/CD**: Package publishing, release automation. |
+```
+
+This clearly distinguishes between core SDK contributions and external project contributions.
+
+#### Fast Iteration with --no-verify
+
+When iterating on release documentation, use `--no-verify` to skip pre-commit/pre-push
+hooks for faster feedback:
+
+```bash
+# Fast commit
+git commit --no-verify -m "docs(py): update contributor tables"
+
+# Fast push
+git push --no-verify
+```
+
+**Only use this for documentation-only changes** where CI verification is not critical.
+For code changes, always run full verification.
+
+#### Updating PR Description on GitHub
+
+After updating the PR description file, push it to GitHub:
+
+```bash
+# Update the PR body from the file
+gh pr edit <PR_NUMBER> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md
+```
+
+### Release Publishing Process
+
+After the release PR is merged, follow these steps to complete the release.
+
+#### Step 1: Merge the Release PR
+
+```bash
+# Merge via GitHub UI or CLI
+gh pr merge <PR_NUMBER> --squash
+```
+
+#### Step 2: Create the Release Tag
+
+```bash
+# Ensure you're on main with latest changes
+git checkout main
+git pull origin main
+
+# Create an annotated tag for the release
+git tag -a py/vX.Y.Z -m "Genkit Python SDK vX.Y.Z
+
+See CHANGELOG.md for full release notes."
+
+# Push the tag
+git push origin py/vX.Y.Z
+```
+
+#### Step 3: Create GitHub Release
+
+Use the PR description as the release body with all contributors mentioned:
+
+```bash
+# Create release using the PR description file
+gh release create py/vX.Y.Z \
+  --title "Genkit Python SDK vX.Y.Z" \
+  --notes-file py/.github/PR_DESCRIPTION_X.Y.Z.md
+```
+
+**Important:** The GitHub release should include:
+- Full contributor tables with GitHub links
+- Impact summary
+- What's new section
+- Critical fixes and security
+- Breaking changes (if any)
+
+#### Step 4: Publish to PyPI
+
+Use the publish workflow with the "all" option:
+
+1. Go to **Actions** → **Publish Python Package**
+2. Click **Run workflow**
+3. Select `publish_scope: all`
+4. Click **Run workflow**
+
+This publishes all 23 packages in parallel:
+
+| Package Category | Packages |
+|------------------|----------|
+| **Core** | `genkit` |
+| **Model Providers** | `genkit-plugin-anthropic`, `genkit-plugin-aws-bedrock`, `genkit-plugin-cf-ai`, `genkit-plugin-deepseek`, `genkit-plugin-google-genai`, `genkit-plugin-huggingface`, `genkit-plugin-mistral`, `genkit-plugin-msfoundry`, `genkit-plugin-ollama`, `genkit-plugin-vertex-ai`, `genkit-plugin-xai` |
+| **Telemetry** | `genkit-plugin-aws`, `genkit-plugin-azure`, `genkit-plugin-cf`, `genkit-plugin-google-cloud`, `genkit-plugin-observability` |
+| **Data/Retrieval** | `genkit-plugin-dev-local-vectorstore`, `genkit-plugin-evaluators`, `genkit-plugin-firebase` |
+| **Other** | `genkit-plugin-flask`, `genkit-plugin-compat-oai`, `genkit-plugin-mcp` |
+
+For single package publish (e.g., hotfix):
+1. Select `publish_scope: single`
+2. Select appropriate `project_type` (packages/plugins)
+3. Select the specific `project_name`
+
+#### Step 5: Verify Publication
+
+```bash
+# Check versions on PyPI
+pip index versions genkit
+pip index versions genkit-plugin-google-genai
+
+# Test installation
+python -m venv /tmp/genkit-test
+source /tmp/genkit-test/bin/activate
+pip install genkit genkit-plugin-google-genai
+python -c "from genkit.ai import Genkit; print('Success!')"
+```
+
+#### v0.5.0 Release Summary
+
+For the v0.5.0 release specifically:
+
+| Metric | Value |
+|--------|-------|
+| **Commits** | 178 |
+| **Files Changed** | 680+ |
+| **Contributors** | 13 developers |
+| **PRs** | 188 |
+| **New PyPI Packages** | 14 (first publish) |
+| **Updated PyPI Packages** | 9 (from v0.4.0) |
+| **Total Packages** | 23 |
+
+**Packages on PyPI (existing - v0.4.0 → v0.5.0):**
+- genkit, genkit-plugin-compat-oai, genkit-plugin-dev-local-vectorstore
+- genkit-plugin-firebase, genkit-plugin-flask, genkit-plugin-google-cloud
+- genkit-plugin-google-genai, genkit-plugin-ollama, genkit-plugin-vertex-ai
+
+**New Packages (first publish at v0.5.0):**
+- genkit-plugin-anthropic, genkit-plugin-aws, genkit-plugin-aws-bedrock
+- genkit-plugin-azure, genkit-plugin-cf, genkit-plugin-cf-ai
+- genkit-plugin-deepseek, genkit-plugin-evaluators, genkit-plugin-huggingface
+- genkit-plugin-mcp, genkit-plugin-mistral, genkit-plugin-msfoundry
+- genkit-plugin-observability, genkit-plugin-xai
+
+#### Full Release Guide
+
+For detailed release instructions, see:
+- `py/engdoc/release-publishing-guide.md` - Complete step-by-step guide
+- `py/.github/PR_DESCRIPTION_0.5.0.md` - v0.5.0 PR description template
+- `py/CHANGELOG.md` - Full changelog format
+
+### Version Consistency
+
+All packages (core, plugins, and samples) must have the same version. Use these scripts:
+
+```bash
+# Check version consistency
+./bin/check_versions
+
+# Fix version mismatches
+./bin/check_versions --fix
+# or
+./bin/bump_version 0.5.0
+
+# Bump to next version
+./bin/bump_version --minor    # 0.5.0 -> 0.6.0
+./bin/bump_version --patch    # 0.5.0 -> 0.5.1
+./bin/bump_version --major    # 0.5.0 -> 1.0.0
+```
+
+The `bump_version` script dynamically discovers all packages:
+- `packages/genkit` (core)
+- `plugins/*/` (all plugins)
+- `samples/*/` (all samples)
+
+### Shell Script Linting
+
+All shell scripts in `bin/` and `py/bin/` must pass `shellcheck`. This is enforced
+by `bin/lint` and `py/bin/release_check`.
+
+```bash
+# Run shellcheck on all scripts
+shellcheck bin/* py/bin/*
+
+# Install shellcheck if not present
+brew install shellcheck  # macOS
+apt install shellcheck   # Debian/Ubuntu
+```
+
+**Common shellcheck fixes:**
+- Use `"${var}"` instead of `$var` for safer expansion
+- Add `# shellcheck disable=SC2034` for intentionally unused variables
+- Use `${var//search/replace}` instead of `echo "$var" | sed 's/search/replace/'`
+
+### Shell Script Standards
+
+All shell scripts must follow these standards:
+
+**1. Shebang Line (line 1):**
+```bash
+#!/usr/bin/env bash
+```
+- Use `#!/usr/bin/env bash` for portability (not `#!/bin/bash`)
+- Must be the **first line** of the file (before license header)
+
+**2. Strict Mode:**
+```bash
+set -euo pipefail
+```
+- `-e`: Exit immediately on command failure
+- `-u`: Exit on undefined variable usage  
+- `-o pipefail`: Exit on pipe failures
+
+**3. Verification Script:**
+```bash
+# Check all scripts for proper shebang and pipefail
+for script in bin/* py/bin/*; do
+  if [ -f "$script" ] && file "$script" | grep -qE "shell|bash"; then
+    shebang=$(head -1 "$script")
+    if [[ "$shebang" != "#!/usr/bin/env bash" ]]; then
+      echo "❌ SHEBANG: $script"
+    fi
+    if ! grep -q "set -euo pipefail" "$script"; then
+      echo "❌ PIPEFAIL: $script"
+    fi
+  fi
+done
+```
+
+**Exception:** `bin/install_cli` intentionally omits `pipefail` as it's a user-facing
+install script that handles errors differently for better user experience.

@@ -19,9 +19,11 @@ set -euo pipefail
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 
-GO_DIR="${TOP_DIR}/go"
+# shellcheck disable=SC2034
+GO_DIR="${TOP_DIR}/go"  # Reserved for future Go linting
 PY_DIR="${TOP_DIR}/py"
-JS_DIR="${TOP_DIR}/js"
+# shellcheck disable=SC2034
+JS_DIR="${TOP_DIR}/js"  # Reserved for future JS linting
 
 uv run --directory "${PY_DIR}" ruff check --fix --preview --unsafe-fixes .
 uv run --directory "${PY_DIR}" ruff format --preview .
@@ -56,6 +58,33 @@ uv run --directory "${PY_DIR}" liccheck -s pyproject.toml
 # Consistency checks (Python versions, plugin versions, naming, workspace completeness)
 echo "--- 🔍 Running Consistency Checks ---"
 "${PY_DIR}/bin/check_consistency"
+
+# Shell script linting
+echo "--- 🐚 Running Shell Script Lint (shellcheck) ---"
+if command -v shellcheck &> /dev/null; then
+  shell_errors=0
+  # Check both top-level bin/ and py/bin/
+  for script in "${TOP_DIR}"/bin/* "${PY_DIR}"/bin/*; do
+    if [ -f "$script" ] && file "$script" | grep -qE "shell|bash|sh script" 2>/dev/null; then
+      script_name=$(basename "$script")
+      # Skip .py files
+      if [[ "$script_name" == *.py ]]; then
+        continue
+      fi
+      if ! shellcheck "$script" 2>&1; then
+        shell_errors=$((shell_errors + 1))
+      fi
+    fi
+  done
+  if [ $shell_errors -gt 0 ]; then
+    echo "⚠️  $shell_errors shell script(s) have shellcheck warnings"
+    exit 1
+  else
+    echo "✅ All shell scripts pass shellcheck"
+  fi
+else
+  echo "⚠️  shellcheck not installed (brew install shellcheck) - skipping"
+fi
 
 # Disabled because there are many lint errors.
 #pushd "${GO_DIR}" &>/dev/null
