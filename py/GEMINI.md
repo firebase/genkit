@@ -2119,11 +2119,130 @@ Use this checklist when drafting a release PR:
 | 11 | **Categorize contributions** | Use bold categories: **Core**, **Plugins**, **Fixes**, etc. |
 | 12 | **Include PR numbers** | Add (#1234) for each major contribution |
 | 13 | **Add dotprompt table** | Same format as main table with PRs, Commits, Key Contributions |
-| 14 | **Create blog article** | `py/engdoc/blog-genkit-python-X.Y.Z.md` (Firebase blog style) |
+| 14 | **Create blog article** | `py/engdoc/blog-genkit-python-X.Y.Z.md` |
 | 15 | **Verify code examples** | Test all code snippets match actual API patterns |
-| 16 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
-| 17 | **Push with --no-verify** | `git push --no-verify` |
-| 18 | **Update PR on GitHub** | `gh pr edit <NUM> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md` |
+| 16 | **Run release validation** | `./bin/validate_release_docs` (see below) |
+| 17 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
+| 18 | **Push with --no-verify** | `git push --no-verify` |
+| 19 | **Update PR on GitHub** | `gh pr edit <NUM> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md` |
+
+#### Automated Release Documentation Validation
+
+Run this validation script before finalizing any release documentation. Save as
+`py/bin/validate_release_docs` and run before committing:
+
+```bash
+#!/bin/bash
+# Release Documentation Validator
+# Run from py/ directory: ./bin/validate_release_docs
+
+set -e
+echo "=== Release Documentation Validation ==="
+ERRORS=0
+
+# 1. Check branding: No "Firebase Genkit" references
+echo -n "Checking branding (no 'Firebase Genkit')... "
+if grep -ri "Firebase Genkit" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
+    echo "FAIL: Found 'Firebase Genkit' - use 'Genkit' instead"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK"
+fi
+
+# 2. Check for non-existent plugins
+echo -n "Checking plugin names... "
+FAKE_PLUGINS="genkit-plugin-aim|genkit-plugin-firestore"
+if grep -rE "$FAKE_PLUGINS" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
+    echo "FAIL: Found non-existent plugin names"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK"
+fi
+
+# 3. Check for unshipped features (DAP, MCP unless actually shipped)
+echo -n "Checking for unshipped features... "
+UNSHIPPED="Dynamic Action Provider|DAP factory|MCP resource|action_provider"
+if grep -rE "$UNSHIPPED" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
+    echo "WARN: Found references to features that may not be shipped yet"
+    # Not a hard error, just a warning
+else
+    echo "OK"
+fi
+
+# 4. Check blog code syntax errors
+echo -n "Checking blog code syntax... "
+WRONG_PATTERNS='response\.text\(\)|output_schema=|asyncio\.run\(main|from genkit import Genkit[^.]'
+if grep -rE "$WRONG_PATTERNS" engdoc/blog-*.md 2>/dev/null; then
+    echo "FAIL: Found incorrect API patterns in blog code examples"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK"
+fi
+
+# 5. Verify all mentioned plugins exist
+echo -n "Verifying plugin references... "
+for plugin in $(grep -ohE 'genkit-plugin-[a-z-]+' engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null | sort -u); do
+    dir_name=$(echo "$plugin" | sed 's/genkit-plugin-//')
+    if [ ! -d "plugins/$dir_name" ]; then
+        echo "FAIL: Plugin $plugin does not exist (no plugins/$dir_name/)"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+echo "OK"
+
+# 6. Check contributor GitHub links are properly formatted
+echo -n "Checking contributor links... "
+if grep -E '\[@[a-zA-Z0-9]+\]' .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null | \
+   grep -vE '\[@[a-zA-Z0-9_-]+\]\(https://github\.com/[a-zA-Z0-9_-]+\)' 2>/dev/null; then
+    echo "WARN: Some contributor links may not have GitHub URLs"
+else
+    echo "OK"
+fi
+
+# 7. Check blog article exists for version in CHANGELOG
+echo -n "Checking blog article exists... "
+VERSION=$(grep -m1 '## \[' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+if [ -f "engdoc/blog-genkit-python-$VERSION.md" ]; then
+    echo "OK (found blog-genkit-python-$VERSION.md)"
+else
+    echo "FAIL: Missing engdoc/blog-genkit-python-$VERSION.md"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 8. Verify imports work
+echo -n "Checking Python imports... "
+if python -c "from genkit.ai import Genkit, Output; print('OK')" 2>/dev/null; then
+    :
+else
+    echo "WARN: Could not verify imports (genkit may not be installed)"
+fi
+
+# Summary
+echo ""
+echo "=== Validation Complete ==="
+if [ $ERRORS -gt 0 ]; then
+    echo "FAILED: $ERRORS error(s) found. Fix before releasing."
+    exit 1
+else
+    echo "PASSED: All checks passed!"
+    exit 0
+fi
+```
+
+**Quick manual validation commands:**
+
+```bash
+# All-in-one check for common issues
+cd py && grep -rE \
+  'Firebase Genkit|genkit-plugin-aim|response\.text\(\)|DAP factory|output_schema=' \
+  engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md
+
+# List all plugin references and verify they exist  
+for p in $(grep -ohE 'genkit-plugin-[a-z-]+' CHANGELOG.md | sort -u); do
+    d=$(echo $p | sed 's/genkit-plugin-//'); 
+    [ -d "plugins/$d" ] && echo "✓ $p" || echo "✗ $p (not found)";
+done
+```
 
 #### Key Principles
 

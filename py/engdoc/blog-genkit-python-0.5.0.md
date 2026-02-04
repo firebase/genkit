@@ -205,7 +205,7 @@ Better error output with [Rich](https://github.com/Textualize/rich) tracebacks i
 
 | Plugin | Purpose | Status |
 |--------|---------|--------|
-| `genkit-plugin-firestore` | Vector search with Firestore | ✅ Stable |
+| `genkit-plugin-firebase` | Vector search with Firestore | ✅ Stable |
 | `genkit-plugin-dev-local-vectorstore` | Local vector store for dev | ✅ Stable |
 
 ## Get Started
