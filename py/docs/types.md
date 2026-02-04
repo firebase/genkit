@@ -1,29 +1,35 @@
 # Types
 
-::: genkit.types.GenerateResponseWrapper
+## Response Types
 
-::: genkit.types.GenerateRequest
+::: genkit.blocks.model.GenerateResponseWrapper
 
-::: genkit.types.GenerateResponse
+::: genkit.core.typing.GenerateRequest
 
-::: genkit.types.MessageWrapper
+::: genkit.core.typing.GenerateResponse
 
-::: genkit.types.MessageWrapper
+## Message Types
 
-::: genkit.types.Message
+::: genkit.blocks.model.MessageWrapper
 
-::: genkit.types.Part
+::: genkit.core.typing.Message
 
-::: genkit.types.TextPart
+## Part Types
 
-::: genkit.types.MediaPart
+::: genkit.core.typing.Part
 
-::: genkit.types.Media
+::: genkit.core.typing.TextPart
 
-::: genkit.types.ToolRequestPart
+::: genkit.core.typing.MediaPart
 
-::: genkit.types.ToolRequest
+::: genkit.core.typing.Media
 
-::: genkit.types.ToolResponsePart
+## Tool Types
 
-::: genkit.types.ToolResponse
+::: genkit.core.typing.ToolRequestPart
+
+::: genkit.core.typing.ToolRequest
+
+::: genkit.core.typing.ToolResponsePart
+
+::: genkit.core.typing.ToolResponse
