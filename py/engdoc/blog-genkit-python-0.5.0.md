@@ -46,30 +46,33 @@ async def analyze_sentiment(text: str) -> str:
     return response.text  # Property, not method
 ```
 
-### Dynamic Tools and Traced Steps
+### Agentive Tool Calling
 
-Create tools dynamically at runtime with `ai.dynamic_tool()` and wrap functions in traced steps with `ai.run()`:
+Genkit makes it easy to give your AI agents the ability to call functions. Define tools with the `@ai.tool()` decorator:
 
 ```python
+from pydantic import BaseModel, Field
+
+class WeatherInput(BaseModel):
+    location: str = Field(description='City and state, e.g. San Francisco, CA')
+
+@ai.tool()
+def get_weather(input: WeatherInput) -> dict:
+    """Get the current weather for a location."""
+    return {
+        'location': input.location,
+        'temperature': 21.5,
+        'conditions': 'sunny',
+    }
+
 @ai.flow()
-async def advanced_demo(input_val: str) -> dict:
-    """Demonstrates ai.run() and ai.dynamic_tool()."""
-    # ai.run() wraps a function in a traced step (visible in Dev UI)
-    def process_data(data: str) -> str:
-        return f'processed: {data}'
-    
-    step_result = await ai.run('process_step', input_val, process_data)
-    
-    # ai.dynamic_tool() creates an unregistered tool on-the-fly
-    def multiplier_fn(x: int) -> int:
-        return x * 10
-    
-    dynamic_multiplier = ai.dynamic_tool(
-        'dynamic_multiplier', multiplier_fn, description='Multiplies by 10'
+async def weather_agent(location: str) -> str:
+    """AI agent that can check the weather."""
+    response = await ai.generate(
+        prompt=f"What's the weather in {location}?",
+        tools=[get_weather],
     )
-    tool_result = await dynamic_multiplier.arun(5)
-    
-    return {'step': step_result, 'tool': tool_result.response}
+    return response.text
 ```
 
 ### Enhanced Dotprompt Integration
