@@ -2655,3 +2655,119 @@ After updating the PR description file, push it to GitHub:
 # Update the PR body from the file
 gh pr edit <PR_NUMBER> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md
 ```
+
+### Release Publishing Process
+
+After the release PR is merged, follow these steps to complete the release.
+
+#### Step 1: Merge the Release PR
+
+```bash
+# Merge via GitHub UI or CLI
+gh pr merge <PR_NUMBER> --squash
+```
+
+#### Step 2: Create the Release Tag
+
+```bash
+# Ensure you're on main with latest changes
+git checkout main
+git pull origin main
+
+# Create an annotated tag for the release
+git tag -a py/vX.Y.Z -m "Genkit Python SDK vX.Y.Z
+
+See CHANGELOG.md for full release notes."
+
+# Push the tag
+git push origin py/vX.Y.Z
+```
+
+#### Step 3: Create GitHub Release
+
+Use the PR description as the release body with all contributors mentioned:
+
+```bash
+# Create release using the PR description file
+gh release create py/vX.Y.Z \
+  --title "Genkit Python SDK vX.Y.Z" \
+  --notes-file py/.github/PR_DESCRIPTION_X.Y.Z.md
+```
+
+**Important:** The GitHub release should include:
+- Full contributor tables with GitHub links
+- Impact summary
+- What's new section
+- Critical fixes and security
+- Breaking changes (if any)
+
+#### Step 4: Publish to PyPI
+
+Use the publish workflow with the "all" option:
+
+1. Go to **Actions** → **Publish Python Package**
+2. Click **Run workflow**
+3. Select `publish_scope: all`
+4. Click **Run workflow**
+
+This publishes all 23 packages in parallel:
+
+| Package Category | Packages |
+|------------------|----------|
+| **Core** | `genkit` |
+| **Model Providers** | `genkit-plugin-anthropic`, `genkit-plugin-aws-bedrock`, `genkit-plugin-cf-ai`, `genkit-plugin-deepseek`, `genkit-plugin-google-genai`, `genkit-plugin-huggingface`, `genkit-plugin-mistral`, `genkit-plugin-msfoundry`, `genkit-plugin-ollama`, `genkit-plugin-vertex-ai`, `genkit-plugin-xai` |
+| **Telemetry** | `genkit-plugin-aws`, `genkit-plugin-azure`, `genkit-plugin-cf`, `genkit-plugin-google-cloud`, `genkit-plugin-observability` |
+| **Data/Retrieval** | `genkit-plugin-dev-local-vectorstore`, `genkit-plugin-evaluators`, `genkit-plugin-firebase` |
+| **Other** | `genkit-plugin-flask`, `genkit-plugin-compat-oai`, `genkit-plugin-mcp` |
+
+For single package publish (e.g., hotfix):
+1. Select `publish_scope: single`
+2. Select appropriate `project_type` (packages/plugins)
+3. Select the specific `project_name`
+
+#### Step 5: Verify Publication
+
+```bash
+# Check versions on PyPI
+pip index versions genkit
+pip index versions genkit-plugin-google-genai
+
+# Test installation
+python -m venv /tmp/genkit-test
+source /tmp/genkit-test/bin/activate
+pip install genkit genkit-plugin-google-genai
+python -c "from genkit.ai import Genkit; print('Success!')"
+```
+
+#### v0.5.0 Release Summary
+
+For the v0.5.0 release specifically:
+
+| Metric | Value |
+|--------|-------|
+| **Commits** | 178 |
+| **Files Changed** | 680+ |
+| **Contributors** | 13 developers |
+| **PRs** | 188 |
+| **New PyPI Packages** | 14 (first publish) |
+| **Updated PyPI Packages** | 9 (from v0.4.0) |
+| **Total Packages** | 23 |
+
+**Packages on PyPI (existing - v0.4.0 → v0.5.0):**
+- genkit, genkit-plugin-compat-oai, genkit-plugin-dev-local-vectorstore
+- genkit-plugin-firebase, genkit-plugin-flask, genkit-plugin-google-cloud
+- genkit-plugin-google-genai, genkit-plugin-ollama, genkit-plugin-vertex-ai
+
+**New Packages (first publish at v0.5.0):**
+- genkit-plugin-anthropic, genkit-plugin-aws, genkit-plugin-aws-bedrock
+- genkit-plugin-azure, genkit-plugin-cf, genkit-plugin-cf-ai
+- genkit-plugin-deepseek, genkit-plugin-evaluators, genkit-plugin-huggingface
+- genkit-plugin-mcp, genkit-plugin-mistral, genkit-plugin-msfoundry
+- genkit-plugin-observability, genkit-plugin-xai
+
+#### Full Release Guide
+
+For detailed release instructions, see:
+- `py/engdoc/release-publishing-guide.md` - Complete step-by-step guide
+- `py/.github/PR_DESCRIPTION_0.5.0.md` - v0.5.0 PR description template
+- `py/CHANGELOG.md` - Full changelog format
