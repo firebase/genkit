@@ -2183,6 +2183,43 @@ grep -r "Output(schema=" py/samples/*/src/main.py | head -5
 grep -r "ai.run_main" py/samples/*/src/main.py | head -5
 ```
 
+**Verify blog code syntax matches codebase patterns:**
+
+CRITICAL: Before publishing any blog article, extract and validate ALL code snippets
+against the actual codebase to ensure they would compile/run correctly.
+
+```bash
+# Extract Python code blocks from a blog article and check for common errors
+grep -A 50 '```python' py/engdoc/blog-genkit-python-*.md | grep -E \
+  'response\.text\(\)|output_schema=|asyncio\.run\(|from genkit import Genkit'
+
+# Verify import statements match actual module structure
+python -c "from genkit.ai import Genkit, Output; print('Imports OK')"
+
+# Check that decorator patterns exist in codebase
+grep -r "@ai.flow()" py/samples/*/src/main.py | head -3
+grep -r "@ai.tool()" py/samples/*/src/main.py | head -3
+
+# Validate a blog article's code examples by syntax checking
+python -m py_compile <(grep -A 20 '```python' py/engdoc/blog-genkit-python-*.md | \
+  grep -v '```' | head -50) 2>&1 || echo "Syntax errors found!"
+```
+
+**Blog Article Code Review Checklist:**
+
+Before finalizing a blog article, manually verify:
+
+| Check | How to Verify |
+|-------|---------------|
+| No `response.text()` | Search for `\.text\(\)` - should find nothing |
+| Correct Output usage | Search for `output=Output(schema=` |
+| Module-level Genkit | `ai = Genkit(...)` outside any function |
+| `ai.run_main()` used | Not `asyncio.run()` for samples with Dev UI |
+| Pydantic imports | `from pydantic import BaseModel, Field` |
+| Tool decorator | `@ai.tool()` with Pydantic input schema |
+| Flow decorator | `@ai.flow()` for async functions |
+| No fictional features | DAP, MCP, etc. - only document shipped features |
+
 **Verify plugin names exist before documenting:**
 
 CRITICAL: Always verify plugin names against actual packages before including them in
