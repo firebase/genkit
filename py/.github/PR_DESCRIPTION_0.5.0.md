@@ -178,27 +178,27 @@ This release includes contributions from **13 developers** across **188 PRs**. T
 
 | Contributor | PRs | Commits | Key Contributions |
 |-------------|-----|---------|-------------------|
-| [**@yesudeep**](https://github.com/yesudeep) | 91 | 93 | Core framework architecture, async-first migration, type safety (ty/pyrefly/pyright integration), AWS Bedrock/X-Ray plugins, Azure OpenAI plugin, Cloudflare Workers AI plugin, Mistral AI plugin, Hugging Face plugin, CI/CD consolidation, security audits (Ruff S rules, SigV4 signing), dev server race condition fix, per-event-loop HTTP client caching, embed API refactor, DAP implementation, action latency tracking, array/enum/jsonl output formats |
-| [**@MengqinShen**](https://github.com/MengqinShen) (Elisa Shen) | 42 | 42 | Resource support implementation, sample maintenance (menu, short-n-long, tool-interrupt, prompt, ollama-hello, genai-image, code-execution, anthropic), Google GenAI model config updates, TTS/Veo model config, system prompt field additions, README updates, multi-round logic flows |
-| [**@AbeJLazaro**](https://github.com/AbeJLazaro) | 11 | 8 | Model Garden plugin (resolve/list actions), Ollama plugin (resolve action, type coverage, tests), Gemini complex schema support, Firestore plugin naming fix, evaluator plugin requirements, optional dependencies setup |
-| [**@pavelgj**](https://github.com/pavelgj) | 10 | 7 | Reflection API (multiple runtimes, health check), embedders fixes, Gemini model version upgrades (1.5→2.5) |
-| [**@zarinn3pal**](https://github.com/zarinn3pal) | 9 | 9 | Anthropic plugin, DeepSeek plugin (structured output fix), xAI plugin (config, samples), AIM telemetry (Firebase observability, metrics), ModelGarden plugin, OpenAI Compat tools sample |
-| [**@huangjeff5**](https://github.com/huangjeff5) | 7 | 7 | PluginV2 refactor (new registration pattern), type safety improvements, Pydantic output instances, real-time telemetry (trace ID formatting), session/chat refactor |
-| [**@hendrixmar**](https://github.com/hendrixmar) | 7 | 7 | Evaluator metrics (ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS), ModelReference, OpenAI compat plugin (list_actions, resolve_method), Dotprompt render methods (render_system_prompt, render_user_prompt) |
-| [**@ssbushi**](https://github.com/ssbushi) | 6 | 2 | Evaluator plugins with simple evaluators, documentation updates |
-| [**@shrutip90**](https://github.com/shrutip90) | 1 | 1 | ResourcePartSchema exports via genkit-tools |
-| [**@schlich**](https://github.com/schlich) | 1 | 1 | Type annotations for ai module |
-| [**@ktsmadhav**](https://github.com/ktsmadhav) | 1 | 1 | Windows support (file-safe timestamp format for runtime files) |
-| [**@junhyukhan**](https://github.com/junhyukhan) | 1 | 1 | Typo fixes |
-| [**@CorieW**](https://github.com/CorieW) | 1 | 1 | Community contribution |
+| [**@yesudeep**](https://github.com/yesudeep) | 91 | 93 | **Core**: async-first architecture (#4244), Genkit class methods (#4274), embed/embed_many API refactor (#4269), DAP factory pattern (#4377), centralized action latency (#4267), array/enum/jsonl output formats (#4230). **Plugins**: AWS Bedrock (#4389), AWS X-Ray with SigV4 (#4390, #4402), Azure OpenAI (#4383), Cloudflare Workers AI (#4405), Mistral AI (#4406), Hugging Face (#4406), GCP telemetry (#4281). **Type Safety**: ty integration (#4094), pyrefly (#4316), pyright (#4310), comprehensive fixes (#4249-4270). **DevEx**: hot reloading (#4268), per-event-loop HTTP caching (#4419, #4429), PySentry security (#4273), TODO linting (#4376), CI consolidation (#4410), session/chat API (#4278, #4275), background models (#4327), docs (#4322, #4393, #4430). **Samples**: 20+ sample fixes and improvements (#4283, #4373, #4375, #4427). |
+| [**@MengqinShen**](https://github.com/MengqinShen) (Elisa Shen) | 42 | 42 | **Core**: Resource support implementation (#4204). **Samples**: menu sample fixes (#4239, #4403), short-n-long (#4404), tool-interrupt (#4408), prompt sample (#4223, #4183), ollama-hello (#4133), genai-image (#4122, #4234), code-execution (#4134), anthropic sample (#4131). **Models**: Google GenAI model config (#4306), TTS/Veo model config (#4411), Gemini bug fixes (#4432), system prompt fields (#4391, #4418). **Docs**: README updates (#4323), multi-round flow logic (#4137). |
+| [**@AbeJLazaro**](https://github.com/AbeJLazaro) | 11 | 8 | **Plugins**: Model Garden resolve/list actions (#3040), Ollama resolve action (#2972), type coverage and tests (#3011). **Fixes**: Gemini complex schema support (#3049), Firestore plugin naming (#3085), evaluator plugin requirements (#3166), optional dependencies setup (#3012). **Tests**: Model Garden tests (#3083). |
+| [**@pavelgj**](https://github.com/pavelgj) | 10 | 7 | **Core**: Reflection API multi-runtime support (#3970), health check fixes (#3969). **Fixes**: Embedders reflection (#3969), Gemini version upgrades to 2.5 (#3909). |
+| [**@zarinn3pal**](https://github.com/zarinn3pal) | 9 | 9 | **Plugins**: Anthropic (#3919), DeepSeek (#4051, structured output fix #4374), xAI/Grok (#4001, config #4289), ModelGarden (#2568). **Telemetry**: AIM for Firebase observability (#3826, #4386). **Samples**: OpenAI Compat tools (#3684). |
+| [**@huangjeff5**](https://github.com/huangjeff5) | 7 | 7 | **Core**: PluginV2 refactor with new registration pattern (#4132), type safety improvements (#4310), Pydantic output instances (#4413), session/chat refactor (#4321). **Telemetry**: Real-time telemetry and trace ID formatting (#4285). |
+| [**@hendrixmar**](https://github.com/hendrixmar) | 7 | 7 | **Evaluators**: ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS metrics (#3806), ModelReference support (#3949, #3951). **Plugins**: OpenAI compat list_actions (#3240), resolve_method (#3055). **Dotprompt**: render_system_prompt (#3503), render_user_prompt (#3705). |
+| [**@ssbushi**](https://github.com/ssbushi) | 6 | 2 | **Evaluators**: Simple evaluators plugin (#2835). **Docs**: MkDocs API reference updates (#2852), genkit-tools model optional (#3918). |
+| [**@shrutip90**](https://github.com/shrutip90) | 1 | 1 | **Types**: ResourcePartSchema exports via genkit-tools (#3239). |
+| [**@schlich**](https://github.com/schlich) | 1 | 1 | **Types**: Type annotations for ai module. |
+| [**@ktsmadhav**](https://github.com/ktsmadhav) | 1 | 1 | **Fixes**: Windows support with file-safe timestamp format (#3727). |
+| [**@junhyukhan**](https://github.com/junhyukhan) | 1 | 1 | **Docs**: Typo fixes. |
+| [**@CorieW**](https://github.com/CorieW) | 1 | 1 | Community contribution. |
 
 **[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt Python integration):
 
-| Contributor | PRs | Key Contributions |
-|-------------|-----|-------------------|
-| [**@yesudeep**](https://github.com/yesudeep) | 50+ | Rust-based Handlebars engine (dotpromptz-handlebars), Python 3.14 PyO3/maturin support, cycle detection, release pipeline optimization (30min→2min), Bazel rules, Monaco/CodeMirror integrations |
-| [**@MengqinShen**](https://github.com/MengqinShen) | 42 | CI/CD pipeline automation, Python package publishing workflows, release automation, dotpromptz releases |
-| [**@Zereker**](https://github.com/Zereker) | 1 | Go closure fix preventing template sharing |
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| [**@yesudeep**](https://github.com/yesudeep) | 50+ | 100+ | **Rust Engine**: dotpromptz-handlebars with PyO3/maturin (#365), Python 3.14 ABI support, Rust Handlebars runtime. **Features**: Cycle detection in partial resolution, path traversal hardening (CWE-22), directory/file prompt loading (#3955, #3971), Handlebars partials (#4088), callable prompts (#4053). **Build**: Bazel rules_dart/rules_flutter, release pipeline 15x faster (30min→2min), maturin wheel builds. **IDE**: Monaco syntax highlighting, CodeMirror 6 integration, Storybook demos. **Polyglot**: Python, Go, Dart, Rust, TypeScript implementations. |
+| [**@MengqinShen**](https://github.com/MengqinShen) | 42 | 45 | **CI/CD**: GitHub Actions workflows for Python package publishing, automated release-please, dotpromptz PyPI releases (0.1.2-0.1.5), handlebarrz releases, wheel artifact management. |
+| [**@Zereker**](https://github.com/Zereker) | 1 | 1 | **Go**: Closure fix preventing template sharing between instances. |
 
 ## Full Changelog
 
