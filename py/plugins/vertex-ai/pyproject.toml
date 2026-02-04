@@ -74,4 +74,5 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/genkit", "src/genkit/plugins"]
+only-include = ["src/genkit/plugins/vertex_ai"]
+sources = ["src"]
