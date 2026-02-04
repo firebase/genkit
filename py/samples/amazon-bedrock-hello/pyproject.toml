@@ -19,13 +19,13 @@ authors = [{ name = "Google" }]
 dependencies = [
   "rich>=13.0.0",
   "genkit",
-  "genkit-plugin-aws-bedrock",
+  "genkit-plugin-amazon-bedrock",
   "pydantic>=2.0.0",
   "structlog>=24.0.0",
   "uvloop>=0.21.0",
 ]
-description = "AWS Bedrock Hello Sample"
-name = "aws-bedrock-hello"
+description = "Amazon Bedrock Hello Sample"
+name = "amazon-bedrock-hello"
 requires-python = ">=3.10"
 version = "0.1.0"
 
@@ -33,7 +33,7 @@ version = "0.1.0"
 dev = ["watchdog>=6.0.0"]
 
 [tool.uv.sources]
-genkit-plugin-aws-bedrock = { workspace = true }
+genkit-plugin-amazon-bedrock = { workspace = true }
 
 [build-system]
 build-backend = "hatchling.build"

@@ -70,4 +70,4 @@ requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
 only-include = ["src/genkit/plugins/firebase"]
-sources = ["src"]
+sources      = ["src"]

@@ -1,6 +1,8 @@
-# AWS Bedrock Hello Sample
+# Amazon Bedrock Hello Sample
 
-This sample demonstrates how to use AWS Bedrock models with Genkit.
+> **Community Plugin** – This plugin is maintained by the community and is supported on a best-effort basis. It is not an official AWS product.
+
+This sample demonstrates how to use Amazon Bedrock models with Genkit, including AWS X-Ray telemetry for distributed tracing.
 
 ## Prerequisites
 
@@ -10,17 +12,17 @@ This sample demonstrates how to use AWS Bedrock models with Genkit.
    - IAM credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
    - AWS credentials file (`~/.aws/credentials`)
    - IAM role (for EC2, Lambda, ECS, etc.)
-3. **Model Access** enabled in AWS Bedrock console for the models you want to use
+3. **Model Access** enabled in Amazon Bedrock console for the models you want to use
 
 ## Setup
 
 ### Option A: Bedrock API Key (Simplest - Recommended for Development)
 
-AWS Bedrock now supports API keys similar to OpenAI/Anthropic. This is the simplest way to get started.
+Amazon Bedrock now supports API keys similar to OpenAI/Anthropic. This is the simplest way to get started.
 
 **Step 1: Generate an API Key**
 
-1. Go to [AWS Bedrock Console](https://console.aws.amazon.com/bedrock/)
+1. Go to [Amazon Bedrock Console](https://console.aws.amazon.com/bedrock/)
 2. Select your region (e.g., `us-east-1`)
 3. Click **API keys** in the left sidebar (under "Bedrock configurations")
 4. Click **Generate API key**
@@ -79,7 +81,7 @@ If you don't have AWS credentials yet, follow these steps:
 
 ### Step 2: Enable Model Access
 
-1. Go to the [AWS Bedrock Console](https://console.aws.amazon.com/bedrock/)
+1. Go to the [Amazon Bedrock Console](https://console.aws.amazon.com/bedrock/)
 2. Select your region (e.g., `us-east-1`) from the top-right dropdown
 3. Click **Model access** in the left sidebar (under "Bedrock configurations")
 4. Click **Modify model access**
@@ -159,6 +161,7 @@ This will start the Genkit Dev UI and the sample application with hot reloading.
 | Structured Output | `generate_character` | Generate JSON-structured output |
 | Multimodal | `describe_image` | Image description (Claude, Nova) |
 | Embeddings | `embed_text` | Text embeddings (Titan, Cohere) |
+| AWS X-Ray Telemetry | `add_aws_telemetry()` | Distributed tracing to X-Ray console |
 
 ## Supported Models
 
@@ -176,7 +179,7 @@ The sample uses Claude Sonnet 4.5 by default and auto-detects your authenticatio
 ### Using Pre-defined Model References (IAM Credentials)
 
 ```python
-from genkit.plugins.aws_bedrock import claude_sonnet_4_5, nova_pro, llama_3_3_70b
+from genkit.plugins.amazon_bedrock import claude_sonnet_4_5, nova_pro, llama_3_3_70b
 
 # Pre-defined references use direct model IDs
 ai = Genkit(model=claude_sonnet_4_5)
@@ -185,7 +188,7 @@ ai = Genkit(model=claude_sonnet_4_5)
 ### Using Inference Profiles (API Keys)
 
 ```python
-from genkit.plugins.aws_bedrock import inference_profile
+from genkit.plugins.amazon_bedrock import inference_profile
 
 # inference_profile() auto-detects region from AWS_REGION
 model = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0')
@@ -212,7 +215,7 @@ model = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0', 'eu-west-
 - **Cohere**: command-r-plus, command-r
 
 See:
-- [AWS Bedrock Supported Models](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
+- [Amazon Bedrock Supported Models](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
 - [Cross-Region Inference Profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html)
 
 ## Testing the Flows
@@ -282,7 +285,7 @@ model = 'anthropic.claude-sonnet-4-5-20250929-v1:0'
 model = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0'
 
 # Or use the pre-defined references (already use inference profiles):
-from genkit.plugins.aws_bedrock import claude_sonnet_4_5
+from genkit.plugins.amazon_bedrock import claude_sonnet_4_5
 model = claude_sonnet_4_5
 ```
 
@@ -295,7 +298,7 @@ model = claude_sonnet_4_5
 
 ## Resources
 
-- [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html)
+- [Amazon Bedrock Documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html)
 - [Supported Models](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
 - [Model Parameters](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html)
 - [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html)

@@ -28,8 +28,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.plugins.aws_bedrock import (
-    AWS_BEDROCK_PLUGIN_NAME,
+from genkit.plugins.amazon_bedrock import (
+    AMAZON_BEDROCK_PLUGIN_NAME,
     AnthropicConfig,
     BedrockConfig,
     CohereConfig,
@@ -48,13 +48,13 @@ from genkit.plugins.aws_bedrock import (
     mistral_large_3,
     nova_pro,
 )
-from genkit.plugins.aws_bedrock.models.model import BedrockModel
-from genkit.plugins.aws_bedrock.models.model_info import (
+from genkit.plugins.amazon_bedrock.models.model import BedrockModel
+from genkit.plugins.amazon_bedrock.models.model_info import (
     SUPPORTED_BEDROCK_MODELS,
     SUPPORTED_EMBEDDING_MODELS,
     get_model_info,
 )
-from genkit.plugins.aws_bedrock.typing import (
+from genkit.plugins.amazon_bedrock.typing import (
     AI21JambaConfig,
     AmazonNovaConfig,
     CohereSafetyMode,
@@ -72,25 +72,25 @@ class TestBedrockNaming:
     def test_bedrock_name_basic(self) -> None:
         """Test bedrock_name creates fully qualified names."""
         result = bedrock_name('anthropic.claude-sonnet-4-5-20250929-v1:0')
-        assert result == 'aws-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0'
+        assert result == 'amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0'
 
     def test_bedrock_model_alias(self) -> None:
         """Test bedrock_model is an alias for bedrock_name."""
         result = bedrock_model('meta.llama3-3-70b-instruct-v1:0')
-        assert result == 'aws-bedrock/meta.llama3-3-70b-instruct-v1:0'
+        assert result == 'amazon-bedrock/meta.llama3-3-70b-instruct-v1:0'
 
     def test_predefined_model_references(self) -> None:
         """Test predefined model references are correctly formatted with direct model IDs."""
         # Pre-defined references use direct model IDs (work with IAM credentials)
-        assert claude_sonnet_4_5 == 'aws-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0'
-        assert nova_pro == 'aws-bedrock/amazon.nova-pro-v1:0'
-        assert llama_3_3_70b == 'aws-bedrock/meta.llama3-3-70b-instruct-v1:0'
-        assert mistral_large_3 == 'aws-bedrock/mistral.mistral-large-3-675b-instruct'
-        assert deepseek_r1 == 'aws-bedrock/deepseek.r1-v1:0'
+        assert claude_sonnet_4_5 == 'amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0'
+        assert nova_pro == 'amazon-bedrock/amazon.nova-pro-v1:0'
+        assert llama_3_3_70b == 'amazon-bedrock/meta.llama3-3-70b-instruct-v1:0'
+        assert mistral_large_3 == 'amazon-bedrock/mistral.mistral-large-3-675b-instruct'
+        assert deepseek_r1 == 'amazon-bedrock/deepseek.r1-v1:0'
 
     def test_plugin_name_constant(self) -> None:
         """Test plugin name constant."""
-        assert AWS_BEDROCK_PLUGIN_NAME == 'aws-bedrock'
+        assert AMAZON_BEDROCK_PLUGIN_NAME == 'amazon-bedrock'
 
 
 class TestConfigSchemaMapping:
@@ -451,23 +451,23 @@ class TestInferenceProfileHelpers:
     def test_inference_profile_us(self) -> None:
         """Test inference_profile with US region."""
         result = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0', 'us-east-1')
-        assert result == 'aws-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0'
+        assert result == 'amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0'
 
     def test_inference_profile_eu(self) -> None:
         """Test inference_profile with EU region."""
         result = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0', 'eu-west-1')
-        assert result == 'aws-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0'
+        assert result == 'amazon-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0'
 
     def test_inference_profile_apac(self) -> None:
         """Test inference_profile with APAC region."""
         result = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0', 'ap-northeast-1')
-        assert result == 'aws-bedrock/apac.anthropic.claude-sonnet-4-5-20250929-v1:0'
+        assert result == 'amazon-bedrock/apac.anthropic.claude-sonnet-4-5-20250929-v1:0'
 
     def test_inference_profile_default_region(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test inference_profile uses AWS_REGION env var when no region specified."""
         monkeypatch.setenv('AWS_REGION', 'eu-central-1')
         result = inference_profile('amazon.nova-pro-v1:0')
-        assert result == 'aws-bedrock/eu.amazon.nova-pro-v1:0'
+        assert result == 'amazon-bedrock/eu.amazon.nova-pro-v1:0'
 
     def test_inference_profile_no_region_raises_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test inference_profile raises error when no region is available."""

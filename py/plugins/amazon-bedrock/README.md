@@ -1,12 +1,14 @@
-# Genkit AWS Bedrock Plugin
+# Genkit Amazon Bedrock Plugin
 
-`genkit-plugin-aws-bedrock` is a plugin for using Amazon Bedrock models with [Genkit](https://github.com/firebase/genkit).
+> **Community Plugin** – This plugin is maintained by the community and is supported on a best-effort basis. It is not an official AWS product.
+
+`genkit-plugin-amazon-bedrock` is a plugin for using Amazon Bedrock models with [Genkit](https://github.com/firebase/genkit). It provides access to foundation models AND AWS X-Ray telemetry in a single package.
 
 Amazon Bedrock is a fully managed service that provides access to foundation models from leading AI providers including Amazon, Anthropic, Meta, Mistral, Cohere, DeepSeek, and more through a unified API.
 
 ## Documentation Links
 
-- **AWS Bedrock Console**: https://console.aws.amazon.com/bedrock/
+- **Amazon Bedrock Console**: https://console.aws.amazon.com/bedrock/
 - **Supported Models**: https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html
 - **Model Parameters**: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html
 - **Converse API**: https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html
@@ -15,7 +17,7 @@ Amazon Bedrock is a fully managed service that provides access to foundation mod
 ## Installation
 
 ```bash
-pip install genkit-plugin-aws-bedrock
+pip install genkit-plugin-amazon-bedrock
 ```
 
 ## Setup
@@ -24,19 +26,19 @@ You'll need AWS credentials configured. The plugin supports multiple authenticat
 
 ### Option 1: Bedrock API Key (Simplest)
 
-AWS Bedrock now supports API keys similar to OpenAI/Anthropic:
+Amazon Bedrock now supports API keys similar to OpenAI/Anthropic:
 
 ```bash
 export AWS_REGION="us-east-1"
 export AWS_BEARER_TOKEN_BEDROCK="your-api-key"
 ```
 
-Generate an API key in [AWS Bedrock Console](https://console.aws.amazon.com/bedrock/) > API keys.
+Generate an API key in [Amazon Bedrock Console](https://console.aws.amazon.com/bedrock/) > API keys.
 
 **Important**: API keys require [inference profiles](#cross-region-inference-profiles) instead of direct model IDs. Use the `inference_profile()` helper:
 
 ```python
-from genkit.plugins.aws_bedrock import inference_profile
+from genkit.plugins.amazon_bedrock import inference_profile
 
 model = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0')
 ```
@@ -87,15 +89,42 @@ Your AWS credentials need the following permissions:
 }
 ```
 
+## AWS X-Ray Telemetry
+
+This plugin includes built-in AWS X-Ray telemetry support. Enable it to send distributed traces to AWS X-Ray console:
+
+```python
+from genkit.plugins.amazon_bedrock import add_aws_telemetry
+
+# Enable X-Ray telemetry (call once at startup)
+add_aws_telemetry(region="us-east-1")
+```
+
+Traces will be visible in the [AWS X-Ray Console](https://console.aws.amazon.com/xray/home).
+
+### IAM Permissions for X-Ray
+
+Add these permissions for telemetry:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+  "Resource": "*"
+}
+```
+
+Or attach the managed policy: `AWSXrayWriteOnlyPolicy`
+
 ## Basic Usage
 
 ```python
 from genkit import Genkit
-from genkit.plugins.aws_bedrock import AWSBedrock, bedrock_model
+from genkit.plugins.amazon_bedrock import AmazonBedrock, bedrock_model
 
 ai = Genkit(
     plugins=[
-        AWSBedrock(region="us-east-1")
+        AmazonBedrock(region="us-east-1")
     ],
     model=bedrock_model("anthropic.claude-sonnet-4-5-20250929-v1:0"),
 )
@@ -109,7 +138,7 @@ print(response.text)
 ```python
 ai = Genkit(
     plugins=[
-        AWSBedrock(
+        AmazonBedrock(
             region="us-east-1",
             access_key_id="your-access-key",
             secret_access_key="your-secret-key",
@@ -124,7 +153,7 @@ ai = Genkit(
 ```python
 ai = Genkit(
     plugins=[
-        AWSBedrock(
+        AmazonBedrock(
             region="us-east-1",
             profile_name="my-aws-profile",
         )
@@ -157,15 +186,15 @@ ai = Genkit(
 ### Anthropic Claude
 
 ```python
-from genkit.plugins.aws_bedrock import (
-    AWSBedrock,
+from genkit.plugins.amazon_bedrock import (
+    AmazonBedrock,
     bedrock_model,
     claude_sonnet_4_5,
     claude_opus_4_5,
 )
 
 ai = Genkit(
-    plugins=[AWSBedrock(region="us-east-1")],
+    plugins=[AmazonBedrock(region="us-east-1")],
     model=claude_sonnet_4_5,
 )
 
@@ -175,7 +204,7 @@ response = await ai.generate(prompt="Explain quantum computing")
 ### Amazon Nova
 
 ```python
-from genkit.plugins.aws_bedrock import nova_pro, nova_lite
+from genkit.plugins.amazon_bedrock import nova_pro, nova_lite
 
 response = await ai.generate(
     model=nova_pro,
@@ -187,7 +216,7 @@ response = await ai.generate(
 ### Meta Llama
 
 ```python
-from genkit.plugins.aws_bedrock import llama_3_3_70b, llama_4_maverick
+from genkit.plugins.amazon_bedrock import llama_3_3_70b, llama_4_maverick
 
 response = await ai.generate(
     model=llama_4_maverick,
@@ -198,7 +227,7 @@ response = await ai.generate(
 ### DeepSeek R1 (Reasoning)
 
 ```python
-from genkit.plugins.aws_bedrock import deepseek_r1
+from genkit.plugins.amazon_bedrock import deepseek_r1
 
 response = await ai.generate(
     model=deepseek_r1,
@@ -212,7 +241,7 @@ response = await ai.generate(
 The plugin supports model-specific configuration parameters:
 
 ```python
-from genkit.plugins.aws_bedrock import BedrockConfig
+from genkit.plugins.amazon_bedrock import BedrockConfig
 
 response = await ai.generate(
     prompt="Tell me a story",
@@ -240,7 +269,7 @@ response = await ai.generate(
 Each model family has its own configuration class with provider-specific parameters:
 
 ```python
-from genkit.plugins.aws_bedrock import AnthropicConfig, CohereConfig, MetaLlamaConfig
+from genkit.plugins.amazon_bedrock import AnthropicConfig, CohereConfig, MetaLlamaConfig
 
 # Anthropic Claude with top_k
 response = await ai.generate(
@@ -297,13 +326,13 @@ from genkit.blocks.document import Document
 
 # Amazon Titan Embeddings
 response = await ai.embed(
-    embedder="aws-bedrock/amazon.titan-embed-text-v2:0",
+    embedder="amazon-bedrock/amazon.titan-embed-text-v2:0",
     input=[Document.from_text("Hello, world!")],
 )
 
 # Cohere Embeddings
 response = await ai.embed(
-    embedder="aws-bedrock/cohere.embed-english-v3",
+    embedder="amazon-bedrock/cohere.embed-english-v3",
     input=[Document.from_text("Hello, world!")],
 )
 ```
@@ -315,15 +344,15 @@ response = await ai.embed(
 ### Inference Profile Helper
 
 ```python
-from genkit.plugins.aws_bedrock import inference_profile
+from genkit.plugins.amazon_bedrock import inference_profile
 
 # Auto-detects region from AWS_REGION environment variable
 model = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0')
-# → 'aws-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0' (if AWS_REGION=us-east-1)
+# → 'amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0' (if AWS_REGION=us-east-1)
 
 # Or specify region explicitly
 model = inference_profile('anthropic.claude-sonnet-4-5-20250929-v1:0', 'eu-west-1')
-# → 'aws-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0'
+# → 'amazon-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0'
 ```
 
 ### Regional Prefixes

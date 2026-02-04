@@ -95,7 +95,7 @@ The plugin automatically detects API key auth and adds the appropriate regional
 prefix (``us.``, ``eu.``, ``apac.``) based on ``AWS_REGION``::
 
     # User specifies direct model ID
-    model = 'aws-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0'
+    model = 'amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0'
 
     # With API key auth and AWS_REGION=us-east-1, automatically converts to:
     modelId = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0'
@@ -130,7 +130,7 @@ import httpx
 
 from genkit.ai import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.plugins.aws_bedrock.typing import BedrockConfig
+from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit.types import (
     FinishReason,
     GenerateRequest,

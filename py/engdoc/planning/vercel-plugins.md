@@ -328,7 +328,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 
 | Platform | AI Plugin | Telemetry Plugin | Python Runtime |
 |----------|-----------|------------------|----------------|
-| **AWS** | ✅ aws-bedrock | ✅ aws | ✅ Full |
+| **AWS** | ✅ amazon-bedrock | ✅ aws | ✅ Full |
 | **GCP** | ✅ google-genai | ✅ google-cloud | ✅ Full |
 | **Azure** | ✅ msfoundry | ✅ azure (planned) | ✅ Full |
 | **Cloudflare** | ✅ cloudflare-ai (planned) | ⚠️ AI Gateway only | ✅ Workers |

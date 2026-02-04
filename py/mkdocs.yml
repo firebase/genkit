@@ -75,7 +75,7 @@ plugins:
             - packages/genkit/src
             # Model provider plugins
             - plugins/anthropic/src
-            - plugins/aws-bedrock/src
+            - plugins/amazon-bedrock/src
             - plugins/cf-ai/src
             - plugins/deepseek/src
             - plugins/google-genai/src

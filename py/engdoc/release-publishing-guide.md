@@ -47,7 +47,7 @@ cd py && ./bin/validate_release_docs  # Release doc validation
 **New packages (first publish at v0.5.0):**
 - genkit-plugin-anthropic
 - genkit-plugin-aws
-- genkit-plugin-aws-bedrock
+- genkit-plugin-amazon-bedrock
 - genkit-plugin-azure
 - genkit-plugin-cf
 - genkit-plugin-cf-ai
@@ -168,7 +168,7 @@ pip install genkit-plugin-google-genai    # Google AI (Gemini)
 pip install genkit-plugin-anthropic       # Anthropic (Claude)
 pip install genkit-plugin-ollama          # Ollama (local models)
 pip install genkit-plugin-vertex-ai       # Vertex AI
-pip install genkit-plugin-aws-bedrock     # AWS Bedrock
+pip install genkit-plugin-amazon-bedrock     # AWS Bedrock
 pip install genkit-plugin-mistral         # Mistral AI
 pip install genkit-plugin-deepseek        # DeepSeek
 pip install genkit-plugin-xai             # xAI (Grok)

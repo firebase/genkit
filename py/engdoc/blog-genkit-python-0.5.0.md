@@ -184,7 +184,7 @@ Better error output with [Rich](https://github.com/Textualize/rich) tracebacks i
 | `genkit-plugin-google-genai` | Gemini 2.5, Imagen, embeddings | ✅ Stable |
 | `genkit-plugin-ollama` | Gemma, Llama, Mistral (local) | ✅ Stable |
 | `genkit-plugin-anthropic` | Claude 3.5 Sonnet, Opus | ✅ New |
-| `genkit-plugin-aws-bedrock` | Claude, Titan, Llama via AWS | ✅ New |
+| `genkit-plugin-amazon-bedrock` | Claude, Titan, Llama via AWS | ✅ New |
 | `genkit-plugin-msfoundry` | Azure OpenAI | ✅ New |
 | `genkit-plugin-cf-ai` | Cloudflare Workers AI | ✅ New |
 | `genkit-plugin-mistral` | Mistral Large, Codestral | ✅ New |
@@ -219,7 +219,7 @@ pip install genkit==0.5.0
 Or with specific plugins:
 
 ```bash
-pip install genkit[google-genai,anthropic,aws-bedrock]==0.5.0
+pip install genkit[google-genai,anthropic,amazon-bedrock]==0.5.0
 ```
 
 ### Quick Start Example

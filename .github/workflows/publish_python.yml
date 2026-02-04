@@ -45,7 +45,7 @@ on:
           - genkit
           # Model provider plugins
           - anthropic
-          - aws-bedrock
+          - amazon-bedrock
           - cf-ai
           - deepseek
           - google-genai

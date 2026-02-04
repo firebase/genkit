@@ -77,4 +77,4 @@ requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
 only-include = ["src/genkit/plugins/observability"]
-sources = ["src"]
+sources      = ["src"]

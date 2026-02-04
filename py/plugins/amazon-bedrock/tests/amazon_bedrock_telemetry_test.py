@@ -14,11 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for AWS telemetry plugin.
+"""Tests for AWS X-Ray telemetry integration in the amazon-bedrock plugin.
 
-This module tests the AWS telemetry integration including:
+Covers:
 - Region resolution from environment variables
-- Telemetry configuration and exporter setup
+- X-Ray OTLP endpoint configuration
+- AwsXRayOtlpExporter with SigV4 authentication
+- SigV4SigningAdapter for HTTPS requests
 - AwsTelemetry manager class
 - TimeAdjustedSpan for zero-duration spans
 - Log-trace correlation
@@ -31,7 +33,7 @@ from unittest import mock
 import pytest
 import requests
 
-from genkit.plugins.aws.telemetry.tracing import (
+from genkit.plugins.amazon_bedrock.telemetry.tracing import (
     XRAY_OTLP_ENDPOINT_PATTERN,
     AwsAdjustingTraceExporter,
     AwsTelemetry,
@@ -339,7 +341,7 @@ class TestAwsTelemetry:
             telemetry = AwsTelemetry()
             event_dict: dict[str, str] = {'message': 'test'}
 
-            with mock.patch('genkit.plugins.aws.telemetry.tracing.trace') as mock_trace:
+            with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.trace') as mock_trace:
                 mock_trace.get_current_span.return_value = mock_trace.INVALID_SPAN
                 result = telemetry._inject_trace_context(event_dict)
 
@@ -359,10 +361,10 @@ class TestAddAwsTelemetry:
         """Should accept explicit region parameter."""
         with mock.patch.dict(os.environ, {}, clear=True):
             # Mock the exporter to avoid actual export
-            with mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add:
-                with mock.patch('genkit.plugins.aws.telemetry.tracing.propagate'):
-                    with mock.patch('genkit.plugins.aws.telemetry.tracing.trace'):
-                        with mock.patch('genkit.plugins.aws.telemetry.tracing.structlog'):
+            with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.add_custom_exporter') as mock_add:
+                with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.propagate'):
+                    with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.trace'):
+                        with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.structlog'):
                             add_aws_telemetry(region='us-west-2')
                             mock_add.assert_called_once()
 
@@ -371,10 +373,10 @@ class TestAddAwsTelemetry:
         with (
             mock.patch.dict(os.environ, {'AWS_REGION': 'us-west-2'}),
             mock.patch(
-                'genkit.plugins.aws.telemetry.tracing.is_dev_environment',
+                'genkit.plugins.amazon_bedrock.telemetry.tracing.is_dev_environment',
                 return_value=True,
             ),
-            mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add,
+            mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.add_custom_exporter') as mock_add,
         ):
             add_aws_telemetry(force_dev_export=False)
             mock_add.assert_not_called()
@@ -384,21 +386,38 @@ class TestAddAwsTelemetry:
         with (
             mock.patch.dict(os.environ, {'AWS_REGION': 'us-west-2'}),
             mock.patch(
-                'genkit.plugins.aws.telemetry.tracing.is_dev_environment',
+                'genkit.plugins.amazon_bedrock.telemetry.tracing.is_dev_environment',
                 return_value=True,
             ),
-            mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add,
+            mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.add_custom_exporter') as mock_add,
         ):
-            with mock.patch('genkit.plugins.aws.telemetry.tracing.propagate'):
-                with mock.patch('genkit.plugins.aws.telemetry.tracing.trace'):
-                    with mock.patch('genkit.plugins.aws.telemetry.tracing.structlog'):
+            with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.propagate'):
+                with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.trace'):
+                    with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.structlog'):
                         add_aws_telemetry(force_dev_export=True)
                         mock_add.assert_called_once()
 
     def test_disable_traces(self) -> None:
         """Should not add exporter when disable_traces=True."""
         with mock.patch.dict(os.environ, {'AWS_REGION': 'us-west-2'}):
-            with mock.patch('genkit.plugins.aws.telemetry.tracing.add_custom_exporter') as mock_add:
-                with mock.patch('genkit.plugins.aws.telemetry.tracing.structlog'):
+            with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.add_custom_exporter') as mock_add:
+                with mock.patch('genkit.plugins.amazon_bedrock.telemetry.tracing.structlog'):
                     add_aws_telemetry(disable_traces=True)
                     mock_add.assert_not_called()
+
+
+class TestTelemetryExportFromPlugin:
+    """Tests for the add_aws_telemetry export from the main plugin."""
+
+    def test_add_aws_telemetry_exported(self) -> None:
+        """add_aws_telemetry should be exported from the main plugin."""
+        from genkit.plugins.amazon_bedrock import add_aws_telemetry as exported_fn
+
+        # Verify it's the same function
+        assert exported_fn is add_aws_telemetry
+
+    def test_add_aws_telemetry_in_all(self) -> None:
+        """add_aws_telemetry should be in __all__."""
+        from genkit.plugins import amazon_bedrock
+
+        assert 'add_aws_telemetry' in amazon_bedrock.__all__
