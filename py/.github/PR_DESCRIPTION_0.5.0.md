@@ -10,7 +10,7 @@ This is a **major release** of the Genkit Python SDK with **178 commits** and **
 |----------|--------|-------------------|
 | **New Model Plugins** | 🟢 High - 7 new providers | No (additive) |
 | **New Telemetry Plugins** | 🟢 High - 3 new providers | No (additive) |
-| **Core Features** | 🟢 High - DAP, sessions, rerankers | No (additive) |
+| **Core Features** | 🟢 High - DAP, rerankers, Dotprompt | No (additive) |
 | **PluginV2 Refactor** | 🟡 Medium | Yes - plugin authors |
 | **Async-First Architecture** | 🟡 Medium | Yes - if using sync APIs |
 | **Type Safety** | 🟢 High | No (stricter checks) |
@@ -43,14 +43,22 @@ This is a **major release** of the Genkit Python SDK with **178 commits** and **
 ### Core Framework Features
 
 - **Dynamic Action Provider (DAP)**: Factory pattern for runtime action creation
-- **Session Management**: `ai.chat()` API with conversation persistence
 - **Rerankers**: Initial reranker implementation for RAG pipelines
 - **Background Models**: Dynamic model discovery and background action support
 - **Resource Support**: Full MCP resource management
 - **Evaluator Metrics**: ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS
-- **Directory/File Prompt Loading**: Automatic prompt discovery (JS SDK parity)
 - **Output Formats**: Array, enum, JSONL formats (JS SDK parity)
 - **Pydantic Output**: Return typed Pydantic instances from generation
+
+### Dotprompt Integration (via [google/dotprompt](https://github.com/google/dotprompt))
+
+- **Dotpromptz 0.1.5**: Latest version with type-safe schema fields
+- **Directory/File Prompt Loading**: Automatic prompt discovery matching JS SDK
+- **Handlebars Partials**: `define_partial` for template reuse
+- **Render Methods**: `render_system_prompt` and `render_user_prompt`
+- **Callable Support**: Prompts can be used directly as callables
+- **Security**: Cycle detection in partials, path traversal hardening (CWE-22)
+- **Helper Parity**: Consistent Handlebars helper behavior across all runtimes
 
 ## Breaking Changes
 
@@ -88,20 +96,18 @@ result = await flow.run(input)  # Use async/await
 # Or use asyncio.run() at entry points
 ```
 
-### 3. Session/Chat API Changes (#4321)
+### 3. Embed API Refactor (#4269)
 
-**Impact**: Session management moved to internal blocks.
+**Impact**: `embed/embed_many` API updated for JS parity.
 
 **Before**:
 ```python
-from genkit import Session
-session = Session()
+# Old API signature
 ```
 
 **After**:
 ```python
-# Use ai.chat() API instead
-response = await ai.chat(messages)
+# New API matches JS SDK patterns
 ```
 
 ## Type Safety Improvements

@@ -17,7 +17,7 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 | Category | Impact Level | Description |
 |----------|-------------|-------------|
 | **New Plugins** | 🟢 High | 7 new model providers and 3 new telemetry plugins |
-| **Core Features** | 🟢 High | DAP, session management, rerankers, background models |
+| **Core Features** | 🟢 High | DAP, rerankers, background models, Dotprompt integration |
 | **Type Safety** | 🟡 Medium | Comprehensive type checking with ty/pyrefly/pyright |
 | **Breaking Changes** | 🟡 Medium | PluginV2 refactor requires migration |
 | **Developer Experience** | 🟢 High | Hot reloading, improved samples, better docs |
@@ -42,17 +42,24 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 
 #### Core Framework Features
 - **Dynamic Action Provider (DAP)**: Factory pattern for runtime action creation (#4377)
-- **Session Management**: `ai.chat()` API with session persistence (#4275, #4278)
 - **Rerankers**: Initial reranker implementation for RAG pipelines (#4065)
 - **Background Models**: Dynamic model discovery and background action support (#4327)
 - **Resource Support**: Full resource management with MCP integration (#4204, #4048)
 - **Evaluator Metrics**: ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS metrics (#3806)
 - **MCP Plugin**: Model Context Protocol integration with tests (#4054)
-- **Directory/File Prompt Loading**: Automatic prompt discovery matching JS SDK (#3955, #3971)
 - **Retriever/Embedder References**: Reference support matching JS SDK (#3922, #3936)
-- **Handlebars Partials**: `define_partial` for template reuse (#4088)
 - **Output Formats**: Array, enum, and JSONL formats for JS parity (#4230)
 - **Pydantic Output**: Return Pydantic instances when output schema passed (#4413)
+
+#### Dotprompt Integration (via [google/dotprompt](https://github.com/google/dotprompt))
+- **Dotpromptz 0.1.5**: Upgraded to latest version with type-safe schema fields
+- **Directory/File Prompt Loading**: Automatic prompt discovery matching JS SDK (#3955, #3971)
+- **Handlebars Partials**: `define_partial` for template reuse (#4088)
+- **Render System Prompts**: `render_system_prompt` and `render_user_prompt` methods (#3503, #3705)
+- **Callable Support**: Prompts can now be used as callables (#4053)
+- **Cycle Detection**: Partial resolution with cycle detection for safety
+- **Path Traversal Hardening**: Security fix for CWE-22 vulnerability
+- **Helper Parity**: Consistent Handlebars helper behavior across all runtimes
 
 #### Developer Experience
 - **Hot Reloading**: Watchdog-based autoreloading for all samples (#4268)
@@ -77,8 +84,7 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 - **Roadmap**: Plugin API conformance analysis (#4431)
 
 #### Samples & Demos
-- **New Samples**: tool-interrupt, short-n-long, media-models-demo, chat samples
-- **Streamlit Demos**: Interactive session management demonstrations
+- **New Samples**: tool-interrupt, short-n-long, media-models-demo, prompt samples
 - **Run Script Standardization**: Central script for running samples with `genkit start`
 - **Rich Tracebacks**: Improved error output in samples
 
@@ -89,7 +95,6 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
   - Plugins now use a standardized registration pattern
   - Configuration options are more consistent across plugins
 - **Async-First Architecture**: Removed sync base, fully async by default (#4244)
-- **Session/Chat API**: Moved to internal blocks, public API simplified (#4321)
 - **Embed API**: Refactored `embed/embed_many` for JS parity (#4269)
 
 #### Improvements
