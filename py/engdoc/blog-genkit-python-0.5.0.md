@@ -43,23 +43,33 @@ async def analyze_sentiment(text: str) -> str:
     response = await ai.generate(
         prompt=f'Analyze the sentiment of this text: {text}'
     )
-    return response.text()
+    return response.text  # Property, not method
 ```
 
-### Dynamic Action Provider (DAP)
+### Dynamic Tools and Traced Steps
 
-One of our most requested features: dynamic action creation at runtime. DAP enables factory patterns for creating actions on-the-fly:
+Create tools dynamically at runtime with `ai.dynamic_tool()` and wrap functions in traced steps with `ai.run()`:
 
 ```python
-@ai.action_provider()
-async def model_provider(model_name: str):
-    """Dynamically provides model actions based on name."""
-    async def generate_action(prompt: str) -> str:
-        return await ai.generate(
-            model=model_name,
-            prompt=prompt
-        )
-    return generate_action
+@ai.flow()
+async def advanced_demo(input_val: str) -> dict:
+    """Demonstrates ai.run() and ai.dynamic_tool()."""
+    # ai.run() wraps a function in a traced step (visible in Dev UI)
+    def process_data(data: str) -> str:
+        return f'processed: {data}'
+    
+    step_result = await ai.run('process_step', input_val, process_data)
+    
+    # ai.dynamic_tool() creates an unregistered tool on-the-fly
+    def multiplier_fn(x: int) -> int:
+        return x * 10
+    
+    dynamic_multiplier = ai.dynamic_tool(
+        'dynamic_multiplier', multiplier_fn, description='Multiplies by 10'
+    )
+    tool_result = await dynamic_multiplier.arun(5)
+    
+    return {'step': step_result, 'tool': tool_result.response}
 ```
 
 ### Enhanced Dotprompt Integration
@@ -73,19 +83,22 @@ We've deeply integrated with [Dotprompt](https://github.com/google/dotprompt), o
 - **Path traversal hardening**: Security fix for CWE-22 vulnerability
 
 ```python
-from genkit.dotprompt import Dotprompt
+from genkit.ai import Genkit
+from genkit.plugins.google_genai import GoogleAI
 
-# Load all prompts from a directory
-prompts = await Dotprompt.load_directory('./prompts')
+ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
 
-# Use partials for reusable components
-await Dotprompt.define_partial('header', '# {{title}}\n\n')
+# Define partials for reusable template components
+ai.define_partial('greeting', 'Hello, {{name}}!')
+ai.define_partial('signature', '\n\nBest regards,\n{{sender}}')
 
-# Render with full type safety
-result = await prompts['summarize'].render(
-    title='Summary',
-    content='...'
-)
+# Use partials in prompts ({{> greeting}} and {{> signature}})
+@ai.flow()
+async def send_email(name: str, sender: str) -> str:
+    response = await ai.generate(
+        prompt=f'Write an email to {name} from {sender}'
+    )
+    return response.text
 ```
 
 ### Comprehensive Type Safety
@@ -106,19 +119,23 @@ Generate structured data directly into Pydantic models:
 
 ```python
 from pydantic import BaseModel, Field
+from genkit.ai import Genkit, Output
+from genkit.plugins.google_genai import GoogleAI
 
-class WeatherReport(BaseModel):
-    location: str = Field(description='City name')
-    temperature: float = Field(description='Temperature in Celsius')
-    conditions: str = Field(description='Weather conditions')
+ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
+
+class RpgCharacter(BaseModel):
+    name: str = Field(description='name of the character')
+    backstory: str = Field(description='character backstory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
 
 @ai.flow()
-async def get_weather(city: str) -> WeatherReport:
+async def generate_character(name: str) -> RpgCharacter:
     result = await ai.generate(
-        prompt=f'Get the current weather for {city}',
-        output_schema=WeatherReport,
+        prompt=f'Generate an RPG character named {name}',
+        output=Output(schema=RpgCharacter),  # Use Output wrapper
     )
-    # Returns a WeatherReport instance, not dict!
+    # Returns an RpgCharacter instance, not dict!
     return result.output
 ```
 
@@ -208,24 +225,26 @@ import asyncio
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GoogleAI
 
-async def main():
-    ai = Genkit(
-        plugins=[GoogleAI()],
-        model='googleai/gemini-2.5-flash',
+# Initialize at module level (best practice)
+ai = Genkit(
+    plugins=[GoogleAI()],
+    model='googleai/gemini-2.5-flash',
+)
+
+@ai.flow()
+async def greeting_flow(name: str) -> str:
+    """Generates a personalized greeting."""
+    response = await ai.generate(
+        prompt=f'Write a creative greeting for {name}'
     )
+    return response.text  # Property, not method
 
-    @ai.flow()
-    async def greeting_flow(name: str) -> str:
-        """Generates a personalized greeting."""
-        response = await ai.generate(
-            prompt=f'Write a creative greeting for {name}'
-        )
-        return response.text()
-
+async def main():
     result = await greeting_flow('World')
     print(result)
 
-asyncio.run(main())
+if __name__ == '__main__':
+    ai.run_main(main())  # Use ai.run_main() for proper lifecycle
 ```
 
 Run with the Developer UI:
