@@ -34,8 +34,8 @@ version = "0.1.0"
 dev = ["watchdog>=6.0.0"]
 
 [tool.uv.sources]
-genkit-plugin-xai = { workspace = true }
 genkit-plugin-google-cloud = { workspace = true }
+genkit-plugin-xai          = { workspace = true }
 
 [build-system]
 build-backend = "hatchling.build"

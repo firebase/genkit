@@ -161,33 +161,31 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 
 ### Contributors
 
-This release includes contributions from **17 developers** across **191 PRs**. Thank you to everyone who contributed!
+This release includes contributions from **13 developers** across **188 PRs**. Thank you to everyone who contributed!
 
 | Contributor | PRs | Commits | Key Contributions |
 |-------------|-----|---------|-------------------|
-| **Yesudeep Mangalapilly** | 91 | 93 | Core framework, type safety (ty/pyrefly/pyright), AWS/Azure/Cloudflare plugins, CI/CD, security |
-| **Elisa Shen** | 42 | 42 | Resource support, sample fixes, model config updates, prompt samples |
-| **Abraham J. Lázaro** | 11 | 8 | Model Garden plugin, Ollama improvements, Gemini schema support |
-| **Pavel Jbanov** | 10 | 7 | Reflection API, embedders, background actions, Gemini upgrades |
-| **Niraj Nepal** | 9 | 9 | Anthropic plugin, DeepSeek plugin, xAI plugin, AIM telemetry, ModelGarden |
-| **huangjeff5** | 7 | 7 | PluginV2 refactor, type safety, Pydantic output, real-time telemetry |
-| **Hendrik Martina** | 7 | 7 | Evaluator metrics, OpenAI compat plugin, Dotprompt render methods |
-| **ssbushi** | 6 | 2 | Evaluator plugins with simple evaluators |
-| **shrutip90** | 1 | 1 | ResourcePartSchema exports |
-| **Ty Schlichenmeyer** | 1 | 1 | Type annotations |
-| **Sahdev Garg** | 1 | 1 | Go SDK background action support |
-| **Michael Doyle** | 1 | 1 | PNPM build scripts |
-| **Marcel Folaron** | 1 | 1 | Named generates feature |
-| **Madhav** | 1 | 1 | Windows support (file-safe timestamps) |
-| **Junhyuk Han** | 1 | 1 | Typo fixes |
-| **CorieW** | 1 | - | Community contribution |
+| [**@yesudeep**](https://github.com/yesudeep) | 91 | 93 | Core framework architecture, async-first migration, type safety (ty/pyrefly/pyright integration), AWS Bedrock/X-Ray plugins, Azure OpenAI plugin, Cloudflare Workers AI plugin, Mistral AI plugin, Hugging Face plugin, CI/CD consolidation, security audits (Ruff S rules, SigV4 signing), dev server race condition fix, per-event-loop HTTP client caching, embed API refactor, DAP implementation, action latency tracking, array/enum/jsonl output formats |
+| [**@MengqinShen**](https://github.com/MengqinShen) (Elisa Shen) | 42 | 42 | Resource support implementation, sample maintenance (menu, short-n-long, tool-interrupt, prompt, ollama-hello, genai-image, code-execution, anthropic), Google GenAI model config updates, TTS/Veo model config, system prompt field additions, README updates, multi-round logic flows |
+| [**@AbeJLazaro**](https://github.com/AbeJLazaro) | 11 | 8 | Model Garden plugin (resolve/list actions), Ollama plugin (resolve action, type coverage, tests), Gemini complex schema support, Firestore plugin naming fix, evaluator plugin requirements, optional dependencies setup |
+| [**@pavelgj**](https://github.com/pavelgj) | 10 | 7 | Reflection API (multiple runtimes, health check), embedders fixes, Gemini model version upgrades (1.5→2.5) |
+| [**@zarinn3pal**](https://github.com/zarinn3pal) | 9 | 9 | Anthropic plugin, DeepSeek plugin (structured output fix), xAI plugin (config, samples), AIM telemetry (Firebase observability, metrics), ModelGarden plugin, OpenAI Compat tools sample |
+| [**@huangjeff5**](https://github.com/huangjeff5) | 7 | 7 | PluginV2 refactor (new registration pattern), type safety improvements, Pydantic output instances, real-time telemetry (trace ID formatting), session/chat refactor |
+| [**@hendrixmar**](https://github.com/hendrixmar) | 7 | 7 | Evaluator metrics (ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS), ModelReference, OpenAI compat plugin (list_actions, resolve_method), Dotprompt render methods (render_system_prompt, render_user_prompt) |
+| [**@ssbushi**](https://github.com/ssbushi) | 6 | 2 | Evaluator plugins with simple evaluators, documentation updates |
+| [**@shrutip90**](https://github.com/shrutip90) | 1 | 1 | ResourcePartSchema exports via genkit-tools |
+| [**@schlich**](https://github.com/schlich) | 1 | 1 | Type annotations for ai module |
+| [**@ktsmadhav**](https://github.com/ktsmadhav) | 1 | 1 | Windows support (file-safe timestamp format for runtime files) |
+| [**@junhyukhan**](https://github.com/junhyukhan) | 1 | 1 | Typo fixes |
+| [**@CorieW**](https://github.com/CorieW) | 1 | 1 | Community contribution |
 
-**[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt integration):
+**[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt Python integration):
 
 | Contributor | PRs | Key Contributions |
 |-------------|-----|-------------------|
-| **MengqinShen** | 42 | CI/CD pipeline improvements, package publishing, release automation |
-| **Zereker** | 1 | Go closure fix preventing template sharing |
+| [**@yesudeep**](https://github.com/yesudeep) | 50+ | Rust-based Handlebars engine (dotpromptz-handlebars), Python 3.14 PyO3/maturin support, cycle detection, release pipeline optimization (30min→2min), Bazel rules, Monaco/CodeMirror integrations |
+| [**@MengqinShen**](https://github.com/MengqinShen) | 42 | CI/CD pipeline automation, Python package publishing workflows, release automation, dotpromptz releases |
+| [**@Zereker**](https://github.com/Zereker) | 1 | Go closure fix preventing template sharing |
 
 ---
 

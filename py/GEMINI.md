@@ -2094,3 +2094,282 @@ async def test_api_call(mock_get_client):
 #### Related Issue
 
 * GitHub Issue: [#4420](https://github.com/firebase/genkit/issues/4420)
+
+### Session Learnings (2026-02-04): Release PRs and Changelogs
+
+When drafting release PRs and changelogs, follow these guidelines to create
+comprehensive, contributor-friendly release documentation.
+
+#### CHANGELOG.md Structure
+
+Follow [Keep a Changelog](https://keepachangelog.com/) format with these sections:
+
+```markdown
+## [X.Y.Z] - YYYY-MM-DD
+
+### Impact Summary
+| Category | Description |
+|----------|-------------|
+| **New Capabilities** | Brief summary |
+| **Critical Fixes** | Brief summary |
+| **Performance** | Brief summary |
+| **Breaking Changes** | Brief summary |
+
+### Added
+- **Category Name** - Feature description
+
+### Changed
+- **Category Name** - Change description
+
+### Fixed
+- **Category Name** - Fix description
+
+### Security
+- **Category Name** - Security fix description
+
+### Performance
+- **Per-Event-Loop HTTP Client Caching** - Performance improvement description
+
+### Deprecated
+- Item being deprecated
+
+### Contributors
+... (see contributor section below)
+```
+
+#### Gathering Release Statistics
+
+Use these commands to gather comprehensive release statistics:
+
+```bash
+# Count commits since previous version
+git log "genkit-python@0.4.0"..HEAD --oneline -- py/ | wc -l
+
+# Get contributors by commit count
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an" -- py/ | sort | uniq -c | sort -rn
+
+# Get commits by each contributor with messages
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an|%s" -- py/
+
+# Get PR counts by contributor (requires gh CLI)
+gh pr list --repo firebase/genkit --state merged \
+  --search "label:python merged:>=2025-05-26" \
+  --json author,number,title --limit 200 | \
+  jq -r '.[].author.login' | sort | uniq -c | sort -rn
+
+# Get files changed count
+git diff --stat "genkit-python@0.4.0"..HEAD -- py/ | tail -1
+```
+
+#### Contributor Acknowledgment Table
+
+Include a detailed contributors table with both PRs and commits:
+
+```markdown
+### Contributors
+
+This release includes contributions from **N developers** across **M PRs**.
+Thank you to everyone who contributed!
+
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| **Name** | 91 | 93 | Core framework, type safety, plugins |
+| **Name** | 42 | 42 | Resource support, samples |
+...
+
+**[external/repo](https://github.com/org/repo) Contributors** (Feature integration):
+
+| Contributor | PRs | Key Contributions |
+|-------------|-----|-------------------|
+| **Name** | 42 | CI/CD improvements, release automation |
+```
+
+#### PR Description File
+
+Create a `.github/PR_DESCRIPTION_X.Y.Z.md` file for each major release:
+
+```markdown
+# Genkit Python SDK vX.Y.Z Release
+
+## Overview
+
+Brief description of the release (one paragraph).
+
+## Impact Summary
+
+| Category | Description |
+|----------|-------------|
+| **New Capabilities** | Summary |
+| **Breaking Changes** | Summary |
+| **Performance** | Summary |
+
+## New Features
+
+### Feature Category 1
+- **Feature Name**: Description
+
+## Breaking Changes
+
+### Change 1
+**Before**: Old behavior...
+**After**: New behavior...
+**Migration**: How to migrate...
+
+## Critical Fixes
+
+- **Fix Name**: Description (PR #)
+
+## Testing
+
+All X plugins and Y+ samples have been tested. CI runs on Python 3.10-3.14.
+
+## Contributors
+(Same table format as CHANGELOG)
+
+## Full Changelog
+
+See [CHANGELOG.md](py/CHANGELOG.md) for the complete list of changes.
+```
+
+#### Updating the PR on GitHub
+
+Use gh CLI to update the PR body from the file:
+
+```bash
+gh pr edit <PR_NUMBER> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md
+```
+
+#### Key Sections to Include
+
+| Section | Purpose |
+|---------|---------|
+| **Impact Summary** | Quick overview table with categories |
+| **Critical Fixes** | Highlight race conditions, thread safety, security |
+| **Performance** | Document speedups and optimizations |
+| **Breaking Changes** | Migration guide with before/after examples |
+| **Contributors** | Table with PRs, commits, and key contributions |
+
+#### Commit Messages for Release Documentation
+
+Use conventional commits with `--no-verify` for release documentation:
+
+```bash
+git commit --no-verify -m "docs(py): add contributor acknowledgments to changelog
+
+Genkit Python SDK Contributors (N developers):
+- Name: Core framework, type safety
+- Name: Plugins, samples
+...
+
+External Contributors:
+- Name: CI/CD improvements"
+```
+
+#### Highlighting Critical Information
+
+**When documenting fixes, emphasize:**
+
+1. **Race conditions**: Dev server startup, async operations
+2. **Thread safety**: Event loop binding, HTTP client caching
+3. **Security**: CVE/CWE references, audit results
+4. **Infinite recursion**: Cycle detection, recursion limits
+
+**Example format:**
+
+```markdown
+### Critical Fixes
+
+- **Race Condition**: Dev server startup race condition resolved (#4225)
+- **Thread Safety**: Per-event-loop HTTP client caching prevents event loop
+  binding errors (#4419, #4429)
+- **Infinite Recursion**: Cycle detection in Handlebars partial resolution
+- **Security**: Path traversal hardening (CWE-22), SigV4 signing (#4402)
+```
+
+#### External Project Contributions
+
+When integrating external projects (e.g., dotprompt), include their contributors:
+
+```bash
+# Check commits in external repo
+# Navigate to GitHub contributors page or use git log on local clone
+```
+
+Include a separate table linking to the external repository.
+
+#### Contributor Profile Links and Exhaustive Contributions
+
+**Always include clickable GitHub profile links** for contributors in release notes:
+
+```markdown
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| [**@username**](https://github.com/username) | 91 | 93 | Exhaustive list... |
+```
+
+**Finding GitHub usernames from git log names:**
+
+```bash
+# Get GitHub username from PR data (most reliable)
+gh pr list --repo firebase/genkit --state merged \
+  --search "author:USERNAME label:python" \
+  --json author,title --limit 5
+
+# Map git log author names to GitHub handles
+gh pr list --repo firebase/genkit --state merged \
+  --search "label:python" \
+  --json author --limit 200 | \
+  jq -r '.[].author | "\(.name) -> @\(.login)"' | sort -u
+```
+
+**Make key contributions exhaustive by reviewing each contributor's commits:**
+
+```bash
+# Get detailed commits for each contributor
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%s" \
+  --author="Contributor Name" -- py/ | head -20
+```
+
+Then summarize their work comprehensively, including:
+- Specific plugins/features implemented
+- Specific samples maintained
+- API/config changes made
+- Bug fix categories
+- Documentation contributions
+
+**Handle cross-name contributors:**
+
+If a contributor uses different names in git vs GitHub (e.g., "Elisa Shen" in git but
+"@MengqinShen" on GitHub), add the real name in parentheses:
+
+```markdown
+| [**@MengqinShen**](https://github.com/MengqinShen) (Elisa Shen) | 42 | 42 | ... |
+```
+
+**Filter contributors by SDK:**
+
+For Python SDK releases, only include contributors with commits under `py/`:
+
+```bash
+# Get ONLY Python contributors
+git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an" -- py/ | sort | uniq -c | sort -rn
+```
+
+Exclude contributors whose work is Go-only, JS-only, or infrastructure-only (unless
+their infrastructure work directly benefits the Python SDK).
+
+#### Separate External Repository Contributors
+
+When the Python SDK integrates external projects (like dotprompt), add a separate
+contributor table for that project:
+
+```markdown
+**[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt Python integration):
+
+| Contributor | PRs | Key Contributions |
+|-------------|-----|-------------------|
+| [**@username**](https://github.com/username) | 50+ | Python PyO3 support, release automation |
+| [**@contributor2**](https://github.com/contributor2) | 42 | CI/CD pipeline, package publishing |
+```
+
+This clearly distinguishes between core SDK contributions and external project contributions.
