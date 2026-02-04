@@ -147,6 +147,7 @@ from typing import Annotated, Any, cast
 
 from google import genai
 from google.genai import types as genai_types
+from google.genai.errors import ClientError
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
 from genkit.ai import (
@@ -154,6 +155,7 @@ from genkit.ai import (
 )
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
+from genkit.core.error import GenkitError, StatusName
 from genkit.core.tracing import tracer
 from genkit.lang.deprecations import (
     deprecated_enum_metafactory,
@@ -171,6 +173,7 @@ from genkit.types import (
     Role,
     Stage,
     Supports,
+    TextPart,
     ToolDefinition,
 )
 
@@ -296,6 +299,16 @@ class GeminiConfigSchema(GenerationCommonConfig):
 
     model_config = ConfigDict(extra='allow', populate_by_name=True)
 
+    api_key: str | None = Field(
+        None, description='Overrides the plugin-configured API key, if specified.', alias='apiKey', exclude=True
+    )
+    base_url: str | None = Field(
+        None, description='Overrides the plugin-configured or default baseUrl, if specified.', alias='baseUrl'
+    )
+    api_version: str | None = Field(
+        None, description='Overrides the plugin-configured or default apiVersion, if specified.', alias='apiVersion'
+    )
+
     safety_settings: Annotated[
         list[SafetySettingsSchema] | None,
         WithJsonSchema({
@@ -318,50 +331,130 @@ class GeminiConfigSchema(GenerationCommonConfig):
         None,
         alias='safetySettings',
     )
-    # Gemini specific
-    model_config = ConfigDict(extra='allow')
-
-    # inherited from GenerationCommonConfig:
-    # version, temperature, max_output_tokens, top_k, top_p, stop_sequences
-
-    temperature: float | None = Field(
-        default=None,
-        description='Controls the randomness of the output. Values can range over [0.0, 2.0].',
-    )
-
-    top_p: float | None = Field(
-        default=None,
-        alias='topP',
-        description=(
-            'The maximum cumulative probability of tokens to consider when sampling. Values can range over [0.0, 1.0].'
-        ),
-    )
-    top_k: int | None = Field(  # pyrefly: ignore[bad-override]
-        default=None,
-        alias='topK',
-        description=('The maximum number of tokens to consider when sampling. Values can range over [1, 40].'),
-    )
-    candidate_count: int | None = Field(
-        default=None, description='Number of generated responses to return.', alias='candidateCount'
-    )
-    max_output_tokens: int | None = Field(  # pyrefly: ignore[bad-override]
-        default=None, alias='maxOutputTokens', description='Maximum number of tokens to generate.'
-    )
-    stop_sequences: list[str] | None = Field(default=None, alias='stopSequences', description='Stop sequences.')
-    presence_penalty: float | None = Field(default=None, description='Presence penalty.', alias='presencePenalty')
-    frequency_penalty: float | None = Field(default=None, description='Frequency penalty.', alias='frequencyPenalty')
-    response_mime_type: str | None = Field(default=None, description='Response MIME type.', alias='responseMimeType')
-    response_schema: dict[str, Any] | None = Field(default=None, description='Response schema.', alias='responseSchema')
 
     code_execution: bool | dict[str, Any] | None = Field(
         None, description='Enables the model to generate and run code.', alias='codeExecution'
     )
+
+    context_cache: bool | None = Field(
+        None,
+        description=(
+            'Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.'
+        ),
+        alias='contextCache',
+    )
+
+    function_calling_config: Annotated[
+        FunctionCallingConfig | None,
+        WithJsonSchema({
+            'type': 'object',
+            'properties': {
+                'mode': {'type': 'string', 'enum': [e.value for e in FunctionCallingMode]},
+                'allowedFunctionNames': {'type': 'array', 'items': {'type': 'string'}},
+            },
+            'description': (
+                'Controls how the model uses the provided tools (function declarations). With AUTO (Default) '
+                'mode, the model decides whether to generate a natural language response or suggest a function '
+                'call based on the prompt and context. With ANY, the model is constrained to always predict a '
+                'function call and guarantee function schema adherence. With NONE, the model is prohibited '
+                'from making function calls.'
+            ),
+            'additionalProperties': True,
+        }),
+    ] = Field(
+        None,
+        alias='functionCallingConfig',
+    )
+
     response_modalities: list[str] | None = Field(
         None,
         description=(
             "The modalities to be used in response. Only supported for 'gemini-2.0-flash-exp' model at present."
         ),
         alias='responseModalities',
+    )
+
+    google_search_retrieval: bool | dict[str, Any] | None = Field(
+        None,
+        description=(
+            'Retrieve public web data for grounding, powered by Google Search. '
+            'Note: This feature is not supported on all models. '
+            'If you get an error, use the google_search tool instead.'
+        ),
+        alias='googleSearchRetrieval',
+    )
+
+    file_search: Annotated[
+        FileSearchConfigSchema | None,
+        WithJsonSchema({
+            'type': 'object',
+            'properties': {
+                'fileSearchStoreNames': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'description': (
+                        'The names of the fileSearchStores to retrieve from. '
+                        'Example: fileSearchStores/my-file-search-store-123'
+                    ),
+                },
+                'metadataFilter': {
+                    'type': 'string',
+                    'description': 'Metadata filter to apply to the semantic retrieval documents and chunks.',
+                },
+                'topK': {
+                    'type': 'integer',
+                    'description': 'The number of semantic retrieval chunks to retrieve.',
+                },
+            },
+            'additionalProperties': True,
+        }),
+    ] = Field(None, alias='fileSearch')
+
+    url_context: bool | dict[str, Any] | None = Field(
+        None, description='Return grounding metadata from links included in the query', alias='urlContext'
+    )
+
+    # inherited from GenerationCommonConfig:
+    # version, temperature, max_output_tokens, top_k, top_p, stop_sequences
+
+    temperature: Annotated[
+        float | None,
+        WithJsonSchema({
+            'type': 'number',
+            'minimum': 0.0,
+            'maximum': 2.0,
+            'description': (
+                'Controls the randomness of the output. '
+                'Values can range over [0.0, 2.0]. The default value is 1.0.'
+            ),
+        }),
+    ] = Field(
+        default=None,
+        ge=0.0,
+        le=2.0,
+    )
+
+    top_p: Annotated[
+        float | None,
+        WithJsonSchema({
+            'type': 'number',
+            'minimum': 0.0,
+            'maximum': 1.0,
+            'description': (
+                'The maximum cumulative probability of tokens to consider when sampling. '
+                'Values can range over [0.0, 1.0]. The default value is 0.95.'
+            ),
+        }),
+    ] = Field(
+        default=None,
+        alias='topP',
+        ge=0.0,
+        le=1.0,
+    )
+    top_k: int | None = Field(  # pyrefly: ignore[bad-override]
+        default=None,
+        alias='topK',
+        description=('The maximum number of tokens to consider when sampling.'),
     )
 
     thinking_config: Annotated[
@@ -399,78 +492,10 @@ class GeminiConfigSchema(GenerationCommonConfig):
         }),
     ] = Field(None, alias='thinkingConfig')
 
-    file_search: Annotated[
-        FileSearchConfigSchema | None,
-        WithJsonSchema({
-            'type': 'object',
-            'properties': {
-                'fileSearchStoreNames': {
-                    'type': 'array',
-                    'items': {'type': 'string'},
-                    'description': (
-                        'The names of the fileSearchStores to retrieve from. '
-                        'Example: fileSearchStores/my-file-search-store-123'
-                    ),
-                },
-                'metadataFilter': {
-                    'type': 'string',
-                    'description': 'Metadata filter to apply to the semantic retrieval documents and chunks.',
-                },
-                'topK': {
-                    'type': 'integer',
-                    'description': 'The number of semantic retrieval chunks to retrieve.',
-                },
-            },
-            'additionalProperties': True,
-        }),
-    ] = Field(None, alias='fileSearch')
-
-    url_context: bool | dict[str, Any] | None = Field(
-        None, description='Return grounding metadata from links included in the query', alias='urlContext'
+    max_output_tokens: int | None = Field(  # pyrefly: ignore[bad-override]
+        default=None, alias='maxOutputTokens', description='Maximum number of tokens to generate.'
     )
-    google_search_retrieval: bool | dict[str, Any] | None = Field(
-        None,
-        description='Retrieve public web data for grounding, powered by Google Search.',
-        alias='googleSearchRetrieval',
-    )
-    function_calling_config: Annotated[
-        FunctionCallingConfig | None,
-        WithJsonSchema({
-            'type': 'object',
-            'properties': {
-                'mode': {'type': 'string', 'enum': [e.value for e in FunctionCallingMode]},
-                'allowedFunctionNames': {'type': 'array', 'items': {'type': 'string'}},
-            },
-            'description': (
-                'Controls how the model uses the provided tools (function declarations). With AUTO (Default) '
-                'mode, the model decides whether to generate a natural language response or suggest a function '
-                'call based on the prompt and context. With ANY, the model is constrained to always predict a '
-                'function call and guarantee function schema adherence. With NONE, the model is prohibited '
-                'from making function calls.'
-            ),
-            'additionalProperties': True,
-        }),
-    ] = Field(
-        None,
-        alias='functionCallingConfig',
-    )
-
-    api_version: str | None = Field(
-        None, description='Overrides the plugin-configured or default apiVersion, if specified.', alias='apiVersion'
-    )
-    base_url: str | None = Field(
-        None, description='Overrides the plugin-configured or default baseUrl, if specified.', alias='baseUrl'
-    )
-    api_key: str | None = Field(
-        None, description='Overrides the plugin-configured API key, if specified.', alias='apiKey', exclude=True
-    )
-    context_cache: bool | None = Field(
-        None,
-        description=(
-            'Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.'
-        ),
-        alias='contextCache',
-    )
+    stop_sequences: list[str] | None = Field(default=None, alias='stopSequences', description='Stop sequences.')
 
 
 class SpeechConfigSchema(BaseModel):
@@ -1222,27 +1247,44 @@ class GeminiModel:
             request_cfg.cached_content = cached_content.name
 
         client = self._client
-        # If config specifies an api_version different from default (e.g. 'v1alpha'),
-        # Create a temporary client with that version, since api_version is a client-level setting.
+        # If config specifies api_key, base_url, or api_version different from default,
+        # create a temporary client with those settings.
         api_version = None
-        if request.config:
-            api_version = getattr(request.config, 'api_version', None)
-            if not api_version and isinstance(request.config, dict):
-                api_version = request.config.get('api_version')
+        api_key_override = None
+        base_url_override = None
 
-        if api_version:
+        if request.config:
+            if isinstance(request.config, dict):
+                api_version = request.config.get('api_version') or request.config.get('apiVersion')
+                api_key_override = request.config.get('api_key') or request.config.get('apiKey')
+                base_url_override = request.config.get('base_url') or request.config.get('baseUrl')
+            else:
+                api_version = getattr(request.config, 'api_version', None)
+                api_key_override = getattr(request.config, 'api_key', None)
+                base_url_override = getattr(request.config, 'base_url', None)
+
+        if api_version or api_key_override or base_url_override:
             # TODO(#4362): Request public API from google-genai maintainers.
             # Currently, there is no public way to access the configured api_key, project, or location
             # from an existing Client instance. We need to access the private _api_client to
-            # clone the configuration when overriding the api_version.
+            # clone the configuration when overriding these settings.
             # This is brittle and relies on internal implementation details of the google-genai library.
             # If the library changes its internal structure (e.g. renames _api_client or _credentials),
             # this code WILL BREAK.
             api_client = self._client._api_client
             kwargs: dict[str, Any] = {
                 'vertexai': api_client.vertexai,
-                'http_options': {'api_version': api_version},
             }
+
+            # Set http_options if we have api_version or base_url
+            http_options = {}
+            if api_version:
+                http_options['api_version'] = api_version
+            if base_url_override:
+                http_options['base_url'] = base_url_override
+            if http_options:
+                kwargs['http_options'] = http_options
+
             if api_client.vertexai:
                 # Vertex AI mode: requires project/location (api_key is optional/unlikely)
                 if api_client.project:
@@ -1254,14 +1296,24 @@ class GeminiModel:
                 # Don't pass api_key if we are in Vertex AI mode with credentials/project
             else:
                 # Google AI mode: primarily uses api_key
-                if api_client.api_key:
+                # Use override if provided, otherwise fall back to existing client's api_key
+                if api_key_override:
+                    kwargs['api_key'] = api_key_override
+                elif api_client.api_key:
                     kwargs['api_key'] = api_client.api_key
                 # Do NOT pass project/location/credentials if in Google AI mode to be safe
                 if api_client._credentials and not kwargs.get('api_key'):
                     # Fallback if no api_key but credentials present (unlikely for pure Google AI but possible)
                     kwargs['credentials'] = api_client._credentials
 
-            client = genai.Client(**kwargs)
+            try:
+                client = genai.Client(**kwargs)
+            except Exception as e:
+                # If client creation fails (e.g., invalid API key format), raise a clear error
+                raise GenkitError(
+                    status='INVALID_ARGUMENT',
+                    message=f'Failed to create Google AI client: {str(e)}',
+                ) from e
 
         if ctx.is_streaming:
             response = await self._streaming_generate(
@@ -1311,14 +1363,45 @@ class GeminiModel:
                 ),
             )
             client = client or self._client
-            response = await client.aio.models.generate_content(
-                model=model_name,
-                contents=cast(genai_types.ContentListUnion, request_contents),
-                config=request_cfg,
-            )
+            try:
+                response = await client.aio.models.generate_content(
+                    model=model_name,
+                    contents=cast(genai_types.ContentListUnion, request_contents),
+                    config=request_cfg,
+                )
+            except ClientError as e:
+                status: StatusName = 'INTERNAL'
+                if e.code == 400:
+                    status = 'INVALID_ARGUMENT'
+                elif e.code == 401:
+                    status = 'UNAUTHENTICATED'
+                elif e.code == 403:
+                    status = 'PERMISSION_DENIED'
+                elif e.code == 404:
+                    status = 'NOT_FOUND'
+
+                raise GenkitError(
+                    status=status,
+                    message=e.message,
+                    cause=e,
+                ) from e
+            except Exception as e:
+                # Catch any other exceptions and provide a clear error message
+                # This helps debug issues like authentication errors that might not be ClientError
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Unexpected error during generate_content: {type(e).__name__}: {str(e)}")
+                raise GenkitError(
+                    status='INTERNAL',
+                    message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
+                ) from e
             span.set_attribute('genkit:output', dump_json(response))
 
         content = self._contents_from_response(response)
+
+        # Ensure we always have at least one content item to avoid UI errors
+        if not content:
+            content = [TextPart(text='')]
 
         return GenerateResponse(
             message=Message(
@@ -1357,21 +1440,43 @@ class GeminiModel:
                 }),
             )
             client = client or self._client
-            generator = client.aio.models.generate_content_stream(
-                model=model_name,
-                contents=cast(genai_types.ContentListUnion, request_contents),
-                config=request_cfg,
-            )
+            try:
+                generator = client.aio.models.generate_content_stream(
+                    model=model_name,
+                    contents=cast(genai_types.ContentListUnion, request_contents),
+                    config=request_cfg,
+                )
+            except ClientError as e:
+                status: StatusName = 'INTERNAL'
+                if e.code == 400:
+                    status = 'INVALID_ARGUMENT'
+                elif e.code == 401:
+                    status = 'UNAUTHENTICATED'
+                elif e.code == 403:
+                    status = 'PERMISSION_DENIED'
+                elif e.code == 404:
+                    status = 'NOT_FOUND'
+
+                raise GenkitError(
+                    status=status,
+                    message=e.message,
+                    cause=e,
+                ) from e
         accumulated_content = []
         async for response_chunk in await generator:
             content = self._contents_from_response(response_chunk)
-            accumulated_content.append(*content)
-            ctx.send_chunk(
-                chunk=GenerateResponseChunk(
-                    content=content,
-                    role=Role.MODEL,
+            if content:  # Only process if we have content
+                accumulated_content.extend(content)
+                ctx.send_chunk(
+                    chunk=GenerateResponseChunk(
+                        content=content,
+                        role=Role.MODEL,
+                    )
                 )
-            )
+
+        # Ensure we always have at least one content item to avoid UI errors
+        if not accumulated_content:
+            accumulated_content = [TextPart(text='')]
 
         return GenerateResponse(
             message=Message(
@@ -1453,9 +1558,12 @@ class GeminiModel:
             for candidate in response.candidates:
                 if candidate.content and candidate.content.parts:
                     for i, part in enumerate(candidate.content.parts):
-                        content.append(PartConverter.from_gemini(part=part, ref=str(i)))
+                        converted = PartConverter.from_gemini(part=part, ref=str(i))
+                        if converted:  # Only append if conversion succeeded
+                            content.append(converted)
 
-        return content
+        # Ensure we always return a list, even if empty
+        return content if content else []
 
     def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
         """Translate GenerationCommonConfig to Google Ai GenerateContentConfig.
@@ -1509,7 +1617,7 @@ class GeminiModel:
                     val = dumped_config.pop('google_search_retrieval')
                     if val is not None:
                         val = {} if val is True else val
-                        tools.append(genai_types.Tool(google_search_retrieval=genai_types.GoogleSearchRetrieval(**val)))
+                        tools.append(genai_types.Tool(google_search=genai_types.GoogleSearchRetrieval(**val)))
 
                 if 'file_search' in dumped_config:
                     val = dumped_config.pop('file_search')
