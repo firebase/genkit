@@ -2148,10 +2148,18 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             'messages': parsed_prompt.template,
         }
 
+    # Cache the ExecutablePrompt to avoid duplicate creation when both PROMPT and
+    # EXECUTABLE_PROMPT actions trigger lazy loading from the reflection API.
+    _cached_prompt: ExecutablePrompt[Any, Any] | None = None
+
     # Create a factory function that will create the ExecutablePrompt when accessed
     # Store metadata in a closure to avoid global state
     async def create_prompt_from_file() -> ExecutablePrompt[Any, Any]:
-        """Factory function to create ExecutablePrompt from file metadata."""
+        """Factory function to create ExecutablePrompt from file metadata (memoized)."""
+        nonlocal _cached_prompt
+        if _cached_prompt is not None:
+            return _cached_prompt
+
         metadata = await load_prompt_metadata()
 
         # Create ExecutablePrompt from metadata
@@ -2178,14 +2186,32 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
 
         # Store reference to PROMPT action on the ExecutablePrompt
         # Actions are already registered at this point (lazy loading happens after registration)
-        lookup_key = registry_lookup_key(name, variant, ns)
-        prompt_action = await registry.resolve_action_by_key(lookup_key)
+        definition_key = registry_definition_key(name, variant, ns)
+        prompt_lookup_key = f'/prompt/{definition_key}'
+        exec_prompt_lookup_key = f'/executable-prompt/{definition_key}'
+
+        # Update PROMPT action
+        prompt_action = await registry.resolve_action_by_key(prompt_lookup_key)
         if prompt_action and prompt_action.kind == ActionKind.PROMPT:
             executable_prompt._prompt_action = prompt_action  # pyright: ignore[reportPrivateUsage]
-            # Also store ExecutablePrompt reference on the action
-            # prompt_action._executable_prompt = executable_prompt
             setattr(prompt_action, '_executable_prompt', weakref.ref(executable_prompt))  # noqa: B010
 
+        # Update EXECUTABLE_PROMPT action
+        exec_prompt_action = await registry.resolve_action_by_key(exec_prompt_lookup_key)
+
+        # Update schemas on BOTH actions for Dev UI reflection
+        input_json_schema = metadata.get('input', {}).get('jsonSchema')
+        output_json_schema = metadata.get('output', {}).get('jsonSchema')
+
+        for action in [prompt_action, exec_prompt_action]:
+            if action is not None:
+                if input_json_schema:
+                    action.input_schema = input_json_schema
+                if output_json_schema:
+                    action.output_schema = output_json_schema
+
+        # Cache the result for subsequent calls
+        _cached_prompt = executable_prompt
         return executable_prompt
 
     # Store the async factory in a way that can be accessed later
