@@ -86,47 +86,29 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event.inputs.publish_scope }}" == "all" ]; then
-            # Build matrix for all packages
-            MATRIX=$(cat <<'EOF'
-          {
-            "include": [
-              {"project_type": "packages", "project_name": "genkit"},
-              {"project_type": "plugins", "project_name": "anthropic"},
-              {"project_type": "plugins", "project_name": "aws"},
-              {"project_type": "plugins", "project_name": "aws-bedrock"},
-              {"project_type": "plugins", "project_name": "azure"},
-              {"project_type": "plugins", "project_name": "cf"},
-              {"project_type": "plugins", "project_name": "cf-ai"},
-              {"project_type": "plugins", "project_name": "compat-oai"},
-              {"project_type": "plugins", "project_name": "deepseek"},
-              {"project_type": "plugins", "project_name": "dev-local-vectorstore"},
-              {"project_type": "plugins", "project_name": "evaluators"},
-              {"project_type": "plugins", "project_name": "firebase"},
-              {"project_type": "plugins", "project_name": "flask"},
-              {"project_type": "plugins", "project_name": "google-cloud"},
-              {"project_type": "plugins", "project_name": "google-genai"},
-              {"project_type": "plugins", "project_name": "huggingface"},
-              {"project_type": "plugins", "project_name": "mcp"},
-              {"project_type": "plugins", "project_name": "mistral"},
-              {"project_type": "plugins", "project_name": "msfoundry"},
-              {"project_type": "plugins", "project_name": "observability"},
-              {"project_type": "plugins", "project_name": "ollama"},
-              {"project_type": "plugins", "project_name": "vertex-ai"},
-              {"project_type": "plugins", "project_name": "xai"}
-            ]
-          }
-          EOF
-          )
+            # Dynamically discover all plugins from py/plugins/ directory
+            echo "Discovering plugins from py/plugins/..."
+            
+            # Start with core package
+            MATRIX='{"include":[{"project_type":"packages","project_name":"genkit"}'
+            
+            # Add all plugins dynamically
+            for plugin_dir in py/plugins/*/; do
+              if [ -d "$plugin_dir" ]; then
+                plugin_name=$(basename "$plugin_dir")
+                # Skip README.md and other non-directory entries
+                if [ -f "$plugin_dir/pyproject.toml" ]; then
+                  echo "  Found plugin: $plugin_name"
+                  MATRIX="$MATRIX,{\"project_type\":\"plugins\",\"project_name\":\"$plugin_name\"}"
+                fi
+              fi
+            done
+            
+            MATRIX="$MATRIX]}"
+            echo "Generated matrix with $(echo "$MATRIX" | jq '.include | length') packages"
           else
             # Build matrix for single package
-            MATRIX=$(cat <<EOF
-          {
-            "include": [
-              {"project_type": "${{ github.event.inputs.project_type }}", "project_name": "${{ github.event.inputs.project_name }}"}
-            ]
-          }
-          EOF
-          )
+            MATRIX='{"include":[{"project_type":"${{ github.event.inputs.project_type }}","project_name":"${{ github.event.inputs.project_name }}"}]}'
           fi
           echo "matrix=$(echo $MATRIX | jq -c .)" >> $GITHUB_OUTPUT
 
