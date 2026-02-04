@@ -7,122 +7,176 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-02-03
+## [0.5.0] - 2026-02-04
+
+This is a major release with **178 commits** and **680 files changed** over **8 months**
+since 0.4.0 (May 2025), representing the most significant update to the Genkit Python SDK to date.
+
+### Impact Summary
+
+| Category | Impact Level | Description |
+|----------|-------------|-------------|
+| **New Plugins** | 🟢 High | 7 new model providers and 3 new telemetry plugins |
+| **Core Features** | 🟢 High | DAP, session management, rerankers, background models |
+| **Type Safety** | 🟡 Medium | Comprehensive type checking with ty/pyrefly/pyright |
+| **Breaking Changes** | 🟡 Medium | PluginV2 refactor requires migration |
+| **Developer Experience** | 🟢 High | Hot reloading, improved samples, better docs |
+| **Security** | 🟢 High | Ruff audit, PySentry scanning, SigV4 signing |
 
 ### Added
 
-#### New Plugins
+#### New Model Provider Plugins
+- **`genkit-plugin-anthropic`**: Full Anthropic Claude model support (#3919)
+- **`genkit-plugin-aws-bedrock`**: AWS Bedrock integration for Claude, Titan, Llama models (#4389)
+- **`genkit-plugin-msfoundry`**: Azure OpenAI (Microsoft Foundry) support (#4383)
+- **`genkit-plugin-cf-ai`**: Cloudflare Workers AI models (#4405)
+- **`genkit-plugin-deepseek`**: DeepSeek models with structured output (#4051)
+- **`genkit-plugin-xai`**: xAI (Grok) models with plugin config (#4001, #4289)
+- **`genkit-plugin-mistral`**: Mistral AI models (Large, Small, Codestral, Pixtral) (#4406)
+- **`genkit-plugin-huggingface`**: Hugging Face Inference API with 17+ providers (#4406)
 
-* **AWS Bedrock Plugin** (`genkit-plugin-aws-bedrock`): Support for AWS Bedrock models
-* **AWS Telemetry Plugin** (`genkit-plugin-aws`): AWS X-Ray OTLP exporter with SigV4 signing
-* **Azure OpenAI Plugin** (`genkit-plugin-msfoundry`): Microsoft Azure OpenAI integration
-* **Cloudflare Workers AI Plugin** (`genkit-plugin-cf-ai`): Cloudflare Workers AI models
-* **DeepSeek Plugin** (`genkit-plugin-deepseek`): DeepSeek model provider
-* **xAI Plugin** (`genkit-plugin-xai`): xAI/Grok model support with plugin config
-* **Anthropic Plugin** (`genkit-plugin-anthropic`): Full Anthropic Claude model support
-* **MCP Plugin** (`genkit-plugin-mcp`): Model Context Protocol integration
-* **Evaluator Metrics Plugin**: ANSWER\_RELEVANCY, FAITHFULNESS, MALICIOUSNESS metrics
-* **AIM Telemetry**: Firebase and observability metrics support
+#### New Telemetry Plugins
+- **`genkit-plugin-aws`**: AWS X-Ray telemetry with SigV4 signing (#4390, #4402)
+- **`genkit-plugin-aim`**: AIM telemetry for Firebase observability (#4386, #3826)
+- **`genkit-plugin-google-cloud`**: GCP telemetry parity with JS/Go implementations (#4281)
 
 #### Core Framework Features
-
-* **DAP (Direct Action Protocol)**: New protocol for direct action invocation
-* **Session Management**: `ai.chat()` API with session support and Streamlit demos
-* **Background Model Support**: Dynamic model discovery and background actions
-* **Reranker Support**: Initial implementation of reranker functionality
-* **Resource Support**: `define_resource` for MCP plugin integration
-* **Prompt Loading**: Directory and file-based prompt loading matching JS SDK
-* **Handlebars Partials**: `define_partial` for reusable prompt templates
-* **Output Formats**: Array, enum, and JSONL output formats for JS parity
-* **Embedder/Retriever References**: Support matching JS SDK patterns
-* **ModelReference**: Standardized model reference support
-* **Action Latency Tracking**: Centralized performance monitoring
+- **Dynamic Action Provider (DAP)**: Factory pattern for runtime action creation (#4377)
+- **Session Management**: `ai.chat()` API with session persistence (#4275, #4278)
+- **Rerankers**: Initial reranker implementation for RAG pipelines (#4065)
+- **Background Models**: Dynamic model discovery and background action support (#4327)
+- **Resource Support**: Full resource management with MCP integration (#4204, #4048)
+- **Evaluator Metrics**: ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS metrics (#3806)
+- **MCP Plugin**: Model Context Protocol integration with tests (#4054)
+- **Directory/File Prompt Loading**: Automatic prompt discovery matching JS SDK (#3955, #3971)
+- **Retriever/Embedder References**: Reference support matching JS SDK (#3922, #3936)
+- **Handlebars Partials**: `define_partial` for template reuse (#4088)
+- **Output Formats**: Array, enum, and JSONL formats for JS parity (#4230)
+- **Pydantic Output**: Return Pydantic instances when output schema passed (#4413)
 
 #### Developer Experience
+- **Hot Reloading**: Watchdog-based autoreloading for all samples (#4268)
+- **Security Scanning**: PySentry-rs integration in hooks and CI (#4273)
+- **TODO Linting**: Automated issue creation for TODO comments (#4376)
+- **Centralized Action Latency**: Built-in performance tracking (#4267)
+- **Sample Improvements**: Preamble scripts, browser auto-open, rich tracebacks (#4375, #4373)
+- **Release Automation**: `bin/release_check`, `bin/bump_version` scripts
+- **Consistency Checks**: `bin/check_consistency` for package validation
 
-* **Python 3.14 Support**: Full compatibility with Python 3.14
-* **Type Safety Improvements**: Integrated `ty` and `pyrefly` type checkers
-* **Release Automation**: Comprehensive scripts (`bin/release_check`, `bin/bump_version`)
-* **Consistency Checks**: Automated package consistency validation
-* **Security Scanning**: `pysentry-rs` integration for security checks
-* **Hot Reloading**: Watchdog-based auto-reloading for samples
-* **TODO Linting**: Automated issue creation for TODO comments
+#### Type Safety Improvements
+- **ty Integration**: Stricter, faster type checking from Astral (#4094)
+- **pyrefly Integration**: Meta's type checker for additional coverage (#4316)
+- **pyright Enforcement**: Full Microsoft type checking (#4310)
+- **Comprehensive Fixes**: Zero type errors across all packages (#4249-4260, #4270)
 
-#### Samples & Documentation
+#### Documentation
+- **Module Docstrings**: Terminology tables and ASCII data flow diagrams (#4322)
+- **GEMINI.md Updates**: Test file naming, import guidelines, TODO format (#4381, #4393, #4397)
+- **Sample Documentation**: Testing notes for all samples (#4294)
+- **HTTP Client Guidelines**: Event loop binding best practices (#4430)
+- **Roadmap**: Plugin API conformance analysis (#4431)
 
-* **New Samples**: tool-interrupt, short-n-long, media-models-demo, chat samples
-* **Streamlit Demos**: Interactive session management demonstrations
-* **Run Script Standardization**: Central script for running samples with `genkit start`
-* **Rich Tracebacks**: Improved error output in samples
+#### Samples & Demos
+- **New Samples**: tool-interrupt, short-n-long, media-models-demo, chat samples
+- **Streamlit Demos**: Interactive session management demonstrations
+- **Run Script Standardization**: Central script for running samples with `genkit start`
+- **Rich Tracebacks**: Improved error output in samples
 
 ### Changed
 
-* **PluginV2 Refactor**: Major plugin architecture improvements
-* **Async-First Architecture**: Removed sync base in favor of async-only
-* **Pydantic Model Aliasing**: Fixed aliasing issues in models
-* **Reflection API**: Improved multi-runtime handling and health checks
-* **Dev UI Defaults**: Better default configurations
-* **Model Upgrades**: Updated to Gemini 2.5 models across samples
-* **Import Cleanup**: PEP 8 compliant in-function import organization
-* **CI Consolidation**: Every commit is now release-worthy
+#### Breaking Changes
+- **PluginV2 Refactor**: Major plugin architecture update - existing plugins may need migration (#4132)
+  - Plugins now use a standardized registration pattern
+  - Configuration options are more consistent across plugins
+- **Async-First Architecture**: Removed sync base, fully async by default (#4244)
+- **Session/Chat API**: Moved to internal blocks, public API simplified (#4321)
+- **Embed API**: Refactored `embed/embed_many` for JS parity (#4269)
+
+#### Improvements
+- **Python 3.14 Support**: Full compatibility with Python 3.14 (#3947)
+- **Gemini 2.5/3.0 Upgrade**: Default models updated to Gemini 2.5/3.0 (#3771, #4277)
+- **Dotpromptz 0.1.5**: Latest template engine with improved features (#4324)
+- **PEP 8 Compliance**: All in-function imports moved to top-level (#4396-4400)
+- **CI Consolidation**: Single workflow, every commit is release-worthy (#4410)
+- **Reflection API**: Improved multi-runtime handling and health checks
+- **Dev UI Defaults**: Better default configurations
 
 ### Fixed
 
-* **Race Condition**: Fixed dev server startup race condition
-* **Telemetry**: Real-time telemetry and trace ID formatting fixes
-* **Windows Support**: File-safe timestamp format for runtime files
-* **Structured Output**: Fixed generation for DeepSeek models
-* **Image Encoding**: Resolved image encoding issues
-* **Media Parts**: Fixed encoded media parts in google-genai responses
-* **Schema Handling**: Support for complex schemas in Gemini
-* **Type Errors**: Resolved all `ty`, `pyrefly`, and `pyright` type errors
-* **Test Coverage**: Re-enabled disabled tests and improved coverage
-* **Dependency Issues**: Fixed evaluator plugin imports and StrEnum compatibility
-* **Sample Fixes**: Numerous fixes across google-genai, ollama, menu, prompt, and other samples
-* **Ruff Security Warnings**: Addressed code quality warnings
+#### Critical Fixes
+- **Race Condition**: Dev server startup race condition resolved (#4225)
+- **Async Event Loop**: Per-event-loop HTTP client caching prevents binding errors (#4419, #4429)
+- **Real-Time Telemetry**: Trace ID formatting and streaming fixes (#4285)
+- **Structured Output**: DeepSeek model structured output generation (#4374)
+- **JSON Schema**: None type handling per JSON Schema spec (#4247)
+- **Windows Support**: File-safe timestamp format for runtime files (#3727)
+
+#### Model/Plugin Fixes
+- **Gemini Models**: Various bug fixes (#4432)
+- **TTS/Veo Models**: System prompt support in model config (#4411)
+- **Google GenAI**: Model config and README updates (#4306, #4323)
+- **Ollama**: Sample fixes and model server management (#4133, #4227)
+- **Embedders**: Reflection health check fixes (#3969)
+- **Complex Schemas**: Support for complex schemas in Gemini (#3049)
+
+#### Sample Fixes
+- Extensive sample fixes across all demos (#4122-4418)
+- System prompt fields added to all Gemini samples (#4391)
+- Missing dependencies resolved (#4282)
+- Consistent `genkit start` usage (#4226)
+- GCloud auto-setup for Vertex AI samples (#4427)
+
+#### Type Errors
+- Resolved all `ty`, `pyrefly`, and `pyright` type errors
+- Re-enabled disabled tests and improved coverage
+- Fixed evaluator plugin imports and StrEnum compatibility
 
 ### Security
 
-* **Ruff Security Audit**: Fixed all security-related linting warnings
-* **License Compliance**: Fixed license headers in all configuration files
-* **pyproject.toml**: Resolved license deprecation warnings
+- **Ruff Security Audit**: Addressed all security and code quality warnings (#4409)
+- **SigV4 Signing**: AWS X-Ray OTLP exporter now uses proper AWS signatures (#4402)
+- **License Compliance**: Fixed license headers in all configuration files (#3930)
+- **PySentry Integration**: Continuous security vulnerability scanning (#4273)
 
-## [0.4.0] - 2026-02-02
+### Deprecated
+
+- Sync API base classes are removed in favor of async-first architecture
+
+---
+
+## [0.4.0] - 2025-05-26
 
 ### Added
 
-* **Telemetry Plugins**
-  * `genkit-plugin-azure`: Azure Application Insights integration
-  * `genkit-plugin-cf`: Generic OTLP export for Cloudflare and other backends
-  * `genkit-plugin-observability`: Unified presets for Sentry, Honeycomb, Datadog, Grafana Cloud, Axiom
+- **Telemetry Plugins**
+  - `genkit-plugin-azure`: Azure Application Insights integration
+  - `genkit-plugin-cf`: Generic OTLP export for Cloudflare and other backends
+  - `genkit-plugin-observability`: Unified presets for Sentry, Honeycomb, Datadog, Grafana Cloud, Axiom
 
-* **Model Provider Plugins**
-  * `genkit-plugin-mistral`: Mistral AI models (Large, Small, Codestral, Pixtral)
-  * `genkit-plugin-huggingface`: Hugging Face Inference API with 17+ inference providers
+- **Model Provider Plugins**
+  - `genkit-plugin-mistral`: Mistral AI models (Large, Small, Codestral, Pixtral)
+  - `genkit-plugin-huggingface`: Hugging Face Inference API with 17+ inference providers
 
-* **Core Framework**
-  * Improved tracing and observability support
-  * Enhanced type safety across all modules
+- **Core Framework**
+  - Improved tracing and observability support
+  - Enhanced type safety across all modules
 
 ### Changed
 
-* All plugins now share the same version number as the core framework
-* Improved documentation and README files for all packages
+- All plugins now share the same version number as the core framework
+- Improved documentation and README files for all packages
 
-## [0.3.0] - 2025-12-15
+## [0.3.0] - 2025-04-08
 
 ### Added
 
-* Initial public release of Genkit Python SDK
-* Core framework (`genkit`)
-* Model plugins: Anthropic, Google GenAI, Ollama, Vertex AI, xAI, DeepSeek
-* Telemetry plugins: AWS, Google Cloud, Firebase
-* Utility plugins: Flask, MCP, Evaluators, Dev Local Vectorstore
+- Initial public release of Genkit Python SDK
+- Core framework (`genkit`)
+- Model plugins: Anthropic, Google GenAI, Ollama, Vertex AI, xAI, DeepSeek
+- Telemetry plugins: AWS, Google Cloud, Firebase
+- Utility plugins: Flask, MCP, Evaluators, Dev Local Vectorstore
 
-[Unreleased]: https://github.com/firebase/genkit/compare/py-v0.5.0...HEAD
-
-[0.5.0]: https://github.com/firebase/genkit/compare/genkit-python@0.4.0...py-v0.5.0
-
-[0.4.0]: https://github.com/firebase/genkit/compare/py-v0.3.0...genkit-python@0.4.0
-
-[0.3.0]: https://github.com/firebase/genkit/releases/tag/py-v0.3.0
+[Unreleased]: https://github.com/firebase/genkit/compare/genkit-python@0.5.0...HEAD
+[0.5.0]: https://github.com/firebase/genkit/compare/genkit-python@0.4.0...genkit-python@0.5.0
+[0.4.0]: https://github.com/firebase/genkit/compare/genkit-python@0.3.0...genkit-python@0.4.0
+[0.3.0]: https://github.com/firebase/genkit/releases/tag/genkit-python@0.3.0

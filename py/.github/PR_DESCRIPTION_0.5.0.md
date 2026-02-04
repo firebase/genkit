@@ -1,0 +1,152 @@
+# Release: Genkit Python SDK v0.5.0
+
+## Overview
+
+This is a **major release** of the Genkit Python SDK with **178 commits** and **680 files changed** over **8 months** since v0.4.0 (May 2025). This release represents the most significant update to the Python SDK to date, adding extensive new model providers, telemetry integrations, core framework features, and substantial improvements to type safety and developer experience.
+
+## Impact Summary
+
+| Category | Impact | Migration Required |
+|----------|--------|-------------------|
+| **New Model Plugins** | 🟢 High - 7 new providers | No (additive) |
+| **New Telemetry Plugins** | 🟢 High - 3 new providers | No (additive) |
+| **Core Features** | 🟢 High - DAP, sessions, rerankers | No (additive) |
+| **PluginV2 Refactor** | 🟡 Medium | Yes - plugin authors |
+| **Async-First Architecture** | 🟡 Medium | Yes - if using sync APIs |
+| **Type Safety** | 🟢 High | No (stricter checks) |
+| **Security Enhancements** | 🟢 High | No (automatic) |
+| **Python 3.14 Support** | 🟢 High | No (additive) |
+
+## What's New
+
+### New Model Provider Plugins (7)
+
+| Plugin | Provider | Key Features |
+|--------|----------|--------------|
+| `genkit-plugin-anthropic` | Anthropic | Claude models (Opus, Sonnet, Haiku) |
+| `genkit-plugin-aws-bedrock` | AWS Bedrock | Claude, Titan, Llama via AWS |
+| `genkit-plugin-msfoundry` | Azure OpenAI | Microsoft Foundry integration |
+| `genkit-plugin-cf-ai` | Cloudflare | Workers AI models |
+| `genkit-plugin-deepseek` | DeepSeek | DeepSeek models with structured output |
+| `genkit-plugin-xai` | xAI | Grok models |
+| `genkit-plugin-mistral` | Mistral AI | Large, Small, Codestral, Pixtral |
+| `genkit-plugin-huggingface` | Hugging Face | 17+ inference providers |
+
+### New Telemetry Plugins (3)
+
+| Plugin | Provider | Key Features |
+|--------|----------|--------------|
+| `genkit-plugin-aws` | AWS X-Ray | SigV4 signing, OTLP export |
+| `genkit-plugin-aim` | AIM/Firebase | Firebase observability integration |
+| `genkit-plugin-google-cloud` | GCP | Full parity with JS/Go SDKs |
+
+### Core Framework Features
+
+- **Dynamic Action Provider (DAP)**: Factory pattern for runtime action creation
+- **Session Management**: `ai.chat()` API with conversation persistence
+- **Rerankers**: Initial reranker implementation for RAG pipelines
+- **Background Models**: Dynamic model discovery and background action support
+- **Resource Support**: Full MCP resource management
+- **Evaluator Metrics**: ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS
+- **Directory/File Prompt Loading**: Automatic prompt discovery (JS SDK parity)
+- **Output Formats**: Array, enum, JSONL formats (JS SDK parity)
+- **Pydantic Output**: Return typed Pydantic instances from generation
+
+## Breaking Changes
+
+### 1. PluginV2 Refactor (#4132)
+
+**Impact**: Plugin authors need to update their plugins.
+
+**Before**:
+```python
+class MyPlugin(Plugin):
+    def __init__(self, config):
+        self.config = config
+```
+
+**After**:
+```python
+class MyPlugin(PluginV2):
+    def __init__(self, config):
+        super().__init__(config)
+        # Use standardized registration pattern
+```
+
+### 2. Async-First Architecture (#4244)
+
+**Impact**: Sync base classes removed. All operations are now async.
+
+**Before**:
+```python
+result = flow.run_sync(input)  # No longer available
+```
+
+**After**:
+```python
+result = await flow.run(input)  # Use async/await
+# Or use asyncio.run() at entry points
+```
+
+### 3. Session/Chat API Changes (#4321)
+
+**Impact**: Session management moved to internal blocks.
+
+**Before**:
+```python
+from genkit import Session
+session = Session()
+```
+
+**After**:
+```python
+# Use ai.chat() API instead
+response = await ai.chat(messages)
+```
+
+## Type Safety Improvements
+
+This release integrates **three type checkers** for comprehensive coverage:
+
+- **ty** (Astral/Ruff): Fast, strict checking - 0 errors
+- **pyrefly** (Meta): Additional coverage - 0 errors  
+- **pyright** (Microsoft): Industry standard - 0 errors
+
+All packages now pass all three type checkers with zero errors.
+
+## Security Enhancements
+
+- **Ruff Security Audit**: All S-rules (Bandit) warnings addressed
+- **SigV4 Signing**: AWS X-Ray exporter uses proper AWS authentication
+- **PySentry Integration**: Continuous vulnerability scanning in CI
+- **License Compliance**: All configuration files have proper headers
+
+## Developer Experience
+
+- **Hot Reloading**: `watchdog`-based autoreloading for all samples
+- **Sample Improvements**: Consistent run scripts, browser auto-open, rich tracebacks
+- **TODO Linting**: Automated GitHub issue creation for TODOs
+- **Release Automation**: `bin/release_check`, `bin/bump_version` scripts
+- **Consistency Checks**: `bin/check_consistency` validates all packages
+
+## Migration Guide
+
+### For Application Developers
+
+1. **Update imports** if you were using internal APIs
+2. **Use async/await** for all Genkit operations
+3. **Test with Python 3.10+** (3.14 now supported)
+
+### For Plugin Developers
+
+1. **Migrate to PluginV2** base class
+2. **Follow new registration pattern** in plugin docs
+3. **Run `bin/lint`** to verify type safety
+
+## Testing
+
+All 22 plugins and 40+ samples have been tested. CI runs on Python 3.10, 3.11, 3.12, 3.13, and 3.14.
+
+## Full Changelog
+
+See [CHANGELOG.md](py/CHANGELOG.md) for the complete list of changes.
