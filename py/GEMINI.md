@@ -2100,6 +2100,40 @@ async def test_api_call(mock_get_client):
 When drafting release PRs and changelogs, follow these guidelines to create
 comprehensive, contributor-friendly release documentation.
 
+#### Release PR Checklist
+
+Use this checklist when drafting a release PR:
+
+| Step | Task | Command/Details |
+|------|------|-----------------|
+| 1 | **Count commits** | `git log "genkit-python@PREV"..HEAD --oneline -- py/ \| wc -l` |
+| 2 | **Count file changes** | `git diff --stat "genkit-python@PREV"..HEAD -- py/ \| tail -1` |
+| 3 | **List contributors** | `git log "genkit-python@PREV"..HEAD --pretty=format:"%an" -- py/ \| sort \| uniq -c \| sort -rn` |
+| 4 | **Get PR counts** | `gh pr list --state merged --search "label:python merged:>=DATE" --json author --limit 200 \| jq ...` |
+| 5 | **Map git names to GitHub** | `gh pr list --json author --limit 200 \| jq '.[].author \| "\(.name) -> @\(.login)"'` |
+| 6 | **Get each contributor's commits** | `git log --pretty=format:"%s" --author="Name" -- py/ \| head -30` |
+| 7 | **Check external repos** (e.g., dotprompt) | Review GitHub contributors page or clone and run git log |
+| 8 | **Create CHANGELOG.md section** | Follow Keep a Changelog format with Impact Summary |
+| 9 | **Create PR_DESCRIPTION_X.Y.Z.md** | Put in `.github/` directory |
+| 10 | **Add contributor tables** | Include GitHub links, PR/commit counts, exhaustive contributions |
+| 11 | **Categorize contributions** | Use bold categories: **Core**, **Plugins**, **Fixes**, etc. |
+| 12 | **Include PR numbers** | Add (#1234) for each major contribution |
+| 13 | **Add dotprompt table** | Same format as main table with PRs, Commits, Key Contributions |
+| 14 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
+| 15 | **Push with --no-verify** | `git push --no-verify` |
+| 16 | **Update PR on GitHub** | `gh pr edit <NUM> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md` |
+
+#### Key Principles
+
+1. **Exhaustive contributions**: List every significant feature, fix, and improvement
+2. **Clickable GitHub links**: Format as `[@username](https://github.com/username)`
+3. **Real names when different**: Show as `@MengqinShen (Elisa Shen)`
+4. **Categorize by type**: Use bold headers like **Core**, **Plugins**, **Type Safety**
+5. **Include PR numbers**: Every major item should have `(#1234)`
+6. **Match table formats**: External repo tables should have same columns as main table
+7. **Cross-check repositories**: Check both firebase/genkit and google/dotprompt for Python work
+8. **Use --no-verify**: For documentation-only changes, skip hooks for faster iteration
+
 #### CHANGELOG.md Structure
 
 Follow [Keep a Changelog](https://keepachangelog.com/) format with these sections:
