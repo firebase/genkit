@@ -25,12 +25,10 @@ JS_DIR="${TOP_DIR}/js"
 
 uv run --directory "${PY_DIR}" ruff check --fix --preview --unsafe-fixes .
 uv run --directory "${PY_DIR}" ruff format --preview .
-# Ensure Python test files follow the *_test.py naming convention.
-if find "${PY_DIR}" -name "test_*.py" -not -path "*/.*" | grep -q .; then
-  echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
-  find "${PY_DIR}" -name "test_*.py" -not -path "*/.*"
-  exit 1
-fi
+
+# Check lockfile is up to date
+echo "--- 🔒 Checking lockfile is up to date ---"
+uv lock --check --directory "${PY_DIR}"
 
 # Fast type checkers first (blocking)
 # Note: ty reads its config (environment.root) from py/pyproject.toml
@@ -50,6 +48,10 @@ uv run --directory "${PY_DIR}" pyright packages/
 # License checks
 echo "--- 📜 Running License Check ---"
 "${TOP_DIR}/bin/check_license"
+
+# Dependency license check
+echo "--- 📜 Running Dependency License Check ---"
+uv run --directory "${PY_DIR}" liccheck -s pyproject.toml
 
 # Consistency checks (Python versions, plugin versions, naming, workspace completeness)
 echo "--- 🔍 Running Consistency Checks ---"
