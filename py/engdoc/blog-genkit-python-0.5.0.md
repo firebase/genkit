@@ -21,7 +21,7 @@ We've added **7 new model provider plugins** and **3 telemetry plugins**, giving
 
 **New Telemetry Plugins:**
 - **AWS X-Ray**: Production observability with SigV4 signing
-- **AIM (Firebase Observability)**: Native Firebase telemetry
+- **Observability**: Third-party backends (Sentry, Honeycomb, Datadog)
 - **Google Cloud Telemetry**: Full parity with JS/Go SDKs
 
 ### Async-First Architecture
@@ -198,7 +198,8 @@ Better error output with [Rich](https://github.com/Textualize/rich) tracebacks i
 |--------|-------------|--------|
 | `genkit-plugin-google-cloud` | Cloud Trace/Logging | ✅ Stable |
 | `genkit-plugin-aws` | AWS X-Ray | ✅ New |
-| `genkit-plugin-aim` | Firebase/AIM | ✅ New |
+| `genkit-plugin-observability` | Sentry, Honeycomb, Datadog | ✅ New |
+| `genkit-plugin-firebase` | Firebase/Firestore | ✅ Stable |
 
 ### Data & Retrieval
 

@@ -2183,6 +2183,24 @@ grep -r "Output(schema=" py/samples/*/src/main.py | head -5
 grep -r "ai.run_main" py/samples/*/src/main.py | head -5
 ```
 
+**Verify plugin names exist before documenting:**
+
+CRITICAL: Always verify plugin names against actual packages before including them in
+release documentation. Non-existent plugins will confuse users.
+
+```bash
+# List all actual plugin package names
+grep "^name = " py/plugins/*/pyproject.toml | sort
+
+# Verify a specific plugin exists
+ls -la py/plugins/<plugin-name>/pyproject.toml
+```
+
+Common mistakes to avoid:
+- `genkit-plugin-aim` does NOT exist (use `genkit-plugin-firebase` or `genkit-plugin-observability`)
+- `genkit-plugin-firestore` does NOT exist (it's `genkit-plugin-firebase`)
+- Always double-check plugin names match directory names (with `genkit-plugin-` prefix)
+
 #### CHANGELOG.md Structure
 
 Follow [Keep a Changelog](https://keepachangelog.com/) format with these sections:

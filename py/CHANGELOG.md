@@ -38,7 +38,7 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 
 #### New Telemetry Plugins
 - **`genkit-plugin-aws`**: AWS X-Ray telemetry with SigV4 signing (#4390, #4402)
-- **`genkit-plugin-aim`**: AIM telemetry for Firebase observability (#4386, #3826)
+- **`genkit-plugin-observability`**: Third-party telemetry (Sentry, Honeycomb, Datadog)
 - **`genkit-plugin-google-cloud`**: GCP telemetry parity with JS/Go implementations (#4281)
 
 #### Core Framework Features
