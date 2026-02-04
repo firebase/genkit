@@ -1,3 +1,4 @@
+# pyright: reportUnnecessaryTypeIgnoreComment=false
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,12 +73,12 @@ import asyncio
 import time
 from typing import Any, cast
 
-from litestar import Controller, Litestar, get, post
-from litestar.datastructures import State
-from litestar.logging.config import LoggingConfig
-from litestar.middleware.base import AbstractMiddleware
-from litestar.plugins.structlog import StructlogPlugin
-from litestar.types import Message
+from litestar import Controller, Litestar, get, post  # type: ignore
+from litestar.datastructures import State  # type: ignore
+from litestar.logging.config import LoggingConfig  # type: ignore
+from litestar.middleware.base import AbstractMiddleware  # type: ignore
+from litestar.plugins.structlog import StructlogPlugin  # type: ignore
+from litestar.types import Message  # type: ignore
 from rich.traceback import install as install_rich_traceback
 from starlette.applications import Starlette
 

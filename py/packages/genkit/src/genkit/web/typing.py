@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryTypeIgnoreComment=false
-
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,10 +33,10 @@ from collections.abc import Awaitable, Callable
 from asgiref import typing as atyping
 
 try:
-    import litestar
-    import litestar.types
+    import litestar  # type: ignore # pyright: ignore[reportMissingImports]
+    import litestar.types  # type: ignore # pyright: ignore[reportMissingImports]
 except ImportError:
-    litestar = None  # type: ignore[assignment]
+    litestar = None  # type: ignore
 
 try:
     import starlette.types  # Explicit import for ty type checker
