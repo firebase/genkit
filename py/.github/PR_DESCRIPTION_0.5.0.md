@@ -10,7 +10,7 @@ This is a **major release** of the Genkit Python SDK with **178 commits** and **
 |----------|--------|-------------------|
 | **New Model Plugins** | 🟢 High - 7 new providers | No (additive) |
 | **New Telemetry Plugins** | 🟢 High - 3 new providers | No (additive) |
-| **Core Features** | 🟢 High - DAP, rerankers, Dotprompt | No (additive) |
+| **Core Features** | 🟢 High - rerankers, Dotprompt, tool calling | No (additive) |
 | **PluginV2 Refactor** | 🟡 Medium | Yes - plugin authors |
 | **Async-First Architecture** | 🟡 Medium | Yes - if using sync APIs |
 | **Type Safety** | 🟢 High | No (stricter checks) |
@@ -43,10 +43,9 @@ This is a **major release** of the Genkit Python SDK with **178 commits** and **
 
 ### Core Framework Features
 
-- **Dynamic Action Provider (DAP)**: Factory pattern for runtime action creation
+- **Agentive Tool Calling**: Define tools with `@ai.tool()` decorator for AI agents
 - **Rerankers**: Initial reranker implementation for RAG pipelines
 - **Background Models**: Dynamic model discovery and background action support
-- **Resource Support**: Full MCP resource management
 - **Evaluator Metrics**: ANSWER_RELEVANCY, FAITHFULNESS, MALICIOUSNESS
 - **Output Formats**: Array, enum, JSONL formats (JS SDK parity)
 - **Pydantic Output**: Return typed Pydantic instances from generation
@@ -178,7 +177,7 @@ This release includes contributions from **13 developers** across **188 PRs**. T
 
 | Contributor | PRs | Commits | Key Contributions |
 |-------------|-----|---------|-------------------|
-| [**@yesudeep**](https://github.com/yesudeep) | 91 | 93 | **Core**: async-first architecture (#4244), Genkit class methods (#4274), embed/embed_many API refactor (#4269), DAP factory pattern (#4377), centralized action latency (#4267), array/enum/jsonl output formats (#4230). **Plugins**: AWS Bedrock (#4389), AWS X-Ray with SigV4 (#4390, #4402), Azure OpenAI (#4383), Cloudflare Workers AI (#4405), Mistral AI (#4406), Hugging Face (#4406), GCP telemetry (#4281). **Type Safety**: ty integration (#4094), pyrefly (#4316), pyright (#4310), comprehensive fixes (#4249-4270). **DevEx**: hot reloading (#4268), per-event-loop HTTP caching (#4419, #4429), PySentry security (#4273), TODO linting (#4376), CI consolidation (#4410), session/chat API (#4278, #4275), background models (#4327), docs (#4322, #4393, #4430). **Samples**: 20+ sample fixes and improvements (#4283, #4373, #4375, #4427). |
+| [**@yesudeep**](https://github.com/yesudeep) | 91 | 93 | **Core**: async-first architecture (#4244), Genkit class methods (#4274), embed/embed_many API refactor (#4269), centralized action latency (#4267), array/enum/jsonl output formats (#4230). **Plugins**: AWS Bedrock (#4389), AWS X-Ray with SigV4 (#4390, #4402), Azure OpenAI (#4383), Cloudflare Workers AI (#4405), Mistral AI (#4406), Hugging Face (#4406), GCP telemetry (#4281). **Type Safety**: ty integration (#4094), pyrefly (#4316), pyright (#4310), comprehensive fixes (#4249-4270). **DevEx**: hot reloading (#4268), per-event-loop HTTP caching (#4419, #4429), PySentry security (#4273), TODO linting (#4376), CI consolidation (#4410), session/chat API (#4278, #4275), background models (#4327), docs (#4322, #4393, #4430). **Samples**: 20+ sample fixes and improvements (#4283, #4373, #4375, #4427). |
 | [**@MengqinShen**](https://github.com/MengqinShen) (Elisa Shen) | 42 | 42 | **Core**: Resource support implementation (#4204). **Samples**: menu sample fixes (#4239, #4403), short-n-long (#4404), tool-interrupt (#4408), prompt sample (#4223, #4183), ollama-hello (#4133), genai-image (#4122, #4234), code-execution (#4134), anthropic sample (#4131). **Models**: Google GenAI model config (#4306), TTS/Veo model config (#4411), Gemini bug fixes (#4432), system prompt fields (#4391, #4418). **Docs**: README updates (#4323), multi-round flow logic (#4137). |
 | [**@AbeJLazaro**](https://github.com/AbeJLazaro) | 11 | 8 | **Plugins**: Model Garden resolve/list actions (#3040), Ollama resolve action (#2972), type coverage and tests (#3011). **Fixes**: Gemini complex schema support (#3049), Firestore plugin naming (#3085), evaluator plugin requirements (#3166), optional dependencies setup (#3012). **Tests**: Model Garden tests (#3083). |
 | [**@pavelgj**](https://github.com/pavelgj) | 10 | 7 | **Core**: Reflection API multi-runtime support (#3970), health check fixes (#3969). **Fixes**: Embedders reflection (#3969), Gemini version upgrades to 2.5 (#3909). |
