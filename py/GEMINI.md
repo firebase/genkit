@@ -2136,11 +2136,16 @@ Use this checklist when drafting a release PR:
 7. **Cross-check repositories**: Check both firebase/genkit and google/dotprompt for Python work
 8. **Use --no-verify**: For documentation-only changes, skip hooks for faster iteration
 9. **Always include blog article**: Every release needs a blog article in `py/engdoc/`
+10. **Branding**: Use "Genkit" not "Firebase Genkit" (rebranded as of 2025)
 
 #### Blog Article Guidelines
 
-Every release MUST include a blog article at `py/engdoc/blog-genkit-python-X.Y.Z.md` following
-the [Firebase blog style](https://firebase.blog/posts/2025/04/genkit-python-go/):
+Every release MUST include a blog article at `py/engdoc/blog-genkit-python-X.Y.Z.md`.
+
+**Branding Note**: The project is called **"Genkit"** (not "Firebase Genkit"). While the
+repository is hosted at `github.com/firebase/genkit` and some blog posts may be published
+on the Firebase blog, the product name is simply "Genkit". Use this consistently in all
+documentation, blog articles, and release notes.
 
 **Required Sections:**
 1. **Headline**: "Genkit Python SDK X.Y.Z: [Catchy Subtitle]"

@@ -297,4 +297,4 @@ Happy coding, and we look forward to seeing what you create with Genkit Python 0
 
 ---
 
-*Tags: [Launch](https://firebase.blog/category/launch) | [Genkit](https://firebase.blog/category/genkit) | [AI](https://firebase.blog/category/ai) | [Python](https://firebase.blog/category/python)*
+*Tags: Launch | Genkit | AI | Python*
