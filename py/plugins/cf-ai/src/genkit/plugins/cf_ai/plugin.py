@@ -34,6 +34,7 @@ from genkit.ai import ActionRunContext, Plugin
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.http_client import get_cached_client
 from genkit.core.logging import get_logger
 from genkit.core.schema import to_json_schema
 from genkit.plugins.cf_ai.embedders.embedder import CfEmbedder
@@ -138,16 +139,21 @@ class CfAI(Plugin):
         self._embedders = embedders or list(SUPPORTED_EMBEDDING_MODELS.keys())
 
     def _get_client(self) -> httpx.AsyncClient:
-        """Create a fresh httpx client with auth headers.
+        """Get or create an httpx client for the current event loop.
 
-        Note: We create a new client per request to avoid async event loop
-        binding issues. httpx.AsyncClient instances cannot be safely shared
-        across different event loops.
+        Uses the shared per-event-loop cache from genkit.core.http_client to avoid
+        creating a new client for every request while still handling multiple event
+        loops correctly.
+
+        The Cloudflare API token is static for the plugin lifetime, so it's safe
+        to include in the cached client headers (unlike Google Cloud tokens which
+        may expire).
 
         Returns:
-            Configured httpx.AsyncClient.
+            Configured httpx.AsyncClient for the current event loop.
         """
-        return httpx.AsyncClient(
+        return get_cached_client(
+            cache_key=f'cf-ai/{self._account_id}',
             headers={
                 'Authorization': f'Bearer {self._api_token}',
                 'Content-Type': 'application/json',
