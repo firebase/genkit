@@ -2361,15 +2361,40 @@ their infrastructure work directly benefits the Python SDK).
 #### Separate External Repository Contributors
 
 When the Python SDK integrates external projects (like dotprompt), add a separate
-contributor table for that project:
+contributor table for that project with the **same columns** as the main table:
 
 ```markdown
 **[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt Python integration):
 
-| Contributor | PRs | Key Contributions |
-|-------------|-----|-------------------|
-| [**@username**](https://github.com/username) | 50+ | Python PyO3 support, release automation |
-| [**@contributor2**](https://github.com/contributor2) | 42 | CI/CD pipeline, package publishing |
+| Contributor | PRs | Commits | Key Contributions |
+|-------------|-----|---------|-------------------|
+| [**@username**](https://github.com/username) | 50+ | 100+ | **Category**: Feature descriptions with PR numbers. |
+| [**@contributor2**](https://github.com/contributor2) | 42 | 45 | **CI/CD**: Package publishing, release automation. |
 ```
 
 This clearly distinguishes between core SDK contributions and external project contributions.
+
+#### Fast Iteration with --no-verify
+
+When iterating on release documentation, use `--no-verify` to skip pre-commit/pre-push
+hooks for faster feedback:
+
+```bash
+# Fast commit
+git commit --no-verify -m "docs(py): update contributor tables"
+
+# Fast push
+git push --no-verify
+```
+
+**Only use this for documentation-only changes** where CI verification is not critical.
+For code changes, always run full verification.
+
+#### Updating PR Description on GitHub
+
+After updating the PR description file, push it to GitHub:
+
+```bash
+# Update the PR body from the file
+gh pr edit <PR_NUMBER> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md
+```
