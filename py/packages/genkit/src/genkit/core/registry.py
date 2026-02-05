@@ -30,7 +30,7 @@ Example:
 import asyncio
 import threading
 from collections.abc import Awaitable, Callable
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from dotpromptz.dotprompt import Dotprompt
 from pydantic import BaseModel
@@ -43,7 +43,7 @@ from genkit.core.action import (
     SpanAttributeValue,
     parse_action_key,
 )
-from genkit.core.action.types import ActionKind, ActionName
+from genkit.core.action.types import ActionKind, ActionName, is_action_type
 from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
 from genkit.core.typing import (
@@ -59,6 +59,9 @@ from genkit.core.typing import (
     RetrieverRequest,
     RetrieverResponse,
 )
+
+if TYPE_CHECKING:
+    from genkit.blocks.dap import DynamicActionProvider
 
 logger = get_logger(__name__)
 
@@ -86,6 +89,96 @@ ActionFn = (
     | Callable[[InputT], OutputT | Awaitable[OutputT]]
     | Callable[[InputT, ActionRunContext], OutputT | Awaitable[OutputT]]
 )
+
+
+def _is_dap_action(action: Action) -> bool:
+    """Check if an action is a Dynamic Action Provider using duck typing.
+
+    Uses metadata check to avoid circular import with genkit.blocks.dap.
+
+    Args:
+        action: The action to check.
+
+    Returns:
+        True if the action is a DAP.
+    """
+    if hasattr(action, 'metadata') and isinstance(action.metadata, dict):
+        return action.metadata.get('type') == 'dynamic-action-provider'
+    return False
+
+
+class ParsedRegistryKey(BaseModel):
+    """Parsed registry key containing action type, name, and optional DAP host.
+
+    Registry keys can be in several formats:
+    - Standard: /model/googleai/gemini-2.0-flash
+    - DAP: /dynamic-action-provider/mcp-host:tool/my-tool
+    - Util: /util/generate
+
+    Attributes:
+        action_type: The type of action (e.g., 'model', 'tool').
+        action_name: The name of the action.
+        plugin_name: Optional plugin name for namespaced actions.
+        dynamic_action_host: Optional DAP host name for dynamic actions.
+    """
+
+    action_type: str
+    action_name: str
+    plugin_name: str | None = None
+    dynamic_action_host: str | None = None
+
+
+def parse_registry_key(registry_key: str) -> ParsedRegistryKey | None:
+    """Parse a registry key into its component parts.
+
+    Supports multiple key formats:
+    - DAP format: '/dynamic-action-provider/mcp-host:tool/mytool'
+    - Standard format: '/model/googleai/gemini-2.0-flash'
+    - Prompt format: '/prompt/my-plugin/folder/my-prompt'
+    - Util format: '/util/generate'
+
+    Args:
+        registry_key: The registry key string to parse.
+
+    Returns:
+        ParsedRegistryKey containing the parsed components, or None if invalid.
+    """
+    if registry_key.startswith('/dynamic-action-provider'):
+        # DAP format: '/dynamic-action-provider/mcp-host:tool/mytool' or 'mcp-host:tool/*'
+        key_tokens = registry_key.split(':')
+        host_tokens = key_tokens[0].split('/')
+        if len(host_tokens) < 3:
+            return None
+        if len(key_tokens) < 2:
+            return ParsedRegistryKey(
+                action_type='dynamic-action-provider',
+                action_name=host_tokens[2],
+            )
+        tokens = key_tokens[1].split('/')
+        if len(tokens) < 2 or not is_action_type(tokens[0]):
+            return None
+        return ParsedRegistryKey(
+            dynamic_action_host=host_tokens[2],
+            action_type=tokens[0],
+            action_name='/'.join(tokens[1:]),
+        )
+
+    tokens = registry_key.split('/')
+    if len(tokens) < 3:
+        # Invalid key format
+        return None
+    # Format: /model/googleai/gemini-2.0-flash or /prompt/my-plugin/folder/my-prompt
+    if len(tokens) >= 4:
+        return ParsedRegistryKey(
+            action_type=tokens[1],
+            plugin_name=tokens[2],
+            action_name='/'.join(tokens[3:]),
+        )
+    # Format: /util/generate
+    return ParsedRegistryKey(
+        action_type=tokens[1],
+        action_name=tokens[2],
+    )
 
 
 class Registry:
@@ -456,6 +549,77 @@ class Registry:
 
         return None
 
+    async def resolve_action_names(self, key: str) -> list[str]:
+        """Resolve a registry key to a list of matching action names.
+
+        Supports wildcard expansion for DAP actions (e.g., 'mcp-host:tool/*').
+
+        Args:
+            key: The registry key, potentially with wildcards.
+
+        Returns:
+            List of fully-qualified action names matching the key.
+        """
+        parsed_key = parse_registry_key(key)
+        if parsed_key and parsed_key.dynamic_action_host:
+            # DAP key - resolve via the DAP
+            host_id = f'/dynamic-action-provider/{parsed_key.dynamic_action_host}'
+            with self._lock:
+                dap_entries = self._entries.get(ActionKind.DYNAMIC_ACTION_PROVIDER, {})
+                dap_action = dap_entries.get(parsed_key.dynamic_action_host)
+
+            if dap_action is None:
+                return []
+
+            if not _is_dap_action(dap_action):
+                return []
+
+            # Get the DynamicActionProvider wrapper
+            dap = getattr(dap_action, '_dap_instance', None)
+            if dap is None:
+                return []
+
+            metadata_list = await dap.list_action_metadata(parsed_key.action_type, parsed_key.action_name)
+            return [f'{host_id}:{parsed_key.action_type}/{m.get("name", "")}' for m in metadata_list]
+
+        # Standard key - just return it if the action exists
+        if await self.lookup_action_by_key(key):
+            return [key]
+        return []
+
+    async def lookup_action_by_key(self, key: str) -> Action | None:
+        """Lookup an action by its full registry key.
+
+        This is a simple lookup that doesn't trigger any resolution.
+        Use resolve_action_by_key for full resolution with plugin initialization.
+
+        Args:
+            key: The full registry key.
+
+        Returns:
+            The Action if found, None otherwise.
+        """
+        parsed = parse_registry_key(key)
+        if not parsed:
+            return None
+
+        try:
+            kind = ActionKind(parsed.action_type)
+        except ValueError:
+            return None
+
+        if parsed.plugin_name:
+            name = f'{parsed.plugin_name}/{parsed.action_name}'
+        else:
+            name = parsed.action_name
+
+        with self._lock:
+            if kind not in self._entries:
+                return None
+            # pyrefly: ignore[bad-index] - kind is ActionKind, not plain StrEnum
+            kind_entries = self._entries[kind]
+            return kind_entries.get(name)
+
     async def resolve_action_by_key(self, key: str) -> Action | None:
         """Resolve an action using its combined key string.
 
@@ -482,6 +646,9 @@ class Registry:
         plugins. It does NOT trigger plugin initialization and does NOT consult
         the registry's internal action store.
 
+        For a full list including registered actions and DAP-provided actions,
+        use `list_resolvable_actions` instead.
+
         Args:
             allowed_kinds: Optional list of action kinds to filter by.
 
@@ -507,6 +674,79 @@ class Registry:
                 if allowed_kinds and meta.kind not in allowed_kinds:
                     continue
                 metas.append(meta)
+        return metas
+
+    async def list_resolvable_actions(self, allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
+        """List all resolvable actions including registered and DAP-provided actions.
+
+        This method returns a comprehensive list of all actions:
+        1. Actions advertised by plugins (via list_actions)
+        2. Actions already registered in the registry
+        3. Actions provided by Dynamic Action Providers (DAPs)
+
+        This is the Python equivalent of JS `listResolvableActions` and is used
+        by the DevUI to show all available actions.
+
+        Args:
+            allowed_kinds: Optional list of action kinds to filter by.
+
+        Returns:
+            A list of ActionMetadata objects describing available actions.
+
+        Raises:
+            ValueError: If a plugin returns invalid ActionMetadata.
+        """
+        metas: list[ActionMetadata] = []
+        seen_names: set[str] = set()
+
+        # Get plugin actions first
+        plugin_metas = await self.list_actions(allowed_kinds)
+        for meta in plugin_metas:
+            if meta.name not in seen_names:
+                metas.append(meta)
+                seen_names.add(meta.name)
+
+        # Get all registered actions including DAP actions
+        with self._lock:
+            all_entries = {k: dict(v) for k, v in self._entries.items()}
+
+        for _kind, actions_dict in all_entries.items():
+            for _name, action in actions_dict.items():
+                # Add static action metadata if not already seen
+                if action.name not in seen_names:
+                    meta = ActionMetadata(
+                        name=action.name,
+                        kind=action.kind,
+                        description=action.description,
+                    )
+                    if allowed_kinds and meta.kind not in allowed_kinds:
+                        continue
+                    metas.append(meta)
+                    seen_names.add(action.name)
+
+                # If this is a DAP, include its dynamic actions
+                if _is_dap_action(action):
+                    try:
+                        dap_prefix = f'/{action.kind}/{action.name}'
+                        # Get the DynamicActionProvider wrapper (uses TYPE_CHECKING import)
+                        dap: DynamicActionProvider | None = getattr(action, '_dap_instance', None)
+                        if dap:
+                            dap_metadata = await dap.get_action_metadata_record(dap_prefix)
+                            for _dap_key, dap_meta in dap_metadata.items():
+                                dap_name = str(dap_meta.get('name', ''))
+                                if dap_name not in seen_names:
+                                    dap_action_meta = ActionMetadata(
+                                        name=dap_name,
+                                        kind=ActionKind(str(dap_meta.get('kind', 'tool'))),
+                                        description=str(dap_meta.get('description', '')),
+                                    )
+                                    if allowed_kinds and dap_action_meta.kind not in allowed_kinds:
+                                        continue
+                                    metas.append(dap_action_meta)
+                                    seen_names.add(dap_name)
+                    except Exception as e:
+                        logger.error(f'Error listing actions for DAP {action.name}: {e}')
+
         return metas
 
     def register_schema(self, name: str, schema: dict[str, object], schema_type: type[BaseModel] | None = None) -> None:

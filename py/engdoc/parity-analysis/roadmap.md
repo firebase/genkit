@@ -34,8 +34,8 @@ This document organizes the identified gaps into executable milestones with depe
 | **P1** | TTS (Text-to-Speech) models | S | ✅ Complete |
 | **P1** | Gemini Image models | S | ✅ Complete |
 | **P1** | Lyria audio generation (Vertex AI) | S | ✅ Complete |
-| **P1** | DAP DevUI Integration (`listResolvableActions`) | M | ⚠️ Partial |
-| **P1** | DAP Registry Key Parsing | S | ⚠️ Not Started |
+| **P1** | DAP DevUI Integration (`listResolvableActions`) | M | ✅ Complete |
+| **P1** | DAP Registry Key Parsing | S | ✅ Complete |
 | **P1** | Live/Realtime API | L | ❌ Not Started |
 | **P2** | Multi-agent sample | M | ❌ Not Started |
 | **P2** | MCP sample | M | ❌ Not Started |
@@ -103,10 +103,12 @@ changes from PR #4050 (merged 2026-02-05):
 │                            │    -provider'      │    PROVIDER        │      │
 │ DAP fallback in resolve    │ ✅ getDynamicAction│ ✅ registry.py     │  ✅  │
 │                            │                    │    lines 435-456   │      │
-│ listResolvableActions DAP  │ ✅ Includes DAP    │ ⚠️ Not implemented │  ⚠️  │
-│                            │    actions in list │                    │      │
-│ resolveActionNames (DAP)   │ ✅ Wildcard expand │ ⚠️ Not implemented │  ⚠️  │
-│ parseRegistryKey for DAP   │ ✅ Parses DAP keys │ ⚠️ Not implemented │  ⚠️  │
+│ listResolvableActions DAP  │ ✅ Includes DAP    │ ✅ list_resolvable_ │  ✅  │
+│                            │    actions in list │    _actions()      │      │
+│ resolveActionNames (DAP)   │ ✅ Wildcard expand │ ✅ resolve_action_ │  ✅  │
+│                            │                    │    _names()        │      │
+│ parseRegistryKey for DAP   │ ✅ Parses DAP keys │ ✅ parse_registry_ │  ✅  │
+│                            │                    │    _key()          │      │
 ├────────────────────────────┴────────────────────┴────────────────────┴──────┤
 │                                                                             │
 │ TEST COVERAGE (13 core tests matching JS exactly + 7 additional)            │
@@ -127,26 +129,27 @@ changes from PR #4050 (merged 2026-02-05):
 └────────────────────────────┴────────────────────┴────────────────────┴──────┘
 ```
 
-### DAP Remaining Gaps
+### DAP Completed Gaps ✅
 
-| Gap | JS Location | Impact | Priority | Effort |
-|-----|-------------|--------|----------|--------|
-| `listResolvableActions` DAP | `registry.ts:383-398` | DevUI shows DAP actions | **P1** | M |
-| `resolveActionNames` | `registry.ts:196-212` | Wildcard expansion | **P2** | S |
-| `parseRegistryKey` DAP | `registry.ts:96-141` | DAP key format parsing | **P2** | S |
+| Gap | JS Location | Impact | Status |
+|-----|-------------|--------|--------|
+| `listResolvableActions` DAP | `registry.ts:383-398` | DevUI shows DAP actions | ✅ `list_resolvable_actions()` |
+| `resolveActionNames` | `registry.ts:196-212` | Wildcard expansion | ✅ `resolve_action_names()` |
+| `parseRegistryKey` DAP | `registry.ts:96-141` | DAP key format parsing | ✅ `parse_registry_key()` |
 
 ### Implementation Notes
 
 **Python DAP Core (Complete - 100% Parity with JS PR #4050):**
 - `py/packages/genkit/src/genkit/blocks/dap.py` - Full implementation
-- `py/packages/genkit/tests/genkit/blocks/dap_test.py` - 20 tests (all passing)
+- `py/packages/genkit/tests/genkit/blocks/dap_test.py` - 23 tests (all passing)
 - Documentation with ELI5 explanations and ASCII diagrams in docstrings
 - Sample: `py/samples/dap-demo/` - Comprehensive demonstration
 
-**Registry Integration (Partial):**
-- ✅ DAP fallback in `resolve_action()` - Lines 435-456 in `registry.py`
-- ⚠️ Missing: DevUI integration for listing DAP actions
-- ⚠️ Missing: DAP-specific key parsing (e.g., `mcp-host:tool/my-tool`)
+**Registry Integration (Complete 2026-02-05):**
+- `parse_registry_key()` - Parses DAP-style keys like `/dynamic-action-provider/mcp-host:tool/mytool`
+- `resolve_action_names()` - Expands wildcard keys via DAP
+- `list_resolvable_actions()` - Lists all actions including DAP-provided ones
+- `is_action_type()` - Helper to validate action type strings
 
 ---
 
@@ -165,8 +168,8 @@ changes from PR #4050 (merged 2026-02-05):
 | **TTS models** | Text-to-speech Gemini models (gemini-*-tts) | **P1** | ✅ Complete |
 | **Gemini Image models** | Native image generation (gemini-*-image) | **P1** | ✅ Complete |
 | **Lyria audio generation** | Audio generation via Vertex AI (lyria-002) | **P1** | ✅ Complete |
-| **DAP DevUI Integration** | `listResolvableActions` includes DAP-provided actions | **P1** | ⚠️ Not Started |
-| **DAP Key Parsing** | `parseRegistryKey` for DAP format (`dap:type/name`) | **P2** | ⚠️ Not Started |
+| **DAP DevUI Integration** | `listResolvableActions` includes DAP-provided actions | **P1** | ✅ Complete |
+| **DAP Key Parsing** | `parseRegistryKey` for DAP format (`dap:type/name`) | **P2** | ✅ Complete |
 | **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
 | **CLI/Tooling Parity** | `genkit` CLI commands and Python project behavior | Medium | ⚠️ Mostly Working |
 | **Error Types** | Python error hierarchy parity check | Low | ⚠️ Needs Review |

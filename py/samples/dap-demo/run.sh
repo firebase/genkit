@@ -56,4 +56,4 @@ genkit_start_with_browser -- \
         -d ../../plugins \
         -p '*.py;*.prompt;*.json' \
         -R \
-        -- uv run src/main.py "$@"
+        -- uv run src/dap_demo/__init__.py "$@"

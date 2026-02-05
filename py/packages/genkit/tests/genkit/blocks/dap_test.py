@@ -56,7 +56,8 @@ from genkit.blocks.dap import (
 )
 from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
-from genkit.core.registry import Registry
+from genkit.core.error import GenkitError
+from genkit.core.registry import Registry, parse_registry_key
 
 
 @pytest.fixture
@@ -340,12 +341,7 @@ async def test_handles_concurrent_requests(registry: Registry, tool1: Action, to
 
 @pytest.mark.asyncio
 async def test_handles_fetch_errors(registry: Registry, tool1: Action, tool2: Action) -> None:
-    """Test error handling and cache invalidation on fetch failure.
-
-    Corresponds to JS test: 'handles fetch errors'
-    """
-    from genkit.core.error import GenkitError
-
+    """Test that DAP raises GenkitError on fetch failure."""
     call_count = 0
 
     async def dap_fn() -> DapValue:
@@ -542,3 +538,65 @@ async def test_get_action_metadata_record_raises_on_missing_name(registry: Regis
 
     with pytest.raises(ValueError, match='name required'):
         await dap.get_action_metadata_record('dap/my-dap')
+
+
+@pytest.mark.asyncio
+async def test_parse_registry_key_standard_format() -> None:
+    """Test parsing standard registry keys."""
+    # Standard model key
+    parsed = parse_registry_key('/model/googleai/gemini-2.0-flash')
+    assert parsed is not None
+    assert parsed.action_type == 'model'
+    assert parsed.plugin_name == 'googleai'
+    assert parsed.action_name == 'gemini-2.0-flash'
+    assert parsed.dynamic_action_host is None
+
+    # Util key (short format)
+    parsed = parse_registry_key('/util/generate')
+    assert parsed is not None
+    assert parsed.action_type == 'util'
+    assert parsed.action_name == 'generate'
+    assert parsed.plugin_name is None
+
+    # Invalid key
+    parsed = parse_registry_key('invalid')
+    assert parsed is None
+
+
+@pytest.mark.asyncio
+async def test_parse_registry_key_dap_format() -> None:
+    """Test parsing DAP-style registry keys."""
+    # DAP key with action type and name
+    parsed = parse_registry_key('/dynamic-action-provider/mcp-host:tool/my-tool')
+    assert parsed is not None
+    assert parsed.dynamic_action_host == 'mcp-host'
+    assert parsed.action_type == 'tool'
+    assert parsed.action_name == 'my-tool'
+
+    # DAP key without action type (just host)
+    parsed = parse_registry_key('/dynamic-action-provider/mcp-host')
+    assert parsed is not None
+    assert parsed.action_type == 'dynamic-action-provider'
+    assert parsed.action_name == 'mcp-host'
+
+
+@pytest.mark.asyncio
+async def test_list_resolvable_actions_includes_dap(registry: Registry, tool1: Action, tool2: Action) -> None:
+    """Test that list_resolvable_actions includes DAP-provided actions."""
+    call_count = 0
+
+    async def dap_fn() -> DapValue:
+        nonlocal call_count
+        call_count += 1
+        return {'tool': [tool1, tool2]}
+
+    define_dynamic_action_provider(registry, 'test-dap', dap_fn)
+
+    # Get resolvable actions
+    metas = await registry.list_resolvable_actions()
+
+    # Should include the DAP itself and the tools it provides
+    names = [m.name for m in metas]
+    assert 'test-dap' in names  # The DAP action
+    assert 'tool1' in names  # DAP-provided tool
+    assert 'tool2' in names  # DAP-provided tool

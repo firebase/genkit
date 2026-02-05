@@ -59,6 +59,22 @@ class ActionKind(StrEnum):
     UTIL = 'util'
 
 
+def is_action_type(value: str) -> bool:
+    """Check if a string is a valid ActionKind.
+
+    Args:
+        value: The string to check.
+
+    Returns:
+        True if the value is a valid ActionKind.
+    """
+    try:
+        ActionKind(value)
+        return True
+    except ValueError:
+        return False
+
+
 ResponseT = TypeVar('ResponseT')
 
 

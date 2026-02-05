@@ -20,13 +20,78 @@ This sample demonstrates how to use Dynamic Action Providers (DAPs) to provide
 tools dynamically at runtime. DAPs are useful for integrating external tool
 sources like MCP servers, plugin registries, or service meshes.
 
-Key Concepts (ELI5)::
+What is DAP? (ELI5 - The Toy Box Analogy)
+-----------------------------------------
+
+Imagine you have two ways to get toys:
+
+**Regular Tools (Static)** - Your Toy Box at Home::
+
+    📦 Your Toy Box
+    ├── 🚗 Car (always there)
+    ├── 🧸 Teddy Bear (always there)
+    └── 🎮 Game (always there)
+
+You know exactly what toys you have. They're always in the same spot.
+This is like regular ``@ai.tool()`` - defined once at startup, always available.
+
+**DAP Tools (Dynamic)** - A Toy Rental Store::
+
+    🏪 Toy Rental Store (DAP)
+    ├── "What toys do you have today?"
+    ├── Store checks inventory...
+    └── "Today we have: 🚀 Rocket, 🦖 Dinosaur, 🎸 Guitar!"
+
+The toys change! You ask the store, they check what's in stock RIGHT NOW,
+and give you options. Tomorrow might be different toys!
+
+Static vs Dynamic Tools::
+
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                        WITHOUT DAP                               │
+    │                                                                  │
+    │   Your App Starts                                                │
+    │        │                                                         │
+    │        ▼                                                         │
+    │   ┌─────────────┐                                                │
+    │   │ Define tool │  @ai.tool("get_weather")                      │
+    │   │ Define tool │  @ai.tool("get_stocks")                       │
+    │   └─────────────┘                                                │
+    │        │                                                         │
+    │        ▼                                                         │
+    │   Tools are FIXED. Can't add new ones without restarting.       │
+    └─────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                         WITH DAP                                 │
+    │                                                                  │
+    │   Your App Starts                                                │
+    │        │                                                         │
+    │        ▼                                                         │
+    │   ┌───────────────────┐                                          │
+    │   │ Register DAP      │  "Ask MCP server for tools"             │
+    │   └───────────────────┘                                          │
+    │        │                                                         │
+    │        ▼                                                         │
+    │   When you need tools...                                         │
+    │        │                                                         │
+    │        ▼                                                         │
+    │   ┌───────────────────┐     ┌─────────────────────┐             │
+    │   │ DAP asks server   │ ──► │ MCP Server says:    │             │
+    │   │ "What tools now?" │     │ "I have 5 tools!"   │             │
+    │   └───────────────────┘     └─────────────────────┘             │
+    │        │                                                         │
+    │        ▼                                                         │
+    │   Tools could be DIFFERENT each time! 🎉                        │
+    └─────────────────────────────────────────────────────────────────┘
+
+Key Concepts::
 
     ┌─────────────────────┬────────────────────────────────────────────────┐
     │ Concept             │ ELI5 Explanation                               │
     ├─────────────────────┼────────────────────────────────────────────────┤
     │ DAP                 │ A "tool factory" that creates tools on-demand. │
-    │                     │ Like a vending machine for AI tools.           │
+    │                     │ Like asking a store what's in stock.           │
     ├─────────────────────┼────────────────────────────────────────────────┤
     │ Dynamic Tool        │ A tool created at runtime, not at startup.     │
     │                     │ Like ordering custom pizza vs frozen.          │
@@ -40,6 +105,14 @@ Key Concepts (ELI5)::
     │ Invalidation        │ Throwing away stale cached tools.              │
     │                     │ Like clearing your browser cache.              │
     └─────────────────────┴────────────────────────────────────────────────┘
+
+Why Use DAP?
+------------
+
+1. **MCP Servers** - Connect to external tool servers that add/remove tools
+2. **Plugin Systems** - Users can install new tools without restarting
+3. **Multi-tenant** - Different users might have access to different tools
+4. **Service Mesh** - Tools discovered from a network of microservices
 
 Data Flow::
 
@@ -87,7 +160,7 @@ Running the Demo
 
 3. Or run directly with genkit start::
 
-    uv run genkit start -- python src/main.py
+    uv run genkit start -- python src/dap_demo/__init__.py
 
 Testing in the DevUI
 --------------------
@@ -292,6 +365,8 @@ async def finance_assistant(input: FinanceInput) -> str:
 
     The finance tools are provided by the finance-tools DAP with a longer
     cache TTL since the available tools change less frequently.
+
+    This flow demonstrates using a model to answer queries with dynamic tools.
     """
     cache_result = await finance_dap._cache.get_or_fetch()  # noqa: SLF001 - accessing internal cache for demo
     tools = cache_result.get('tool', [])
@@ -299,8 +374,25 @@ async def finance_assistant(input: FinanceInput) -> str:
     if not tools:
         return 'Finance service unavailable.'
 
+    # Use a model to answer the query using the dynamic tools
+    # Note: Dynamic tools are not in the global registry, so we invoke them directly.
+    # For stock queries, use the get_stock_price tool
+    get_stock_price = next((t for t in tools if t.name == 'get_stock_price'), None)
+    if get_stock_price and 'stock' in input.query.lower():
+        # Extract stock symbol from query (simple heuristic)
+        words = input.query.upper().split()
+        symbol = next((w for w in words if len(w) <= 5 and w.isalpha()), 'AAPL')
+        result = await get_stock_price.arun(symbol)
+        return str(result.response)
+
+    # For currency queries, use the convert_currency tool
+    convert_currency = next((t for t in tools if t.name == 'convert_currency'), None)
+    if convert_currency and any(word in input.query.lower() for word in ['convert', 'exchange', 'currency']):
+        result = await convert_currency.arun(CurrencyConversion())
+        return str(result.response)
+
     tool_names = [t.name for t in tools]
-    return f'Available finance tools: {", ".join(tool_names)}. Query: {input.query}'
+    return f'Available finance tools: {", ".join(tool_names)}. Try asking about stocks or currency conversion.'
 
 
 @ai.flow(description='Multi-source assistant combining tools from multiple DAPs')
@@ -309,20 +401,54 @@ async def multi_assistant(input: MultiInput) -> str:
 
     This demonstrates how DAPs can be composed to provide tools from
     multiple sources (weather service + finance APIs) in a single query.
+
+    Uses asyncio.gather for concurrent fetching.
     """
     all_tools: list[Action[Any, Any]] = []
 
-    weather_cache = await weather_dap._cache.get_or_fetch()  # noqa: SLF001
+    # Fetch from both DAPs concurrently for efficiency
+    weather_cache, finance_cache = await asyncio.gather(
+        weather_dap._cache.get_or_fetch(),  # noqa: SLF001
+        finance_dap._cache.get_or_fetch(),  # noqa: SLF001
+    )
     all_tools.extend(weather_cache.get('tool', []))
-
-    finance_cache = await finance_dap._cache.get_or_fetch()  # noqa: SLF001
     all_tools.extend(finance_cache.get('tool', []))
 
     if not all_tools:
         return 'No tools available.'
 
+    # Demonstrate composing tools from multiple sources
+    # Collect results from all matching tools
+    results: list[str] = []
+
+    # For weather queries, use the weather tool
+    get_weather = next((t for t in all_tools if t.name == 'get_weather'), None)
+    if get_weather and 'weather' in input.query.lower():
+        # Extract city name (simple heuristic - use first capitalized word after 'in')
+        import re
+
+        match = re.search(r'\bin\s+(\w+)', input.query, re.IGNORECASE)
+        city = match.group(1) if match else 'London'
+        result = await get_weather.arun(city)
+        results.append(str(result.response))
+
+    # For currency/exchange queries, use convert_currency tool
+    convert_currency = next((t for t in all_tools if t.name == 'convert_currency'), None)
+    if convert_currency and any(word in input.query.lower() for word in ['eur', 'usd', 'exchange', 'currency', 'rate']):
+        result = await convert_currency.arun(CurrencyConversion(from_currency='EUR', to_currency='USD'))
+        results.append(str(result.response))
+
+    # For stock queries, use get_stock_price tool
+    get_stock_price = next((t for t in all_tools if t.name == 'get_stock_price'), None)
+    if get_stock_price and any(word in input.query.lower() for word in ['stock', 'price', 'aapl']):
+        result = await get_stock_price.arun('AAPL')
+        results.append(str(result.response))
+
+    if results:
+        return ' | '.join(results)
+
     tool_names = [t.name for t in all_tools]
-    return f'Available tools from all sources: {", ".join(tool_names)}. Query: {input.query}'
+    return f'Available tools: {", ".join(tool_names)}. Try asking about weather, stocks, or currency.'
 
 
 @ai.flow(description='Demonstrate DAP cache invalidation')
@@ -363,8 +489,11 @@ async def list_dap_tools(input: ListToolsInput) -> str:
         tools = cache.get('tool', [])
         return f'Finance tools: {[t.name for t in tools]}'
     elif input.source == 'all':
-        weather_cache = await weather_dap._cache.get_or_fetch()  # noqa: SLF001
-        finance_cache = await finance_dap._cache.get_or_fetch()  # noqa: SLF001
+        # Fetch from both DAPs concurrently for efficiency
+        weather_cache, finance_cache = await asyncio.gather(
+            weather_dap._cache.get_or_fetch(),  # noqa: SLF001
+            finance_dap._cache.get_or_fetch(),  # noqa: SLF001
+        )
         weather_tools = weather_cache.get('tool', [])
         finance_tools = finance_cache.get('tool', [])
         all_names = [t.name for t in weather_tools] + [t.name for t in finance_tools]

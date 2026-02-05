@@ -20,32 +20,6 @@ Dynamic Action Providers allow external systems to supply actions at runtime,
 enabling integration with dynamic tooling systems like MCP (Model Context
 Protocol) servers, plugin marketplaces, or other dynamic action sources.
 
-ELI5 (Explain Like I'm 5)
-=========================
-
-Imagine you have a toy box (Genkit), but instead of keeping all your toys inside,
-you have a **magic catalog** (DAP) that can summon toys from anywhere - your
-friend's house, the toy store, or even grandma's attic!
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Concept             │ ELI5 Explanation                                      │
-├─────────────────────┼───────────────────────────────────────────────────────┤
-│ DAP                 │ A "toy catalog" - it knows how to get toys from       │
-│                     │ different places. Like ordering from Amazon!          │
-├─────────────────────┼───────────────────────────────────────────────────────┤
-│ Dynamic Tool        │ A toy that doesn't live in your toy box - it gets     │
-│                     │ delivered when you need it.                           │
-├─────────────────────┼───────────────────────────────────────────────────────┤
-│ Cache               │ A "memory" so you don't have to keep asking for the   │
-│                     │ same toy. Like remembering your friend has LEGOs.     │
-├─────────────────────┼───────────────────────────────────────────────────────┤
-│ TTL (Time-To-Live)  │ How long the memory lasts. After 5 seconds, forget    │
-│                     │ and ask again - maybe they got new toys!              │
-├─────────────────────┼───────────────────────────────────────────────────────┤
-│ Invalidation        │ Forcing yourself to forget and ask again right now.   │
-│                     │ Like saying "let me check what you have today!"       │
-└─────────────────────┴───────────────────────────────────────────────────────┘
-
 Overview
 ========
 
@@ -586,6 +560,9 @@ def define_dynamic_action_provider(
 
     # Wrap in DynamicActionProvider
     dap = DynamicActionProvider(action, cfg, cache)
+
+    # Store reference so Registry.list_actions can access it for DevUI
+    action._dap_instance = dap  # type: ignore[attr-defined]
 
     return dap
 
