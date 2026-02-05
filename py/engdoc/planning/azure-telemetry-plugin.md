@@ -142,7 +142,7 @@ Example::
 
     from genkit.ai import Genkit
     from genkit.plugins.microsoft_foundry import AzureTelemetry
-    from genkit.plugins.microsoft-foundry import MicrosoftFoundry
+    from genkit.plugins.microsoft_foundry import MicrosoftFoundry
     
     # Initialize Azure telemetry
     AzureTelemetry().initialize()
@@ -383,7 +383,7 @@ Key Concepts (ELI5)::
 
 from genkit.ai import Genkit
 from genkit.plugins.microsoft_foundry import AzureTelemetry
-from genkit.plugins.microsoft-foundry import MicrosoftFoundry
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry
 
 # Initialize Azure telemetry FIRST
 AzureTelemetry(
