@@ -46,6 +46,20 @@ This document organizes the identified gaps into executable milestones with depe
 
 > [!NOTE]
 > DAP enables external systems (e.g., MCP servers) to provide actions at runtime.
+> **Updated 2026-02-05:** Python implementation now at 100% parity with JS PR #4050.
+
+### JS PR #4050 Alignment (Complete)
+
+The Python DAP implementation has been updated to match the latest JavaScript
+changes from PR #4050 (merged 2026-02-05):
+
+| Change | JS (PR #4050) | Python | Status |
+|--------|---------------|--------|--------|
+| **DAP Action Signature** | `z.void()` input, `z.array(ActionMetadataSchema)` output | `None` input, `list[ActionMetadata]` output | ✅ |
+| **Cache Pattern** | `setDap()` / `setValue()` pattern | `set_dap()` / `set_value()` pattern | ✅ |
+| **transform_dap_value** | Returns flat `ActionMetadata[]` | Returns flat `list[ActionMetadataLike]` | ✅ |
+| **Metadata Format** | Includes `name`, `description` explicitly | Same | ✅ |
+| **Action Internal Logic** | Action calls DAP fn directly, caches result | Same | ✅ |
 
 ### Feature Comparison: JS vs Python
 
@@ -95,7 +109,7 @@ This document organizes the identified gaps into executable milestones with depe
 │ parseRegistryKey for DAP   │ ✅ Parses DAP keys │ ⚠️ Not implemented │  ⚠️  │
 ├────────────────────────────┴────────────────────┴────────────────────┴──────┤
 │                                                                             │
-│ TEST COVERAGE (13 core tests matching JS exactly)                           │
+│ TEST COVERAGE (13 core tests matching JS exactly + 7 additional)            │
 ├────────────────────────────┬────────────────────┬────────────────────┬──────┤
 │ gets specific action       │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
 │ lists action metadata      │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
@@ -123,10 +137,11 @@ This document organizes the identified gaps into executable milestones with depe
 
 ### Implementation Notes
 
-**Python DAP Core (Complete):**
+**Python DAP Core (Complete - 100% Parity with JS PR #4050):**
 - `py/packages/genkit/src/genkit/blocks/dap.py` - Full implementation
-- `py/packages/genkit/tests/genkit/blocks/dap_test.py` - 21 tests (13 matching JS + 8 additional)
-- Documentation with ASCII diagrams in docstrings
+- `py/packages/genkit/tests/genkit/blocks/dap_test.py` - 20 tests (all passing)
+- Documentation with ELI5 explanations and ASCII diagrams in docstrings
+- Sample: `py/samples/dap-demo/` - Comprehensive demonstration
 
 **Registry Integration (Partial):**
 - ✅ DAP fallback in `resolve_action()` - Lines 435-456 in `registry.py`

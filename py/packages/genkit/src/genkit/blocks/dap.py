@@ -20,6 +20,32 @@ Dynamic Action Providers allow external systems to supply actions at runtime,
 enabling integration with dynamic tooling systems like MCP (Model Context
 Protocol) servers, plugin marketplaces, or other dynamic action sources.
 
+ELI5 (Explain Like I'm 5)
+=========================
+
+Imagine you have a toy box (Genkit), but instead of keeping all your toys inside,
+you have a **magic catalog** (DAP) that can summon toys from anywhere - your
+friend's house, the toy store, or even grandma's attic!
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Concept             │ ELI5 Explanation                                      │
+├─────────────────────┼───────────────────────────────────────────────────────┤
+│ DAP                 │ A "toy catalog" - it knows how to get toys from       │
+│                     │ different places. Like ordering from Amazon!          │
+├─────────────────────┼───────────────────────────────────────────────────────┤
+│ Dynamic Tool        │ A toy that doesn't live in your toy box - it gets     │
+│                     │ delivered when you need it.                           │
+├─────────────────────┼───────────────────────────────────────────────────────┤
+│ Cache               │ A "memory" so you don't have to keep asking for the   │
+│                     │ same toy. Like remembering your friend has LEGOs.     │
+├─────────────────────┼───────────────────────────────────────────────────────┤
+│ TTL (Time-To-Live)  │ How long the memory lasts. After 5 seconds, forget    │
+│                     │ and ask again - maybe they got new toys!              │
+├─────────────────────┼───────────────────────────────────────────────────────┤
+│ Invalidation        │ Forcing yourself to forget and ask again right now.   │
+│                     │ Like saying "let me check what you have today!"       │
+└─────────────────────┴───────────────────────────────────────────────────────┘
+
 Overview
 ========
 
@@ -102,9 +128,16 @@ Caveats:
     - Cache TTL balances freshness with performance - choose wisely
     - Actions from DAPs have the DAP name prefixed for identification
 
+Version Parity:
+    This implementation is aligned with JS PR #4050 (2026-02-05):
+    - DAP action takes no input, returns list[ActionMetadata]
+    - Cache uses set_dap/set_value pattern
+    - transform_dap_value returns flat list
+
 See Also:
     - MCP Plugin: genkit.plugins.mcp for Model Context Protocol integration
     - JS Implementation: js/core/src/dynamic-action-provider.ts
+    - Sample: py/samples/dap-demo for comprehensive examples
 """
 
 import asyncio
