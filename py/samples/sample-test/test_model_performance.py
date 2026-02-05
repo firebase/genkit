@@ -1,0 +1,428 @@
+#!/usr/bin/env python3
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tool to test model performance with dynamic configuration variations.
+
+Usage:
+    python test_model_performance.py [--models model1,model2] [--output report.md]
+
+Example:
+    python test_model_performance.py --models googleai/gemini-2.0-flash
+"""
+
+import argparse
+import builtins
+import importlib.util
+import json
+import subprocess
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+# Mock input to prevent blocking
+builtins.input = lambda prompt="": "dummy_value"
+
+
+async def discover_models() -> dict[str, Any]:
+    """Discover all available models from Genkit registry.
+
+    Returns:
+        Dict mapping model names to model info
+    """
+    # Import Genkit
+    from genkit import Genkit
+    from genkit.plugins.google_genai import GoogleAI, VertexAI
+
+    plugins = []
+    # Initialize with GoogleAI plugin
+    try:
+        plugins.append(GoogleAI())
+    except Exception as e:
+        print(f"Warning: Failed to initialize GoogleAI plugin: {e}")
+
+    # Initialize with VertexAI plugin
+    try:
+        plugins.append(VertexAI())
+    except Exception as e:
+        # print(f"Warning: Failed to initialize VertexAI plugin: {e}")
+        pass
+
+    ai = Genkit(plugins=plugins)
+
+    registry = ai.registry
+
+    # Get all model actions via list_actions (which queries plugins)
+    from genkit.core.action import ActionKind
+    actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
+
+    model_info = {}
+    for meta in actions:
+        # Extract model info using metadata
+        info = meta.metadata.get('model', {})
+        model_info[meta.name] = info
+
+    return model_info
+
+
+def parse_config_schema(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Parse JSON schema to extract configuration parameters.
+
+    Args:
+        schema: JSON schema dict
+
+    Returns:
+        Dict mapping parameter names to their schema info
+    """
+    if not schema or 'properties' not in schema:
+        return {}
+
+    params = {}
+    for param_name, param_schema in schema['properties'].items():
+        params[param_name] = {
+            'type': param_schema.get('type'),
+            'minimum': param_schema.get('minimum'),
+            'maximum': param_schema.get('maximum'),
+            'default': param_schema.get('default'),
+            'enum': param_schema.get('enum'),
+            'items': param_schema.get('items'),
+        }
+
+    return params
+
+
+def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Generate configuration variations for testing.
+
+    Args:
+        params: Parameter schema info from parse_config_schema
+
+    Returns:
+        List of config dicts to test
+    """
+    variations = []
+
+    # Start with baseline (all defaults or empty)
+    baseline = {}
+    variations.append(baseline.copy())
+
+    # Generate variations for each parameter
+    for param_name, param_info in params.items():
+        param_type = param_info['type']
+
+        if param_type == 'number':
+            # Numeric parameters
+            minimum = param_info.get('minimum', 0.0)
+            maximum = param_info.get('maximum', 1.0)
+            default = param_info.get('default')
+
+            # Test min, max, midpoint
+            test_values = [minimum, maximum]
+            if minimum < maximum:
+                midpoint = (minimum + maximum) / 2
+                test_values.append(midpoint)
+            if default is not None and default not in test_values:
+                test_values.append(default)
+
+            for value in test_values:
+                config = baseline.copy()
+                config[param_name] = value
+                variations.append(config)
+
+        elif param_type == 'boolean':
+            # Boolean parameters
+            for value in [True, False]:
+                config = baseline.copy()
+                config[param_name] = value
+                variations.append(config)
+
+        elif param_type == 'string':
+            # String parameters
+            enum_values = param_info.get('enum')
+            if enum_values:
+                for value in enum_values:
+                    config = baseline.copy()
+                    config[param_name] = value
+                    variations.append(config)
+
+        elif param_type == 'array':
+            # Array parameters
+            config = baseline.copy()
+            config[param_name] = []
+            variations.append(config)
+
+            # Add sample array value
+            items_schema = param_info.get('items', {})
+            if items_schema.get('type') == 'string':
+                config = baseline.copy()
+                config[param_name] = ["STOP"]
+                variations.append(config)
+
+    return variations
+
+
+def run_model_test(
+    model_name: str,
+    config: dict[str, Any],
+    user_prompt: str,
+    system_prompt: str | None,
+    helper_script: Path,
+    timeout: int = 60,
+) -> dict[str, Any]:
+    """Run a single model test via subprocess.
+
+    Args:
+        model_name: Model to test
+        config: Configuration dict
+        user_prompt: User prompt
+        system_prompt: System prompt
+        helper_script: Path to run_single_model_test.py
+        timeout: Timeout in seconds
+
+    Returns:
+        Test result dict
+    """
+    cmd = [
+        "uv", "run",
+        "run_single_model_test.py",
+        model_name,
+        "--config", json.dumps(config),
+        "--user-prompt", user_prompt,
+    ]
+
+    if system_prompt:
+        cmd.extend(["--system-prompt", system_prompt])
+
+    try:
+        result_proc = subprocess.run(  # noqa: S603 - cmd constructed from trusted paths
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=helper_script.parent,  # Run from script directory (samples/sample-test)
+        )
+
+        # Parse JSON output
+        stdout = result_proc.stdout
+        if "---JSON_RESULT_START---" in stdout and "---JSON_RESULT_END---" in stdout:
+            json_str = stdout.split("---JSON_RESULT_START---")[1].split("---JSON_RESULT_END---")[0].strip()
+            return json.loads(json_str)
+        else:
+            return json.loads(stdout)
+
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "response": None,
+            "error": f"Test timed out after {timeout}s",
+            "timing": timeout,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "response": None,
+            "error": f"Subprocess failed: {e}",
+            "timing": 0.0,
+        }
+
+
+def generate_report(
+    results: list[dict[str, Any]],
+    output_file: str,
+) -> None:
+    """Generate markdown report from test results.
+
+    Args:
+        results: List of test result dicts
+        output_file: Output file path
+    """
+    total_tests = len(results)
+    passed = sum(1 for r in results if r['result']['success'])
+    failed = total_tests - passed
+    success_rate = (passed / total_tests * 100) if total_tests > 0 else 0
+
+    lines = []
+    lines.append("# Model Performance Test Report")
+    lines.append("")
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- **Total Tests**: {total_tests}")
+    lines.append(f"- **Passed**: {passed}")
+    lines.append(f"- **Failed**: {failed}")
+    lines.append(f"- **Success Rate**: {success_rate:.1f}%")
+    lines.append("")
+
+    # Failed tests summary
+    if failed > 0:
+        lines.append("## Failed Tests")
+        lines.append("")
+        for test in results:
+            if not test['result']['success']:
+                config_str = json.dumps(test['config'], sort_keys=True)
+                error = test['result']['error']
+                # Truncate long errors
+                if len(error) > 200:
+                    error = error[:200] + "..."
+                lines.append(f"- **{test['model']}** (config: `{config_str}`)")
+                lines.append(f"  - Error: {error}")
+                lines.append("")
+
+    # Detailed results
+    lines.append("## Detailed Results")
+    lines.append("")
+
+    # Group by model
+    models = {}
+    for test in results:
+        model_name = test['model']
+        if model_name not in models:
+            models[model_name] = []
+        models[model_name].append(test)
+
+    for model_name, model_tests in models.items():
+        lines.append(f"### {model_name}")
+        lines.append("")
+
+        for test in model_tests:
+            config_str = json.dumps(test['config'], sort_keys=True) if test['config'] else "{}"
+            status = "✅ SUCCESS" if test['result']['success'] else "❌ FAILED"
+            timing = test['result']['timing']
+
+            lines.append(f"#### Config: `{config_str}`")
+            lines.append("")
+            lines.append(f"- **Status**: {status}")
+            lines.append(f"- **Timing**: {timing}s")
+
+            if test['result']['success']:
+                response = test['result']['response']
+                # Truncate long responses
+                if len(response) > 500:
+                    response = response[:500] + "..."
+                lines.append(f"- **Response**: {response}")
+            else:
+                error = test['result']['error']
+                if len(error) > 500:
+                    error = error[:500] + "..."
+                lines.append(f"- **Error**: {error}")
+
+            lines.append("")
+
+    # Write report
+    with open(output_file, 'w') as f:
+        f.write('\n'.join(lines))
+
+
+def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acceptable
+    """Test model performance with dynamic configuration variations."""
+    parser = argparse.ArgumentParser(description='Test model performance.')
+    parser.add_argument('--models', type=str, default=None, help='Comma-separated list of models to test')
+    parser.add_argument('--output', type=str, default='model_performance_report.md', help='Output report file')
+    parser.add_argument('--user-prompt', type=str, default='what is 5 +3?', help='User prompt for testing')
+    parser.add_argument('--system-prompt', type=str, default='pirate', help='System prompt for testing')
+    args = parser.parse_args()
+
+    # Suppress verbose logging
+    import logging
+    logging.basicConfig(level=logging.WARNING)
+    logging.getLogger('genkit').setLevel(logging.WARNING)
+    logging.getLogger('google').setLevel(logging.WARNING)
+
+    import asyncio
+
+    print("Discovering models...")
+    all_models = asyncio.run(discover_models())
+
+    print(f"Discovered models: {list(all_models.keys())}")
+
+    # Filter models if specified
+    if args.models:
+        model_names = [m.strip() for m in args.models.split(',')]
+        models_to_test = {k: v for k, v in all_models.items() if k in model_names}
+    else:
+        models_to_test = all_models
+
+    print(f"Found {len(models_to_test)} models to test")
+
+    if not models_to_test:
+        print("No models to test. Exiting.")
+        return
+
+    # Get helper script path
+    script_dir = Path(__file__).parent
+    helper_script = script_dir / "run_single_model_test.py"
+
+    # Run tests
+    all_results = []
+    for model_name, model_info in models_to_test.items():
+        print(f"\nTesting {model_name}...")
+
+        # Parse config schema
+        config_schema = model_info.get('customOptions', {})
+        params = parse_config_schema(config_schema)
+
+        print(f"  Found {len(params)} configurable parameters")
+
+        # Generate variations
+        variations = generate_config_variations(params)
+        print(f"  Generated {len(variations)} config variations")
+
+        # Run tests
+        for i, config in enumerate(variations, 1):
+            print(f"  Testing variation {i}/{len(variations)}...", end=' ')
+            # Flush stdout to ensure progress is visible
+            sys.stdout.flush()
+
+            result = run_model_test(
+                model_name,
+                config,
+                args.user_prompt,
+                args.system_prompt,
+                helper_script,
+            )
+
+            all_results.append({
+                'model': model_name,
+                'config': config,
+                'result': result,
+            })
+
+            status = "✅" if result['success'] else "❌"
+            print(status)
+
+    # Generate report
+    print(f"\nGenerating report: {args.output}")
+    generate_report(all_results, args.output)
+
+    # Print summary
+    total = len(all_results)
+    if total == 0:
+        print("No tests were run.")
+        return
+
+    passed = sum(1 for r in all_results if r['result']['success'])
+    failed = total - passed
+
+    print("\n" + "=" * 60)
+    print(f"Total Tests: {total}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {failed}")
+    print(f"Success Rate: {(passed/total*100):.1f}%")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()

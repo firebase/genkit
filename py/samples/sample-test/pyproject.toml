@@ -1,0 +1,26 @@
+# Copyright 2026 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "sample-test"
+version = "0.1.0"
+description = "Model Performance Testing Tool"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "genkit",
+    "genkit-plugin-google-genai",
+    "fastapi",
+    "uvicorn",
+]
+
+[build-system]
+build-backend = "hatchling.build"
+requires      = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["test_model_performance.py", "run_single_model_test.py"]
+
+[tool.uv.sources]
+genkit = { path = "../../packages/genkit", editable = true }
+genkit-plugin-google-genai = { path = "../../plugins/google-genai", editable = true }

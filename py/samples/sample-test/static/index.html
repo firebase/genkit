@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genkit Model Performance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar: Samples -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo-icon">G</div>
+                <h1>Genkit Perf</h1>
+            </div>
+            
+            <div class="section-title">TEST SAMPLES</div>
+            <div id="samples-list" class="nav-list">
+                <!-- Sample items injected here -->
+                <div class="nav-item active">Loading...</div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2 id="current-scenario-title">Select a Sample</h2>
+                <div class="actions">
+                    <span id="model-count" class="badge">0 Models</span>
+                </div>
+            </header>
+
+            <div class="content-grid">
+                <!-- Configuration Column -->
+                <div class="config-panel">
+                    <div class="card">
+                        <h3>Model Selection</h3>
+                        <div class="form-group">
+                            <label>Select Model</label>
+                            <select id="model-select">
+                                <option value="">Loading models...</option>
+                            </select>
+                        </div>
+                        
+                        <div id="param-config">
+                            <!-- Dynamic params injected here -->
+                        </div>
+
+                        <div class="form-group">
+                            <label>System Prompt</label>
+                            <textarea id="system-prompt" rows="2"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>User Prompt</label>
+                            <textarea id="user-prompt" rows="3"></textarea>
+                        </div>
+
+                        <button id="run-btn" class="btn-primary">
+                            Run Test
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Column -->
+                <div class="results-panel">
+                    <div class="results-header">
+                        <h3>Results</h3>
+                        <div id="stats-bar" class="hidden">
+                            <span class="stat-item success">Pass: <span id="pass-count">0</span></span>
+                            <span class="stat-item error">Fail: <span id="fail-count">0</span></span>
+                        </div>
+                    </div>
+                    
+                    <div id="results-list" class="results-list">
+                        <div class="empty-state">
+                            Select a model and run test to see results.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
