@@ -228,7 +228,7 @@ export async function defineDocsTool(server: McpServer) {
 
       for (const file of filePaths) {
         if (documents[file]) {
-          content.push({ type: 'text', text: documents[file]?.text });
+          content.push({ type: 'text', text: documents[file].text });
         } else {
           content.push({
             type: 'text',
