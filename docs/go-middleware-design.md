@@ -130,7 +130,7 @@ Plugins that provide middleware implement `MiddlewarePlugin`:
 
 ```go
 type MiddlewarePlugin interface {
-    ListMiddleware(ctx context.Context) []*MiddlewareDesc
+    ListMiddleware(ctx context.Context) ([]*MiddlewareDesc, error)
 }
 ```
 
@@ -138,10 +138,10 @@ During `genkit.Init()`, the framework calls `ListMiddleware` on plugins that imp
 
 **Plugin example:**
 ```go
-func (p *MyPlugin) ListMiddleware(ctx context.Context) []*ai.MiddlewareDesc {
+func (p *MyPlugin) ListMiddleware(ctx context.Context) ([]*ai.MiddlewareDesc, error) {
     return []*ai.MiddlewareDesc{
         ai.NewMiddleware("Distributed tracing", &TracingMiddleware{exporter: p.exporter}),
-    }
+    }, nil
 }
 ```
 
@@ -303,10 +303,10 @@ func (m *TracingMiddleware) Model(ctx context.Context, state *ai.ModelState, nex
 }
 
 // Plugin registers middleware with injected dependencies via prototype
-func (p *MyPlugin) ListMiddleware(ctx context.Context) []*ai.MiddlewareDesc {
+func (p *MyPlugin) ListMiddleware(ctx context.Context) ([]*ai.MiddlewareDesc, error) {
     return []*ai.MiddlewareDesc{
         ai.NewMiddleware("Distributed tracing", &TracingMiddleware{exporter: p.exporter}),
-    }
+    }, nil
 }
 ```
 
