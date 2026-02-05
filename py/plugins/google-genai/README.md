@@ -76,23 +76,33 @@ ranked_docs = await ai.rerank(
 
 ### Vertex AI Evaluators
 
-Built-in evaluators for assessing model output quality:
+Built-in evaluators for assessing model output quality. Evaluators are automatically registered when using the VertexAI plugin and are accessed via `ai.evaluate()`:
 
 ```python
-from genkit.plugins.google_genai.evaluators import VertexAIEvaluationMetricType
+from genkit import Genkit
+from genkit.core.typing import BaseDataPoint
+from genkit.plugins.google_genai import VertexAI
 
-# Configure VertexAI with evaluators
-ai = Genkit(plugins=[
-    VertexAI(
-        project='my-project',
-        evaluation_metrics=[
-            VertexAIEvaluationMetricType.FLUENCY,
-            VertexAIEvaluationMetricType.SAFETY,
-            VertexAIEvaluationMetricType.GROUNDEDNESS,
-        ],
-    )
-])
+ai = Genkit(plugins=[VertexAI(project='my-project')])
+
+# Prepare test dataset
+dataset = [
+    BaseDataPoint(
+        input='Write about AI.',
+        output='AI is transforming industries through intelligent automation.',
+    ),
+]
+
+# Evaluate fluency (scores 1-5)
+results = await ai.evaluate(
+    evaluator='vertexai/fluency',
+    dataset=dataset,
+)
+
+for result in results.root:
+    print(f'Score: {result.evaluation.score}')
 ```
+
 
 **Supported Metrics:**
 
