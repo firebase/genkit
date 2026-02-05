@@ -200,10 +200,10 @@ type MiddlewareRef struct {
 
 ### Reflection API
 
-New endpoint to list registered middleware:
+General values endpoint (matches JS), filtered by type:
 
 ```
-GET /api/middlewares → map[string]MiddlewareDesc
+GET /api/values?type=middleware → map[string]MiddlewareDesc
 ```
 
 Dev UI uses this to list middleware and render config forms from `configSchema`.
