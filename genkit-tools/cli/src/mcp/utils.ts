@@ -40,22 +40,6 @@ export function getCommonSchema(
       };
 }
 
-export function enrichToolDescription(
-  baseDescription: string,
-  schema: z.ZodRawShape
-): string {
-  const args = Object.entries(schema)
-    .map(([key, value]) => {
-      const desc = value.description;
-      return desc ? `${key}: ${desc}` : key;
-    })
-    .join('; ');
-
-  if (args.length === 0) return baseDescription;
-
-  return `${baseDescription} Arguments: ${args}`;
-}
-
 export function resolveProjectRoot(
   explicitProjectRoot: boolean,
   opts: {

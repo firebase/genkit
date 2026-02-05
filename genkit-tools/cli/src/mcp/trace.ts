@@ -21,28 +21,23 @@ import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
   McpToolOptions,
-  enrichToolDescription,
   getCommonSchema,
   resolveProjectRoot,
 } from './utils.js';
 
 export function defineTraceTools(server: McpServer, options: McpToolOptions) {
-  const inputSchema = getCommonSchema(options.explicitProjectRoot, {
-    traceId: z
-      .string()
-      .describe(
-        'trace id (typically returned after running a flow or other actions); type: string'
-      ),
-  });
   server.registerTool(
     'get_trace',
     {
       title: 'Get Genkit Trace',
-      description: enrichToolDescription(
-        'Returns the trace details.',
-        inputSchema
-      ),
-      inputSchema,
+      description: 'Returns the trace details.',
+      inputSchema: getCommonSchema(options.explicitProjectRoot, {
+        traceId: z
+          .string()
+          .describe(
+            'trace id (typically returned after running a flow or other actions); type: string'
+          ),
+      }),
     },
     async (opts) => {
       await record(new McpRunToolEvent('get_trace'));

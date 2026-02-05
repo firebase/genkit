@@ -25,7 +25,6 @@ import path from 'path';
 import z from 'zod';
 import { version } from '../utils/version';
 import { McpRunToolEvent } from './analytics.js';
-import { enrichToolDescription } from './utils.js';
 
 const DOCS_URL =
   process.env.GENKIT_DOCS_BUNDLE_URL ??
@@ -72,22 +71,20 @@ export async function defineDocsTool(server: McpServer) {
     readFileSync(DOCS_BUNDLE_FILE_PATH, { encoding: 'utf8' })
   ) as Record<string, Doc>;
 
-  const listSchema = {
-    language: z
-      .enum(['js', 'go', 'python'])
-      .describe('Which language to list docs for (default js); type: string.')
-      .default('js'),
-  };
-
   server.registerTool(
     'list_genkit_docs',
     {
       title: 'List Genkit Docs',
-      description: enrichToolDescription(
+      description:
         'Use this to see a list of available Genkit documentation files. Returns `filePaths` that can be passed to `read_genkit_docs`.',
-        listSchema
-      ),
-      inputSchema: listSchema,
+      inputSchema: {
+        language: z
+          .enum(['js', 'go', 'python'])
+          .describe(
+            'Which language to list docs for (default js); type: string.'
+          )
+          .default('js'),
+      },
     },
     async ({ language }) => {
       await record(new McpRunToolEvent('list_genkit_docs'));
@@ -120,25 +117,23 @@ export async function defineDocsTool(server: McpServer) {
     }
   );
 
-  const searchSchema = {
-    query: z
-      .string()
-      .describe('Keywords to search for in documentation; type: string.'),
-    language: z
-      .enum(['js', 'go', 'python'])
-      .describe('Which language to search docs for (default js); type: string.')
-      .default('js'),
-  };
-
   server.registerTool(
     'search_genkit_docs',
     {
       title: 'Search Genkit Docs',
-      description: enrichToolDescription(
+      description:
         'Use this to search the Genkit documentation using keywords. Returns ranked results with `filePaths` for `read_genkit_docs`. Warning: Generic terms (e.g. "the", "and") may return false positives; use specific technical terms (e.g. "rag", "firebase", "context").',
-        searchSchema
-      ),
-      inputSchema: searchSchema,
+      inputSchema: {
+        query: z
+          .string()
+          .describe('Keywords to search for in documentation; type: string.'),
+        language: z
+          .enum(['js', 'go', 'python'])
+          .describe(
+            'Which language to search docs for (default js); type: string.'
+          )
+          .default('js'),
+      },
     },
     async ({ query, language }) => {
       await record(new McpRunToolEvent('search_genkit_docs'));
@@ -199,23 +194,19 @@ export async function defineDocsTool(server: McpServer) {
     }
   );
 
-  const readSchema = {
-    filePaths: z
-      .array(z.string())
-      .describe(
-        'The `filePaths` of the docs to read. Obtain these exactly from `list_genkit_docs` or `search_genkit_docs` (e.g. "js/overview.md"); type: string[].'
-      ),
-  };
-
   server.registerTool(
     'read_genkit_docs',
     {
       title: 'Read Genkit Docs',
-      description: enrichToolDescription(
+      description:
         'Use this to read the full content of specific Genkit documentation files. You must provide `filePaths` from the list/search tools.',
-        readSchema
-      ),
-      inputSchema: readSchema,
+      inputSchema: {
+        filePaths: z
+          .array(z.string())
+          .describe(
+            'The `filePaths` of the docs to read. Obtain these exactly from `list_genkit_docs` or `search_genkit_docs` (e.g. "js/overview.md"); type: string[].'
+          ),
+      },
     },
     async ({ filePaths }) => {
       await record(new McpRunToolEvent('read_genkit_docs'));

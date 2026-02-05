@@ -21,22 +21,18 @@ import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
 import {
   McpToolOptions,
-  enrichToolDescription,
   getCommonSchema,
   resolveProjectRoot,
 } from './utils.js';
 
 export function defineFlowTools(server: McpServer, options: McpToolOptions) {
-  const listFlowsSchema = getCommonSchema(options.explicitProjectRoot);
   server.registerTool(
     'list_flows',
     {
       title: 'List Genkit Flows',
-      description: enrichToolDescription(
+      description:
         'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
-        listFlowsSchema
-      ),
-      inputSchema: listFlowsSchema,
+      inputSchema: getCommonSchema(options.explicitProjectRoot),
     },
     async (opts) => {
       await record(new McpRunToolEvent('list_flows'));
@@ -68,24 +64,20 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
     }
   );
 
-  const runFlowSchema = getCommonSchema(options.explicitProjectRoot, {
-    flowName: z.string().describe('name of the flow; type: string'),
-    input: z
-      .string()
-      .describe(
-        'Flow input as JSON object encoded as string (it will be passed through `JSON.parse`). Must conform to the schema; type: string.'
-      )
-      .optional(),
-  });
   server.registerTool(
     'run_flow',
     {
       title: 'Run Flow',
-      description: enrichToolDescription(
-        'Runs the flow with the provided input',
-        runFlowSchema
-      ),
-      inputSchema: runFlowSchema,
+      description: 'Runs the flow with the provided input',
+      inputSchema: getCommonSchema(options.explicitProjectRoot, {
+        flowName: z.string().describe('name of the flow; type: string'),
+        input: z
+          .string()
+          .describe(
+            'Flow input as JSON object encoded as string (it will be passed through `JSON.parse`). Must conform to the schema; type: string.'
+          )
+          .optional(),
+      }),
     },
     async (opts) => {
       await record(new McpRunToolEvent('run_flow'));
