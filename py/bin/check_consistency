@@ -213,7 +213,7 @@ echo ""
 # Check 6: README Files Exist
 # -----------------------------------------------------------------------------
 echo -e "${BLUE}[6/$TOTAL_CHECKS] Checking README files exist...${NC}"
-readme_errors=0
+readme_warnings_before=$WARNINGS
 
 # Check plugins have READMEs
 for d in plugins/*/; do
@@ -231,7 +231,7 @@ for d in samples/*/; do
   fi
 done
 
-if [ $WARNINGS -eq 0 ]; then
+if [ $WARNINGS -eq $readme_warnings_before ]; then
   echo -e "  ${GREEN}✓${NC} All plugins and samples have README.md files"
 else
   echo -e "  ${YELLOW}!${NC} Some packages are missing README.md files (warnings only)"

@@ -140,7 +140,7 @@ if [[ $# -lt 1 ]]; then
         
         echo ""
         trap '' SIGINT
-        read -p "Press Enter to continue..." || true
+        read -rp "Press Enter to continue..." || true
         trap - SIGINT
     done
 else
