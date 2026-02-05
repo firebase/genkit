@@ -315,6 +315,18 @@
     # Print in atexit handler where logger is unavailable
     print(f'Removing file: {path}')  # noqa: T201 - atexit handler, logger unavailable
     ```
+  * **Optional Dependencies**: For optional dependencies used in typing (e.g., `litestar`,
+    `starlette`) that type checkers can't resolve, **do NOT use inline ignore comments**.
+    Instead, add the dependency to the `lint` dependency group in `pyproject.toml`:
+    ```toml
+    # In pyproject.toml [project.optional-dependencies]
+    lint = [
+      # ... other lint deps ...
+      "litestar>=2.0.0",  # For web/typing.py type resolution
+    ]
+    ```
+    This ensures type checkers can resolve the imports during CI while keeping the
+    package optional for runtime.
 * **Import Placement**: All imports must be at the top of the file, outside any
   function definitions. This is a strict Python convention that ensures:
 

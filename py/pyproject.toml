@@ -75,6 +75,7 @@ dev = [
 lint = [
   "bandit>=1.7.0",
   "deptry>=0.22.0",
+  "litestar>=2.0.0",          # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
   "pypdf>=6.6.2",
@@ -470,7 +471,7 @@ search-path = [
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime
-ignore-missing-imports = ["genkit.plugins.*", "litestar", "litestar.*"]
+ignore-missing-imports = ["genkit.plugins.*"]
 python_version         = "3.10"
 
 # Treat warnings as errors.

@@ -2471,6 +2471,7 @@ dev = [
 lint = [
     { name = "bandit" },
     { name = "deptry" },
+    { name = "litestar" },
     { name = "mypy" },
     { name = "pip-audit" },
     { name = "pypdf" },
@@ -2536,6 +2537,7 @@ dev = [
 lint = [
     { name = "bandit", specifier = ">=1.7.0" },
     { name = "deptry", specifier = ">=0.22.0" },
+    { name = "litestar", specifier = ">=2.0.0" },
     { name = "mypy", specifier = ">=1.14.0" },
     { name = "pip-audit", specifier = ">=2.7.0" },
     { name = "pypdf", specifier = ">=6.6.2" },
