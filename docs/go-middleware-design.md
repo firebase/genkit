@@ -15,6 +15,8 @@ The current `ModelMiddleware` only wraps the raw model call. We need middleware 
 ```go
 // Middleware provides hooks for different stages of generation.
 type Middleware interface {
+    // Name returns the middleware's unique identifier.
+    Name() string
     // New returns a fresh instance for each ai.Generate() call, enabling per-invocation state.
     New() Middleware
     // Generate wraps each iteration of the tool loop.
@@ -52,7 +54,7 @@ Note: `GenerateActionOptions`, `ModelRequest`, `ModelResponse`, `ToolRequest`, `
 
 ### Base Implementation
 
-Embed this to get default pass-through behavior for hooks you don't need. You must still implement `New()` yourself.
+Embed this to get default pass-through behavior for hooks you don't need. You must still implement `Name()` and `New()` yourself.
 
 ```go
 type BaseMiddleware struct{}
@@ -83,50 +85,44 @@ resp, err := ai.Generate(ctx, r,
 ### Registration
 
 ```go
-// Registers middleware, exposing schema to Dev UI
-ai.DefineMiddlewareFor[RetryMiddleware](r, "retry", "Retries failed tool calls")
+ai.DefineMiddleware(r, "Retries failed tool calls", &RetryMiddleware{})
 ```
-
-Registration stores metadata and a factory that knows how to create middleware from raw JSON config:
 
 ```go
 type MiddlewareDesc struct {
-    Name             string         `json:"name"`
-    Description      string         `json:"description"`
-    ConfigSchema     map[string]any `json:"configSchema"`
-    createFromConfig func(configJSON []byte) (Middleware, error)  // internal, not serialized
+    Name           string         `json:"name"`
+    Description    string         `json:"description,omitempty"`
+    ConfigSchema   map[string]any `json:"configSchema,omitempty"`
+    configFromJSON func([]byte) (Middleware, error) // not serialized
 }
 
-// Register registers the middleware with the registry.
 func (d *MiddlewareDesc) Register(r api.Registry) {
     r.RegisterValue("/middleware/"+d.Name, d)
 }
 
-// NewMiddlewareFor creates a middleware descriptor without registering it.
-func NewMiddlewareFor[Config Middleware](name, description string) *MiddlewareDesc {
+func NewMiddleware[T Middleware](description string, prototype T) *MiddlewareDesc {
     return &MiddlewareDesc{
-        Name:         name,
+        Name:         prototype.Name(),
         Description:  description,
-        ConfigSchema: core.InferSchemaMap(*new(Config)),
-        createFromConfig: func(configJSON []byte) (Middleware, error) {
-            var cfg Config
-            if err := json.Unmarshal(configJSON, &cfg); err != nil {
-                return nil, err
+        ConfigSchema: core.InferSchemaMap(*new(T)),
+        configFromJSON: func(configJSON []byte) (Middleware, error) {
+            inst := prototype.New()
+            if len(configJSON) > 0 {
+                if err := json.Unmarshal(configJSON, inst); err != nil {
+                    return nil, err
+                }
             }
-            return cfg.New(), nil
+            return inst, nil
         },
     }
 }
 
-// DefineMiddlewareFor creates and registers a middleware descriptor.
-func DefineMiddlewareFor[Config Middleware](r api.Registry, name, description string) *MiddlewareDesc {
-    def := NewMiddlewareFor[Config](name, description)
-    def.Register(r)
-    return def
+func DefineMiddleware[T Middleware](r api.Registry, description string, prototype T) *MiddlewareDesc {
+    d := NewMiddleware(description, prototype)
+    d.Register(r)
+    return d
 }
 ```
-
-The generic `Config` type parameter is captured in the closure, allowing the definition to unmarshal raw JSON into the correct typed config at runtime.
 
 ### MiddlewarePlugin Interface
 
@@ -144,8 +140,7 @@ During `genkit.Init()`, the framework calls `ListMiddleware` on plugins that imp
 ```go
 func (p *MyPlugin) ListMiddleware(ctx context.Context) []*ai.MiddlewareDesc {
     return []*ai.MiddlewareDesc{
-        ai.NewMiddlewareFor[TracingMiddleware]("tracing", "Distributed tracing"),
-        ai.NewMiddlewareFor[RetryMiddleware]("retry", "Retries failed operations"),
+        ai.NewMiddleware("Distributed tracing", &TracingMiddleware{exporter: p.exporter}),
     }
 }
 ```
@@ -223,11 +218,12 @@ type RetryMiddleware struct {
     totalRetries int           // per-invocation state
 }
 
-// New returns a fresh instance with the same config
-func (c RetryMiddleware) New() ai.Middleware {
+func (m *RetryMiddleware) Name() string { return "retry" }
+
+func (m *RetryMiddleware) New() ai.Middleware {
     return &RetryMiddleware{
-        MaxRetries: c.MaxRetries,
-        Backoff:    c.Backoff,
+        MaxRetries: m.MaxRetries,
+        Backoff:    m.Backoff,
     }
 }
 
@@ -294,8 +290,10 @@ type TracingMiddleware struct {
     exporter   trace.Exporter // injected by plugin, not serializable
 }
 
-func (c TracingMiddleware) New() ai.Middleware {
-    return &TracingMiddleware{SampleRate: c.SampleRate, exporter: c.exporter}
+func (m *TracingMiddleware) Name() string { return "tracing" }
+
+func (m *TracingMiddleware) New() ai.Middleware {
+    return &TracingMiddleware{exporter: m.exporter}
 }
 
 func (m *TracingMiddleware) Model(ctx context.Context, state *ai.ModelState, next ai.ModelNext) (*ai.ModelResponse, error) {
@@ -304,25 +302,22 @@ func (m *TracingMiddleware) Model(ctx context.Context, state *ai.ModelState, nex
     return next(ctx, state)
 }
 
-// Plugin implements MiddlewarePlugin to register middleware
+// Plugin registers middleware with injected dependencies via prototype
 func (p *MyPlugin) ListMiddleware(ctx context.Context) []*ai.MiddlewareDesc {
     return []*ai.MiddlewareDesc{
-        ai.NewMiddlewareFor[TracingMiddleware]("tracing", "Distributed tracing"),
+        ai.NewMiddleware("Distributed tracing", &TracingMiddleware{exporter: p.exporter}),
     }
-}
-
-// Plugin provides a factory that injects its exporter
-func (p *MyPlugin) Tracing(cfg TracingMiddleware) TracingMiddleware {
-    cfg.exporter = p.exporter
-    return cfg
 }
 ```
 
 **Usage:**
 
 ```go
-// Use plugin's factory to get middleware with injected dependencies
-ai.WithUse(myPlugin.Tracing(TracingMiddleware{SampleRate: 0.1}))
+// Inline: exporter comes from prototype via New()
+ai.WithUse(TracingMiddleware{SampleRate: 0.1})
+
+// Dev UI: sends {"name": "tracing", "config": {"sampleRate": 0.1}}
+// → configFromJSON calls prototype.New() (preserves exporter), unmarshals config on top
 ```
 
 ## Deprecation of Existing Middleware
