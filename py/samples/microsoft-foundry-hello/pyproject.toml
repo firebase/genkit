@@ -15,19 +15,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
-dependencies = [
-  "genkit",
-  "genkit-plugin-azure",
-  "genkit-plugin-google-genai",
-  "rich>=13.0.0",
-]
-description = "Azure telemetry sample for Genkit"
-license = "Apache-2.0"
-name = "azure-hello"
-readme = "README.md"
+authors         = [{ name = "Google" }]
+dependencies    = ["genkit", "genkit-plugin-microsoft-foundry", "pydantic", "rich>=13.0.0"]
+description     = "Microsoft Foundry Hello Sample"
+license         = "Apache-2.0"
+name            = "microsoft-foundry-hello"
+readme          = "README.md"
 requires-python = ">=3.10"
-version = "0.1.0"
+version         = "0.0.0"
 
 [build-system]
 build-backend = "hatchling.build"
@@ -35,3 +30,9 @@ requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.uv.sources]
+genkit-plugin-microsoft-foundry = { workspace = true }
+
+[tool.pyright]
+include = ["src", "../../packages", "../../plugins"]

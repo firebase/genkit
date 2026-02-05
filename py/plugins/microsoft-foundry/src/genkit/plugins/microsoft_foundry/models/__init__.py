@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,22 +14,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-set -euo pipefail
+"""Microsoft Foundry model implementations.
 
-# Ensure we're in the sample directory
-cd "$(dirname "$0")"
+See: https://ai.azure.com/catalog/models
+"""
 
-# Install dependencies if needed
-if [ ! -d ".venv" ]; then
-    uv venv
-fi
-uv sync
+from .model import MicrosoftFoundryModel
+from .model_info import (
+    MODELS_SUPPORTING_RESPONSE_FORMAT,
+    SUPPORTED_EMBEDDING_MODELS,
+    SUPPORTED_MICROSOFT_FOUNDRY_MODELS,
+    get_model_info,
+)
 
-genkit start -- \
-  uv tool run --from watchdog watchmedo auto-restart \
-    -d src \
-    -d ../../packages \
-    -d ../../plugins \
-    -p '*.py;*.prompt;*.json' \
-    -R \
-    -- uv run src/main.py "$@"
+__all__ = [
+    'MODELS_SUPPORTING_RESPONSE_FORMAT',
+    'SUPPORTED_EMBEDDING_MODELS',
+    'SUPPORTED_MICROSOFT_FOUNDRY_MODELS',
+    'MicrosoftFoundryModel',
+    'get_model_info',
+]

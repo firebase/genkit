@@ -56,11 +56,11 @@ Microsoft Foundry (formerly Azure AI Foundry) provides access to 11,000+ AI mode
 
 ```python
 from genkit import Genkit
-from genkit.plugins.msfoundry import MSFoundry, gpt4o
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             api_key="your-api-key",
             endpoint="https://your-resource.openai.azure.com/",
             api_version="2024-10-21",
@@ -75,7 +75,7 @@ ai = Genkit(
 ```python
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from genkit import Genkit
-from genkit.plugins.msfoundry import MSFoundry, gpt4o
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
 
 credential = DefaultAzureCredential()
 token_provider = get_bearer_token_provider(
@@ -84,7 +84,7 @@ token_provider = get_bearer_token_provider(
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             azure_ad_token_provider=token_provider,
             endpoint="https://your-resource.openai.azure.com/",
             api_version="2024-10-21",

@@ -33,15 +33,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit.core.registry import ActionKind
-from genkit.plugins.msfoundry import (
-    MSFOUNDRY_PLUGIN_NAME,
-    MSFoundry,
-    MSFoundryConfig,
+from genkit.plugins.microsoft_foundry import (
+    MICROSOFT_FOUNDRY_PLUGIN_NAME,
+    MicrosoftFoundry,
+    MicrosoftFoundryConfig,
     gpt4o,
-    msfoundry_model,
+    microsoft_foundry_model,
 )
-from genkit.plugins.msfoundry.models.model import MSFoundryModel
-from genkit.plugins.msfoundry.models.model_info import get_model_info
+from genkit.plugins.microsoft_foundry.models.model import MicrosoftFoundryModel
+from genkit.plugins.microsoft_foundry.models.model_info import get_model_info
 from genkit.types import (
     GenerateRequest,
     Message,
@@ -53,36 +53,36 @@ from genkit.types import (
 
 def test_plugin_name() -> None:
     """Test that plugin name is correct."""
-    assert MSFOUNDRY_PLUGIN_NAME == 'msfoundry'
+    assert MICROSOFT_FOUNDRY_PLUGIN_NAME == 'microsoft-foundry'
 
 
 def test_plugin_init() -> None:
     """Test plugin initialization with API key."""
-    plugin = MSFoundry(
+    plugin = MicrosoftFoundry(
         api_key='test-key',
         endpoint='https://test.openai.azure.com/',
     )
-    assert plugin.name == 'msfoundry'
+    assert plugin.name == 'microsoft-foundry'
 
 
-def test_msfoundry_model_helper() -> None:
-    """Test the msfoundry_model helper function."""
-    assert msfoundry_model('gpt-4o') == 'msfoundry/gpt-4o'
-    assert msfoundry_model('gpt-4') == 'msfoundry/gpt-4'
-    assert msfoundry_model('gpt-3.5-turbo') == 'msfoundry/gpt-3.5-turbo'
+def test_microsoft_foundry_model_helper() -> None:
+    """Test the microsoft_foundry_model helper function."""
+    assert microsoft_foundry_model('gpt-4o') == 'microsoft-foundry/gpt-4o'
+    assert microsoft_foundry_model('gpt-4') == 'microsoft-foundry/gpt-4'
+    assert microsoft_foundry_model('gpt-3.5-turbo') == 'microsoft-foundry/gpt-3.5-turbo'
     # Test with other provider models
-    assert msfoundry_model('DeepSeek-V3.2') == 'msfoundry/DeepSeek-V3.2'
-    assert msfoundry_model('claude-opus-4-5') == 'msfoundry/claude-opus-4-5'
+    assert microsoft_foundry_model('DeepSeek-V3.2') == 'microsoft-foundry/DeepSeek-V3.2'
+    assert microsoft_foundry_model('claude-opus-4-5') == 'microsoft-foundry/claude-opus-4-5'
 
 
 def test_predefined_model_refs() -> None:
     """Test pre-defined model reference constants."""
-    assert gpt4o == 'msfoundry/gpt-4o'
+    assert gpt4o == 'microsoft-foundry/gpt-4o'
 
 
 def test_config_schema() -> None:
-    """Test MSFoundryConfig schema."""
-    config = MSFoundryConfig(
+    """Test MicrosoftFoundryConfig schema."""
+    config = MicrosoftFoundryConfig(
         temperature=0.7,
         max_tokens=100,
         frequency_penalty=0.5,
@@ -95,8 +95,8 @@ def test_config_schema() -> None:
 
 
 def test_config_schema_with_aliases() -> None:
-    """Test MSFoundryConfig with camelCase aliases."""
-    config = MSFoundryConfig.model_validate({
+    """Test MicrosoftFoundryConfig with camelCase aliases."""
+    config = MicrosoftFoundryConfig.model_validate({
         'maxTokens': 200,
         'topP': 0.9,
         'frequencyPenalty': 0.3,
@@ -111,33 +111,33 @@ def test_config_schema_with_aliases() -> None:
 @pytest.mark.asyncio
 async def test_resolve_model() -> None:
     """Test resolving a model action."""
-    plugin = MSFoundry(
+    plugin = MicrosoftFoundry(
         api_key='test-key',
         endpoint='https://test.openai.azure.com/',
     )
-    action = await plugin.resolve(ActionKind.MODEL, 'msfoundry/gpt-4o')
+    action = await plugin.resolve(ActionKind.MODEL, 'microsoft-foundry/gpt-4o')
     assert action is not None
-    assert action.name == 'msfoundry/gpt-4o'
+    assert action.name == 'microsoft-foundry/gpt-4o'
     assert action.kind == ActionKind.MODEL
 
 
 @pytest.mark.asyncio
 async def test_resolve_embedder() -> None:
     """Test resolving an embedder action."""
-    plugin = MSFoundry(
+    plugin = MicrosoftFoundry(
         api_key='test-key',
         endpoint='https://test.openai.azure.com/',
     )
-    action = await plugin.resolve(ActionKind.EMBEDDER, 'msfoundry/text-embedding-3-small')
+    action = await plugin.resolve(ActionKind.EMBEDDER, 'microsoft-foundry/text-embedding-3-small')
     assert action is not None
-    assert action.name == 'msfoundry/text-embedding-3-small'
+    assert action.name == 'microsoft-foundry/text-embedding-3-small'
     assert action.kind == ActionKind.EMBEDDER
 
 
 @pytest.mark.asyncio
 async def test_list_actions() -> None:
     """Test listing all available actions."""
-    plugin = MSFoundry(
+    plugin = MicrosoftFoundry(
         api_key='test-key',
         endpoint='https://test.openai.azure.com/',
     )
@@ -146,19 +146,19 @@ async def test_list_actions() -> None:
 
     # Check for expected models
     action_names = [a.name for a in actions]
-    assert 'msfoundry/gpt-4o' in action_names
-    assert 'msfoundry/gpt-4o-mini' in action_names
-    assert 'msfoundry/gpt-4' in action_names
+    assert 'microsoft-foundry/gpt-4o' in action_names
+    assert 'microsoft-foundry/gpt-4o-mini' in action_names
+    assert 'microsoft-foundry/gpt-4' in action_names
 
     # Check for embedders
-    assert 'msfoundry/text-embedding-3-small' in action_names
-    assert 'msfoundry/text-embedding-3-large' in action_names
+    assert 'microsoft-foundry/text-embedding-3-small' in action_names
+    assert 'microsoft-foundry/text-embedding-3-large' in action_names
 
 
 @pytest.mark.asyncio
 async def test_init_registers_actions() -> None:
     """Test that init() registers all supported actions."""
-    plugin = MSFoundry(
+    plugin = MicrosoftFoundry(
         api_key='test-key',
         endpoint='https://test.openai.azure.com/',
     )
@@ -173,23 +173,23 @@ async def test_init_registers_actions() -> None:
     assert len(embedder_actions) > 0
 
 
-class TestMSFoundryModel:
-    """Tests for MSFoundryModel generation logic."""
+class TestMicrosoftFoundryModel:
+    """Tests for MicrosoftFoundryModel generation logic."""
 
     def test_normalize_config_with_none(self) -> None:
         """Test config normalization with None input."""
         mock_client = MagicMock()
-        model = MSFoundryModel(model_name='gpt-4o', client=mock_client)
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
 
         config = model._normalize_config(None)
-        assert isinstance(config, MSFoundryConfig)
+        assert isinstance(config, MicrosoftFoundryConfig)
 
     def test_normalize_config_with_msfoundry_config(self) -> None:
-        """Test config normalization with MSFoundryConfig input."""
+        """Test config normalization with MicrosoftFoundryConfig input."""
         mock_client = MagicMock()
-        model = MSFoundryModel(model_name='gpt-4o', client=mock_client)
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
 
-        input_config = MSFoundryConfig(temperature=0.5, max_tokens=100)
+        input_config = MicrosoftFoundryConfig(temperature=0.5, max_tokens=100)
         config = model._normalize_config(input_config)
         assert config.temperature == 0.5
         assert config.max_tokens == 100
@@ -197,7 +197,7 @@ class TestMSFoundryModel:
     def test_normalize_config_with_dict(self) -> None:
         """Test config normalization with dict input (camelCase keys)."""
         mock_client = MagicMock()
-        model = MSFoundryModel(model_name='gpt-4o', client=mock_client)
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
 
         input_config = {'temperature': 0.8, 'maxTokens': 200, 'topP': 0.9}
         config = model._normalize_config(input_config)
@@ -208,7 +208,7 @@ class TestMSFoundryModel:
     def test_to_openai_role_conversion(self) -> None:
         """Test role conversion from Genkit to OpenAI format."""
         mock_client = MagicMock()
-        model = MSFoundryModel(model_name='gpt-4o', client=mock_client)
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
 
         assert model._to_openai_role(Role.USER) == 'user'
         assert model._to_openai_role(Role.MODEL) == 'assistant'
@@ -221,7 +221,7 @@ class TestMSFoundryModel:
     def test_extract_text_from_message(self) -> None:
         """Test text extraction from a message."""
         mock_client = MagicMock()
-        model = MSFoundryModel(model_name='gpt-4o', client=mock_client)
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
 
         msg = Message(
             role=Role.USER,
@@ -253,7 +253,7 @@ class TestMSFoundryModel:
 
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        model = MSFoundryModel(model_name='gpt-4o', client=mock_client)
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
 
         request = GenerateRequest(
             messages=[
@@ -274,24 +274,24 @@ class TestMSFoundryModel:
         assert response.usage.output_tokens == 8
 
 
-class TestMSFoundryEmbed:
+class TestMicrosoftFoundryEmbed:
     """Tests for embedding functionality."""
 
     @pytest.mark.asyncio
     async def test_embed_action_created(self) -> None:
         """Test that embedder action is created correctly."""
-        plugin = MSFoundry(
+        plugin = MicrosoftFoundry(
             api_key='test-key',
             endpoint='https://test.openai.azure.com/',
         )
-        action = await plugin.resolve(ActionKind.EMBEDDER, 'msfoundry/text-embedding-3-small')
+        action = await plugin.resolve(ActionKind.EMBEDDER, 'microsoft-foundry/text-embedding-3-small')
 
         assert action is not None
         assert action.kind == ActionKind.EMBEDDER
         assert 'text-embedding-3-small' in action.name
 
 
-class TestMSFoundryModelInfo:
+class TestMicrosoftFoundryModelInfo:
     """Tests for model info and capabilities."""
 
     def test_get_model_info_known_model(self) -> None:

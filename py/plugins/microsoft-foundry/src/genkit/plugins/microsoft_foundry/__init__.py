@@ -64,10 +64,10 @@ Data Flow::
     │    Your Code                                                            │
     │    ai.generate(prompt="Analyze this data...")                           │
     │         │                                                               │
-    │         │  (1) Request goes to MSFoundry plugin                         │
+    │         │  (1) Request goes to MicrosoftFoundry plugin                         │
     │         ▼                                                               │
     │    ┌─────────────────┐                                                  │
-    │    │  MSFoundry      │   Adds API key, endpoint, version                │
+    │    │  MicrosoftFoundry      │   Adds API key, endpoint, version                │
     │    │  Plugin         │   Selects provider-specific config               │
     │    └────────┬────────┘                                                  │
     │             │                                                           │
@@ -101,18 +101,18 @@ Architecture Overview::
     │                      Microsoft Foundry Plugin                           │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  Plugin Entry Point (__init__.py)                                       │
-    │  ├── MSFoundry - Plugin class                                           │
+    │  ├── MicrosoftFoundry - Plugin class                                           │
     │  ├── Model References (gpt4o, gpt4o_mini, o1, o3_mini, etc.)            │
-    │  ├── Helper Functions (msfoundry_name, msfoundry_model)                 │
+    │  ├── Helper Functions (microsoft_foundry_name, microsoft_foundry_model)                 │
     │  └── get_config_schema_for_model() - Dynamic config selection           │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  typing.py - Type-Safe Configuration Classes                            │
-    │  ├── MSFoundryConfig (base), OpenAIConfig                               │
+    │  ├── MicrosoftFoundryConfig (base), OpenAIConfig                               │
     │  ├── AnthropicConfig, LlamaConfig, MistralConfig, ...                   │
     │  └── Model-specific enums (ReasoningEffort, CohereSafetyMode, ...)      │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  plugin.py - Plugin Implementation                                      │
-    │  ├── MSFoundry class (registers models/embedders)                       │
+    │  ├── MicrosoftFoundry class (registers models/embedders)                       │
     │  └── Azure OpenAI client initialization                                 │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  models/model.py - Model Implementation                                 │
@@ -136,11 +136,11 @@ Documentation Links:
 Example:
     ```python
     from genkit import Genkit
-    from genkit.plugins.msfoundry import MSFoundry, gpt4o
+    from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
 
     ai = Genkit(
         plugins=[
-            MSFoundry(
+            MicrosoftFoundry(
                 api_key='your-api-key',
                 endpoint='https://your-resource.openai.azure.com/',
                 api_version='2024-10-21',
@@ -159,19 +159,20 @@ Note:
 """
 
 from .plugin import (
-    MSFOUNDRY_PLUGIN_NAME,
-    MSFoundry,
+    MICROSOFT_FOUNDRY_PLUGIN_NAME,
+    MicrosoftFoundry,
     get_config_schema_for_model,
     gpt4,
     gpt4o,
     gpt4o_mini,
     gpt35_turbo,
-    msfoundry_model,
-    msfoundry_name,
+    microsoft_foundry_model,
+    microsoft_foundry_name,
     o1,
     o1_mini,
     o3_mini,
 )
+from .telemetry import add_azure_telemetry
 from .typing import (
     # Model-Specific Configs (Top 30)
     AI21JambaConfig,
@@ -197,11 +198,11 @@ from .typing import (
     InternLMConfig,
     JaisConfig,
     LlamaConfig,
+    # Base/OpenAI Configs
+    MicrosoftFoundryConfig,
     MiniCPMConfig,
     MistralConfig,
     MptConfig,
-    # Base/OpenAI Configs
-    MSFoundryConfig,
     NvidiaConfig,
     OpenAIConfig,
     PhiConfig,
@@ -242,9 +243,9 @@ __all__ = [
     'InternLMConfig',
     'JaisConfig',
     'LlamaConfig',
-    'MSFoundry',
-    'MSFoundryConfig',
-    'MSFOUNDRY_PLUGIN_NAME',
+    'MICROSOFT_FOUNDRY_PLUGIN_NAME',
+    'MicrosoftFoundry',
+    'MicrosoftFoundryConfig',
     'MiniCPMConfig',
     'MistralConfig',
     'MptConfig',
@@ -263,13 +264,14 @@ __all__ = [
     'WriterConfig',
     'XGenConfig',
     'YiConfig',
+    'add_azure_telemetry',
     'get_config_schema_for_model',
     'gpt35_turbo',
     'gpt4',
     'gpt4o',
     'gpt4o_mini',
-    'msfoundry_model',
-    'msfoundry_name',
+    'microsoft_foundry_model',
+    'microsoft_foundry_name',
     'o1',
     'o1_mini',
     'o3_mini',

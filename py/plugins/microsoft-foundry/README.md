@@ -1,6 +1,6 @@
 # Genkit Microsoft Foundry Plugin
 
-`genkit-plugin-msfoundry` is a plugin for using Microsoft Foundry models with [Genkit](https://github.com/firebase/genkit).
+`genkit-plugin-microsoft-foundry` is a plugin for using Microsoft Foundry models with [Genkit](https://github.com/firebase/genkit).
 
 Microsoft Foundry (formerly Azure AI Foundry) provides access to 11,000+ AI models from multiple providers including OpenAI, Anthropic, DeepSeek, xAI, Meta, Mistral, Cohere, and more.
 
@@ -17,7 +17,7 @@ Microsoft Foundry (formerly Azure AI Foundry) provides access to 11,000+ AI mode
 ## Installation
 
 ```bash
-pip install genkit-plugin-msfoundry
+pip install genkit-plugin-microsoft-foundry
 ```
 
 ## Setup
@@ -73,11 +73,11 @@ export OPENAI_API_VERSION="2024-10-21"
 
 ```python
 from genkit import Genkit
-from genkit.plugins.msfoundry import MSFoundry, gpt4o
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             api_key="your-key",
             endpoint="https://your-resource.openai.azure.com/",
             deployment="your-deployment-name",
@@ -101,11 +101,11 @@ export AZURE_OPENAI_API_KEY="your-api-key"
 
 ```python
 from genkit import Genkit
-from genkit.plugins.msfoundry import MSFoundry, gpt4o
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             api_key="your-key",
             endpoint="https://your-resource.services.ai.azure.com/api/projects/your-project",
             deployment="your-deployment-name",
@@ -122,7 +122,7 @@ See: [Switching Endpoints Documentation](https://learn.microsoft.com/en-us/azure
 ```python
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from genkit import Genkit
-from genkit.plugins.msfoundry import MSFoundry, gpt4o
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
 
 credential = DefaultAzureCredential()
 token_provider = get_bearer_token_provider(
@@ -131,7 +131,7 @@ token_provider = get_bearer_token_provider(
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             azure_ad_token_provider=token_provider,
             endpoint="https://your-resource.openai.azure.com/",
             deployment="your-deployment-name",
@@ -179,7 +179,7 @@ print(response.text)
 from genkit.blocks.document import Document
 
 response = await ai.embed(
-    embedder="msfoundry/text-embedding-3-small",
+    embedder="microsoft-foundry/text-embedding-3-small",
     input=[Document.from_text("Hello, world!")],
 )
 print(response.embeddings[0].embedding)
@@ -248,10 +248,10 @@ Microsoft Foundry provides access to 11,000+ models. Below are some key models s
 You can use any model from the catalog by specifying the model name:
 
 ```python
-from genkit.plugins.msfoundry import msfoundry_model
+from genkit.plugins.microsoft_foundry import microsoft_foundry_model
 
 # Use any model from the 11,000+ catalog
-model_ref = msfoundry_model("DeepSeek-V3.2")
+model_ref = microsoft_foundry_model("DeepSeek-V3.2")
 response = await ai.generate(model=model_ref, prompt="...")
 ```
 
@@ -261,11 +261,11 @@ The plugin can automatically discover models from your Azure OpenAI resource:
 
 ```python
 from genkit import Genkit
-from genkit.plugins.msfoundry import MSFoundry
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             api_key="your-key",
             endpoint="https://your-resource.openai.azure.com/",
             discover_models=True,  # Fetches models from Azure API
@@ -295,9 +295,9 @@ See: [Models - List API](https://learn.microsoft.com/en-us/rest/api/azureopenai/
 The plugin supports all standard OpenAI parameters:
 
 ```python
-from genkit.plugins.msfoundry import MSFoundryConfig
+from genkit.plugins.microsoft_foundry import MicrosoftFoundryConfig
 
-config = MSFoundryConfig(
+config = MicrosoftFoundryConfig(
     temperature=0.7,
     max_tokens=1000,
     top_p=0.9,
@@ -341,12 +341,12 @@ response = await ai.generate(prompt="...", config=config)
 For reasoning models, use `max_completion_tokens` and `reasoning_effort`:
 
 ```python
-from genkit.plugins.msfoundry import MSFoundryConfig, ReasoningEffort, o3_mini
+from genkit.plugins.microsoft_foundry import MicrosoftFoundryConfig, ReasoningEffort, o3_mini
 
 response = await ai.generate(
     model=o3_mini,
     prompt="Solve this step by step: What is 15% of 240?",
-    config=MSFoundryConfig(
+    config=MicrosoftFoundryConfig(
         max_completion_tokens=4096,
         reasoning_effort=ReasoningEffort.MEDIUM,
     ),

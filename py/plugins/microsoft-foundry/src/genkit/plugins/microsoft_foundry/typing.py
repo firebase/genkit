@@ -41,7 +41,7 @@ Design Rationale:
 
 Common Parameters NOT in OpenAI-Compatible API:
     When using models through Azure AI Foundry's OpenAI-compatible interface
-    (MSFoundryConfig), some native model parameters are NOT available:
+    (MicrosoftFoundryConfig), some native model parameters are NOT available:
 
     +-------------------+------------------+--------------------------------------+
     | Parameter         | Native API       | OpenAI Alternative                   |
@@ -249,7 +249,7 @@ class GenkitCommonConfigMixin(BaseModel):
         - JS Schema: js/ai/src/model-types.ts (GenerationCommonConfigSchema)
         - Python Schema: genkit/core/typing.py (GenerationCommonConfig)
 
-    When creating model configs, inherit from this mixin (via MSFoundryConfig)
+    When creating model configs, inherit from this mixin (via MicrosoftFoundryConfig)
     to ensure DevUI compatibility.
 
     Parameters:
@@ -297,7 +297,7 @@ class GenkitCommonConfigMixin(BaseModel):
     )
 
 
-class MSFoundryConfig(GenkitCommonConfigMixin):
+class MicrosoftFoundryConfig(GenkitCommonConfigMixin):
     """Base Microsoft Foundry configuration for Genkit.
 
     Combines:
@@ -348,14 +348,14 @@ class MSFoundryConfig(GenkitCommonConfigMixin):
     parallel_tool_calls: bool | None = None
 
 
-OpenAIConfig = MSFoundryConfig
-"""OpenAI model configuration. Alias for MSFoundryConfig."""
+OpenAIConfig = MicrosoftFoundryConfig
+"""OpenAI model configuration. Alias for MicrosoftFoundryConfig."""
 
 
-class MistralConfig(MSFoundryConfig):
+class MistralConfig(MicrosoftFoundryConfig):
     """Configuration for Mistral AI models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Mistral-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Mistral-specific params.
 
     Supports: Mistral Large, Mistral Small, Mistral 7B, Mixtral, Codestral, etc.
 
@@ -373,10 +373,10 @@ class MistralConfig(MSFoundryConfig):
     """Enable provider safety additions to reduce risky outputs."""
 
 
-class LlamaConfig(MSFoundryConfig):
+class LlamaConfig(MicrosoftFoundryConfig):
     """Configuration for Meta Llama models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Llama-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Llama-specific params.
 
     Supports: Llama 3.1, Llama 3.2, Llama 3.3, Llama 4, etc.
 
@@ -413,10 +413,10 @@ class LlamaConfig(MSFoundryConfig):
     """Add watermark to generation. Default: false."""
 
 
-class CohereConfig(MSFoundryConfig):
+class CohereConfig(MicrosoftFoundryConfig):
     """Configuration for Cohere models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Cohere-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Cohere-specific params.
 
     Supports: Command R, Command R+, Command A, etc.
 
@@ -453,10 +453,10 @@ class CohereConfig(MSFoundryConfig):
     """Request priority. Lower = higher priority. Default: 0."""
 
 
-class DeepSeekConfig(MSFoundryConfig):
+class DeepSeekConfig(MicrosoftFoundryConfig):
     """Configuration for DeepSeek models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus DeepSeek-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus DeepSeek-specific params.
 
     Supports: DeepSeek V3, DeepSeek Reasoner, DeepSeek Chat, etc.
 
@@ -474,23 +474,23 @@ class DeepSeekConfig(MSFoundryConfig):
     """Force model to start with supplied assistant message content (Beta)."""
 
 
-class PhiConfig(MSFoundryConfig):
+class PhiConfig(MicrosoftFoundryConfig):
     """Configuration for Microsoft Phi models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     Supports: Phi-3, Phi-3.5, Phi-4, etc.
 
     Microsoft Phi models generally follow the OpenAI-compatible interface.
     """
 
-    pass  # Phi uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # Phi uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class AnthropicConfig(MSFoundryConfig):
+class AnthropicConfig(MicrosoftFoundryConfig):
     """Configuration for Anthropic Claude models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Anthropic-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Anthropic-specific params.
 
     Supports: Claude Opus, Claude Sonnet, Claude Haiku (claude-3.5, claude-3.7, claude-4)
 
@@ -512,10 +512,10 @@ class AnthropicConfig(MSFoundryConfig):
     """Determines whether to use priority or standard capacity."""
 
 
-class AI21JambaConfig(MSFoundryConfig):
+class AI21JambaConfig(MicrosoftFoundryConfig):
     """Configuration for AI21 Labs Jamba models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     Supports: Jamba Large, Jamba Mini, Jamba 1.5, Jamba 1.6
 
@@ -524,13 +524,13 @@ class AI21JambaConfig(MSFoundryConfig):
         - AWS Bedrock Jamba: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-jamba.html
     """
 
-    pass  # Jamba uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # Jamba uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class GrokConfig(MSFoundryConfig):
+class GrokConfig(MicrosoftFoundryConfig):
     """Configuration for xAI Grok models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     Supports: Grok 3, Grok 4, etc.
 
@@ -542,13 +542,13 @@ class GrokConfig(MSFoundryConfig):
     frequency_penalty, or stop parameters.
     """
 
-    pass  # Grok uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # Grok uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class NvidiaConfig(MSFoundryConfig):
+class NvidiaConfig(MicrosoftFoundryConfig):
     """Configuration for NVIDIA NIM models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus NVIDIA-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus NVIDIA-specific params.
 
     Supports: Nemotron, various NVIDIA-optimized models
 
@@ -561,10 +561,10 @@ class NvidiaConfig(MSFoundryConfig):
     """Penalizes repeated tokens. Values > 1 reduce repetition."""
 
 
-class GemmaConfig(MSFoundryConfig):
+class GemmaConfig(MicrosoftFoundryConfig):
     """Configuration for Google Gemma models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     Supports: Gemma 2, Gemma 3, etc.
 
@@ -573,13 +573,13 @@ class GemmaConfig(MSFoundryConfig):
         - Azure Gemma: https://ai.azure.com/catalog/models (search for Gemma)
     """
 
-    pass  # Gemma uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # Gemma uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class QwenConfig(MSFoundryConfig):
+class QwenConfig(MicrosoftFoundryConfig):
     """Configuration for Alibaba Qwen models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Qwen-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Qwen-specific params.
 
     Supports: Qwen 2.5, Qwen 3, Qwen-VL, etc.
 
@@ -594,10 +594,10 @@ class QwenConfig(MSFoundryConfig):
     """Penalizes repeated tokens. Values > 1.0 reduce repetition."""
 
 
-class DbrxConfig(MSFoundryConfig):
+class DbrxConfig(MicrosoftFoundryConfig):
     """Configuration for Databricks DBRX model on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     DBRX is a mixture-of-experts model with 132B total parameters (36B active).
 
@@ -608,13 +608,13 @@ class DbrxConfig(MSFoundryConfig):
     Note: DBRX supports a maximum context length of 32,768 tokens.
     """
 
-    pass  # DBRX uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # DBRX uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class FalconConfig(MSFoundryConfig):
+class FalconConfig(MicrosoftFoundryConfig):
     """Configuration for TII Falcon models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Falcon-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Falcon-specific params.
 
     Supports: Falcon 3, Falcon 2, Falcon 40B, Falcon 180B, etc.
 
@@ -635,10 +635,10 @@ class FalconConfig(MSFoundryConfig):
     """Penalize repeated tokens. Values > 1 reduce repetition."""
 
 
-class GraniteConfig(MSFoundryConfig):
+class GraniteConfig(MicrosoftFoundryConfig):
     """Configuration for IBM Granite models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Granite-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Granite-specific params.
 
     Supports: Granite 3, Granite Code, Granite Guardian, etc.
 
@@ -653,10 +653,10 @@ class GraniteConfig(MSFoundryConfig):
     """Penalizes repeated tokens."""
 
 
-class JaisConfig(MSFoundryConfig):
+class JaisConfig(MicrosoftFoundryConfig):
     """Configuration for G42 Jais models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Jais-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Jais-specific params.
 
     Jais is an Arabic-English bilingual large language model developed by G42.
 
@@ -679,10 +679,10 @@ class JaisConfig(MSFoundryConfig):
     """Penalizes repeated tokens."""
 
 
-class StarCoderConfig(MSFoundryConfig):
+class StarCoderConfig(MicrosoftFoundryConfig):
     """Configuration for BigCode StarCoder models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus StarCoder-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus StarCoder-specific params.
 
     Supports: StarCoder 2, StarChat, StarCoder 15B, etc.
 
@@ -706,10 +706,10 @@ class StarCoderConfig(MSFoundryConfig):
     """Return the full text including prompt, or only the generated part."""
 
 
-class StableLMConfig(MSFoundryConfig):
+class StableLMConfig(MicrosoftFoundryConfig):
     """Configuration for Stability AI StableLM models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus StableLM-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus StableLM-specific params.
 
     Supports: StableLM 2, StableLM Zephyr, etc.
 
@@ -730,10 +730,10 @@ class StableLMConfig(MSFoundryConfig):
     """Penalizes repeated tokens."""
 
 
-class MptConfig(MSFoundryConfig):
+class MptConfig(MicrosoftFoundryConfig):
     """Configuration for MosaicML MPT models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus MPT-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus MPT-specific params.
 
     Supports: MPT-30B, MPT-7B, MPT-7B-Instruct, etc.
 
@@ -754,10 +754,10 @@ class MptConfig(MSFoundryConfig):
     """Penalizes repeated tokens."""
 
 
-class TimeSeriesConfig(MSFoundryConfig):
+class TimeSeriesConfig(MicrosoftFoundryConfig):
     """Configuration for time series forecasting models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus time series-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus time series-specific params.
 
     Supports: TimesFM, Chronos, etc.
 
@@ -779,10 +779,10 @@ class TimeSeriesConfig(MSFoundryConfig):
     """Number of sample paths to generate for probabilistic forecasting."""
 
 
-class YiConfig(MSFoundryConfig):
+class YiConfig(MicrosoftFoundryConfig):
     """Configuration for 01.AI Yi models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Yi-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Yi-specific params.
 
     Supports: Yi-1.5, Yi-34B, Yi-6B, etc.
 
@@ -797,10 +797,10 @@ class YiConfig(MSFoundryConfig):
     """Penalizes repeated tokens."""
 
 
-class GlmConfig(MSFoundryConfig):
+class GlmConfig(MicrosoftFoundryConfig):
     """Configuration for Zhipu AI GLM models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus GLM-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus GLM-specific params.
 
     Supports: GLM-4, ChatGLM, GLM-4V (vision), etc.
 
@@ -815,10 +815,10 @@ class GlmConfig(MSFoundryConfig):
     """Whether to use sampling. Set to false for greedy decoding."""
 
 
-class BaichuanConfig(MSFoundryConfig):
+class BaichuanConfig(MicrosoftFoundryConfig):
     """Configuration for Baichuan models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Baichuan-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Baichuan-specific params.
 
     Supports: Baichuan 2, Baichuan-13B, Baichuan-7B, etc.
 
@@ -839,10 +839,10 @@ class BaichuanConfig(MSFoundryConfig):
     """Activate logits sampling."""
 
 
-class InternLMConfig(MSFoundryConfig):
+class InternLMConfig(MicrosoftFoundryConfig):
     """Configuration for Shanghai AI Lab InternLM models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus InternLM-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus InternLM-specific params.
 
     Supports: InternLM2, InternLM-20B, InternLM-7B, etc.
 
@@ -863,10 +863,10 @@ class InternLMConfig(MSFoundryConfig):
     """Activate logits sampling."""
 
 
-class ArcticConfig(MSFoundryConfig):
+class ArcticConfig(MicrosoftFoundryConfig):
     """Configuration for Snowflake Arctic models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     Arctic is Snowflake's enterprise-grade LLM optimized for SQL and data tasks.
 
@@ -877,13 +877,13 @@ class ArcticConfig(MSFoundryConfig):
     Note: Arctic uses an OpenAI-compatible interface.
     """
 
-    pass  # Arctic uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # Arctic uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class WriterConfig(MSFoundryConfig):
+class WriterConfig(MicrosoftFoundryConfig):
     """Configuration for Writer Palmyra models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus Writer-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus Writer-specific params.
 
     Supports: Palmyra X, Palmyra Med, Palmyra Fin, etc.
 
@@ -898,10 +898,10 @@ class WriterConfig(MSFoundryConfig):
     """Generate best_of completions and return the best."""
 
 
-class RekaConfig(MSFoundryConfig):
+class RekaConfig(MicrosoftFoundryConfig):
     """Configuration for Reka AI models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     Supports: Reka Core, Reka Flash, Reka Edge
 
@@ -912,13 +912,13 @@ class RekaConfig(MSFoundryConfig):
     Note: Reka models are multimodal and support text, images, and video.
     """
 
-    pass  # Reka uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # Reka uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class MiniCPMConfig(MSFoundryConfig):
+class MiniCPMConfig(MicrosoftFoundryConfig):
     """Configuration for OpenBMB MiniCPM models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus MiniCPM-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus MiniCPM-specific params.
 
     MiniCPM is a series of efficient small language models.
 
@@ -941,10 +941,10 @@ class MiniCPMConfig(MSFoundryConfig):
     """Activate logits sampling."""
 
 
-class InflectionConfig(MSFoundryConfig):
+class InflectionConfig(MicrosoftFoundryConfig):
     """Configuration for Inflection Pi models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig.
 
     Supports: Pi (Inflection's conversational AI)
 
@@ -954,13 +954,13 @@ class InflectionConfig(MSFoundryConfig):
     Note: Inflection models use an OpenAI-compatible interface.
     """
 
-    pass  # Inflection uses standard OpenAI-compatible parameters from MSFoundryConfig
+    pass  # Inflection uses standard OpenAI-compatible parameters from MicrosoftFoundryConfig
 
 
-class XGenConfig(MSFoundryConfig):
+class XGenConfig(MicrosoftFoundryConfig):
     """Configuration for Salesforce XGen / CodeGen models on Azure AI Foundry.
 
-    Inherits all Genkit common parameters from MSFoundryConfig plus XGen-specific params.
+    Inherits all Genkit common parameters from MicrosoftFoundryConfig plus XGen-specific params.
 
     Supports: XGen-7B, CodeGen 2.5, CodeGen 16B, etc.
 
@@ -1025,7 +1025,7 @@ __all__ = [
     'JaisConfig',
     'LlamaConfig',
     # Base/OpenAI Configs (1-2)
-    'MSFoundryConfig',
+    'MicrosoftFoundryConfig',
     'MiniCPMConfig',
     # Model-Specific Configs (3-30)
     'MistralConfig',

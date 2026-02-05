@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Azure telemetry integration for Genkit.
+"""Azure telemetry integration for Microsoft Foundry plugin.
 
 This package provides telemetry export to Azure's observability suite,
 enabling monitoring and debugging of Genkit applications through Azure
@@ -30,7 +30,7 @@ Module Structure::
 
 Quick Start:
     ```python
-    from genkit.plugins.azure import add_azure_telemetry
+    from genkit.plugins.microsoft_foundry import add_azure_telemetry
 
     # Enable telemetry with defaults (uses APPLICATIONINSIGHTS_CONNECTION_STRING)
     add_azure_telemetry()

@@ -13,7 +13,6 @@ resolution-markers = [
 members = [
     "amazon-bedrock-hello",
     "anthropic-hello",
-    "azure-hello",
     "cloudflare-workers-ai-hello",
     "compat-oai-hello",
     "deepseek-hello",
@@ -25,7 +24,6 @@ members = [
     "genkit",
     "genkit-plugin-amazon-bedrock",
     "genkit-plugin-anthropic",
-    "genkit-plugin-azure",
     "genkit-plugin-cloudflare-workers-ai",
     "genkit-plugin-compat-oai",
     "genkit-plugin-deepseek",
@@ -37,8 +35,8 @@ members = [
     "genkit-plugin-google-genai",
     "genkit-plugin-huggingface",
     "genkit-plugin-mcp",
+    "genkit-plugin-microsoft-foundry",
     "genkit-plugin-mistral",
-    "genkit-plugin-msfoundry",
     "genkit-plugin-observability",
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
@@ -53,9 +51,9 @@ members = [
     "huggingface-hello",
     "media-models-demo",
     "menu",
+    "microsoft-foundry-hello",
     "mistral-hello",
     "model-garden",
-    "msfoundry-hello",
     "multi-server",
     "observability-hello",
     "ollama-hello",
@@ -488,25 +486,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/dc/1b/e503e08e755ea94e7d3419c9242315f888fc664211c90d032e40479022bf/azure_core-1.38.0.tar.gz", hash = "sha256:8194d2682245a3e4e3151a667c686464c3786fed7918b394d035bdcd61bb5993", size = 363033, upload-time = "2026-01-12T17:03:05.535Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fc/d8/b8fcba9464f02b121f39de2db2bf57f0b216fe11d014513d666e8634380d/azure_core-1.38.0-py3-none-any.whl", hash = "sha256:ab0c9b2cd71fecb1842d52c965c95285d3cfb38902f6766e4a471f1cd8905335", size = 217825, upload-time = "2026-01-12T17:03:07.291Z" },
-]
-
-[[package]]
-name = "azure-hello"
-version = "0.1.0"
-source = { editable = "samples/azure-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-azure" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "rich" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-azure", editable = "plugins/azure" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "rich", specifier = ">=13.0.0" },
 ]
 
 [[package]]
@@ -2104,34 +2083,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "genkit-plugin-azure"
-version = "0.5.0"
-source = { editable = "plugins/azure" }
-dependencies = [
-    { name = "genkit" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-sdk" },
-    { name = "structlog" },
-]
-
-[package.optional-dependencies]
-monitor = [
-    { name = "azure-monitor-opentelemetry-exporter" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "azure-monitor-opentelemetry-exporter", marker = "extra == 'monitor'", specifier = ">=1.0.0b31" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "opentelemetry-api", specifier = ">=1.20.0" },
-    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.20.0" },
-    { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
-    { name = "structlog", specifier = ">=23.0.0" },
-]
-provides-extras = ["monitor"]
-
-[[package]]
 name = "genkit-plugin-cloudflare-workers-ai"
 version = "0.5.0"
 source = { editable = "plugins/cloudflare-workers-ai" }
@@ -2340,6 +2291,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "genkit-plugin-microsoft-foundry"
+version = "0.5.0"
+source = { editable = "plugins/microsoft-foundry" }
+dependencies = [
+    { name = "azure-identity" },
+    { name = "azure-monitor-opentelemetry-exporter" },
+    { name = "genkit" },
+    { name = "openai" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "azure-identity", specifier = ">=1.15.0" },
+    { name = "azure-monitor-opentelemetry-exporter", specifier = ">=1.0.0b21" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "openai", specifier = ">=1.0.0" },
+]
+
+[[package]]
 name = "genkit-plugin-mistral"
 version = "0.5.0"
 source = { editable = "plugins/mistral" }
@@ -2352,23 +2322,6 @@ dependencies = [
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "mistralai", specifier = ">=1.0.0" },
-]
-
-[[package]]
-name = "genkit-plugin-msfoundry"
-version = "0.5.0"
-source = { editable = "plugins/msfoundry" }
-dependencies = [
-    { name = "azure-identity" },
-    { name = "genkit" },
-    { name = "openai" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "azure-identity", specifier = ">=1.15.0" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "openai", specifier = ">=1.0.0" },
 ]
 
 [[package]]
@@ -2471,7 +2424,6 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-amazon-bedrock" },
     { name = "genkit-plugin-anthropic" },
-    { name = "genkit-plugin-azure" },
     { name = "genkit-plugin-cloudflare-workers-ai" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-deepseek" },
@@ -2483,8 +2435,8 @@ dependencies = [
     { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-huggingface" },
     { name = "genkit-plugin-mcp" },
+    { name = "genkit-plugin-microsoft-foundry" },
     { name = "genkit-plugin-mistral" },
-    { name = "genkit-plugin-msfoundry" },
     { name = "genkit-plugin-observability" },
     { name = "genkit-plugin-ollama" },
     { name = "genkit-plugin-vertex-ai" },
@@ -2537,7 +2489,6 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
-    { name = "genkit-plugin-azure", editable = "plugins/azure" },
     { name = "genkit-plugin-cloudflare-workers-ai", editable = "plugins/cloudflare-workers-ai" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
@@ -2549,8 +2500,8 @@ requires-dist = [
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "genkit-plugin-huggingface", editable = "plugins/huggingface" },
     { name = "genkit-plugin-mcp", editable = "plugins/mcp" },
+    { name = "genkit-plugin-microsoft-foundry", editable = "plugins/microsoft-foundry" },
     { name = "genkit-plugin-mistral", editable = "plugins/mistral" },
-    { name = "genkit-plugin-msfoundry", editable = "plugins/msfoundry" },
     { name = "genkit-plugin-observability", editable = "plugins/observability" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
@@ -4394,6 +4345,25 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [[package]]
+name = "microsoft-foundry-hello"
+version = "0.0.0"
+source = { editable = "samples/microsoft-foundry-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-microsoft-foundry" },
+    { name = "pydantic" },
+    { name = "rich" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-microsoft-foundry", editable = "plugins/microsoft-foundry" },
+    { name = "pydantic" },
+    { name = "rich", specifier = ">=13.0.0" },
+]
+
+[[package]]
 name = "mistral-hello"
 version = "0.1.0"
 source = { editable = "samples/mistral-hello" }
@@ -4514,25 +4484,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/01/99/5d239b6156eddf761a636bded1118414d161bd6b7b37a9335549ed159396/msal_extensions-1.3.1.tar.gz", hash = "sha256:c5b0fd10f65ef62b5f1d62f4251d51cbcaf003fcedae8c91b040a488614be1a4", size = 23315, upload-time = "2025-03-14T23:51:03.902Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5e/75/bd9b7bb966668920f06b200e84454c8f3566b102183bc55c5473d96cb2b9/msal_extensions-1.3.1-py3-none-any.whl", hash = "sha256:96d3de4d034504e969ac5e85bae8106c8373b5c6568e4c8fa7af2eca9dbe6bca", size = 20583, upload-time = "2025-03-14T23:51:03.016Z" },
-]
-
-[[package]]
-name = "msfoundry-hello"
-version = "0.0.0"
-source = { editable = "samples/msfoundry-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-msfoundry" },
-    { name = "pydantic" },
-    { name = "rich" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-msfoundry", editable = "plugins/msfoundry" },
-    { name = "pydantic" },
-    { name = "rich", specifier = ">=13.0.0" },
 ]
 
 [[package]]

@@ -40,8 +40,8 @@ from openai import AsyncAzureOpenAI, AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 
 from genkit.ai import ActionRunContext
-from genkit.plugins.msfoundry.models.model_info import MODELS_SUPPORTING_RESPONSE_FORMAT, get_model_info
-from genkit.plugins.msfoundry.typing import MSFoundryConfig, VisualDetailLevel
+from genkit.plugins.microsoft_foundry.models.model_info import MODELS_SUPPORTING_RESPONSE_FORMAT, get_model_info
+from genkit.plugins.microsoft_foundry.typing import MicrosoftFoundryConfig, VisualDetailLevel
 from genkit.types import (
     FinishReason,
     GenerateRequest,
@@ -70,7 +70,7 @@ FINISH_REASON_MAP: dict[str, FinishReason] = {
 }
 
 
-class MSFoundryModel:
+class MicrosoftFoundryModel:
     """Microsoft Foundry model for chat completions.
 
     This class handles the conversion between Genkit's message format
@@ -239,24 +239,24 @@ class MSFoundryModel:
             request=request,
         )
 
-    def _normalize_config(self, config: object) -> MSFoundryConfig:
-        """Normalize config to MSFoundryConfig.
+    def _normalize_config(self, config: object) -> MicrosoftFoundryConfig:
+        """Normalize config to MicrosoftFoundryConfig.
 
         Args:
-            config: Request configuration (dict, MSFoundryConfig, or GenerationCommonConfig).
+            config: Request configuration (dict, MicrosoftFoundryConfig, or GenerationCommonConfig).
 
         Returns:
-            Normalized MSFoundryConfig instance.
+            Normalized MicrosoftFoundryConfig instance.
         """
         if config is None:
-            return MSFoundryConfig()
+            return MicrosoftFoundryConfig()
 
-        if isinstance(config, MSFoundryConfig):
+        if isinstance(config, MicrosoftFoundryConfig):
             return config
 
         if isinstance(config, GenerationCommonConfig):
             max_tokens = int(config.max_output_tokens) if config.max_output_tokens is not None else None
-            return MSFoundryConfig(
+            return MicrosoftFoundryConfig(
                 temperature=config.temperature,
                 max_tokens=max_tokens,
                 top_p=config.top_p,
@@ -287,14 +287,14 @@ class MSFoundryModel:
                 str_key = str(key)
                 mapped_key = key_map.get(str_key, str_key)
                 mapped[mapped_key] = value
-            return MSFoundryConfig(**mapped)
+            return MicrosoftFoundryConfig(**mapped)
 
-        return MSFoundryConfig()
+        return MicrosoftFoundryConfig()
 
     def _build_request_body(
         self,
         request: GenerateRequest,
-        config: MSFoundryConfig,
+        config: MicrosoftFoundryConfig,
     ) -> dict[str, Any]:
         """Build the Azure OpenAI API request body.
 

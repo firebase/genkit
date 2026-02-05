@@ -70,7 +70,7 @@ Example - Azure OpenAI Endpoint::
 
     ai = Genkit(
         plugins=[
-            MSFoundry(
+            MicrosoftFoundry(
                 azure_ad_token_provider=token_provider,
                 endpoint='https://your-resource.openai.azure.com/',
                 api_version='2024-10-21',
@@ -82,29 +82,29 @@ Example - Azure AI Foundry Project Endpoint::
 
     ai = Genkit(
         plugins=[
-            MSFoundry(
+            MicrosoftFoundry(
                 api_key='your-api-key',
                 endpoint='https://your-resource.services.ai.azure.com/api/projects/your-project',
             )
         ],
-        model=msfoundry_model('gpt-4o'),
+        model=microsoft_foundry_model('gpt-4o'),
     )
 
 Example Usage
 =============
 ```python
 from genkit import Genkit
-from genkit.plugins.msfoundry import MSFoundry, msfoundry_model
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, microsoft_foundry_model
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             api_key='your-api-key',
             endpoint='https://your-resource.openai.azure.com/',
             api_version='2024-10-21',
         )
     ],
-    model=msfoundry_model('gpt-4o'),
+    model=microsoft_foundry_model('gpt-4o'),
 )
 
 response = await ai.generate(prompt='Tell me a joke.')
@@ -129,13 +129,13 @@ from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.logging import get_logger
 from genkit.core.registry import ActionKind
-from genkit.plugins.msfoundry.models.model import MSFoundryModel
-from genkit.plugins.msfoundry.models.model_info import (
+from genkit.plugins.microsoft_foundry.models.model import MicrosoftFoundryModel
+from genkit.plugins.microsoft_foundry.models.model_info import (
     SUPPORTED_EMBEDDING_MODELS,
-    SUPPORTED_MSFOUNDRY_MODELS,
+    SUPPORTED_MICROSOFT_FOUNDRY_MODELS,
     get_model_info,
 )
-from genkit.plugins.msfoundry.typing import (
+from genkit.plugins.microsoft_foundry.typing import (
     AI21JambaConfig,
     AnthropicConfig,
     ArcticConfig,
@@ -152,10 +152,10 @@ from genkit.plugins.msfoundry.typing import (
     InternLMConfig,
     JaisConfig,
     LlamaConfig,
+    MicrosoftFoundryConfig,
     MiniCPMConfig,
     MistralConfig,
     MptConfig,
-    MSFoundryConfig,
     NvidiaConfig,
     PhiConfig,
     QwenConfig,
@@ -259,7 +259,7 @@ def get_config_schema_for_model(model_name: str) -> type:
         model_name: The model name (e.g., 'gpt-4o', 'claude-opus-4-5', 'llama-3.3-70b').
 
     Returns:
-        The appropriate config class for the model. Returns MSFoundryConfig as default.
+        The appropriate config class for the model. Returns MicrosoftFoundryConfig as default.
     """
     name_lower = model_name.lower()
 
@@ -268,7 +268,7 @@ def get_config_schema_for_model(model_name: str) -> type:
             return config_class
 
     # Default: OpenAI-compatible config (GPT, o-series, etc.)
-    return MSFoundryConfig
+    return MicrosoftFoundryConfig
 
 
 class _AzureADTokenAuth(httpx.Auth):
@@ -302,25 +302,25 @@ class _AzureADTokenAuth(httpx.Auth):
 
 
 # Plugin name
-MSFOUNDRY_PLUGIN_NAME = 'msfoundry'
+MICROSOFT_FOUNDRY_PLUGIN_NAME = 'microsoft-foundry'
 
 # Logger for this module
 logger = get_logger(__name__)
 
 
-def msfoundry_name(name: str) -> str:
+def microsoft_foundry_name(name: str) -> str:
     """Get fully qualified Microsoft Foundry model name.
 
     Args:
         name: The base model name (e.g., 'gpt-4o', 'DeepSeek-V3.2').
 
     Returns:
-        Fully qualified model name (e.g., 'msfoundry/gpt-4o').
+        Fully qualified model name (e.g., 'microsoft-foundry/gpt-4o').
     """
-    return f'{MSFOUNDRY_PLUGIN_NAME}/{name}'
+    return f'{MICROSOFT_FOUNDRY_PLUGIN_NAME}/{name}'
 
 
-class MSFoundry(Plugin):
+class MicrosoftFoundry(Plugin):
     """Microsoft Foundry plugin for Genkit.
 
     This plugin provides access to Microsoft Foundry models including:
@@ -336,10 +336,10 @@ class MSFoundry(Plugin):
     See: https://ai.azure.com/catalog/models
 
     Attributes:
-        name: Plugin name ('msfoundry').
+        name: Plugin name ('microsoft-foundry').
     """
 
-    name = MSFOUNDRY_PLUGIN_NAME
+    name = MICROSOFT_FOUNDRY_PLUGIN_NAME
 
     def __init__(
         self,
@@ -371,14 +371,14 @@ class MSFoundry(Plugin):
 
         Example:
             # Using API key with Azure OpenAI endpoint:
-            plugin = MSFoundry(
+            plugin = MicrosoftFoundry(
                 api_key="your-key",
                 endpoint="https://your-resource.openai.azure.com/",
                 api_version="2024-10-21",
             )
 
             # Using API key with Foundry project endpoint:
-            plugin = MSFoundry(
+            plugin = MicrosoftFoundry(
                 api_key="your-key",
                 endpoint="https://your-resource.services.ai.azure.com/api/projects/your-project",
             )
@@ -389,13 +389,13 @@ class MSFoundry(Plugin):
             token_provider = get_bearer_token_provider(
                 credential, "https://cognitiveservices.azure.com/.default"
             )
-            plugin = MSFoundry(
+            plugin = MicrosoftFoundry(
                 azure_ad_token_provider=token_provider,
                 endpoint="https://your-resource.openai.azure.com/",
             )
 
             # With dynamic model discovery:
-            plugin = MSFoundry(
+            plugin = MicrosoftFoundry(
                 api_key="your-key",
                 endpoint="https://your-resource.openai.azure.com/",
                 discover_models=True,  # Fetches models from API
@@ -535,17 +535,17 @@ class MSFoundry(Plugin):
             for model_id, info in discovered.items():
                 caps = info.get('capabilities', {})
                 if caps.get('chat_completion') or caps.get('completion'):
-                    actions.append(self._create_model_action(msfoundry_name(model_id)))
+                    actions.append(self._create_model_action(microsoft_foundry_name(model_id)))
                 if caps.get('embeddings'):
-                    actions.append(self._create_embedder_action(msfoundry_name(model_id)))
+                    actions.append(self._create_embedder_action(microsoft_foundry_name(model_id)))
         else:
             # Register all supported models from predefined list
-            for name in SUPPORTED_MSFOUNDRY_MODELS:
-                actions.append(self._create_model_action(msfoundry_name(name)))
+            for name in SUPPORTED_MICROSOFT_FOUNDRY_MODELS:
+                actions.append(self._create_model_action(microsoft_foundry_name(name)))
 
             # Register all supported embedding models
             for name in SUPPORTED_EMBEDDING_MODELS:
-                actions.append(self._create_embedder_action(msfoundry_name(name)))
+                actions.append(self._create_embedder_action(microsoft_foundry_name(name)))
 
         return actions
 
@@ -571,16 +571,16 @@ class MSFoundry(Plugin):
         """Create an Action object for a chat completion model.
 
         Args:
-            name: The namespaced model name (e.g., 'msfoundry/gpt-4o').
+            name: The namespaced model name (e.g., 'microsoft-foundry/gpt-4o').
 
         Returns:
             Action object for the model.
         """
         # Extract local name (remove plugin prefix)
-        prefix = f'{MSFOUNDRY_PLUGIN_NAME}/'
+        prefix = f'{MICROSOFT_FOUNDRY_PLUGIN_NAME}/'
         clean_name = name[len(prefix) :] if name.startswith(prefix) else name
 
-        model = MSFoundryModel(
+        model = MicrosoftFoundryModel(
             model_name=clean_name,
             client=self._openai_client,
             deployment=self._deployment,
@@ -610,7 +610,7 @@ class MSFoundry(Plugin):
         Returns:
             Action object for the embedder.
         """
-        prefix = f'{MSFOUNDRY_PLUGIN_NAME}/'
+        prefix = f'{MICROSOFT_FOUNDRY_PLUGIN_NAME}/'
         clean_name = name[len(prefix) :] if name.startswith(prefix) else name
 
         # Get embedder info
@@ -700,7 +700,7 @@ class MSFoundry(Plugin):
                     config_schema = get_config_schema_for_model(model_id)
                     actions.append(
                         model_action_metadata(
-                            name=msfoundry_name(model_id),
+                            name=microsoft_foundry_name(model_id),
                             info=model_info.supports.model_dump() if model_info.supports else {},
                             config_schema=config_schema,
                         )
@@ -716,7 +716,7 @@ class MSFoundry(Plugin):
                     )
                     actions.append(
                         embedder_action_metadata(
-                            name=msfoundry_name(model_id),
+                            name=microsoft_foundry_name(model_id),
                             options=EmbedderOptions(
                                 label=embed_info['label'],
                                 supports=EmbedderSupports(input=embed_info['supports']['input']),
@@ -726,11 +726,11 @@ class MSFoundry(Plugin):
                     )
         else:
             # Add model metadata from predefined list
-            for model_name, model_info in SUPPORTED_MSFOUNDRY_MODELS.items():
+            for model_name, model_info in SUPPORTED_MICROSOFT_FOUNDRY_MODELS.items():
                 config_schema = get_config_schema_for_model(model_name)
                 actions.append(
                     model_action_metadata(
-                        name=msfoundry_name(model_name),
+                        name=microsoft_foundry_name(model_name),
                         info=model_info.supports.model_dump() if model_info.supports else {},
                         config_schema=config_schema,
                     )
@@ -740,7 +740,7 @@ class MSFoundry(Plugin):
             for embed_name, embed_info in SUPPORTED_EMBEDDING_MODELS.items():
                 actions.append(
                     embedder_action_metadata(
-                        name=msfoundry_name(embed_name),
+                        name=microsoft_foundry_name(embed_name),
                         options=EmbedderOptions(
                             label=embed_info['label'],
                             supports=EmbedderSupports(input=embed_info['supports']['input']),
@@ -752,7 +752,7 @@ class MSFoundry(Plugin):
         return actions
 
 
-def msfoundry_model(name: str) -> str:
+def microsoft_foundry_model(name: str) -> str:
     """Get fully qualified Microsoft Foundry model name.
 
     Convenience function for specifying models. Can be used with any model
@@ -764,28 +764,28 @@ def msfoundry_model(name: str) -> str:
         name: The base model name (e.g., 'gpt-4o', 'DeepSeek-V3.2', 'claude-opus-4-5').
 
     Returns:
-        Fully qualified model name (e.g., 'msfoundry/gpt-4o').
+        Fully qualified model name (e.g., 'microsoft-foundry/gpt-4o').
 
     Example:
         ai = Genkit(
-            plugins=[MSFoundry(...)],
-            model=msfoundry_model("gpt-4o"),
+            plugins=[MicrosoftFoundry(...)],
+            model=microsoft_foundry_model("gpt-4o"),
         )
 
         # Or with other providers:
         response = await ai.generate(
-            model=msfoundry_model("DeepSeek-V3.2"),
+            model=microsoft_foundry_model("DeepSeek-V3.2"),
             prompt="Explain quantum computing.",
         )
     """
-    return msfoundry_name(name)
+    return microsoft_foundry_name(name)
 
 
 # Pre-defined model references for convenience
-gpt4o = msfoundry_name('gpt-4o')
-gpt4o_mini = msfoundry_name('gpt-4o-mini')
-gpt4 = msfoundry_name('gpt-4')
-gpt35_turbo = msfoundry_name('gpt-3.5-turbo')
-o3_mini = msfoundry_name('o3-mini')
-o1 = msfoundry_name('o1')
-o1_mini = msfoundry_name('o1-mini')
+gpt4o = microsoft_foundry_name('gpt-4o')
+gpt4o_mini = microsoft_foundry_name('gpt-4o-mini')
+gpt4 = microsoft_foundry_name('gpt-4')
+gpt35_turbo = microsoft_foundry_name('gpt-3.5-turbo')
+o3_mini = microsoft_foundry_name('o3-mini')
+o1 = microsoft_foundry_name('o1')
+o1_mini = microsoft_foundry_name('o1-mini')

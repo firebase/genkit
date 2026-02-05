@@ -38,7 +38,7 @@ Supported Model Categories
 +----------------+--------------------------------------------------+
 
 Note: This is a subset of the 11,000+ models available in the catalog.
-Any model can be used dynamically via the msfoundry_model() function.
+Any model can be used dynamically via the microsoft_foundry_model() function.
 """
 
 from genkit.types import ModelInfo, Supports
@@ -122,7 +122,7 @@ MISTRAL_MODEL_SUPPORTS = Supports(
     output=['text', 'json'],
 )
 
-SUPPORTED_MSFOUNDRY_MODELS: dict[str, ModelInfo] = {
+SUPPORTED_MICROSOFT_FOUNDRY_MODELS: dict[str, ModelInfo] = {
     # =========================================================================
     # OpenAI GPT Series
     # =========================================================================
@@ -511,8 +511,8 @@ def get_model_info(name: str) -> ModelInfo:
     Returns:
         ModelInfo for the model.
     """
-    if name in SUPPORTED_MSFOUNDRY_MODELS:
-        return SUPPORTED_MSFOUNDRY_MODELS[name]
+    if name in SUPPORTED_MICROSOFT_FOUNDRY_MODELS:
+        return SUPPORTED_MICROSOFT_FOUNDRY_MODELS[name]
     # Default info for unknown models - assume multimodal capable
     # This allows users to use any model from the 11,000+ catalog dynamically
     return ModelInfo(

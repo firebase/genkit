@@ -36,12 +36,11 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "opentelemetry-api>=1.20.0",
-  "opentelemetry-sdk>=1.20.0",
-  "opentelemetry-exporter-otlp-proto-http>=1.20.0",
-  "structlog>=23.0.0",
+  "openai>=1.0.0",
+  "azure-identity>=1.15.0",
+  "azure-monitor-opentelemetry-exporter>=1.0.0b21",
 ]
-description = "Genkit Azure Plugin for Azure Monitor telemetry"
+description = "Genkit Microsoft Foundry Plugin - Models and Azure Observability"
 keywords = [
   "genkit",
   "ai",
@@ -51,17 +50,16 @@ keywords = [
   "generative-ai",
   "azure",
   "microsoft",
+  "azure-openai",
+  "foundry",
   "application-insights",
   "telemetry",
 ]
 license = "Apache-2.0"
-name = "genkit-plugin-azure"
+name = "genkit-plugin-microsoft-foundry"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.5.0"
-
-[project.optional-dependencies]
-monitor = ["azure-monitor-opentelemetry-exporter>=1.0.0b31"]
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
@@ -74,5 +72,5 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["src/genkit/plugins/azure"]
+only-include = ["src/genkit/plugins/microsoft_foundry"]
 sources      = ["src"]

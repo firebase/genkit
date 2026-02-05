@@ -48,10 +48,10 @@ Key Concepts (ELI5)::
 
 Key Features
 ============
-| Feature                          | Example                           |
-|----------------------------------|-----------------------------------|
-| Plugin Initialization            | `MSFoundry(api_key=..., ...)`     |
-| Default Model Configuration      | `ai = Genkit(model=gpt4o)`        |
+| Feature                          | Example                                |
+|----------------------------------|----------------------------------------|
+| Plugin Initialization            | `MicrosoftFoundry(api_key=..., ...)`   |
+| Default Model Configuration      | `ai = Genkit(model=gpt4o)`             |
 | Defining Flows                   | `@ai.flow()` decorator            |
 | Defining Tools                   | `@ai.tool()` decorator            |
 | Simple Generation                | `say_hi`                          |
@@ -88,7 +88,7 @@ Authentication Methods
 
    ai = Genkit(
        plugins=[
-           MSFoundry(
+           MicrosoftFoundry(
                azure_ad_token_provider=token_provider,
                endpoint='https://your-resource.openai.azure.com/',
            )
@@ -145,7 +145,7 @@ from rich.traceback import install as install_rich_traceback
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.plugins.msfoundry import MSFoundry, gpt4o
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
 from genkit.types import Media, MediaPart, Part, TextPart
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
@@ -169,7 +169,7 @@ if not API_KEY or not ENDPOINT:
 
 ai = Genkit(
     plugins=[
-        MSFoundry(
+        MicrosoftFoundry(
             api_key=API_KEY,
             endpoint=ENDPOINT,
             api_version=API_VERSION,
@@ -298,7 +298,7 @@ async def describe_image(input: ImageDescribeInput) -> str:
 async def say_hi_with_config(input: SayHiInput) -> str:
     """Generate greeting with custom configuration.
 
-    This demonstrates using MSFoundryConfig for fine-tuned control.
+    This demonstrates using MicrosoftFoundryConfig for fine-tuned control.
     """
     response = await ai.generate(
         prompt=f'Say hello to {input.name}',

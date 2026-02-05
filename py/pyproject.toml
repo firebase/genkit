@@ -33,9 +33,8 @@ dependencies = [
   "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
   "genkit-plugin-mcp",
-  "genkit-plugin-msfoundry",
+  "genkit-plugin-microsoft-foundry",
   "genkit-plugin-amazon-bedrock",
-  "genkit-plugin-azure",
 
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
@@ -134,7 +133,6 @@ default-groups = ["dev", "lint"]
 # Samples (alphabetical by package name from pyproject.toml)
 amazon-bedrock-hello              = { workspace = true }
 anthropic-hello                   = { workspace = true }
-azure-hello                       = { workspace = true }
 cloudflare-workers-ai-hello           = { workspace = true }
 compat-oai-hello                  = { workspace = true }
 deepseek-hello                    = { workspace = true }
@@ -154,7 +152,7 @@ media-models-demo                 = { workspace = true }
 menu                              = { workspace = true }
 mistral-hello                     = { workspace = true }
 model-garden                      = { workspace = true }
-msfoundry-hello                   = { workspace = true }
+microsoft-foundry-hello           = { workspace = true }
 multi-server                      = { workspace = true }
 observability-hello               = { workspace = true }
 ollama-hello                      = { workspace = true }
@@ -171,7 +169,6 @@ genkit = { workspace = true }
 # Plugins (alphabetical)
 genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
-genkit-plugin-azure                 = { workspace = true }
 genkit-plugin-cloudflare-workers-ai = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
@@ -183,8 +180,8 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-huggingface           = { workspace = true }
 genkit-plugin-mcp                   = { workspace = true }
+genkit-plugin-microsoft-foundry     = { workspace = true }
 genkit-plugin-mistral               = { workspace = true }
-genkit-plugin-msfoundry             = { workspace = true }
 genkit-plugin-observability         = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
@@ -376,7 +373,6 @@ root = [
   # Plugins
   "plugins/anthropic/src",
   "plugins/amazon-bedrock/src",
-  "plugins/azure/src",
   "plugins/cloudflare-workers-ai/src",
   "plugins/compat-oai/src",
   "plugins/deepseek/src",
@@ -388,8 +384,8 @@ root = [
   "plugins/google-genai/src",
   "plugins/huggingface/src",
   "plugins/mcp/src",
+  "plugins/microsoft-foundry/src",
   "plugins/mistral/src",
-  "plugins/msfoundry/src",
   "plugins/observability/src",
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
