@@ -131,6 +131,7 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
+amazon-bedrock-hello              = { workspace = true }
 anthropic-hello                   = { workspace = true }
 cloudflare-workers-ai-hello       = { workspace = true }
 compat-oai-hello                  = { workspace = true }
