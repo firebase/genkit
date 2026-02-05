@@ -41,15 +41,19 @@ func newVeoModel(
 			return nil, fmt.Errorf("no text prompt found in request")
 		}
 
+		video := extractVeoVideoFromRequest(req)
 		image := extractVeoImageFromRequest(req)
-
 		videoConfig := toVeoParameters(req)
+		sourceConfig := &genai.GenerateVideosSource{
+			Prompt: prompt,
+			Image:  image,
+			Video:  video,
+		}
 
-		operation, err := client.Models.GenerateVideos(
+		operation, err := client.Models.GenerateVideosFromSource(
 			ctx,
 			name,
-			prompt,
-			image,
+			sourceConfig,
 			videoConfig,
 		)
 		if err != nil {
@@ -138,6 +142,30 @@ func extractVeoImageFromRequest(request *ai.ModelRequest) *genai.Image {
 				}
 				return &genai.Image{
 					ImageBytes: data,
+					MIMEType:   part.ContentType,
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// extractVeoVideoFromRequest extracts video content from a model request for Veo.
+func extractVeoVideoFromRequest(request *ai.ModelRequest) *genai.Video {
+	if len(request.Messages) == 0 {
+		return nil
+	}
+
+	for _, message := range request.Messages {
+		for _, part := range message.Content {
+			if part.IsVideo() {
+				_, data, err := uri.Data(part)
+				if err != nil {
+					return nil
+				}
+				return &genai.Video{
+					VideoBytes: data,
 					MIMEType:   part.ContentType,
 				}
 			}
