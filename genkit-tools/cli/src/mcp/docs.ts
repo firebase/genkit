@@ -17,59 +17,12 @@
 import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { ContentBlock } from '@modelcontextprotocol/sdk/types';
-import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import { Readable } from 'node:stream';
-import os from 'os';
-import path from 'path';
 import z from 'zod';
-import { version } from '../utils/version';
+import { loadDocs, searchDocs } from '../utils/docs';
 import { McpRunToolEvent } from './analytics.js';
 
-const DOCS_URL =
-  process.env.GENKIT_DOCS_BUNDLE_URL ??
-  'http://genkit.dev/docs-bundle-experimental.json';
-
-const DOCS_BUNDLE_FILE_PATH = path.resolve(
-  os.homedir(),
-  '.genkit',
-  'docs',
-  version,
-  'bundle.json'
-);
-
-async function maybeDownloadDocsBundle() {
-  if (existsSync(DOCS_BUNDLE_FILE_PATH)) {
-    return;
-  }
-  const response = await fetch(DOCS_URL);
-  if (response.status !== 200) {
-    throw new Error(
-      'Failed to download genkit docs bundle. Try again later or/and report the issue.\n\n' +
-        DOCS_URL
-    );
-  }
-  const stream = Readable.fromWeb(response.body as any);
-
-  mkdirSync(path.dirname(DOCS_BUNDLE_FILE_PATH), { recursive: true });
-
-  await writeFile(DOCS_BUNDLE_FILE_PATH + '.pending', stream);
-  renameSync(DOCS_BUNDLE_FILE_PATH + '.pending', DOCS_BUNDLE_FILE_PATH);
-}
-
-interface Doc {
-  title: string;
-  description?: string;
-  text: string;
-  lang: string;
-  headers: string;
-}
-
 export async function defineDocsTool(server: McpServer) {
-  await maybeDownloadDocsBundle();
-  const documents = JSON.parse(
-    readFileSync(DOCS_BUNDLE_FILE_PATH, { encoding: 'utf8' })
-  ) as Record<string, Doc>;
+  const documents = await loadDocs();
 
   server.registerTool(
     'list_genkit_docs',
@@ -138,32 +91,8 @@ export async function defineDocsTool(server: McpServer) {
     async ({ query, language }) => {
       await record(new McpRunToolEvent('search_genkit_docs'));
       const lang = language || 'js';
-      const terms = query
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((t) => t.length > 2); // Filter out short words to reduce noise
 
-      const results = Object.keys(documents)
-        .filter((file) => file.startsWith(lang))
-        .map((file) => {
-          const doc = documents[file];
-          let score = 0;
-          const title = doc.title.toLowerCase();
-          const desc = (doc.description || '').toLowerCase();
-          const headers = (doc.headers || '').toLowerCase();
-
-          terms.forEach((term) => {
-            if (title.includes(term)) score += 10;
-            if (desc.includes(term)) score += 5;
-            if (headers.includes(term)) score += 3;
-            if (file.includes(term)) score += 5;
-          });
-
-          return { file, doc, score };
-        })
-        .filter((r) => r.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10); // Top 10
+      const results = searchDocs(documents, query, lang).slice(0, 10); // Top 10
 
       if (results.length === 0) {
         return {
