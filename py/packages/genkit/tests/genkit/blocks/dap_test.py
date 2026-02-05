@@ -147,8 +147,9 @@ async def test_lists_action_metadata(registry: Registry, tool1: Action, tool2: A
 
     metadata = await dap.list_action_metadata('tool', '*')
     assert len(metadata) == 2
-    assert metadata[0] == tool1.metadata
-    assert metadata[1] == tool2.metadata
+    # New API includes name/description in returned metadata
+    assert metadata[0].get('name') == 'tool1'
+    assert metadata[1].get('name') == 'tool2'
     assert call_count == 1
 
 
@@ -248,8 +249,9 @@ async def test_lists_actions_with_prefix(registry: Registry, tool1: Action, tool
 
     metadata = await dap.list_action_metadata('tool', 'tool*')
     assert len(metadata) == 2
-    assert metadata[0] == tool1.metadata
-    assert metadata[1] == tool2.metadata
+    # New API includes name/description in returned metadata
+    assert metadata[0].get('name') == 'tool1'
+    assert metadata[1].get('name') == 'tool2'
     assert call_count == 1
 
 
@@ -270,7 +272,8 @@ async def test_lists_actions_exact_match(registry: Registry, tool1: Action, tool
 
     metadata = await dap.list_action_metadata('tool', 'tool1')
     assert len(metadata) == 1
-    assert metadata[0] == tool1.metadata
+    # New API includes name/description in returned metadata
+    assert metadata[0].get('name') == 'tool1'
     assert call_count == 1
 
 
@@ -296,9 +299,10 @@ async def test_gets_action_metadata_record(registry: Registry, tool1: Action, to
     assert 'dap/my-dap:tool/tool1' in record
     assert 'dap/my-dap:tool/tool2' in record
     assert 'dap/my-dap:flow/tool1' in record
-    assert record['dap/my-dap:tool/tool1'] == tool1.metadata
-    assert record['dap/my-dap:tool/tool2'] == tool2.metadata
-    assert record['dap/my-dap:flow/tool1'] == tool1.metadata
+    # New API returns dict with name/description included
+    assert record['dap/my-dap:tool/tool1'].get('name') == 'tool1'
+    assert record['dap/my-dap:tool/tool2'].get('name') == 'tool2'
+    assert record['dap/my-dap:flow/tool1'].get('name') == 'tool1'
     assert call_count == 1
 
 
@@ -327,8 +331,9 @@ async def test_handles_concurrent_requests(registry: Registry, tool1: Action, to
     metadata1, metadata2 = results
     assert len(metadata1) == 2
     assert len(metadata2) == 2
-    assert metadata1[0] == tool1.metadata
-    assert metadata2[0] == tool1.metadata
+    # New API includes name/description in returned metadata
+    assert metadata1[0].get('name') == 'tool1'
+    assert metadata2[0].get('name') == 'tool1'
     # Only one fetch should have occurred
     assert call_count == 1
 
@@ -339,6 +344,8 @@ async def test_handles_fetch_errors(registry: Registry, tool1: Action, tool2: Ac
 
     Corresponds to JS test: 'handles fetch errors'
     """
+    from genkit.core.error import GenkitError
+
     call_count = 0
 
     async def dap_fn() -> DapValue:
@@ -350,8 +357,8 @@ async def test_handles_fetch_errors(registry: Registry, tool1: Action, tool2: Ac
 
     dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
 
-    # First call should raise
-    with pytest.raises(RuntimeError, match='Fetch failed'):
+    # First call should raise (wrapped in GenkitError by action tracing)
+    with pytest.raises(GenkitError):
         await dap.list_action_metadata('tool', '*')
     assert call_count == 1
 
@@ -379,15 +386,19 @@ async def test_identifies_dap(registry: Registry, tool1: Action) -> None:
 
 
 def test_transform_dap_value(tool1: Action, tool2: Action) -> None:
-    """Test the transform_dap_value utility function."""
+    """Test the transform_dap_value utility function.
+
+    Updated for PR #4050 parity: returns flat list instead of grouped dict.
+    """
     value: DapValue = {'tool': [tool1, tool2]}
 
     metadata = transform_dap_value(value)
 
-    assert 'tool' in metadata
-    assert len(metadata['tool']) == 2
-    assert metadata['tool'][0] == tool1.metadata
-    assert metadata['tool'][1] == tool2.metadata
+    # New API returns flat list of action metadata
+    assert isinstance(metadata, list)
+    assert len(metadata) == 2
+    assert metadata[0].get('name') == 'tool1'
+    assert metadata[1].get('name') == 'tool2'
 
 
 def test_dap_config_string_normalization(registry: Registry) -> None:
