@@ -73,12 +73,12 @@ import asyncio
 import time
 from typing import Any, cast
 
-from litestar import Controller, Litestar, get, post  # type: ignore
-from litestar.datastructures import State  # type: ignore
-from litestar.logging.config import LoggingConfig  # type: ignore
-from litestar.middleware.base import AbstractMiddleware  # type: ignore
-from litestar.plugins.structlog import StructlogPlugin  # type: ignore
-from litestar.types import Message  # type: ignore
+from litestar import Controller, Litestar, get, post
+from litestar.datastructures import State
+from litestar.logging.config import LoggingConfig
+from litestar.middleware.base import AbstractMiddleware
+from litestar.plugins.structlog import StructlogPlugin
+from litestar.types import Message, Receive, Scope, Send
 from rich.traceback import install as install_rich_traceback
 from starlette.applications import Starlette
 
@@ -100,7 +100,7 @@ from genkit.web.manager import (
     get_server_info,
 )
 from genkit.web.manager.signals import terminate_all_servers
-from genkit.web.typing import Application, Receive, Scope, Send
+from genkit.web.typing import Application
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
@@ -129,11 +129,16 @@ logger = get_logger(__name__)
 class LitestarLoggingMiddleware(AbstractMiddleware):
     """Logging middleware for Litestar that logs requests and responses."""
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
         """Process the ASGI request/response cycle with logging."""
         if str(scope['type']) != 'http':
             # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
-            await self.app(scope, receive, send)  # type: ignore
+            await self.app(scope, receive, send)
             return
 
         start_time = time.time()
@@ -185,11 +190,11 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
                         'Error logging response',
                         error=str(e),
                     )
-            await send(message)  # type: ignore
+            await send(message)
 
         # Call the next middleware or handler
         # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
-        await self.app(scope, receive, wrapped_send)  # type: ignore
+        await self.app(scope, receive, wrapped_send)
 
 
 class BaseControllerMixin:
