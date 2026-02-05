@@ -595,8 +595,8 @@ async def test_list_resolvable_actions_includes_dap(registry: Registry, tool1: A
     # Get resolvable actions
     metas = await registry.list_resolvable_actions()
 
-    # Should include the DAP itself and the tools it provides
+    # Should include the DAP itself and the tools it provides (with full keys)
     names = [m.name for m in metas]
     assert 'test-dap' in names  # The DAP action
-    assert 'tool1' in names  # DAP-provided tool
-    assert 'tool2' in names  # DAP-provided tool
+    assert '/dynamic-action-provider/test-dap:tool/tool1' in names  # DAP-provided tool
+    assert '/dynamic-action-provider/test-dap:tool/tool2' in names  # DAP-provided tool

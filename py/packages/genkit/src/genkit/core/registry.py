@@ -733,17 +733,16 @@ class Registry:
                         if dap:
                             dap_metadata = await dap.get_action_metadata_record(dap_prefix)
                             for _dap_key, dap_meta in dap_metadata.items():
-                                dap_name = str(dap_meta.get('name', ''))
-                                if dap_name not in seen_names:
+                                if _dap_key not in seen_names:
                                     dap_action_meta = ActionMetadata(
-                                        name=dap_name,
+                                        name=_dap_key,
                                         kind=ActionKind(str(dap_meta.get('kind', 'tool'))),
                                         description=str(dap_meta.get('description', '')),
                                     )
                                     if allowed_kinds and dap_action_meta.kind not in allowed_kinds:
                                         continue
                                     metas.append(dap_action_meta)
-                                    seen_names.add(dap_name)
+                                    seen_names.add(_dap_key)
                     except Exception as e:
                         logger.error(f'Error listing actions for DAP {action.name}: {e}')
 
