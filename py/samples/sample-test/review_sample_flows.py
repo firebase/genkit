@@ -24,6 +24,7 @@ Example:
 """
 
 import argparse
+import asyncio
 import builtins
 import importlib.util
 import sys
@@ -31,20 +32,67 @@ from pathlib import Path
 from typing import Any
 
 
-# Mock input to prevent blocking if the sample asks for API keys at top level
-def input_override(prompt: str = '') -> str:
-    """Mock input function that returns a dummy value without blocking.
+def open_file(path: str) -> None:
+    """Open a file with the default system application."""
+    import platform
+    import subprocess  # noqa: S404
 
-    Args:
-        prompt: The input prompt (ignored)
+    try:
+        if platform.system() == 'Darwin':  # macOS
+            subprocess.run(['open', path], check=False)  # noqa: S603, S607
+        elif platform.system() == 'Linux':
+            subprocess.run(['xdg-open', path], check=False)  # noqa: S603, S607
+        elif platform.system() == 'Windows':
+            subprocess.run(['start', path], shell=True, check=False)  # noqa: S602
+    except Exception:  # noqa: S110
+        pass
 
-    Returns:
-        A dummy string value
-    """
-    return 'dummy_value'
 
+def write_report(
+    path: str,
+    action_count: int,
+    successful_flows: list[str],
+    failed_flows: list[str],
+    detail_lines: list[str],
+    sample_name: str,
+) -> None:
+    """Write the test report to a file."""
+    report_lines = []
+    report_lines.append(f'Flow Review Report for {sample_name}')
+    report_lines.append('=' * 60)
+    report_lines.append('')
 
-builtins.input = input_override  # type: ignore[assignment] - intentional override for testing
+    report_lines.append('SUMMARY')
+    report_lines.append('=' * 60)
+    report_lines.append(f'Total Flows: {action_count}')
+    report_lines.append(f'Successful: {len(successful_flows)}')
+    report_lines.append(f'Failed: {len(failed_flows)}')
+    report_lines.append('')
+
+    if failed_flows:
+        report_lines.append('Failed Flows:')
+        for flow in failed_flows:
+            report_lines.append(f'  ✗ {flow}')
+        report_lines.append('')
+
+    if successful_flows:
+        report_lines.append('Successful Flows:')
+        for flow in successful_flows:
+            report_lines.append(f'  ✓ {flow}')
+        report_lines.append('')
+
+    report_lines.append('=' * 60)
+    report_lines.append('')
+    report_lines.append('DETAILED RESULTS')
+    report_lines.append('=' * 60)
+    report_lines.append('')
+
+    # Append detailed results
+    report_lines.extend(detail_lines)
+
+    # Write report
+    with open(path, 'w') as f:
+        f.write('\n'.join(report_lines))
 
 
 def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acceptable
@@ -113,154 +161,145 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
     # List all flows
     registry = ai_instance.registry
-    actions_map = registry.get_actions_by_kind(ActionKind.FLOW)
+    actions_map = asyncio.run(registry.resolve_actions_by_kind(ActionKind.FLOW))
 
     # Track results for summary
     successful_flows = []
     failed_flows = []
 
-    report_lines = []
-    report_lines.append(f'Flow Review Report for {sample_path.name}')
-    report_lines.append('=' * 60)
-    report_lines.append('')
-
     # We'll add the summary after testing all flows
     detail_lines = []
 
-    for flow_name, flow_action in actions_map.items():
-        detail_lines.append(f'Flow: {flow_name}')
-        detail_lines.append('-' * 30)
+    try:
+        for flow_name, flow_action in actions_map.items():
+            detail_lines.append(f'Flow: {flow_name}')
+            detail_lines.append('-' * 30)
 
-        try:
-            input_data = generate_input(flow_action)
-            detail_lines.append(f'Generated Input: {input_data}')
-
-            # Run flow in subprocess to avoid event loop conflicts
-            import json
-            import subprocess  # noqa: S404 - test script, subprocess usage is intentional
-
-            # Get path to helper script
-            script_dir = Path(__file__).parent
-            helper_script = script_dir / 'run_single_flow.py'
-
-            # Prepare subprocess command
-            cmd = [
-                'uv',
-                'run',
-                str(helper_script),
-                str(sample_path),
-                flow_name,
-                '--input',
-                json.dumps(input_data) if input_data is not None else 'null',
-            ]
-
-            # Run subprocess
             try:
-                result_proc = subprocess.run(  # noqa: S603 - cmd is constructed internally from trusted script paths
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=120,  # 2 minute timeout
-                    cwd=sample_path.parent.parent,  # Run from py/ directory
-                )
+                input_data = generate_input(flow_action)
+                detail_lines.append(f'Generated Input: {input_data}')
 
-                # Parse JSON output using markers
-                stdout = result_proc.stdout
+                # Run flow in subprocess to avoid event loop conflicts
+                import json
+                import subprocess  # noqa: S404 - test script, subprocess usage is intentional
+
+                print(f'Flow: {flow_name}')
+                print('-' * 30)
+                print(f'Generated Input: {input_data}')
+
+                # Get path to helper script
+                script_dir = Path(__file__).parent
+                helper_script = script_dir / 'run_single_flow.py'
+
+                # Prepare subprocess command
+                cmd = [
+                    'uv',
+                    'run',
+                    str(helper_script),
+                    str(sample_path),
+                    flow_name,
+                    '--input',
+                    json.dumps(input_data) if input_data is not None else 'null',
+                ]
+
+                # Run subprocess
                 try:
-                    if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
-                        json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
-                        result_data = json.loads(json_str)
+                    result_proc = subprocess.run(  # noqa: S603 - cmd is constructed internally from trusted script paths
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,  # 2 minute timeout
+                        cwd=sample_path.parent.parent,  # Run from py/ directory
+                    )
+
+                    # Parse JSON output using markers
+                    stdout = result_proc.stdout
+                    try:
+                        if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
+                            json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
+                            result_data = json.loads(json_str)
+                        else:
+                            result_data = json.loads(stdout)
+                    except (json.JSONDecodeError, IndexError):
+                        detail_lines.append('Status: FAILED')
+                        detail_lines.append('Error: Failed to parse subprocess output')
+                        detail_lines.append(f'Stdout (partial): {stdout[:500]}')
+                        detail_lines.append(f'Stdout (partial): {stdout[:500]}')
+                        failed_flows.append(flow_name)
+                        print('Status: FAILED')
+                        print('Error: Failed to parse subprocess output')
+                        print('')
+                        continue
+
+                    if result_data.get('success'):
+                        detail_lines.append('Status: SUCCESS')
+                        print('Status: SUCCESS')
+
+                        # Format the result
+                        flow_result = result_data.get('result')
+                        formatted_output = format_output(flow_result, max_length=500)
+                        detail_lines.append(f'Output: {formatted_output}')
+                        print(f'Output: {formatted_output}')
+
+                        successful_flows.append(flow_name)
                     else:
-                        result_data = json.loads(stdout)
-                except (json.JSONDecodeError, IndexError):
+                        detail_lines.append('Status: FAILED')
+                        error_msg = result_data.get('error', 'Unknown error')
+                        detail_lines.append(f'Error: {error_msg}')
+                        failed_flows.append(flow_name)
+                        print('Status: FAILED')
+                        print(f'Error: {error_msg}')
+
+                except subprocess.TimeoutExpired:
                     detail_lines.append('Status: FAILED')
-                    detail_lines.append('Error: Failed to parse subprocess output')
-                    detail_lines.append(f'Stdout (partial): {stdout[:500]}')
-                    detail_lines.append(f'Stderr (partial): {result_proc.stderr[:500]}')
+                    detail_lines.append('Error: Flow execution timed out (120s)')
                     failed_flows.append(flow_name)
-                    continue
-
-                if result_data.get('success'):
-                    detail_lines.append('Status: SUCCESS')
-
-                    # Format the result
-                    flow_result = result_data.get('result')
-                    formatted_output = format_output(flow_result, max_length=500)
-                    detail_lines.append(f'Output: {formatted_output}')
-
-                    successful_flows.append(flow_name)
-                else:
+                    print('Status: FAILED')
+                    print('Error: Flow execution timed out (120s)')
+                except Exception as e:
                     detail_lines.append('Status: FAILED')
-                    error_msg = result_data.get('error', 'Unknown error')
-                    detail_lines.append(f'Error: {error_msg}')
+                    detail_lines.append(f'Error: Subprocess failed: {e}')
                     failed_flows.append(flow_name)
-
-            except subprocess.TimeoutExpired:
-                detail_lines.append('Status: FAILED')
-                detail_lines.append('Error: Flow execution timed out (120s)')
-                failed_flows.append(flow_name)
+                    print('Status: FAILED')
+                    print(f'Error: Subprocess failed: {e}')
             except Exception as e:
                 detail_lines.append('Status: FAILED')
-                detail_lines.append(f'Error: Subprocess failed: {e}')
+                error_msg = str(e)
+                detail_lines.append(f'Error: {error_msg}')
+
+                # Add traceback for debugging
+                import traceback
+
+                tb_lines = traceback.format_exc().split('\n')
+                detail_lines.append('Traceback:')
+                for line in tb_lines:
+                    detail_lines.append(f'  {line}')
+
+                # Also truncate error messages in terminal
+                if len(error_msg) > 200:
+                    pass
+                else:
+                    pass
                 failed_flows.append(flow_name)
-        except Exception as e:
-            detail_lines.append('Status: FAILED')
-            error_msg = str(e)
-            detail_lines.append(f'Error: {error_msg}')
+                print('Status: FAILED')
+                print(f'Error: {e}')
 
-            # Add traceback for debugging
-            import traceback
+            detail_lines.append('')
+            print('')
 
-            tb_lines = traceback.format_exc().split('\n')
-            detail_lines.append('Traceback:')
-            for line in tb_lines:
-                detail_lines.append(f'  {line}')
-
-            # Also truncate error messages in terminal
-            if len(error_msg) > 200:
-                pass
-            else:
-                pass
-            failed_flows.append(flow_name)
-
-        detail_lines.append('')
-
-    # Add summary section
-    total_flows = len(actions_map)
-    success_count = len(successful_flows)
-    failure_count = len(failed_flows)
-
-    report_lines.append('SUMMARY')
-    report_lines.append('=' * 60)
-    report_lines.append(f'Total Flows: {total_flows}')
-    report_lines.append(f'Successful: {success_count}')
-    report_lines.append(f'Failed: {failure_count}')
-    report_lines.append('')
-
-    if failed_flows:
-        report_lines.append('Failed Flows:')
-        for flow in failed_flows:
-            report_lines.append(f'  ✗ {flow}')
-        report_lines.append('')
-
-    if successful_flows:
-        report_lines.append('Successful Flows:')
-        for flow in successful_flows:
-            report_lines.append(f'  ✓ {flow}')
-        report_lines.append('')
-
-    report_lines.append('=' * 60)
-    report_lines.append('')
-    report_lines.append('DETAILED RESULTS')
-    report_lines.append('=' * 60)
-    report_lines.append('')
-
-    # Append detailed results
-    report_lines.extend(detail_lines)
-
-    # Write report
-    with open(args.output, 'w') as f:
-        f.write('\n'.join(report_lines))
+    except KeyboardInterrupt:
+        print('\n\nInterrupted by user. Generating partial report...')
+    finally:
+        write_report(
+            args.output,
+            len(actions_map),
+            successful_flows,
+            failed_flows,
+            detail_lines,
+            sample_path.name,
+        )
+        print(f'\nReport written to {args.output}')
+        open_file(args.output)
 
 
 def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - intentional use of Any for arbitrary flow outputs

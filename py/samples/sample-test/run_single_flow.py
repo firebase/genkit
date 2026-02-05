@@ -141,7 +141,7 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
             from genkit.core.action import ActionKind
 
             registry = ai_instance.registry
-            actions_map = registry.get_actions_by_kind(ActionKind.FLOW)
+            actions_map = await registry.resolve_actions_by_kind(ActionKind.FLOW)
 
             if flow_name not in actions_map:
                 result['error'] = f"Flow '{flow_name}' not found in registry"
@@ -203,14 +203,6 @@ def main() -> None:
     logging.getLogger('genkit').setLevel(logging.ERROR)
     logging.getLogger('google').setLevel(logging.ERROR)
 
-    # Override input() to prevent blocking
-    import builtins
-
-    def input_override(prompt: str = '') -> str:
-        return 'dummy_value'
-
-    builtins.input = input_override  # type: ignore[assignment] - intentional override for testing
-
     # Parse input
     try:
         input_data = json.loads(args.input)
@@ -220,7 +212,11 @@ def main() -> None:
     # Run flow in async context
     import asyncio
 
-    asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+    result = asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+
+    print('---JSON_RESULT_START---')
+    print(json.dumps(result))
+    print('---JSON_RESULT_END---')
 
     # Output JSON result with markers to distinguish it from any debug logs
 
