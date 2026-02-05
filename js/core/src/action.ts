@@ -63,28 +63,7 @@ export interface ActionMetadata<
 }
 
 export const ActionMetadataSchema = z.object({
-  actionType: z
-    .enum([
-      'custom',
-      'dynamic-action-provider',
-      'embedder',
-      'evaluator',
-      'executable-prompt',
-      'flow',
-      'indexer',
-      'model',
-      'background-model',
-      'check-operation',
-      'cancel-operation',
-      'prompt',
-      'reranker',
-      'retriever',
-      'tool',
-      'tool.v2',
-      'util',
-      'resource',
-    ])
-    .optional(),
+  actionType: z.string().optional(),
   name: z.string(),
   description: z.string().optional(),
   inputSchema: z.unknown().optional(),
