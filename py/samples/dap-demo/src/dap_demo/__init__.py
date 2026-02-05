@@ -380,8 +380,8 @@ async def finance_assistant(input: FinanceInput) -> str:
     # For stock queries, use the get_stock_price tool
     get_stock_price = next((t for t in tools if t.name == 'get_stock_price'), None)
     if get_stock_price and 'stock' in input.query.lower():
-        # Extract stock symbol from query (simple heuristic)
-        words = input.query.upper().split()
+        # Extract stock symbol from query (search from end to find ticker before common words)
+        words = list(reversed(input.query.upper().split()))
         symbol = next((w for w in words if len(w) <= 5 and w.isalpha()), 'AAPL')
         result = await get_stock_price.arun(symbol)
         return str(result.response)
