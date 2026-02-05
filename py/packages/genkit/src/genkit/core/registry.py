@@ -30,7 +30,7 @@ Example:
 import asyncio
 import threading
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, cast
+from typing import Protocol, cast
 
 from dotpromptz.dotprompt import Dotprompt
 from pydantic import BaseModel
@@ -59,9 +59,6 @@ from genkit.core.typing import (
     RetrieverRequest,
     RetrieverResponse,
 )
-
-if TYPE_CHECKING:
-    from genkit.blocks.dap import DynamicActionProvider
 
 logger = get_logger(__name__)
 
@@ -105,6 +102,37 @@ def _is_dap_action(action: Action) -> bool:
     if hasattr(action, 'metadata') and isinstance(action.metadata, dict):
         return action.metadata.get('type') == 'dynamic-action-provider'
     return False
+
+
+class DynamicActionProviderProtocol(Protocol):
+    """Protocol for Dynamic Action Provider interface.
+
+    This protocol defines the interface required by Registry to work with DAPs
+    without creating a circular import with genkit.blocks.dap.
+    """
+
+    async def get_action_metadata_record(self, dap_prefix: str) -> dict[str, dict]:
+        """Get action metadata record for DevUI listing.
+
+        Args:
+            dap_prefix: The DAP prefix (e.g., '/dynamic-action-provider/my-dap').
+
+        Returns:
+            A dictionary mapping action keys to metadata dicts.
+        """
+        ...
+
+    async def list_action_metadata(self, action_type: str, action_name: str) -> list[dict]:
+        """List action metadata matching the type and name pattern.
+
+        Args:
+            action_type: The action type (e.g., 'tool').
+            action_name: The action name pattern (supports '*' wildcard).
+
+        Returns:
+            A list of action metadata dicts.
+        """
+        ...
 
 
 class ParsedRegistryKey(BaseModel):
@@ -574,8 +602,8 @@ class Registry:
             if not _is_dap_action(dap_action):
                 return []
 
-            # Get the DynamicActionProvider wrapper
-            dap = getattr(dap_action, '_dap_instance', None)
+            # Get the DynamicActionProvider wrapper (uses Protocol for type hint)
+            dap: DynamicActionProviderProtocol | None = getattr(dap_action, '_dap_instance', None)
             if dap is None:
                 return []
 
@@ -728,8 +756,8 @@ class Registry:
                 if _is_dap_action(action):
                     try:
                         dap_prefix = f'/{action.kind}/{action.name}'
-                        # Get the DynamicActionProvider wrapper (uses TYPE_CHECKING import)
-                        dap: DynamicActionProvider | None = getattr(action, '_dap_instance', None)
+                        # Get the DynamicActionProvider wrapper (uses Protocol for type hint)
+                        dap: DynamicActionProviderProtocol | None = getattr(action, '_dap_instance', None)
                         if dap:
                             dap_metadata = await dap.get_action_metadata_record(dap_prefix)
                             for _dap_key, dap_meta in dap_metadata.items():
