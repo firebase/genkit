@@ -133,7 +133,7 @@ default-groups = ["dev", "lint"]
 # Samples (alphabetical by package name from pyproject.toml)
 amazon-bedrock-hello              = { workspace = true }
 anthropic-hello                   = { workspace = true }
-cloudflare-workers-ai-hello           = { workspace = true }
+cloudflare-workers-ai-hello       = { workspace = true }
 compat-oai-hello                  = { workspace = true }
 deepseek-hello                    = { workspace = true }
 dev-local-vectorstore-hello       = { workspace = true }
@@ -150,9 +150,9 @@ google-genai-vertexai-image       = { workspace = true }
 huggingface-hello                 = { workspace = true }
 media-models-demo                 = { workspace = true }
 menu                              = { workspace = true }
+microsoft-foundry-hello           = { workspace = true }
 mistral-hello                     = { workspace = true }
 model-garden                      = { workspace = true }
-microsoft-foundry-hello           = { workspace = true }
 multi-server                      = { workspace = true }
 observability-hello               = { workspace = true }
 ollama-hello                      = { workspace = true }

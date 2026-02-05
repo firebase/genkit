@@ -184,7 +184,7 @@ class TestMicrosoftFoundryModel:
         config = model._normalize_config(None)
         assert isinstance(config, MicrosoftFoundryConfig)
 
-    def test_normalize_config_with_msfoundry_config(self) -> None:
+    def test_normalize_config_with_microsoft_foundry_config(self) -> None:
         """Test config normalization with MicrosoftFoundryConfig input."""
         mock_client = MagicMock()
         model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)

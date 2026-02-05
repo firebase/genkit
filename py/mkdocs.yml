@@ -81,7 +81,7 @@ plugins:
             - plugins/google-genai/src
             - plugins/huggingface/src
             - plugins/mistral/src
-            - plugins/msfoundry/src
+            - plugins/microsoft-foundry/src
             - plugins/ollama/src
             - plugins/vertex-ai/src
             - plugins/xai/src

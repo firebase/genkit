@@ -23,7 +23,7 @@ requires-python = ">=3.10"
 version         = "0.1.0"
 
 [tool.uv.sources]
-genkit                      = { workspace = true }
+genkit                              = { workspace = true }
 genkit-plugin-cloudflare-workers-ai = { workspace = true }
 
 [build-system]

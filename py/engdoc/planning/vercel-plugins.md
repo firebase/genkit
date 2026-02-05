@@ -330,7 +330,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 |----------|-----------|------------------|----------------|
 | **AWS** | ✅ amazon-bedrock | ✅ aws | ✅ Full |
 | **GCP** | ✅ google-genai | ✅ google-cloud | ✅ Full |
-| **Azure** | ✅ msfoundry | ✅ azure (planned) | ✅ Full |
+| **Azure** | ✅ microsoft-foundry | ✅ azure (planned) | ✅ Full |
 | **Cloudflare** | ✅ cloudflare-ai (planned) | ⚠️ AI Gateway only | ✅ Workers |
 | **Vercel** | ⚠️ AI Gateway helper | ⚠️ Standard OTEL | ✅ Functions |
 
@@ -352,7 +352,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 
 | Plugin | Priority | Reason |
 |--------|----------|--------|
-| `azure` | High | Official OTEL distro, pairs with msfoundry |
+| `azure` | High | Official OTEL distro, pairs with microsoft-foundry |
 | `cloudflare-ai` | High | Growing edge AI market |
 | `vercel` | Low | Works without plugin, add if demanded |
 

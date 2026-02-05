@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Telemetry and tracing functionality for the Genkit Azure plugin.
+"""Telemetry and tracing functionality for the Microsoft Foundry plugin.
 
 This module provides functionality for collecting and exporting telemetry data
 from Genkit operations to Azure. It uses OpenTelemetry for tracing and exports
@@ -114,7 +114,7 @@ Connection String Resolution Order:
 
 Usage:
     ```python
-    from genkit.plugins.azure import add_azure_telemetry
+    from genkit.plugins.microsoft_foundry import add_azure_telemetry
 
     # Enable telemetry with default settings (PII redaction enabled)
     add_azure_telemetry()
@@ -244,7 +244,7 @@ def _create_azure_monitor_exporter(
         # Fall back to a wrapper that logs helpful instructions
         logger.warning(
             'azure-monitor-opentelemetry-exporter not installed. '
-            'Install with: pip install genkit-plugin-azure[monitor] '
+            'Install with: pip install genkit-plugin-microsoft-foundry[monitor] '
             'Falling back to generic OTLP exporter.'
         )
         return AzureOtlpFallbackExporter(
@@ -266,7 +266,7 @@ class AzureOtlpFallbackExporter(SpanExporter):
 
     Note:
         For best results, install azure-monitor-opentelemetry-exporter:
-        ``pip install genkit-plugin-azure[monitor]``
+        ``pip install genkit-plugin-microsoft-foundry[monitor]``
     """
 
     def __init__(
