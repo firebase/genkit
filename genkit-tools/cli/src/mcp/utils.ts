@@ -25,9 +25,6 @@ export interface McpToolOptions {
   manager: McpRuntimeManager;
 }
 
-export const PROJECT_ROOT_DESCRIPTION =
-  'The path to the current project root (a.k.a workspace directory or project directory); type: string';
-
 export function getCommonSchema(
   explicitProjectRoot: boolean,
   shape: z.ZodRawShape = {}
@@ -35,7 +32,11 @@ export function getCommonSchema(
   return !explicitProjectRoot
     ? shape
     : {
-        projectRoot: z.string().describe(PROJECT_ROOT_DESCRIPTION),
+        projectRoot: z
+          .string()
+          .describe(
+            'The path to the current project root (a.k.a workspace directory or project directory); type: string'
+          ),
         ...shape,
       };
 }
