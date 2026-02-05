@@ -600,3 +600,56 @@ async def test_list_resolvable_actions_includes_dap(registry: Registry, tool1: A
     assert 'test-dap' in names  # The DAP action
     assert '/dynamic-action-provider/test-dap:tool/tool1' in names  # DAP-provided tool
     assert '/dynamic-action-provider/test-dap:tool/tool2' in names  # DAP-provided tool
+
+
+@pytest.mark.asyncio
+async def test_runs_action_with_transformed_metadata(registry: Registry, tool1: Action, tool2: Action) -> None:
+    """Test that the DAP action returns transformed metadata when run.
+
+    Corresponds to JS test: 'runs the action with transformed metadata when fetching'
+    """
+
+    async def dap_fn() -> DapValue:
+        return {'tool': [tool1, tool2]}
+
+    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
+
+    # Fetch the DAP value through the cache (which runs the action)
+    await dap._cache.get_or_fetch()
+
+    # Run the action directly and check the result is transformed metadata
+    result = await dap.action.arun(None)
+    metadata_list = result.response
+
+    # Should return transformed metadata (list of ActionMetadata-like dicts)
+    assert len(metadata_list) == 2
+    names = [m['name'] for m in metadata_list]
+    assert 'tool1' in names
+    assert 'tool2' in names
+
+
+@pytest.mark.asyncio
+async def test_skips_trace_when_requested(registry: Registry, tool1: Action, tool2: Action) -> None:
+    """Test that skipTrace parameter skips creating a trace.
+
+    Corresponds to JS test: 'skips trace when requested'
+    """
+    call_count = 0
+
+    async def dap_fn() -> DapValue:
+        nonlocal call_count
+        call_count += 1
+        return {'tool': [tool1, tool2]}
+
+    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
+
+    # Fetch with skip_trace=True should call the dap_fn directly (not via action.run)
+    await dap._cache.get_or_fetch(skip_trace=True)
+    assert call_count == 1
+
+    # Invalidate cache
+    dap.invalidate_cache()
+
+    # Fetch without skip_trace should also work (calls via action.run which calls dap_fn)
+    await dap._cache.get_or_fetch(skip_trace=False)
+    assert call_count == 2
