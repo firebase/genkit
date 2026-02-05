@@ -138,7 +138,6 @@ azure-hello                       = { workspace = true }
 cf-ai-hello                       = { workspace = true }
 cf-hello                          = { workspace = true }
 amazon-bedrock-hello              = { workspace = true }
-anthropic-hello                   = { workspace = true }
 cloudflare-workers-ai-hello       = { workspace = true }
 compat-oai-hello                  = { workspace = true }
 deepseek-hello                    = { workspace = true }
