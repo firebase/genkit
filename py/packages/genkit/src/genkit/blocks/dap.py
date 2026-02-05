@@ -315,12 +315,10 @@ def transform_dap_value(value: DapValue) -> list[ActionMetadataLike]:
     metadata_list: list[ActionMetadataLike] = []
     for actions in value.values():
         for action in actions or []:
-            meta: dict[str, object] = {
-                'name': action.name,
-                'description': action.description,
-            }
-            if action.metadata:
-                meta.update(action.metadata)
+            # Start with action.metadata, then set name/description to ensure they aren't overwritten
+            meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
+            meta['name'] = action.name
+            meta['description'] = action.description
             metadata_list.append(meta)
     return metadata_list
 
@@ -400,12 +398,10 @@ class DynamicActionProvider:
 
         metadata_list: list[ActionMetadataLike] = []
         for action in actions:
-            meta: dict[str, object] = {
-                'name': action.name,
-                'description': action.description,
-            }
-            if action.metadata:
-                meta.update(action.metadata)
+            # Start with action.metadata, then set name/description to ensure they aren't overwritten
+            meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
+            meta['name'] = action.name
+            meta['description'] = action.description
             metadata_list.append(meta)
 
         # Match all
@@ -444,12 +440,10 @@ class DynamicActionProvider:
                 if not action.name:
                     raise ValueError(f'Invalid metadata when listing dynamic actions from {dap_prefix} - name required')
                 key = f'{dap_prefix}:{action_type}/{action.name}'
-                meta: dict[str, object] = {
-                    'name': action.name,
-                    'description': action.description,
-                }
-                if action.metadata:
-                    meta.update(action.metadata)
+                # Start with action.metadata, then set name/description to ensure they aren't overwritten
+                meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
+                meta['name'] = action.name
+                meta['description'] = action.description
                 dap_actions[key] = meta
 
         return dap_actions
