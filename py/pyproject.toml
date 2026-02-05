@@ -136,6 +136,7 @@ amazon-bedrock-hello              = { workspace = true }
 anthropic-hello                   = { workspace = true }
 cloudflare-workers-ai-hello       = { workspace = true }
 compat-oai-hello                  = { workspace = true }
+dap-demo                          = { workspace = true }
 deepseek-hello                    = { workspace = true }
 dev-local-vectorstore-hello       = { workspace = true }
 evaluator-demo                    = { workspace = true }
