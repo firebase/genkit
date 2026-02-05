@@ -189,6 +189,7 @@ genkit-plugin-xai                   = { workspace = true }
 
 [tool.uv.workspace]
 exclude = ["*/shared", "testapps/*", "samples/sample-test"]
+exclude = ["*/shared", "samples/sample-test", "testapps/*"]
 members = ["packages/*", "plugins/*", "samples/*"]
 
 
@@ -442,6 +443,7 @@ project_excludes = [
   "build",
   "dist",
   "testapps",
+  "samples/sample-test/**/*.py",
 ]
 project_includes = [
   # Core package (source and tests)
