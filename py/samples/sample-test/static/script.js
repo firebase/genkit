@@ -11,7 +11,7 @@ let currentState = {
 
 // DOM Elements
 const els = {
-    samplesList: document.getElementById('samples-list'),
+    sampleSelect: document.getElementById('sample-select'),
     currentScenarioTitle: document.getElementById('current-scenario-title'),
     modelCount: document.getElementById('model-count'),
     modelSelect: document.getElementById('model-select'),
@@ -30,15 +30,15 @@ async function init() {
     try {
         const scenarios = await fetchAPI('/scenarios');
         currentState.scenarios = scenarios;
-        renderScenariosList();
+        renderScenariosDropdown();
 
-        // Select first by default
-        if (scenarios.length > 0) {
-            selectScenario(scenarios[0].id);
-        }
+        // Don't auto-select - let user choose
+        // Leave model dropdown empty until sample is selected
+        els.modelSelect.innerHTML = '<option value="">Select a sample first</option>';
+        els.modelSelect.disabled = true;
     } catch (e) {
         console.error('Failed to init:', e);
-        els.samplesList.innerHTML = `<div class="nav-item error">Failed to load samples</div>`;
+        if (els.sampleSelect) els.sampleSelect.innerHTML = `<option>Error loading samples</option>`;
     }
 }
 
@@ -47,11 +47,7 @@ async function selectScenario(id) {
     currentState.selectedScenarioId = id;
     const scenario = currentState.scenarios.find(s => s.id === id);
 
-    // Update UI
-    document.querySelectorAll('.nav-item').forEach(el => {
-        el.classList.toggle('active', el.dataset.id === id);
-    });
-
+    // Update UI title
     els.currentScenarioTitle.textContent = scenario.name;
     els.systemPrompt.value = scenario.system_prompt;
     els.userPrompt.value = scenario.user_prompt;
@@ -64,14 +60,26 @@ async function loadModels(scenarioId) {
     els.modelSelect.disabled = true;
 
     try {
-        const models = await fetchAPI(`/models?scenario=${scenarioId}`);
+        // Pass sample parameter to get sample-specific models
+        const models = await fetchAPI(`/models?sample=${scenarioId}`);
+
+        // Debug logging
+        console.log('Received models:', models);
+        console.log('First model:', models[0]);
+
         currentState.models = models;
 
         els.modelCount.textContent = `${models.length} Models`;
 
-        // Render Select
+        // Render Select with numbered display names
         els.modelSelect.innerHTML = models.length ?
-            models.map(m => `<option value="${m.name}">${m.name}</option>`).join('') :
+            models.map(m => {
+                // Fallback if display_name or name is undefined
+                const displayName = m.display_name || m.name || 'Unknown Model';
+                const modelName = m.name || '';
+                console.log('Rendering model:', modelName, displayName);
+                return `<option value="${modelName}">${displayName}</option>`;
+            }).join('') :
             '<option value="">No models found</option>';
 
         els.modelSelect.disabled = false;
@@ -80,7 +88,9 @@ async function loadModels(scenarioId) {
         if (models.length > 0) {
             handleModelChange(models[0].name);
         } else {
-            els.paramConfig.innerHTML = '';
+            if (els.paramConfig) {
+                els.paramConfig.innerHTML = '';
+            }
         }
     } catch (e) {
         console.error('Failed to load models:', e);
@@ -91,50 +101,6 @@ async function loadModels(scenarioId) {
 function handleModelChange(modelName) {
     const model = currentState.models.find(m => m.name === modelName);
     currentState.selectedModel = model;
-
-    renderParams(model.params);
-}
-
-function renderParams(params) {
-    if (!params || Object.keys(params).length === 0) {
-        els.paramConfig.innerHTML = '<div class="empty-params">No configurable parameters</div>';
-        return;
-    }
-
-    let html = '<h3>Configuration</h3>';
-
-    for (const [key, config] of Object.entries(params)) {
-        html += `<div class="form-group">
-            <label>${key}</label>`;
-
-        if (config.enum) {
-            html += `<select class="config-input" data-key="${key}" data-type="${config.type}">
-                ${config.enum.map(val => `<option value="${val}">${val}</option>`).join('')}
-            </select>`;
-        } else if (config.type === 'boolean') {
-            html += `<select class="config-input" data-key="${key}" data-type="boolean">
-                <option value="true">True</option>
-                <option value="false">False</option>
-            </select>`;
-        } else if (config.type === 'number') {
-            const min = config.minimum !== undefined ? `min="${config.minimum}"` : '';
-            const max = config.maximum !== undefined ? `max="${config.maximum}"` : '';
-            const step = (config.maximum - config.minimum) <= 1 ? '0.1' : '1';
-            const val = config.default !== undefined ? config.default :
-                (config.minimum !== undefined ? config.minimum : 0);
-
-            html += `<input type="number" class="config-input" data-key="${key}" 
-                     data-type="number" value="${val}" ${min} ${max} step="${step}">`;
-        } else {
-            // Default text
-            html += `<input type="text" class="config-input" data-key="${key}" 
-                      data-type="string" value="${config.default || ''}">`;
-        }
-
-        html += `</div>`;
-    }
-
-    els.paramConfig.innerHTML = html;
 }
 
 async function runTest() {
@@ -143,18 +109,8 @@ async function runTest() {
     els.runBtn.disabled = true;
     els.runBtn.textContent = 'Running...';
 
-    // Collect Config
+    // Send empty config as we removed the inputs
     const config = {};
-    document.querySelectorAll('.config-input').forEach(input => {
-        const key = input.dataset.key;
-        const type = input.dataset.type;
-        let value = input.value;
-
-        if (type === 'number') value = parseFloat(value);
-        if (type === 'boolean') value = value === 'true';
-
-        config[key] = value;
-    });
 
     try {
         const result = await fetchAPI('/run', 'POST', {
@@ -178,6 +134,81 @@ async function runTest() {
     }
 }
 
+async function runComprehensiveTest() {
+    if (!currentState.selectedModel || !currentState.selectedScenarioId) return;
+
+    const comprehensiveBtn = document.getElementById('run-comprehensive-btn');
+    comprehensiveBtn.disabled = true;
+    comprehensiveBtn.textContent = 'Running comprehensive test...';
+
+    // Clear previous results
+    els.resultsList.innerHTML = '<div class="empty-state">Running comprehensive test...</div>';
+
+    try {
+        const result = await fetchAPI('/run-comprehensive', 'POST', {
+            sample: currentState.selectedScenarioId,
+            model: currentState.selectedModel.name,
+            user_prompt: els.userPrompt.value,
+            system_prompt: els.systemPrompt.value
+        });
+
+        // Clear loading message
+        els.resultsList.innerHTML = '';
+
+        // Add summary card
+        const summaryCard = document.createElement('div');
+        summaryCard.className = 'result-card summary';
+        summaryCard.innerHTML = `
+            <h4>Comprehensive Test Summary</h4>
+            <div class="summary-stats">
+                <div class="stat-item">Total Tests: <strong>${result.total_tests}</strong></div>
+                <div class="stat-item success">Passed: <strong>${result.passed}</strong></div>
+                <div class="stat-item error">Failed: <strong>${result.failed}</strong></div>
+                <div class="stat-item">Success Rate: <strong>${((result.passed / result.total_tests) * 100).toFixed(1)}%</strong></div>
+            </div>
+        `;
+        els.resultsList.appendChild(summaryCard);
+
+        // Add individual test results
+        result.results.forEach((testResult, idx) => {
+            const card = document.createElement('div');
+            card.className = `result-card ${testResult.success ? 'success' : 'error'}`;
+
+            const configStr = JSON.stringify(testResult.config);
+            const configDisplay = configStr === '{}' ? 'Default (all parameters at default)' : configStr;
+
+            card.innerHTML = `
+                <div class="result-meta">
+                    <span class="test-number">Test ${idx + 1}</span>
+                    <span class="config-label">Config: ${escapeHtml(configDisplay)}</span>
+                    <span class="timing">${testResult.timing}s</span>
+                </div>
+                <div class="result-content">
+                    ${testResult.success ? escapeHtml(testResult.response || 'No response') : escapeHtml(testResult.error || 'Unknown error')}
+                </div>
+            `;
+
+            els.resultsList.appendChild(card);
+        });
+
+        // Update global stats
+        currentState.stats.pass += result.passed;
+        currentState.stats.fail += result.failed;
+        els.passCount.textContent = currentState.stats.pass;
+        els.failCount.textContent = currentState.stats.fail;
+        els.statsBar.classList.remove('hidden');
+
+    } catch (e) {
+        console.error(e);
+        els.resultsList.innerHTML = `<div class="result-card error">
+            <div class="result-content">Error running comprehensive test: ${escapeHtml(e.message)}</div>
+        </div>`;
+    } finally {
+        comprehensiveBtn.disabled = false;
+        comprehensiveBtn.textContent = 'Run Comprehensive Test';
+    }
+}
+
 // Helpers
 async function fetchAPI(endpoint, method = 'GET', body = null) {
     const options = {
@@ -193,12 +224,12 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
     return await res.json();
 }
 
-function renderScenariosList() {
-    els.samplesList.innerHTML = currentState.scenarios.map(s =>
-        `<div class="nav-item" data-id="${s.id}" onclick="selectScenario('${s.id}')">
-            ${s.name}
-        </div>`
-    ).join('');
+function renderScenariosDropdown() {
+    const options = ['<option value="">-- Select a Sample --</option>'];
+    options.push(...currentState.scenarios.map(s =>
+        `<option value="${s.id}">${s.name}</option>`
+    ));
+    els.sampleSelect.innerHTML = options.join('');
 }
 
 function addResultCard(result) {
@@ -239,8 +270,10 @@ function escapeHtml(text) {
 }
 
 // Event Listeners
+els.sampleSelect.addEventListener('change', (e) => selectScenario(e.target.value));
 els.modelSelect.addEventListener('change', (e) => handleModelChange(e.target.value));
 els.runBtn.addEventListener('click', runTest);
+document.getElementById('run-comprehensive-btn').addEventListener('click', runComprehensiveTest);
 
 // Start
 init();

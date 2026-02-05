@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,28 +8,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
+
 <body>
     <div class="app-container">
-        <!-- Sidebar: Samples -->
-        <aside class="sidebar">
-            <div class="brand">
-                <div class="logo-icon">G</div>
-                <h1>Genkit Perf</h1>
-            </div>
-            
-            <div class="section-title">TEST SAMPLES</div>
-            <div id="samples-list" class="nav-list">
-                <!-- Sample items injected here -->
-                <div class="nav-item active">Loading...</div>
-            </div>
-        </aside>
-
         <!-- Main Content -->
         <main class="main-content">
             <header class="top-bar">
-                <h2 id="current-scenario-title">Select a Sample</h2>
+                <div class="brand">
+                    <div class="logo-icon">G</div>
+                    <h1>Genkit Model Config Test</h1>
+                </div>
+                <h2 id="current-scenario-title">Model Performance Testing</h2>
                 <div class="actions">
                     <span id="model-count" class="badge">0 Models</span>
                 </div>
@@ -38,16 +30,20 @@
                 <!-- Configuration Column -->
                 <div class="config-panel">
                     <div class="card">
-                        <h3>Model Selection</h3>
+                        <h3>Test Configuration</h3>
+
+                        <div class="form-group">
+                            <label>Select Sample</label>
+                            <select id="sample-select">
+                                <option value="">Loading samples...</option>
+                            </select>
+                        </div>
+
                         <div class="form-group">
                             <label>Select Model</label>
                             <select id="model-select">
                                 <option value="">Loading models...</option>
                             </select>
-                        </div>
-                        
-                        <div id="param-config">
-                            <!-- Dynamic params injected here -->
                         </div>
 
                         <div class="form-group">
@@ -63,6 +59,10 @@
                         <button id="run-btn" class="btn-primary">
                             Run Test
                         </button>
+
+                        <button id="run-comprehensive-btn" class="btn-secondary">
+                            Run Comprehensive Test
+                        </button>
                     </div>
                 </div>
 
@@ -75,7 +75,7 @@
                             <span class="stat-item error">Fail: <span id="fail-count">0</span></span>
                         </div>
                     </div>
-                    
+
                     <div id="results-list" class="results-list">
                         <div class="empty-state">
                             Select a model and run test to see results.
@@ -85,6 +85,7 @@
             </div>
         </main>
     </div>
-    <script src="script.js"></script>
+    <script src="/static/script.js?v=3"></script>
 </body>
+
 </html>

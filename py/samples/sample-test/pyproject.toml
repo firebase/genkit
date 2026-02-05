@@ -10,6 +10,14 @@ requires-python = ">=3.10"
 dependencies = [
     "genkit",
     "genkit-plugin-google-genai",
+    "genkit-plugin-vertex-ai",
+    "genkit-plugin-google-cloud",
+    "genkit-plugin-amazon-bedrock",
+    "genkit-plugin-anthropic",
+    "genkit-plugin-deepseek",
+    "genkit-plugin-xai",
+    "genkit-plugin-ollama",
+    "genkit-plugin-mistral",
     "fastapi",
     "uvicorn",
 ]
@@ -24,3 +32,11 @@ packages = ["test_model_performance.py", "run_single_model_test.py"]
 [tool.uv.sources]
 genkit = { path = "../../packages/genkit", editable = true }
 genkit-plugin-google-genai = { path = "../../plugins/google-genai", editable = true }
+genkit-plugin-vertex-ai = { path = "../../plugins/vertex-ai", editable = true }
+genkit-plugin-google-cloud = { path = "../../plugins/google-cloud", editable = true }
+genkit-plugin-amazon-bedrock = { path = "../../plugins/amazon-bedrock", editable = true }
+genkit-plugin-anthropic = { path = "../../plugins/anthropic", editable = true }
+genkit-plugin-deepseek = { path = "../../plugins/deepseek", editable = true }
+genkit-plugin-xai = { path = "../../plugins/xai", editable = true }
+genkit-plugin-ollama = { path = "../../plugins/ollama", editable = true }
+genkit-plugin-mistral = { path = "../../plugins/mistral", editable = true }

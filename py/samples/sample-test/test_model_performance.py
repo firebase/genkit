@@ -79,6 +79,159 @@ async def discover_models() -> dict[str, Any]:
     return model_info
 
 
+async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
+    """Discover models used by a specific sample.
+
+    Args:
+        sample_name: Name of the sample directory (e.g., 'google-genai-hello')
+
+    Returns:
+        Dict mapping model names to model info for models used by this sample
+    """
+    from pathlib import Path
+    import importlib.util
+    import sys
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Find the sample directory
+    samples_dir = Path(__file__).parent.parent
+    sample_dir = samples_dir / sample_name
+
+    if not sample_dir.exists():
+        logger.warning(f"Sample directory not found: {sample_dir}")
+        return {}
+
+    # Look for main.py in common locations
+    main_file = None
+    search_paths = [
+        sample_dir / 'main.py',
+        sample_dir / 'src' / 'main.py',  # Some samples have src/ subdirectory
+        sample_dir / 'server.py',
+        sample_dir / 'app.py',
+    ]
+    
+    for candidate_path in search_paths:
+        if candidate_path.exists():
+            main_file = candidate_path
+            break
+
+    if not main_file:
+        logger.warning(f"No main file found for sample {sample_name}")
+        # Fall back to all models
+        return await discover_models()
+
+    try:
+        # Mock input() to prevent blocking on API key prompts
+        import builtins
+        import os
+        original_input = builtins.input
+        builtins.input = lambda prompt="": ""  # Return empty string for all inputs
+        
+        # Mock common API key environment variables if not set
+        env_vars_to_mock = {
+            'ANTHROPIC_API_KEY': 'mock-key',
+            'OPENAI_API_KEY': 'mock-key',
+            'GOOGLE_API_KEY': 'mock-key',
+            'GEMINI_API_KEY': 'mock-key',
+        }
+        original_env_vars = {}
+        for key, value in env_vars_to_mock.items():
+            if key not in os.environ:
+                original_env_vars[key] = None
+                os.environ[key] = value
+            else:
+                original_env_vars[key] = os.environ[key]
+        
+        try:
+            # Dynamically import the sample module
+            module_name = f"sample_{sample_name.replace('-', '_')}"
+            spec = importlib.util.spec_from_file_location(module_name, main_file)
+            if spec is None or spec.loader is None:
+                logger.warning(f"Could not load spec for {main_file}")
+                return await discover_models()
+
+            module = importlib.util.module_from_spec(spec)
+            
+            # Add to sys.modules before executing
+            old_module = sys.modules.get(module_name)
+            sys.modules[module_name] = module
+
+            try:
+                # Execute the module to initialize Genkit
+                logger.info(f"Loading sample module from {main_file}")
+                spec.loader.exec_module(module)
+
+                # Get the Genkit instance if available
+                if hasattr(module, 'ai'):
+                    ai = module.ai
+                    registry = ai.registry
+
+                    # Get all model actions
+                    from genkit.core.action import ActionKind
+                    actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
+
+                    model_info = {}
+                    for meta in actions:
+                        info = meta.metadata.get('model', {})
+                        model_info[meta.name] = info
+
+                    logger.info(f"Discovered {len(model_info)} models for sample {sample_name}: {list(model_info.keys())}")
+                    return model_info
+                else:
+                    logger.warning(f"Sample {sample_name} has no 'ai' attribute")
+                    
+            finally:
+                # Restore old module if it existed
+                if old_module is not None:
+                    sys.modules[module_name] = old_module
+                elif module_name in sys.modules:
+                    del sys.modules[module_name]
+                    
+        finally:
+            # Restore original input function
+            builtins.input = original_input
+            
+            # Restore original environment variables
+            for key, original_value in original_env_vars.items():
+                if original_value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = original_value
+
+    except ModuleNotFoundError as e:
+        error_msg = str(e)
+        logger.warning(f"Sample {sample_name} missing module: {e}")
+        
+        # Heuristic: If it's a Google sample, falling back to default/global models (Gemini) is usually safe/helpful
+        is_google_sample = 'google' in sample_name or 'gemini' in sample_name or 'vertex' in sample_name
+        
+        if is_google_sample:
+            logger.info(f"Google sample {sample_name} failed to load, falling back to default models")
+            return await discover_models()
+            
+        # For non-Google samples (e.g. Bedrock), strict failure is better than showing Gemini
+        if 'genkit.plugins.' in error_msg:
+             return {}
+             
+        # For other import errors, return empty
+        return {}
+
+    except Exception as e:
+        logger.error(f"Failed to load sample {sample_name}: {e}", exc_info=True)
+        
+        # Checking sample name again for fallback
+        if 'google' in sample_name or 'gemini' in sample_name or 'vertex' in sample_name:
+             logger.info(f"Google sample {sample_name} failed, falling back to default models")
+             return await discover_models()
+             
+        return {}  # Return empty for other failures
+
+
+
+
+
 def parse_config_schema(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Parse JSON schema to extract configuration parameters.
 
@@ -108,6 +261,10 @@ def parse_config_schema(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate configuration variations for testing.
 
+    Strategy:
+    1. First test: All parameters at default (empty config {})
+    2. Subsequent tests: Vary ONE parameter at a time, keeping others at default
+
     Args:
         params: Parameter schema info from parse_config_schema
 
@@ -116,61 +273,49 @@ def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[s
     """
     variations = []
 
-    # Start with baseline (all defaults or empty)
-    baseline = {}
-    variations.append(baseline.copy())
+    # Test 1: Always start with all defaults (empty config)
+    variations.append({})
 
-    # Generate variations for each parameter
+    # Subsequent tests: Vary one parameter at a time
     for param_name, param_info in params.items():
         param_type = param_info['type']
 
         if param_type == 'number':
-            # Numeric parameters
+            # Numeric parameters: test min, midpoint, max individually
             minimum = param_info.get('minimum', 0.0)
             maximum = param_info.get('maximum', 1.0)
-            default = param_info.get('default')
 
-            # Test min, max, midpoint
-            test_values = [minimum, maximum]
+            # Test minimum
+            variations.append({param_name: minimum})
+
+            # Test midpoint (only if range exists)
             if minimum < maximum:
                 midpoint = (minimum + maximum) / 2
-                test_values.append(midpoint)
-            if default is not None and default not in test_values:
-                test_values.append(default)
+                variations.append({param_name: midpoint})
 
-            for value in test_values:
-                config = baseline.copy()
-                config[param_name] = value
-                variations.append(config)
+            # Test maximum
+            variations.append({param_name: maximum})
 
         elif param_type == 'boolean':
-            # Boolean parameters
-            for value in [True, False]:
-                config = baseline.copy()
-                config[param_name] = value
-                variations.append(config)
+            # Boolean parameters: test true, then false
+            variations.append({param_name: True})
+            variations.append({param_name: False})
 
         elif param_type == 'string':
-            # String parameters
+            # String parameters: test each enum value individually
             enum_values = param_info.get('enum')
             if enum_values:
                 for value in enum_values:
-                    config = baseline.copy()
-                    config[param_name] = value
-                    variations.append(config)
+                    variations.append({param_name: value})
 
         elif param_type == 'array':
-            # Array parameters
-            config = baseline.copy()
-            config[param_name] = []
-            variations.append(config)
+            # Array parameters: test empty array, then sample value
+            variations.append({param_name: []})
 
-            # Add sample array value
+            # Add sample array value if items are strings
             items_schema = param_info.get('items', {})
             if items_schema.get('type') == 'string':
-                config = baseline.copy()
-                config[param_name] = ["STOP"]
-                variations.append(config)
+                variations.append({param_name: ["STOP"]})
 
     return variations
 

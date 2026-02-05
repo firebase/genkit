@@ -7,6 +7,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import asyncio
 from typing import Any, List, Dict
@@ -49,72 +50,121 @@ class TestResult(BaseModel):
     error: str | None
     timing: float
 
-# --- Scenarios ---
+# --- Scenarios Discovery ---
 
-SCENARIOS = [
-    Scenario(
-        id="basic_math",
-        name="Basic Logic & Math",
-        description="Tests reasoning capabilities with simple math problems.",
-        system_prompt="You are a helpful math assistant.",
-        user_prompt="What is 15 * 7? Explain step by step."
-    ),
-    Scenario(
-        id="creative_writing",
-        name="Creative Writing",
-        description="Tests creativity and tone adherence.",
-        system_prompt="You are a pirate bard.",
-        user_prompt="Write a short poem about the ocean."
-    ),
-    Scenario(
-        id="code_gen",
-        name="Code Generation",
-        description="Tests code generation capabilities.",
-        system_prompt="You are an expert Python developer.",
-        user_prompt="Write a function to calculate the Fibonacci sequence."
-    ),
-    Scenario(
-        id="image_gen",
-        name="Image Generation",
-        description="Tests image generation models (Vertex AI only).",
-        system_prompt="",
-        user_prompt="A futuristic cityscape at sunset, neon lights, cyberpunk style."
-    )
-]
+async def discover_scenarios() -> List[Scenario]:
+    samples_dir = Path(__file__).parent.parent
+    scenarios = []
+    
+    if not samples_dir.exists():
+        return scenarios
+
+    # Iterate through sample directories
+    for item in sorted(samples_dir.iterdir()):
+        if item.is_dir() and not item.name.startswith(('.', '_')):
+            # Try to read metadata from pyproject.toml
+            pyproject_path = item / "pyproject.toml"
+            name = item.name
+            description = "Genkit sample project"
+            
+            if pyproject_path.exists():
+                try:
+                    import tomllib # type: ignore
+                    with open(pyproject_path, "rb") as f:
+                        data = tomllib.load(f)
+                        project = data.get("project", {})
+                        name = project.get("name", name)
+                        description = project.get("description", description)
+                except Exception:
+                    pass
+            
+            scenarios.append(Scenario(
+                id=item.name,
+                name=name,
+                description=description,
+                system_prompt="You are a pirate.",
+                user_prompt="what is 5 + 3?"
+            ))
+            
+    return scenarios
+
+# We'll fetch SCENARIOS dynamically in the endpoint
 
 # --- Endpoints ---
 
+from fastapi.responses import HTMLResponse, JSONResponse
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    logging.info("Root path accessed")
+    static_dir = Path(__file__).parent / "static"
+    index_path = static_dir / "index.html"
+    if not index_path.exists():
+        logging.error(f"index.html not found at {index_path}")
+        return HTMLResponse(content="index.html not found", status_code=404)
+    return HTMLResponse(content=index_path.read_text())
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "message": "Server is running"}
+
 @app.get("/api/scenarios", response_model=List[Scenario])
 async def get_scenarios():
-    return SCENARIOS
+    return await discover_scenarios()
 
 @app.get("/api/models")
-async def get_models(scenario: str | None = None):
-    try:
-        models = await discover_models()
+async def get_models(sample: str | None = None):
+    """Get models available for a specific sample.
+    
+    Args:
+        sample: Sample name to discover models for (e.g., 'google-genai-hello')
         
-        # Simple filtering logic based on scenario
+    Returns:
+        List of models with numbering, info, and parsed parameters
+    """
+    try:
+        # Import the discovery function
+        from test_model_performance import discover_models_for_sample, parse_config_schema
+        
+        if sample:
+            logging.info(f"Discovering models for sample: {sample}")
+            models = await discover_models_for_sample(sample)
+        else:
+            logging.info("Discovering all models")
+            from test_model_performance import discover_models
+            models = await discover_models()
+        
+        logging.info(f"Found {len(models)} models: {list(models.keys())}")
+        
+        # Build numbered model list
         filtered_models = []
-        for name, info in models.items():
-            # For specific scenarios, we might want to filter models if possible
-            # But currently we don't have enough metadata to distinguish text vs image clearly 
-            # except by name convention or inspecting supported actions deeper.
-            # For now, we return all models and let the user choose.
-            
+        for idx, (name, info) in enumerate(models.items(), start=1):
+            # Validate model name
+            if not name or not isinstance(name, str):
+                logging.warning(f"Invalid model name at index {idx}: {name}")
+                continue
+                
             # Extract config schema for UI
-            config_schema = info.get('customOptions', {})
+            config_schema = info.get('customOptions', {}) if isinstance(info, dict) else {}
             params = parse_config_schema(config_schema)
             
-            filtered_models.append({
+            model_entry = {
+                "number": idx,
                 "name": name,
-                "info": info,
+                "display_name": f"{idx}. {name}",
+                "info": info if isinstance(info, dict) else {},
                 "params": params
-            })
+            }
             
+            logging.debug(f"Model entry: {model_entry['display_name']}")
+            filtered_models.append(model_entry)
+        
+        logging.info(f"Returning {len(filtered_models)} filtered models")
         return filtered_models
     except Exception as e:
-        logging.error(f"Error discovering models: {e}")
+        logging.error(f"Error discovering models: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/run", response_model=TestResult)
 async def run_test(request: TestRequest):
@@ -143,6 +193,88 @@ async def run_test(request: TestRequest):
         logging.error(f"Error running test: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+class ComprehensiveTestRequest(BaseModel):
+    sample: str
+    model: str
+    user_prompt: str
+    system_prompt: str
+
+
+class ComprehensiveTestResult(BaseModel):
+    total_tests: int
+    passed: int
+    failed: int
+    results: List[Dict[str, Any]]
+
+
+@app.post("/api/run-comprehensive", response_model=ComprehensiveTestResult)
+async def run_comprehensive_test(request: ComprehensiveTestRequest):
+    """Run comprehensive test with all parameter variations.
+    
+    Tests all config parameter variations:
+    1. First test with all defaults ({})
+    2. Then vary one parameter at a time
+    """
+    try:
+        from test_model_performance import (
+            discover_models_for_sample,
+            parse_config_schema,
+            generate_config_variations,
+            run_model_test
+        )
+        
+        # Get model info
+        models = await discover_models_for_sample(request.sample)
+        if request.model not in models:
+            raise HTTPException(status_code=404, detail=f"Model {request.model} not found in sample {request.sample}")
+        
+        model_info = models[request.model]
+        config_schema = model_info.get('customOptions', {})
+        params = parse_config_schema(config_schema)
+        
+        # Generate variations
+        variations = generate_config_variations(params)
+        
+        # Run all tests
+        script_path = Path(__file__).parent / "run_single_model_test.py"
+        all_results = []
+        
+        for config in variations:
+            result = await asyncio.to_thread(
+                run_model_test,
+                request.model,
+                config,
+                request.user_prompt,
+                request.system_prompt,
+                script_path
+            )
+            
+            all_results.append({
+                "config": config,
+                "success": result.get("success", False),
+                "response": result.get("response"),
+                "error": result.get("error"),
+                "timing": result.get("timing", 0.0)
+            })
+        
+        # Calculate stats
+        passed = sum(1 for r in all_results if r["success"])
+        failed = len(all_results) - passed
+        
+        return ComprehensiveTestResult(
+            total_tests=len(all_results),
+            passed=passed,
+            failed=failed,
+            results=all_results
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error running comprehensive test: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Wrapper to run async run_model_test inside the thread
 async def run_wrapper(model, config, user_prompt, system_prompt, script_path):
     # run_model_test in test_model_performance is synchronous (uses subprocess.run)
@@ -158,10 +290,10 @@ async def run_wrapper(model, config, user_prompt, system_prompt, script_path):
         script_path
     )
 
-
-# Mount static files (Frontend)
-app.mount("/", StaticFiles(directory="samples/sample-test/static", html=True), name="static")
+# Mount static files (CSS, JS, etc.) under /static/
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
