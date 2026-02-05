@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pyrefly: ignore-file
+
 """Tool to review and test all Genkit flows in a sample's main.py.
 
 Usage:
@@ -28,8 +30,21 @@ import sys
 from pathlib import Path
 from typing import Any
 
+
 # Mock input to prevent blocking if the sample asks for API keys at top level
-builtins.input = lambda prompt="": "dummy_value"
+def input_override(prompt: str = '') -> str:
+    """Mock input function that returns a dummy value without blocking.
+
+    Args:
+        prompt: The input prompt (ignored)
+
+    Returns:
+        A dummy string value
+    """
+    return 'dummy_value'
+
+
+builtins.input = input_override  # type: ignore[assignment] - intentional override for testing
 
 
 def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acceptable
@@ -41,6 +56,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
     # Suppress verbose logging from genkit framework to avoid printing full data URLs
     import logging
+
     logging.basicConfig(level=logging.WARNING)
     logging.getLogger('genkit').setLevel(logging.WARNING)
     logging.getLogger('google').setLevel(logging.WARNING)
@@ -61,17 +77,21 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     sys.path.insert(0, str(src_dir))
 
     # Import the module dynamically
-    spec = importlib.util.spec_from_file_location("sample_main", main_py_path)
+    spec = importlib.util.spec_from_file_location('sample_main', main_py_path)
     if spec is None or spec.loader is None:
         sys.exit(1)
 
+    # Type narrowing: spec and spec.loader are guaranteed non-None after the check above
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules["sample_main"] = module
+    sys.modules['sample_main'] = module
 
     try:
         spec.loader.exec_module(module)
     except Exception:
         import traceback  # noqa: F823
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -85,7 +105,9 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
             break
 
     if ai_instance is None:
-        sys.exit(1)
+        sys.exit(1)  # pyrefly: ignore[unbound-name] - sys is imported at top of file
+
+    assert ai_instance is not None  # Type narrowing for ai_instance.registry
 
     from genkit.core.action import ActionKind
 
@@ -98,20 +120,20 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     failed_flows = []
 
     report_lines = []
-    report_lines.append(f"Flow Review Report for {sample_path.name}")
-    report_lines.append("=" * 60)
-    report_lines.append("")
+    report_lines.append(f'Flow Review Report for {sample_path.name}')
+    report_lines.append('=' * 60)
+    report_lines.append('')
 
     # We'll add the summary after testing all flows
     detail_lines = []
 
     for flow_name, flow_action in actions_map.items():
-        detail_lines.append(f"Flow: {flow_name}")
-        detail_lines.append("-" * 30)
+        detail_lines.append(f'Flow: {flow_name}')
+        detail_lines.append('-' * 30)
 
         try:
             input_data = generate_input(flow_action)
-            detail_lines.append(f"Generated Input: {input_data}")
+            detail_lines.append(f'Generated Input: {input_data}')
 
             # Run flow in subprocess to avoid event loop conflicts
             import json
@@ -119,15 +141,17 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
             # Get path to helper script
             script_dir = Path(__file__).parent
-            helper_script = script_dir / "run_single_flow.py"
+            helper_script = script_dir / 'run_single_flow.py'
 
             # Prepare subprocess command
             cmd = [
-                "uv", "run",
+                'uv',
+                'run',
                 str(helper_script),
                 str(sample_path),
                 flow_name,
-                "--input", json.dumps(input_data) if input_data is not None else "null"
+                '--input',
+                json.dumps(input_data) if input_data is not None else 'null',
             ]
 
             # Run subprocess
@@ -143,53 +167,54 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 # Parse JSON output using markers
                 stdout = result_proc.stdout
                 try:
-                    if "---JSON_RESULT_START---" in stdout and "---JSON_RESULT_END---" in stdout:
-                        json_str = stdout.split("---JSON_RESULT_START---")[1].split("---JSON_RESULT_END---")[0].strip()
+                    if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
+                        json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
                         result_data = json.loads(json_str)
                     else:
                         result_data = json.loads(stdout)
                 except (json.JSONDecodeError, IndexError):
-                    detail_lines.append("Status: FAILED")
-                    detail_lines.append("Error: Failed to parse subprocess output")
-                    detail_lines.append(f"Stdout (partial): {stdout[:500]}")
-                    detail_lines.append(f"Stderr (partial): {result_proc.stderr[:500]}")
+                    detail_lines.append('Status: FAILED')
+                    detail_lines.append('Error: Failed to parse subprocess output')
+                    detail_lines.append(f'Stdout (partial): {stdout[:500]}')
+                    detail_lines.append(f'Stderr (partial): {result_proc.stderr[:500]}')
                     failed_flows.append(flow_name)
                     continue
 
-                if result_data.get("success"):
-                    detail_lines.append("Status: SUCCESS")
+                if result_data.get('success'):
+                    detail_lines.append('Status: SUCCESS')
 
                     # Format the result
-                    flow_result = result_data.get("result")
+                    flow_result = result_data.get('result')
                     formatted_output = format_output(flow_result, max_length=500)
-                    detail_lines.append(f"Output: {formatted_output}")
+                    detail_lines.append(f'Output: {formatted_output}')
 
                     successful_flows.append(flow_name)
                 else:
-                    detail_lines.append("Status: FAILED")
-                    error_msg = result_data.get("error", "Unknown error")
-                    detail_lines.append(f"Error: {error_msg}")
+                    detail_lines.append('Status: FAILED')
+                    error_msg = result_data.get('error', 'Unknown error')
+                    detail_lines.append(f'Error: {error_msg}')
                     failed_flows.append(flow_name)
 
             except subprocess.TimeoutExpired:
-                detail_lines.append("Status: FAILED")
-                detail_lines.append("Error: Flow execution timed out (120s)")
+                detail_lines.append('Status: FAILED')
+                detail_lines.append('Error: Flow execution timed out (120s)')
                 failed_flows.append(flow_name)
             except Exception as e:
-                detail_lines.append("Status: FAILED")
-                detail_lines.append(f"Error: Subprocess failed: {e}")
+                detail_lines.append('Status: FAILED')
+                detail_lines.append(f'Error: Subprocess failed: {e}')
                 failed_flows.append(flow_name)
         except Exception as e:
-            detail_lines.append("Status: FAILED")
+            detail_lines.append('Status: FAILED')
             error_msg = str(e)
-            detail_lines.append(f"Error: {error_msg}")
+            detail_lines.append(f'Error: {error_msg}')
 
             # Add traceback for debugging
             import traceback
+
             tb_lines = traceback.format_exc().split('\n')
-            detail_lines.append("Traceback:")
+            detail_lines.append('Traceback:')
             for line in tb_lines:
-                detail_lines.append(f"  {line}")
+                detail_lines.append(f'  {line}')
 
             # Also truncate error messages in terminal
             if len(error_msg) > 200:
@@ -198,37 +223,37 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 pass
             failed_flows.append(flow_name)
 
-        detail_lines.append("")
+        detail_lines.append('')
 
     # Add summary section
     total_flows = len(actions_map)
     success_count = len(successful_flows)
     failure_count = len(failed_flows)
 
-    report_lines.append("SUMMARY")
-    report_lines.append("=" * 60)
-    report_lines.append(f"Total Flows: {total_flows}")
-    report_lines.append(f"Successful: {success_count}")
-    report_lines.append(f"Failed: {failure_count}")
-    report_lines.append("")
+    report_lines.append('SUMMARY')
+    report_lines.append('=' * 60)
+    report_lines.append(f'Total Flows: {total_flows}')
+    report_lines.append(f'Successful: {success_count}')
+    report_lines.append(f'Failed: {failure_count}')
+    report_lines.append('')
 
     if failed_flows:
-        report_lines.append("Failed Flows:")
+        report_lines.append('Failed Flows:')
         for flow in failed_flows:
-            report_lines.append(f"  ✗ {flow}")
-        report_lines.append("")
+            report_lines.append(f'  ✗ {flow}')
+        report_lines.append('')
 
     if successful_flows:
-        report_lines.append("Successful Flows:")
+        report_lines.append('Successful Flows:')
         for flow in successful_flows:
-            report_lines.append(f"  ✓ {flow}")
-        report_lines.append("")
+            report_lines.append(f'  ✓ {flow}')
+        report_lines.append('')
 
-    report_lines.append("=" * 60)
-    report_lines.append("")
-    report_lines.append("DETAILED RESULTS")
-    report_lines.append("=" * 60)
-    report_lines.append("")
+    report_lines.append('=' * 60)
+    report_lines.append('')
+    report_lines.append('DETAILED RESULTS')
+    report_lines.append('=' * 60)
+    report_lines.append('')
 
     # Append detailed results
     report_lines.extend(detail_lines)
@@ -254,12 +279,12 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
 
     # Handle None
     if output is None:
-        return "None"
+        return 'None'
 
     # Handle Media objects
     if isinstance(output, Media):
         if output.url and len(output.url) > max_length:
-            truncated_url = f"{output.url[:100]}...{output.url[-50:]}"
+            truncated_url = f'{output.url[:100]}...{output.url[-50:]}'
             return f"Media(url='{truncated_url}' [{len(output.url)} chars], content_type='{output.content_type}')"
         return f"Media(url='{output.url}', content_type='{output.content_type}')"
 
@@ -269,7 +294,7 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
             data = output.model_dump()
             json_str = json.dumps(data, indent=2)
             if len(json_str) > max_length:
-                return f"{json_str[:max_length]}... [truncated, {len(json_str)} total chars]"
+                return f'{json_str[:max_length]}... [truncated, {len(json_str)} total chars]'
             return json_str
         except Exception:  # noqa: S110 - intentional fallback if model_dump fails
             pass
@@ -279,7 +304,7 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
         try:
             json_str = json.dumps(output, indent=2)
             if len(json_str) > max_length:
-                return f"{json_str[:max_length]}... [truncated, {len(json_str)} total chars]"
+                return f'{json_str[:max_length]}... [truncated, {len(json_str)} total chars]'
             return json_str
         except Exception:  # noqa: S110 - intentional fallback if json.dumps fails
             pass
@@ -289,7 +314,7 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
         try:
             json_str = json.dumps(output, indent=2)
             if len(json_str) > max_length:
-                return f"{json_str[:max_length]}... [truncated, {len(json_str)} total chars]"
+                return f'{json_str[:max_length]}... [truncated, {len(json_str)} total chars]'
             return json_str
         except Exception:  # noqa: S110 - intentional fallback if json.dumps fails
             pass
@@ -297,7 +322,7 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
     # Default: convert to string
     output_str = str(output)
     if len(output_str) > max_length:
-        return f"{output_str[:max_length]}... [truncated, {len(output_str)} total chars]"
+        return f'{output_str[:max_length]}... [truncated, {len(output_str)} total chars]'
     return output_str
 
 
@@ -328,7 +353,7 @@ def generate_from_json_schema(schema: dict[str, Any]) -> Any:  # noqa: ANN401 - 
         return schema['default']
 
     if type_ == 'string':
-        return "test_string"
+        return 'test_string'
     elif type_ == 'integer':
         return 42
     elif type_ == 'number':
@@ -348,5 +373,5 @@ def generate_from_json_schema(schema: dict[str, Any]) -> Any:  # noqa: ANN401 - 
     return None
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

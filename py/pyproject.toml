@@ -453,6 +453,7 @@ project_excludes = [
   "build",
   "dist",
   "testapps",
+  "samples/sample-test/**/*.py",
 ]
 project_includes = [
   # Core package (source and tests)

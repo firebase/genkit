@@ -1405,7 +1405,7 @@ class GeminiModel:
 
         return GenerateResponse(
             message=Message(
-                content=content,  # type: ignore[arg-type]
+                content=content,  # type: ignore[arg-type] - content is list[Part] after conversion
                 role=Role.MODEL,
             )
         )
@@ -1477,7 +1477,7 @@ class GeminiModel:
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
-                content=accumulated_content,  # type: ignore[arg-type]
+                content=accumulated_content,
             )
         )
 
@@ -1613,7 +1613,6 @@ class GeminiModel:
                     val = dumped_config.pop('google_search_retrieval')
                     if val is not None:
                         val = {} if val is True else val
-                        # type: ignore[arg-type] - GoogleSearchRetrieval is the correct type despite type hint
                         tools.append(genai_types.Tool(google_search=genai_types.GoogleSearchRetrieval(**val)))  # type: ignore[arg-type]
 
                 if 'file_search' in dumped_config:

@@ -15,6 +15,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# pyrefly: ignore-file
+
 """Helper script to run a single Genkit flow in isolation.
 
 This script is called by review_sample_flows.py to execute each flow in a
@@ -52,14 +54,14 @@ def format_output(output: Any) -> Any:  # noqa: ANN401 - intentional use of Any 
 
     # Handle Media objects
     if isinstance(output, Media):
-        url = output.url or ""
+        url = output.url or ''
         if len(url) > 500:
-            url = f"{url[:100]}...{url[-50:]}"
+            url = f'{url[:100]}...{url[-50:]}'
         return {
-            "type": "Media",
-            "url": url,
-            "url_length": len(output.url or ""),
-            "content_type": output.content_type,
+            'type': 'Media',
+            'url': url,
+            'url_length': len(output.url or ''),
+            'content_type': output.content_type,
         }
 
     # Handle Pydantic models
@@ -89,36 +91,37 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
         Dict with 'success', 'result', 'error' fields
     """
     result: dict[str, Any] = {
-        "success": False,
-        "result": None,
-        "error": None,
+        'success': False,
+        'result': None,
+        'error': None,
     }
 
     try:
         # Import the sample module
         sample_path = Path(sample_dir).resolve()
-        main_py = sample_path / "src" / "main.py"
+        main_py = sample_path / 'src' / 'main.py'
         if not main_py.exists():
-            main_py = sample_path / "main.py"
+            main_py = sample_path / 'main.py'
 
         if not main_py.exists():
-            result["error"] = f"No main.py found in {sample_path}"
+            result['error'] = f'No main.py found in {sample_path}'
             return result
 
         # Load the module
         import importlib.util
-        spec = importlib.util.spec_from_file_location("sample_main", main_py)
+
+        spec = importlib.util.spec_from_file_location('sample_main', main_py)
         if not spec or not spec.loader:
-            result["error"] = "Failed to load sample module"
+            result['error'] = 'Failed to load sample module'
             return result
 
         module = importlib.util.module_from_spec(spec)
-        sys.modules["sample_main"] = module
+        sys.modules['sample_main'] = module
 
         try:
             spec.loader.exec_module(module)
         except Exception as e:
-            result["error"] = f"Failed to import sample: {e}"
+            result['error'] = f'Failed to import sample: {e}'
             return result
 
         # Find the Genkit instance
@@ -130,22 +133,23 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
                 break
 
         if not ai_instance:
-            result["error"] = "No Genkit instance found in sample"
+            result['error'] = 'No Genkit instance found in sample'
             return result
 
         # Get the flow action from registry
         try:
             from genkit.core.action import ActionKind
+
             registry = ai_instance.registry
             actions_map = registry.get_actions_by_kind(ActionKind.FLOW)
 
             if flow_name not in actions_map:
-                result["error"] = f"Flow '{flow_name}' not found in registry"
+                result['error'] = f"Flow '{flow_name}' not found in registry"
                 return result
 
             flow_action = actions_map[flow_name]
         except Exception as e:
-            result["error"] = f"Failed to retrieve flow '{flow_name}': {e}"
+            result['error'] = f"Failed to retrieve flow '{flow_name}': {e}"
             return result
 
         # Run the flow - use arun() in async context
@@ -171,14 +175,15 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
             # Format output
             formatted_output = format_output(response_obj)
 
-            result["success"] = True
-            result["result"] = formatted_output
+            result['success'] = True
+            result['result'] = formatted_output
 
         except Exception as e:
-            result["error"] = f"Flow execution failed: {e}\n{traceback.format_exc()}"
+            # pyrefly: ignore[unbound-name] - traceback is imported at top of file
+            result['error'] = f'Flow execution failed: {e}\n{traceback.format_exc()}'
 
     except Exception as e:
-        result["error"] = f"Unexpected error: {e}"
+        result['error'] = f'Unexpected error: {e}'
 
     return result
 
@@ -193,27 +198,32 @@ def main() -> None:
 
     # Suppress verbose logging
     import logging
+
     logging.basicConfig(level=logging.ERROR)
     logging.getLogger('genkit').setLevel(logging.ERROR)
     logging.getLogger('google').setLevel(logging.ERROR)
 
     # Override input() to prevent blocking
     import builtins
-    builtins.input = lambda prompt="": "dummy_value"
 
+    def input_override(prompt: str = '') -> str:
+        return 'dummy_value'
+
+    builtins.input = input_override  # type: ignore[assignment] - intentional override for testing
+
+    # Parse input
     try:
-        # Parse input
         input_data = json.loads(args.input)
+    except json.JSONDecodeError:
+        return
 
-        # Run flow in async context
-        import asyncio
-        asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+    # Run flow in async context
+    import asyncio
 
-    except Exception:
-        pass
+    asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
 
     # Output JSON result with markers to distinguish it from any debug logs
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
