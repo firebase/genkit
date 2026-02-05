@@ -49,7 +49,6 @@ cd py && ./bin/validate_release_docs  # Release doc validation
 - genkit-plugin-aws
 - genkit-plugin-amazon-bedrock
 - genkit-plugin-azure
-- genkit-plugin-cf
 - genkit-plugin-cloudflare-workers-ai
 - genkit-plugin-deepseek
 - genkit-plugin-evaluators
@@ -98,7 +97,7 @@ Then create a GitHub release:
 1. Go to **Actions** → **Publish Python Package**
 2. Click **Run workflow**
 3. Select:
-   - `publish_scope: all` (to publish all 23 packages)
+   - `publish_scope: all` (to publish all 21 packages)
 4. Click **Run workflow**
 5. Monitor the workflow - it will build and publish all packages in parallel
 
@@ -150,10 +149,92 @@ Ensure the GitHub environment `pypi_github_publishing` is configured with:
 ### Individual Package Publish
 
 To publish a single package:
+
+**Via GitHub UI:**
 1. Go to **Actions** → **Publish Python Package**
 2. Select `publish_scope: single`
 3. Select `project_type: plugins` (or `packages` for genkit core)
 4. Select the specific `project_name`
+
+**Via CLI:**
+```bash
+# Publish all packages
+gh workflow run publish_python.yml -f publish_scope=all
+
+# Publish just the core genkit package
+gh workflow run publish_python.yml \
+  -f publish_scope=single \
+  -f project_type=packages \
+  -f project_name=genkit
+
+# Publish a specific plugin (3 parameters required)
+gh workflow run publish_python.yml \
+  -f publish_scope=single \
+  -f project_type=plugins \
+  -f project_name=anthropic
+
+gh workflow run publish_python.yml \
+  -f publish_scope=single \
+  -f project_type=plugins \
+  -f project_name=google-genai
+
+gh workflow run publish_python.yml \
+  -f publish_scope=single \
+  -f project_type=plugins \
+  -f project_name=vertex-ai
+```
+
+### Available Plugin Names for project_name
+
+| Plugin Name | PyPI Package Name |
+|-------------|-------------------|
+| `anthropic` | genkit-plugin-anthropic |
+| `aws` | genkit-plugin-aws |
+| `amazon-bedrock` | genkit-plugin-amazon-bedrock |
+| `azure` | genkit-plugin-azure |
+| `cloudflare-workers-ai` | genkit-plugin-cloudflare-workers-ai |
+| `compat-oai` | genkit-plugin-compat-oai |
+| `deepseek` | genkit-plugin-deepseek |
+| `dev-local-vectorstore` | genkit-plugin-dev-local-vectorstore |
+| `evaluators` | genkit-plugin-evaluators |
+| `firebase` | genkit-plugin-firebase |
+| `flask` | genkit-plugin-flask |
+| `google-cloud` | genkit-plugin-google-cloud |
+| `google-genai` | genkit-plugin-google-genai |
+| `huggingface` | genkit-plugin-huggingface |
+| `mcp` | genkit-plugin-mcp |
+| `mistral` | genkit-plugin-mistral |
+| `msfoundry` | genkit-plugin-msfoundry |
+| `observability` | genkit-plugin-observability |
+| `ollama` | genkit-plugin-ollama |
+| `vertex-ai` | genkit-plugin-vertex-ai |
+| `xai` | genkit-plugin-xai |
+
+### Monitoring Workflow Progress
+
+```bash
+# List recent publish workflow runs
+gh run list --workflow=publish_python.yml --limit=5
+
+# Watch a specific run in real-time
+gh run watch <RUN_ID>
+
+# View detailed job status
+gh run view <RUN_ID> --json status,conclusion,jobs
+
+# View failed job logs
+gh run view <RUN_ID> --log-failed | head -100
+```
+
+### Retrying Failed Jobs
+
+```bash
+# Re-run all failed jobs from a specific run
+gh run rerun <RUN_ID> --failed
+
+# Or trigger a fresh workflow run
+gh workflow run publish_python.yml -f publish_scope=<plugin-name>
+```
 
 ## Package Installation Reference
 
@@ -168,17 +249,18 @@ pip install genkit-plugin-google-genai    # Google AI (Gemini)
 pip install genkit-plugin-anthropic       # Anthropic (Claude)
 pip install genkit-plugin-ollama          # Ollama (local models)
 pip install genkit-plugin-vertex-ai       # Vertex AI
-pip install genkit-plugin-amazon-bedrock     # AWS Bedrock
+pip install genkit-plugin-amazon-bedrock  # AWS Bedrock
 pip install genkit-plugin-mistral         # Mistral AI
 pip install genkit-plugin-deepseek        # DeepSeek
 pip install genkit-plugin-xai             # xAI (Grok)
 pip install genkit-plugin-huggingface     # Hugging Face
-pip install genkit-plugin-cloudflare-workers-ai           # Cloudflare Workers AI
-pip install genkit-plugin-msfoundry       # Azure OpenAI
+pip install genkit-plugin-cloudflare-workers-ai  # Cloudflare Workers AI + OTLP telemetry
+pip install genkit-plugin-msfoundry       # Azure AI Foundry
 
 # Telemetry
 pip install genkit-plugin-google-cloud    # GCP Cloud Trace
 pip install genkit-plugin-aws             # AWS X-Ray
+pip install genkit-plugin-azure           # Azure Application Insights
 pip install genkit-plugin-observability   # Sentry, Honeycomb, Datadog
 
 # Other
@@ -188,3 +270,73 @@ pip install genkit-plugin-flask           # Flask integration
 pip install genkit-plugin-compat-oai      # OpenAI compatibility
 pip install genkit-plugin-mcp             # Model Context Protocol
 ```
+
+## Troubleshooting
+
+### PyPI 500 Error: Trusted Publishing Exchange Failure
+
+**Error:** `Trusted publishing exchange failure: Token request failed: the index produced an unexpected 500 response.`
+
+**Cause:** This is a transient PyPI server error, not a configuration issue.
+
+**Solution:**
+1. Check PyPI status: https://status.python.org/
+2. Wait 5-10 minutes
+3. Retry the failed jobs:
+   ```bash
+   gh run rerun <RUN_ID> --failed
+   ```
+
+### PyPI 400 Error: Non-user Identities Cannot Create New Projects
+
+**Error:** `400 Non-user identities cannot create new projects. This was probably caused by successfully using a pending publisher but specifying the project name incorrectly.`
+
+**Cause:** The package doesn't exist on PyPI yet and needs Trusted Publisher setup.
+
+**Solution for new packages:**
+1. Go to https://pypi.org/manage/account/publishing/
+2. Add a **Pending Publisher** for each new package:
+   - **PyPI Project Name:** `genkit-plugin-<name>` (exact package name from pyproject.toml)
+   - **Owner:** `firebase`
+   - **Repository:** `genkit`
+   - **Workflow name:** `publish_python.yml`
+   - **Environment:** `pypi`
+3. Retry the workflow
+
+### Package Already Exists at This Version
+
+**Error:** `File already exists`
+
+**Cause:** The exact version was already uploaded to PyPI.
+
+**Solution:**
+- You cannot re-upload the same version to PyPI
+- Either bump the version (e.g., 0.5.1) or verify the existing package is correct
+- Use `--skip-existing` flag if publishing multiple packages and some already exist
+
+### Authentication Failure
+
+**Error:** `403 Forbidden` or `401 Unauthorized`
+
+**Cause:** OIDC token exchange failed between GitHub and PyPI.
+
+**Solution:**
+1. Verify the GitHub environment `pypi` exists in repository settings
+2. Verify Trusted Publisher is configured correctly on PyPI
+3. Ensure workflow file path matches PyPI configuration exactly
+
+### Manual Fallback: API Token Upload
+
+If Trusted Publishing continues to fail:
+
+```bash
+cd py
+
+# Build the package
+uv build --package genkit-plugin-<name>
+
+# Upload with API token (get token from https://pypi.org/manage/account/token/)
+TWINE_USERNAME=__token__ TWINE_PASSWORD=<your-token> twine upload dist/*
+```
+
+**Note:** This is a fallback for emergencies. Prefer Trusted Publishing for security.
