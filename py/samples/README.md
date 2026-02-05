@@ -61,7 +61,7 @@ cd py/samples/<sample-name>
 | **google-genai-hello** | google-genai | Gemini models with Google AI |
 | **anthropic-hello** | anthropic | Claude models directly |
 | **amazon-bedrock-hello** | amazon-bedrock | Claude, Llama, Nova via Bedrock |
-| **microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models |
+| **microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models + Application Insights |
 | **ollama-hello** | ollama | Local models with Ollama |
 | **compat-oai-hello** | compat-oai | OpenAI-compatible APIs |
 | **deepseek-hello** | deepseek | DeepSeek V3 and R1 |
@@ -73,7 +73,7 @@ cd py/samples/<sample-name>
 | Sample | Plugin | Description |
 |--------|--------|-------------|
 | **aws-hello** | aws | AWS X-Ray and CloudWatch integration |
-| **microsoft-foundry-hello** | azure | Azure Application Insights |
+| **microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models + Application Insights |
 | **observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
 | **realtime-tracing-demo** | google-cloud | Real-time tracing visualization |
 

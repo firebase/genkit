@@ -145,23 +145,23 @@ This directory contains all official Genkit plugins for Python.
 │   │ Console │  │ Trace   │             │  Any OTLP Backend │                   │
 │   └─────────┘  └─────────┘             └───────────────────┘                   │
 │                                                                                 │
-│   ┌─────────┐  ┌─────────────┐                                                  │
-│   │  azure  │  │cloudflare-workers-ai│  ✅ NEW                                          │
-│   │ • Distro│  │ • OTLP      │  • Models + Telemetry                            │
-│   │ • AppIns│  │ • Token     │  • Single plugin                                 │
-│   └────┬────┘  └──────┬──────┘                                                  │
-│        │            │       CAN'T BE REPLICATED           CAN BE REPLICATED    │
-│        ▼            ▼       WITH GENERIC OTLP             WITH GENERIC OTLP    │
-│   ┌─────────┐  ┌─────────┐                                                      │
-│   │  App    │  │  OTLP   │                                                      │
-│   │Insights │  │ Backend │                                                      │
-│   └─────────┘  └─────────┘                                                      │
+│   ┌───────────────────┐  ┌─────────────┐                                        │
+│   │ microsoft-foundry │  │cloudflare-workers-ai│  ✅ NEW                         │
+│   │ • Models + AppIns │  │ • OTLP      │  • Models + Telemetry                   │
+│   │ • Azure Telemetry │  │ • Token     │  • Single plugin                        │
+│   └─────────┬─────────┘  └──────┬──────┘                                         │
+│             │                   │    CAN'T BE REPLICATED      CAN BE REPLICATED  │
+│             ▼                   ▼    WITH GENERIC OTLP        WITH GENERIC OTLP  │
+│   ┌───────────────────┐  ┌─────────┐                                             │
+│   │  App Insights     │  │  OTLP   │                                             │
+│   └───────────────────┘  │ Backend │                                             │
+│                          └─────────┘                                             │
 │                                                                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
 │   "I'm on AWS and want X-Ray"           → amazon-bedrock plugin                 │
 │   "I'm on GCP and want Cloud Trace"     → google-cloud plugin                  │
-│   "I'm on Azure and want App Insights"  → azure plugin                          │
+│   "I'm on Azure and want App Insights"  → microsoft-foundry plugin              │
 │   "I'm using Firebase"                  → firebase plugin (auto telemetry)     │
 │                                                                                 │
 │   "I want Sentry/Honeycomb/Datadog"     → observability plugin                 │
@@ -251,7 +251,7 @@ This directory contains all official Genkit plugins for Python.
 |--------|---------|----------|
 | **google-cloud** | Cloud Trace, Logging | GCP native, log correlation |
 | **amazon-bedrock** 🌐 | X-Ray | AWS native, SigV4 auth, built into model plugin (community) |
-| **azure** 🌐 | Application Insights | Azure Monitor, trace correlation (community) |
+| **microsoft-foundry** 🌐 | Application Insights | Azure Monitor, trace correlation, built into model plugin (community) |
 | **cloudflare-workers-ai** 🌐 | Any OTLP endpoint | Generic OTLP, Bearer auth, combined with models (community) |
 | **observability** 🌐 | Sentry, Honeycomb, Datadog, Grafana, Axiom | 3rd party presets (community) |
 | **firebase** | Firebase console | Auto-telemetry for Firebase apps |
@@ -328,7 +328,7 @@ All environment variables used by Genkit plugins. Configure these before running
 
 *Can use IAM roles instead.
 
-#### Azure Plugin
+#### Microsoft Foundry Plugin (Azure Telemetry)
 
 | Variable | Required | Description | Documentation |
 |----------|----------|-------------|---------------|

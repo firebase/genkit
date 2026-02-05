@@ -2814,7 +2814,7 @@ This publishes all 23 packages in parallel:
 |------------------|----------|
 | **Core** | `genkit` |
 | **Model Providers** | `genkit-plugin-anthropic`, `genkit-plugin-amazon-bedrock`, `genkit-plugin-cloudflare-workers-ai`, `genkit-plugin-deepseek`, `genkit-plugin-google-genai`, `genkit-plugin-huggingface`, `genkit-plugin-mistral`, `genkit-plugin-microsoft-foundry`, `genkit-plugin-ollama`, `genkit-plugin-vertex-ai`, `genkit-plugin-xai` |
-| **Telemetry** | `genkit-plugin-aws`, `genkit-plugin-azure`, `genkit-plugin-cloudflare-workers-ai`, `genkit-plugin-google-cloud`, `genkit-plugin-observability` |
+| **Telemetry** | `genkit-plugin-aws`, `genkit-plugin-cloudflare-workers-ai`, `genkit-plugin-google-cloud`, `genkit-plugin-observability` (Azure telemetry is included in `genkit-plugin-microsoft-foundry`) |
 | **Data/Retrieval** | `genkit-plugin-dev-local-vectorstore`, `genkit-plugin-evaluators`, `genkit-plugin-firebase` |
 | **Other** | `genkit-plugin-flask`, `genkit-plugin-compat-oai`, `genkit-plugin-mcp` |
 
@@ -2858,7 +2858,7 @@ For the v0.5.0 release specifically:
 
 **New Packages (first publish at v0.5.0):**
 - genkit-plugin-anthropic, genkit-plugin-aws, genkit-plugin-amazon-bedrock
-- genkit-plugin-azure, genkit-plugin-cloudflare-workers-ai
+- genkit-plugin-cloudflare-workers-ai
 - genkit-plugin-deepseek, genkit-plugin-evaluators, genkit-plugin-huggingface
 - genkit-plugin-mcp, genkit-plugin-mistral, genkit-plugin-microsoft-foundry
 - genkit-plugin-observability, genkit-plugin-xai
