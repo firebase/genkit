@@ -1349,6 +1349,26 @@ Use markdown tables whenever presenting structured information such as:
 
 Tables are easier to scan and review than prose or bullet lists.
 
+### Dependency Update PRs
+
+When updating `py/uv.lock` (e.g., via `uv sync` or `uv lock --upgrade`), the PR description
+MUST include a table of all upgraded packages:
+
+| Package | Old Version | New Version |
+|---------|-------------|-------------|
+| anthropic | 0.77.0 | 0.78.0 |
+| ruff | 0.14.14 | 0.15.0 |
+| ... | ... | ... |
+
+To generate this table, use:
+
+```bash
+git diff HEAD~1 HEAD -- py/uv.lock | grep -B10 "^-version = " | grep "^.name = " | sed 's/^.name = "\(.*\)"/\1/' | sort -u
+```
+
+Then cross-reference with the version changes. This helps reviewers quickly assess the
+scope and risk of dependency updates.
+
 ### Architecture Diagrams
 
 For PRs that add new plugins or modify system architecture, include ASCII diagrams:
