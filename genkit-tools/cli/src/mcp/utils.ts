@@ -26,7 +26,7 @@ export interface McpToolOptions {
 }
 
 export const PROJECT_ROOT_DESCRIPTION =
-  'The path to the current project root (a.k.a workspace directory or project directory)';
+  'The path to the current project root (a.k.a workspace directory or project directory); type: string';
 
 export function getCommonSchema(
   explicitProjectRoot: boolean,

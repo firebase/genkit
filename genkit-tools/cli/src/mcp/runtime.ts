@@ -28,11 +28,11 @@ import {
 
 export function defineRuntimeTools(server: McpServer, options: McpToolOptions) {
   const startRuntimeSchema = getCommonSchema(options.explicitProjectRoot, {
-    command: z.string().describe('The command to run'),
+    command: z.string().describe('The command to run; type: string'),
     args: z
       .array(z.string())
       .describe(
-        'The array of string args for the command to run. Eg: `["run", "dev"]`.'
+        'The array of string args for the command to run. Eg: `["run", "dev"]`; type: string[].'
       ),
   });
 

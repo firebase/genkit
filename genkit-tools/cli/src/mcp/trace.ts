@@ -31,7 +31,7 @@ export function defineTraceTools(server: McpServer, options: McpToolOptions) {
     traceId: z
       .string()
       .describe(
-        'trace id (typically returned after running a flow or other actions)'
+        'trace id (typically returned after running a flow or other actions); type: string'
       ),
   });
   server.registerTool(

@@ -75,7 +75,7 @@ export async function defineDocsTool(server: McpServer) {
   const listSchema = {
     language: z
       .enum(['js', 'go', 'python'])
-      .describe('Which language to list docs for (default js).')
+      .describe('Which language to list docs for (default js); type: string.')
       .default('js'),
   };
 
@@ -121,10 +121,12 @@ export async function defineDocsTool(server: McpServer) {
   );
 
   const searchSchema = {
-    query: z.string().describe('Keywords to search for in documentation.'),
+    query: z
+      .string()
+      .describe('Keywords to search for in documentation; type: string.'),
     language: z
       .enum(['js', 'go', 'python'])
-      .describe('Which language to search docs for (default js).')
+      .describe('Which language to search docs for (default js); type: string.')
       .default('js'),
   };
 
@@ -201,7 +203,7 @@ export async function defineDocsTool(server: McpServer) {
     filePaths: z
       .array(z.string())
       .describe(
-        'The `filePaths` of the docs to read. Obtain these exactly from `list_genkit_docs` or `search_genkit_docs` (e.g. "js/overview.md").'
+        'The `filePaths` of the docs to read. Obtain these exactly from `list_genkit_docs` or `search_genkit_docs` (e.g. "js/overview.md"); type: string[].'
       ),
   };
 
