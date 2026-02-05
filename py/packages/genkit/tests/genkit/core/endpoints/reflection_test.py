@@ -95,7 +95,12 @@ async def test_list_actions(asgi_client: AsyncClient, mock_registry: MagicMock) 
             )
         ]
 
+    # Mock resolve_actions_by_kind to return empty dict (no registered actions in this test)
+    async def mock_resolve_actions_by_kind(kind: ActionKind) -> dict:
+        return {}
+
     mock_registry.list_actions = mock_list_actions_async
+    mock_registry.resolve_actions_by_kind = mock_resolve_actions_by_kind
     response = await asgi_client.get('/api/actions')
     assert response.status_code == 200
     result = response.json()

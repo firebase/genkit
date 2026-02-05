@@ -213,11 +213,26 @@
   - [ ] Go
     - [ ] https://github.com/jumonapp/picoschema
 ** Release management
-- [ ] Semantic Versioning and tagging
-- [ ] PyPi project for dotprompt https://pypi.org/project/dotprompt/
-  - [ ] Acquire from current owner
-- [ ] PyPi project for genkit https://pypi.org/project/genkit/
-  - [ ] Acquire from current owner
+- [X] Semantic Versioning and tagging
+- [X] PyPi project for dotprompt https://pypi.org/project/dotprompt/
+- [X] PyPi project for genkit https://pypi.org/project/genkit/
+- [X] Version consistency check script (bin/check_versions)
+- [X] Dynamic plugin matrix for publish workflow
+- [X] Post-publish verification job
+- [X] Shell script linting (shellcheck)
+
+** API Documentation [0/4]
+- [X] MkDocs configuration with Material theme
+- [X] mkdocstrings for all 22 plugins (mkdocs.yml)
+- [ ] Docs publish workflow (deploy to GitHub Pages on release)
+  - [ ] Create publish_docs.yml workflow
+  - [ ] Configure GitHub Pages source
+  - [ ] Add version selector for multiple SDK versions
+  - [ ] Add search functionality
+- [ ] API reference pages for each plugin
+  - [ ] Auto-generate from docstrings
+  - [ ] Add usage examples
+  - [ ] Add configuration reference
 
 ** Integration Tests [/]
   - [ ] Go

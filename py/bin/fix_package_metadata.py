@@ -36,11 +36,10 @@ BASE_KEYWORDS = [
 # Plugin-specific keywords
 PLUGIN_KEYWORDS = {
     'anthropic': ['anthropic', 'claude'],
-    'aws-bedrock': ['aws', 'bedrock', 'amazon'],
+    'amazon-bedrock': ['aws', 'bedrock', 'amazon'],
     'aws': ['aws', 'amazon', 'xray', 'telemetry'],
     'azure': ['azure', 'microsoft', 'application-insights', 'telemetry'],
-    'cf-ai': ['cloudflare', 'workers-ai'],
-    'cf': ['cloudflare', 'otlp', 'telemetry'],
+    'cloudflare-workers-ai': ['cloudflare', 'workers-ai', 'otlp', 'telemetry'],
     'compat-oai': ['openai', 'openai-compatible'],
     'deepseek': ['deepseek'],
     'dev-local-vectorstore': ['vector-store', 'embeddings', 'local'],

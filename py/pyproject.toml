@@ -20,7 +20,7 @@ dependencies = [
   "dotpromptz==0.1.5",
   "genkit",
   "genkit-plugin-anthropic",
-  "genkit-plugin-cf-ai",
+  "genkit-plugin-cloudflare-workers-ai",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
@@ -34,10 +34,9 @@ dependencies = [
   "genkit-plugin-xai",
   "genkit-plugin-mcp",
   "genkit-plugin-msfoundry",
-  "genkit-plugin-aws-bedrock",
-  "genkit-plugin-aws",
+  "genkit-plugin-amazon-bedrock",
   "genkit-plugin-azure",
-  "genkit-plugin-cf",
+
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
@@ -105,8 +104,10 @@ addopts = [
   #"--cov-report=", # Disable terminal report generation by pytest-cov
   "-ra",
   "-vv",
+  "--ignore=testapps",
 ]
 asyncio_default_fixture_loop_scope = "session"
+norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
 testpaths = ["packages", "plugins", "samples", "tests"]
 #asyncio_mode = "auto"
@@ -132,11 +133,13 @@ default-groups = ["dev", "lint"]
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
 anthropic-hello                   = { workspace = true }
-aws-bedrock-hello                 = { workspace = true }
 aws-hello                         = { workspace = true }
 azure-hello                       = { workspace = true }
 cf-ai-hello                       = { workspace = true }
 cf-hello                          = { workspace = true }
+amazon-bedrock-hello              = { workspace = true }
+anthropic-hello                   = { workspace = true }
+cloudflare-workers-ai-hello       = { workspace = true }
 compat-oai-hello                  = { workspace = true }
 deepseek-hello                    = { workspace = true }
 dev-local-vectorstore-hello       = { workspace = true }
@@ -170,12 +173,10 @@ xai-hello                         = { workspace = true }
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
+genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
-genkit-plugin-aws                   = { workspace = true }
-genkit-plugin-aws-bedrock           = { workspace = true }
 genkit-plugin-azure                 = { workspace = true }
-genkit-plugin-cf                    = { workspace = true }
-genkit-plugin-cf-ai                 = { workspace = true }
+genkit-plugin-cloudflare-workers-ai = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -194,7 +195,7 @@ genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 
 [tool.uv.workspace]
-exclude = ["*/shared"]
+exclude = ["*/shared", "testapps/*"]
 members = ["packages/*", "plugins/*", "samples/*"]
 
 
@@ -378,11 +379,9 @@ root = [
   "packages/genkit/src",
   # Plugins
   "plugins/anthropic/src",
-  "plugins/aws/src",
-  "plugins/aws-bedrock/src",
+  "plugins/amazon-bedrock/src",
   "plugins/azure/src",
-  "plugins/cf/src",
-  "plugins/cf-ai/src",
+  "plugins/cloudflare-workers-ai/src",
   "plugins/compat-oai/src",
   "plugins/deepseek/src",
   "plugins/dev-local-vectorstore/src",
@@ -450,6 +449,7 @@ project_excludes = [
   ".venv",
   "build",
   "dist",
+  "testapps",
 ]
 project_includes = [
   # Core package (source and tests)

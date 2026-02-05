@@ -39,7 +39,7 @@ prioritize implementation efforts.
 
 ### Feature Comparison
 
-| Feature | aws-bedrock ❶ | google-genai ❶ | msfoundry ❶ | cloudflare-ai ❷ |
+| Feature | amazon-bedrock ❶ | google-genai ❶ | msfoundry ❶ | cloudflare-ai ❷ |
 |---------|---------------|----------------|-------------|-----------------|
 | **Text Generation** | ✅ | ✅ | ✅ | ✅ |
 | **Streaming (SSE)** | ✅ | ✅ | ✅ | ✅ |
@@ -69,7 +69,7 @@ prioritize implementation efforts.
 
 | Plugin | API Type | Auth | SDK | Complexity |
 |--------|----------|------|-----|------------|
-| **aws-bedrock** ❶ | Converse API | IAM/Keys | boto3 | Medium |
+| **amazon-bedrock** ❶ | Converse API | IAM/Keys | boto3 | Medium |
 | **google-genai** ❶ | REST/gRPC | API Key/ADC | google-genai | Medium |
 | **msfoundry** ❶ | OpenAI-compat | API Key | openai | Low |
 | **cloudflare-ai** ❷ | REST | API Token | httpx | Low-Medium |

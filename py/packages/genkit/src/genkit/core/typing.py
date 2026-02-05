@@ -180,6 +180,8 @@ class GenerateActionOutputConfig(BaseModel):
     instructions: bool | str | None = None
     json_schema: Any | None = Field(default=None)
     constrained: bool | None = None
+    # Store the original Pydantic type for runtime validation (excluded from JSON)
+    schema_type: Any = Field(default=None, exclude=True)
 
 
 class GenerationCommonConfig(BaseModel):
@@ -285,8 +287,9 @@ class OutputConfig(BaseModel):
         alias_generator=to_camel, extra='forbid', populate_by_name=True, protected_namespaces=()
     )
     format: str | None = None
-    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field
-    schema: dict[str, Any] | None = Field(default=None)
+    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field.
+    # 'schema' shadows BaseModel.schema() but protected_namespaces=() explicitly allows this.
+    schema: dict[str, Any] | None = Field(default=None)  # pyright: ignore[reportIncompatibleMethodOverride]
     constrained: bool | None = None
     content_type: str | None = Field(default=None)
 

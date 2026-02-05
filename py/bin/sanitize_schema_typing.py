@@ -374,6 +374,11 @@ class ClassTransformer(ast.NodeTransformer):
         if node.name == 'GenerateActionOptions':
             self._inject_resources_field(new_body)
 
+        # PYTHON EXTENSION: Add schema_type field to GenerateActionOutputConfig
+        # This stores the original Pydantic type for runtime validation
+        if node.name == 'GenerateActionOutputConfig':
+            self._inject_schema_type_field(new_body)
+
         node.body = cast(list[ast.stmt], new_body)
         return node
 
@@ -418,6 +423,50 @@ class ClassTransformer(ast.NodeTransformer):
         body.insert(tools_index + 1, resources_field)
         self.modified = True
 
+    def _inject_schema_type_field(self, body: list[ast.stmt | ast.Constant | ast.Assign]) -> None:
+        """Inject schema_type field at the end of GenerateActionOutputConfig.
+
+        This adds the schema_type field to store the original Pydantic type for
+        runtime validation. The field is excluded from JSON serialization.
+        This is a Python-specific extension that enables typed outputs.
+        """
+        # Check if schema_type field already exists
+        for stmt in body:
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'schema_type':
+                    return  # Already exists, don't add again
+
+        # Find the constrained field to insert after it
+        constrained_index = -1
+        for i, stmt in enumerate(body):
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                if stmt.target.id == 'constrained':
+                    constrained_index = i
+                    break
+
+        # Create the schema_type field: schema_type: Any = Field(default=None, exclude=True)
+        # Using Any to avoid JSON schema issues with `type`
+        schema_type_field = ast.AnnAssign(
+            target=ast.Name(id='schema_type', ctx=ast.Store()),
+            annotation=ast.Name(id='Any', ctx=ast.Load()),
+            value=ast.Call(
+                func=ast.Name(id='Field', ctx=ast.Load()),
+                args=[],
+                keywords=[
+                    ast.keyword(arg='default', value=ast.Constant(value=None)),
+                    ast.keyword(arg='exclude', value=ast.Constant(value=True)),
+                ],
+            ),
+            simple=1,
+        )
+
+        # Insert after constrained field, or at end if not found
+        if constrained_index != -1:
+            body.insert(constrained_index + 1, schema_type_field)
+        else:
+            body.append(schema_type_field)
+        self.modified = True
+
 
 def fix_field_defaults(content: str) -> str:
     """Fix Field(None) and Field(None, ...) to use default=None for pyright compatibility.
@@ -433,16 +482,34 @@ def fix_field_defaults(content: str) -> str:
 
 
 def add_schema_field_suppression(content: str) -> str:
-    """Add pyrefly suppression comment for 'schema' fields.
+    """Add pyrefly and pyright suppression comments for 'schema' fields.
 
     The 'schema' field name shadows a method in Pydantic's BaseModel.
-    While protected_namespaces=() allows this in Pydantic, pyrefly still
-    reports it as a bad-override. We add a suppression comment.
+    While protected_namespaces=() allows this in Pydantic, both pyrefly and
+    pyright report it as a bad-override/incompatible method override.
+    We add suppression comments for both.
     """
-    # Find lines that define a 'schema' field and add the suppression comment
+    # Find lines that define a 'schema' field and add the suppression comments
     # Pattern: "    schema: ... = Field(...)"
-    pattern = r'^(    schema: .+= Field\(.+\))$'
-    replacement = r'    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field\n\1'
+    # Add pyrefly comment above and pyright inline comment
+    pattern = r'^(    schema: .+= Field\(.+)\)$'
+    replacement = (
+        r'    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field.\n'
+        r"    # 'schema' shadows BaseModel.schema() but protected_namespaces=() explicitly allows this.\n"
+        r'\1)  # pyright: ignore[reportIncompatibleMethodOverride]'
+    )
+    content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+    return content
+
+
+def add_schema_type_comment(content: str) -> str:
+    """Add explanatory comment for schema_type field in GenerateActionOutputConfig.
+
+    The schema_type field stores the original Pydantic type for runtime validation.
+    """
+    # Find the schema_type field line and add a comment before it
+    pattern = r'^(    schema_type: Any = Field\(default=None, exclude=True\))$'
+    replacement = r'    # Store the original Pydantic type for runtime validation (excluded from JSON)\n\1'
     content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
     return content
 
@@ -535,6 +602,9 @@ def process_file(filename: str) -> None:
 
         # Add pyrefly suppression for 'schema' fields that shadow BaseModel.schema
         modified_source_no_header = add_schema_field_suppression(modified_source_no_header)
+
+        # Add explanatory comment for schema_type field
+        modified_source_no_header = add_schema_type_comment(modified_source_no_header)
 
         # Add header and specific imports correctly
         final_source = add_header(modified_source_no_header)
