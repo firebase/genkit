@@ -102,12 +102,6 @@ Caveats:
     - Cache TTL balances freshness with performance - choose wisely
     - Actions from DAPs have the DAP name prefixed for identification
 
-Version Parity:
-    This implementation is aligned with JS PR #4050 (2026-02-05):
-    - DAP action takes no input, returns list[ActionMetadata]
-    - Cache uses set_dap/set_value pattern
-    - transform_dap_value returns flat list
-
 See Also:
     - MCP Plugin: genkit.plugins.mcp for Model Context Protocol integration
     - JS Implementation: js/core/src/dynamic-action-provider.ts
