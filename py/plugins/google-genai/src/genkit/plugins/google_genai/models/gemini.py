@@ -1405,7 +1405,7 @@ class GeminiModel:
 
         return GenerateResponse(
             message=Message(
-                content=content,  # type: ignore[arg-type]
+                content=content,  # type: ignore[arg-type] - content is list[Part] after conversion
                 role=Role.MODEL,
             )
         )
@@ -1477,7 +1477,7 @@ class GeminiModel:
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
-                content=accumulated_content,  # type: ignore[arg-type]
+                content=accumulated_content,
             )
         )
 
