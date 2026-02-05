@@ -141,15 +141,15 @@ Data Flow::
 Example::
 
     from genkit.ai import Genkit
-    from genkit.plugins.azure import AzureTelemetry
-    from genkit.plugins.msfoundry import MSFoundry
+    from genkit.plugins.microsoft_foundry import AzureTelemetry
+    from genkit.plugins.microsoft_foundry import MicrosoftFoundry
     
     # Initialize Azure telemetry
     AzureTelemetry().initialize()
     
     ai = Genkit(
-        plugins=[MSFoundry()],
-        model='msfoundry/gpt-4o',
+        plugins=[MicrosoftFoundry()],
+        model='microsoft-foundry/gpt-4o',
     )
 """
 
@@ -269,11 +269,11 @@ class AzureTelemetry:
 ### Directory Structure
 
 ```
-py/plugins/azure/
+py/plugins/microsoft-foundry/
 ├── pyproject.toml
 ├── README.md
 ├── LICENSE
-├── src/genkit/plugins/azure/
+├── src/genkit/plugins/microsoft-foundry/
 │   ├── __init__.py              # Plugin entry, ELI5 docs, exports
 │   ├── telemetry/
 │   │   ├── __init__.py
@@ -362,7 +362,7 @@ Visual diagram of:
 ## Sample Application
 
 ```python
-# py/samples/azure-hello/src/main.py
+# py/samples/microsoft-foundry-hello/src/main.py
 """Azure telemetry hello sample - Monitor Genkit with Application Insights.
 
 Key Concepts (ELI5)::
@@ -382,18 +382,18 @@ Key Concepts (ELI5)::
 """
 
 from genkit.ai import Genkit
-from genkit.plugins.azure import AzureTelemetry
-from genkit.plugins.msfoundry import MSFoundry
+from genkit.plugins.microsoft_foundry import AzureTelemetry
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry
 
 # Initialize Azure telemetry FIRST
 AzureTelemetry(
-    service_name="azure-hello-sample",
+    service_name="microsoft-foundry-hello-sample",
     enable_live_metrics=True,
 ).initialize()
 
 ai = Genkit(
-    plugins=[MSFoundry()],
-    model='msfoundry/gpt-4o',
+    plugins=[MicrosoftFoundry()],
+    model='microsoft-foundry/gpt-4o',
 )
 
 @ai.flow()
@@ -426,9 +426,9 @@ async def say_hi(name: str) -> str:
 
 ### Phase 2: Sample & Docs (2-3 days)
 
-1. `azure-hello` sample application
+1. `microsoft-foundry-hello` sample application
 2. README with setup instructions
-3. Integration with `msfoundry` plugin
+3. Integration with `microsoft-foundry` plugin
 
 ### Phase 3: Advanced Features (Optional)
 

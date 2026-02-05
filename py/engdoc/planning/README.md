@@ -84,7 +84,7 @@ This directory contains detailed implementation plans for proposed Genkit plugin
 
 All plugins should follow these patterns from existing implementations:
 
-### Model Plugins (like `amazon-bedrock`, `msfoundry`)
+### Model Plugins (like `amazon-bedrock`, `microsoft-foundry`)
 ```
 plugins/{name}/
 ├── src/genkit/plugins/{name}/

@@ -51,7 +51,7 @@ PLUGIN_KEYWORDS = {
     'huggingface': ['huggingface', 'transformers', 'inference-api'],
     'mcp': ['mcp', 'model-context-protocol'],
     'mistral': ['mistral', 'mistral-ai'],
-    'msfoundry': ['azure', 'microsoft', 'azure-openai', 'foundry'],
+    'microsoft-foundry': ['azure', 'microsoft', 'azure-openai', 'foundry'],
     'observability': ['observability', 'telemetry', 'sentry', 'honeycomb', 'datadog'],
     'ollama': ['ollama', 'local', 'self-hosted'],
     'vertex-ai': ['google', 'vertex-ai', 'model-garden'],

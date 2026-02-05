@@ -48,14 +48,13 @@ cd py && ./bin/validate_release_docs  # Release doc validation
 - genkit-plugin-anthropic
 - genkit-plugin-aws
 - genkit-plugin-amazon-bedrock
-- genkit-plugin-azure
 - genkit-plugin-cloudflare-workers-ai
 - genkit-plugin-deepseek
 - genkit-plugin-evaluators
 - genkit-plugin-huggingface
 - genkit-plugin-mcp
 - genkit-plugin-mistral
-- genkit-plugin-msfoundry
+- genkit-plugin-microsoft-foundry
 - genkit-plugin-observability
 - genkit-plugin-xai
 
@@ -191,7 +190,6 @@ gh workflow run publish_python.yml \
 | `anthropic` | genkit-plugin-anthropic |
 | `aws` | genkit-plugin-aws |
 | `amazon-bedrock` | genkit-plugin-amazon-bedrock |
-| `azure` | genkit-plugin-azure |
 | `cloudflare-workers-ai` | genkit-plugin-cloudflare-workers-ai |
 | `compat-oai` | genkit-plugin-compat-oai |
 | `deepseek` | genkit-plugin-deepseek |
@@ -204,7 +202,7 @@ gh workflow run publish_python.yml \
 | `huggingface` | genkit-plugin-huggingface |
 | `mcp` | genkit-plugin-mcp |
 | `mistral` | genkit-plugin-mistral |
-| `msfoundry` | genkit-plugin-msfoundry |
+| `microsoft-foundry` | genkit-plugin-microsoft-foundry |
 | `observability` | genkit-plugin-observability |
 | `ollama` | genkit-plugin-ollama |
 | `vertex-ai` | genkit-plugin-vertex-ai |
@@ -255,12 +253,12 @@ pip install genkit-plugin-deepseek        # DeepSeek
 pip install genkit-plugin-xai             # xAI (Grok)
 pip install genkit-plugin-huggingface     # Hugging Face
 pip install genkit-plugin-cloudflare-workers-ai  # Cloudflare Workers AI + OTLP telemetry
-pip install genkit-plugin-msfoundry       # Azure AI Foundry
+pip install genkit-plugin-microsoft-foundry       # Azure AI Foundry + Azure Application Insights telemetry
 
 # Telemetry
 pip install genkit-plugin-google-cloud    # GCP Cloud Trace
 pip install genkit-plugin-aws             # AWS X-Ray
-pip install genkit-plugin-azure           # Azure Application Insights
+# Azure telemetry is included in genkit-plugin-microsoft-foundry
 pip install genkit-plugin-observability   # Sentry, Honeycomb, Datadog
 
 # Other

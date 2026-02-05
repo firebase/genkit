@@ -79,7 +79,7 @@ class EvalStatusEnum(StrEnum):
 class Details(BaseModel):
     """Model for details data."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     reasoning: str | None = None
 
 
@@ -264,7 +264,7 @@ class ModelInfo(BaseModel):
 class Error(BaseModel):
     """Model for error data."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     message: str
 
 
@@ -363,7 +363,7 @@ class CommonRerankerOptions(BaseModel):
 class RankedDocumentMetadata(BaseModel):
     """Model for rankeddocumentmetadata data."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     score: float
 
 
