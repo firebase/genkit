@@ -46,7 +46,7 @@ if command -v gum &> /dev/null; then
 elif [[ -f "$HOME/go/bin/gum" ]]; then
     GUM_CMD="$HOME/go/bin/gum"
 elif command -v go &> /dev/null; then
-    read -p "gum not found. Would you like to install it using 'go install github.com/charmbracelet/gum@latest'? (y/N): " -n 1 -r
+    read -rp "gum not found. Would you like to install it using 'go install github.com/charmbracelet/gum@latest'? (y/N): " -n 1 REPLY
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Installing gum..."
@@ -61,7 +61,7 @@ FZF_CMD=""
 if command -v fzf &> /dev/null; then
     FZF_CMD="fzf"
 else
-    read -p "fzf not found. Would you like to install it for a better experience (includes preview)? (y/N): " -n 1 -r
+    read -rp "fzf not found. Would you like to install it for a better experience (includes preview)? (y/N): " -n 1 REPLY
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         if command -v brew &> /dev/null; then
@@ -138,7 +138,7 @@ if [[ $# -lt 1 ]]; then
         echo ""
         # Ignore SIGINT during the read prompt so user can't accidental exit the menu loop
         trap '' SIGINT
-        read -p "Press Enter to continue..." || true
+        read -rp "Press Enter to continue..." || true
         trap - SIGINT
     done
 else

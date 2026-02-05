@@ -372,6 +372,103 @@
   * All dependencies in this codebase are mandatory
   * Standard library imports are negligible cost
 
+
+## Shell Scripts Reference
+
+The repository provides shell scripts in two locations: `bin/` for repository-wide
+tools and `py/bin/` for Python-specific tools.
+
+### Repository-Wide Scripts (`bin/`)
+
+Development workflow scripts at the repository root:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Development Workflow                                 │
+│                                                                             │
+│   Developer                                                                 │
+│      │                                                                      │
+│      ├──► bin/setup ──────► Install all tools (Go, Node, Python, Rust)     │
+│      │                                                                      │
+│      ├──► bin/fmt ────────► Format code (TOML, Python, Go, TypeScript)     │
+│      │         │                                                            │
+│      │         ├──► bin/add_license ───► Add Apache 2.0 headers            │
+│      │         └──► bin/format_toml_files ► Format pyproject.toml          │
+│      │                                                                      │
+│      ├──► bin/lint ───────► Run all linters and type checkers              │
+│      │         │                                                            │
+│      │         └──► bin/check_license ──► Verify license headers           │
+│      │                                                                      │
+│      └──► bin/killports ──► Kill processes on specific ports               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `bin/setup` | Install all development tools and dependencies | `./bin/setup -a eng` (full) or `./bin/setup -a ci` (CI) |
+| `bin/fmt` | Format all code (TOML, Python, Go, TS) | `./bin/fmt` |
+| `bin/lint` | Run all linters and type checkers | `./bin/lint` (from repo root) |
+| `bin/add_license` | Add Apache 2.0 license headers to files | `./bin/add_license` |
+| `bin/check_license` | Verify license headers and compliance | `./bin/check_license` |
+| `bin/format_toml_files` | Format all pyproject.toml files | `./bin/format_toml_files` |
+| `bin/golang` | Run commands with specific Go version | `./bin/golang 1.22 test ./...` |
+| `bin/run_go_tests` | Run Go tests | `./bin/run_go_tests` |
+| `bin/killports` | Kill processes on TCP ports | `./bin/killports 3100..3105 8080` |
+| `bin/update_deps` | Update all dependencies | `./bin/update_deps` |
+| `bin/install_cli` | Install Genkit CLI binary | `curl -sL cli.genkit.dev \| bash` |
+
+### Python Scripts (`py/bin/`)
+
+Python-specific development and release scripts:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Python Development                                  │
+│                                                                             │
+│   Developer                                                                 │
+│      │                                                                      │
+│      ├──► py/bin/run_sample ────────► Interactive sample runner            │
+│      │                                                                      │
+│      ├──► py/bin/run_python_tests ──► Run tests (all Python versions)      │
+│      │                                                                      │
+│      └──► py/bin/check_consistency ─► Workspace consistency checks         │
+│                                                                             │
+│   Release Manager                                                           │
+│      │                                                                      │
+│      ├──► py/bin/bump_version ──────► Bump version in all packages         │
+│      │                                                                      │
+│      ├──► py/bin/release_check ─────► Pre-release validation               │
+│      │                                                                      │
+│      ├──► py/bin/build_dists ───────► Build wheel/sdist packages           │
+│      │                                                                      │
+│      ├──► py/bin/create_release ────► Create GitHub release                │
+│      │                                                                      │
+│      └──► py/bin/publish_pypi.sh ───► Publish to PyPI                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| **Development** | | |
+| `py/bin/run_sample` | Interactive sample runner with fzf/gum | `py/bin/run_sample [sample-name]` |
+| `py/bin/test_sample_flows` | Test flows in a sample | `py/bin/test_sample_flows [sample-name]` |
+| `py/bin/run_python_tests` | Run tests across Python versions | `py/bin/run_python_tests` |
+| `py/bin/watch_python_tests` | Watch mode for tests | `py/bin/watch_python_tests` |
+| `py/bin/check_consistency` | Workspace consistency checks | `py/bin/check_consistency` |
+| `py/bin/check_versions` | Check version consistency | `py/bin/check_versions` |
+| `py/bin/cleanup` | Clean build artifacts | `py/bin/cleanup` |
+| **Code Generation** | | |
+| `py/bin/generate_schema_typing` | Generate typing.py from JSON schema | `py/bin/generate_schema_typing` |
+| **Release** | | |
+| `py/bin/bump_version` | Bump version in all packages | `py/bin/bump_version 0.6.0` |
+| `py/bin/release_check` | Pre-release validation suite | `py/bin/release_check` |
+| `py/bin/validate_release_docs` | Validate release documentation | `py/bin/validate_release_docs` |
+| `py/bin/build_dists` | Build wheel and sdist packages | `py/bin/build_dists` |
+| `py/bin/create_release` | Create GitHub release | `py/bin/create_release` |
+| `py/bin/publish_pypi.sh` | Publish to PyPI | `py/bin/publish_pypi.sh` |
+| **Security** | | |
+| `py/bin/run_python_security_checks` | Run security scanners | `py/bin/run_python_security_checks` |
+
 ## Generated Files & Data Model
 
 * **Do Not Edit typing.py**: `py/packages/genkit/src/genkit/core/typing.py`

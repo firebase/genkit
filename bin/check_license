@@ -33,11 +33,12 @@ if ! command -v addlicense &>/dev/null; then
   go install github.com/google/addlicense@latest
 fi
 
-export PATH=$(go env GOPATH):$PATH
+GOPATH="$(go env GOPATH)"
+export PATH="${GOPATH}:${PATH}"
 
 # NOTE: If you edit the ignore patterns, make sure to update the ignore patterns
 # in the corresponding add_license script.
-$HOME/go/bin/addlicense \
+"$HOME"/go/bin/addlicense \
   -check \
   -c "Google LLC" \
   -s \
