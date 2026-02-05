@@ -182,6 +182,7 @@ Available Flows
 
 import asyncio
 import random
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -425,8 +426,6 @@ async def multi_assistant(input: MultiInput) -> str:
     get_weather = next((t for t in all_tools if t.name == 'get_weather'), None)
     if get_weather and 'weather' in input.query.lower():
         # Extract city name (simple heuristic - use first capitalized word after 'in')
-        import re
-
         match = re.search(r'\bin\s+(\w+)', input.query, re.IGNORECASE)
         city = match.group(1) if match else 'London'
         result = await get_weather.arun(city)
