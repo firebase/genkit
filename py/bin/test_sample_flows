@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,6 +33,22 @@ list_samples() {
             basename "$dir"
         fi
     done | sort
+}
+
+# Open results file with appropriate viewer
+open_results() {
+    local file_to_open="$1"
+    echo "Opening results file..."
+    if command -v open &> /dev/null; then
+        # macOS
+        open "$file_to_open"
+    elif command -v xdg-open &> /dev/null; then
+        # Linux
+        xdg-open "$file_to_open"
+    else
+        # Fallback: display with less
+        less "$file_to_open"
+    fi
 }
 
 # Check if gum is available
@@ -102,7 +118,7 @@ if [[ $# -lt 1 ]]; then
         # Run the flow testing tool
         cd "$PY_DIR"
         # Don't trap SIGINT here - allow user to interrupt
-        if uv run review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
+        if uv run samples/sample-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
             TEST_SUCCESS=true
         else
             TEST_SUCCESS=false
@@ -119,17 +135,7 @@ if [[ $# -lt 1 ]]; then
         
         # Open the results file only if testing completed successfully
         if [[ "$TEST_SUCCESS" == "true" ]] && [[ -f "$OUTPUT_FILE" ]]; then
-            echo "Opening results file..."
-            if command -v open &> /dev/null; then
-                # macOS
-                open "$OUTPUT_FILE"
-            elif command -v xdg-open &> /dev/null; then
-                # Linux
-                xdg-open "$OUTPUT_FILE"
-            else
-                # Fallback: display with less
-                less "$OUTPUT_FILE"
-            fi
+            open_results "$OUTPUT_FILE"
         fi
         
         echo ""
@@ -164,22 +170,12 @@ else
     # Run the flow testing tool
     cd "$PY_DIR"
     # Allow Ctrl+C to interrupt
-    if uv run review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
+    if uv run samples/sample-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
         # Open the results file only on successful completion
         if [[ -f "$OUTPUT_FILE" ]]; then
             echo ""
             echo "Results saved to: $OUTPUT_FILE"
-            echo "Opening results file..."
-            if command -v open &> /dev/null; then
-                # macOS
-                open "$OUTPUT_FILE"
-            elif command -v xdg-open &> /dev/null; then
-                # Linux
-                xdg-open "$OUTPUT_FILE"
-            else
-                # Fallback: display with less
-                less "$OUTPUT_FILE"
-            fi
+            open_results "$OUTPUT_FILE"
         fi
     else
         echo ""

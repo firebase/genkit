@@ -196,7 +196,7 @@ genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 
 [tool.uv.workspace]
-exclude = ["*/shared", "testapps/*"]
+exclude = ["*/shared", "samples/sample-test", "testapps/*"]
 members = ["packages/*", "plugins/*", "samples/*"]
 
 
