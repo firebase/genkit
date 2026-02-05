@@ -470,7 +470,7 @@ search-path = [
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime
-ignore-missing-imports = ["genkit.plugins.*"]
+ignore-missing-imports = ["genkit.plugins.*", "litestar", "litestar.*"]
 python_version         = "3.10"
 
 # Treat warnings as errors.
